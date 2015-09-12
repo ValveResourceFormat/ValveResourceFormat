@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace ValveResourceFormat
 {
@@ -8,18 +10,20 @@ namespace ValveResourceFormat
     /// </summary>
     public class Resource
     {
+        private BinaryReader Reader;
+
         /// <summary>
         /// Resource name.
         /// </summary>
-        public string Name { get; set; }
+        public string Name { get; private set; }
 
         /// <summary>
         /// Resource size.
         /// </summary>
-        public uint FileSize { get; set; }
+        public uint FileSize { get; private set; }
 
-        public uint Unknown1 { get; set; }
-        public uint Unknown2 { get; set; } // Always appears to be 8
+        public uint Unknown1 { get; private set; }
+        public uint Unknown2 { get; private set; } // Always appears to be 8
 
         /// <summary>
         /// A list of blocks this resource has.
@@ -32,6 +36,65 @@ namespace ValveResourceFormat
         public Resource()
         {
             Blocks = new List<Block>();
+        }
+
+        /// <summary>
+        /// Releases binary reader.
+        /// </summary>
+        ~Resource()
+        {
+            if (Reader != null)
+            {
+                Reader.Dispose();
+
+                Reader = null;
+            }
+        }
+
+        /// <summary>
+        /// Reads the given <see cref="Stream"/>.
+        /// </summary>
+        /// <param name="input">The input <see cref="Stream"/> to read from.</param>
+        public void Read(Stream input)
+        {
+            Reader = new BinaryReader(input);
+
+            FileSize = Reader.ReadUInt32();
+
+            // TODO: Some real files seem to have different file size
+            if (FileSize != Reader.BaseStream.Length)
+            {
+                //throw new Exception(string.Format("File size does not match size specified in file. {0} != {1}", FileSize, Reader.BaseStream.Length));
+            }
+
+            Unknown1 = Reader.ReadUInt32();
+            Unknown2 = Reader.ReadUInt32();
+
+            var blockCount = Reader.ReadUInt32();
+
+            while (blockCount-- > 0)
+            {
+                var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
+
+                var block = Block.ConstructFromType(blockType);
+
+                block.Offset = Reader.ReadUInt32();
+                block.Size = Reader.ReadUInt32();
+
+                Blocks.Add(block);
+            }
+        }
+
+        /// <summary>
+        /// Opens and reads the given filename.
+        /// </summary>
+        /// <param name="filename">The file to open and read.</param>
+        public void Read(string filename)
+        {
+            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            {
+                Read(fs);
+            }
         }
     }
 }

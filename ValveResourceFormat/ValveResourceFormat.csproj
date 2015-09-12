@@ -35,7 +35,7 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Block.cs" />
-    <Compile Include="Blocks\Data.cs" />
+    <Compile Include="Blocks\ResourceData.cs" />
     <Compile Include="Blocks\ResourceIntrospectionManifest.cs" />
     <Compile Include="Blocks\ResourceExtRefList.cs" />
     <Compile Include="Blocks\ResourceEditInfo.cs" />

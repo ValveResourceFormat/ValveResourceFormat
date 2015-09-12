@@ -3,10 +3,10 @@
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
-    /// Data!
+    /// Resource data.
     /// </summary>
-    class Data : Block
+    class ResourceData : Block
     {
-        public byte[] Content { get; set; }
+        
     }
 }

@@ -29,7 +29,7 @@ namespace ValveResourceFormat
             switch (input)
             {
                 case "DATA":
-                    return new Blocks.Data();
+                    return new Blocks.ResourceData();
 
                 case "REDI":
                     return new Blocks.ResourceEditInfo();
