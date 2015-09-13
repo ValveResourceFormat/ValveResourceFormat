@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Blocks
         {
             reader.BaseStream.Position = this.Offset;
 
-            reader.ReadUInt32(); // always 8??
+            reader.ReadUInt32(); // TODO: always 8??
 
             var size = reader.ReadUInt32();
 
