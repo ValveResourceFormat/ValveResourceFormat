@@ -45,10 +45,22 @@
     <Compile Include="ResourceType.cs" />
     <Compile Include="ResourceTypes\MDL.cs" />
     <Compile Include="ResourceTypes\Panorama.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\InputDependencies.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\REDIBlock.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\AdditionalInputDependencies.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\ArgumentDependencies.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\SpecialDependencies.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\CustomDependencies.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\AdditionalRelatedFiles.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\ChildResourceList.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\ExtraIntData.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
+    <Compile Include="Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Blocks\" />
     <Folder Include="ResourceTypes\" />
+    <Folder Include="Blocks\ResourceEditInfoStructs\" />
   </ItemGroup>
 </Project>

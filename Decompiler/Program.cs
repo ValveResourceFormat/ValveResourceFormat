@@ -99,13 +99,25 @@ namespace Decompiler
 
                             break;
 
+                        case BlockType.REDI:
+                            Console.WriteLine("--- ResourceEditInfoBlock_t ---");
+
+                            foreach (var res in ((ValveResourceFormat.Blocks.ResourceEditInfo)block.Value).Structs)
+                            {
+                                Console.WriteLine(res);
+                            }
+
+                            break;
+
                         default:
                             Console.WriteLine("Don't know how to handle {0}", block.Key);
                             break;
                     }
+
+                    Console.WriteLine();
                 }
 
-                Console.Write(Environment.NewLine + Environment.NewLine);
+                Console.WriteLine();
             }
         }
 
