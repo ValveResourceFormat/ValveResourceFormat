@@ -40,9 +40,14 @@
     <Compile Include="Blocks\ResourceExtRefList.cs" />
     <Compile Include="Blocks\ResourceEditInfo.cs" />
     <Compile Include="Resource.cs" />
+    <Compile Include="StreamHelpers.cs" />
+    <Compile Include="BlockType.cs" />
+    <Compile Include="ResourceType.cs" />
+    <Compile Include="ResourceTypes\MDL.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Blocks\" />
+    <Folder Include="ResourceTypes\" />
   </ItemGroup>
 </Project>

@@ -28,14 +28,21 @@ namespace ValveResourceFormat
         /// <summary>
         /// A list of blocks this resource has.
         /// </summary>
-        public readonly List<Block> Blocks;
+        public readonly Dictionary<BlockType, Block> Blocks;
+
+        /// <summary>
+        /// Gets or sets the type of the resource.
+        /// Set this type before calling <see cref="Read"/>.
+        /// </summary>
+        /// <value>The type of the resource.</value>
+        public ResourceType ResourceType { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Resource"/> class.
         /// </summary>
         public Resource()
         {
-            Blocks = new List<Block>();
+            Blocks = new Dictionary<BlockType, Block>();
         }
 
         /// <summary>
@@ -75,13 +82,18 @@ namespace ValveResourceFormat
             while (blockCount-- > 0)
             {
                 var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
-
                 var block = Block.ConstructFromType(blockType);
 
-                block.Offset = Reader.ReadUInt32();
+                // Offset is relative to current position
+                block.Offset = (uint)Reader.BaseStream.Position + Reader.ReadUInt32();
                 block.Size = Reader.ReadUInt32();
 
-                Blocks.Add(block);
+                Blocks.Add(block.GetChar(), block);
+            }
+
+            foreach (var block in Blocks.Values)
+            {
+                block.Read(Reader);
             }
         }
 

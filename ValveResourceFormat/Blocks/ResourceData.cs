@@ -1,12 +1,22 @@
 ﻿using System;
+using System.IO;
+using System.Text;
 
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
     /// Resource data.
     /// </summary>
-    class ResourceData : Block
+    public class ResourceData : Block
     {
-        
+        public override BlockType GetChar()
+        {
+            return BlockType.DATA;
+        }
+
+        public override void Read(BinaryReader reader)
+        {
+            
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace ValveResourceFormat
 {
@@ -16,6 +17,9 @@ namespace ValveResourceFormat
         /// Data size.
         /// </summary>
         public uint Size { get; set; }
+
+        public abstract BlockType GetChar();
+        public abstract void Read(BinaryReader reader);
 
         /// <summary>
         /// Returns a class for given block type.
