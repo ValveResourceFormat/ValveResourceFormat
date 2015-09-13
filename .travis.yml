@@ -1,0 +1,5 @@
+language: csharp
+sudo: false
+solution: ValveResourceFormat.sln
+notifications:
+  email: false
