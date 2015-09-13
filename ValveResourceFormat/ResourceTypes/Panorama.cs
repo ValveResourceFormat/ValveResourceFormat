@@ -12,8 +12,6 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = this.Offset;
 
-            var test = reader.ReadUInt32();
-
             reader.ReadBytes(4); // TODO: ????
 
             var size = reader.ReadUInt16();
