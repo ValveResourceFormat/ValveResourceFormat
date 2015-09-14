@@ -87,8 +87,6 @@ namespace ValveResourceFormat.Blocks
 
             IntrospectionVersion = reader.ReadUInt32();
 
-            Console.WriteLine("m_nIntrospectionVersion = 0x{0:x8}", IntrospectionVersion);
-
             var entriesOffset = reader.ReadUInt32();
             var entriesCount = reader.ReadUInt32();
 
