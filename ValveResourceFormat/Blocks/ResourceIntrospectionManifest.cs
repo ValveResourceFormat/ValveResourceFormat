@@ -83,6 +83,12 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader)
         {
+            ReadStructs(reader);
+            ReadEnums(reader);
+        }
+
+        private void ReadStructs(BinaryReader reader)
+        {
             reader.BaseStream.Position = this.Offset;
 
             IntrospectionVersion = reader.ReadUInt32();
@@ -158,11 +164,14 @@ namespace ValveResourceFormat.Blocks
 
                 ReferencedStructs.Add(diskStruct);
             }
+        }
 
+        private void ReadEnums(BinaryReader reader)
+        {
             reader.BaseStream.Position = this.Offset + 12; // skip 3 ints
 
-            entriesOffset = reader.ReadUInt32();
-            entriesCount = reader.ReadUInt32();
+            var entriesOffset = reader.ReadUInt32();
+            var entriesCount = reader.ReadUInt32();
 
             reader.BaseStream.Position += entriesOffset - 8; // offset minus 2 ints we just read
 
