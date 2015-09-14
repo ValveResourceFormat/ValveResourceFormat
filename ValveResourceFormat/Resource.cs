@@ -32,7 +32,6 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Gets or sets the type of the resource.
-        /// Set this type before calling <see cref="Read"/>.
         /// </summary>
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; set; }
