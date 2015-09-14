@@ -67,9 +67,8 @@ namespace Decompiler
                 //Console.WriteLine("\tInput Path: \"{0}\"", args[fi]);
                 //Console.WriteLine("\tResource Name: \"{0}\"", "???");
                 //Console.WriteLine("\tID: {0:x16}", 0);
-                //Console.WriteLine("\tResource Type: {0} = {1} (0x{2:x8}) [Version {3}]", "???", 0, 0, 0);
+                Console.WriteLine("\tResource Type: {0} = {1} (0x{2:x8}) [Version {3}] [Header Version: {4}]", "???", 0, 0, resource.Version, resource.HeaderVersion);
                 Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
-                Console.WriteLine("\tunk1: {0}, unk2: {1}", resource.Unknown1, resource.Unknown2);
 
                 Console.WriteLine(Environment.NewLine);
 

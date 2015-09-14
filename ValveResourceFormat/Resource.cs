@@ -10,6 +10,8 @@ namespace ValveResourceFormat
     /// </summary>
     public class Resource
     {
+        private const ushort KNOWN_HEADER_VERSION = 12;
+
         private BinaryReader Reader;
 
         /// <summary>
@@ -22,8 +24,8 @@ namespace ValveResourceFormat
         /// </summary>
         public uint FileSize { get; private set; }
 
-        public uint Unknown1 { get; private set; }
-        public uint Unknown2 { get; private set; } // Always appears to be 8
+        public ushort HeaderVersion { get; private set; }
+        public ushort Version { get; private set; }
 
         /// <summary>
         /// A list of blocks this resource has.
@@ -73,10 +75,20 @@ namespace ValveResourceFormat
                 //throw new Exception(string.Format("File size does not match size specified in file. {0} != {1}", FileSize, Reader.BaseStream.Length));
             }
 
-            Unknown1 = Reader.ReadUInt32();
-            Unknown2 = Reader.ReadUInt32();
+            HeaderVersion = Reader.ReadUInt16();
 
+            if (HeaderVersion != KNOWN_HEADER_VERSION)
+            {
+                throw new InvalidDataException(string.Format("Bad header version. ({0} != expected {1})", HeaderVersion, KNOWN_HEADER_VERSION));
+            }
+
+            Version = Reader.ReadUInt16();
+
+            var blockOffset = Reader.ReadUInt32();
             var blockCount = Reader.ReadUInt32();
+
+            // blockOffset appears to be always 8 across all files, but just futureproofing
+            Reader.BaseStream.Position += blockOffset - 8;
 
             while (blockCount-- > 0)
             {
