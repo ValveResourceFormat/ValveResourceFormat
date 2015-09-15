@@ -114,7 +114,6 @@ namespace Decompiler
                 {
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
                     Console.WriteLine(block.Value);
-                    Console.WriteLine();
                 }
             }
         }
