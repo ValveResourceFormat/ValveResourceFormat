@@ -79,7 +79,7 @@ namespace Decompiler
 
                     foreach (var res in ((ValveResourceFormat.Blocks.ResourceExtRefList)resource.Blocks[BlockType.RERL]).ResourceRefInfoList)
                     {
-                        Console.WriteLine("\t{0,-16}  {1}", HexMe(res.Id), res.Name);
+                        Console.WriteLine("\t{0:X16}  {1}", res.Id, res.Name);
                     }
                 }
                 else
@@ -116,13 +116,6 @@ namespace Decompiler
                     Console.WriteLine(block.Value);
                 }
             }
-        }
-
-        private static string HexMe(ulong input)
-        {
-            var hexString = input.ToString("X");
-
-            return (hexString.Length % 2 == 0 ? "" : "0") + hexString;
         }
     }
 }

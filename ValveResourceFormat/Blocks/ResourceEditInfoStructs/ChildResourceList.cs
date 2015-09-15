@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             foreach (var dep in List)
             {
                 str.AppendFormat(
-                    "\t\tuint64 m_nId = 0x{0:X8}\n" +
+                    "\t\tuint64 m_nId = 0x{0:X16}\n" +
                     "\t\tCResourceString m_pResourceName = \"{1}\"\n\n",
                     dep.Id, dep.ResourceName
                 );

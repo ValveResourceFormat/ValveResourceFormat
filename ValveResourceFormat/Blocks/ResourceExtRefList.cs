@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Blocks
                 str.AppendLine("\t\t\tResourceReferenceInfo_t");
                 str.AppendLine("\t\t\t{");
                 str.AppendFormat(
-                    "\t\t\t\tuint64 m_nId = 0x{0:X8}\n" +
+                    "\t\t\t\tuint64 m_nId = 0x{0:X16}\n" +
                     "\t\t\t\tCResourceString m_pResourceName = \"{1}\"\n",
                     dep.Id, dep.Name
                 );
