@@ -105,7 +105,7 @@ namespace Decompiler
 
                 foreach (var block in resource.Blocks)
                 {
-                    Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-5}  bytes", block.Key, block.Value.Size);
+                    Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes", block.Key, block.Value.Size);
                 }
 
                 Console.WriteLine(Environment.NewLine);

@@ -25,6 +25,33 @@ namespace ValveResourceFormat.Blocks
                 {
                     Indirections = new List<sbyte>();
                 }
+
+                public override string ToString()
+                {
+                    var str = new StringBuilder();
+
+                    str.AppendLine("\t\t\t\t\tCResourceDiskStructField");
+                    str.AppendLine("\t\t\t\t\t{");
+                    str.AppendFormat("\t\t\t\t\t\tCResourceString m_pFieldName = \"{0}\"\n", FieldName);
+                    str.AppendFormat("\t\t\t\t\t\tint16 m_nCount = {0}\n", Count);
+                    str.AppendFormat("\t\t\t\t\t\tint16 m_nOnDiskOffset = {0}\n", OnDiskOffset);
+
+                    str.AppendFormat("\t\t\t\t\t\tuint8[{0}] m_Indirection =\n", Indirections.Count);
+                    str.AppendLine("\t\t\t\t\t\t[");
+
+                    foreach (var dep in Indirections)
+                    {
+                        str.AppendFormat("\t\t\t\t\t\t\t{0:D2}\n", dep);
+                    }
+
+                    str.AppendLine("\n\t\t\t\t\t\t]");
+
+                    str.AppendFormat("\t\t\t\t\t\tuint32 m_nTypeData = 0x{0:X8}\n", TypeData);
+                    str.AppendFormat("\t\t\t\t\t\tint16 m_nType = {0}\n", Type);
+                    str.AppendLine("\t\t\t\t\t}");
+
+                    return str.ToString();
+                }
             }
 
             public uint IntrospectionVersion { get; set; }
@@ -42,6 +69,36 @@ namespace ValveResourceFormat.Blocks
             {
                 FieldIntrospection = new List<Field>();
             }
+
+            public override string ToString()
+            {
+                var str = new StringBuilder();
+
+                str.AppendLine("\t\t\tCResourceDiskStruct");
+                str.AppendLine("\t\t\t{");
+                str.AppendFormat("\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n", IntrospectionVersion);
+                str.AppendFormat("\t\t\t\tuint32 m_nId = 0x{0:X8}\n", Id);
+                str.AppendFormat("\t\t\t\tCResourceString m_pName = \"{0}\"\n", Name);
+                str.AppendFormat("\t\t\t\tuint32 m_nDiskCrc = 0x{0:X8}\n", DiskCrc);
+                str.AppendFormat("\t\t\t\tint32 m_nUserVersion = {0}\n", UserVersion);
+                str.AppendFormat("\t\t\t\tuint16 m_nDiskSize = 0x{0:X4}\n", DiskSize);
+                str.AppendFormat("\t\t\t\tuint16 m_nAlignment = 0x{0:X4}\n", Alignment);
+                str.AppendFormat("\t\t\t\tuint32 m_nBaseStructId = 0x{0:X8}\n", BaseStructId);
+
+                str.AppendFormat("\t\t\t\tStruct m_FieldIntrospection[{0}] = \n", FieldIntrospection.Count);
+                str.AppendLine("\t\t\t\t[");
+
+                foreach (var dep in FieldIntrospection)
+                {
+                    str.Append(dep.ToString());
+                }
+
+                str.AppendLine("\t\t\t\t]");
+                str.AppendFormat("\t\t\t\tuint8 m_nStructFlags = 0x{0:X2}\n", StructFlags);
+                str.AppendLine("\t\t\t}");
+
+                return str.ToString();
+            }
         }
 
         public class ResourceDiskEnum
@@ -50,6 +107,19 @@ namespace ValveResourceFormat.Blocks
             {
                 public string EnumValueName { get; set; }
                 public int EnumValue { get; set; }
+
+                public override string ToString()
+                {
+                    var str = new StringBuilder();
+
+                    str.AppendLine("\t\t\t\t\tCResourceDiskEnumValue");
+                    str.AppendLine("\t\t\t\t\t{");
+                    str.AppendFormat("\t\t\t\t\t\tCResourceString m_pEnumValueName = \"{0}\"\n", EnumValueName);
+                    str.AppendFormat("\t\t\t\t\t\tint32 m_nEnumValue = {0}\n", EnumValue);
+                    str.AppendLine("\t\t\t\t\t}");
+
+                    return str.ToString();
+                }
             }
 
             public uint IntrospectionVersion { get; set; }
@@ -62,6 +132,32 @@ namespace ValveResourceFormat.Blocks
             public ResourceDiskEnum()
             {
                 EnumValueIntrospection = new List<Value>();
+            }
+
+            public override string ToString()
+            {
+                var str = new StringBuilder();
+
+                str.AppendLine("\t\t\tCResourceDiskEnum");
+                str.AppendLine("\t\t\t{");
+                str.AppendFormat("\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n", IntrospectionVersion);
+                str.AppendFormat("\t\t\t\tuint32 m_nId = 0x{0:X8}\n", Id);
+                str.AppendFormat("\t\t\t\tCResourceString m_pName = \"{0}\"\n", Name);
+                str.AppendFormat("\t\t\t\tuint32 m_nDiskCrc = 0x{0:X8}\n", DiskCrc);
+                str.AppendFormat("\t\t\t\tint32 m_nUserVersion = {0}\n", UserVersion);
+
+                str.AppendFormat("\t\t\t\tStruct m_EnumValueIntrospection[{0}] = \n", EnumValueIntrospection.Count);
+                str.AppendLine("\t\t\t\t[");
+
+                foreach (var dep in EnumValueIntrospection)
+                {
+                    str.Append(dep.ToString());
+                }
+
+                str.AppendLine("\t\t\t\t]");
+                str.AppendLine("\t\t\t}");
+
+                return str.ToString();
             }
         }
 
@@ -229,16 +325,7 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var dep in ReferencedStructs)
             {
-                str.AppendLine("\t\t\tCResourceDiskStruct");
-                str.AppendLine("\t\t\t{");
-                str.AppendFormat(
-                    "\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n" +
-                    "\t\t\t\tuint32 m_nId = 0x{1:X8}\n" +
-                    "\t\t\t\tCResourceString m_pName = \"{2}\"\n",
-                    dep.IntrospectionVersion, dep.Id, dep.Name
-                );
-                // TODO: print the rest
-                str.AppendLine("\t\t\t}");
+                str.Append(dep.ToString());
             }
 
             str.AppendLine("\t\t]");
@@ -248,16 +335,7 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var dep in ReferencedEnums)
             {
-                str.AppendLine("\t\t\tCResourceDiskEnum");
-                str.AppendLine("\t\t\t{");
-                str.AppendFormat(
-                    "\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n" +
-                    "\t\t\t\tuint32 m_nId = 0x{1:X8}\n" +
-                    "\t\t\t\tCResourceString m_pName = \"{2}\"\n",
-                    dep.IntrospectionVersion, dep.Id, dep.Name
-                );
-                // TODO: print the rest
-                str.AppendLine("\t\t\t}");
+                str.Append(dep.ToString());
             }
 
             str.AppendLine("\t\t]");
