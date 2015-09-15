@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             {
                 str.AppendFormat(
                     "\t\tCResourceString m_Name = \"{0}\"\n" +
-                    "\t\tint32 m_nInt = {1}\n",
+                    "\t\tint32 m_nInt = {1}\n\n",
                     dep.Name, dep.Int
                 );
             }
