@@ -62,5 +62,33 @@ namespace ValveResourceFormat.Blocks
                 reader.BaseStream.Position = previousPosition + 8; // 8 is to account for string offset
             }
         }
+
+        public override string ToString()
+        {
+            var str = new StringBuilder();
+
+            str.AppendLine("ResourceExtRefList_t");
+            str.AppendLine("\t{");
+
+            str.AppendFormat("\t\tStruct m_resourceRefInfoList[{0}] =\n", ResourceRefInfoList.Count);
+            str.AppendLine("\t\t[");
+
+            foreach (var dep in ResourceRefInfoList)
+            {
+                str.AppendLine("\t\t\tResourceReferenceInfo_t");
+                str.AppendLine("\t\t\t{");
+                str.AppendFormat(
+                    "\t\t\t\tuint64 m_nId = 0x{0:X8}\n" +
+                    "\t\t\t\tCResourceString m_pResourceName = \"{1}\"\n",
+                    dep.Id, dep.Name
+                );
+                str.AppendLine("\t\t\t}");
+            }
+
+            str.AppendLine("\t\t]");
+            str.AppendLine("\t}");
+
+            return str.ToString();
+        }
     }
 }

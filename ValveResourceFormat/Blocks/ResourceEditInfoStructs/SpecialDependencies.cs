@@ -58,8 +58,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 str.AppendFormat(
                     "\t\tCResourceString m_String = \"{0}\"\n" +
                     "\t\tCResourceString m_CompilerIdentifier = \"{1}\"\n" +
-                    "\t\tuint32 m_nFingerprint = 0x{2:x8}\n" +
-                    "\t\tuint32 m_nUserData = 0x{3:x8}\n\n",
+                    "\t\tuint32 m_nFingerprint = 0x{2:X8}\n" +
+                    "\t\tuint32 m_nUserData = 0x{3:X8}\n\n",
                     dep.String, dep.CompilerIdentifier, dep.Fingerprint, dep.UserData
                 );
             }

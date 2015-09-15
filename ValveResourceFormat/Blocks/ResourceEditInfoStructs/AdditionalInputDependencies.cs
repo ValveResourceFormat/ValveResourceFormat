@@ -15,8 +15,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 str.AppendFormat(
                     "\t\tCResourceString m_ContentRelativeFilename = \"{0}\"\n" +
                     "\t\tCResourceString m_ContentSearchPath = \"{1}\"\n" +
-                    "\t\tuint32 m_nFileCRC = 0x{2:x8}\n" +
-                    "\t\tuint32 m_nFlags = 0x{3:x8}\n\n",
+                    "\t\tuint32 m_nFileCRC = 0x{2:X8}\n" +
+                    "\t\tuint32 m_nFlags = 0x{3:X8}\n\n",
                     dep.ContentRelativeFilename, dep.ContentSearchPath, dep.FileCRC, dep.Flags
                 );
             }

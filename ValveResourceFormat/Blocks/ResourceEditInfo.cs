@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -58,6 +59,26 @@ namespace ValveResourceFormat.Blocks
             {
                 block.Read(reader);
             }
+        }
+
+        public override string ToString()
+        {
+            var str = new StringBuilder();
+
+            str.AppendLine("ResourceEditInfoBlock_t");
+            str.AppendLine("\t{");
+
+            foreach (var dep in Structs)
+            {
+                str.AppendFormat("\t\tStruct [] =\n");
+                str.AppendLine("\t\t[");
+                str.Append(dep.ToString());
+                str.AppendLine("\t\t]");
+            }
+
+            str.AppendLine("\t}");
+
+            return str.ToString();
         }
 
         static ResourceEditInfoStructs.REDIBlock ConstructStruct(REDIStruct id)

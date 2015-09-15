@@ -67,56 +67,55 @@ namespace Decompiler
                 //Console.WriteLine("\tInput Path: \"{0}\"", args[fi]);
                 //Console.WriteLine("\tResource Name: \"{0}\"", "???");
                 //Console.WriteLine("\tID: {0:x16}", 0);
-                Console.WriteLine("\tResource Type: {0} = {1} (0x{2:x8}) [Version {3}] [Header Version: {4}]", "???", 0, 0, resource.Version, resource.HeaderVersion);
+                Console.WriteLine("\tResource Type: {0} = {1} (0x{2:X8}) [Version {3}] [Header Version: {4}]", "???", 0, 0, resource.Version, resource.HeaderVersion);
                 Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
 
                 Console.WriteLine(Environment.NewLine);
 
-                // Print blocks first
-                Console.WriteLine("--- Resource Blocks: Count {0} ---", resource.Blocks.Count);
-
-                foreach (var block in resource.Blocks)
+                if (resource.Blocks.ContainsKey(BlockType.RERL))
                 {
-                    Console.WriteLine("\t-- Block: {0,-4}\tSize: {1}\tbytes   Offset: {2}", block.Key, block.Value.Size, block.Value.Offset);
+                    Console.WriteLine("--- Resource External Refs: ---");
+                    Console.WriteLine("\t{0,-16}  Resource Name:", "Id:");
+
+                    foreach (var res in ((ValveResourceFormat.Blocks.ResourceExtRefList)resource.Blocks[BlockType.RERL]).ResourceRefInfoList)
+                    {
+                        Console.WriteLine("\t{0,-16}  {1}", HexMe(res.Id), res.Name);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("--- (No External Resource References Found)");
                 }
 
                 Console.WriteLine(Environment.NewLine);
 
-                // Print each block and their contents now
-                foreach (var block in resource.Blocks)
+                if (false)
                 {
-                    switch (block.Key)
-                    {
-                        case BlockType.RERL:
-                            Console.WriteLine("--- Resource External Refs: ---");
-                            Console.WriteLine("\t{0,-16}  Resource Name:", "Id:");
-
-                            foreach (var res in ((ValveResourceFormat.Blocks.ResourceExtRefList)block.Value).ResourceRefInfoList)
-                            {
-                                Console.WriteLine("\t{0,-16}  {1}", HexMe(res.Id), res.Name);
-                            }
-
-                            break;
-
-                        case BlockType.REDI:
-                            Console.WriteLine("--- ResourceEditInfoBlock_t ---");
-
-                            foreach (var res in ((ValveResourceFormat.Blocks.ResourceEditInfo)block.Value).Structs)
-                            {
-                                Console.WriteLine(res);
-                            }
-
-                            break;
-
-                        default:
-                            Console.WriteLine("Don't know how to handle {0}", block.Key);
-                            break;
-                    }
-
-                    Console.WriteLine();
+                    // TODO: Resource Deferred Refs:
+                }
+                else
+                {
+                    Console.WriteLine("--- (No Deferred Resource References Found)");
                 }
 
-                Console.WriteLine();
+                Console.WriteLine(Environment.NewLine);
+
+                // Print blocks
+                Console.WriteLine("--- Resource Blocks: Count {0} ---", resource.Blocks.Count);
+
+                foreach (var block in resource.Blocks)
+                {
+                    Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-5}  bytes", block.Key, block.Value.Size);
+                }
+
+                Console.WriteLine(Environment.NewLine);
+
+                foreach (var block in resource.Blocks)
+                {
+                    Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
+                    Console.WriteLine(block.Value);
+                    Console.WriteLine();
+                }
             }
         }
 

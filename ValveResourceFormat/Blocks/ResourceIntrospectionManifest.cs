@@ -215,5 +215,56 @@ namespace ValveResourceFormat.Blocks
                 ReferencedEnums.Add(diskEnum);
             }
         }
+
+        public override string ToString()
+        {
+            var str = new StringBuilder();
+
+            str.AppendLine("CResourceIntrospectionManifest");
+            str.AppendLine("\t{");
+
+            str.AppendFormat("\t\tuint32 m_nIntrospectionVersion = 0x{0:x8}\n", IntrospectionVersion);
+            str.AppendFormat("\t\tStruct m_ReferencedStructs[{0}] =\n", ReferencedStructs.Count);
+            str.AppendLine("\t\t[");
+
+            foreach (var dep in ReferencedStructs)
+            {
+                str.AppendLine("\t\t\tCResourceDiskStruct");
+                str.AppendLine("\t\t\t{");
+                str.AppendFormat(
+                    "\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n" +
+                    "\t\t\t\tuint32 m_nId = 0x{1:X8}\n" +
+                    "\t\t\t\tCResourceString m_pName = \"{2}\"\n",
+                    dep.IntrospectionVersion, dep.Id, dep.Name
+                );
+                // TODO: print the rest
+                str.AppendLine("\t\t\t}");
+            }
+
+            str.AppendLine("\t\t]");
+
+            str.AppendFormat("\t\tStruct m_ReferencedEnums[{0}] =\n", ReferencedEnums.Count);
+            str.AppendLine("\t\t[");
+
+            foreach (var dep in ReferencedEnums)
+            {
+                str.AppendLine("\t\t\tCResourceDiskEnum");
+                str.AppendLine("\t\t\t{");
+                str.AppendFormat(
+                    "\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n" +
+                    "\t\t\t\tuint32 m_nId = 0x{1:X8}\n" +
+                    "\t\t\t\tCResourceString m_pName = \"{2}\"\n",
+                    dep.IntrospectionVersion, dep.Id, dep.Name
+                );
+                // TODO: print the rest
+                str.AppendLine("\t\t\t}");
+            }
+
+            str.AppendLine("\t\t]");
+
+            str.AppendLine("\t}");
+
+            return str.ToString();
+        }
     }
 }
