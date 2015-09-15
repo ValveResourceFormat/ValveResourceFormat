@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Blocks
             str.AppendLine("ResourceExtRefList_t");
             str.AppendLine("\t{");
 
-            str.AppendFormat("\t\tStruct m_resourceRefInfoList[{0}] =\n", ResourceRefInfoList.Count);
+            str.AppendFormat("\t\tStruct m_resourceRefInfoList[{0}] = \n", ResourceRefInfoList.Count);
             str.AppendLine("\t\t[");
 
             foreach (var dep in ResourceRefInfoList)

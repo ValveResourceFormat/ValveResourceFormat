@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             var str = new StringBuilder();
 
-            str.AppendFormat("{0}Struct m_ExtraFloatData[{1}] =\n", indent, 0);
+            str.AppendFormat("{0}Struct m_ExtraFloatData[{1}] = \n", indent, 0);
             str.AppendFormat("{0}[\n", indent);
 
             // TODO

@@ -224,7 +224,7 @@ namespace ValveResourceFormat.Blocks
             str.AppendLine("\t{");
 
             str.AppendFormat("\t\tuint32 m_nIntrospectionVersion = 0x{0:x8}\n", IntrospectionVersion);
-            str.AppendFormat("\t\tStruct m_ReferencedStructs[{0}] =\n", ReferencedStructs.Count);
+            str.AppendFormat("\t\tStruct m_ReferencedStructs[{0}] = \n", ReferencedStructs.Count);
             str.AppendLine("\t\t[");
 
             foreach (var dep in ReferencedStructs)
@@ -243,7 +243,7 @@ namespace ValveResourceFormat.Blocks
 
             str.AppendLine("\t\t]");
 
-            str.AppendFormat("\t\tStruct m_ReferencedEnums[{0}] =\n", ReferencedEnums.Count);
+            str.AppendFormat("\t\tStruct m_ReferencedEnums[{0}] = \n", ReferencedEnums.Count);
             str.AppendLine("\t\t[");
 
             foreach (var dep in ReferencedEnums)

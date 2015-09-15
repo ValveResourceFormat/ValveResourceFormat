@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             var str = new StringBuilder();
 
-            str.AppendFormat("{0}Struct m_ChildResourceList[{1}] =\n", indent, List.Count);
+            str.AppendFormat("{0}Struct m_ChildResourceList[{1}] = \n", indent, List.Count);
             str.AppendFormat("{0}[\n", indent);
 
             foreach (var dep in List)

@@ -75,11 +75,11 @@ namespace Decompiler
                 if (resource.Blocks.ContainsKey(BlockType.RERL))
                 {
                     Console.WriteLine("--- Resource External Refs: ---");
-                    Console.WriteLine("\t{0,-16}  Resource Name:", "Id:");
+                    Console.WriteLine("\t{0,-16}  {1,-48}", "Id:", "Resource Name:");
 
                     foreach (var res in ((ValveResourceFormat.Blocks.ResourceExtRefList)resource.Blocks[BlockType.RERL]).ResourceRefInfoList)
                     {
-                        Console.WriteLine("\t{0:X16}  {1}", res.Id, res.Name);
+                        Console.WriteLine("\t{0:X16}  {1,-48}", res.Id, res.Name);
                     }
                 }
                 else
