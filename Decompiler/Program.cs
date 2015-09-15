@@ -54,7 +54,7 @@ namespace Decompiler
 
                 try
                 {
-                    resource.ResourceType = ResourceType.MDL;
+                    resource.ResourceType = ResourceType.Model; // TODO: get rid of this
                     resource.Read(path);
                 }
                 catch (Exception e)
