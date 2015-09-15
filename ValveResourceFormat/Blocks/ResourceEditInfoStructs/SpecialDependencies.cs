@@ -49,20 +49,28 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override string ToString()
         {
+            return ToStringIndent("");
+        }
+
+        public override string ToStringIndent(string indent)
+        {
             var str = new StringBuilder();
 
-            str.AppendFormat("\tStruct m_SpecialDependencies[{0}]\n", List.Count);
+            str.AppendFormat("{0}Struct m_SpecialDependencies[{1}] =\n", indent, List.Count);
+            str.AppendFormat("{0}[\n", indent);
 
             foreach (var dep in List)
             {
-                str.AppendFormat(
-                    "\t\tCResourceString m_String = \"{0}\"\n" +
-                    "\t\tCResourceString m_CompilerIdentifier = \"{1}\"\n" +
-                    "\t\tuint32 m_nFingerprint = 0x{2:X8}\n" +
-                    "\t\tuint32 m_nUserData = 0x{3:X8}\n\n",
-                    dep.String, dep.CompilerIdentifier, dep.Fingerprint, dep.UserData
-                );
+                str.AppendFormat("{0}\tResourceSpecialDependency_t\n", indent);
+                str.AppendFormat("{0}\t{{\n", indent);
+                str.AppendFormat("{0}\t\tCResourceString m_String = \"{1}\"\n", indent, dep.String);
+                str.AppendFormat("{0}\t\tCResourceString m_CompilerIdentifier = \"{1}\"\n", indent, dep.CompilerIdentifier);
+                str.AppendFormat("{0}\t\tuint32 m_nFingerprint = 0x{1:X8}\n", indent, dep.Fingerprint);
+                str.AppendFormat("{0}\t\tuint32 m_nUserData = 0x{1:X8}\n", indent, dep.UserData);
+                str.AppendFormat("{0}\t}}\n", indent);
             }
+
+            str.AppendFormat("{0}]\n", indent);
 
             return str.ToString();
         }

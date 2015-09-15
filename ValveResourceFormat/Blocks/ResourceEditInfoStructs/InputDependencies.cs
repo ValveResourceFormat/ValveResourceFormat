@@ -49,20 +49,28 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override string ToString()
         {
+            return ToStringIndent("");
+        }
+
+        public override string ToStringIndent(string indent)
+        {
             var str = new StringBuilder();
 
-            str.AppendFormat("\tStruct m_InputDependencies[{0}]\n", List.Count);
+            str.AppendFormat("{0}Struct m_InputDependencies[{1}] =\n", indent, List.Count);
+            str.AppendFormat("{0}[\n", indent);
 
             foreach (var dep in List)
             {
-                str.AppendFormat(
-                    "\t\tCResourceString m_ContentRelativeFilename = \"{0}\"\n" +
-                    "\t\tCResourceString m_ContentSearchPath = \"{1}\"\n" +
-                    "\t\tuint32 m_nFileCRC = 0x{2:X8}\n" +
-                    "\t\tuint32 m_nFlags = 0x{3:X8}\n\n",
-                    dep.ContentRelativeFilename, dep.ContentSearchPath, dep.FileCRC, dep.Flags
-                );
+                str.AppendFormat("{0}\tResourceInputDependency_t\n", indent);
+                str.AppendFormat("{0}\t{{\n", indent);
+                str.AppendFormat("{0}\t\tCResourceString m_ContentRelativeFilename = \"{1}\"\n", indent, dep.ContentRelativeFilename);
+                str.AppendFormat("{0}\t\tCResourceString m_ContentSearchPath = \"{1}\"\n", indent, dep.ContentSearchPath);
+                str.AppendFormat("{0}\t\tuint32 m_nFileCRC = 0x{1:X8}\n", indent, dep.FileCRC);
+                str.AppendFormat("{0}\t\tuint32 m_nFlags = 0x{1:X8}\n", indent, dep.Flags);
+                str.AppendFormat("{0}\t}}\n", indent);
             }
+
+            str.AppendFormat("{0}]\n", indent);
 
             return str.ToString();
         }

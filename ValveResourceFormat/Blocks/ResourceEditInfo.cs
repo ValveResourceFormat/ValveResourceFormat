@@ -70,10 +70,7 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var dep in Structs)
             {
-                str.AppendFormat("\t\tStruct [] =\n");
-                str.AppendLine("\t\t[");
-                str.Append(dep.ToString());
-                str.AppendLine("\t\t]");
+                str.Append(dep.ToStringIndent("\t\t"));
             }
 
             str.AppendLine("\t}");

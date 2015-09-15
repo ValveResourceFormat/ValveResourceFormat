@@ -43,18 +43,26 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override string ToString()
         {
+            return ToStringIndent("");
+        }
+
+        public override string ToStringIndent(string indent)
+        {
             var str = new StringBuilder();
 
-            str.AppendFormat("\tStruct m_ChildResourceList[{0}]\n", List.Count);
+            str.AppendFormat("{0}Struct m_ChildResourceList[{1}] =\n", indent, List.Count);
+            str.AppendFormat("{0}[\n", indent);
 
             foreach (var dep in List)
             {
-                str.AppendFormat(
-                    "\t\tuint64 m_nId = 0x{0:X16}\n" +
-                    "\t\tCResourceString m_pResourceName = \"{1}\"\n\n",
-                    dep.Id, dep.ResourceName
-                );
+                str.AppendFormat("{0}\tResourceReferenceInfo_t\n", indent);
+                str.AppendFormat("{0}\t{{\n", indent);
+                str.AppendFormat("{0}\t\tuint64 m_nId = 0x{1:X16}\n", indent, dep.Id);
+                str.AppendFormat("{0}\t\tCResourceString m_pResourceName = \"{1}\"\n", indent, dep.ResourceName);
+                str.AppendFormat("{0}\t}}\n", indent);
             }
+
+            str.AppendFormat("{0}]\n", indent);
 
             return str.ToString();
         }

@@ -49,20 +49,28 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override string ToString()
         {
+            return ToStringIndent("");
+        }
+
+        public override string ToStringIndent(string indent)
+        {
             var str = new StringBuilder();
 
-            str.AppendFormat("\tStruct m_ArgumentDependencies[{0}]\n", List.Count);
+            str.AppendFormat("{0}Struct m_ArgumentDependencies[{1}] =\n", indent, List.Count);
+            str.AppendFormat("{0}[\n", indent);
 
             foreach (var dep in List)
             {
-                str.AppendFormat(
-                    "\t\tCResourceString m_ParameterName = \"{0}\"\n" +
-                    "\t\tCResourceString m_ParameterType = \"{1}\"\n" +
-                    "\t\tuint32 m_nFingerprint = 0x{2:X8}\n" +
-                    "\t\tuint32 m_nFingerprintDefault = 0x{3:X8}\n\n",
-                    dep.ParameterName, dep.ParameterType, dep.Fingerprint, dep.FingerprintDefault
-                );
+                str.AppendFormat("{0}\tResourceArgumentDependency_t\n", indent);
+                str.AppendFormat("{0}\t{{\n", indent);
+                str.AppendFormat("{0}\t\tCResourceString m_ParameterName = \"{1}\"\n", indent, dep.ParameterName);
+                str.AppendFormat("{0}\t\tCResourceString m_ParameterType = \"{1}\"\n", indent, dep.ParameterType);
+                str.AppendFormat("{0}\t\tuint32 m_nFingerprint = 0x{1:X8}\n", indent, dep.Fingerprint);
+                str.AppendFormat("{0}\t\tuint32 m_nFingerprintDefault = 0x{1:X8}\n", indent, dep.FingerprintDefault);
+                str.AppendFormat("{0}\t}}\n", indent);
             }
+
+            str.AppendFormat("{0}]\n", indent);
 
             return str.ToString();
         }

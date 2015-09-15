@@ -18,5 +18,10 @@ namespace ValveResourceFormat.Blocks
         {
             
         }
+
+        public override string ToString()
+        {
+            throw new NotImplementedException("ToString() in ResourceData");
+        }
     }
 }

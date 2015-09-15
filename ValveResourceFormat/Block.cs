@@ -20,6 +20,7 @@ namespace ValveResourceFormat
 
         public abstract BlockType GetChar();
         public abstract void Read(BinaryReader reader);
+        public abstract override string ToString();
 
         /// <summary>
         /// Returns a class for given block type.

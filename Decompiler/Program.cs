@@ -112,6 +112,11 @@ namespace Decompiler
 
                 foreach (var block in resource.Blocks)
                 {
+                    if (block.Key == BlockType.DATA)
+                    {
+                        continue;
+                    }
+
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
                     Console.WriteLine(block.Value);
                 }
