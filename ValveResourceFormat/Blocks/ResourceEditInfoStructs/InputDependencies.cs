@@ -30,9 +30,6 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             {
                 var dep = new InputDependency();
 
-                dep.FileCRC = reader.ReadUInt32();
-                dep.Flags = reader.ReadUInt32();
-
                 var prev = reader.BaseStream.Position;
                 reader.BaseStream.Position += reader.ReadUInt32();
                 dep.ContentRelativeFilename = reader.ReadNullTermString(Encoding.UTF8);
@@ -42,6 +39,9 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 reader.BaseStream.Position += reader.ReadUInt32();
                 dep.ContentSearchPath = reader.ReadNullTermString(Encoding.UTF8);
                 reader.BaseStream.Position = prev + 4;
+
+                dep.FileCRC = reader.ReadUInt32();
+                dep.Flags = reader.ReadUInt32();
 
                 List.Add(dep);
             }

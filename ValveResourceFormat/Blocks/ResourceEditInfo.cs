@@ -44,14 +44,12 @@ namespace ValveResourceFormat.Blocks
         {
             reader.BaseStream.Position = this.Offset;
 
-            // TODO: why 8?
-            var structsOffset = this.Offset + reader.ReadUInt32() - 8; // Length of structs header
-
             for (var i = REDIStruct.InputDependencies; i < REDIStruct.End; i++)
             {
                 var block = ConstructStruct(i);
+
+                block.Offset = (uint)reader.BaseStream.Position + reader.ReadUInt32();
                 block.Size = reader.ReadUInt32();
-                block.Offset = reader.ReadUInt32() + structsOffset;
 
                 Structs.Add(block);
             }
