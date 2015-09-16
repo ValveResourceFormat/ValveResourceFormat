@@ -1,12 +1,11 @@
-﻿using System;
-
-namespace ValveResourceFormat
+﻿namespace ValveResourceFormat
 {
     public enum BlockType
     {
         RERL = 1,
-        REDI = 2,
-        NTRO = 3,
-        DATA = 4,
+        REDI,
+        NTRO,
+        DATA,
+        VBIB,
     }
 }

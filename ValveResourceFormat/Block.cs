@@ -44,6 +44,9 @@ namespace ValveResourceFormat
 
                 case "NTRO":
                     return new Blocks.ResourceIntrospectionManifest();
+
+                case "VBIB":
+                    return new Blocks.VBIB();
             }
 
             throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));

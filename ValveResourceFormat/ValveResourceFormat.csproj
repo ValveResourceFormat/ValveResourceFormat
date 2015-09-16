@@ -57,6 +57,7 @@
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraIntData.cs" />
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
+    <Compile Include="Blocks\VBIB.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
