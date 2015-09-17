@@ -98,7 +98,7 @@ namespace ValveResourceFormat
             while (blockCount-- > 0)
             {
                 var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
-                var block = Block.ConstructFromType(blockType, ResourceType);
+                var block = ConstructFromType(blockType);
 
                 var position = Reader.BaseStream.Position;
 
@@ -106,7 +106,7 @@ namespace ValveResourceFormat
                 block.Offset = (uint)position + Reader.ReadUInt32();
                 block.Size = Reader.ReadUInt32();
 
-                block.Read(Reader);
+                block.Read(Reader, this);
 
                 switch (block.GetChar())
                 {
@@ -151,6 +151,40 @@ namespace ValveResourceFormat
             {
                 Read(fs);
             }
+        }
+
+        private Block ConstructFromType(string input)
+        {
+            switch (input)
+            {
+                case "DATA":
+                    return ConstructResourceType();
+
+                case "REDI":
+                    return new ResourceEditInfo();
+
+                case "RERL":
+                    return new ResourceExtRefList();
+
+                case "NTRO":
+                    return new ResourceIntrospectionManifest();
+
+                case "VBIB":
+                    return new VBIB();
+            }
+
+            throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));
+        }
+
+        private ResourceData ConstructResourceType()
+        {
+            switch (ResourceType)
+            {
+                case ResourceType.Panorama:
+                    return new ResourceTypes.Panorama();
+            }
+
+            return new ResourceData();
         }
 
         private static ResourceType DetermineResourceTypeByCompilerIdentifier(string identifier)

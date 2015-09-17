@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             List = new List<ReferenceInfo>();
         }
 
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = this.Offset;
 

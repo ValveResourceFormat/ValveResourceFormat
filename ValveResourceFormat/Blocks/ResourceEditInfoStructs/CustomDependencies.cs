@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {
     public class CustomDependencies : REDIBlock
     {
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = this.Offset;
 

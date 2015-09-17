@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Blocks
             return BlockType.DATA;
         }
 
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader, Resource resource)
         {
             
         }

@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public byte[] Data { get; private set; }
 
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = this.Offset;
 

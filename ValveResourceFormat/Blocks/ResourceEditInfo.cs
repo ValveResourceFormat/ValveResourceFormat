@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Blocks
             return BlockType.REDI;
         }
 
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = this.Offset;
 
@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var block in Structs)
             {
-                block.Value.Read(reader);
+                block.Value.Read(reader, resource);
             }
         }
 
