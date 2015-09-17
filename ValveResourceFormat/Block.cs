@@ -59,6 +59,7 @@ namespace ValveResourceFormat
             {
                 case ResourceType.Panorama:
                     return new ResourceTypes.Panorama();
+            }
 
             return new Blocks.ResourceData();
         }
