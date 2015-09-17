@@ -1,7 +1,8 @@
 ﻿using System;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Collections.Generic;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {
@@ -13,6 +14,19 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             public string ContentSearchPath { get; set; }
             public uint FileCRC { get; set; }
             public uint Flags { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceInputDependency_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("CResourceString m_ContentRelativeFilename = \"{0}\"", ContentRelativeFilename);
+                writer.WriteLine("CResourceString m_ContentSearchPath = \"{0}\"", ContentSearchPath);
+                writer.WriteLine("uint32 m_nFileCRC = 0x{0:X8}", FileCRC);
+                writer.WriteLine("uint32 m_nFlags = 0x{0:X8}", Flags);
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public List<InputDependency> List;
@@ -47,32 +61,24 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
+            writer.WriteLine("Struct m_InputDependencies[{0}] = ", List.Count);
+            WriteList(writer);
         }
 
-        public override string ToStringIndent(string indent)
+        protected void WriteList(IndentedTextWriter writer)
         {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_InputDependencies[{1}] = \n", indent, List.Count);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             foreach (var dep in List)
             {
-                str.AppendFormat("{0}\tResourceInputDependency_t\n", indent);
-                str.AppendFormat("{0}\t{{\n", indent);
-                str.AppendFormat("{0}\t\tCResourceString m_ContentRelativeFilename = \"{1}\"\n", indent, dep.ContentRelativeFilename);
-                str.AppendFormat("{0}\t\tCResourceString m_ContentSearchPath = \"{1}\"\n", indent, dep.ContentSearchPath);
-                str.AppendFormat("{0}\t\tuint32 m_nFileCRC = 0x{1:X8}\n", indent, dep.FileCRC);
-                str.AppendFormat("{0}\t\tuint32 m_nFlags = 0x{1:X8}\n", indent, dep.Flags);
-                str.AppendFormat("{0}\t}}\n", indent);
+                dep.WriteText(writer);
             }
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }

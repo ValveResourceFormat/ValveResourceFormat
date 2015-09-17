@@ -1,6 +1,6 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.IO;
-using System.Text;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -19,9 +19,9 @@ namespace ValveResourceFormat.Blocks
             
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            throw new NotImplementedException("ToString() in ResourceData");
+            throw new NotImplementedException("WriteText() in ResourceData");
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.IO;
 
 namespace ValveResourceFormat
@@ -20,7 +21,6 @@ namespace ValveResourceFormat
 
         public abstract BlockType GetChar();
         public abstract void Read(BinaryReader reader);
-        public abstract override string ToString();
 
         /// <summary>
         /// Returns a class for given block type.
@@ -63,5 +63,26 @@ namespace ValveResourceFormat
 
             return new Blocks.ResourceData();
         }
+
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
+        /// <returns>A string that represents the current object.</returns>
+        public override string ToString()
+        {
+            using (var output = new StringWriter())
+            using (var writer = new IndentedTextWriter(output, "\t"))
+            {
+                WriteText(writer);
+
+                return output.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Writers the correct object to IndentedTextWriter.
+        /// </summary>
+        /// <param name="writer">IndentedTextWriter.</param>
+        public abstract void WriteText(IndentedTextWriter writer);
     }
 }

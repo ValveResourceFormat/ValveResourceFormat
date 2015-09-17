@@ -1,6 +1,6 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.IO;
-using System.Text;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -21,9 +21,9 @@ namespace ValveResourceFormat.Blocks
             // TODO
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return "";
+            writer.WriteLine("TODO: Don't know how to handle VBIB");
         }
     }
 }

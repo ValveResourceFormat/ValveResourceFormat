@@ -8,7 +8,5 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             return BlockType.REDI;
         }
-
-        public abstract string ToStringIndent(string indent);
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.CodeDom.Compiler;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {
@@ -11,6 +12,17 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             public ulong Id { get; set; }
             public string ResourceName { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceReferenceInfo_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("uint64 m_nId = 0x{0:X16}", Id);
+                writer.WriteLine("CResourceString m_pResourceName = \"{0}\"", ResourceName);
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public List<ReferenceInfo> List;
@@ -41,30 +53,19 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
-        }
-
-        public override string ToStringIndent(string indent)
-        {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_ChildResourceList[{1}] = \n", indent, List.Count);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("Struct m_ChildResourceList[{0}] = ", List.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             foreach (var dep in List)
             {
-                str.AppendFormat("{0}\tResourceReferenceInfo_t\n", indent);
-                str.AppendFormat("{0}\t{{\n", indent);
-                str.AppendFormat("{0}\t\tuint64 m_nId = 0x{1:X16}\n", indent, dep.Id);
-                str.AppendFormat("{0}\t\tCResourceString m_pResourceName = \"{1}\"\n", indent, dep.ResourceName);
-                str.AppendFormat("{0}\t}}\n", indent);
+                dep.WriteText(writer);
             }
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }

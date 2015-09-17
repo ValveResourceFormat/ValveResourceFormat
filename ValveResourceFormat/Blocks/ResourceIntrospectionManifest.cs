@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -26,31 +27,32 @@ namespace ValveResourceFormat.Blocks
                     Indirections = new List<byte>();
                 }
 
-                public override string ToString()
+                public void WriteText(IndentedTextWriter writer)
                 {
-                    var str = new StringBuilder();
+                    writer.WriteLine("CResourceDiskStructField");
+                    writer.WriteLine("{");
+                    writer.Indent++;
+                    writer.WriteLine("CResourceString m_pFieldName = \"{0}\"", FieldName);
+                    writer.WriteLine("int16 m_nCount = {0}", Count);
+                    writer.WriteLine("int16 m_nOnDiskOffset = {0}", OnDiskOffset);
 
-                    str.AppendLine("\t\t\t\t\tCResourceDiskStructField");
-                    str.AppendLine("\t\t\t\t\t{");
-                    str.AppendFormat("\t\t\t\t\t\tCResourceString m_pFieldName = \"{0}\"\n", FieldName);
-                    str.AppendFormat("\t\t\t\t\t\tint16 m_nCount = {0}\n", Count);
-                    str.AppendFormat("\t\t\t\t\t\tint16 m_nOnDiskOffset = {0}\n", OnDiskOffset);
-
-                    str.AppendFormat("\t\t\t\t\t\tuint8[{0}] m_Indirection =\n", Indirections.Count);
-                    str.AppendLine("\t\t\t\t\t\t[");
+                    writer.WriteLine("uint8[{0}] m_Indirection =", Indirections.Count);
+                    writer.WriteLine("[");
+                    writer.Indent++;
 
                     foreach (var dep in Indirections)
                     {
-                        str.AppendFormat("\t\t\t\t\t\t\t{0:D2}\n", dep);
+                        writer.WriteLine("{0:D2}", dep);
                     }
 
-                    str.AppendLine("\n\t\t\t\t\t\t]");
+                    writer.WriteLine(); // valve
+                    writer.Indent--;
+                    writer.WriteLine("]");
 
-                    str.AppendFormat("\t\t\t\t\t\tuint32 m_nTypeData = 0x{0:X8}\n", TypeData);
-                    str.AppendFormat("\t\t\t\t\t\tint16 m_nType = {0}\n", Type);
-                    str.AppendLine("\t\t\t\t\t}");
-
-                    return str.ToString();
+                    writer.WriteLine("uint32 m_nTypeData = 0x{0:X8}", TypeData);
+                    writer.WriteLine("int16 m_nType = {0}", Type);
+                    writer.Indent--;
+                    writer.WriteLine("}");
                 }
             }
 
@@ -70,34 +72,34 @@ namespace ValveResourceFormat.Blocks
                 FieldIntrospection = new List<Field>();
             }
 
-            public override string ToString()
+            public void WriteText(IndentedTextWriter writer)
             {
-                var str = new StringBuilder();
+                writer.WriteLine("CResourceDiskStruct");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("uint32 m_nIntrospectionVersion = 0x{0:X8}", IntrospectionVersion);
+                writer.WriteLine("uint32 m_nId = 0x{0:X8}", Id);
+                writer.WriteLine("CResourceString m_pName = \"{0}\"", Name);
+                writer.WriteLine("uint32 m_nDiskCrc = 0x{0:X8}", DiskCrc);
+                writer.WriteLine("int32 m_nUserVersion = {0}", UserVersion);
+                writer.WriteLine("uint16 m_nDiskSize = 0x{0:X4}", DiskSize);
+                writer.WriteLine("uint16 m_nAlignment = 0x{0:X4}", Alignment);
+                writer.WriteLine("uint32 m_nBaseStructId = 0x{0:X8}", BaseStructId);
 
-                str.AppendLine("\t\t\tCResourceDiskStruct");
-                str.AppendLine("\t\t\t{");
-                str.AppendFormat("\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n", IntrospectionVersion);
-                str.AppendFormat("\t\t\t\tuint32 m_nId = 0x{0:X8}\n", Id);
-                str.AppendFormat("\t\t\t\tCResourceString m_pName = \"{0}\"\n", Name);
-                str.AppendFormat("\t\t\t\tuint32 m_nDiskCrc = 0x{0:X8}\n", DiskCrc);
-                str.AppendFormat("\t\t\t\tint32 m_nUserVersion = {0}\n", UserVersion);
-                str.AppendFormat("\t\t\t\tuint16 m_nDiskSize = 0x{0:X4}\n", DiskSize);
-                str.AppendFormat("\t\t\t\tuint16 m_nAlignment = 0x{0:X4}\n", Alignment);
-                str.AppendFormat("\t\t\t\tuint32 m_nBaseStructId = 0x{0:X8}\n", BaseStructId);
+                writer.WriteLine("Struct m_FieldIntrospection[{0}] = ", FieldIntrospection.Count);
+                writer.WriteLine("[");
+                writer.Indent++;
 
-                str.AppendFormat("\t\t\t\tStruct m_FieldIntrospection[{0}] = \n", FieldIntrospection.Count);
-                str.AppendLine("\t\t\t\t[");
-
-                foreach (var dep in FieldIntrospection)
+                foreach (var field in FieldIntrospection)
                 {
-                    str.Append(dep.ToString());
+                    field.WriteText(writer);
                 }
 
-                str.AppendLine("\t\t\t\t]");
-                str.AppendFormat("\t\t\t\tuint8 m_nStructFlags = 0x{0:X2}\n", StructFlags);
-                str.AppendLine("\t\t\t}");
-
-                return str.ToString();
+                writer.Indent--;
+                writer.WriteLine("]");
+                writer.WriteLine("uint8 m_nStructFlags = 0x{0:X2}", StructFlags);
+                writer.Indent--;
+                writer.WriteLine("}");
             }
         }
 
@@ -108,17 +110,15 @@ namespace ValveResourceFormat.Blocks
                 public string EnumValueName { get; set; }
                 public int EnumValue { get; set; }
 
-                public override string ToString()
+                public void WriteText(IndentedTextWriter writer)
                 {
-                    var str = new StringBuilder();
-
-                    str.AppendLine("\t\t\t\t\tCResourceDiskEnumValue");
-                    str.AppendLine("\t\t\t\t\t{");
-                    str.AppendFormat("\t\t\t\t\t\tCResourceString m_pEnumValueName = \"{0}\"\n", EnumValueName);
-                    str.AppendFormat("\t\t\t\t\t\tint32 m_nEnumValue = {0}\n", EnumValue);
-                    str.AppendLine("\t\t\t\t\t}");
-
-                    return str.ToString();
+                    writer.WriteLine("CResourceDiskEnumValue");
+                    writer.WriteLine("{");
+                    writer.Indent++;
+                    writer.WriteLine("CResourceString m_pEnumValueName = \"{0}\"", EnumValueName);
+                    writer.WriteLine("int32 m_nEnumValue = {0}", EnumValue);
+                    writer.Indent--;
+                    writer.WriteLine("}");
                 }
             }
 
@@ -134,30 +134,30 @@ namespace ValveResourceFormat.Blocks
                 EnumValueIntrospection = new List<Value>();
             }
 
-            public override string ToString()
+            public void WriteText(IndentedTextWriter writer)
             {
-                var str = new StringBuilder();
+                writer.WriteLine("CResourceDiskEnum");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("uint32 m_nIntrospectionVersion = 0x{0:X8}", IntrospectionVersion);
+                writer.WriteLine("uint32 m_nId = 0x{0:X8}", Id);
+                writer.WriteLine("CResourceString m_pName = \"{0}\"", Name);
+                writer.WriteLine("uint32 m_nDiskCrc = 0x{0:X8}", DiskCrc);
+                writer.WriteLine("int32 m_nUserVersion = {0}", UserVersion);
 
-                str.AppendLine("\t\t\tCResourceDiskEnum");
-                str.AppendLine("\t\t\t{");
-                str.AppendFormat("\t\t\t\tuint32 m_nIntrospectionVersion = 0x{0:X8}\n", IntrospectionVersion);
-                str.AppendFormat("\t\t\t\tuint32 m_nId = 0x{0:X8}\n", Id);
-                str.AppendFormat("\t\t\t\tCResourceString m_pName = \"{0}\"\n", Name);
-                str.AppendFormat("\t\t\t\tuint32 m_nDiskCrc = 0x{0:X8}\n", DiskCrc);
-                str.AppendFormat("\t\t\t\tint32 m_nUserVersion = {0}\n", UserVersion);
+                writer.WriteLine("Struct m_EnumValueIntrospection[{0}] = ", EnumValueIntrospection.Count);
+                writer.WriteLine("[");
+                writer.Indent++;
 
-                str.AppendFormat("\t\t\t\tStruct m_EnumValueIntrospection[{0}] = \n", EnumValueIntrospection.Count);
-                str.AppendLine("\t\t\t\t[");
-
-                foreach (var dep in EnumValueIntrospection)
+                foreach (var value in EnumValueIntrospection)
                 {
-                    str.Append(dep.ToString());
+                    value.WriteText(writer);
                 }
 
-                str.AppendLine("\t\t\t\t]");
-                str.AppendLine("\t\t\t}");
-
-                return str.ToString();
+                writer.Indent--;
+                writer.WriteLine("]");
+                writer.Indent--;
+                writer.WriteLine("}");
             }
         }
 
@@ -312,37 +312,43 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            var str = new StringBuilder();
+            writer.WriteLine("CResourceIntrospectionManifest");
+            writer.Indent++; // valve does this for some reason
 
-            str.AppendLine("CResourceIntrospectionManifest");
-            str.AppendLine("\t{");
+            writer.WriteLine("{");
+            writer.Indent++;
 
-            str.AppendFormat("\t\tuint32 m_nIntrospectionVersion = 0x{0:x8}\n", IntrospectionVersion);
-            str.AppendFormat("\t\tStruct m_ReferencedStructs[{0}] = \n", ReferencedStructs.Count);
-            str.AppendLine("\t\t[");
+            writer.WriteLine("uint32 m_nIntrospectionVersion = 0x{0:x8}", IntrospectionVersion);
+            writer.WriteLine("Struct m_ReferencedStructs[{0}] = ", ReferencedStructs.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
-            foreach (var dep in ReferencedStructs)
+            foreach (var refStruct in ReferencedStructs)
             {
-                str.Append(dep.ToString());
+                refStruct.WriteText(writer);
             }
 
-            str.AppendLine("\t\t]");
+            writer.Indent--;
+            writer.WriteLine("]");
 
-            str.AppendFormat("\t\tStruct m_ReferencedEnums[{0}] = \n", ReferencedEnums.Count);
-            str.AppendLine("\t\t[");
+            writer.WriteLine("Struct m_ReferencedEnums[{0}] = ", ReferencedEnums.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
-            foreach (var dep in ReferencedEnums)
+            foreach (var refEnum in ReferencedEnums)
             {
-                str.Append(dep.ToString());
+                refEnum.WriteText(writer);
             }
 
-            str.AppendLine("\t\t]");
+            writer.Indent--;
+            writer.WriteLine("]");
 
-            str.AppendLine("\t}");
+            writer.Indent--;
+            writer.WriteLine("}");
 
-            return str.ToString();
+            writer.Indent--; // valve
         }
     }
 }

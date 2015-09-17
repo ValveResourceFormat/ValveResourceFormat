@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -61,21 +62,21 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            var str = new StringBuilder();
-
-            str.AppendLine("ResourceEditInfoBlock_t");
-            str.AppendLine("\t{");
+            writer.WriteLine("ResourceEditInfoBlock_t");
+            writer.Indent++; // valve
+            writer.WriteLine("{");
+            writer.Indent++;
 
             foreach (var dep in Structs)
             {
-                str.Append(dep.Value.ToStringIndent("\t\t"));
+                dep.Value.WriteText(writer);
             }
 
-            str.AppendLine("\t}");
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("}");
+            writer.Indent--; // valve
         }
 
         static ResourceEditInfoStructs.REDIBlock ConstructStruct(REDIStruct id)

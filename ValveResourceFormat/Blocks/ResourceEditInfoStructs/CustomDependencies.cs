@@ -1,6 +1,6 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.IO;
-using System.Text;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {
@@ -16,23 +16,16 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
-        }
-
-        public override string ToStringIndent(string indent)
-        {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_CustomDependencies[{1}] = \n", indent, 0);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("Struct m_CustomDependencies[{0}] = ", 0);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             // TODO
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }

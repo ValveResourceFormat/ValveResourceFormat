@@ -1,7 +1,8 @@
 ﻿using System;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Collections.Generic;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -21,6 +22,17 @@ namespace ValveResourceFormat.Blocks
             /// Resource name.
             /// </summary>
             public string Name { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceReferenceInfo_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("uint64 m_nId = 0x{0:X16}", Id);
+                writer.WriteLine("CResourceString m_pResourceName = \"{0}\"", Name);
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public readonly List<ResourceReferenceInfo> ResourceRefInfoList;
@@ -64,32 +76,26 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            var str = new StringBuilder();
+            writer.WriteLine("ResourceExtRefList_t");
+            writer.Indent++; // valve
+            writer.WriteLine("{");
+            writer.Indent++;
+            writer.WriteLine("Struct m_resourceRefInfoList[{0}] = ", ResourceRefInfoList.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
-            str.AppendLine("ResourceExtRefList_t");
-            str.AppendLine("\t{");
-
-            str.AppendFormat("\t\tStruct m_resourceRefInfoList[{0}] = \n", ResourceRefInfoList.Count);
-            str.AppendLine("\t\t[");
-
-            foreach (var dep in ResourceRefInfoList)
+            foreach (var refInfo in ResourceRefInfoList)
             {
-                str.AppendLine("\t\t\tResourceReferenceInfo_t");
-                str.AppendLine("\t\t\t{");
-                str.AppendFormat(
-                    "\t\t\t\tuint64 m_nId = 0x{0:X16}\n" +
-                    "\t\t\t\tCResourceString m_pResourceName = \"{1}\"\n",
-                    dep.Id, dep.Name
-                );
-                str.AppendLine("\t\t\t}");
+                refInfo.WriteText(writer);
             }
 
-            str.AppendLine("\t\t]");
-            str.AppendLine("\t}");
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
+            writer.Indent--;
+            writer.WriteLine("}");
+            writer.Indent--; // valve
         }
     }
 }

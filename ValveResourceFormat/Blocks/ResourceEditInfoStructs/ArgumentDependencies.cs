@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -13,6 +14,19 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             public string ParameterType { get; set; }
             public uint Fingerprint { get; set; }
             public uint FingerprintDefault { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceArgumentDependency_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("CResourceString m_ParameterName = \"{0}\"", ParameterName);
+                writer.WriteLine("CResourceString m_ParameterType = \"{0}\"", ParameterType);
+                writer.WriteLine("uint32 m_nFingerprint = 0x{0:X8}", Fingerprint);
+                writer.WriteLine("uint32 m_nFingerprintDefault = 0x{0:X8}", FingerprintDefault);
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public List<ArgumentDependency> List;
@@ -47,32 +61,19 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
-        }
-
-        public override string ToStringIndent(string indent)
-        {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_ArgumentDependencies[{1}] = \n", indent, List.Count);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("Struct m_ArgumentDependencies[{0}] = ", List.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             foreach (var dep in List)
             {
-                str.AppendFormat("{0}\tResourceArgumentDependency_t\n", indent);
-                str.AppendFormat("{0}\t{{\n", indent);
-                str.AppendFormat("{0}\t\tCResourceString m_ParameterName = \"{1}\"\n", indent, dep.ParameterName);
-                str.AppendFormat("{0}\t\tCResourceString m_ParameterType = \"{1}\"\n", indent, dep.ParameterType);
-                str.AppendFormat("{0}\t\tuint32 m_nFingerprint = 0x{1:X8}\n", indent, dep.Fingerprint);
-                str.AppendFormat("{0}\t\tuint32 m_nFingerprintDefault = 0x{1:X8}\n", indent, dep.FingerprintDefault);
-                str.AppendFormat("{0}\t}}\n", indent);
+                dep.WriteText(writer);
             }
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }

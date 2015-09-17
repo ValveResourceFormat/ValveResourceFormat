@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.CodeDom.Compiler;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {
@@ -11,6 +12,17 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             public string ContentRelativeFilename { get; set; }
             public string ContentSearchPath { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceAdditionalRelatedFile_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("CResourceString m_ContentRelativeFilename = \"{0}\"", ContentRelativeFilename);
+                writer.WriteLine("CResourceString m_ContentSearchPath = \"{0}\"", ContentSearchPath);
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public List<AdditionalRelatedFile> List;
@@ -42,30 +54,19 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
-        }
-
-        public override string ToStringIndent(string indent)
-        {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_AdditionalRelatedFiles[{1}] = \n", indent, List.Count);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("Struct m_AdditionalRelatedFiles[{0}] = ", List.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             foreach (var dep in List)
             {
-                str.AppendFormat("{0}\tResourceAdditionalRelatedFile_t\n", indent);
-                str.AppendFormat("{0}\t{{\n", indent);
-                str.AppendFormat("{0}\t\tCResourceString m_ContentRelativeFilename = \"{1}\"\n", indent, dep.ContentRelativeFilename);
-                str.AppendFormat("{0}\t\tCResourceString m_ContentSearchPath = \"{1}\"\n", indent, dep.ContentSearchPath);
-                str.AppendFormat("{0}\t}}\n", indent);
+                dep.WriteText(writer);
             }
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }

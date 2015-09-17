@@ -1,6 +1,7 @@
 ﻿using System;
-using System.IO;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
@@ -10,7 +11,18 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         public class EditIntData
         {
             public string Name { get; set; } 
-            public int Int { get; set; }
+            public int Value { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceEditIntData_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("CResourceString m_Name = \"{0}\"", Name);
+                writer.WriteLine("int32 m_nInt = {0}", Value);
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public List<EditIntData> List;
@@ -33,36 +45,25 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 dep.Name = reader.ReadNullTermString(Encoding.UTF8);
                 reader.BaseStream.Position = prev + 4;
 
-                dep.Int = reader.ReadInt32();
+                dep.Value = reader.ReadInt32();
 
                 List.Add(dep);
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
-        }
-
-        public override string ToStringIndent(string indent)
-        {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_ExtraIntData[{1}] = \n", indent, List.Count);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("Struct m_ExtraIntData[{0}] = ", List.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             foreach (var dep in List)
             {
-                str.AppendFormat("{0}\tResourceEditIntData_t\n", indent);
-                str.AppendFormat("{0}\t{{\n", indent);
-                str.AppendFormat("{0}\t\tCResourceString m_Name = \"{1}\"\n", indent, dep.Name);
-                str.AppendFormat("{0}\t\tint32 m_nInt = {1}\n", indent, dep.Int);
-                str.AppendFormat("{0}\t}}\n", indent);
+                dep.WriteText(writer);
             }
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }

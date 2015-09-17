@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -10,7 +11,40 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         public class EditStringData
         {
             public string Name { get; set; } 
-            public string String { get; set; }
+            public string Value { get; set; }
+
+            public void WriteText(IndentedTextWriter writer)
+            {
+                writer.WriteLine("ResourceEditStringData_t");
+                writer.WriteLine("{");
+                writer.Indent++;
+                writer.WriteLine("CResourceString m_Name = \"{0}\"", Name);
+
+                var lines = Value.Split(new [] { "\r\n", "\n" }, StringSplitOptions.None);
+
+                if (lines.Length > 1)
+                {
+                    writer.Indent++;
+
+                    writer.Write("CResourceString m_String = \"");
+
+                    foreach (var line in lines)
+                    {
+                        writer.WriteLine(line);
+                    }
+
+                    writer.WriteLine("\"");
+
+                    writer.Indent--;
+                }
+                else
+                {
+                    writer.WriteLine("CResourceString m_String = \"{0}\"", Value);
+                }
+
+                writer.Indent--;
+                writer.WriteLine("}");
+            }
         }
 
         public List<EditStringData> List;
@@ -35,37 +69,26 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
                 prev = reader.BaseStream.Position;
                 reader.BaseStream.Position += reader.ReadUInt32();
-                dep.String = reader.ReadNullTermString(Encoding.UTF8);
+                dep.Value = reader.ReadNullTermString(Encoding.UTF8);
                 reader.BaseStream.Position = prev + 4;
 
                 List.Add(dep);
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return ToStringIndent("");
-        }
-
-        public override string ToStringIndent(string indent)
-        {
-            var str = new StringBuilder();
-
-            str.AppendFormat("{0}Struct m_ExtraStringData[{1}] = \n", indent, List.Count);
-            str.AppendFormat("{0}[\n", indent);
+            writer.WriteLine("Struct m_ExtraStringData[{0}] = ", List.Count);
+            writer.WriteLine("[");
+            writer.Indent++;
 
             foreach (var dep in List)
             {
-                str.AppendFormat("{0}\tResourceEditStringData_t\n", indent);
-                str.AppendFormat("{0}\t{{\n", indent);
-                str.AppendFormat("{0}\t\tCResourceString m_Name = \"{1}\"\n", indent, dep.Name);
-                str.AppendFormat("{0}\t\tCResourceString m_String = \"{1}\"\n", indent, dep.String);
-                str.AppendFormat("{0}\t}}\n", indent);
+                dep.WriteText(writer);
             }
 
-            str.AppendFormat("{0}]\n", indent);
-
-            return str.ToString();
+            writer.Indent--;
+            writer.WriteLine("]");
         }
     }
 }
