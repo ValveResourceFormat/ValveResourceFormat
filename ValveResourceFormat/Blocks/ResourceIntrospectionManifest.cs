@@ -17,13 +17,13 @@ namespace ValveResourceFormat.Blocks
                 public string FieldName { get; set; }
                 public short Count { get; set; }
                 public short OnDiskOffset { get; set; }
-                public List<sbyte> Indirections { get; private set; }
+                public List<byte> Indirections { get; private set; }
                 public uint TypeData { get; set; }
                 public short Type { get; set; } // TODO: make this an enum?
 
                 public Field()
                 {
-                    Indirections = new List<sbyte>();
+                    Indirections = new List<byte>();
                 }
 
                 public override string ToString()
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Blocks
             public ushort DiskSize { get; set; }
             public ushort Alignment { get; set; }
             public uint BaseStructId { get; set; }
-            public sbyte StructFlags { get; set; }
+            public byte StructFlags { get; set; }
             public List<Field> FieldIntrospection { get; private set; }
 
             public ResourceDiskStruct()
@@ -239,7 +239,7 @@ namespace ValveResourceFormat.Blocks
 
                     while (indirectionSize-- > 0)
                     {
-                        field.Indirections.Add(reader.ReadSByte());
+                        field.Indirections.Add(reader.ReadByte());
                     }
 
                     reader.BaseStream.Position = prev2;
@@ -254,7 +254,7 @@ namespace ValveResourceFormat.Blocks
 
                 reader.BaseStream.Position = prev;
 
-                diskStruct.StructFlags = reader.ReadSByte();
+                diskStruct.StructFlags = reader.ReadByte();
                 
                 reader.ReadBytes(3); // TODO: ????
 
