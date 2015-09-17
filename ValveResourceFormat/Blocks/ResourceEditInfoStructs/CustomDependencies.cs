@@ -10,7 +10,10 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             reader.BaseStream.Position = this.Offset;
 
-
+            if (this.Size > 0)
+            {
+                throw new NotImplementedException("CustomDependencies block is not handled. Please report this on https://github.com/SteamDatabase/ValveResourceFormat and provide the file that caused this exception.");
+            }
         }
 
         public override string ToString()
