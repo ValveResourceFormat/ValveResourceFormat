@@ -39,9 +39,10 @@ namespace ValveResourceFormat.Blocks
         {
             reader.BaseStream.Position = this.Offset;
 
-            reader.ReadUInt32(); // TODO: always 8??
-
+            var offset = reader.ReadUInt32();
             var size = reader.ReadUInt32();
+
+            reader.BaseStream.Position += offset - 8; // 8 is 2 uint32s we just read
 
             while (size-- > 0)
             {

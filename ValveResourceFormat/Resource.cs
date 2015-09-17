@@ -87,8 +87,7 @@ namespace ValveResourceFormat
             var blockOffset = Reader.ReadUInt32();
             var blockCount = Reader.ReadUInt32();
 
-            // blockOffset appears to be always 8 across all files, but just futureproofing
-            Reader.BaseStream.Position += blockOffset - 8;
+            Reader.BaseStream.Position += blockOffset - 8; // 8 is 2 uint32s we just read
 
             while (blockCount-- > 0)
             {
