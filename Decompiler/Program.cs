@@ -54,7 +54,6 @@ namespace Decompiler
 
                 try
                 {
-                    resource.ResourceType = ResourceType.Model; // TODO: get rid of this
                     resource.Read(path);
                 }
                 catch (Exception e)
@@ -67,9 +66,16 @@ namespace Decompiler
                 //Console.WriteLine("\tInput Path: \"{0}\"", args[fi]);
                 //Console.WriteLine("\tResource Name: \"{0}\"", "???");
                 //Console.WriteLine("\tID: {0:x16}", 0);
-                Console.WriteLine("\tResource Type: {0} = {1} (0x{2:X8}) [Version {3}] [Header Version: {4}]", "???", 0, 0, resource.Version, resource.HeaderVersion);
-                Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
 
+                // Highlight resource type line if undetermined
+                if (resource.ResourceType == ResourceType.Unknown)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                }
+
+                Console.WriteLine("\tResource Type: {0} [Version {1}] [Header Version: {2}]", resource.ResourceType, resource.Version, resource.HeaderVersion);
+                Console.ResetColor();
+                Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
                 Console.WriteLine(Environment.NewLine);
 
                 if (resource.Blocks.ContainsKey(BlockType.RERL))
@@ -77,7 +83,7 @@ namespace Decompiler
                     Console.WriteLine("--- Resource External Refs: ---");
                     Console.WriteLine("\t{0,-16}  {1,-48}", "Id:", "Resource Name:");
 
-                    foreach (var res in ((ValveResourceFormat.Blocks.ResourceExtRefList)resource.Blocks[BlockType.RERL]).ResourceRefInfoList)
+                    foreach (var res in resource.ExternalReferences.ResourceRefInfoList)
                     {
                         Console.WriteLine("\t{0:X16}  {1,-48}", res.Id, res.Name);
                     }

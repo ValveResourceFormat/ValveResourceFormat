@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class MDL : Blocks.ResourceData
+    public class Model : Blocks.ResourceData
     {
         public override void Read(BinaryReader reader)
         {

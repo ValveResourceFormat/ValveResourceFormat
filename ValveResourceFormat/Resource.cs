@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat
 {
@@ -38,11 +39,16 @@ namespace ValveResourceFormat
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; set; }
 
+        public ResourceExtRefList ExternalReferences;
+        public ResourceEditInfo EditInfo;
+        public ResourceIntrospectionManifest IntrospectionManifest;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Resource"/> class.
         /// </summary>
         public Resource()
         {
+            ResourceType = ResourceType.Unknown;
             Blocks = new Dictionary<BlockType, Block>();
         }
 
@@ -94,16 +100,44 @@ namespace ValveResourceFormat
                 var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
                 var block = Block.ConstructFromType(blockType);
 
+                var position = Reader.BaseStream.Position;
+
                 // Offset is relative to current position
-                block.Offset = (uint)Reader.BaseStream.Position + Reader.ReadUInt32();
+                block.Offset = (uint)position + Reader.ReadUInt32();
                 block.Size = Reader.ReadUInt32();
 
-                Blocks.Add(block.GetChar(), block);
-            }
-
-            foreach (var block in Blocks.Values)
-            {
                 block.Read(Reader);
+
+                switch (block.GetChar())
+                {
+                    case BlockType.REDI:
+                        EditInfo = (ResourceEditInfo)block;
+
+                        // Try to determine resource type by looking at first compiler indentifier
+                        if (EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                        {
+                            var specialDeps = (Blocks.ResourceEditInfoStructs.SpecialDependencies)EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+
+                            if (specialDeps.List.Count > 0)
+                            {
+                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0].CompilerIdentifier);
+                            }
+                        }
+
+                        break;
+
+                    case BlockType.RERL:
+                        ExternalReferences = (ResourceExtRefList)block;
+                        break;
+
+                    case BlockType.NTRO:
+                        IntrospectionManifest = (ResourceIntrospectionManifest)block;
+                        break;
+                }
+
+                Blocks.Add(block.GetChar(), block);
+
+                Reader.BaseStream.Position = position + 8;
             }
         }
 
@@ -117,6 +151,23 @@ namespace ValveResourceFormat
             {
                 Read(fs);
             }
+        }
+
+        private static ResourceType DetermineResourceTypeByCompilerIdentifier(string identifier)
+        {
+            if (identifier.StartsWith("Compile", StringComparison.Ordinal))
+            {
+                identifier = identifier.Remove(0, "Compile".Length);
+            }
+
+            ResourceType resourceType;
+
+            if (Enum.TryParse(identifier, false, out resourceType))
+            {
+                return resourceType;
+            }
+
+            return ResourceType.Unknown;
         }
     }
 }
