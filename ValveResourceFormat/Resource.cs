@@ -98,7 +98,7 @@ namespace ValveResourceFormat
             while (blockCount-- > 0)
             {
                 var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
-                var block = Block.ConstructFromType(blockType);
+                var block = Block.ConstructFromType(blockType, ResourceType);
 
                 var position = Reader.BaseStream.Position;
 

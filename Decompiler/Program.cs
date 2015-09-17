@@ -120,7 +120,10 @@ namespace Decompiler
                 {
                     if (block.Key == BlockType.DATA)
                     {
-                        continue;
+                        if (resource.ResourceType != ResourceType.Panorama)
+                        {
+                            continue;
+                        }
                     }
 
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);

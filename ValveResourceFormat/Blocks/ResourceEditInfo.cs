@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// This is not a real Valve enum, it's just the order they appear in.
         /// </summary>
-        enum REDIStruct
+        public enum REDIStruct
         {
             InputDependencies,
             AdditionalInputDependencies,
@@ -29,11 +29,11 @@ namespace ValveResourceFormat.Blocks
             End
         }
 
-        public List<ResourceEditInfoStructs.REDIBlock> Structs;
+        public Dictionary<REDIStruct, ResourceEditInfoStructs.REDIBlock> Structs;
 
         public ResourceEditInfo()
         {
-            Structs = new List<ResourceEditInfoStructs.REDIBlock>();
+            Structs = new Dictionary<REDIStruct, ResourceEditInfoStructs.REDIBlock>();
         }
 
         public override BlockType GetChar()
@@ -52,12 +52,12 @@ namespace ValveResourceFormat.Blocks
                 block.Offset = (uint)reader.BaseStream.Position + reader.ReadUInt32();
                 block.Size = reader.ReadUInt32();
 
-                Structs.Add(block);
+                Structs.Add(i, block);
             }
 
             foreach (var block in Structs)
             {
-                block.Read(reader);
+                block.Value.Read(reader);
             }
         }
 
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var dep in Structs)
             {
-                str.Append(dep.ToStringIndent("\t\t"));
+                str.Append(dep.Value.ToStringIndent("\t\t"));
             }
 
             str.AppendLine("\t}");

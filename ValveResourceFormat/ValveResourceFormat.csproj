@@ -44,6 +44,7 @@
     <Compile Include="StreamHelpers.cs" />
     <Compile Include="BlockType.cs" />
     <Compile Include="ResourceType.cs" />
+    <Compile Include="ResourceTypes\Model.cs" />
     <Compile Include="ResourceTypes\Panorama.cs" />
     <Compile Include="Blocks\ResourceEditInfoStructs\InputDependencies.cs" />
     <Compile Include="Blocks\ResourceEditInfoStructs\REDIBlock.cs" />

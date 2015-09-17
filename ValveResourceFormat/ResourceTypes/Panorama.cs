@@ -28,5 +28,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             Data = reader.ReadBytes((int)this.Size - headerSize);
         }
+
+        public override string ToString()
+        {
+            return Encoding.UTF8.GetString(Data);
+        }
     }
 }
