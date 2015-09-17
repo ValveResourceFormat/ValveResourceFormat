@@ -25,10 +25,10 @@ namespace ValveResourceFormat
         AnimationGroup,
 
         [Extension("vseq")]
-        SequenceGroup,
+        Sequence,
 
         [Extension("vpcf")]
-        ParticleSystem,
+        Particle,
 
         [Extension("vmat")]
         Material,
@@ -40,7 +40,7 @@ namespace ValveResourceFormat
         Mesh,
 
         [Extension("vtex")]
-        CompiledTexture,
+        Texture,
 
         [Extension("vmdl")]
         Model,
@@ -52,7 +52,7 @@ namespace ValveResourceFormat
         Sound,
 
         [Extension("vmorf")]
-        MorphSet,
+        Morph,
 
         [Extension("vrman")]
         ResourceManifest,
@@ -84,22 +84,31 @@ namespace ValveResourceFormat
         [Extension("vrmap")]
         ResourceRemapTable,
 
+        // All Panorama* are compiled just as CompilePanorama
+        Panorama,
+
         [Extension("vcss")]
-        PanoramaStyle,
+        PanoramaStyle = Panorama,
 
         [Extension("vxml")]
-        PanoramaLayout,
+        PanoramaLayout = Panorama,
 
         [Extension("vpdi")]
-        PanoramaDynamicImages,
+        PanoramaDynamicImages = Panorama,
 
         [Extension("vjs")]
-        PanoramaScript,
+        PanoramaScript = Panorama,
 
         [Extension("vpsf")]
         ParticleSnapshot,
 
         [Extension("vmap")]
         Map,
+
+        // Mappings to match compiler identifier
+        Psf = ParticleSnapshot,
+        AnimGroup = AnimationGroup,
+        VPhysXData = PhysicsCollisionMesh,
+        Font = BitmapFont,
     }
 }
