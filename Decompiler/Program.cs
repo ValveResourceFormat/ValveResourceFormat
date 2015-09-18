@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 
 namespace Decompiler
 {
@@ -9,40 +10,42 @@ namespace Decompiler
     {
         public static void Main(string[] args)
         {
-            if (args.Length == 0)
-            {
-                Console.WriteLine("Usage: decompiler <path>");
-                Console.WriteLine("\tPath can be a single file, a list of files, or a directory.");
+            var options = new Options();
+            CommandLine.Parser.Default.ParseArgumentsStrict(args, options);
 
-                return;
+            options.InputFile = Path.GetFullPath(options.InputFile);
+
+            if (options.OutputFile != null)
+            {
+                options.OutputFile = Path.GetFullPath(options.OutputFile);
             }
 
             var paths = new List<string>();
 
-            for (int i = 0; i < args.Length; i++)
+            if (Directory.Exists(options.InputFile))
             {
-                var path = Path.GetFullPath(args[i]);
-
-                if (Directory.Exists(path))
+                if (options.OutputFile != null && File.Exists(options.OutputFile))
                 {
-                    Console.WriteLine("Will read all files in \"{0}\"", path);
+                    Console.Error.WriteLine("Output path is an existing file, but input is a folder.");
 
-                    paths.AddRange(Directory.GetFiles(path));
-
-                    continue;
-                }
-                else if (File.Exists(path))
-                {
-                    paths.Add(path);
-
-                    continue;
+                    return;
                 }
 
-                throw new FileNotFoundException(string.Format("No such file \"{0}\"", path));
+                paths.AddRange(Directory.GetFiles(options.InputFile, "*.*_c", options.RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
+            }
+            else if (File.Exists(options.InputFile))
+            {
+                options.RecursiveSearch = false;
+
+                paths.Add(options.InputFile);
             }
 
-            Console.WriteLine("Found {0} files to read", paths.Count);
-            Console.WriteLine();
+            if (paths.Count == 0)
+            {
+                Console.Error.WriteLine("No such file \"{0}\" or directory is empty. Did you mean to include --recursive parameter?", options.InputFile);
+
+                return;
+            }
 
             foreach (var path in paths)
             {
@@ -55,6 +58,38 @@ namespace Decompiler
                 try
                 {
                     resource.Read(path);
+
+                    if(options.OutputFile != null)
+                    {
+                        if (resource.ResourceType != ResourceType.Panorama)
+                        {
+                            Console.Error.WriteLine("--- (We only support dumping panorama resources at the moment.)");
+
+                            continue;
+                        }
+
+                        var outputFile = options.OutputFile;
+
+                        if(options.RecursiveSearch)
+                        {
+                            // I bet this is prone to breaking, is there a better way?
+                            outputFile = Path.Combine(outputFile, Path.GetDirectoryName(path.Remove(0, options.InputFile.TrimEnd(Path.DirectorySeparatorChar).Length + 1)));
+
+                            if (!Directory.Exists(outputFile))
+                            {
+                                Directory.CreateDirectory(outputFile);
+                            }
+                        }
+
+                        if (Directory.Exists(outputFile))
+                        {
+                            outputFile = Path.Combine(outputFile, Path.GetFileNameWithoutExtension(path) + Path.GetExtension(path).Replace("_c", ""));
+                        }
+
+                        File.WriteAllBytes(outputFile, ((Panorama)resource.Blocks[BlockType.DATA]).Data);
+
+                        Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+                    }
                 }
                 catch (Exception e)
                 {
