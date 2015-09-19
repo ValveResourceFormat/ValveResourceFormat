@@ -50,6 +50,13 @@ namespace Decompiler
 
             foreach (var path in paths)
             {
+                if (Path.GetExtension(path) == ".vpk")
+                {
+                    ParseVPK(path);
+
+                    continue;
+                }
+
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("--- Info for resource file \"{0}\" ---", path);
                 Console.ResetColor();
@@ -171,6 +178,31 @@ namespace Decompiler
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
                     Console.WriteLine(block.Value);
                 }
+            }
+        }
+
+        private static void ParseVPK(string path)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
+            Console.ResetColor();
+
+            var package = new Package();
+
+            try
+            {
+                package.Read(path);
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine(e);
+                Console.ResetColor();
+            }
+
+            foreach (var entry in package.Entries)
+            {
+                Console.WriteLine("\t[archive index: {2}] {0}\\{1}", entry.DirectoryName, entry.FileName, entry.ArchiveIndex);
             }
         }
     }

@@ -58,11 +58,14 @@
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
     <Compile Include="Blocks\VBIB.cs" />
+    <Compile Include="Package\Package.cs" />
+    <Compile Include="Package\PackageEntry.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Blocks\" />
     <Folder Include="ResourceTypes\" />
     <Folder Include="Blocks\ResourceEditInfoStructs\" />
+    <Folder Include="Package\" />
   </ItemGroup>
 </Project>
