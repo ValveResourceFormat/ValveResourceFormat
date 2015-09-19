@@ -202,7 +202,7 @@ namespace Decompiler
 
             foreach (var entry in package.Entries)
             {
-                Console.WriteLine("\t[archive index: {2}] {0}\\{1}", entry.DirectoryName, entry.FileName, entry.ArchiveIndex);
+                Console.WriteLine("\t[archive index: {3}] {0}\\{1}.{2}", entry.DirectoryName, entry.FileName, entry.TypeName, entry.ArchiveIndex);
             }
         }
     }
