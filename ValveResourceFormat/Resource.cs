@@ -75,6 +75,11 @@ namespace ValveResourceFormat
 
             FileSize = Reader.ReadUInt32();
 
+            if (FileSize == Package.MAGIC)
+            {
+                throw new InvalidDataException("Use Package() class to parse VPK files.");
+            }
+
             // TODO: Some real files seem to have different file size
             if (FileSize != Reader.BaseStream.Length)
             {
