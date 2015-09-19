@@ -8,7 +8,7 @@ namespace ValveResourceFormat
         public string DirectoryName;
         public string TypeName;
         public uint CRC32;
-        public uint Size;
+        public uint Length;
         public uint Offset;
         public ushort ArchiveIndex;
         public byte[] SmallData;

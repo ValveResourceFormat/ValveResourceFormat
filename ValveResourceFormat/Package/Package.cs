@@ -36,6 +36,12 @@ namespace ValveResourceFormat
         public const int MAGIC = 0x55AA1234;
 
         private BinaryReader Reader;
+        private string FileName;
+
+        /// <summary>
+        /// Gets the VPK version.
+        /// </summary>
+        public uint Version { get; private set; }
 
         /// <summary>
         /// The size, in bytes, of the directory tree.
@@ -81,11 +87,42 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
+        /// Sets the file name.
+        /// </summary>
+        /// <param name="fileName">Filename.</param>
+        public void SetFileName(string fileName)
+        {
+            if (fileName.EndsWith(".vpk", StringComparison.Ordinal))
+            {
+                fileName = fileName.Substring(0, fileName.Length - 4);
+            }
+
+            if (fileName.EndsWith("_dir", StringComparison.Ordinal))
+            {
+                fileName = fileName.Substring(0, fileName.Length - 4);
+            }
+
+            FileName = fileName;
+
+            fileName += "_dir.vpk";
+
+            if (!File.Exists(fileName))
+            {
+                throw new FileNotFoundException(string.Format("\"{0}\" does not exist.", fileName));
+            }
+        }
+
+        /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(Stream input)
         {
+            if (FileName == null)
+            {
+                throw new InvalidOperationException("If you call Read() directly with a stream, you must call SetFileName() first.");
+            }
+
             Reader = new BinaryReader(input);
 
             if (Reader.ReadUInt32() != Package.MAGIC)
@@ -93,14 +130,14 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("Given file is not a VPK dictionary file.");
             }
 
-            var version = Reader.ReadUInt32();
+            Version = Reader.ReadUInt32();
             TreeSize = Reader.ReadUInt32();
 
-            if (version == 1)
+            if (Version == 1)
             {
                 // Nothing else
             }
-            else if (version == 2)
+            else if (Version == 2)
             {
                 FileDataSectionSize = Reader.ReadUInt32();
                 ArchiveMD5SectionSize = Reader.ReadUInt32();
@@ -109,7 +146,7 @@ namespace ValveResourceFormat
             }
             else
             {
-                throw new InvalidDataException(string.Format("Bad VPK version. ({0})", version));
+                throw new InvalidDataException(string.Format("Bad VPK version. ({0})", Version));
             }
 
             var entries = new List<PackageEntry>();
@@ -118,6 +155,7 @@ namespace ValveResourceFormat
             while (true)
             {
                 string typeName = Reader.ReadNullTermString(Encoding.UTF8);
+
                 if (typeName == "")
                 {
                     break;
@@ -151,11 +189,9 @@ namespace ValveResourceFormat
                         entry.SmallData = new byte[Reader.ReadUInt16()];
                         entry.ArchiveIndex = Reader.ReadUInt16();
                         entry.Offset = Reader.ReadUInt32();
-                        entry.Size = Reader.ReadUInt32();
+                        entry.Length = Reader.ReadUInt32();
 
-                        ushort terminator = Reader.ReadUInt16();
-
-                        if (terminator != 0xFFFF)
+                        if (Reader.ReadUInt16() != 0xFFFF)
                         {
                             throw new FormatException("Invalid terminator.");
                         }
@@ -179,9 +215,39 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
-            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            SetFileName(filename);
+
+            using (var fs = new FileStream(FileName + "_dir.vpk", FileMode.Open, FileAccess.Read))
             {
                 Read(fs);
+            }
+        }
+
+        /// <summary>
+        /// Reads the entry from the VPK package.
+        /// </summary>
+        /// <param name="entry">Package entry.</param>
+        /// <param name="output">Output buffer.</param>
+        public void ReadEntry(PackageEntry entry, out byte[] output)
+        {
+            if (entry.ArchiveIndex == 0x7FFF)
+            {
+                throw new NotImplementedException("Inline file in vpk, not yet handled.");
+            }
+
+            if (entry.SmallData.Length > 0)
+            {
+                throw new NotImplementedException("SmallData.Length > 0, not yet handled.");
+            }
+
+            output = new byte[entry.Length];
+
+            var fileName = string.Format("{0}_{1:D3}.vpk", FileName, entry.ArchiveIndex);
+
+            using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
+            {
+                fs.Seek(entry.Offset, SeekOrigin.Begin);
+                fs.Read(output, 0, (int)entry.Length);
             }
         }
     }
