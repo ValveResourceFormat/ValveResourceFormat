@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using System.Diagnostics;
 
 namespace Decompiler
 {
@@ -57,7 +58,13 @@ namespace Decompiler
 
                 try
                 {
+                    var sw = Stopwatch.StartNew();
+
                     resource.Read(path);
+
+                    sw.Stop();
+
+                    Console.WriteLine("Parsed in {0}ms", sw.ElapsedMilliseconds);
 
                     if(options.OutputFile != null)
                     {
