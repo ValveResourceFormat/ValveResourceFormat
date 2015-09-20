@@ -35,39 +35,38 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Block.cs" />
-    <Compile Include="Blocks\ResourceData.cs" />
-    <Compile Include="Blocks\ResourceIntrospectionManifest.cs" />
-    <Compile Include="Blocks\ResourceExtRefList.cs" />
-    <Compile Include="Blocks\ResourceEditInfo.cs" />
-    <Compile Include="Resource.cs" />
-    <Compile Include="StreamHelpers.cs" />
-    <Compile Include="BlockType.cs" />
-    <Compile Include="ResourceType.cs" />
-    <Compile Include="ResourceTypes\Model.cs" />
-    <Compile Include="ResourceTypes\Panorama.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\InputDependencies.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\REDIBlock.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\AdditionalInputDependencies.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\ArgumentDependencies.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\SpecialDependencies.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\CustomDependencies.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\AdditionalRelatedFiles.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\ChildResourceList.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\ExtraIntData.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
-    <Compile Include="Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
-    <Compile Include="Blocks\VBIB.cs" />
-    <Compile Include="ResourceTypes\NTRO.cs" />
-    <Compile Include="DataType.cs" />
     <Compile Include="Package\Package.cs" />
     <Compile Include="Package\PackageEntry.cs" />
+    <Compile Include="Resource\Block.cs" />
+    <Compile Include="Resource\BlockType.cs" />
+    <Compile Include="Resource\DataType.cs" />
+    <Compile Include="Resource\Resource.cs" />
+    <Compile Include="Resource\ResourceType.cs" />
+    <Compile Include="Resource\ResourceTypes\Model.cs" />
+    <Compile Include="Resource\ResourceTypes\NTRO.cs" />
+    <Compile Include="Resource\ResourceTypes\Panorama.cs" />
+    <Compile Include="Resource\Blocks\ResourceData.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfo.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\AdditionalInputDependencies.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\AdditionalRelatedFiles.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ArgumentDependencies.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ChildResourceList.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\CustomDependencies.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ExtraIntData.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\InputDependencies.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\REDIBlock.cs" />
+    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\SpecialDependencies.cs" />
+    <Compile Include="Resource\Blocks\ResourceExtRefList.cs" />
+    <Compile Include="Resource\Blocks\ResourceIntrospectionManifest.cs" />
+    <Compile Include="Resource\Blocks\VBIB.cs" />
+    <Compile Include="Utils\StreamHelpers.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <Folder Include="Blocks\" />
-    <Folder Include="ResourceTypes\" />
-    <Folder Include="Blocks\ResourceEditInfoStructs\" />
     <Folder Include="Package\" />
+    <Folder Include="Resource\" />
+    <Folder Include="Utils\" />
   </ItemGroup>
 </Project>
