@@ -277,16 +277,27 @@ namespace Decompiler
 
             outputFile = Path.Combine(outputFile, Path.GetDirectoryName(path));
 
-            if (!Directory.Exists(outputFile))
-            {
-                Directory.CreateDirectory(outputFile);
-            }
+            Directory.CreateDirectory(outputFile);
 
             outputFile = Path.Combine(outputFile, Path.GetFileName(path));
+            outputFile = FixPathSlahes(outputFile);
 
             File.WriteAllBytes(outputFile, data);
 
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+        }
+
+        private static string FixPathSlahes(string path)
+        {
+            path = Path.GetFullPath(path);
+            path = path.Replace('\\', '/');
+
+            if (Path.DirectorySeparatorChar != '/')
+            {
+                path = path.Replace('/', Path.DirectorySeparatorChar);
+            }
+
+            return path;
         }
     }
 }
