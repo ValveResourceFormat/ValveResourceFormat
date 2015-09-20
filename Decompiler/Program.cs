@@ -212,6 +212,10 @@ namespace Decompiler
                 DumpVPK(package, "vxml_c", "xml");
                 DumpVPK(package, "vjs_c", "js");
                 DumpVPK(package, "vcss_c", "css");
+
+                DumpVPK(package, "txt", "txt");
+                DumpVPK(package, "cfg", "cfg");
+                DumpVPK(package, "res", "res");
             }
 
             sw.Stop();
@@ -232,24 +236,37 @@ namespace Decompiler
 
             foreach (var file in entries)
             {
-                var filePath = Path.Combine(file.DirectoryName, string.Format("{0}.{1}", file.FileName, file.TypeName));
+                var filePath = string.Format("{0}.{1}", file.FileName, file.TypeName);
+
+                if (!string.IsNullOrWhiteSpace(file.DirectoryName))
+                {
+                    filePath = Path.Combine(file.DirectoryName, filePath);
+                }
 
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 byte[] output;
                 package.ReadEntry(file, out output);
 
-                var resource = new Resource();
-                using (var memory = new MemoryStream(output))
+                if (type.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    resource.Read(memory);
+                    var resource = new Resource();
+                    using (var memory = new MemoryStream(output))
+                    {
+                        resource.Read(memory);
+                    }
+
+                    output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
                 }
 
                 if (Options.OutputFile != null)
                 {
-                    filePath = Path.ChangeExtension(filePath, newType);
+                    if (type != newType)
+                    {
+                        filePath = Path.ChangeExtension(filePath, newType);
+                    }
 
-                    DumpFile(filePath, ((Panorama)resource.Blocks[BlockType.DATA]).Data);
+                    DumpFile(filePath, output);
                 }
             }
         }
