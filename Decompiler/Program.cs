@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using System.Diagnostics;
 
 namespace Decompiler
 {
@@ -197,7 +198,9 @@ namespace Decompiler
             {
                 Console.WriteLine("--- Files in package:");
 
-                foreach (var entry in package.Entries)
+                var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key);
+
+                foreach (var entry in orderedEntries)
                 {
                     Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
                 }
