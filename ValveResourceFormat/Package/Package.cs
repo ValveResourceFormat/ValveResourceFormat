@@ -71,7 +71,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Package entries.
         /// </summary>
-        public List<PackageEntry> Entries { get; private set; }
+        public Dictionary<string, List<PackageEntry>> Entries { get; private set; }
 
         /// <summary>
         /// Releases binary reader.
@@ -149,7 +149,7 @@ namespace ValveResourceFormat
                 throw new InvalidDataException(string.Format("Bad VPK version. ({0})", Version));
             }
 
-            var entries = new List<PackageEntry>();
+            var typeEntries = new Dictionary<string, List<PackageEntry>>();
 
             // Types
             while (true)
@@ -160,6 +160,8 @@ namespace ValveResourceFormat
                 {
                     break;
                 }
+
+                var entries = new List<PackageEntry>();
 
                 // Directories
                 while (true)
@@ -204,9 +206,11 @@ namespace ValveResourceFormat
                         entries.Add(entry);
                     }
                 }
+
+                typeEntries.Add(typeName, entries);
             }
 
-            Entries = entries;
+            Entries = typeEntries;
         }
 
         /// <summary>

@@ -200,9 +200,13 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
+            Console.WriteLine("--- Files in package:");
+
             foreach (var entry in package.Entries)
             {
-                Console.WriteLine("\t[archive index: {3:D3}] {0}\\{1}.{2}", entry.DirectoryName, entry.FileName, entry.TypeName, entry.ArchiveIndex);
+                Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
+
+                //Console.WriteLine("\t[archive index: {3:D3}] {0}\\{1}.{2}", entry.DirectoryName, entry.FileName, entry.TypeName, entry.ArchiveIndex);
             }
         }
     }
