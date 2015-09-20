@@ -62,6 +62,7 @@
     <Compile Include="Resource\Blocks\ResourceIntrospectionManifest.cs" />
     <Compile Include="Resource\Blocks\VBIB.cs" />
     <Compile Include="Utils\StreamHelpers.cs" />
+    <Compile Include="Utils\Crc32.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

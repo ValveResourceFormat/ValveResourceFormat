@@ -25,8 +25,8 @@
  */
 
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat
@@ -232,7 +232,8 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="entry">Package entry.</param>
         /// <param name="output">Output buffer.</param>
-        public void ReadEntry(PackageEntry entry, out byte[] output)
+        /// <param name="validateCrc">If true, CRC32 will be calculated and verified for read data.</param>
+        public void ReadEntry(PackageEntry entry, out byte[] output, bool validateCrc = true)
         {
             if (entry.ArchiveIndex == 0x7FFF)
             {
@@ -252,6 +253,14 @@ namespace ValveResourceFormat
             {
                 fs.Seek(entry.Offset, SeekOrigin.Begin);
                 fs.Read(output, 0, (int)entry.Length);
+            }
+
+            Console.WriteLine(entry.CRC32);
+            Console.WriteLine(Crc32.Compute(output));
+
+            if (validateCrc && entry.CRC32 != Crc32.Compute(output))
+            {
+                throw new InvalidDataException("CRC32 mismatch for read data.");
             }
         }
     }
