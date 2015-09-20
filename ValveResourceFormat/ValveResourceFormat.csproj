@@ -58,6 +58,8 @@
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
     <Compile Include="Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
     <Compile Include="Blocks\VBIB.cs" />
+    <Compile Include="ResourceTypes\NTRO.cs" />
+    <Compile Include="DataType.cs" />
     <Compile Include="Package\Package.cs" />
     <Compile Include="Package\PackageEntry.cs" />
   </ItemGroup>

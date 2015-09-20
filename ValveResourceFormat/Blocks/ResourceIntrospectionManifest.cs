@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Blocks
                 public short OnDiskOffset { get; set; }
                 public List<byte> Indirections { get; private set; }
                 public uint TypeData { get; set; }
-                public short Type { get; set; } // TODO: make this an enum?
+                public DataType Type { get; set; } // TODO: make this an enum?
 
                 public Field()
                 {
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Blocks
                     writer.WriteLine("]");
 
                     writer.WriteLine("uint32 m_nTypeData = 0x{0:X8}", TypeData);
-                    writer.WriteLine("int16 m_nType = {0}", Type);
+                    writer.WriteLine("int16 m_nType = {0}", (int)Type);
                     writer.Indent--;
                     writer.WriteLine("}");
                 }
@@ -245,7 +245,7 @@ namespace ValveResourceFormat.Blocks
                     reader.BaseStream.Position = prev2;
 
                     field.TypeData = reader.ReadUInt32();
-                    field.Type = reader.ReadInt16();
+                    field.Type = (DataType)reader.ReadInt16();
 
                     reader.ReadBytes(2); // TODO: ????
 

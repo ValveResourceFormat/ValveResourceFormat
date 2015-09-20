@@ -183,6 +183,11 @@ namespace ValveResourceFormat
 
         private ResourceData ConstructResourceType()
         {
+            if (Blocks.ContainsKey(BlockType.NTRO))
+            {
+                return new ResourceTypes.NTRO();
+            }
+
             switch (ResourceType)
             {
                 case ResourceType.Panorama:
