@@ -9,41 +9,43 @@ namespace Decompiler
 {
     class Decompiler
     {
+        private static Options Options;
+
         public static void Main(string[] args)
         {
-            var options = new Options();
-            CommandLine.Parser.Default.ParseArgumentsStrict(args, options);
+            Options = new Options();
+            CommandLine.Parser.Default.ParseArgumentsStrict(args, Options);
 
-            options.InputFile = Path.GetFullPath(options.InputFile);
+            Options.InputFile = Path.GetFullPath(Options.InputFile);
 
-            if (options.OutputFile != null)
+            if (Options.OutputFile != null)
             {
-                options.OutputFile = Path.GetFullPath(options.OutputFile);
+                Options.OutputFile = Path.GetFullPath(Options.OutputFile);
             }
 
             var paths = new List<string>();
 
-            if (Directory.Exists(options.InputFile))
+            if (Directory.Exists(Options.InputFile))
             {
-                if (options.OutputFile != null && File.Exists(options.OutputFile))
+                if (Options.OutputFile != null && File.Exists(Options.OutputFile))
                 {
                     Console.Error.WriteLine("Output path is an existing file, but input is a folder.");
 
                     return;
                 }
 
-                paths.AddRange(Directory.GetFiles(options.InputFile, "*.*_c", options.RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
+                paths.AddRange(Directory.GetFiles(Options.InputFile, "*.*_c", Options.RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
             }
-            else if (File.Exists(options.InputFile))
+            else if (File.Exists(Options.InputFile))
             {
-                options.RecursiveSearch = false;
+                Options.RecursiveSearch = false;
 
-                paths.Add(options.InputFile);
+                paths.Add(Options.InputFile);
             }
 
             if (paths.Count == 0)
             {
-                Console.Error.WriteLine("No such file \"{0}\" or directory is empty. Did you mean to include --recursive parameter?", options.InputFile);
+                Console.Error.WriteLine("No such file \"{0}\" or directory is empty. Did you mean to include --recursive parameter?", Options.InputFile);
 
                 return;
             }
@@ -73,7 +75,7 @@ namespace Decompiler
 
                     Console.WriteLine("Parsed in {0}ms", sw.ElapsedMilliseconds);
 
-                    if(options.OutputFile != null)
+                    if (Options.OutputFile != null)
                     {
                         if (resource.ResourceType != ResourceType.Panorama)
                         {
@@ -82,27 +84,16 @@ namespace Decompiler
                             continue;
                         }
 
-                        var outputFile = options.OutputFile;
+                        var filePath = path;
 
-                        if(options.RecursiveSearch)
+                        if (Options.RecursiveSearch)
                         {
                             // I bet this is prone to breaking, is there a better way?
-                            outputFile = Path.Combine(outputFile, Path.GetDirectoryName(path.Remove(0, options.InputFile.TrimEnd(Path.DirectorySeparatorChar).Length + 1)));
-
-                            if (!Directory.Exists(outputFile))
-                            {
-                                Directory.CreateDirectory(outputFile);
-                            }
+                            filePath = filePath.Remove(0, Options.InputFile.TrimEnd(Path.DirectorySeparatorChar).Length + 1);
                         }
 
-                        if (Directory.Exists(outputFile))
-                        {
-                            outputFile = Path.Combine(outputFile, Path.GetFileNameWithoutExtension(path) + Path.GetExtension(path).Replace("_c", ""));
-                        }
-
-                        File.WriteAllBytes(outputFile, ((Panorama)resource.Blocks[BlockType.DATA]).Data);
-
-                        Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+                        // TODO: disabled until fixed
+                        //DumpFile(filePath, ((Panorama)resource.Blocks[BlockType.DATA]).Data);
                     }
                 }
                 catch (Exception e)
@@ -187,6 +178,8 @@ namespace Decompiler
             Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
             Console.ResetColor();
 
+            var sw = Stopwatch.StartNew();
+
             var package = new Package();
 
             try
@@ -200,14 +193,80 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            Console.WriteLine("--- Files in package:");
-
-            foreach (var entry in package.Entries)
+            if (Options.OutputFile == null)
             {
-                Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
+                Console.WriteLine("--- Files in package:");
 
-                //Console.WriteLine("\t[archive index: {3:D3}] {0}\\{1}.{2}", entry.DirectoryName, entry.FileName, entry.TypeName, entry.ArchiveIndex);
+                foreach (var entry in package.Entries)
+                {
+                    Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
+                }
             }
+            else
+            {
+                Console.WriteLine("--- Dumping decompiled files...");
+
+                DumpVPK(package, "vxml_c", "xml");
+                DumpVPK(package, "vjs_c", "js");
+                DumpVPK(package, "vcss_c", "css");
+            }
+
+            sw.Stop();
+
+            Console.WriteLine("Processed in {0}ms", sw.ElapsedMilliseconds);
+        }
+
+        private static void DumpVPK(Package package, string type, string newType)
+        {
+            if (!package.Entries.ContainsKey(type))
+            {
+                Console.WriteLine("There are no files of type \"{0}\".", type);
+
+                return;
+            }
+
+            var entries = package.Entries[type];
+
+            foreach (var file in entries)
+            {
+                var filePath = Path.Combine(file.DirectoryName, string.Format("{0}.{1}", file.FileName, file.TypeName));
+
+                Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
+
+                byte[] output;
+                package.ReadEntry(file, out output);
+
+                var resource = new Resource();
+                using (var memory = new MemoryStream(output))
+                {
+                    resource.Read(memory);
+                }
+
+                if (Options.OutputFile != null)
+                {
+                    filePath = Path.ChangeExtension(filePath, newType);
+
+                    DumpFile(filePath, ((Panorama)resource.Blocks[BlockType.DATA]).Data);
+                }
+            }
+        }
+
+        private static void DumpFile(string path, byte[] data)
+        {
+            var outputFile = Options.OutputFile;
+
+            outputFile = Path.Combine(outputFile, Path.GetDirectoryName(path));
+
+            if (!Directory.Exists(outputFile))
+            {
+                Directory.CreateDirectory(outputFile);
+            }
+
+            outputFile = Path.Combine(outputFile, Path.GetFileName(path));
+
+            File.WriteAllBytes(outputFile, data);
+
+            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
     }
 }
