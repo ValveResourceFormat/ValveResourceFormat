@@ -22,6 +22,7 @@ namespace Decompiler
             if (Options.OutputFile != null)
             {
                 Options.OutputFile = Path.GetFullPath(Options.OutputFile);
+                Options.OutputFile = FixPathSlahes(Options.OutputFile);
             }
 
             var paths = new List<string>();
@@ -243,6 +244,8 @@ namespace Decompiler
                     filePath = Path.Combine(file.DirectoryName, filePath);
                 }
 
+                filePath = FixPathSlahes(filePath);
+
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 byte[] output;
@@ -273,14 +276,9 @@ namespace Decompiler
 
         private static void DumpFile(string path, byte[] data)
         {
-            var outputFile = Options.OutputFile;
+            var outputFile = Path.Combine(Options.OutputFile, path);
 
-            outputFile = Path.Combine(outputFile, Path.GetDirectoryName(path));
-
-            Directory.CreateDirectory(outputFile);
-
-            outputFile = Path.Combine(outputFile, Path.GetFileName(path));
-            outputFile = FixPathSlahes(outputFile);
+            Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
             File.WriteAllBytes(outputFile, data);
 
@@ -289,7 +287,6 @@ namespace Decompiler
 
         private static string FixPathSlahes(string path)
         {
-            path = Path.GetFullPath(path);
             path = path.Replace('\\', '/');
 
             if (Path.DirectorySeparatorChar != '/')
