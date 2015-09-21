@@ -17,9 +17,9 @@ namespace ValveResourceFormat
         Uint64 = 17,
         Float = 18,
         Vector3 = 22,
-        Massive = 23,
+        Vector4 = 23,
         Quaternion = 25,
-        Vector4 = 28,
+        Color = 28,
         Boolean = 30,
         String = 31,
     }

@@ -88,7 +88,13 @@ namespace ValveResourceFormat.ResourceTypes
 
                         break;
 
+                    case DataType.Enum:
+                        // TODO: Lookup in ReferencedEnums
+                        Writer.WriteLine("{0}", Reader.ReadUInt32());
+                        break;
+
                     case DataType.Byte:
+                        Reader.ReadByte();
                         Writer.WriteLine("{0}", Reader.ReadByte());
                         break;
 
@@ -125,14 +131,27 @@ namespace ValveResourceFormat.ResourceTypes
                         break;
 
                     case DataType.Vector3:
-                        var vector = new []
+                        var vector3 = new []
                         {
                             Reader.ReadSingle(),
                             Reader.ReadSingle(),
                             Reader.ReadSingle()
                         };
 
-                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}]", vector[0], vector[1], vector[2]);
+                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}]", vector3[0], vector3[1], vector3[2]);
+
+                        break;
+
+                    case DataType.Vector4:
+                        var vector4 = new []
+                        {
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle()
+                        };
+
+                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", vector4[0], vector4[1], vector4[2], vector4[3]);
 
                         break;
 
