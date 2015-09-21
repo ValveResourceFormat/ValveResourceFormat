@@ -160,14 +160,6 @@ namespace Decompiler
 
                 foreach (var block in resource.Blocks)
                 {
-                    if (block.Key == BlockType.DATA)
-                    {
-                        if (resource.ResourceType != ResourceType.Panorama)
-                        {
-                            continue;
-                        }
-                    }
-
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
                     Console.WriteLine(block.Value);
                 }

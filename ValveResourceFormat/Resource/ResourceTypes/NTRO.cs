@@ -12,13 +12,12 @@ namespace ValveResourceFormat.ResourceTypes
         private BinaryReader Reader;
         private Resource Resource;
         private IndentedTextWriter Writer;
+        private string Output;
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             Reader = reader;
             Resource = resource;
-
-            //reader.BaseStream.Position = this.Offset;
 
             using (var output = new StringWriter())
             using (var writer = new IndentedTextWriter(output, "\t"))
@@ -32,9 +31,8 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 }
 
-                Console.Write(output.ToString());
+                Output = output.ToString();
             }
-
         }
 
         private void ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
@@ -49,55 +47,82 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Writer.Write(field.FieldName + " " + field.Type + ": ");
 
-                /*if (field.Indirections.Count > 0)
-                {
-                    ReadIndirection(field);
-                    continue;
-                }*/
+                Writer.Indent++;
 
+                ReadField(field);
+
+                Writer.Indent--;
+            }
+
+            Writer.Indent--;
+        }
+
+        private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
+        {
+            uint count = 1;
+
+            if (field.Indirections.Count > 0)
+            {
+                var offset = Reader.ReadUInt32();
+                count = Reader.ReadUInt32();
+                Console.WriteLine(field.FieldName + " offset: " + offset + " count: " + count);
+
+                if (count == 0)
+                {
+                    Writer.WriteLine("empty");
+                    return;
+                }
+
+                Reader.BaseStream.Position += offset - 8;
+            }
+
+            while (count-- > 0)
+            {
                 switch (field.Type)
                 {
                     case DataType.SubStructure:
                         var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
 
-                        if (field.Indirections.Count > 0)
-                        {
-                            Reader.ReadBytes(8);
-                        }
+                        Writer.WriteLine();
 
-                        ReadStructure(newStruct, Reader.BaseStream.Position + refStruct.DiskSize);
+                        ReadStructure(newStruct, Reader.BaseStream.Position);
 
                         break;
 
                     case DataType.Byte:
-                        Writer.WriteLine(Reader.ReadByte());
+                        Writer.WriteLine("{0}", Reader.ReadByte());
                         break;
 
                     case DataType.Boolean:
-                        Writer.WriteLine(Reader.ReadByte());
+                        Writer.WriteLine("{0}", Reader.ReadByte());
                         break;
 
                     case DataType.Sint:
-                        Writer.WriteLine(Reader.ReadUInt32());
+                        Writer.WriteLine("{0}", Reader.ReadUInt32());
                         break;
 
                     case DataType.Number:
-                        Writer.WriteLine(Reader.ReadInt32());
+                        Writer.WriteLine("{0}", Reader.ReadInt32());
                         break;
 
                     case DataType.Flags:
-                        Writer.WriteLine(Reader.ReadInt32());
+                        Writer.WriteLine("{0}", Reader.ReadInt32());
                         break;
 
                     case DataType.Float:
-                        Writer.WriteLine(Reader.ReadSingle());
+                        Writer.WriteLine("{0:F6}", Reader.ReadSingle());
                         break;
 
                     case DataType.String4:
                     case DataType.String:
-                        Reader.BaseStream.Position += Reader.ReadUInt32();
+                        var offset = Reader.ReadUInt32();
+                        var prev = Reader.BaseStream.Position;
+
+                        Reader.BaseStream.Position += offset - 4;
 
                         Writer.WriteLine(Reader.ReadNullTermString(Encoding.UTF8));
+
+                        Reader.BaseStream.Position = prev;
                         break;
 
                     default:
@@ -105,30 +130,11 @@ namespace ValveResourceFormat.ResourceTypes
                         break;
                 }
             }
-
-            Writer.Indent--;
-        }
-
-        private void ReadIndirection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
-        {
-            if (field.Indirections[0] == 0x04)
-            {
-                var offset = Reader.ReadUInt32();
-                var size = Reader.ReadUInt32();
-
-                Reader.BaseStream.Position += offset - 4;
-
-                while (size-- > 0)
-                {
-
-                }
-
-            }
         }
 
         public override string ToString()
         {
-            return "yolo";
+            return Output ?? "Nope.";
         }
     }
 }
