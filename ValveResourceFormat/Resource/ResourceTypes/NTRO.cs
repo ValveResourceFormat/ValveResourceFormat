@@ -65,7 +65,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var offset = Reader.ReadUInt32();
                 count = Reader.ReadUInt32();
-                Console.WriteLine(field.FieldName + " offset: " + offset + " count: " + count);
 
                 if (count == 0)
                 {
@@ -113,6 +112,30 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine("{0:F6}", Reader.ReadSingle());
                         break;
 
+                    case DataType.Quaternion:
+                        Reader.ReadBytes(8); // TODO
+                        break;
+
+                    case DataType.Uint64:
+                        Writer.WriteLine("{0}", Reader.ReadUInt64());
+                        break;
+
+                    case DataType.Extref:
+                        Writer.WriteLine("{0}", Reader.ReadUInt64());
+                        break;
+
+                    case DataType.Vector3:
+                        var vector = new []
+                        {
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle()
+                        };
+
+                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}]", vector[0], vector[1], vector[2]);
+
+                        break;
+
                     case DataType.String4:
                     case DataType.String:
                         var offset = Reader.ReadUInt32();
@@ -126,8 +149,7 @@ namespace ValveResourceFormat.ResourceTypes
                         break;
 
                     default:
-                        Writer.WriteLine("TODO: unknown datatype");
-                        break;
+                        throw new NotImplementedException(string.Format("Unknown data type: {0}", field.Type));
                 }
             }
         }
