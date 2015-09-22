@@ -49,7 +49,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Writer.Indent++;
 
-                ReadField(field);
+                ReadField(field, field.Indirections.Count);
 
                 Writer.Indent--;
             }
@@ -57,22 +57,36 @@ namespace ValveResourceFormat.ResourceTypes
             Writer.Indent--;
         }
 
-        private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
+        private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, int indirectionDepth)
         {
             uint count = 1;
 
-            if (field.Indirections.Count > 0)
+            if (indirectionDepth > 0)
             {
+                var indirection = field.Indirections[field.Indirections.Count - indirectionDepth];
+
                 var offset = Reader.ReadUInt32();
-                count = Reader.ReadUInt32();
 
-                if (count == 0)
+                if (indirection == 0x03)
                 {
-                    Writer.WriteLine("empty");
-                    return;
+                    throw new NotImplementedException("indirection 3");
                 }
+                else if (indirection == 0x04)
+                {
+                    count = Reader.ReadUInt32();
 
-                Reader.BaseStream.Position += offset - 8;
+                    if (count == 0)
+                    {
+                        Writer.WriteLine("empty");
+                        return;
+                    }
+
+                    Reader.BaseStream.Position += offset - 8;
+                }
+                else
+                {
+                    throw new NotImplementedException(string.Format("Unknown indirection. ({0})", indirection));
+                }
             }
 
             while (count-- > 0)
@@ -94,7 +108,6 @@ namespace ValveResourceFormat.ResourceTypes
                         break;
 
                     case DataType.Byte:
-                        Reader.ReadByte();
                         Writer.WriteLine("{0}", Reader.ReadByte());
                         break;
 
