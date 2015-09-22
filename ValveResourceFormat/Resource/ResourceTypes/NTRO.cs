@@ -69,7 +69,13 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (indirection == 0x03)
                 {
-                    throw new NotImplementedException("indirection 3");
+                    if (offset == 0)
+                    {
+                        Writer.WriteLine("empty");
+                        return;
+                    }
+
+                    Reader.BaseStream.Position += offset - 4;
                 }
                 else if (indirection == 0x04)
                 {
@@ -135,6 +141,10 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine("{0}", Reader.ReadUInt64());
                         break;
 
+                    case DataType.Ushort:
+                        Writer.WriteLine("{0}", Reader.ReadUInt16());
+                        break;
+
                     case DataType.Extref:
                         Writer.WriteLine("{0}", Reader.ReadUInt64());
                         break;
@@ -177,6 +187,39 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine(Reader.ReadNullTermString(Encoding.UTF8));
 
                         Reader.BaseStream.Position = prev;
+                        break;
+
+                    case DataType.Matrix3x4:
+                    case DataType.Matrix3x4a:
+                        var matrix3x4a = new []
+                        {
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle(),
+                            Reader.ReadSingle()
+                        };
+
+                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
+                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
+                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[8], matrix3x4a[9], matrix3x4a[10], matrix3x4a[11]);
+
+                        break;
+
+                    case DataType.CTransform:
+                        Reader.ReadBytes(32);
+
+                        Writer.WriteLine("yes this is a CTransform, fix me");
+
                         break;
 
                     default:

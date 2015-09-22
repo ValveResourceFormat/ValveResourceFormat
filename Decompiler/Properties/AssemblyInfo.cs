@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 
 [assembly: AssemblyTitle("Source 2 Resource Decompiler")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("(╯°□°）╯︵ ┻━┻")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("")]
