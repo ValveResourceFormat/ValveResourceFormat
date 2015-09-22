@@ -1,8 +1,6 @@
-﻿using System;
-
-namespace ValveResourceFormat
+﻿namespace ValveResourceFormat
 {
-    public enum DataType : short
+    public enum DataType
     {
         SubStructure = 1,
         Enum = 2,
@@ -19,8 +17,12 @@ namespace ValveResourceFormat
         Vector3 = 22,
         Vector4 = 23,
         Quaternion = 25,
+        Fltx4 = 27,
         Color = 28,
         Boolean = 30,
         String = 31,
+        Matrix3x4 = 33,
+        Matrix3x4a = 36,
+        CTransform = 40,
     }
 }
