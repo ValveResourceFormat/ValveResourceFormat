@@ -131,10 +131,6 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine("{0:F6}", Reader.ReadSingle());
                         break;
 
-                    case DataType.Quaternion:
-                        Reader.ReadBytes(8); // TODO
-                        break;
-
                     case DataType.Uint64:
                         Writer.WriteLine("{0}", Reader.ReadUInt64());
                         break;
@@ -155,6 +151,9 @@ namespace ValveResourceFormat.ResourceTypes
 
                         break;
 
+                    case DataType.Quaternion:
+                    case DataType.Color:
+                    case DataType.Fltx4:
                     case DataType.Vector4:
                         var vector4 = new []
                         {
