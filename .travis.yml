@@ -3,3 +3,9 @@ sudo: false
 solution: ValveResourceFormat.sln
 notifications:
   email: false
+install:
+  - nuget restore ValveResourceFormat.sln
+  - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
+script:
+  - xbuild /p:Configuration=Release ValveResourceFormat.sln
+  - mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./MyPoject.Tests/bin/Release/MyProject.Tests.dll

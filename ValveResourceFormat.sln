@@ -5,6 +5,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ValveResourceFormat", "Valv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Decompiler", "Decompiler\Decompiler.csproj", "{5F27DC08-3AE5-495C-8445-43D4E7CABA63}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{7B242745-2E9E-4CEB-B71A-076DBE882916}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{5F27DC08-3AE5-495C-8445-43D4E7CABA63}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5F27DC08-3AE5-495C-8445-43D4E7CABA63}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5F27DC08-3AE5-495C-8445-43D4E7CABA63}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B242745-2E9E-4CEB-B71A-076DBE882916}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B242745-2E9E-4CEB-B71A-076DBE882916}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B242745-2E9E-4CEB-B71A-076DBE882916}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B242745-2E9E-4CEB-B71A-076DBE882916}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E685E563-5F49-4D8D-8342-A7354229E54F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E685E563-5F49-4D8D-8342-A7354229E54F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E685E563-5F49-4D8D-8342-A7354229E54F}.Release|Any CPU.ActiveCfg = Release|Any CPU
