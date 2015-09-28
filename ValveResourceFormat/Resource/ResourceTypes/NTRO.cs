@@ -45,37 +45,21 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
 
-                if (field.Indirections.Count > 0)
-                {
-                    Writer.WriteLine("{0} {1}[{2}] =", ValveDataType(field.Type), field.FieldName, field.Indirections.Count); // TODO: printing count like this is incorrect
-                    Writer.WriteLine("[");
-                    Writer.Indent++;
-                }
-                else
-                {
-                    Writer.Write("{0} {1} = ", ValveDataType(field.Type), field.FieldName);
-                }
-
-                ReadField(field, field.Indirections.Count);
-
-                if (field.Indirections.Count > 0)
-                {
-                    Writer.Indent--;
-                    Writer.WriteLine("]");
-                }
+                ReadFieldIntrospection(field);
             }
 
             Writer.Indent--;
             Writer.WriteLine("}");
         }
 
-        private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, int indirectionDepth)
+        private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
         {
             uint count = 1;
+            bool multiple = false;
 
-            if (indirectionDepth > 0)
+            if (field.Indirections.Count > 0)
             {
-                var indirection = field.Indirections[field.Indirections.Count - indirectionDepth];
+                var indirection = field.Indirections[0]; // TODO: depth needs fixing?
 
                 var offset = Reader.ReadUInt32();
 
@@ -92,12 +76,12 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     count = Reader.ReadUInt32();
 
-                    if (count == 0)
+                    if (count > 0)
                     {
-                        return;
-                    }
+                        multiple = true;
 
-                    Reader.BaseStream.Position += offset - 8;
+                        Reader.BaseStream.Position += offset - 8;
+                    }
                 }
                 else
                 {
@@ -105,139 +89,177 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
+            if (field.Indirections.Count > 0)
+            {
+                // TODO: This is matching Valve's incosistency
+                if (field.Type == DataType.Byte)
+                {
+                    Writer.WriteLine("{0}[{2}] {1} =", ValveDataType(field.Type), field.FieldName, count);
+                }
+                else
+                {
+                    Writer.WriteLine("{0} {1}[{2}] =", ValveDataType(field.Type), field.FieldName, count);
+                }
+
+                Writer.WriteLine("[");
+                Writer.Indent++;
+            }
+            else
+            {
+                Writer.Write("{0} {1} = ", ValveDataType(field.Type), field.FieldName);
+            }
+
             while (count-- > 0)
             {
-                switch (field.Type)
-                {
-                    case DataType.Struct:
-                        var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
+                ReadField(field, multiple);
+            }
 
-                        ReadStructure(newStruct, Reader.BaseStream.Position);
+            if (field.Indirections.Count > 0)
+            {
+                Writer.Indent--;
+                Writer.WriteLine("]");
+            }
+        }
 
-                        break;
+        private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, bool multiple)
+        {
+            switch (field.Type)
+            {
+                case DataType.Struct:
+                    var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
 
-                    case DataType.Enum:
-                        // TODO: Lookup in ReferencedEnums
-                        Writer.WriteLine("{0}", Reader.ReadUInt32());
-                        break;
+                    ReadStructure(newStruct, Reader.BaseStream.Position);
 
-                    case DataType.Byte: // TODO: Valve print it as hex, why?
-                        // TODO: if there are more than one uint8's, valve prints them without 0x, and on a single line
+                    break;
+
+                case DataType.Enum:
+                    // TODO: Lookup in ReferencedEnums
+                    Writer.WriteLine("{0}", Reader.ReadUInt32());
+                    break;
+
+                case DataType.Byte: // TODO: Valve print it as hex, why?
+                    // TODO: if there are more than one uint8's, valve prints them without 0x, and on a single line
+                    if (multiple)
+                    {
+                        Writer.WriteLine("{0:X2}", Reader.ReadByte());
+                    }
+                    else
+                    {
                         Writer.WriteLine("0x{0:X2}", Reader.ReadByte());
-                        break;
+                    }
+                    break;
 
-                    case DataType.Boolean:
-                        Writer.WriteLine("{0}", Reader.ReadByte() == 1 ? "true" : "false");
-                        break;
+                case DataType.Boolean:
+                    Writer.WriteLine("{0}", Reader.ReadByte() == 1 ? "true" : "false");
+                    break;
 
-                    case DataType.Int16:
-                        Writer.WriteLine("{0}", Reader.ReadInt16());
-                        break;
+                case DataType.Int16:
+                    Writer.WriteLine("{0}", Reader.ReadInt16());
+                    break;
 
-                    case DataType.UInt16: // TODO: Valve print it as hex, why?
-                        Writer.WriteLine("0x{0:X4}", Reader.ReadUInt16());
-                        break;
+                case DataType.UInt16: // TODO: Valve print it as hex, why?
+                    Writer.WriteLine("0x{0:X4}", Reader.ReadUInt16());
+                    break;
 
-                    case DataType.Int32:
-                        Writer.WriteLine("{0}", Reader.ReadInt32());
-                        break;
+                case DataType.Int32:
+                    Writer.WriteLine("{0}", Reader.ReadInt32());
+                    break;
 
-                    case DataType.UInt32: // TODO: Valve print it as hex, why?
-                        Writer.WriteLine("0x{0:X8}", Reader.ReadUInt32());
-                        break;
+                case DataType.UInt32: // TODO: Valve print it as hex, why?
+                    Writer.WriteLine("0x{0:X8}", Reader.ReadUInt32());
+                    break;
 
-                    case DataType.Float:
-                        Writer.WriteLine("{0:F6}", Reader.ReadSingle());
-                        break;
+                case DataType.Float:
+                    Writer.WriteLine("{0:F6}", Reader.ReadSingle());
+                    break;
 
-                    case DataType.Int64:
-                        Writer.WriteLine("{0}", Reader.ReadInt64());
-                        break;
+                case DataType.Int64:
+                    Writer.WriteLine("{0}", Reader.ReadInt64());
+                    break;
 
-                    case DataType.UInt64: // TODO: Valve print it as hex, why?
-                        Writer.WriteLine("0x{0:X16}", Reader.ReadUInt64());
-                        break;
+                case DataType.UInt64: // TODO: Valve print it as hex, why?
+                    Writer.WriteLine("0x{0:X16}", Reader.ReadUInt64());
+                    break;
 
-                    case DataType.ExternalReference:
-                        Writer.WriteLine("ID: {0:X16}", Reader.ReadUInt64());
-                        break;
+                case DataType.ExternalReference:
+                    Writer.WriteLine("ID: {0:X16}", Reader.ReadUInt64());
+                    break;
 
-                    case DataType.Vector:
-                        var vector3 = new []
-                        {
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle()
-                        };
+                case DataType.Vector:
+                    var vector3 = new []
+                    {
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle()
+                    };
 
-                        Writer.WriteLine("({0:F6}, {1:F6}, {2:F6})", vector3[0], vector3[1], vector3[2]);
+                    Writer.WriteLine("({0:F6}, {1:F6}, {2:F6})", vector3[0], vector3[1], vector3[2]);
 
-                        break;
+                    break;
 
-                    case DataType.Quaternion:
-                    case DataType.Color:
-                    case DataType.Fltx4:
-                    case DataType.Vector4:
-                        var vector4 = new []
-                        {
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle()
-                        };
+                case DataType.Quaternion:
+                case DataType.Color:
+                case DataType.Fltx4:
+                case DataType.Vector4:
+                    var vector4 = new []
+                    {
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle()
+                    };
 
-                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", vector4[0], vector4[1], vector4[2], vector4[3]);
+                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", vector4[0], vector4[1], vector4[2], vector4[3]);
 
-                        break;
+                    break;
 
-                    case DataType.String4:
-                    case DataType.String:
-                        var offset = Reader.ReadUInt32();
-                        var prev = Reader.BaseStream.Position;
+                case DataType.String4:
+                case DataType.String:
+                    var offset = Reader.ReadUInt32();
+                    var prev = Reader.BaseStream.Position;
 
-                        Reader.BaseStream.Position += offset - 4;
+                    Reader.BaseStream.Position += offset - 4;
 
-                        Writer.WriteLine("\"{0}\"", Reader.ReadNullTermString(Encoding.UTF8));
+                    Writer.WriteLine("\"{0}\"", Reader.ReadNullTermString(Encoding.UTF8));
 
-                        Reader.BaseStream.Position = prev;
-                        break;
+                    Reader.BaseStream.Position = prev;
+                    break;
 
-                    case DataType.Matrix3x4:
-                    case DataType.Matrix3x4a:
-                        var matrix3x4a = new []
-                        {
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
+                case DataType.Matrix3x4:
+                case DataType.Matrix3x4a:
+                    var matrix3x4a = new []
+                    {
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
 
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
 
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle(),
-                            Reader.ReadSingle()
-                        };
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle()
+                    };
 
-                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
-                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
-                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[8], matrix3x4a[9], matrix3x4a[10], matrix3x4a[11]);
+                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
+                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
+                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[8], matrix3x4a[9], matrix3x4a[10], matrix3x4a[11]);
 
-                        break;
+                    break;
 
-                    case DataType.CTransform:
-                        Reader.ReadBytes(32);
+                case DataType.CTransform:
+                    Reader.ReadBytes(32);
 
-                        Writer.WriteLine("yes this is a CTransform, fix me");
+                    Writer.WriteLine("yes this is a CTransform, fix me");
 
-                        break;
+                    break;
 
-                    default:
-                        throw new NotImplementedException(string.Format("Unknown data type: {0}", field.Type));
-                }
+                default:
+                    throw new NotImplementedException(string.Format("Unknown data type: {0}", field.Type));
             }
         }
 
