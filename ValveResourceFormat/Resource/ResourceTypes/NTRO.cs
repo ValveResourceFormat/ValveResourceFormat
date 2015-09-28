@@ -214,7 +214,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.Quaternion:
                 case DataType.Color:
                 case DataType.Fltx4:
-                case DataType.Vector4:
+                case DataType.Vector4D:
                     var vector4 = new []
                     {
                         Reader.ReadSingle(),

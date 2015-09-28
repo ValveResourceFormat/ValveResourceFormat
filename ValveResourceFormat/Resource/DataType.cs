@@ -15,7 +15,7 @@
         UInt64 = 17,
         Float = 18,
         Vector = 22,
-        Vector4 = 23, // TODO: not verified with resourceinfo
+        Vector4D = 23,
         Quaternion = 25,
         Fltx4 = 27,
         Color = 28, // TODO: not verified with resourceinfo

@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
-using System.Text.RegularExpressions;
 
 namespace Tests
 {
@@ -50,6 +51,7 @@ namespace Tests
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
             var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
+            var exceptions = new StringBuilder();
 
             foreach (var file in files)
             {
@@ -84,7 +86,20 @@ namespace Tests
                 actualOutput = Regex.Replace(actualOutput, @"\s+", String.Empty);
                 expectedOutput = Regex.Replace(expectedOutput, @"\s+", String.Empty);
 
-                Assert.AreEqual(expectedOutput, actualOutput);
+                try
+                {
+                    Assert.AreEqual(expectedOutput, actualOutput);
+                }
+                catch (AssertionException e)
+                {
+                    exceptions.AppendLine("File: " + file);
+                    exceptions.AppendLine(e + Environment.NewLine);
+                }
+            }
+
+            if (exceptions.Length > 0)
+            {
+                throw new AssertionException(exceptions.ToString());
             }
         }
     }
