@@ -14,6 +14,8 @@ namespace Tests
         [SetUp]
         public void SetUp()
         {
+            Console.WriteLine(Environment.NewLine + "Setting up resource tests...");
+
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
             var files = Directory.GetFiles(path, "*.*_c");
 
