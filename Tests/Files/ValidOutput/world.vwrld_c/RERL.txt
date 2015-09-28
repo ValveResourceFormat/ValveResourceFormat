@@ -1,0 +1,11 @@
+ResourceExtRefList_t
+	{
+		Struct m_resourceRefInfoList[1] = 
+		[
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0xBAAAB845C653A22D
+				CResourceString m_pResourceName = "maps/dota/entities/default_ents.vents"
+			}
+		]
+	}

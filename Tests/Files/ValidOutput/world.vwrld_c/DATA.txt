@@ -1,0 +1,49 @@
+World_t
+	{
+		Struct m_builderParams = WorldBuilderParams_t
+		{
+			int32 m_nSizeBytesPerVoxel = 1048576000
+			float32 m_flMinDrawVolumeSize = 1024.000000
+			float32 m_flMinDistToCamera = 1024.000000
+			float32 m_flMinAtlasDist = 1000.000000
+			float32 m_flMinSimplifiedDist = 8192.000000
+			float32 m_flHorzFOV = 1.570796
+			float32 m_flHalfScreenWidth = 960.000000
+			int32 m_nAtlasTextureSizeX = 2048
+			int32 m_nAtlasTextureSizeY = 2048
+			int32 m_nUniqueTextureSizeX = 1024
+			int32 m_nUniqueTextureSizeY = 1024
+			int32 m_nCompressedAtlasSize = 1
+			float32 m_flGutterSize = 8.000000
+			float32 m_flUVMapThreshold = 0.300000
+			Vector m_vWorldUnitsPerTile = (10000.000000,10000.000000,1000.000000)
+			int32 m_nMaxTexScaleSlots = 128
+			bool m_bWrapInAtlas = false
+			uint8 m_padding[3] = 
+			[
+				0x00
+				0x00
+				0x00
+			]
+		}
+		Struct m_worldNodes[1] = 
+		[
+			NodeData_t
+			{
+				int32 m_Flags = 192
+				int32 m_nParent = -1
+				Vector m_vOrigin = (0.000000,0.000000,0.000000)
+				Vector m_vMinBounds = (-8368.437500,-8256.000000,-3711.965332)
+				Vector m_vMaxBounds = (9216.000000,8323.829102,3584.000000)
+				float32 m_flMinimumDistance = -1.000000
+				int32 m_ChildNodeIndices[0] = 
+				[
+				]
+				CResourceString m_worldNodePrefix = "maps\dota\worldnodes\node000"
+			}
+		]
+		ExternalReference m_entityLumps[1] = 
+		[
+			ID: BAAAB845C653A22D
+		]
+	}
