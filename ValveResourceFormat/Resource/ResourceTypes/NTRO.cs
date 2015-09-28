@@ -54,8 +54,14 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
         {
-            uint count = 1;
-            bool multiple = false;
+            uint count = (uint)field.Count;
+            bool multiple = false; // TODO: get rid of this
+            bool pointer = false; // TODO: get rid of this
+
+            if (count == 0)
+            {
+                count = 1;
+            }
 
             if (field.Indirections.Count > 0)
             {
@@ -65,8 +71,12 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (indirection == 0x03)
                 {
+                    pointer = true;
+
                     if (offset == 0)
                     {
+                        Writer.WriteLine("{0} {1}* = (ptr) ->NULL", ValveDataType(field.Type), field.FieldName);
+
                         return;
                     }
 
@@ -89,7 +99,11 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (field.Indirections.Count > 0)
+            if (pointer)
+            {
+                Writer.Write("{0} {1}* = (ptr) ->", ValveDataType(field.Type), field.FieldName);
+            }
+            else if (field.Count > 0 || field.Indirections.Count > 0)
             {
                 // TODO: This is matching Valve's incosistency
                 if (field.Type == DataType.Byte)
@@ -114,7 +128,7 @@ namespace ValveResourceFormat.ResourceTypes
                 ReadField(field, multiple);
             }
 
-            if (field.Indirections.Count > 0)
+            if (!pointer && (field.Count > 0 || field.Indirections.Count > 0))
             {
                 Writer.Indent--;
                 Writer.WriteLine("]");
@@ -209,7 +223,14 @@ namespace ValveResourceFormat.ResourceTypes
                         Reader.ReadSingle()
                     };
 
-                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", vector4[0], vector4[1], vector4[2], vector4[3]);
+                    if (field.Type == DataType.Quaternion)
+                    {
+                        Writer.WriteLine("{{x: {0:F}, y: {1:F}, z: {2:F}, w: {3}}}", vector4[0], vector4[1], vector4[2], vector4[3].ToString("F"));
+                    }
+                    else
+                    {
+                        Writer.WriteLine("({0:F}, {1:F}, {2:F}, {3:F})", vector4[0], vector4[1], vector4[2], vector4[3]);
+                    }
 
                     break;
 
@@ -244,17 +265,29 @@ namespace ValveResourceFormat.ResourceTypes
                         Reader.ReadSingle(),
                         Reader.ReadSingle()
                     };
-
-                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
-                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
-                    Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}, {3:F6}]", matrix3x4a[8], matrix3x4a[9], matrix3x4a[10], matrix3x4a[11]);
+                    
+                    Writer.WriteLine();
+                    Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
+                    Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
+                    Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[8], matrix3x4a[9], matrix3x4a[10], matrix3x4a[11]);
 
                     break;
 
                 case DataType.CTransform:
-                    Reader.ReadBytes(32);
+                    var transform = new []
+                    {
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle() // TODO: unused?
+                    };
 
-                    Writer.WriteLine("yes this is a CTransform, fix me");
+                    // http://stackoverflow.com/a/15085178/2200891
+                    Writer.WriteLine("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", transform[4], transform[5], transform[6], transform[7].ToString("F"), transform[0], transform[1], transform[2].ToString("F"));
 
                     break;
 
