@@ -1,0 +1,21 @@
+ResourceExtRefList_t
+	{
+		Struct m_resourceRefInfoList[3] = 
+		[
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x84252A6CCBF12100
+				CResourceString m_pResourceName = "models/heroes/alchemist/alchemist_model.vmesh"
+			}
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x98FCF82D85DCF76C
+				CResourceString m_pResourceName = "models/heroes/alchemist/alchemist_lod.vmesh"
+			}
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x0B7ACD51A3A52AE3
+				CResourceString m_pResourceName = "models/heroes/alchemist/asset_sequences_e7fec448.vagrp"
+			}
+		]
+	}
