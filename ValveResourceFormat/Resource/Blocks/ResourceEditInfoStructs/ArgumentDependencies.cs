@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.WriteLine("Struct m_ArgumentDependencies[{0}] = ", List.Count);
+            writer.WriteLine("Struct m_ArgumentDependencies[{0}] =", List.Count);
             writer.WriteLine("[");
             writer.Indent++;
 

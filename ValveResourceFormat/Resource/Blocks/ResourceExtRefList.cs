@@ -79,10 +79,9 @@ namespace ValveResourceFormat.Blocks
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("ResourceExtRefList_t");
-            writer.Indent++; // valve
             writer.WriteLine("{");
             writer.Indent++;
-            writer.WriteLine("Struct m_resourceRefInfoList[{0}] = ", ResourceRefInfoList.Count);
+            writer.WriteLine("Struct m_resourceRefInfoList[{0}] =", ResourceRefInfoList.Count);
             writer.WriteLine("[");
             writer.Indent++;
 
@@ -95,7 +94,6 @@ namespace ValveResourceFormat.Blocks
             writer.WriteLine("]");
             writer.Indent--;
             writer.WriteLine("}");
-            writer.Indent--; // valve
         }
     }
 }

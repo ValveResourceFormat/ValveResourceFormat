@@ -65,7 +65,6 @@ namespace ValveResourceFormat.Blocks
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("ResourceEditInfoBlock_t");
-            writer.Indent++; // valve
             writer.WriteLine("{");
             writer.Indent++;
 
@@ -76,7 +75,6 @@ namespace ValveResourceFormat.Blocks
 
             writer.Indent--;
             writer.WriteLine("}");
-            writer.Indent--; // valve
         }
 
         static ResourceEditInfoStructs.REDIBlock ConstructStruct(REDIStruct id)

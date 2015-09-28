@@ -45,7 +45,6 @@ namespace ValveResourceFormat.Blocks
                         writer.WriteLine("{0:D2}", dep);
                     }
 
-                    writer.WriteLine(); // valve
                     writer.Indent--;
                     writer.WriteLine("]");
 
@@ -86,7 +85,7 @@ namespace ValveResourceFormat.Blocks
                 writer.WriteLine("uint16 m_nAlignment = 0x{0:X4}", Alignment);
                 writer.WriteLine("uint32 m_nBaseStructId = 0x{0:X8}", BaseStructId);
 
-                writer.WriteLine("Struct m_FieldIntrospection[{0}] = ", FieldIntrospection.Count);
+                writer.WriteLine("Struct m_FieldIntrospection[{0}] =", FieldIntrospection.Count);
                 writer.WriteLine("[");
                 writer.Indent++;
 
@@ -145,7 +144,7 @@ namespace ValveResourceFormat.Blocks
                 writer.WriteLine("uint32 m_nDiskCrc = 0x{0:X8}", DiskCrc);
                 writer.WriteLine("int32 m_nUserVersion = {0}", UserVersion);
 
-                writer.WriteLine("Struct m_EnumValueIntrospection[{0}] = ", EnumValueIntrospection.Count);
+                writer.WriteLine("Struct m_EnumValueIntrospection[{0}] =", EnumValueIntrospection.Count);
                 writer.WriteLine("[");
                 writer.Indent++;
 
@@ -315,13 +314,11 @@ namespace ValveResourceFormat.Blocks
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("CResourceIntrospectionManifest");
-            writer.Indent++; // valve does this for some reason
-
             writer.WriteLine("{");
             writer.Indent++;
 
             writer.WriteLine("uint32 m_nIntrospectionVersion = 0x{0:x8}", IntrospectionVersion);
-            writer.WriteLine("Struct m_ReferencedStructs[{0}] = ", ReferencedStructs.Count);
+            writer.WriteLine("Struct m_ReferencedStructs[{0}] =", ReferencedStructs.Count);
             writer.WriteLine("[");
             writer.Indent++;
 
@@ -333,7 +330,7 @@ namespace ValveResourceFormat.Blocks
             writer.Indent--;
             writer.WriteLine("]");
 
-            writer.WriteLine("Struct m_ReferencedEnums[{0}] = ", ReferencedEnums.Count);
+            writer.WriteLine("Struct m_ReferencedEnums[{0}] =", ReferencedEnums.Count);
             writer.WriteLine("[");
             writer.Indent++;
 
@@ -347,8 +344,6 @@ namespace ValveResourceFormat.Blocks
 
             writer.Indent--;
             writer.WriteLine("}");
-
-            writer.Indent--; // valve
         }
     }
 }
