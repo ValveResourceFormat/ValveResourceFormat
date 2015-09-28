@@ -1,0 +1,25 @@
+CResourceIntrospectionManifest
+	{
+		uint32 m_nIntrospectionVersion = 0x00000004
+		Struct m_ReferencedStructs[1] = 
+		[
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xB6198214
+				CResourceString m_pName = "VMapResourceData_t"
+				uint32 m_nDiskCrc = 0x8EA0AF1D
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0000
+				uint16 m_nAlignment = 0x0001
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[0] = 
+				[
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+		]
+		Struct m_ReferencedEnums[0] = 
+		[
+		]
+	}

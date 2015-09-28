@@ -43,6 +43,8 @@ namespace Tests
             }
         }
 
+        // TODO: Add asserts for blocks/resources that were skipped
+
         [Test]
         public void VerifyBlocks()
         {
@@ -82,7 +84,7 @@ namespace Tests
                 actualOutput = Regex.Replace(actualOutput, @"\s+", String.Empty);
                 expectedOutput = Regex.Replace(expectedOutput, @"\s+", String.Empty);
 
-                Assert.AreEqual(actualOutput, expectedOutput);
+                Assert.AreEqual(expectedOutput, actualOutput);
             }
         }
     }

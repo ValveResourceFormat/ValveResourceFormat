@@ -1,0 +1,5195 @@
+CResourceIntrospectionManifest
+	{
+		uint32 m_nIntrospectionVersion = 0x00000004
+		Struct m_ReferencedStructs[53] = 
+		[
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xCE0D17A8
+				CResourceString m_pName = "VPhysXAggregateData_t"
+				uint32 m_nDiskCrc = 0x36206CE8
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x006C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[16] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nRefCounter"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bonesHash"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_boneNames"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_indexNames"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_indexHash"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 28
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bindPose"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 36
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 36
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_parts"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 44
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x11520725
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_constraints2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 52
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xAF6718FD
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_joints"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 60
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xD37F4979
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_pFeModel"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 68
+						uint8[1] m_Indirection =
+						[
+							03
+
+						]
+						uint32 m_nTypeData = 0x6E421F18
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_boneParents"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 72
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_surfacePropertyHashes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 80
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_collisionAttributes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 88
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xF2C84E98
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_debugPartNames"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 96
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_embeddedKeyvalues"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 104
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x11520725
+				CResourceString m_pName = "VPhysXBodyPart_t"
+				uint32 m_nDiskCrc = 0xFDA2A378
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x004C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[10] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMass"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_rnShape"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x431116EA
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_pBreakablePartData"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[1] m_Indirection =
+						[
+							03
+
+						]
+						uint32 m_nTypeData = 0x400424BE
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSurfacepropertyIndices"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 52
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nCollisionAttributeIndex"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 60
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nReserved"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 62
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flInertiaScale"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flLinearDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 68
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flAngularDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 72
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x431116EA
+				CResourceString m_pName = "VPhysics2ShapeDef_t"
+				uint32 m_nDiskCrc = 0x2F2C7F7E
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0028
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_spheres"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x7857F832
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_capsules"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x193A349B
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_hulls"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x3C6558B5
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_meshes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x9C2203B8
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CollisionAttributeIndices"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x7857F832
+				CResourceString m_pName = "RnSphereDesc_t"
+				uint32 m_nDiskCrc = 0x0A0A4610
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0018
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x11B8648D
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Sphere"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0xE04B0C3F
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x11B8648D
+				CResourceString m_pName = "RnShapeDesc_t"
+				uint32 m_nDiskCrc = 0x81306DD5
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0008
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nCollisionAttributeIndex"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSurfacePropertyIndex"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xE04B0C3F
+				CResourceString m_pName = "RnSphere_t"
+				uint32 m_nDiskCrc = 0xD30984A1
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vCenter"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flRadius"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x193A349B
+				CResourceString m_pName = "RnCapsuleDesc_t"
+				uint32 m_nDiskCrc = 0x0889014A
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0024
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x11B8648D
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Capsule"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0xD267761C
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xD267761C
+				CResourceString m_pName = "RnCapsule_t"
+				uint32 m_nDiskCrc = 0xCD694803
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x001C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vCenter"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flRadius"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x3C6558B5
+				CResourceString m_pName = "RnHullDesc_t"
+				uint32 m_nDiskCrc = 0xB70D1F07
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0098
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x11B8648D
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Hull"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x47AAF200
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x47AAF200
+				CResourceString m_pName = "RnHull_t"
+				uint32 m_nDiskCrc = 0xB35B95AD
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0090
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[12] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vCentroid"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMaxAngularRadius"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Vertices"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Planes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x977C1929
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Edges"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x088AE4A0
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Faces"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 40
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x30451DB9
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vOrthographicAreas"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_MassProperties"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 60
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 33
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flVolume"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 108
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMaxMotionRadius"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 112
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMinMotionThickness"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 116
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Bounds"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 120
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x98018F87
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x977C1929
+				CResourceString m_pName = "RnPlane_t"
+				uint32 m_nDiskCrc = 0x526B1464
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vNormal"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flOffset"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x088AE4A0
+				CResourceString m_pName = "RnHalfEdge_t"
+				uint32 m_nDiskCrc = 0x8D26AA02
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0004
+				uint16 m_nAlignment = 0x0001
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nNext"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nTwin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 1
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nOrigin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFace"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 3
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x30451DB9
+				CResourceString m_pName = "RnFace_t"
+				uint32 m_nDiskCrc = 0xDB6F6307
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0001
+				uint16 m_nAlignment = 0x0001
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nEdge"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x98018F87
+				CResourceString m_pName = "AABB_t"
+				uint32 m_nDiskCrc = 0x8B2FD550
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0018
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vMinBounds"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vMaxBounds"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x9C2203B8
+				CResourceString m_pName = "RnMeshDesc_t"
+				uint32 m_nDiskCrc = 0xAE930032
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x004C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x11B8648D
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Mesh"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0xC56F8F3D
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xC56F8F3D
+				CResourceString m_pName = "RnMesh_t"
+				uint32 m_nDiskCrc = 0x185091CC
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0044
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[7] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vMin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vMax"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Nodes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x94BD1197
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Vertices"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Triangles"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 40
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xD7BA0587
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Materials"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 11
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vOrthographicAreas"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 56
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x94BD1197
+				CResourceString m_pName = "RnNode_t"
+				uint32 m_nDiskCrc = 0xE00E0926
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0020
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vMin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nChildren"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vMax"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nTriangleOffset"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 28
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xD7BA0587
+				CResourceString m_pName = "RnTriangle_t"
+				uint32 m_nDiskCrc = 0x244E1345
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x000C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nIndex"
+						int16 m_nCount = 3
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 14
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x400424BE
+				CResourceString m_pName = "VpropBreakablePartData_t"
+				uint32 m_nDiskCrc = 0x99C40F70
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0024
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[10] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bMotionDisabled"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bNoShadows"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 1
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nHealth"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 14
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFadeTime"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 14
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFadeMin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 14
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFadeMax"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 14
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flBurstScale"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flBurstRandomize"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSurfaceProp"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 28
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nCollisionGroupHash"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xAF6718FD
+				CResourceString m_pName = "VPhysXConstraint2_t"
+				uint32 m_nDiskCrc = 0x5304DF97
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0100
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nParent"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nChild"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 6
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_params"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x2E5AD84A
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x2E5AD84A
+				CResourceString m_pName = "VPhysXConstraintParams_t"
+				uint32 m_nDiskCrc = 0x3CC6FE6F
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x00F8
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[46] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nType"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 10
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nTranslateMotion"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 1
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 10
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nRotateMotion"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 10
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 3
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 10
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_anchor"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_axes"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 28
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 25
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_maxForce"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 60
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_maxTorque"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_linearLimitValue"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 68
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_linearLimitRestitution"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 72
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_linearLimitSpring"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 76
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_linearLimitDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 80
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistLowLimitValue"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 84
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistLowLimitRestitution"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 88
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistLowLimitSpring"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 92
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistLowLimitDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 96
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistHighLimitValue"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 100
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistHighLimitRestitution"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 104
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistHighLimitSpring"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 108
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_twistHighLimitDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 112
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing1LimitValue"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 116
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing1LimitRestitution"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 120
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing1LimitSpring"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 124
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing1LimitDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 128
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing2LimitValue"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 132
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing2LimitRestitution"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 136
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing2LimitSpring"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 140
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_swing2LimitDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 144
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_goalPosition"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 148
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_goalOrientation"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 160
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 25
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_goalAngularVelocity"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 176
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveSpringX"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 188
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveSpringY"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 192
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveSpringZ"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 196
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveDampingX"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 200
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveDampingY"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 204
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveDampingZ"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 208
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveSpringTwist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 212
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveSpringSwing"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 216
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveSpringSlerp"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 220
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveDampingTwist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 224
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveDampingSwing"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 228
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_driveDampingSlerp"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 232
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_solverIterationCount"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 236
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 14
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_projectionLinearTolerance"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 240
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_projectionAngularTolerance"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 244
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xD37F4979
+				CResourceString m_pName = "VPhysXJoint_t"
+				uint32 m_nDiskCrc = 0xF6980A63
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x00B0
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[22] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nType"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nBody1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nBody2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 6
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Frame1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 40
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Frame2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 40
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bEnableLinearLimit"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 80
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_LinearLimit"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 84
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0xCB443970
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bEnableLinearMotor"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 92
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vLinearTargetVelocity"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 96
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMaxForce"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 108
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bEnableSwingLimit"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 112
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SwingLimit"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 116
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0xCB443970
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bEnableTwistLimit"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 124
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_TwistLimit"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 128
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0xCB443970
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_bEnableAngularMotor"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 136
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 30
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vAngularTargetVelocity"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 140
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMaxTorque"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 152
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flLinearFrequency"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 156
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flLinearDampingRatio"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 160
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flAngularFrequency"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 164
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flAngularDampingRatio"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 168
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xCB443970
+				CResourceString m_pName = "VPhysXRange_t"
+				uint32 m_nDiskCrc = 0x0368AD6F
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0008
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flMax"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x6E421F18
+				CResourceString m_pName = "PhysFeModelDesc_t"
+				uint32 m_nDiskCrc = 0x55615550
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0218
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[76] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CtrlHash"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CtrlName"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nStaticNodeFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nDynamicNodeFlags"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flLocalForce"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flLocalRotation"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 28
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nNodeCount"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nStaticNodes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 34
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nRotLockStaticNodes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 36
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSimdTriCount1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 38
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSimdTriCount2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 40
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSimdQuadCount1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 42
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSimdQuadCount2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 44
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nQuadCount1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 46
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nQuadCount2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nCollisionSphereInclusiveCount"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 50
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nTreeDepth"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 52
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFitMatrixCount1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 54
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nFitMatrixCount2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 56
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSimdFitMatrixCount1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 58
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nSimdFitMatrixCount2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 60
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nRopeCount"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 62
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Ropes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_NodeBases"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 72
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x5320D945
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SimdNodeBases"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 80
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x8DF7329F
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Quads"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 88
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x8D33C0B4
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SimdQuads"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 96
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x8ED6C14C
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SimdTris"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 104
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x07C81552
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SimdRods"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 112
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xE30A17E8
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_InitPose"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 120
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 40
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Rods"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 128
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x0AF60ECB
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_AxialEdges"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 136
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x2004D0F3
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_NodeInvMasses"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 144
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CtrlOffsets"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 152
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x5B335A27
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CtrlOsOffsets"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 160
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x2B047270
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_FollowNodes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 168
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xC6CC51F9
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CollisionSpheres"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 176
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x47B5CB06
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CollisionPlanes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 184
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x70EC0DFF
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_NodeIntegrator"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 192
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xD467A22F
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SpringIntegrator"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 200
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x816BA6D7
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SimdSpringIntegrator"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 208
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x8E1B731C
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_WorldCollisionParams"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 216
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x955E9D57
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_LegacyStretchForce"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 224
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_NodeCollisionRadii"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 232
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_LocalRotation"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 240
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_LocalForce"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 248
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_TaperedCapsuleStretches"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 256
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xE8030A00
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_TaperedCapsuleRigids"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 264
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xA2F50312
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SphereRigids"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 272
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x18105679
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_WorldCollisionNodes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 280
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_TreeParents"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 288
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_TreeCollisionMasks"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 296
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_TreeChildren"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 304
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x0FA4627A
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_FreeNodes"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 312
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_FitMatrices"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 320
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x8FAEAB83
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SimdFitMatrices"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 328
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xC39B42BB
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_FitWeights"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 336
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x0A79FDBF
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_ReverseOffsets"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 344
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x978CD829
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nReserved"
+						int16 m_nCount = 30
+						int16 m_nOnDiskOffset = 352
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flWindage"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 472
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flWindDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 476
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultSurfaceStretch"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 480
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultThreadStretch"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 484
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultGravityScale"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 488
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultVelAirDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 492
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultExpAirDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 496
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultVelQuadAirDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 500
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultExpQuadAirDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 504
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultVelRodAirDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 508
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultExpRodAirDrag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 512
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flRodVelocitySmoothRate"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 516
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flQuadVelocitySmoothRate"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 520
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flAddWorldCollisionRadius"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 524
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flDefaultVolumetricSolveAmount"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 528
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nRodVelocitySmoothIterations"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 532
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nQuadVelocitySmoothIterations"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 534
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x5320D945
+				CResourceString m_pName = "FeNodeBase_t"
+				uint32 m_nDiskCrc = 0xD6D58D38
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0020
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[7] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nDummy"
+						int16 m_nCount = 3
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeX0"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeX1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 10
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeY0"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeY1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 14
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "qAdjust"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 25
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x8DF7329F
+				CResourceString m_pName = "FeSimdNodeBase_t"
+				uint32 m_nDiskCrc = 0xFCAB1503
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0070
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[7] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeX0"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeX1"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeY0"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 24
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNodeY1"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nDummy"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 40
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "qAdjust"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x878D22D7
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x878D22D7
+				CResourceString m_pName = "FourQuaternions"
+				uint32 m_nDiskCrc = 0x325AEAA1
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0040
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "x"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "y"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "z"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "w"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x8D33C0B4
+				CResourceString m_pName = "FeQuad_t"
+				uint32 m_nDiskCrc = 0xB43D419E
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x004C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSlack"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vShape"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 23
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x8ED6C14C
+				CResourceString m_pName = "FeSimdQuad_t"
+				uint32 m_nDiskCrc = 0x37E0F2F5
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0130
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 16
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "f4Slack"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vShape"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 44
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "f4Weights"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 240
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x07C81552
+				CResourceString m_pName = "FeSimdTri_t"
+				uint32 m_nDiskCrc = 0x493F58CE
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0080
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 12
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "w1"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "w2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "v1x"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 80
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "v2"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 96
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x80C2C22B
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x80C2C22B
+				CResourceString m_pName = "FourVectors2D"
+				uint32 m_nDiskCrc = 0xA49D6E7D
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0020
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "x"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "y"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xE30A17E8
+				CResourceString m_pName = "FeSimdRodConstraint_t"
+				uint32 m_nDiskCrc = 0x8298C537
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0050
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 8
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "f4MaxDist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "f4MinDist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "f4Weight0"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "f4RelaxationFactor"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x0AF60ECB
+				CResourceString m_pName = "FeRodConstraint_t"
+				uint32 m_nDiskCrc = 0xED60BCB7
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0014
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flMaxDist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flMinDist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flWeight0"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flRelaxationFactor"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x2004D0F3
+				CResourceString m_pName = "FeAxialEdgeBend_t"
+				uint32 m_nDiskCrc = 0x0E6657CC
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0028
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "te"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "tv"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flDist"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flWeight"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 6
+						int16 m_nOnDiskOffset = 28
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x5B335A27
+				CResourceString m_pName = "FeCtrlOffset_t"
+				uint32 m_nDiskCrc = 0x2DC437A7
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrlParent"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrlChild"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vOffset"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x2B047270
+				CResourceString m_pName = "FeCtrlOsOffset_t"
+				uint32 m_nDiskCrc = 0xFF4FD008
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0004
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[2] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrlParent"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrlChild"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xC6CC51F9
+				CResourceString m_pName = "FeFollowNode_t"
+				uint32 m_nDiskCrc = 0xA65E4278
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0008
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nParentNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nChildNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flWeight"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x47B5CB06
+				CResourceString m_pName = "FeCollisionSphere_t"
+				uint32 m_nDiskCrc = 0x0C03240B
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0018
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrlParent"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nChildNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flRFactor"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vOrigin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStickiness"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x70EC0DFF
+				CResourceString m_pName = "FeCollisionPlane_t"
+				uint32 m_nDiskCrc = 0x32DBCED3
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0018
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrlParent"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nChildNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_Plane"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x977C1929
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStickiness"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xD467A22F
+				CResourceString m_pName = "FeNodeIntegrator_t"
+				uint32 m_nDiskCrc = 0x9C758C1B
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flPointDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flAnimationForceAttraction"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flAnimationVertexAttraction"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flGravity"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x816BA6D7
+				CResourceString m_pName = "FeSpringIntegrator_t"
+				uint32 m_nDiskCrc = 0x293CFFD7
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0014
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSpringRestLength"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSpringConstant"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSpringDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flNodeWeight0"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x8E1B731C
+				CResourceString m_pName = "FeSimdSpringIntegrator_t"
+				uint32 m_nDiskCrc = 0xB66B997F
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0050
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 8
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSpringRestLength"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSpringConstant"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flSpringDamping"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flNodeWeight0"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x955E9D57
+				CResourceString m_pName = "FeWorldCollisionParams_t"
+				uint32 m_nDiskCrc = 0x461D5ED9
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x000C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flWorldFriction"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flGroundFriction"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nListBegin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nListEnd"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 10
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xE8030A00
+				CResourceString m_pName = "FeTaperedCapsuleStretch_t"
+				uint32 m_nDiskCrc = 0x58093A49
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0014
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCollisionMask"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nDummy"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 6
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flRadius"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStickiness"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xA2F50312
+				CResourceString m_pName = "FeTaperedCapsuleRigid_t"
+				uint32 m_nDiskCrc = 0x5A40B350
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0028
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCollisionMask"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vCenter"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flRadius"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 28
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStickiness"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 36
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x18105679
+				CResourceString m_pName = "FeSphereRigid_t"
+				uint32 m_nDiskCrc = 0x98DB6BAC
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0018
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[5] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCollisionMask"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vCenter"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flRadius"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 16
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStickiness"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x0FA4627A
+				CResourceString m_pName = "FeTreeChildren_t"
+				uint32 m_nDiskCrc = 0xBA8D5A42
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0004
+				uint16 m_nAlignment = 0x0002
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nChild"
+						int16 m_nCount = 2
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x8FAEAB83
+				CResourceString m_pName = "FeFitMatrix_t"
+				uint32 m_nDiskCrc = 0x879D2EE4
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0040
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[6] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "bone"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 40
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vCenter"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nEnd"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 44
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 46
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrl"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nBeginDynamic"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 50
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xC39B42BB
+				CResourceString m_pName = "FeSimdFitMatrices_t"
+				uint32 m_nDiskCrc = 0x0B5F22F8
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x00C0
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[6] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vCenter"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 44
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nEnd"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nCtrl"
+						int16 m_nCount = 4
+						int16 m_nOnDiskOffset = 56
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "AqqInv"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x193DE6EF
+						int16 m_nType = 1
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStretchMin"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 160
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flStretchMax"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 176
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x193DE6EF
+				CResourceString m_pName = "FourCovMatrices3"
+				uint32 m_nDiskCrc = 0xA4681783
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0060
+				uint16 m_nAlignment = 0x0010
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[4] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_vDiag"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 44
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flXY"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 48
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flXZ"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 64
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_flYZ"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 80
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 27
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x0A79FDBF
+				CResourceString m_pName = "FeFitWeight_t"
+				uint32 m_nDiskCrc = 0x5F25A9DA
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0008
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "flWeight"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 18
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nDummy"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 6
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x978CD829
+				CResourceString m_pName = "FeNodeReverseOffset_t"
+				uint32 m_nDiskCrc = 0xF1D61D41
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nBoneCtrl"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "nTargetNode"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 2
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 13
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "vOffset"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 22
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xF2C84E98
+				CResourceString m_pName = "VPhysXCollisionAttributes_t"
+				uint32 m_nDiskCrc = 0x7C222EC9
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0028
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[6] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CollisionGroup"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_InteractAs"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_InteractWith"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 12
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_CollisionGroupString"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 20
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_InteractAsStrings"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 24
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_InteractWithStrings"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 32
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+		]
+		Struct m_ReferencedEnums[0] = 
+		[
+		]
+	}
