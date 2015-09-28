@@ -48,6 +48,19 @@ namespace ValveResourceFormat.ResourceTypes
                 ReadFieldIntrospection(field);
             }
 
+            if (refStruct.BaseStructId != 0)
+            {
+                var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == refStruct.BaseStructId);
+
+                // Valve doesn't print this struct's type, so we can't just call ReadStructure *sigh*
+                foreach (var field in newStruct.FieldIntrospection)
+                {
+                    Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
+
+                    ReadFieldIntrospection(field);
+                }
+            }
+
             Writer.Indent--;
             Writer.WriteLine("}");
         }
@@ -63,8 +76,22 @@ namespace ValveResourceFormat.ResourceTypes
                 count = 1;
             }
 
+            long prevOffset = 0;
+
             if (field.Indirections.Count > 0)
             {
+                // TODO
+                if (field.Indirections.Count > 1)
+                {
+                    throw new NotImplementedException("More than one indirection, not yet handled.");
+                }
+
+                // TODO
+                if (field.Count > 0)
+                {
+                    throw new NotImplementedException("Indirection.Count > 0 && field.Count > 0");
+                }
+
                 var indirection = field.Indirections[0]; // TODO: depth needs fixing?
 
                 var offset = Reader.ReadUInt32();
@@ -80,11 +107,15 @@ namespace ValveResourceFormat.ResourceTypes
                         return;
                     }
 
+                    prevOffset = Reader.BaseStream.Position;
+
                     Reader.BaseStream.Position += offset - 4;
                 }
                 else if (indirection == 0x04)
                 {
                     count = Reader.ReadUInt32();
+
+                    prevOffset = Reader.BaseStream.Position;
 
                     if (count > 0)
                     {
@@ -106,7 +137,7 @@ namespace ValveResourceFormat.ResourceTypes
             else if (field.Count > 0 || field.Indirections.Count > 0)
             {
                 // TODO: This is matching Valve's incosistency
-                if (field.Type == DataType.Byte)
+                if (field.Type == DataType.Byte && field.Indirections.Count > 0)
                 {
                     Writer.WriteLine("{0}[{2}] {1} =", ValveDataType(field.Type), field.FieldName, count);
                 }
@@ -132,6 +163,11 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Writer.Indent--;
                 Writer.WriteLine("]");
+            }
+
+            if (prevOffset > 0)
+            {
+                Reader.BaseStream.Position = prevOffset;
             }
         }
 
