@@ -38,23 +38,35 @@ namespace ValveResourceFormat.ResourceTypes
         private void ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
         {
             Writer.WriteLine(refStruct.Name);
-
+            Writer.WriteLine("{");
             Writer.Indent++;
 
             foreach (var field in refStruct.FieldIntrospection)
             {
                 Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
 
-                Writer.Write(field.FieldName + " " + field.Type + ": ");
-
-                Writer.Indent++;
+                if (field.Indirections.Count > 0)
+                {
+                    Writer.WriteLine("{0} {1}[{2}] =", ValveDataType(field.Type), field.FieldName, field.Indirections.Count); // TODO: printing count like this is incorrect
+                    Writer.WriteLine("[");
+                    Writer.Indent++;
+                }
+                else
+                {
+                    Writer.Write("{0} {1} = ", ValveDataType(field.Type), field.FieldName);
+                }
 
                 ReadField(field, field.Indirections.Count);
 
-                Writer.Indent--;
+                if (field.Indirections.Count > 0)
+                {
+                    Writer.Indent--;
+                    Writer.WriteLine("]");
+                }
             }
 
             Writer.Indent--;
+            Writer.WriteLine("}");
         }
 
         private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, int indirectionDepth)
@@ -71,7 +83,6 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (offset == 0)
                     {
-                        Writer.WriteLine("empty");
                         return;
                     }
 
@@ -83,7 +94,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (count == 0)
                     {
-                        Writer.WriteLine("empty");
                         return;
                     }
 
@@ -102,8 +112,6 @@ namespace ValveResourceFormat.ResourceTypes
                     case DataType.Struct:
                         var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
 
-                        Writer.WriteLine();
-
                         ReadStructure(newStruct, Reader.BaseStream.Position);
 
                         break;
@@ -113,28 +121,29 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine("{0}", Reader.ReadUInt32());
                         break;
 
-                    case DataType.Byte:
-                        Writer.WriteLine("{0}", Reader.ReadByte());
+                    case DataType.Byte: // TODO: Valve print it as hex, why?
+                        // TODO: if there are more than one uint8's, valve prints them without 0x, and on a single line
+                        Writer.WriteLine("0x{0:X2}", Reader.ReadByte());
                         break;
 
                     case DataType.Boolean:
-                        Writer.WriteLine("{0}", Reader.ReadByte());
+                        Writer.WriteLine("{0}", Reader.ReadByte() == 1 ? "true" : "false");
                         break;
 
                     case DataType.Int16:
                         Writer.WriteLine("{0}", Reader.ReadInt16());
                         break;
 
-                    case DataType.UInt16:
-                        Writer.WriteLine("{0}", Reader.ReadUInt16());
+                    case DataType.UInt16: // TODO: Valve print it as hex, why?
+                        Writer.WriteLine("0x{0:X4}", Reader.ReadUInt16());
                         break;
 
                     case DataType.Int32:
                         Writer.WriteLine("{0}", Reader.ReadInt32());
                         break;
 
-                    case DataType.UInt32:
-                        Writer.WriteLine("{0}", Reader.ReadUInt32());
+                    case DataType.UInt32: // TODO: Valve print it as hex, why?
+                        Writer.WriteLine("0x{0:X8}", Reader.ReadUInt32());
                         break;
 
                     case DataType.Float:
@@ -145,12 +154,12 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine("{0}", Reader.ReadInt64());
                         break;
 
-                    case DataType.UInt64:
-                        Writer.WriteLine("{0}", Reader.ReadUInt64());
+                    case DataType.UInt64: // TODO: Valve print it as hex, why?
+                        Writer.WriteLine("0x{0:X16}", Reader.ReadUInt64());
                         break;
 
                     case DataType.ExternalReference:
-                        Writer.WriteLine("TODO: {0}", Reader.ReadUInt64());
+                        Writer.WriteLine("ID: {0:X16}", Reader.ReadUInt64());
                         break;
 
                     case DataType.Vector:
@@ -161,7 +170,7 @@ namespace ValveResourceFormat.ResourceTypes
                             Reader.ReadSingle()
                         };
 
-                        Writer.WriteLine("[{0:F6}, {1:F6}, {2:F6}]", vector3[0], vector3[1], vector3[2]);
+                        Writer.WriteLine("({0:F6}, {1:F6}, {2:F6})", vector3[0], vector3[1], vector3[2]);
 
                         break;
 
@@ -188,7 +197,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         Reader.BaseStream.Position += offset - 4;
 
-                        Writer.WriteLine(Reader.ReadNullTermString(Encoding.UTF8));
+                        Writer.WriteLine("\"{0}\"", Reader.ReadNullTermString(Encoding.UTF8));
 
                         Reader.BaseStream.Position = prev;
                         break;
@@ -235,6 +244,27 @@ namespace ValveResourceFormat.ResourceTypes
         public override string ToString()
         {
             return Output ?? "Nope.";
+        }
+
+        private static string ValveDataType(DataType type)
+        {
+            switch (type)
+            {
+                case DataType.Byte: return "uint8";
+                case DataType.Int16: return "int16";
+                case DataType.UInt16: return "uint16";
+                case DataType.Int32: return "int32";
+                case DataType.UInt32: return "uint32";
+                case DataType.Int64: return "int64";
+                case DataType.UInt64: return "uint64";
+                case DataType.Float: return "float32";
+                case DataType.String: return "CResourceString";
+                case DataType.Boolean: return "bool";
+                case DataType.Fltx4: return "fltx4";
+                case DataType.Matrix3x4a: return "matrix3x4a_t";
+            }
+
+            return type.ToString();
         }
     }
 }
