@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 switch (field.Type)
                 {
-                    case DataType.SubStructure:
+                    case DataType.Struct:
                         var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
 
                         Writer.WriteLine();
@@ -121,35 +121,39 @@ namespace ValveResourceFormat.ResourceTypes
                         Writer.WriteLine("{0}", Reader.ReadByte());
                         break;
 
-                    case DataType.Sint:
+                    case DataType.Int16:
+                        Writer.WriteLine("{0}", Reader.ReadInt16());
+                        break;
+
+                    case DataType.UInt16:
+                        Writer.WriteLine("{0}", Reader.ReadUInt16());
+                        break;
+
+                    case DataType.Int32:
+                        Writer.WriteLine("{0}", Reader.ReadInt32());
+                        break;
+
+                    case DataType.UInt32:
                         Writer.WriteLine("{0}", Reader.ReadUInt32());
-                        break;
-
-                    case DataType.Number:
-                        Writer.WriteLine("{0}", Reader.ReadInt32());
-                        break;
-
-                    case DataType.Flags:
-                        Writer.WriteLine("{0}", Reader.ReadInt32());
                         break;
 
                     case DataType.Float:
                         Writer.WriteLine("{0:F6}", Reader.ReadSingle());
                         break;
 
-                    case DataType.Uint64:
+                    case DataType.Int64:
+                        Writer.WriteLine("{0}", Reader.ReadInt64());
+                        break;
+
+                    case DataType.UInt64:
                         Writer.WriteLine("{0}", Reader.ReadUInt64());
                         break;
 
-                    case DataType.Ushort:
-                        Writer.WriteLine("{0}", Reader.ReadUInt16());
+                    case DataType.ExternalReference:
+                        Writer.WriteLine("TODO: {0}", Reader.ReadUInt64());
                         break;
 
-                    case DataType.Extref:
-                        Writer.WriteLine("{0}", Reader.ReadUInt64());
-                        break;
-
-                    case DataType.Vector3:
+                    case DataType.Vector:
                         var vector3 = new []
                         {
                             Reader.ReadSingle(),
