@@ -1,0 +1,11 @@
+ResourceExtRefList_t
+	{
+		Struct m_resourceRefInfoList[1] = 
+		[
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0xEDF586E15E87A9F5
+				CResourceString m_pResourceName = "dev/helper/reflectivity_90b_color_tga_88186957.vtex"
+			}
+		]
+	}

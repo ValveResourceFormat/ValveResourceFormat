@@ -1,0 +1,71 @@
+MaterialResourceData_t
+	{
+		CResourceString m_materialName = "dev/helper/reflectivity_90b.vmat"
+		CResourceString m_shaderName = "global_lit_simple.vfx"
+		Struct m_intParams[0] = 
+		[
+		]
+		Struct m_floatParams[0] = 
+		[
+		]
+		Struct m_vectorParams[3] = 
+		[
+			MaterialParamVector_t
+			{
+				Vector4D m_value = (1.000000,1.000000,1.000000,0.000000)
+				CResourceString m_name = "g_vColorTint"
+			}
+			MaterialParamVector_t
+			{
+				Vector4D m_value = (0.000000,0.000000,0.000000,0.000000)
+				CResourceString m_name = "g_vTexCoordOffset"
+			}
+			MaterialParamVector_t
+			{
+				Vector4D m_value = (1.000000,1.000000,0.000000,0.000000)
+				CResourceString m_name = "g_vTexCoordScale"
+			}
+		]
+		Struct m_textureParams[1] = 
+		[
+			MaterialParamTexture_t
+			{
+				ExternalReference m_pValue = ID: EDF586E15E87A9F5
+				CResourceString m_name = "g_tColor"
+			}
+		]
+		Struct m_dynamicParams[0] = 
+		[
+		]
+		Struct m_dynamicTextureParams[0] = 
+		[
+		]
+		Struct m_intAttributes[2] = 
+		[
+			MaterialParamInt_t
+			{
+				int32 m_nValue = 32
+				CResourceString m_name = "RepresentativeTextureWidth"
+			}
+			MaterialParamInt_t
+			{
+				int32 m_nValue = 32
+				CResourceString m_name = "RepresentativeTextureHeight"
+			}
+		]
+		Struct m_floatAttributes[0] = 
+		[
+		]
+		Struct m_vectorAttributes[0] = 
+		[
+		]
+		Struct m_textureAttributes[0] = 
+		[
+		]
+		Struct m_stringAttributes[0] = 
+		[
+		]
+		CResourceString m_renderAttributesUsed[0] = 
+		[
+		]
+	}
