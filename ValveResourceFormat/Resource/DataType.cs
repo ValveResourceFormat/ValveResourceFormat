@@ -6,6 +6,7 @@
         Enum = 2, // TODO: not verified with resourceinfo
         ExternalReference = 3,
         String4 = 4, // TODO: not verified with resourceinfo
+        SByte = 10,
         Byte = 11,
         Int16 = 12,
         UInt16 = 13,

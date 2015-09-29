@@ -193,6 +193,10 @@ namespace ValveResourceFormat.ResourceTypes
                     Writer.WriteLine("{0}", Reader.ReadUInt32());
                     break;
 
+                case DataType.SByte:
+                    Writer.WriteLine("{0}", Reader.ReadSByte());
+                    break;
+
                 case DataType.Byte: // TODO: Valve print it as hex, why?
                     // TODO: if there are more than one uint8's, valve prints them without 0x, and on a single line
                     if (multiple)
@@ -347,6 +351,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             switch (type)
             {
+                case DataType.SByte: return "int8";
                 case DataType.Byte: return "uint8";
                 case DataType.Int16: return "int16";
                 case DataType.UInt16: return "uint16";
