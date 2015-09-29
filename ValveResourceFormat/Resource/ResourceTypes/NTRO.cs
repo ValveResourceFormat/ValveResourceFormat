@@ -41,13 +41,7 @@ namespace ValveResourceFormat.ResourceTypes
             Writer.WriteLine("{");
             Writer.Indent++;
 
-            foreach (var field in refStruct.FieldIntrospection)
-            {
-                Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
-
-                ReadFieldIntrospection(field);
-            }
-
+            // TODO: Valve prints this struct after field introspection
             if (refStruct.BaseStructId != 0)
             {
                 var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == refStruct.BaseStructId);
@@ -59,6 +53,13 @@ namespace ValveResourceFormat.ResourceTypes
 
                     ReadFieldIntrospection(field);
                 }
+            }
+
+            foreach (var field in refStruct.FieldIntrospection)
+            {
+                Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
+
+                ReadFieldIntrospection(field);
             }
 
             Writer.Indent--;
