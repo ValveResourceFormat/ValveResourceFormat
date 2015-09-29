@@ -41,9 +41,19 @@ namespace ValveResourceFormat.ResourceTypes
             Writer.WriteLine("{");
             Writer.Indent++;
 
-            // TODO: Valve prints this struct after field introspection
+
+
+            foreach (var field in refStruct.FieldIntrospection)
+            {
+                Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
+
+                ReadFieldIntrospection(field);
+            }
+
             if (refStruct.BaseStructId != 0)
             {
+                var previousOffset = Reader.BaseStream.Position;
+
                 var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == refStruct.BaseStructId);
 
                 // Valve doesn't print this struct's type, so we can't just call ReadStructure *sigh*
@@ -53,13 +63,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                     ReadFieldIntrospection(field);
                 }
-            }
 
-            foreach (var field in refStruct.FieldIntrospection)
-            {
-                Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
-
-                ReadFieldIntrospection(field);
+                Reader.BaseStream.Position = previousOffset;
             }
 
             Writer.Indent--;
@@ -266,7 +271,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     else
                     {
-                        Writer.WriteLine("({0:F}, {1:F}, {2:F}, {3:F})", vector4[0], vector4[1], vector4[2], vector4[3]);
+                        Writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4[0], vector4[1], vector4[2], vector4[3]);
                     }
 
                     break;
