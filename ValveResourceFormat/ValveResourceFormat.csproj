@@ -63,6 +63,7 @@
     <Compile Include="Resource\Blocks\VBIB.cs" />
     <Compile Include="Utils\StreamHelpers.cs" />
     <Compile Include="Utils\Crc32.cs" />
+    <Compile Include="Resource\ResourceTypes\Sound.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

@@ -79,23 +79,38 @@ namespace Decompiler
 
                     if (Options.OutputFile != null)
                     {
-                        if (resource.ResourceType != ResourceType.Panorama)
-                        {
-                            Console.Error.WriteLine("--- (We only support dumping panorama resources at the moment.)");
+                        byte[] data;
+                        string extension = Path.GetExtension(path).Replace("_c", "");
 
-                            continue;
+                        switch(resource.ResourceType)
+                        {
+                            case ResourceType.Panorama:
+                                data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                break;
+
+                            case ResourceType.Sound:
+                                extension = "mp3";
+                                data = ((Sound)resource.Blocks[BlockType.DATA]).SoundData;
+                                break;
+
+                            default:
+                                Console.WriteLine("-- (I don't know how to dump this resource type)");
+                                continue;
                         }
 
-                        var filePath = path;
+                        var filePath = Path.ChangeExtension(path, extension);
 
                         if (Options.RecursiveSearch)
                         {
                             // I bet this is prone to breaking, is there a better way?
                             filePath = filePath.Remove(0, Options.InputFile.TrimEnd(Path.DirectorySeparatorChar).Length + 1);
                         }
+                        else
+                        {
+                            filePath = Path.GetFileName(filePath);
+                        }
 
-                        // TODO: disabled until fixed
-                        //DumpFile(filePath, ((Panorama)resource.Blocks[BlockType.DATA]).Data);
+                        DumpFile(filePath, data);
                     }
                 }
                 catch (Exception e)
