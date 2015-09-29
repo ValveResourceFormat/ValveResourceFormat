@@ -31,12 +31,15 @@ using System.Text;
 
 namespace ValveResourceFormat
 {
-    public class Package
+    public class Package : IDisposable
     {
         public const int MAGIC = 0x55AA1234;
 
+        private FileStream FileStream;
         private BinaryReader Reader;
         private string FileName;
+        private bool IsDirVPK;
+        private uint OffsetAfterHeader;
 
         /// <summary>
         /// Gets the VPK version.
@@ -76,12 +79,11 @@ namespace ValveResourceFormat
         /// <summary>
         /// Releases binary reader.
         /// </summary>
-        ~Package()
+        public void Dispose()
         {
             if (Reader != null)
             {
-                Reader.Dispose();
-
+                Reader.Close();
                 Reader = null;
             }
         }
@@ -99,24 +101,20 @@ namespace ValveResourceFormat
 
             if (fileName.EndsWith("_dir", StringComparison.Ordinal))
             {
+                IsDirVPK = true;
+
                 fileName = fileName.Substring(0, fileName.Length - 4);
             }
 
             FileName = fileName;
-
-            fileName += "_dir.vpk";
-
-            if (!File.Exists(fileName))
-            {
-                throw new FileNotFoundException(string.Format("\"{0}\" does not exist.", fileName));
-            }
         }
 
         /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
-        public void Read(Stream input)
+        /// <returns>Returns true if this archive contains inline entries, false otherwise.</returns>
+        public bool Read(Stream input)
         {
             if (FileName == null)
             {
@@ -127,7 +125,7 @@ namespace ValveResourceFormat
 
             if (Reader.ReadUInt32() != Package.MAGIC)
             {
-                throw new InvalidDataException("Given file is not a VPK dictionary file.");
+                throw new InvalidDataException("Given file is not a VPK.");
             }
 
             Version = Reader.ReadUInt32();
@@ -150,6 +148,7 @@ namespace ValveResourceFormat
             }
 
             var typeEntries = new Dictionary<string, List<PackageEntry>>();
+            bool hasInlineEntries = false;
 
             // Types
             while (true)
@@ -203,6 +202,11 @@ namespace ValveResourceFormat
                             Reader.Read(entry.SmallData, 0, entry.SmallData.Length);
                         }
 
+                        if (entry.ArchiveIndex == 0x7FFF)
+                        {
+                            hasInlineEntries = true;
+                        }
+
                         entries.Add(entry);
                     }
                 }
@@ -211,20 +215,39 @@ namespace ValveResourceFormat
             }
 
             Entries = typeEntries;
+
+            OffsetAfterHeader = (uint)Reader.BaseStream.Position;
+
+            return hasInlineEntries;
         }
 
         /// <summary>
         /// Opens and reads the given filename.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
-        public void Read(string filename)
+        /// <returns>Returns true if this archive contains inline entries, false otherwise.</returns>
+        public bool Read(string filename)
         {
             SetFileName(filename);
 
-            using (var fs = new FileStream(FileName + "_dir.vpk", FileMode.Open, FileAccess.Read))
+            bool hasInlineEntries = false;
+
+            try
             {
-                Read(fs);
+                FileStream = new FileStream(FileName + (IsDirVPK ? "_dir" : "") + ".vpk", FileMode.Open, FileAccess.Read);
+
+                hasInlineEntries = Read(FileStream);
             }
+            finally
+            {
+                if (!hasInlineEntries)
+                {
+                    FileStream.Close();
+                    FileStream = null;
+                }
+            }
+
+            return hasInlineEntries;
         }
 
         /// <summary>
@@ -235,28 +258,48 @@ namespace ValveResourceFormat
         /// <param name="validateCrc">If true, CRC32 will be calculated and verified for read data.</param>
         public void ReadEntry(PackageEntry entry, out byte[] output, bool validateCrc = true)
         {
-            if (entry.ArchiveIndex == 0x7FFF)
-            {
-                throw new NotImplementedException("Inline file in vpk, not yet handled.");
-            }
+            output = new byte[entry.Length];
 
             if (entry.SmallData.Length > 0)
             {
                 throw new NotImplementedException("SmallData.Length > 0, not yet handled.");
             }
 
-            output = new byte[entry.Length];
+            FileStream fs = null;
 
-            var fileName = string.Format("{0}_{1:D3}.vpk", FileName, entry.ArchiveIndex);
-
-            using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
+            try
             {
-                fs.Seek(entry.Offset, SeekOrigin.Begin);
+                var offset = entry.Offset;
+
+                if (entry.ArchiveIndex != 0x7FFF)
+                {
+                    if (!IsDirVPK)
+                    {
+                        throw new InvalidOperationException("Given VPK is not a _dir, but entry is referencing an external archive.");
+                    }
+
+                    var fileName = string.Format("{0}_{1:D3}.vpk", FileName, entry.ArchiveIndex);
+
+                    fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                }
+                else
+                {
+                    fs = FileStream;
+
+                    offset += OffsetAfterHeader;
+                }
+
+                fs.Seek(offset, SeekOrigin.Begin);
                 fs.Read(output, 0, (int)entry.Length);
             }
-
-            Console.WriteLine(entry.CRC32);
-            Console.WriteLine(Crc32.Compute(output));
+            finally
+            {
+                if (entry.ArchiveIndex != 0x7FFF && fs != null)
+                {
+                    Console.WriteLine("disposed");
+                    fs.Close();
+                }
+            }
 
             if (validateCrc && entry.CRC32 != Crc32.Compute(output))
             {
