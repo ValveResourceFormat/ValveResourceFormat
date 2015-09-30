@@ -104,12 +104,5 @@ namespace ValveResourceFormat
 
         [Extension("vmap")]
         Map,
-
-        // Mappings to match compiler identifier
-        Psf = ParticleSnapshot,
-        AnimGroup = AnimationGroup,
-        VPhysXData = PhysicsCollisionMesh,
-        Font = BitmapFont,
-        RenderMesh = Mesh,
     }
 }

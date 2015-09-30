@@ -225,6 +225,16 @@ namespace ValveResourceFormat
                 identifier = identifier.Remove(0, "Compile".Length);
             }
 
+            // Special mappings and otherwise different identifiers
+            switch (identifier)
+            {
+                case "Psf": return ResourceType.ParticleSnapshot;
+                case "AnimGroup": return ResourceType.AnimationGroup;
+                case "VPhysXData": return ResourceType.PhysicsCollisionMesh;
+                case "Font": return ResourceType.BitmapFont;
+                case "RenderMesh": return  ResourceType.Mesh;
+            }
+
             ResourceType resourceType;
 
             if (Enum.TryParse(identifier, false, out resourceType))
