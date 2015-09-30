@@ -110,5 +110,6 @@ namespace ValveResourceFormat
         AnimGroup = AnimationGroup,
         VPhysXData = PhysicsCollisionMesh,
         Font = BitmapFont,
+        RenderMesh = Mesh,
     }
 }
