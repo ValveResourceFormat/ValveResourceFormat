@@ -52,6 +52,8 @@ namespace Decompiler
                 return;
             }
 
+            var stats = new Dictionary<string, ResourceStat>();
+
             foreach (var path in paths)
             {
                 if (Path.GetExtension(path) == ".vpk")
@@ -93,6 +95,20 @@ namespace Decompiler
                         if (attribute != extension)
                         {
                             throw new Exception(string.Format("Mismatched resource type and file extension. ({0} != expected {1})", attribute, extension));
+                        }
+                    }
+
+                    if (Options.CollectStats)
+                    {
+                        var id = string.Format("{0}_{1}", resource.ResourceType, resource.Version);
+
+                        if (stats.ContainsKey(id))
+                        {
+                            stats[id].Count++;
+                        }
+                        else
+                        {
+                            stats.Add(id, new ResourceStat(resource));
                         }
                     }
 
@@ -195,6 +211,17 @@ namespace Decompiler
                 {
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
                     Console.WriteLine(block.Value);
+                }
+            }
+
+            if (Options.CollectStats)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Processed resource stats:");
+
+                foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
+                {
+                    Console.WriteLine("{0,5} resources of version {2} and type {1}", stat.Value.Count, stat.Value.Type, stat.Value.Version);
                 }
             }
         }

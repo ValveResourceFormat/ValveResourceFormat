@@ -26,6 +26,10 @@ namespace Decompiler
             HelpText = "Print the content of a specific block. Specify the block via its 4CC name - case matters! (eg. DATA, RERL, REDI, NTRO).")]
         public string Block { get; set; }
 
+        [Option("stats", DefaultValue = false,
+            HelpText = "Collect stats on all input files and then print them.")]
+        public bool CollectStats { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
