@@ -38,10 +38,7 @@
     <Compile Include="Package\Package.cs" />
     <Compile Include="Package\PackageEntry.cs" />
     <Compile Include="Resource\Block.cs" />
-    <Compile Include="Resource\BlockType.cs" />
-    <Compile Include="Resource\DataType.cs" />
     <Compile Include="Resource\Resource.cs" />
-    <Compile Include="Resource\ResourceType.cs" />
     <Compile Include="Resource\ResourceTypes\Model.cs" />
     <Compile Include="Resource\ResourceTypes\NTRO.cs" />
     <Compile Include="Resource\ResourceTypes\Panorama.cs" />
@@ -64,11 +61,19 @@
     <Compile Include="Utils\StreamHelpers.cs" />
     <Compile Include="Utils\Crc32.cs" />
     <Compile Include="Resource\ResourceTypes\Sound.cs" />
+    <Compile Include="Resource\ResourceTypes\Texture.cs" />
+    <Compile Include="Resource\Enums\VTexFormat.cs" />
+    <Compile Include="Resource\Enums\ResourceType.cs" />
+    <Compile Include="Resource\Enums\DataType.cs" />
+    <Compile Include="Resource\Enums\BlockType.cs" />
+    <Compile Include="Resource\Enums\VTexFlags.cs" />
+    <Compile Include="Resource\Enums\VTexExtraData.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Package\" />
     <Folder Include="Resource\" />
     <Folder Include="Utils\" />
+    <Folder Include="Resource\Enums\" />
   </ItemGroup>
 </Project>

@@ -190,6 +190,9 @@ namespace ValveResourceFormat
 
                 case ResourceType.Sound:
                     return new ResourceTypes.Sound();
+
+                case ResourceType.Texture:
+                    return new ResourceTypes.Texture();
             }
 
             if (Blocks.ContainsKey(BlockType.NTRO))
