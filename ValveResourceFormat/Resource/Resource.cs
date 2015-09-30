@@ -119,7 +119,7 @@ namespace ValveResourceFormat
                         EditInfo = (ResourceEditInfo)block;
 
                         // Try to determine resource type by looking at first compiler indentifier
-                        if (EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                        if (ResourceType == ResourceType.Unknown && EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                         {
                             var specialDeps = (Blocks.ResourceEditInfoStructs.SpecialDependencies)EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
 
@@ -137,6 +137,15 @@ namespace ValveResourceFormat
 
                     case BlockType.NTRO:
                         IntrospectionManifest = (ResourceIntrospectionManifest)block;
+
+                        if (ResourceType == ResourceType.Unknown && IntrospectionManifest.ReferencedStructs.Count > 0)
+                        {
+                            if (IntrospectionManifest.ReferencedStructs[0].Name == "VSoundEventScript_t")
+                            {
+                                ResourceType = ResourceType.SoundEventScript;
+                            }
+                        }
+
                         break;
                 }
 
