@@ -140,9 +140,15 @@ namespace ValveResourceFormat
 
                         if (ResourceType == ResourceType.Unknown && IntrospectionManifest.ReferencedStructs.Count > 0)
                         {
-                            if (IntrospectionManifest.ReferencedStructs[0].Name == "VSoundEventScript_t")
+                            switch (IntrospectionManifest.ReferencedStructs[0].Name)
                             {
-                                ResourceType = ResourceType.SoundEventScript;
+                                case "VSoundEventScript_t":
+                                    ResourceType = ResourceType.SoundEventScript;
+                                    break;
+
+                                case "CWorldVisibility":
+                                    ResourceType = ResourceType.WorldVisibility;
+                                    break;
                             }
                         }
 
