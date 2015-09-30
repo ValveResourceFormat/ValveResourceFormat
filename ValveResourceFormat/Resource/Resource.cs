@@ -9,10 +9,11 @@ namespace ValveResourceFormat
     /// <summary>
     /// Represents a Valve resource.
     /// </summary>
-    public class Resource
+    public class Resource : IDisposable
     {
         private const ushort KNOWN_HEADER_VERSION = 12;
 
+        private FileStream FileStream;
         private BinaryReader Reader;
 
         /// <summary>
@@ -55,12 +56,11 @@ namespace ValveResourceFormat
         /// <summary>
         /// Releases binary reader.
         /// </summary>
-        ~Resource()
+        public void Dispose()
         {
             if (Reader != null)
             {
-                Reader.Dispose();
-
+                Reader.Close();
                 Reader = null;
             }
         }
@@ -167,10 +167,9 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
-            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
-            {
-                Read(fs);
-            }
+            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+
+            Read(FileStream);
         }
 
         private Block ConstructFromType(string input)

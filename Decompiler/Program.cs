@@ -127,6 +127,17 @@ namespace Decompiler
                                 data = ((Sound)resource.Blocks[BlockType.DATA]).SoundData;
                                 break;
 
+                            case ResourceType.Texture:
+                                extension = "tga";
+                                using(var ms = new MemoryStream())
+                                {
+                                    ((Texture)resource.Blocks[BlockType.DATA]).GenerateImage(ms);
+
+                                    data = ms.ToArray();
+                                }
+
+                                break;
+
                             default:
                                 Console.WriteLine("-- (I don't know how to dump this resource type)");
                                 continue;
