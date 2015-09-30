@@ -1,0 +1,15 @@
+	VTEX Version = 1
+	Width        = 256
+	Height       = 170
+	Depth        = 1
+	Reflectivity = ( 0.638331, 0.649835, 0.602109, 0.999334 )
+	NumMipLevels = 1
+	Picmip0Res   = 0
+	Format       = 4 (VTEX_FORMAT_RGBA8888)
+	Flags        = 0x0000000F
+	             | 0x00000001 = VTEX_FLAG_SUGGEST_CLAMPS
+	             | 0x00000002 = VTEX_FLAG_SUGGEST_CLAMPT
+	             | 0x00000004 = VTEX_FLAG_SUGGEST_CLAMPU
+	             | 0x00000008 = VTEX_FLAG_NO_LOD
+	Extra Data   = 1 entries:
+	               [ Entry 0: VTEX_EXTRA_DATA_FALLBACK_BITS - 1024 bytes ]
