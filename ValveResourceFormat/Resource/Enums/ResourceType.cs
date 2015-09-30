@@ -3,7 +3,7 @@
 namespace ValveResourceFormat
 {
     [AttributeUsage(AttributeTargets.Field)]
-    class ExtensionAttribute : Attribute
+    public class ExtensionAttribute : Attribute
     {
         public string Extension { get; set; }
 

@@ -77,12 +77,30 @@ namespace Decompiler
 
                     Console.WriteLine("Parsed in {0}ms", sw.ElapsedMilliseconds);
 
+                    string extension = Path.GetExtension(path);
+
+                    if (extension.EndsWith("_c", StringComparison.Ordinal))
+                    {
+                        extension = extension.Substring(0, extension.Length - 2);
+                    }
+
+                    // Verify that extension matches resource type
+                    if (resource.ResourceType != ResourceType.Unknown)
+                    {
+                        var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString()).First();
+                        var attribute = "." + ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false).First()).Extension;
+
+                        if (attribute != extension)
+                        {
+                            throw new Exception(string.Format("Mismatched resource type and file extension. ({0} != expected {1})", attribute, extension));
+                        }
+                    }
+
                     if (Options.OutputFile != null)
                     {
                         byte[] data;
-                        string extension = Path.GetExtension(path).Replace("_c", "");
 
-                        switch(resource.ResourceType)
+                        switch (resource.ResourceType)
                         {
                             case ResourceType.Panorama:
                                 data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
