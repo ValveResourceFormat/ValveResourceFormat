@@ -129,10 +129,13 @@ namespace Decompiler
                                 break;
 
                             case ResourceType.Texture:
-                                extension = "tga";
+                                extension = "png";
+
+                                var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+
                                 using(var ms = new MemoryStream())
                                 {
-                                    ((Texture)resource.Blocks[BlockType.DATA]).GenerateImage(ms);
+                                    bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
 
                                     data = ms.ToArray();
                                 }

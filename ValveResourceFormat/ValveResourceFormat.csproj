@@ -32,6 +32,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -68,6 +69,7 @@
     <Compile Include="Resource\Enums\BlockType.cs" />
     <Compile Include="Resource\Enums\VTexFlags.cs" />
     <Compile Include="Resource\Enums\VTexExtraData.cs" />
+    <Compile Include="ThirdParty\DDSImage.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -75,5 +77,6 @@
     <Folder Include="Resource\" />
     <Folder Include="Utils\" />
     <Folder Include="Resource\Enums\" />
+    <Folder Include="ThirdParty\" />
   </ItemGroup>
 </Project>
