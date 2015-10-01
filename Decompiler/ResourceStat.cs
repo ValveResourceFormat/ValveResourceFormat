@@ -8,12 +8,14 @@ namespace Decompiler
         public ResourceType Type;
         public ushort Version;
         public uint Count;
+        public string Info;
 
-        public ResourceStat(Resource resource)
+        public ResourceStat(Resource resource, string info = "")
         {
             Type = resource.ResourceType;
             Version = resource.Version;
             Count = 1;
+            Info = info;
         }
     }
 }

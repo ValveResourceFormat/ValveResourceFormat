@@ -100,15 +100,16 @@ namespace Decompiler
 
                     if (Options.CollectStats)
                     {
-                        var id = string.Format("{0}_{1}", resource.ResourceType, resource.Version);
-
+                        var id = resource.ResourceType == ResourceType.Texture ? ((Texture)resource.Blocks[BlockType.DATA]).Format.ToString() : string.Format("{0}_{1}", resource.ResourceType, resource.Version);
+                        var info = resource.ResourceType == ResourceType.Texture ? id : "";
+                            
                         if (stats.ContainsKey(id))
                         {
                             stats[id].Count++;
                         }
                         else
                         {
-                            stats.Add(id, new ResourceStat(resource));
+                            stats.Add(id, new ResourceStat(resource, info));
                         }
                     }
 
@@ -232,7 +233,9 @@ namespace Decompiler
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
-                    Console.WriteLine("{0,5} resources of version {2} and type {1}", stat.Value.Count, stat.Value.Type, stat.Value.Version);
+                    Console.WriteLine("{0,5} resources of version {2} and type {1}{3}", stat.Value.Count, stat.Value.Type, stat.Value.Version,
+                        stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : ""
+                    );
                 }
             }
         }
