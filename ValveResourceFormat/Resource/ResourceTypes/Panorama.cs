@@ -7,12 +7,13 @@ namespace ValveResourceFormat.ResourceTypes
     public class Panorama : Blocks.ResourceData
     {
         public byte[] Data { get; private set; }
+        public uint Crc32 { get; private set; }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = this.Offset;
 
-            reader.ReadBytes(4); // TODO: ????
+            Crc32 = reader.ReadUInt32();
 
             var size = reader.ReadUInt16();
             int headerSize = 4 + 2;
@@ -27,6 +28,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Data = reader.ReadBytes((int)this.Size - headerSize);
+            if (ValveResourceFormat.Crc32.Compute(Data) != Crc32)
+            {
+                throw new InvalidDataException("CRC32 mismatch for read data.");
+            }
         }
 
         public override string ToString()
