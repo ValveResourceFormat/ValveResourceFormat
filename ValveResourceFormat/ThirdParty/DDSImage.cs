@@ -195,7 +195,6 @@ namespace ValveResourceFormat.ThirdParty {
 
                     if (x + i < width)
                         image.SetPixel(x + i, y + j, finalColor);
-                    //image[(y + j)*width + (x + i)] = finalColor;
                 }
             }
         }
