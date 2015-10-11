@@ -9,6 +9,7 @@
     <AssemblyName>Decompiler</AssemblyName>
     <StartupObject>Decompiler.Decompiler</StartupObject>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <ApplicationIcon>..\Icons\Programs\1444493670_window-api-coding-configuration.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
