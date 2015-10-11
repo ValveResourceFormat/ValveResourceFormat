@@ -42,12 +42,36 @@ namespace GUI
 
             if (userOK == DialogResult.OK)
             {
+                var tab = new TabPage(Path.GetFileName(openDialog.FileName));
+
+                var text = new Label
+                {
+                    Text = "Loading file, please wait...",
+                    Dock = DockStyle.Top,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                };
+
+                var progressBar = new ProgressBar
+                {
+                    Style = ProgressBarStyle.Marquee,
+                    MarqueeAnimationSpeed = 10,
+                    Dock = DockStyle.Top,
+                };
+                
+                tab.Controls.Add(text);
+                tab.Controls.Add(progressBar);
+
+                mainTabs.TabPages.Add(tab);
+                mainTabs.SelectTab(tab);
+
                 var task = Task.Factory.StartNew(() => ProcessFile(openDialog));
 
                 task.ContinueWith(t =>
                 {
                     t.Exception.Flatten().Handle(ex =>
                     {
+                        mainTabs.TabPages.Remove(tab);
+
                         MessageBox.Show(ex.Message, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
                         return true;
@@ -56,15 +80,19 @@ namespace GUI
                 
                 task.ContinueWith(t =>
                 {
-                    mainTabs.TabPages.Add(t.Result);
-                    mainTabs.SelectTab(t.Result);
+                    tab.Controls.Clear();
+
+                    foreach (Control c in t.Result.Controls)
+                    {
+                        tab.Controls.Add(c);
+                    }
                 }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
             }
         }
 
         private TabPage ProcessFile(FileDialog openDialog)
         {
-            var tab = new TabPage(Path.GetFileName(openDialog.FileName));
+            var tab = new TabPage();
 
             if (openDialog.FileName.EndsWith(".vpk", StringComparison.Ordinal))
             {
