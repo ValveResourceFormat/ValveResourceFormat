@@ -90,6 +90,20 @@ namespace GUI
             }
         }
 
+        private void OnTabClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Middle)
+            {
+                var tabControl = sender as TabControl;
+                var tabs = tabControl.TabPages;
+
+                tabs.Remove(tabs.Cast<TabPage>()
+                    .Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location))
+                    .First()
+                );
+            }
+        }
+
         private TabPage ProcessFile(FileDialog openDialog)
         {
             var tab = new TabPage();

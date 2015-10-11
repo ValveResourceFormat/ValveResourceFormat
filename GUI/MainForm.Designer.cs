@@ -71,6 +71,7 @@
             this.mainTabs.SelectedIndex = 0;
             this.mainTabs.Size = new System.Drawing.Size(519, 330);
             this.mainTabs.TabIndex = 1;
+            this.mainTabs.MouseClick += OnTabClick;
             // 
             // MainForm
             // 
