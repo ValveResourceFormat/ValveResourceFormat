@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Linq;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
@@ -55,26 +56,21 @@ namespace GUI
                 
                 task.ContinueWith(t =>
                 {
-                    mainTabs.TabPages.Clear();
-
-                    foreach (var tab in t.Result)
-                    {
-                        mainTabs.TabPages.Add(tab);
-                    }
+                    mainTabs.TabPages.Add(t.Result);
+                    mainTabs.SelectTab(t.Result);
                 }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
             }
         }
 
-        private List<TabPage> ProcessFile(FileDialog openDialog)
+        private TabPage ProcessFile(FileDialog openDialog)
         {
-            var tabs = new List<TabPage>();
+            var tab = new TabPage(Path.GetFileName(openDialog.FileName));
 
             if (openDialog.FileName.EndsWith(".vpk", StringComparison.Ordinal))
             {
                 var package = new Package();
                 package.Read(openDialog.FileName);
 
-                var tab = new TabPage("Files");
                 var control = new TreeView();
                 control.Dock = DockStyle.Fill;
                 control.ImageList = ImageList;
@@ -160,41 +156,45 @@ namespace GUI
                 control.Sort();
                 control.ExpandAll();
                 tab.Controls.Add(control);
-                tabs.Add(tab);
             }
             else
             {
                 var resource = new Resource();
                 resource.Read(openDialog.FileName);
-                this.Text = "Valve Resource Format - " + openDialog.FileName;
+
+                var resTabs = new TabControl();
+                resTabs.Dock = DockStyle.Fill;
 
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Texture:
-                        var tab = new TabPage("TEXTURE");
+                        var tab2 = new TabPage("TEXTURE");
                         var control = new PictureBox();
                         control.Image = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
                         control.Dock = DockStyle.Fill;
-                        tab.Controls.Add(control);
-                        mainTabs.TabPages.Add(tab);
+                        tab2.Controls.Add(control);
+                        resTabs.TabPages.Add(tab2);
                         break;
                 }
 
                 foreach (var block in resource.Blocks)
                 {
-                    var tab = new TabPage(block.Key.ToString());
+                    var tab2 = new TabPage(block.Key.ToString());
                     var control = new TextBox();
+                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
                     control.Text = block.Value.ToString().Replace("\n", Environment.NewLine); //make sure panorama is new lines
                     control.Dock = DockStyle.Fill;
                     control.Multiline = true;
                     control.ReadOnly = true;
                     control.ScrollBars = ScrollBars.Both;
-                    tab.Controls.Add(control);
-                    tabs.Add(tab);
+                    tab2.Controls.Add(control);
+                    resTabs.TabPages.Add(tab2);
                 }
+
+                tab.Controls.Add(resTabs);
             }
 
-            return tabs;
+            return tab;
         }
     }
 }
