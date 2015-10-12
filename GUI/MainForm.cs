@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Linq;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
@@ -45,6 +44,12 @@ namespace GUI
                     .First()
                 );
             }
+        }
+
+        private void OnAboutItemClick(object sender, EventArgs e)
+        {
+            var form = new Forms.AboutForm();
+            form.ShowDialog(this);
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
