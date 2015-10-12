@@ -1,7 +1,8 @@
 ﻿using System;
 using System.CodeDom.Compiler;
-using System.IO;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -27,6 +28,13 @@ namespace ValveResourceFormat.ResourceTypes
         public byte NumMipLevels { get; private set; }
 
         public uint Picmip0Res { get; private set; }
+
+        public List<byte[]> ExtraData { get; private set; }
+
+        public Texture()
+        {
+            ExtraData = new List<byte[]>();
+        }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -61,15 +69,22 @@ namespace ValveResourceFormat.ResourceTypes
             var extraDataOffset = reader.ReadUInt32();
             var extraDataCount = reader.ReadUInt32();
 
-            reader.BaseStream.Position += extraDataOffset - 8; // 8 is 2 uint32s we just read
-
-            while (extraDataCount-- > 0)
+            if (extraDataCount > 0)
             {
-                var type = reader.ReadUInt32();
-                var offset = reader.ReadUInt32();
-                var size = reader.ReadUInt32();
+                reader.BaseStream.Position += extraDataOffset - 8; // 8 is 2 uint32s we just read
 
-                reader.BaseStream.Position += offset + size - 8;
+                while (extraDataCount-- > 0)
+                {
+                    var type = reader.ReadUInt32();
+                    var offset = reader.ReadUInt32();
+                    var size = reader.ReadUInt32();
+
+                    // type 1 = fallback data it seems
+
+                    reader.BaseStream.Position += offset - 8;
+
+                    ExtraData.Add(reader.ReadBytes((int)size));
+                }
             }
 
             DataOffset = reader.BaseStream.Position;
@@ -85,6 +100,9 @@ namespace ValveResourceFormat.ResourceTypes
                     //return GenerateRGBA8888(stream);
                     return ThirdParty.DDSImage.ReadLinearImage(Reader, Width, Height);
 
+                case VTexFormat.RGBA16161616F:
+                    return ReadRGBA16161616F(Reader, Width, Height);
+
                 case VTexFormat.DXT1:
                     return ThirdParty.DDSImage.UncompressDXT1(Reader, Width, Height);
 
@@ -93,6 +111,26 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
+        }
+
+        private static Bitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
+        {
+            var res = new Bitmap(w, h);
+
+            while (h-- > 0)
+            {
+                while (w-- > 0)
+                {
+                    var red = (int)r.ReadDouble();
+                    var green = (int)r.ReadDouble();
+                    var blue = (int)r.ReadDouble();
+                    var alpha = (int)r.ReadDouble();
+
+                    res.SetPixel(w, h, Color.FromArgb(alpha, red, green, blue));
+                }
+            }
+
+            return res;
         }
 
         private bool GenerateRGBA8888(Stream stream, bool generateMipmaps = false)
@@ -193,7 +231,14 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
                 
-                writer.WriteLine("{0,-12} = {1} entries:", "Extra Data", 0);
+                writer.WriteLine("{0,-12} = {1} entries:", "Extra Data", ExtraData.Count);
+
+                writer.Indent++;
+                foreach (var b in ExtraData)
+                {
+                    writer.WriteLine(System.Text.Encoding.ASCII.GetString(b));
+                }
+                writer.Indent--;
 
                 return output.ToString();
             }
