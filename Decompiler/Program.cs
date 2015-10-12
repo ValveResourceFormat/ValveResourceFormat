@@ -11,6 +11,7 @@ namespace Decompiler
 {
     class Decompiler
     {
+        private static readonly object ConsoleWriterLock = new object();
         private static Options Options;
         private static int CurrentFile = 0;
         private static int TotalFiles = 0;
@@ -75,7 +76,7 @@ namespace Decompiler
                     ProcessFile(path, stats);
                 }
             }
-            
+
             if (Options.CollectStats)
             {
                 Console.WriteLine();
@@ -99,9 +100,12 @@ namespace Decompiler
                 return;
             }
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("[{0}/{1}] --- Info for resource file \"{2}\" ---", ++CurrentFile, TotalFiles, path);
-            Console.ResetColor();
+            lock (ConsoleWriterLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[{0}/{1}] {2}", ++CurrentFile, TotalFiles, path);
+                Console.ResetColor();
+            }
 
             var resource = new Resource();
 
@@ -203,23 +207,30 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine(e);
-                Console.ResetColor();
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
             }
 
             //Console.WriteLine("\tInput Path: \"{0}\"", args[fi]);
             //Console.WriteLine("\tResource Name: \"{0}\"", "???");
             //Console.WriteLine("\tID: {0:x16}", 0);
 
-            // Highlight resource type line if undetermined
-            if (resource.ResourceType == ResourceType.Unknown)
+            lock (ConsoleWriterLock)
             {
-                Console.ForegroundColor = ConsoleColor.Cyan;
+                // Highlight resource type line if undetermined
+                if (resource.ResourceType == ResourceType.Unknown)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                }
+
+                Console.WriteLine("\tResource Type: {0} [Version {1}] [Header Version: {2}]", resource.ResourceType, resource.Version, resource.HeaderVersion);
+                Console.ResetColor();
             }
 
-            Console.WriteLine("\tResource Type: {0} [Version {1}] [Header Version: {2}]", resource.ResourceType, resource.Version, resource.HeaderVersion);
-            Console.ResetColor();
             Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
             Console.WriteLine(Environment.NewLine);
 
@@ -277,9 +288,12 @@ namespace Decompiler
 
         private static void ParseVPK(string path)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
-            Console.ResetColor();
+            lock (ConsoleWriterLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
+                Console.ResetColor();
+            }
 
             var sw = Stopwatch.StartNew();
 
@@ -291,9 +305,12 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine(e);
-                Console.ResetColor();
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
             }
 
             if (Options.OutputFile == null)
