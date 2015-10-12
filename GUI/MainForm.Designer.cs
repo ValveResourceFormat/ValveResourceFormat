@@ -32,9 +32,9 @@
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.mainTabs = new System.Windows.Forms.TabControl();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mainTabs = new System.Windows.Forms.TabControl();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -47,7 +47,7 @@
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.Padding = new System.Windows.Forms.Padding(4, 1, 0, 1);
-            this.menuStrip1.Size = new System.Drawing.Size(519, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(944, 24);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -65,20 +65,9 @@
             this.openToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
             this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(146, 22);
             this.openToolStripMenuItem.Text = "Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
-            // 
-            // mainTabs
-            // 
-            this.mainTabs.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainTabs.Location = new System.Drawing.Point(0, 24);
-            this.mainTabs.Margin = new System.Windows.Forms.Padding(2);
-            this.mainTabs.Name = "mainTabs";
-            this.mainTabs.SelectedIndex = 0;
-            this.mainTabs.Size = new System.Drawing.Size(519, 330);
-            this.mainTabs.TabIndex = 1;
-            this.mainTabs.MouseClick += new System.Windows.Forms.MouseEventHandler(this.OnTabClick);
             // 
             // helpToolStripMenuItem
             // 
@@ -93,16 +82,27 @@
             this.aboutToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("aboutToolStripMenuItem.Image")));
             this.aboutToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(107, 22);
             this.aboutToolStripMenuItem.Text = "About";
             this.aboutToolStripMenuItem.Click += new System.EventHandler(this.OnAboutItemClick);
+            // 
+            // mainTabs
+            // 
+            this.mainTabs.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.mainTabs.Location = new System.Drawing.Point(0, 24);
+            this.mainTabs.Margin = new System.Windows.Forms.Padding(2);
+            this.mainTabs.Name = "mainTabs";
+            this.mainTabs.SelectedIndex = 0;
+            this.mainTabs.Size = new System.Drawing.Size(944, 437);
+            this.mainTabs.TabIndex = 1;
+            this.mainTabs.MouseClick += new System.Windows.Forms.MouseEventHandler(this.OnTabClick);
             // 
             // MainForm
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(519, 354);
+            this.ClientSize = new System.Drawing.Size(944, 461);
             this.Controls.Add(this.mainTabs);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;

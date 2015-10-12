@@ -1,4 +1,6 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -239,6 +241,26 @@ namespace GUI
 
                 foreach (var block in resource.Blocks)
                 {
+                    if (block.Key == BlockType.RERL)
+                    {
+                        var externalRefsTab = new TabPage("External Refs");
+
+                        var externalRefs = new DataGridView();
+                        externalRefs.Dock = DockStyle.Fill;
+                        externalRefs.AutoGenerateColumns = true;
+                        externalRefs.AutoSize = true;
+                        externalRefs.ReadOnly = true;
+                        externalRefs.AllowUserToAddRows = false;
+                        externalRefs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                        externalRefs.DataSource = new BindingSource(new BindingList<ValveResourceFormat.Blocks.ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences.ResourceRefInfoList), null);
+
+                        externalRefsTab.Controls.Add(externalRefs);
+
+                        resTabs.TabPages.Add(externalRefsTab);
+
+                        continue;
+                    }
+
                     var tab2 = new TabPage(block.Key.ToString());
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
