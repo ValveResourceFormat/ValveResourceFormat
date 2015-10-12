@@ -33,63 +33,6 @@ namespace GUI
             }
         }
 
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            var openDialog = new OpenFileDialog();
-            openDialog.Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk";
-            openDialog.FilterIndex = 1;
-            var userOK = openDialog.ShowDialog();
-
-            if (userOK == DialogResult.OK)
-            {
-                var tab = new TabPage(Path.GetFileName(openDialog.FileName));
-
-                var text = new Label
-                {
-                    Text = "Loading file, please wait...",
-                    Dock = DockStyle.Top,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                };
-
-                var progressBar = new ProgressBar
-                {
-                    Style = ProgressBarStyle.Marquee,
-                    MarqueeAnimationSpeed = 10,
-                    Dock = DockStyle.Top,
-                };
-                
-                tab.Controls.Add(text);
-                tab.Controls.Add(progressBar);
-
-                mainTabs.TabPages.Add(tab);
-                mainTabs.SelectTab(tab);
-
-                var task = Task.Factory.StartNew(() => ProcessFile(openDialog));
-
-                task.ContinueWith(t =>
-                {
-                    t.Exception.Flatten().Handle(ex =>
-                    {
-                        mainTabs.TabPages.Remove(tab);
-
-                        MessageBox.Show(ex.Message, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                        return true;
-                    });
-                }, TaskContinuationOptions.OnlyOnFaulted);
-                
-                task.ContinueWith(t =>
-                {
-                    tab.Controls.Clear();
-
-                    foreach (Control c in t.Result.Controls)
-                    {
-                        tab.Controls.Add(c);
-                    }
-                }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
-            }
-        }
-
         private void OnTabClick(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Middle)
@@ -104,14 +47,79 @@ namespace GUI
             }
         }
 
-        private TabPage ProcessFile(FileDialog openDialog)
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var openDialog = new OpenFileDialog();
+            openDialog.Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk|All files (*.*)|*.*";
+            openDialog.Multiselect = true;
+            var userOK = openDialog.ShowDialog();
+
+            if (userOK == DialogResult.OK)
+            {
+                foreach (var file in openDialog.FileNames)
+                {
+                    OpenFile(file);
+                }
+            }
+        }
+
+        private void OpenFile(string fileName)
+        {
+            var tab = new TabPage(Path.GetFileName(fileName));
+
+            var text = new Label
+            {
+                Text = "Loading file, please wait...",
+                Dock = DockStyle.Top,
+                TextAlign = ContentAlignment.MiddleCenter,
+            };
+
+            var progressBar = new ProgressBar
+            {
+                Style = ProgressBarStyle.Marquee,
+                MarqueeAnimationSpeed = 10,
+                Dock = DockStyle.Top,
+            };
+
+            tab.Controls.Add(text);
+            tab.Controls.Add(progressBar);
+
+            mainTabs.TabPages.Add(tab);
+            mainTabs.SelectTab(tab);
+
+            var task = Task.Factory.StartNew(() => ProcessFile(fileName));
+
+            task.ContinueWith(t =>
+            {
+                t.Exception.Flatten().Handle(ex =>
+                {
+                    mainTabs.TabPages.Remove(tab);
+
+                    MessageBox.Show(ex.Message, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    return true;
+                });
+            }, TaskContinuationOptions.OnlyOnFaulted);
+
+            task.ContinueWith(t =>
+            {
+                tab.Controls.Clear();
+
+                foreach (Control c in t.Result.Controls)
+                {
+                    tab.Controls.Add(c);
+                }
+            }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        private TabPage ProcessFile(string fileName)
         {
             var tab = new TabPage();
 
-            if (openDialog.FileName.EndsWith(".vpk", StringComparison.Ordinal))
+            if (fileName.EndsWith(".vpk", StringComparison.Ordinal))
             {
                 var package = new Package();
-                package.Read(openDialog.FileName);
+                package.Read(fileName);
 
                 var control = new TreeView();
                 control.Dock = DockStyle.Fill;
@@ -202,7 +210,7 @@ namespace GUI
             else
             {
                 var resource = new Resource();
-                resource.Read(openDialog.FileName);
+                resource.Read(fileName);
 
                 var resTabs = new TabControl();
                 resTabs.Dock = DockStyle.Fill;
