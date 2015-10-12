@@ -2,8 +2,8 @@
 {
     public enum VTexExtraData
     {
-        DATA_UNKNOWN = 0,
-        DATA_FALLBACK_BITS = 1,
-        DATA_SHEET = 2,
+        UNKNOWN = 0,
+        FALLBACK_BITS = 1,
+        SHEET = 2,
     };
 }

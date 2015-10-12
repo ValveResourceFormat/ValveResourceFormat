@@ -29,11 +29,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         public uint Picmip0Res { get; private set; }
 
-        public List<byte[]> ExtraData { get; private set; }
+        public Dictionary<VTexExtraData, byte[]> ExtraData { get; private set; }
 
         public Texture()
         {
-            ExtraData = new List<byte[]>();
+            ExtraData = new Dictionary<VTexExtraData, byte[]>();
         }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -69,8 +69,6 @@ namespace ValveResourceFormat.ResourceTypes
             var extraDataOffset = reader.ReadUInt32();
             var extraDataCount = reader.ReadUInt32();
 
-            uint spacing = 0;
-
             if (extraDataCount > 0)
             {
                 reader.BaseStream.Position += extraDataOffset - 8; // 8 is 2 uint32s we just read
@@ -81,23 +79,17 @@ namespace ValveResourceFormat.ResourceTypes
                     var offset = reader.ReadUInt32() - 8;
                     var size = reader.ReadUInt32();
 
-                    Console.WriteLine(type + " " + offset + " " + size);
-
-                    // type 1 = fallback data it seems
-
                     var prevOffset = reader.BaseStream.Position;
 
                     reader.BaseStream.Position += offset;
 
-                    ExtraData.Add(reader.ReadBytes((int)size));
+                    ExtraData.Add((VTexExtraData)type, reader.ReadBytes((int)size));
 
                     reader.BaseStream.Position = prevOffset;
-
-                    spacing += offset + size;
                 }
             }
 
-            DataOffset = reader.BaseStream.Position + spacing;
+            DataOffset = this.Offset + this.Size;
         }
 
         public Bitmap GenerateBitmap()
@@ -114,10 +106,50 @@ namespace ValveResourceFormat.ResourceTypes
                     return ReadRGBA16161616F(Reader, Width, Height);
 
                 case VTexFormat.DXT1:
-                    return ThirdParty.DDSImage.UncompressDXT1(Reader, Width, Height);
+                    for (ushort i = 0; i < Depth && i < 0xFF; ++i)
+                    {
+                        // Horribly skip all mipmaps
+                        // TODO: Either this needs to be optimized, or allow saving each individual mipmap
+                        for (byte j = NumMipLevels; j > 0; j--)
+                        {
+                            if (j == 1) break;
+
+                            for (var k = 0; k < Height / Math.Pow(2.0, j + 1); ++k)
+                            {
+                                for (var l = 0; l < Width / Math.Pow(2.0, j + 1); ++l)
+                                {
+                                    Reader.BaseStream.Position += 8;
+                                }
+                            }
+                        }
+
+                        return ThirdParty.DDSImage.UncompressDXT1(Reader, Width, Height);
+                    }
+
+                    break;
 
                 case VTexFormat.DXT5:
-                    return ThirdParty.DDSImage.UncompressDXT5(Reader, Width, Height);
+                    for (ushort i = 0; i < Depth && i < 0xFF; ++i)
+                    {
+                        // Horribly skip all mipmaps
+                        // TODO: Either this needs to be optimized, or allow saving each individual mipmap
+                        for (byte j = NumMipLevels; j > 0; j--)
+                        {
+                            if (j == 1) break;
+
+                            for (var k = 0; k < Height / Math.Pow(2.0, j + 1); ++k)
+                            {
+                                for (var l = 0; l < Width / Math.Pow(2.0, j + 1); ++l)
+                                {
+                                    Reader.BaseStream.Position += 16;
+                                }
+                            }
+                        }
+
+                        return ThirdParty.DDSImage.UncompressDXT5(Reader, Width, Height);
+                    }
+
+                    break;
             }
 
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
@@ -243,12 +275,12 @@ namespace ValveResourceFormat.ResourceTypes
                 
                 writer.WriteLine("{0,-12} = {1} entries:", "Extra Data", ExtraData.Count);
 
-                writer.Indent++;
+                int entry = 0;
+
                 foreach (var b in ExtraData)
                 {
-                    writer.WriteLine(System.Text.Encoding.ASCII.GetString(b));
+                    writer.WriteLine("{0,-12}   [ Entry {1}: VTEX_EXTRA_DATA_{2} - {3} bytes ]", "", entry++, b.Key, b.Value.Length);
                 }
-                writer.Indent--;
 
                 return output.ToString();
             }
