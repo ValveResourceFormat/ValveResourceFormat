@@ -242,7 +242,16 @@ namespace GUI
                     var tab2 = new TabPage(block.Key.ToString());
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = block.Value.ToString().Replace("\n", Environment.NewLine); //make sure panorama is new lines
+
+                    try
+                    {
+                        control.Text = block.Value.ToString().Replace("\n", Environment.NewLine); //make sure panorama is new lines
+                    }
+                    catch (Exception e)
+                    {
+                        control.Text = e.ToString();
+                    }
+
                     control.Dock = DockStyle.Fill;
                     control.Multiline = true;
                     control.ReadOnly = true;
