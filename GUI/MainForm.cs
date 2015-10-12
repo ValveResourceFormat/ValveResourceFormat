@@ -66,23 +66,7 @@ namespace GUI
         private void OpenFile(string fileName)
         {
             var tab = new TabPage(Path.GetFileName(fileName));
-
-            var text = new Label
-            {
-                Text = "Loading file, please wait...",
-                Dock = DockStyle.Top,
-                TextAlign = ContentAlignment.MiddleCenter,
-            };
-
-            var progressBar = new ProgressBar
-            {
-                Style = ProgressBarStyle.Marquee,
-                MarqueeAnimationSpeed = 10,
-                Dock = DockStyle.Top,
-            };
-
-            tab.Controls.Add(text);
-            tab.Controls.Add(progressBar);
+            tab.Controls.Add(new Forms.LoadingFile());
 
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
