@@ -208,13 +208,18 @@ namespace GUI
                 {
                     case ResourceType.Texture:
                         var tab2 = new TabPage("TEXTURE");
+                        tab2.AutoScroll = true;
 
                         try
                         {
-                            var control = new PictureBox
+                            var tex = (Texture)resource.Blocks[BlockType.DATA];
+
+                            var control =new PictureBox
                             {
-                                Image = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap(),
+                                Image = tex.GenerateBitmap(),
                                 Dock = DockStyle.Fill,
+                                MaximumSize = new Size(tex.Width, tex.Height),
+                                SizeMode = PictureBoxSizeMode.Zoom,
                             };
                             
                             tab2.Controls.Add(control);
