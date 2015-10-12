@@ -168,7 +168,7 @@ namespace Decompiler
 
                         case ResourceType.Sound:
                             extension = "mp3";
-                            data = ((Sound)resource.Blocks[BlockType.DATA]).SoundData;
+                            data = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
                             break;
 
                         case ResourceType.Texture:
