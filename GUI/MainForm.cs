@@ -208,10 +208,28 @@ namespace GUI
                 {
                     case ResourceType.Texture:
                         var tab2 = new TabPage("TEXTURE");
-                        var control = new PictureBox();
-                        control.Image = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
-                        control.Dock = DockStyle.Fill;
-                        tab2.Controls.Add(control);
+
+                        try
+                        {
+                            var control = new PictureBox
+                            {
+                                Image = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap(),
+                                Dock = DockStyle.Fill,
+                            };
+                            
+                            tab2.Controls.Add(control);
+                        }
+                        catch (Exception e)
+                        {
+                            var control = new Label
+                            {
+                                Dock = DockStyle.Fill,
+                                Text = e.ToString()
+                            };
+
+                            tab2.Controls.Add(control);
+                        }
+
                         resTabs.TabPages.Add(tab2);
                         break;
                 }
