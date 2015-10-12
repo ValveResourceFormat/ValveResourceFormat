@@ -69,6 +69,8 @@ namespace ValveResourceFormat.ResourceTypes
             var extraDataOffset = reader.ReadUInt32();
             var extraDataCount = reader.ReadUInt32();
 
+            uint spacing = 0;
+
             if (extraDataCount > 0)
             {
                 reader.BaseStream.Position += extraDataOffset - 8; // 8 is 2 uint32s we just read
@@ -76,18 +78,26 @@ namespace ValveResourceFormat.ResourceTypes
                 while (extraDataCount-- > 0)
                 {
                     var type = reader.ReadUInt32();
-                    var offset = reader.ReadUInt32();
+                    var offset = reader.ReadUInt32() - 8;
                     var size = reader.ReadUInt32();
+
+                    Console.WriteLine(type + " " + offset + " " + size);
 
                     // type 1 = fallback data it seems
 
-                    reader.BaseStream.Position += offset - 8;
+                    var prevOffset = reader.BaseStream.Position;
+
+                    reader.BaseStream.Position += offset;
 
                     ExtraData.Add(reader.ReadBytes((int)size));
+
+                    reader.BaseStream.Position = prevOffset;
+
+                    spacing += offset + size;
                 }
             }
 
-            DataOffset = reader.BaseStream.Position;
+            DataOffset = reader.BaseStream.Position + spacing;
         }
 
         public Bitmap GenerateBitmap()
