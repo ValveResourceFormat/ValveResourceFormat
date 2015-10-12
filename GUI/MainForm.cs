@@ -214,14 +214,9 @@ namespace GUI
                         {
                             var tex = (Texture)resource.Blocks[BlockType.DATA];
 
-                            var control =new PictureBox
-                            {
-                                Image = tex.GenerateBitmap(),
-                                Dock = DockStyle.Fill,
-                                MaximumSize = new Size(tex.Width, tex.Height),
-                                SizeMode = PictureBoxSizeMode.Zoom,
-                            };
-                            
+                            var control = new Forms.Texture();
+                            control.SetImage(tex.GenerateBitmap(), tex.Width, tex.Height);
+
                             tab2.Controls.Add(control);
                         }
                         catch (Exception e)

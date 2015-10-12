@@ -59,6 +59,12 @@
     <Compile Include="Forms\LoadingFile.Designer.cs">
       <DependentUpon>LoadingFile.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\Texture.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\Texture.Designer.cs">
+      <DependentUpon>Texture.cs</DependentUpon>
+    </Compile>
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -72,6 +78,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\LoadingFile.resx">
       <DependentUpon>LoadingFile.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\Texture.resx">
+      <DependentUpon>Texture.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
