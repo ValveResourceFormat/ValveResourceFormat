@@ -221,9 +221,12 @@ namespace GUI
                         }
                         catch (Exception e)
                         {
-                            var control = new Label
+                            var control = new TextBox
                             {
                                 Dock = DockStyle.Fill,
+                                Font = new Font(FontFamily.GenericMonospace, 8),
+                                Multiline = true,
+                                ReadOnly = true,
                                 Text = e.ToString()
                             };
 
