@@ -24,11 +24,15 @@ namespace Decompiler
 
         [Option('b', "block",
             HelpText = "Print the content of a specific block. Specify the block via its 4CC name - case matters! (eg. DATA, RERL, REDI, NTRO).")]
-        public string Block { get; set; }
+        public string BlockToPrint { get; set; }
 
         [Option("stats", DefaultValue = false,
             HelpText = "Collect stats on all input files and then print them.")]
         public bool CollectStats { get; set; }
+
+        [Option("threads", DefaultValue = 1,
+            HelpText = "If more than 1, files will be processed concurrently.")]
+        public int MaxParallelismThreads { get; set; }
 
         [HelpOption]
         public string GetUsage()
