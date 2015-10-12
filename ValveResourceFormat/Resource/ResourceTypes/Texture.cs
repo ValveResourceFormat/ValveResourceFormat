@@ -99,8 +99,24 @@ namespace ValveResourceFormat.ResourceTypes
             switch (Format)
             {
                 case VTexFormat.RGBA8888:
-                    //return GenerateRGBA8888(stream);
-                    return ThirdParty.DDSImage.ReadLinearImage(Reader, Width, Height);
+                    for (ushort i = 0; i < Depth && i < 0xFF; ++i)
+                    {
+                        // Horribly skip all mipmaps
+                        // TODO: Either this needs to be optimized, or allow saving each individual mipmap
+                        for (byte j = NumMipLevels; j > 0; j--)
+                        {
+                            if (j == 1) break;
+
+                            for (var k = 0; k < Height / Math.Pow(2.0, j - 1); ++k)
+                            {
+                                Reader.BaseStream.Position += (int)((4 * Width) / Math.Pow(2.0f, j - 1));
+                            }
+                        }
+
+                        return ThirdParty.DDSImage.ReadLinearImage(Reader, Width, Height);
+                    }
+
+                    break;
 
                 case VTexFormat.RGBA16161616F:
                     return ReadRGBA16161616F(Reader, Width, Height);
@@ -173,81 +189,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return res;
-        }
-
-        private bool GenerateRGBA8888(Stream stream, bool generateMipmaps = false)
-        {
-            if (NumMipLevels == 0)
-            {
-                throw new InvalidDataException("Invalid mip levels (must be at least 1).");
-            }
-
-            uint actualHeight = Height;
-
-            if (NumMipLevels > 1 && generateMipmaps)
-            {
-                actualHeight = (uint)(Height * (2.0 - Math.Pow(0.5, NumMipLevels - 1)));
-                actualHeight += (uint)NumMipLevels - 1;
-            }
-
-            var header = new byte[]
-            {
-                0,
-                0,
-                2,
-                0, 0, 0, 0,
-                0,
-                0, 0, 0, 0,
-                (byte)(Width & 0x00FF),
-                (byte)((Width & 0xFF00) >> 8),
-                (byte)(actualHeight & 0x00FF),
-                (byte)((actualHeight & 0xFF00) >> 8),
-                0x20,
-                0x20,
-                generateMipmaps ? NumMipLevels : (byte)1,
-                (byte)((Height & 0x00FF) >> 8),
-                (byte)((Height & 0xFF00) >> 8),
-                0
-            };
-            
-            using (var writer = new BinaryWriter(stream))
-            {
-                //for (ushort i = 0; i < Depth && i < 0xFF; i++)
-                {
-                    writer.Write(header);
-
-                    for (var j = NumMipLevels; j > 0; j--)
-                    {
-                        for (var k = 0; k < Height / Math.Pow(2.0f, j - 1); ++k)
-                        {
-                            var test = Reader.ReadBytes((int)((4 * Width) / Math.Pow(2.0f, j - 1)));
-
-                            if (generateMipmaps && j != 1)
-                            {
-                                continue;
-                            }
-
-                            for (var l = 0; l < Width * 4; l += 4)
-                            {
-                                var c = test[l];
-                                test[l] = test[l + 2];
-                                test[l + 2] = c;
-                            }
-
-                            writer.Write(test);
-                        }
-
-                        if (!generateMipmaps)
-                        {
-                            break;
-                        }
-
-                        writer.Seek(Width * 4, SeekOrigin.Current);
-                    }
-                }
-            }
-
-            return true;
         }
 
         public override string ToString()
