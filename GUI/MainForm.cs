@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -8,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI
@@ -252,13 +252,51 @@ namespace GUI
                         externalRefs.ReadOnly = true;
                         externalRefs.AllowUserToAddRows = false;
                         externalRefs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                        externalRefs.DataSource = new BindingSource(new BindingList<ValveResourceFormat.Blocks.ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences.ResourceRefInfoList), null);
+                        externalRefs.DataSource = new BindingSource(new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences.ResourceRefInfoList), null);
 
                         externalRefsTab.Controls.Add(externalRefs);
 
                         resTabs.TabPages.Add(externalRefsTab);
 
                         continue;
+                    }
+
+                    if (block.Key == BlockType.NTRO)
+                    {
+                        if (((ResourceIntrospectionManifest)block.Value).ReferencedStructs.Count > 0)
+                        {
+                            var externalRefsTab = new TabPage("Introspection Manifest: Structs");
+
+                            var externalRefs = new DataGridView();
+                            externalRefs.Dock = DockStyle.Fill;
+                            externalRefs.AutoGenerateColumns = true;
+                            externalRefs.AutoSize = true;
+                            externalRefs.ReadOnly = true;
+                            externalRefs.AllowUserToAddRows = false;
+                            externalRefs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                            externalRefs.DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(((ResourceIntrospectionManifest)block.Value).ReferencedStructs), null);
+                            
+                            externalRefsTab.Controls.Add(externalRefs);
+                            resTabs.TabPages.Add(externalRefsTab);
+                        }
+
+                        if (((ResourceIntrospectionManifest)block.Value).ReferencedEnums.Count > 0)
+                        {
+                            var externalRefsTab = new TabPage("Introspection Manifest: Enums");
+                            var externalRefs2 = new DataGridView();
+                            externalRefs2.Dock = DockStyle.Fill;
+                            externalRefs2.AutoGenerateColumns = true;
+                            externalRefs2.AutoSize = true;
+                            externalRefs2.ReadOnly = true;
+                            externalRefs2.AllowUserToAddRows = false;
+                            externalRefs2.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                            externalRefs2.DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(((ResourceIntrospectionManifest)block.Value).ReferencedEnums), null);
+
+                            externalRefsTab.Controls.Add(externalRefs2);
+                            resTabs.TabPages.Add(externalRefsTab);
+                        }
+
+                        //continue;
                     }
 
                     var tab2 = new TabPage(block.Key.ToString());
