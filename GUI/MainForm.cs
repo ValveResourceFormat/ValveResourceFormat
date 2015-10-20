@@ -46,6 +46,11 @@ namespace GUI
                     .First()
                 );
             }
+            else if (e.Button == MouseButtons.Right)
+            {
+                contextMenuStrip1.Tag = e.Location;
+                contextMenuStrip1.Show((Control)sender, e.Location);
+            }
         }
 
         private void OnAboutItemClick(object sender, EventArgs e)
@@ -342,6 +347,18 @@ namespace GUI
             {
                 e.Effect = DragDropEffects.Move;
             }
+        }
+
+        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var contextMenu = ((ToolStripMenuItem)sender).Owner;
+            var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TabControl;
+            var tabs = tabControl.TabPages;
+
+            tabs.Remove(tabs.Cast<TabPage>()
+                .Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag))
+                .First()
+            );
         }
     }
 }
