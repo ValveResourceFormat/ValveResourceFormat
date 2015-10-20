@@ -35,7 +35,6 @@ namespace ValveResourceFormat
     {
         public const int MAGIC = 0x55AA1234;
 
-        private FileStream FileStream;
         private BinaryReader Reader;
         private string FileName;
         private bool IsDirVPK;
@@ -232,18 +231,19 @@ namespace ValveResourceFormat
 
             bool hasInlineEntries = false;
 
+            FileStream fs = null;
+
             try
             {
-                FileStream = new FileStream(FileName + (IsDirVPK ? "_dir" : "") + ".vpk", FileMode.Open, FileAccess.Read);
+                fs = new FileStream(FileName + (IsDirVPK ? "_dir" : "") + ".vpk", FileMode.Open, FileAccess.Read);
 
-                hasInlineEntries = Read(FileStream);
+                hasInlineEntries = Read(fs);
             }
             finally
             {
                 if (!hasInlineEntries)
                 {
-                    FileStream.Close();
-                    FileStream = null;
+                    fs.Close();
                 }
             }
 
@@ -265,7 +265,7 @@ namespace ValveResourceFormat
                 throw new NotImplementedException("SmallData.Length > 0, not yet handled.");
             }
 
-            FileStream fs = null;
+            Stream fs = null;
 
             try
             {
@@ -284,7 +284,7 @@ namespace ValveResourceFormat
                 }
                 else
                 {
-                    fs = FileStream;
+                    fs = Reader.BaseStream;
 
                     offset += OffsetAfterHeader;
                 }
