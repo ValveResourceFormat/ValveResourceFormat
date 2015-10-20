@@ -75,7 +75,7 @@ namespace GUI
             }
         }
 
-        private void OpenFile(string fileName)
+        private void OpenFile(string fileName, byte[] stream = null)
         {
             var tab = new TabPage(Path.GetFileName(fileName));
             tab.Controls.Add(new Forms.LoadingFile());
@@ -83,7 +83,7 @@ namespace GUI
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(fileName));
+            var task = Task.Factory.StartNew(() => ProcessFile(fileName, stream));
 
             task.ContinueWith(t =>
             {
@@ -108,16 +108,25 @@ namespace GUI
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        private TabPage ProcessFile(string fileName)
+        private TabPage ProcessFile(string fileName, byte[] input = null)
         {
             var tab = new TabPage();
 
             if (fileName.EndsWith(".vpk", StringComparison.Ordinal))
             {
                 var package = new Package();
-                package.Read(fileName);
+                if (input != null)
+                {
+                    package.SetFileName(fileName);
+                    package.Read(new MemoryStream(input));
+                }
+                else
+                {
+                    package.Read(fileName);
+                }
 
                 var control = new TreeView();
+                control.Tag = package; //so we can access it later
                 control.Dock = DockStyle.Fill;
                 control.ImageList = ImageList;
 
@@ -168,6 +177,8 @@ namespace GUI
                             }
                             else
                             {
+                                currentnode.Tag = file; //so we can use it later
+
                                 ext = ext.Substring(1);
 
                                 if (ext.EndsWith("_c", StringComparison.Ordinal))
@@ -201,12 +212,21 @@ namespace GUI
 
                 control.Sort();
                 control.ExpandAll();
+                control.NodeMouseDoubleClick += VPK_OpenFile;
                 tab.Controls.Add(control);
             }
             else
             {
                 var resource = new Resource();
-                resource.Read(fileName);
+                if (input != null)
+                {
+                    resource.Read(new MemoryStream(input));
+                }
+                else
+                {
+                    resource.Read(fileName);
+                }
+
 
                 var resTabs = new TabControl();
                 resTabs.Dock = DockStyle.Fill;
@@ -329,6 +349,16 @@ namespace GUI
             }
 
             return tab;
+        }
+
+        private void VPK_OpenFile(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            var package = e.Node.TreeView.Tag as Package;
+            var file = e.Node.Tag as PackageEntry;
+            byte[] output;
+            package.ReadEntry(file, out output);
+            OpenFile(file.FileName + "." + file.TypeName, output);
+
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)
