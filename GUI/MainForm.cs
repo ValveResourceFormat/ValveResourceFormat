@@ -332,6 +332,7 @@ namespace GUI
 
                     try
                     {
+                        control.Text = block.Value.ToString().Replace("\r", ""); //Prevent copy+paste with double new line
                         control.Text = block.Value.ToString().Replace("\n", Environment.NewLine); //make sure panorama is new lines
                     }
                     catch (Exception e)
