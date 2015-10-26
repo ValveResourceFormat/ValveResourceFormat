@@ -174,6 +174,7 @@ namespace GUI
                             if (ext.Length == 0)
                             {
                                 ext = "_folder";
+                                currentnode.Tag = file.DirectoryName; //is this enough?
                             }
                             else
                             {
@@ -213,6 +214,7 @@ namespace GUI
                 control.Sort();
                 control.ExpandAll();
                 control.NodeMouseDoubleClick += VPK_OpenFile;
+                control.NodeMouseClick += VPK_OnClick;
                 tab.Controls.Add(control);
             }
             else
@@ -361,6 +363,15 @@ namespace GUI
 
         }
 
+        private void VPK_OnClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            e.Node.TreeView.SelectedNode = e.Node; //To stop it spassing out
+            if (e.Button == MouseButtons.Right)
+            {
+                vpkContextMenu.Show(e.Node.TreeView, e.Location);
+            }
+        }
+
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -389,6 +400,38 @@ namespace GUI
                 .Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag))
                 .First()
             );
+        }
+
+        private void extractToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var contextMenu = ((ToolStripMenuItem)sender).Owner;
+            var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
+            var node = tree.SelectedNode;
+            if (node.Tag.GetType() == typeof(PackageEntry))
+            {
+                //We are a file
+                var file = node.Tag as PackageEntry;
+                var package = tree.Tag as Package;
+
+                var dialog = new SaveFileDialog();
+                dialog.Filter = "All files (*.*)|*.*";
+                dialog.FileName = file.FileName + "." + file.TypeName;
+                var userOK = dialog.ShowDialog();
+
+                if (userOK == DialogResult.OK)
+                {
+                    using(var stream = dialog.OpenFile())
+                    {
+                        byte[] output;
+                        package.ReadEntry(file, out output);
+                        stream.Write(output, 0, output.Length);
+                    }
+                }
+            } else
+            {
+                //We are a folder
+                MessageBox.Show("Folder Extraction coming Soon™");
+            }
         }
     }
 }
