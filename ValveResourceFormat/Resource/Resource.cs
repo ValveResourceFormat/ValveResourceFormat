@@ -207,6 +207,9 @@ namespace ValveResourceFormat
 
                 case ResourceType.Texture:
                     return new ResourceTypes.Texture();
+
+                case ResourceType.Particle:
+                    return new ResourceTypes.Particle();
             }
 
             if (Blocks.ContainsKey(BlockType.NTRO))

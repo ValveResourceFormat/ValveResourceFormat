@@ -70,6 +70,7 @@
     <Compile Include="Resource\Enums\VTexFlags.cs" />
     <Compile Include="Resource\Enums\VTexExtraData.cs" />
     <Compile Include="ThirdParty\DDSImage.cs" />
+    <Compile Include="Resource\ResourceTypes\Particle.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
