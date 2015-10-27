@@ -34,6 +34,10 @@ namespace Decompiler
             HelpText = "If more than 1, files will be processed concurrently.")]
         public int MaxParallelismThreads { get; set; }
 
+        [Option("vpk_dir", DefaultValue = false,
+            HelpText = "Write a file with files in given VPK and their CRC.")]
+        public bool OutputVPKDir { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
