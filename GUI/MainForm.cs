@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -26,11 +27,17 @@ namespace GUI
         {
             ImageList = new ImageList();
 
-            var images = Directory.GetFiles("AssetTypes\\", "*.png");
+            var assembly = Assembly.GetExecutingAssembly();
+            var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal));
 
-            foreach (var image in images)
+            foreach (var name in names)
             {
-                ImageList.Images.Add(Path.GetFileNameWithoutExtension(image), Image.FromFile(image));
+                var res = name.Split('.');
+
+                using (var stream = assembly.GetManifestResourceStream(name))
+                {
+                    ImageList.Images.Add(res[2], Image.FromStream(stream));
+                }
             }
         }
 
