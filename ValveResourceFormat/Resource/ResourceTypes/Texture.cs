@@ -166,9 +166,25 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     break;
+
+                case (VTexFormat)17:
+                case (VTexFormat)18:
+                case VTexFormat.PNG:
+                    var a = ReadPNG();
+                    Console.WriteLine(a.RawFormat);
+                    return a;
             }
 
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
+        }
+
+        private Bitmap ReadPNG()
+        {
+            // TODO: Seems stupid to provide stream length
+            using (var ms = new MemoryStream(Reader.ReadBytes((int)Reader.BaseStream.Length)))
+            {
+                return new Bitmap(Image.FromStream(ms));
+            }
         }
 
         private static Bitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
