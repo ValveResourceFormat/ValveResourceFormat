@@ -6,8 +6,4 @@
 
 Valve's Source 2 resource file format *(also known as Stupid Valve Format)* parser and decompiler.
 
-### Decompiler usage
-```
-Usage: decompiler <path>
-  Path can be a single file, a list of files, or a directory.
-```
+You can download latest builds from [AppVeyor here](https://ci.appveyor.com/project/xPaw/valveresourceformat/build/artifacts).
