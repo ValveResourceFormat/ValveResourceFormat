@@ -194,7 +194,19 @@ ResourceEditInfoBlock_t
 							VsInputSignatureElement_t
 							{
 								string m_pName = "vTexCoord"
-			string m_pSe
+								string m_pSemantic = "LowPrecisionUv"
+								string m_pD3DSemanticName = "TEXCOORD"
+								int m_nD3DSemanticIndex = 0
+							},
+							VsInputSignatureElement_t
+							{
+								string m_pName = "vTransformTextureUV"
+								string m_pSemantic = "InstanceTransformUv"
+								string m_pD3DSemanticName = "TEXCOORD"
+								int m_nD3DSemanticIndex = 13
+							}
+						]
+					}"
 			}
 		]
 	}
