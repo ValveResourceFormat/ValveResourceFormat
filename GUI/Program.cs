@@ -14,9 +14,16 @@ namespace GUI
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            try
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new MainForm());
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message + Environment.NewLine + Environment.NewLine + e.StackTrace, "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
