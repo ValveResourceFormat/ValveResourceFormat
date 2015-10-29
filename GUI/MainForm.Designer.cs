@@ -141,6 +141,7 @@
             this.ClientSize = new System.Drawing.Size(944, 461);
             this.Controls.Add(this.mainTabs);
             this.Controls.Add(this.menuStrip1);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.Margin = new System.Windows.Forms.Padding(2);
             this.MinimumSize = new System.Drawing.Size(300, 300);
