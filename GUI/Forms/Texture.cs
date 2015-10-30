@@ -7,14 +7,17 @@ namespace GUI.Forms
 {
     public partial class Texture : UserControl
     {
+        public string name { get; private set; }
+
         public Texture()
         {
             InitializeComponent();
         }
 
-        public void SetImage(Bitmap image, int w, int h)
+        public void SetImage(Bitmap image, string name, int w, int h)
         {
             this.pictureBox1.Image = image;
+            this.name = name;
             this.pictureBox1.MaximumSize = new Size(w, h);
         }
 
@@ -24,10 +27,13 @@ namespace GUI.Forms
             {
                 return;
             }
-            
+            var menuStrip = sender as ContextMenuStrip;
+            menuStrip.Visible = false; //Hide it as we have pressed the button now!
+
             var saveFileDialog = new SaveFileDialog();
             saveFileDialog.Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tga";
             saveFileDialog.Title = "Save an Image File";
+            saveFileDialog.FileName = this.name;
             saveFileDialog.ShowDialog(this);
 
             if (saveFileDialog.FileName != "")
