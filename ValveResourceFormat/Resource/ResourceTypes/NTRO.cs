@@ -285,11 +285,19 @@ namespace ValveResourceFormat.ResourceTypes
                     var offset = Reader.ReadUInt32();
                     var prev = Reader.BaseStream.Position;
 
-                    Reader.BaseStream.Position += offset - 4;
+                    // TODO: This doesn't match offset logic in other places
+                    if (offset > 0)
+                    {
+                        Reader.BaseStream.Position += offset - 4;
+                    }
 
                     Writer.WriteLine("\"{0}\"", Reader.ReadNullTermString(Encoding.UTF8));
 
-                    Reader.BaseStream.Position = prev;
+                    if (offset > 0)
+                    {
+                        Reader.BaseStream.Position = prev;
+                    }
+
                     break;
 
                 case DataType.Matrix3x4:

@@ -178,18 +178,26 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader, Resource resource)
         {
+            reader.BaseStream.Position = this.Offset;
+
+            IntrospectionVersion = reader.ReadUInt32();
+
             ReadStructs(reader);
+
+            reader.BaseStream.Position = this.Offset + 12; // skip 3 ints
+
             ReadEnums(reader);
         }
 
         private void ReadStructs(BinaryReader reader)
         {
-            reader.BaseStream.Position = this.Offset;
-
-            IntrospectionVersion = reader.ReadUInt32();
-
             var entriesOffset = reader.ReadUInt32();
             var entriesCount = reader.ReadUInt32();
+
+            if (entriesCount == 0)
+            {
+                return;
+            }
 
             reader.BaseStream.Position += entriesOffset - 8; // offset minus 2 ints we just read
 
@@ -232,16 +240,19 @@ namespace ValveResourceFormat.Blocks
                     var indirectionOffset = reader.ReadUInt32();
                     var indirectionSize = reader.ReadUInt32();
 
-                    // jump to indirections
-                    prev2 = reader.BaseStream.Position;
-                    reader.BaseStream.Position += indirectionOffset - 8; // offset minus 2 ints we just read
-
-                    while (indirectionSize-- > 0)
+                    if (indirectionSize > 0)
                     {
-                        field.Indirections.Add(reader.ReadByte());
-                    }
+                        // jump to indirections
+                        prev2 = reader.BaseStream.Position;
+                        reader.BaseStream.Position += indirectionOffset - 8; // offset minus 2 ints we just read
 
-                    reader.BaseStream.Position = prev2;
+                        while (indirectionSize-- > 0)
+                        {
+                            field.Indirections.Add(reader.ReadByte());
+                        }
+
+                        reader.BaseStream.Position = prev2;
+                    }
 
                     field.TypeData = reader.ReadUInt32();
                     field.Type = (DataType)reader.ReadInt16();
@@ -263,10 +274,13 @@ namespace ValveResourceFormat.Blocks
 
         private void ReadEnums(BinaryReader reader)
         {
-            reader.BaseStream.Position = this.Offset + 12; // skip 3 ints
-
             var entriesOffset = reader.ReadUInt32();
             var entriesCount = reader.ReadUInt32();
+
+            if (entriesCount == 0)
+            {
+                return;
+            }
 
             reader.BaseStream.Position += entriesOffset - 8; // offset minus 2 ints we just read
 

@@ -106,7 +106,7 @@ namespace GUI
                 {
                     mainTabs.TabPages.Remove(tab);
 
-                    MessageBox.Show(ex.Message, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
                     return true;
                 });
