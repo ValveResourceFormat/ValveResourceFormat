@@ -32,6 +32,26 @@ namespace Tests
                 resource.Read(file);
 
                 resources.Add(Path.GetFileName(file), resource);
+
+                Assert.AreNotEqual(ResourceType.Unknown, resource.ResourceType);
+
+                // Verify extension
+                if (resource.ResourceType == ResourceType.Panorama)
+                {
+                    continue; // TODO: panorama matching is broken
+                }
+
+                var extension = Path.GetExtension(file);
+
+                if (extension.EndsWith("_c", StringComparison.Ordinal))
+                {
+                    extension = extension.Substring(0, extension.Length - 2);
+                }
+
+                var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString()).First();
+                var attribute = "." + ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false).First()).Extension;
+
+                Assert.AreEqual(extension, attribute);
             }
 
             VerifyResources(resources);
