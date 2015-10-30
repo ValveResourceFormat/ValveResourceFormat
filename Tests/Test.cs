@@ -125,8 +125,6 @@ namespace Tests
 
                 try
                 {
-                    // TODO: Skip failing DATA tests for now
-                    if(blockType != BlockType.DATA || expectedOutput == actualOutput)
                     Assert.AreEqual(expectedOutput, actualOutput);
                 }
                 catch (AssertionException e)
