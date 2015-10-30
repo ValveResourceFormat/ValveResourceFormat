@@ -103,7 +103,7 @@ namespace Tests
         [Test]
         public void PackageInResourceThrows()
         {
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "platform_misc_dir.vpk");
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "platform_misc_dir.vpk");
 
             using (var resource = new Resource())
             {

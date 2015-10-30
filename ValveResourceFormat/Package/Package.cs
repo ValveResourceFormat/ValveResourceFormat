@@ -296,7 +296,6 @@ namespace ValveResourceFormat
             {
                 if (entry.ArchiveIndex != 0x7FFF && fs != null)
                 {
-                    Console.WriteLine("disposed");
                     fs.Close();
                 }
             }
