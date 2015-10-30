@@ -36,9 +36,13 @@ namespace ValveResourceFormat
         public const int MAGIC = 0x55AA1234;
 
         private BinaryReader Reader;
-        private string FileName;
         private bool IsDirVPK;
         private uint OffsetAfterHeader;
+
+        /// <summary>
+        /// Gets the File Name
+        /// </summary>
+        public string FileName {  get; private set; }
 
         /// <summary>
         /// Gets the VPK version.

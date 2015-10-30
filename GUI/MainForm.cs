@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -77,7 +78,14 @@ namespace GUI
             {
                 foreach (var file in openDialog.FileNames)
                 {
-                    OpenFile(file);
+                    if (file.EndsWith("_c") | file.EndsWith(".vpk"))
+                    {
+                        OpenFile(file);
+                    }
+                    else
+                    {
+                        Process.Start(file);
+                    }
                 }
             }
         }
@@ -367,7 +375,20 @@ namespace GUI
             var file = e.Node.Tag as PackageEntry;
             byte[] output;
             package.ReadEntry(file, out output);
-            OpenFile(file.FileName + "." + file.TypeName, output);
+            if (file.TypeName.EndsWith("_c") | file.TypeName == "vpk")
+            {
+                OpenFile(file.FileName + "." + file.TypeName, output);
+            }
+            else
+            {
+                var tempPath = Path.GetTempPath() + Path.GetFileName(package.FileName) + " - " + file.FileName + "." + file.TypeName; // ew
+                using (var stream = new FileStream(tempPath, FileMode.Create))
+                {
+                    stream.Write(output, 0, output.Length);
+                }
+                Process.Start(tempPath);
+            }
+
 
         }
 
