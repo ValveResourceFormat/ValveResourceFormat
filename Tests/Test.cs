@@ -15,7 +15,7 @@ namespace Tests
         // TODO: Add asserts for blocks/resources that were skipped
 
         [Test]
-        public void VerifyBlocks()
+        public void ReadBlocks()
         {
             var resources = new Dictionary<string, Resource>();
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
@@ -34,8 +34,42 @@ namespace Tests
                 resources.Add(Path.GetFileName(file), resource);
             }
 
-            path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
-            files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
+            VerifyResources(resources);
+        }
+
+        [Test]
+        public void ReadBlocksWithMemoryStream()
+        {
+            var resources = new Dictionary<string, Resource>();
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var files = Directory.GetFiles(path, "*.*_c");
+
+            if (files.Length == 0)
+            {
+                Assert.Fail("There are no files to test.");
+            }
+
+            foreach (var file in files)
+            {
+                var resource = new Resource();
+
+                var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
+                var ms = new MemoryStream();
+                fs.CopyTo(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+
+                resource.Read(ms);
+
+                resources.Add(Path.GetFileName(file), resource);
+            }
+
+            VerifyResources(resources);
+        }
+
+        private void VerifyResources(Dictionary<string, Resource> resources)
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
+            var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
             var exceptions = new StringBuilder();
 
             foreach (var file in files)
