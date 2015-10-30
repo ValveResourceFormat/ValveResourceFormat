@@ -2,6 +2,7 @@
 {
     public enum VTexFormat
     {
+#pragma warning disable 1591
         UNKNOWN = 0,
         DXT1 = 1,
         DXT5 = 2,
@@ -18,5 +19,6 @@
         RGB323232F = 13, // TODO: Not used in dota
         RGBA32323232F = 14, // TODO: Not used in dota
         PNG = 16, // TODO: resourceinfo doesn't know about this
+#pragma warning restore 1591
     };
 }

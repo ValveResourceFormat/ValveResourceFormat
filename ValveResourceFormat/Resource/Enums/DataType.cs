@@ -2,6 +2,7 @@
 {
     public enum DataType
     {
+#pragma warning disable 1591
         Struct = 1,
         Enum = 2, // TODO: not verified with resourceinfo
         ExternalReference = 3,
@@ -25,5 +26,6 @@
         Matrix3x4 = 33,
         Matrix3x4a = 36,
         CTransform = 40,
+#pragma warning restore 1591
     }
 }
