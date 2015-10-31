@@ -160,7 +160,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Writer.Write("{0} {1} = ", ValveDataType(field.Type), field.FieldName);
             }
 
-            while (count-- > 0)
+            for (var i = 0; i < count; i++)
             {
                 ReadField(field, multiple);
             }

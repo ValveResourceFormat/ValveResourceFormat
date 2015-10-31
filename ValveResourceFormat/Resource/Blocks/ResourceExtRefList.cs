@@ -54,9 +54,14 @@ namespace ValveResourceFormat.Blocks
             var offset = reader.ReadUInt32();
             var size = reader.ReadUInt32();
 
+            if (size == 0)
+            {
+                return;
+            }
+
             reader.BaseStream.Position += offset - 8; // 8 is 2 uint32s we just read
 
-            while (size-- > 0)
+            for (var i = 0; i < size; i++)
             {
                 var resInfo = new ResourceReferenceInfo();
                 resInfo.Id = reader.ReadUInt64();

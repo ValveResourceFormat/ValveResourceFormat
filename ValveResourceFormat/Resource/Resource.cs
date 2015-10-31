@@ -95,7 +95,7 @@ namespace ValveResourceFormat
 
             Reader.BaseStream.Position += blockOffset - 8; // 8 is 2 uint32s we just read
 
-            while (blockCount-- > 0)
+            for (var i = 0; i < blockCount; i++)
             {
                 var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
                 var block = ConstructFromType(blockType);

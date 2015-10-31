@@ -201,7 +201,7 @@ namespace ValveResourceFormat.Blocks
 
             reader.BaseStream.Position += entriesOffset - 8; // offset minus 2 ints we just read
 
-            while (entriesCount-- > 0)
+            for (var i = 0; i < entriesCount; i++)
             {
                 var diskStruct = new ResourceDiskStruct();
                 diskStruct.IntrospectionVersion = reader.ReadUInt32();
@@ -227,7 +227,7 @@ namespace ValveResourceFormat.Blocks
                     prev = reader.BaseStream.Position;
                     reader.BaseStream.Position += fieldsOffset - 8; // offset minus 2 ints we just read
 
-                    while (fieldsSize-- > 0)
+                    for (var y = 0; y < fieldsSize; y++)
                     {
                         var field = new ResourceDiskStruct.Field();
 
@@ -248,7 +248,7 @@ namespace ValveResourceFormat.Blocks
                             prev2 = reader.BaseStream.Position;
                             reader.BaseStream.Position += indirectionOffset - 8; // offset minus 2 ints we just read
 
-                            while (indirectionSize-- > 0)
+                            for (var x = 0; x < indirectionSize; x++)
                             {
                                 field.Indirections.Add(reader.ReadByte());
                             }
@@ -287,7 +287,7 @@ namespace ValveResourceFormat.Blocks
 
             reader.BaseStream.Position += entriesOffset - 8; // offset minus 2 ints we just read
 
-            while (entriesCount-- > 0)
+            for (var i = 0; i < entriesCount; i++)
             {
                 var diskEnum = new ResourceDiskEnum();
                 diskEnum.IntrospectionVersion = reader.ReadUInt32();
@@ -310,7 +310,7 @@ namespace ValveResourceFormat.Blocks
                     prev = reader.BaseStream.Position;
                     reader.BaseStream.Position += fieldsOffset - 8; // offset minus 2 ints we just read
 
-                    while (fieldsSize-- > 0)
+                    for (var y = 0; y < fieldsSize; y++)
                     {
                         var field = new ResourceDiskEnum.Value();
 

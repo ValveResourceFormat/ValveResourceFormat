@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
             var size = reader.ReadUInt16();
             int headerSize = 4 + 2;
 
-            while (size-- > 0)
+            for (var i = 0; i < size; i++)
             {
                 var name = reader.ReadNullTermString(Encoding.UTF8);
 

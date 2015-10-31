@@ -73,7 +73,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 reader.BaseStream.Position += extraDataOffset - 8; // 8 is 2 uint32s we just read
 
-                while (extraDataCount-- > 0)
+                for (var i = 0; i < extraDataCount; i++)
                 {
                     var type = reader.ReadUInt32();
                     var offset = reader.ReadUInt32() - 8;
