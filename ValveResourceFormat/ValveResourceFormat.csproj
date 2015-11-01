@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -30,6 +30,8 @@
     <ConsolePause>false</ConsolePause>
     <DocumentationFile>bin\Release\ValveResourceFormat.xml</DocumentationFile>
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -74,11 +76,4 @@
     <Compile Include="Resource\ResourceTypes\Particle.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup>
-    <Folder Include="Package\" />
-    <Folder Include="Resource\" />
-    <Folder Include="Utils\" />
-    <Folder Include="Resource\Enums\" />
-    <Folder Include="ThirdParty\" />
-  </ItemGroup>
 </Project>
