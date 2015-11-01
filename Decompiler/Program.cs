@@ -343,7 +343,7 @@ namespace Decompiler
                 {
                     foreach (var file in type.Value)
                     {
-                        Console.WriteLine("{0}/{1}.{2} CRC:{3:x10} size:{4}", file.DirectoryName, file.FileName, file.TypeName, file.CRC32, file.Length);
+                        Console.WriteLine(file);
                     }
                 }
             }
