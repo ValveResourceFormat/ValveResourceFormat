@@ -44,16 +44,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             {
                 var dep = new ArgumentDependency();
 
-                var prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                dep.ParameterName = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
-                prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                dep.ParameterType = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
+                dep.ParameterName = reader.ReadOffsetString(Encoding.UTF8);
+                dep.ParameterType = reader.ReadOffsetString(Encoding.UTF8);
                 dep.Fingerprint = reader.ReadUInt32();
                 dep.FingerprintDefault = reader.ReadUInt32();
 

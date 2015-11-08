@@ -10,12 +10,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = this.Offset;
 
-            // Jump to model name offset
-            reader.BaseStream.Position += reader.ReadUInt32();
-            var modelName = reader.ReadNullTermString(Encoding.UTF8);
-
-            // Return back and account for offset
-            reader.BaseStream.Position = this.Offset + 4;
+            var modelName = reader.ReadOffsetString(Encoding.UTF8);
         }
     }
 }

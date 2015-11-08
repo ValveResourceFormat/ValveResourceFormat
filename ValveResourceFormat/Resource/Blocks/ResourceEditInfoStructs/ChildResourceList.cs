@@ -41,11 +41,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 var dep = new ReferenceInfo();
 
                 dep.Id = reader.ReadUInt64();
-
-                var prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                dep.ResourceName = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
+                dep.ResourceName = reader.ReadOffsetString(Encoding.UTF8);
 
                 reader.ReadBytes(4); // TODO: ????
 

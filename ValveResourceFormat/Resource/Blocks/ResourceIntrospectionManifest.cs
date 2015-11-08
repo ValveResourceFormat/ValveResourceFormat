@@ -206,12 +206,7 @@ namespace ValveResourceFormat.Blocks
                 var diskStruct = new ResourceDiskStruct();
                 diskStruct.IntrospectionVersion = reader.ReadUInt32();
                 diskStruct.Id = reader.ReadUInt32();
-
-                var prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                diskStruct.Name = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
+                diskStruct.Name = reader.ReadOffsetString(Encoding.UTF8);
                 diskStruct.DiskCrc = reader.ReadUInt32();
                 diskStruct.UserVersion = reader.ReadInt32();
                 diskStruct.DiskSize = reader.ReadUInt16();
@@ -224,18 +219,14 @@ namespace ValveResourceFormat.Blocks
                 // jump to fields
                 if (fieldsSize > 0)
                 {
-                    prev = reader.BaseStream.Position;
+                    var prev = reader.BaseStream.Position;
                     reader.BaseStream.Position += fieldsOffset - 8; // offset minus 2 ints we just read
 
                     for (var y = 0; y < fieldsSize; y++)
                     {
                         var field = new ResourceDiskStruct.Field();
 
-                        var prev2 = reader.BaseStream.Position;
-                        reader.BaseStream.Position += reader.ReadUInt32();
-                        field.FieldName = reader.ReadNullTermString(Encoding.UTF8);
-                        reader.BaseStream.Position = prev2 + 4;
-
+                        field.FieldName = reader.ReadOffsetString(Encoding.UTF8);
                         field.Count = reader.ReadInt16();
                         field.OnDiskOffset = reader.ReadInt16();
 
@@ -245,7 +236,7 @@ namespace ValveResourceFormat.Blocks
                         if (indirectionSize > 0)
                         {
                             // jump to indirections
-                            prev2 = reader.BaseStream.Position;
+                            var prev2 = reader.BaseStream.Position;
                             reader.BaseStream.Position += indirectionOffset - 8; // offset minus 2 ints we just read
 
                             for (var x = 0; x < indirectionSize; x++)
@@ -292,12 +283,7 @@ namespace ValveResourceFormat.Blocks
                 var diskEnum = new ResourceDiskEnum();
                 diskEnum.IntrospectionVersion = reader.ReadUInt32();
                 diskEnum.Id = reader.ReadUInt32();
-
-                var prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                diskEnum.Name = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
+                diskEnum.Name = reader.ReadOffsetString(Encoding.UTF8);
                 diskEnum.DiskCrc = reader.ReadUInt32();
                 diskEnum.UserVersion = reader.ReadInt32();
 
@@ -307,18 +293,14 @@ namespace ValveResourceFormat.Blocks
                 // jump to fields
                 if (fieldsSize > 0)
                 {
-                    prev = reader.BaseStream.Position;
+                    var prev = reader.BaseStream.Position;
                     reader.BaseStream.Position += fieldsOffset - 8; // offset minus 2 ints we just read
 
                     for (var y = 0; y < fieldsSize; y++)
                     {
                         var field = new ResourceDiskEnum.Value();
 
-                        var prev2 = reader.BaseStream.Position;
-                        reader.BaseStream.Position += reader.ReadUInt32();
-                        field.EnumValueName = reader.ReadNullTermString(Encoding.UTF8);
-                        reader.BaseStream.Position = prev2 + 4;
-
+                        field.EnumValueName = reader.ReadOffsetString(Encoding.UTF8);
                         field.EnumValue = reader.ReadInt32();
 
                         diskEnum.EnumValueIntrospection.Add(field);

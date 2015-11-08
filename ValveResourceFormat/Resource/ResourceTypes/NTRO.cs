@@ -282,21 +282,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case DataType.String4:
                 case DataType.String:
-                    var offset = Reader.ReadUInt32();
-
-                    if (offset == 0)
-                    {
-                        Writer.WriteLine("\"\"");
-                        break;
-                    }
-
-                    var prev = Reader.BaseStream.Position;
-
-                    Reader.BaseStream.Position += offset - 4;
-
-                    Writer.WriteLine("\"{0}\"", Reader.ReadNullTermString(Encoding.UTF8));
-
-                    Reader.BaseStream.Position = prev;
+                    Writer.WriteLine("\"{0}\"", Reader.ReadOffsetString(Encoding.UTF8));
 
                     break;
 

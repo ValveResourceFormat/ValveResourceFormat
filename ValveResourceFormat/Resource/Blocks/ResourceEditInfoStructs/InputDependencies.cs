@@ -44,16 +44,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             {
                 var dep = new InputDependency();
 
-                var prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                dep.ContentRelativeFilename = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
-                prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                dep.ContentSearchPath = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
+                dep.ContentRelativeFilename = reader.ReadOffsetString(Encoding.UTF8);
+                dep.ContentSearchPath = reader.ReadOffsetString(Encoding.UTF8);
                 dep.FileCRC = reader.ReadUInt32();
                 dep.Flags = reader.ReadUInt32();
 

@@ -40,11 +40,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             {
                 var dep = new EditFloatData();
 
-                var prev = reader.BaseStream.Position;
-                reader.BaseStream.Position += reader.ReadUInt32();
-                dep.Name = reader.ReadNullTermString(Encoding.UTF8);
-                reader.BaseStream.Position = prev + 4;
-
+                dep.Name = reader.ReadOffsetString(Encoding.UTF8);
                 dep.Value = reader.ReadSingle();
 
                 List.Add(dep);

@@ -6,6 +6,12 @@ namespace ValveResourceFormat
 {
     internal static class StreamHelpers
     {
+        /// <summary>
+        /// Reads a null terminated string.
+        /// </summary>
+        /// <returns>String.</returns>
+        /// <param name="stream">Stream.</param>
+        /// <param name="encoding">Encoding.</param>
         public static string ReadNullTermString(this BinaryReader stream, Encoding encoding)
         {
             int characterSize = encoding.GetByteCount("e");
@@ -28,6 +34,31 @@ namespace ValveResourceFormat
 
                 return encoding.GetString(ms.ToArray());
             }
+        }
+
+        /// <summary>
+        /// Reads a string at a given uint offset.
+        /// </summary>
+        /// <returns>String.</returns>
+        /// <param name="stream">Stream.</param>
+        /// <param name="encoding">Encoding.</param>
+        public static string ReadOffsetString(this BinaryReader stream, Encoding encoding)
+        {
+            var currentOffset = stream.BaseStream.Position;
+            var offset = stream.ReadUInt32();
+
+            if (offset == 0)
+            {
+                return string.Empty;
+            }
+
+            stream.BaseStream.Position = currentOffset + offset;
+
+            var str = ReadNullTermString(stream, encoding);
+
+            stream.BaseStream.Position = currentOffset + 4;
+
+            return str;
         }
     }
 }
