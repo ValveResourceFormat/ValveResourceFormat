@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -278,6 +279,21 @@ namespace GUI
                         }
 
                         resTabs.TabPages.Add(tab2);
+                        break;
+                    case ResourceType.Panorama:
+                        if (((Panorama)resource.Blocks[BlockType.DATA]).Names.Count > 0)
+                        {
+                            var nameTab = new TabPage("PANORAMA NAMES");
+                            var nameControl = new DataGridView();
+                            nameControl.Dock = DockStyle.Fill;
+                            nameControl.AutoSize = true;
+                            nameControl.ReadOnly = true;
+                            nameControl.AllowUserToAddRows = false;
+                            nameControl.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                            nameControl.DataSource = new BindingSource(new BindingList<Panorama.NameEntry>(((Panorama)resource.Blocks[BlockType.DATA]).Names), null);
+                            nameTab.Controls.Add(nameControl);
+                            resTabs.TabPages.Add(nameTab);
+                        }
                         break;
                 }
 
