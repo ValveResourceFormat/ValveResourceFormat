@@ -384,13 +384,15 @@ namespace Decompiler
 
                 if (type.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    var resource = new Resource();
-                    using (var memory = new MemoryStream(output))
+                    using (var resource = new Resource())
                     {
-                        resource.Read(memory);
-                    }
+                        using (var memory = new MemoryStream(output))
+                        {
+                            resource.Read(memory);
+                        }
 
-                    output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                        output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                    }
                 }
 
                 if (Options.OutputFile != null)

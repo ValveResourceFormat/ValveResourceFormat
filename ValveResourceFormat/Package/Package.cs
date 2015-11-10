@@ -264,6 +264,18 @@ namespace ValveResourceFormat
         {
             output = new byte[entry.Length];
 
+            if (entry.SmallData.Length > 0 && entry.Length == 0)
+            {
+                output = entry.SmallData;
+
+                if (validateCrc && entry.CRC32 != Crc32.Compute(output))
+                {
+                    throw new InvalidDataException("CRC32 mismatch for smalldata.");
+                }
+
+                return;
+            }
+
             if (entry.SmallData.Length > 0)
             {
                 throw new NotImplementedException("SmallData.Length > 0, not yet handled.");
