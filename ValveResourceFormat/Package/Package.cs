@@ -262,57 +262,48 @@ namespace ValveResourceFormat
         /// <param name="validateCrc">If true, CRC32 will be calculated and verified for read data.</param>
         public void ReadEntry(PackageEntry entry, out byte[] output, bool validateCrc = true)
         {
-            output = new byte[entry.Length];
-
-            if (entry.SmallData.Length > 0 && entry.Length == 0)
-            {
-                output = entry.SmallData;
-
-                if (validateCrc && entry.CRC32 != Crc32.Compute(output))
-                {
-                    throw new InvalidDataException("CRC32 mismatch for smalldata.");
-                }
-
-                return;
-            }
+            output = new byte[entry.Length + entry.SmallData.Length];
 
             if (entry.SmallData.Length > 0)
             {
-                throw new NotImplementedException("SmallData.Length > 0, not yet handled.");
+                entry.SmallData.CopyTo(output, 0);
             }
 
-            Stream fs = null;
-
-            try
+            if (entry.Length > 0)
             {
-                var offset = entry.Offset;
+                Stream fs = null;
 
-                if (entry.ArchiveIndex != 0x7FFF)
+                try
                 {
-                    if (!IsDirVPK)
+                    var offset = entry.Offset;
+
+                    if (entry.ArchiveIndex != 0x7FFF)
                     {
-                        throw new InvalidOperationException("Given VPK is not a _dir, but entry is referencing an external archive.");
+                        if (!IsDirVPK)
+                        {
+                            throw new InvalidOperationException("Given VPK is not a _dir, but entry is referencing an external archive.");
+                        }
+
+                        var fileName = string.Format("{0}_{1:D3}.vpk", FileName, entry.ArchiveIndex);
+
+                        fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                    }
+                    else
+                    {
+                        fs = Reader.BaseStream;
+
+                        offset += OffsetAfterHeader;
                     }
 
-                    var fileName = string.Format("{0}_{1:D3}.vpk", FileName, entry.ArchiveIndex);
-
-                    fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                    fs.Seek(offset, SeekOrigin.Begin);
+                    fs.Read(output, entry.SmallData.Length, (int)entry.Length);
                 }
-                else
+                finally
                 {
-                    fs = Reader.BaseStream;
-
-                    offset += OffsetAfterHeader;
-                }
-
-                fs.Seek(offset, SeekOrigin.Begin);
-                fs.Read(output, 0, (int)entry.Length);
-            }
-            finally
-            {
-                if (entry.ArchiveIndex != 0x7FFF && fs != null)
-                {
-                    fs.Close();
+                    if (entry.ArchiveIndex != 0x7FFF && fs != null)
+                    {
+                        fs.Close();
+                    }
                 }
             }
 
