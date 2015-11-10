@@ -262,7 +262,7 @@ namespace ValveResourceFormat
         /// <param name="validateCrc">If true, CRC32 will be calculated and verified for read data.</param>
         public void ReadEntry(PackageEntry entry, out byte[] output, bool validateCrc = true)
         {
-            output = new byte[entry.Length + entry.SmallData.Length];
+            output = new byte[entry.SmallData.Length + entry.Length];
 
             if (entry.SmallData.Length > 0)
             {
