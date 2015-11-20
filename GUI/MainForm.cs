@@ -387,22 +387,27 @@ namespace GUI
 
         private void VPK_OpenFile(object sender, TreeNodeMouseClickEventArgs e)
         {
-            var package = e.Node.TreeView.Tag as Package;
-            var file = e.Node.Tag as PackageEntry;
-            byte[] output;
-            package.ReadEntry(file, out output);
-            if (file.TypeName.EndsWith("_c") | file.TypeName == "vpk")
+            var node = e.Node;
+            //Make sure we aren't a directory!
+            if (node.Tag.GetType() == typeof(PackageEntry))
             {
-                OpenFile(file.FileName + "." + file.TypeName, output);
-            }
-            else
-            {
-                var tempPath = Path.GetTempPath() + Path.GetFileName(package.FileName) + " - " + file.FileName + "." + file.TypeName; // ew
-                using (var stream = new FileStream(tempPath, FileMode.Create))
+                var package = e.Node.TreeView.Tag as Package;
+                var file = e.Node.Tag as PackageEntry;
+                byte[] output;
+                package.ReadEntry(file, out output);
+                if (file.TypeName.EndsWith("_c") | file.TypeName == "vpk")
                 {
-                    stream.Write(output, 0, output.Length);
+                    OpenFile(file.FileName + "." + file.TypeName, output);
                 }
-                Process.Start(tempPath);
+                else
+                {
+                    var tempPath = Path.GetTempPath() + Path.GetFileName(package.FileName) + " - " + file.FileName + "." + file.TypeName; // ew
+                    using (var stream = new FileStream(tempPath, FileMode.Create))
+                    {
+                        stream.Write(output, 0, output.Length);
+                    }
+                    Process.Start(tempPath);
+                }
             }
 
 
