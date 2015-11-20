@@ -244,20 +244,5 @@ namespace ValveResourceFormat.ThirdParty
             }
         }
         #endregion
-
-        public static Bitmap ReadLinearImage(BinaryReader r, int w, int h)
-        {
-            Bitmap res = new Bitmap(w, h);
-
-            for (int y = 0; y < h; y++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    res.SetPixel(x, y, Color.FromArgb(r.ReadInt32()));
-                }
-            }
-
-            return res;
-        }
     }
 }

@@ -113,7 +113,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
 
-                        return ThirdParty.DDSImage.ReadLinearImage(Reader, Width, Height);
+                        return ReadRGBA8888(Reader, Width, Height);
                     }
 
                     break;
@@ -170,9 +170,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case (VTexFormat)17:
                 case (VTexFormat)18:
                 case VTexFormat.PNG:
-                    var a = ReadPNG();
-                    Console.WriteLine(a.RawFormat);
-                    return a;
+                    return ReadPNG();
             }
 
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
@@ -185,6 +183,30 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return new Bitmap(Image.FromStream(ms));
             }
+        }
+
+        private static Bitmap ReadRGBA8888(BinaryReader r, int w, int h)
+        {
+            var res = new Bitmap(w, h);
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    var rawColor = r.ReadInt32();
+
+                    var color = Color.FromArgb(
+                        (rawColor >> 24) & 0x0FF,
+                        rawColor & 0x0FF,
+                        (rawColor >> 8) & 0x0FF,
+                        (rawColor >> 16) & 0x0FF
+                    );
+
+                    res.SetPixel(x, y, color);
+                }
+            }
+
+            return res;
         }
 
         private static Bitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
