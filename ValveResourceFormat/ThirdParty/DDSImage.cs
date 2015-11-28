@@ -168,7 +168,11 @@ namespace ValveResourceFormat.ThirdParty
             temp = (color1 & 0x001F) * 255 + 16;
             byte b1 = (byte)((temp / 32 + temp) / 32);
 
-            uint code = unchecked((uint)(blockStorage[12] | blockStorage[13] << 8 | blockStorage[14] << 16 | blockStorage[15] << 24));
+            uint c1 = blockStorage[12];
+            uint c2 = (uint)blockStorage[13] << 8;
+            uint c3 = (uint)blockStorage[14] << 16;
+            uint c4 = (uint)blockStorage[15] << 24;
+            uint code = c1 | c2 | c3 | c4;
 
             for (int j = 0; j < 4; j++)
             {
