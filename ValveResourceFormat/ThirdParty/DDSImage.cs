@@ -141,7 +141,12 @@ namespace ValveResourceFormat.ThirdParty
             byte alpha1 = blockStorage[1];
 
             int bitOffset = 2;
-            uint alphaCode1 = (uint)(blockStorage[bitOffset + 2] | (blockStorage[bitOffset + 3] << 8) | (blockStorage[bitOffset + 4] << 16) | (blockStorage[bitOffset + 5] << 24));
+            uint a1 = blockStorage[bitOffset + 2];
+            uint a2 = (uint)blockStorage[bitOffset + 3] << 8;
+            uint a3 = (uint)blockStorage[bitOffset + 4] << 16;
+            uint a4 = (uint)blockStorage[bitOffset + 5] << 24;
+            uint alphaCode1 = a1 | a2 | a3 | a4;
+            
             ushort alphaCode2 = (ushort)(blockStorage[bitOffset + 0] | (blockStorage[bitOffset + 1] << 8));
 
             ushort color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
@@ -163,7 +168,11 @@ namespace ValveResourceFormat.ThirdParty
             temp = (color1 & 0x001F) * 255 + 16;
             byte b1 = (byte)((temp / 32 + temp) / 32);
 
-            uint code = unchecked((uint)(blockStorage[12] | blockStorage[13] << 8 | blockStorage[14] << 16 | blockStorage[15] << 24));
+            uint c1 = blockStorage[12];
+            uint c2 = (uint)blockStorage[13] << 8;
+            uint c3 = (uint)blockStorage[14] << 16;
+            uint c4 = (uint)blockStorage[15] << 24;
+            uint code = c1 | c2 | c3 | c4;
 
             for (int j = 0; j < 4; j++)
             {
