@@ -140,14 +140,13 @@ namespace ValveResourceFormat.ThirdParty
             byte alpha0 = blockStorage[0];
             byte alpha1 = blockStorage[1];
 
-            int bitOffset = 2;
-            uint a1 = blockStorage[bitOffset + 2];
-            uint a2 = (uint)blockStorage[bitOffset + 3] << 8;
-            uint a3 = (uint)blockStorage[bitOffset + 4] << 16;
-            uint a4 = (uint)blockStorage[bitOffset + 5] << 24;
+            uint a1 = blockStorage[4];
+            uint a2 = (uint)blockStorage[5] << 8;
+            uint a3 = (uint)blockStorage[6] << 16;
+            uint a4 = (uint)blockStorage[7] << 24;
             uint alphaCode1 = a1 | a2 | a3 | a4;
             
-            ushort alphaCode2 = (ushort)(blockStorage[bitOffset + 0] | (blockStorage[bitOffset + 1] << 8));
+            ushort alphaCode2 = (ushort)(blockStorage[2] | (blockStorage[3] << 8));
 
             ushort color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
             ushort color1 = (ushort)(blockStorage[10] | blockStorage[11] << 8);
