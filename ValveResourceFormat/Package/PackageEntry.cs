@@ -41,6 +41,24 @@ namespace ValveResourceFormat
         public ushort ArchiveIndex { get; set; }
 
         /// <summary>
+        /// Returns the length in bytes by adding Length + SmallData.Length
+        /// </summary>
+        public uint TotalLength
+        {
+            get
+            {
+                uint totalLength = Length;
+
+                if(SmallData != null)
+                {
+                    totalLength += (uint)SmallData.Length;
+                }
+
+                return totalLength;
+            }
+        }
+
+        /// <summary>
         /// TODO
         /// </summary>
         public byte[] SmallData { get; set; }

@@ -47,6 +47,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controls\BetterTreeView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\BetterTreeView.Designer.cs">
+      <DependentUpon>BetterTreeView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
+    <Compile Include="Controls\TreeViewWithSearchResults.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\TreeViewWithSearchResults.Designer.cs">
+      <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\AboutForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -59,6 +72,14 @@
     <Compile Include="Forms\LoadingFile.Designer.cs">
       <DependentUpon>LoadingFile.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\SearchForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\SearchForm.Designer.cs">
+      <DependentUpon>SearchForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\SearchType.cs" />
+    <Compile Include="Forms\SearchTypeItem.cs" />
     <Compile Include="Forms\Texture.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -73,11 +94,22 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utils\FileExtensions.cs" />
+    <Compile Include="Controls\TreeViewFolder.cs" />
+    <EmbeddedResource Include="Controls\BetterTreeView.resx">
+      <DependentUpon>BetterTreeView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TreeViewWithSearchResults.resx">
+      <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\AboutForm.resx">
       <DependentUpon>AboutForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\LoadingFile.resx">
       <DependentUpon>LoadingFile.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\SearchForm.resx">
+      <DependentUpon>SearchForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\Texture.resx">
       <DependentUpon>Texture.cs</DependentUpon>
