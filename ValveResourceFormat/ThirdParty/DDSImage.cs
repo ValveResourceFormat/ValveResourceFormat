@@ -60,7 +60,11 @@ namespace ValveResourceFormat.ThirdParty
             temp = (color1 & 0x001F) * 255 + 16;
             byte b1 = (byte)((temp / 32 + temp) / 32);
 
-            uint code = (uint)(blockStorage[4] | blockStorage[5] << 8 | blockStorage[6] << 16 | blockStorage[7] << 24);
+            uint c1 = blockStorage[4];
+            uint c2 = (uint)blockStorage[5] << 8;
+            uint c3 = (uint)blockStorage[6] << 16;
+            uint c4 = (uint)blockStorage[7] << 24;
+            uint code = c1 | c2 | c3 | c4;
 
             for (int j = 0; j < 4; j++)
             {
