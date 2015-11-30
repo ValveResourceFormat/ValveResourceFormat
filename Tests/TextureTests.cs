@@ -10,6 +10,7 @@ namespace Tests
     public class TextureTests
     {
         [Test]
+        [Ignore("Need a better way of testing images rather than comparing the files directly")]
         public void Test()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures");
