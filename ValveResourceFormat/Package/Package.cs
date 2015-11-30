@@ -84,9 +84,15 @@ namespace ValveResourceFormat
         /// </summary>
         public void Dispose()
         {
-            if (Reader != null)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && Reader != null)
             {
-                Reader.Close();
+                Reader.Dispose();
                 Reader = null;
             }
         }
