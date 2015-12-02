@@ -1,11 +1,11 @@
 ﻿using System.Reflection;
 
-[assembly: AssemblyTitle("ValveResourceFormat")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Valve Resource Format Library")]
+[assembly: AssemblyProduct("Valve Resource Format Library")]
+[assembly: AssemblyDescription("Library to decompile Valve Source 2 files")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("SteamDB")]
+[assembly: AssemblyCompany("Steam Database")]
+[assembly: AssemblyCopyright("Steam Database")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion("1.0.*")]
+[assembly: AssemblyVersion("0.0.0.*")]
