@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Blocks;
 
 namespace Decompiler
 {
@@ -16,6 +17,8 @@ namespace Decompiler
         private static int CurrentFile = 0;
         private static int TotalFiles = 0;
 
+        // This decompiler is a test bed for our library,
+        // don't expect to see any quality code in here
         public static void Main(string[] args)
         {
             Options = new Options();
@@ -57,6 +60,7 @@ namespace Decompiler
             }
 
             var stats = new Dictionary<string, ResourceStat>();
+            var uniqueSpecialDependancies = new Dictionary<string, string>();
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
@@ -66,14 +70,14 @@ namespace Decompiler
 
                 Parallel.ForEach(paths, new ParallelOptions { MaxDegreeOfParallelism = Options.MaxParallelismThreads }, (path, state) =>
                 {
-                    ProcessFile(path, stats);
+                    ProcessFile(path, stats, uniqueSpecialDependancies);
                 });
             }
             else
             {
                 foreach (var path in paths)
                 {
-                    ProcessFile(path, stats);
+                    ProcessFile(path, stats, uniqueSpecialDependancies);
                 }
             }
 
@@ -88,10 +92,18 @@ namespace Decompiler
                         stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : ""
                     );
                 }
+
+                Console.WriteLine();
+                Console.WriteLine("Unique special dependancies:");
+
+                foreach (var stat in uniqueSpecialDependancies)
+                {
+                    Console.WriteLine("{0} in {1}", stat.Key, stat.Value);
+                }
             }
         }
 
-        private static void ProcessFile(string path, Dictionary<string, ResourceStat> stats)
+        private static void ProcessFile(string path, Dictionary<string, ResourceStat> stats, Dictionary<string, string> uniqueSpecialDependancies)
         {
             if (Path.GetExtension(path) == ".vpk")
             {
@@ -152,6 +164,17 @@ namespace Decompiler
                         else
                         {
                             stats.Add(id, new ResourceStat(resource, info));
+                        }
+                    }
+
+                    if (resource.EditInfo != null && resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                    {
+                        lock (uniqueSpecialDependancies)
+                        {
+                            foreach (var dep in ((ValveResourceFormat.Blocks.ResourceEditInfoStructs.SpecialDependencies)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies]).List)
+                            {
+                                uniqueSpecialDependancies[string.Format("{0} \"{1}\"", dep.CompilerIdentifier, dep.String)] = path;
+                            }
                         }
                     }
                 }
