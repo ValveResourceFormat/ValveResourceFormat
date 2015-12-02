@@ -231,30 +231,60 @@ namespace ValveResourceFormat.ThirdParty
 
                     byte colorCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
 
-                    Color finalColor = new Color();
+                    int finalR = 0, finalG = 0, finalB = 0;
+
                     switch (colorCode)
                     {
                         case 0:
-                            finalColor = Color.FromArgb(finalAlpha, r0, g0, b0);
+                            finalR = r0;
+                            finalG = g0;
+                            finalB = b0;
                             break;
                         case 1:
-                            finalColor = Color.FromArgb(finalAlpha, r1, g1, b1);
+                            finalR = r1;
+                            finalG = g1;
+                            finalB = b1;
                             break;
                         case 2:
-                            finalColor = Color.FromArgb(finalAlpha, (2 * r0 + r1) / 3, (2 * g0 + g1) / 3, (2 * b0 + b1) / 3);
+                            finalR = (2 * r0 + r1) / 3;
+                            finalG = (2 * g0 + g1) / 3;
+                            finalB = (2 * b0 + b1) / 3;
                             break;
+
                         case 3:
-                            finalColor = Color.FromArgb(finalAlpha, (r0 + 2 * r1) / 3, (g0 + 2 * g1) / 3, (b0 + 2 * b1) / 3);
+                            finalR = (2 * r1 + r0) / 3;
+                            finalG = (2 * g1 + g0) / 3;
+                            finalB = (2 * b1 + b0) / 3;
                             break;
                     }
 
                     if (x + i < width)
                     {
-                        image.SetPixel(x + i, y + j, finalColor);
+                        // This converts YCoCg into RGB
+                        var s = (finalB >> 3) + 1;
+                        var co = (finalR - 128) / s;
+                        var cg = (finalG - 128) / s;
+
+                        image.SetPixel(x + i, y + j, Color.FromArgb(
+                            ClampColor(finalAlpha + co - cg),
+                            ClampColor(finalAlpha + cg),
+                            ClampColor(finalAlpha - co - cg)
+                        ));
                     }
                 }
             }
         }
         #endregion
+
+        private static int ClampColor(int a)
+        {
+            if (a > 255)
+                return 255;
+
+            if (a < 0)
+                return 0;
+
+            return a;
+        }
     }
 }
