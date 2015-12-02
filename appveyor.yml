@@ -1,6 +1,12 @@
-version: 1.0.{build}
+version: 0.0.0.{build}-AppVeyor
 os: Visual Studio 2015
 configuration: Release
+assembly_info:
+  patch: true
+  file: '**\AssemblyInfo.*'
+  assembly_version: '{version}'
+  assembly_file_version: '{version}'
+  assembly_informational_version: '{version}'
 environment:
   COVERALLS_REPO_TOKEN:
     secure: WBUIkucQ46pEHPX6LbgX1WhSEKb8E7kdl7SMJjfMn+CxUvr/oij9IKuJlSLDBT0p
@@ -12,7 +18,7 @@ build:
   verbosity: minimal
 test_script:
 - ps: >-
-    .\packages\OpenCover.4.6.166\tools\OpenCover.Console.exe -register:user -target:nunit-console.exe -register:user "-targetargs:""Tests/bin/$env:CONFIGURATION/Tests.dll"" /noshadow" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml
+    .\packages\OpenCover.4.6.166\tools\OpenCover.Console.exe -register:user -target:.\packages\NUnit.Console.3.0.1\tools\nunit3-console.exe -register:user "-targetargs:""Tests/bin/$env:CONFIGURATION/Tests.dll""" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml
 
     $coveralls = (Resolve-Path "packages/coveralls.net.*/tools/csmacnz.coveralls.exe").ToString()
 
