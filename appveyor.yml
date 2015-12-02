@@ -18,7 +18,7 @@ test_script:
 
     & $coveralls --opencover -i opencoverCoverage.xml --repoToken $env:COVERALLS_REPO_TOKEN --commitId $env:APPVEYOR_REPO_COMMIT --commitBranch $env:APPVEYOR_REPO_BRANCH --commitAuthor $env:APPVEYOR_REPO_COMMIT_AUTHOR --commitEmail $env:APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL --commitMessage $env:APPVEYOR_REPO_COMMIT_MESSAGE --jobId $env:APPVEYOR_BUILD_NUMBER --serviceName appveyor
 artifacts:
-- path: Decompiler\bin\$(configuration)\Decompiler.exe
+- path: Decompiler\bin\$(configuration)
   name: Decompiler
-- path: GUI\bin\$(configuration)\ValveResourceViewer.exe
+- path: GUI\bin\$(configuration)
   name: GUI
