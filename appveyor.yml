@@ -30,3 +30,12 @@ artifacts:
   name: Decompiler
 - path: GUI\bin\$(configuration)
   name: GUI
+deploy:
+- provider: GitHub
+  auth_token:
+    secure: X+cHjOmqN/BfH2aEQg0Z8YC6NT8V/JSfirSPwsJoTEmn41Wr/Uaw284MtmUZtBf7
+  draft: false
+  prerelease: true
+  on:
+    branch: master
+    appveyor_repo_tag: true
