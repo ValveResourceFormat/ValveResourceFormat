@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GUI.Controls;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -18,11 +19,40 @@ namespace GUI
     public partial class MainForm : Form
     {
         private ImageList ImageList;
+        private Forms.SearchForm searchForm;
 
         public MainForm()
         {
             LoadAssetTypes();
             InitializeComponent();
+
+            mainTabs.SelectedIndexChanged += (o, e) =>
+            {
+                if (mainTabs.SelectedTab != null)
+                {
+                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as Controls.TreeViewWithSearchResults;
+                    findToolStripButton.Enabled = (treeView != null);
+                }
+            };
+            
+            searchForm = new Forms.SearchForm();
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            // so we can bind keys to actions properly
+            this.KeyPreview = true;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // if the user presses CTRL + F, show the search form
+            if (keyData == (Keys.Control | Keys.F))
+            {
+                findToolStripButton.PerformClick();
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void LoadAssetTypes()
@@ -141,97 +171,21 @@ namespace GUI
                     package.Read(fileName);
                 }
 
-                var control = new TreeView();
-                control.Tag = package; //so we can access it later
-                control.Dock = DockStyle.Fill;
-                control.ImageList = ImageList;
+                // create a TreeView with search capabilities, register its events, and add it to the tab
+                var treeViewWithSearch = new GUI.Controls.TreeViewWithSearchResults(ImageList);
+                treeViewWithSearch.Dock = DockStyle.Fill;
+                treeViewWithSearch.InitializeTreeViewFromPackage("treeViewVpk", package);
+                treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
+                treeViewWithSearch.TreeNodeMouseClick += VPK_OnClick;
+                treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
+                treeViewWithSearch.ListViewItemRightClick += VPK_OnClick;
+                tab.Controls.Add(treeViewWithSearch);
 
-                //http://stackoverflow.com/a/24591871
-                TreeNode currentnode;
-
-                foreach (var filetype in package.Entries)
+                // since we're in a separate thread, invoke to update the UI
+                this.Invoke((MethodInvoker)delegate
                 {
-                    foreach (var file in filetype.Value)
-                    {
-                        currentnode = null;
-
-                        foreach (string subPath in (file.DirectoryName + Path.DirectorySeparatorChar + file.FileName + "." + filetype.Key).Split(Path.DirectorySeparatorChar))
-                        {
-                            if (currentnode == null) //Root directory
-                            {
-                                if (subPath == " ")
-                                {
-                                    continue; //root files
-                                }
-
-                                if (null == control.Nodes[subPath])
-                                {
-                                    currentnode = control.Nodes.Add(subPath, subPath);
-                                }
-                                else
-                                {
-                                    currentnode = control.Nodes[subPath];
-                                }
-                            }
-                            else //Not root directory
-                            {
-                                if (null == currentnode.Nodes[subPath])
-                                {
-                                    currentnode = currentnode.Nodes.Add(subPath, subPath);
-                                }
-                                else
-                                {
-                                    currentnode = currentnode.Nodes[subPath];
-                                }
-                            }
-
-                            var ext = Path.GetExtension(currentnode.Name);
-
-                            if (ext.Length == 0)
-                            {
-                                ext = "_folder";
-                                currentnode.Tag = file.DirectoryName; //is this enough?
-                            }
-                            else
-                            {
-                                currentnode.Tag = file; //so we can use it later
-
-                                ext = ext.Substring(1);
-
-                                if (ext.EndsWith("_c", StringComparison.Ordinal))
-                                {
-                                    ext = ext.Substring(0, ext.Length - 2);
-                                }
-
-                                if (!ImageList.Images.ContainsKey(ext))
-                                {
-                                    if (ext[0] == 'v')
-                                    {
-                                        ext = ext.Substring(1);
-
-                                        if (!ImageList.Images.ContainsKey(ext))
-                                        {
-                                            ext = "_default";
-                                        }
-                                    }
-                                    else
-                                    {
-                                        ext = "_default";
-                                    }
-                                }
-                            }
-
-                            currentnode.ImageKey = ext;
-                            currentnode.SelectedImageKey = ext;
-                        }
-                    }
-                }
-
-                control.Sort();
-                control.ExpandAll();
-                control.NodeMouseDoubleClick += VPK_OpenFile;
-                control.NodeMouseClick += VPK_OnClick;
-                tab.Controls.Add(control);
+                    findToolStripButton.Enabled = true;
+                });
             }
             else
             {
@@ -244,7 +198,6 @@ namespace GUI
                 {
                     resource.Read(fileName);
                 }
-
 
                 var resTabs = new TabControl();
                 resTabs.Dock = DockStyle.Fill;
@@ -334,7 +287,7 @@ namespace GUI
                             externalRefs.AllowUserToAddRows = false;
                             externalRefs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                             externalRefs.DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(((ResourceIntrospectionManifest)block.Value).ReferencedStructs), null);
-                            
+
                             externalRefsTab.Controls.Add(externalRefs);
                             resTabs.TabPages.Add(externalRefsTab);
                         }
@@ -386,14 +339,33 @@ namespace GUI
             return tab;
         }
 
+        /// <summary>
+        /// Opens a file based on a double clicked list view item. Does nothing if the double clicked item contains a non-TreeNode object.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void VPK_OpenFile(object sender, ListViewItemClickEventArgs e)
+        {
+            var node = e.Tag as TreeNode;
+            if (node != null)
+            {
+                OpenFileFromNode(node);
+            }
+        }
+
         private void VPK_OpenFile(object sender, TreeNodeMouseClickEventArgs e)
         {
             var node = e.Node;
+            OpenFileFromNode(node);
+        }
+
+        private void OpenFileFromNode(TreeNode node)
+        {
             //Make sure we aren't a directory!
             if (node.Tag.GetType() == typeof(PackageEntry))
             {
-                var package = e.Node.TreeView.Tag as Package;
-                var file = e.Node.Tag as PackageEntry;
+                var package = node.TreeView.Tag as Package;
+                var file = node.Tag as PackageEntry;
                 byte[] output;
                 package.ReadEntry(file, out output);
                 if (file.TypeName.EndsWith("_c") | file.TypeName == "vpk")
@@ -410,8 +382,6 @@ namespace GUI
                     Process.Start(tempPath);
                 }
             }
-
-
         }
 
         private void VPK_OnClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -420,6 +390,25 @@ namespace GUI
             if (e.Button == MouseButtons.Right)
             {
                 vpkContextMenu.Show(e.Node.TreeView, e.Location);
+            }
+        }
+
+        /// <summary>
+        /// Opens a context menu where the user right-clicked in the ListView.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void VPK_OnClick(object sender, ListViewItemClickEventArgs e)
+        {
+            var listViewItem = e.Tag as ListViewItem;
+            if (listViewItem != null)
+            {
+                var node = listViewItem.Tag as TreeNode;
+                if (node != null)
+                {
+                    node.TreeView.SelectedNode = node; //To stop it spassing out
+                    vpkContextMenu.Show(listViewItem.ListView, e.Location);
+                }
             }
         }
 
@@ -451,18 +440,45 @@ namespace GUI
                 .Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag))
                 .First()
             );
+
+            // enable/disable the search button as necessary
+            if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
+            {
+                var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as Controls.TreeViewWithSearchResults;
+                findToolStripButton.Enabled = (treeView != null);
+            }
+            else
+            {
+                findToolStripButton.Enabled = false;
+            }
         }
 
         private void extractToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var contextMenu = ((ToolStripMenuItem)sender).Owner;
-            var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
-            var node = tree.SelectedNode;
-            if (node.Tag.GetType() == typeof(PackageEntry))
+
+            Package package = null;
+            TreeNode selectedNode = null;
+
+            // the context menu can come from a TreeView or a ListView depending on where the user clicked to extract
+            // each option has a difference in where we can get the values to extract
+            if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is TreeView)
+            {
+                var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
+                selectedNode = tree.SelectedNode;
+                package = tree.Tag as Package;
+            }
+            else if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is ListView)
+            {
+                var listView = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ListView;
+                selectedNode = listView.SelectedItems[0].Tag as TreeNode;
+                package = listView.Tag as Package;
+            }
+
+            if (selectedNode.Tag.GetType() == typeof(PackageEntry))
             {
                 //We are a file
-                var file = node.Tag as PackageEntry;
-                var package = tree.Tag as Package;
+                var file = selectedNode.Tag as PackageEntry;
 
                 var dialog = new SaveFileDialog();
                 dialog.Filter = "All files (*.*)|*.*";
@@ -471,17 +487,39 @@ namespace GUI
 
                 if (userOK == DialogResult.OK)
                 {
-                    using(var stream = dialog.OpenFile())
+                    using (var stream = dialog.OpenFile())
                     {
                         byte[] output;
                         package.ReadEntry(file, out output);
                         stream.Write(output, 0, output.Length);
                     }
                 }
-            } else
+            }
+            else
             {
                 //We are a folder
                 MessageBox.Show("Folder Extraction coming Soon™");
+            }
+        }
+
+        /// <summary>
+        /// When the user clicks to search from the toolbar, open a dialog with search options. If the user clicks OK in the dialog, 
+        /// perform a search in the selected tab's TreeView for the entered value and display the results in a ListView.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void findToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DialogResult result = searchForm.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                // start searching only if the user entered non-empty string, a tab exists, and a tab is selected
+                string searchText = searchForm.SearchText;
+                if (!String.IsNullOrEmpty(searchText) && mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
+                {
+                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as Controls.TreeViewWithSearchResults;
+                    treeView.SearchAndFillResults(searchText, searchForm.IsCaseSensitive, searchForm.SelectedSearchType);
+                }
             }
         }
     }
