@@ -45,6 +45,13 @@
     <Compile Include="Resource\Resource.cs" />
     <Compile Include="Resource\ResourceTypes\Model.cs" />
     <Compile Include="Resource\ResourceTypes\NTRO.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\CTransform.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\Matrix3x4.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\NTROArray.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\NTROStruct.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\NTROValue.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\Vector4.cs" />
+    <Compile Include="Resource\ResourceTypes\NTROSerialization\Vector3.cs" />
     <Compile Include="Resource\ResourceTypes\Panorama.cs" />
     <Compile Include="Resource\Blocks\ResourceData.cs" />
     <Compile Include="Resource\Blocks\ResourceEditInfo.cs" />
