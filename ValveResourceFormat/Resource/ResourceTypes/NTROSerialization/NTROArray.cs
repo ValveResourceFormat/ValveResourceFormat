@@ -11,11 +11,14 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
     class NTROArray : NTROValue, IList<NTROValue>
     {
         private NTROValue[] contents;
+        public bool IsIndirection { get; private set; }
 
-        public NTROArray(DataType Type, int count, bool pointer = false)
+        public NTROArray(DataType Type, int count, bool pointer = false, bool isIndirection = false)
         {
             this.Type = Type; //from NTROValue
             this.pointer = pointer; //from NTROValue
+
+            IsIndirection = IsIndirection;
 
             contents = new NTROValue[count];
         }

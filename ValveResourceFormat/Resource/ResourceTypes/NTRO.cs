@@ -135,7 +135,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (field.Count > 0 || field.Indirections.Count > 0)
             {
 
-                NTROSerialization.NTROArray ntroValues = new NTROSerialization.NTROArray(field.Type, (int)count, pointer);
+                NTROSerialization.NTROArray ntroValues = new NTROSerialization.NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
                 for (var i = 0; i < count; i++)
                 {
                     ntroValues[i] = ReadField(field, multiple, pointer);
@@ -175,7 +175,6 @@ namespace ValveResourceFormat.ResourceTypes
                     return new NTROSerialization.NTROValue<Byte>(field.Type, Reader.ReadByte(), pointer);
 
                 case DataType.Boolean:
-                    return new NTROSerialization.NTROValue<Boolean>(field.Type, Convert.ToBoolean(Reader.ReadByte()), pointer);
 
                 case DataType.Int16:
                     return new NTROSerialization.NTROValue<Int16>(field.Type, Reader.ReadInt16(), pointer);

@@ -37,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                 else if (array != null)
                 {
                     // TODO: This is matching Valve's incosistency
-                    if (array.Type == DataType.Byte && array.Count > 0)
+                    if (array.Type == DataType.Byte && array.Count > 0 && array.IsIndirection)
                     {
                         Writer.WriteLine("{0}[{2}] {1} =", ValveDataType(array.Type), entry.Key, array.Count);
                     }
@@ -49,7 +49,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                     Writer.Indent++;
                     foreach (var innerEntry in array)
                     {
-                        if (array.Type == DataType.Byte)
+                        if (array.Type == DataType.Byte && array.IsIndirection)
                         {
                             Writer.WriteLine("{0:X2}", (innerEntry as NTROValue<byte>).value);
                         }
