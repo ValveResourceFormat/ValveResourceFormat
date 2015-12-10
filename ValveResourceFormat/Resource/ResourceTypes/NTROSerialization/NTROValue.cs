@@ -49,11 +49,10 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                 case DataType.Byte: // TODO: Valve print it as hex, why?
                     Writer.WriteLine("0x{0:X2}", (value as byte?));
                     break;
-
                 case DataType.Boolean:
-                    Writer.WriteLine((value as byte?) == 1 ? "true" : "false");
+                    //Booleans ToString() returns "True" and "False", we want "true" and "false"
+                    Writer.WriteLine(value.ToString().ToLower());
                     break;
-
                 case DataType.UInt16: // TODO: Valve print it as hex, why?
                     Writer.WriteLine("0x{0:X4}", (value as UInt16?));
                     break;

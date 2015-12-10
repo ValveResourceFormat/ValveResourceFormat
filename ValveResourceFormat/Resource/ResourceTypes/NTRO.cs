@@ -175,6 +175,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return new NTROSerialization.NTROValue<Byte>(field.Type, Reader.ReadByte(), pointer);
 
                 case DataType.Boolean:
+                    return new NTROSerialization.NTROValue<Boolean>(field.Type, (Reader.ReadByte() == 1 ? true : false), pointer);
 
                 case DataType.Int16:
                     return new NTROSerialization.NTROValue<Int16>(field.Type, Reader.ReadInt16(), pointer);
