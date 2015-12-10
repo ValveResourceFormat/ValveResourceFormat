@@ -55,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            return Encoding.UTF8.GetString(Data);
+            return Encoding.UTF8.GetString(Data).Replace("\n", Environment.NewLine); //make sure panorama is new lines
         }
     }
 }

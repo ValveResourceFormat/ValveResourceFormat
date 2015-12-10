@@ -314,11 +314,10 @@ namespace GUI
                     var tab2 = new TabPage(block.Key.ToString());
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-
+                    control.Text = block.Value.ToString();
                     try
                     {
-                        control.Text = block.Value.ToString().Replace("\r", ""); //Prevent copy+paste with double new line
-                        control.Text = block.Value.ToString().Replace("\n", Environment.NewLine); //make sure panorama is new lines
+                        control.Text = block.Value.ToString();
                     }
                     catch (Exception e)
                     {
