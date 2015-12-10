@@ -37,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                 else if (array != null)
                 {
                     // TODO: This is matching Valve's incosistency
-                    if (array.Type == DataType.Byte && array.Count > 0 && array.IsIndirection)
+                    if (array.Type == DataType.Byte && array.IsIndirection)
                     {
                         Writer.WriteLine("{0}[{2}] {1} =", ValveDataType(array.Type), entry.Key, array.Count);
                     }

@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             this.Type = Type; //from NTROValue
             this.pointer = pointer; //from NTROValue
 
-            IsIndirection = IsIndirection;
+            IsIndirection = isIndirection;
 
             contents = new NTROValue[count];
         }
