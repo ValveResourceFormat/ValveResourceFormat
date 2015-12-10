@@ -100,7 +100,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (offset == 0)
                     {
-                        structEntry.Add(field.FieldName, new NTROSerialization.NTROValue<byte?>(DataType.Byte, (byte?)null, true)); //being byte shouldn't matter
+                        structEntry.Add(field.FieldName, new NTROSerialization.NTROValue<byte?>(field.Type, (byte?)null, true)); //being byte shouldn't matter
 
                         return;
                     }
