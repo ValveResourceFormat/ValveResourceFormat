@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
-    class NTROStruct : IDictionary
+    public class NTROStruct : IDictionary
     {
         private Dictionary<string, NTROValue> contents;
         public string name { get; private set; }
@@ -103,16 +103,26 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         }
 
 
-        public object this[object key]
+        public NTROValue this[string key]
         {
             get
             {
-                return ((IDictionary)contents)[key];
+                return contents[key];
             }
 
             set
             {
-                ((IDictionary)contents)[key] = value;
+                contents[key] = value;
+            }
+        }
+        public object this[object key] {
+            get
+            {
+                return ((IDictionary)contents)[key];
+            }
+            set
+            {
+
             }
         }
 
@@ -120,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).Count;
+                return contents.Count;
             }
         }
 
@@ -152,7 +162,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).Keys;
+                return contents.Keys;
             }
         }
 
@@ -168,7 +178,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).Values;
+                return contents.Values;
             }
         }
 
@@ -179,7 +189,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 
         public void Clear()
         {
-            ((IDictionary)contents).Clear();
+            contents.Clear();
         }
 
         public bool Contains(object key)

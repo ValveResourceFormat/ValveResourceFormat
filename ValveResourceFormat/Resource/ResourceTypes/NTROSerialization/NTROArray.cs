@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
-    class NTROArray : NTROValue, IList<NTROValue>
+    public class NTROArray : NTROValue, IList<NTROValue>
     {
         private NTROValue[] contents;
         public bool IsIndirection { get; private set; }

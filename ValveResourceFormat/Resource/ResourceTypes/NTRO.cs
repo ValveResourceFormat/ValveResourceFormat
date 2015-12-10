@@ -12,24 +12,18 @@ namespace ValveResourceFormat.ResourceTypes
         private BinaryReader Reader;
         private Resource Resource;
         private IndentedTextWriter Writer;
-        private NTROSerialization.NTROStruct Output;
+        public NTROSerialization.NTROStruct Output { get; private set; }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             Reader = reader;
             Resource = resource;
 
-            using (var output = new StringWriter())
-            using (var writer = new IndentedTextWriter(output, "\t"))
+            foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
             {
-                Writer = writer;
+                Output = ReadStructure(refStruct, this.Offset);
 
-                foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
-                {
-                    Output = ReadStructure(refStruct, this.Offset);
-
-                    break;
-                }
+                break;
             }
         }
 
