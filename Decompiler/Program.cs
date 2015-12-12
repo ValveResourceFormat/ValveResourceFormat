@@ -361,6 +361,7 @@ namespace Decompiler
                 DumpVPK(package, "vxml_c", "xml");
                 DumpVPK(package, "vjs_c", "js");
                 DumpVPK(package, "vcss_c", "css");
+                DumpVPK(package, "vsndevts_c", "vsndevts");
 
                 DumpVPK(package, "txt", "txt");
                 DumpVPK(package, "cfg", "cfg");
@@ -418,8 +419,16 @@ namespace Decompiler
                         {
                             resource.Read(memory);
                         }
-
-                        output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                        switch(type)
+                        {
+                            case "vsndevts_c":
+                                output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                                break;
+                            default:
+                                output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                break;
+                        }
+                        
                     }
                 }
 
