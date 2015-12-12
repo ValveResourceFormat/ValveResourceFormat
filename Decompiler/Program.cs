@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Blocks;
+using System.Text;
 
 namespace Decompiler
 {
@@ -206,6 +207,10 @@ namespace Decompiler
                                 data = ms.ToArray();
                             }
 
+                            break;
+                        case ResourceType.SoundEventScript:
+                            extension = "vsndevts";
+                            data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
                             break;
 
                         default:

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    class SoundEventScript : NTRO
+    public class SoundEventScript : NTRO
     {
         public Dictionary<string, string> soundEventScript; //TODO: be Dictionary<string, SomeKVObject>
         public override void Read(BinaryReader reader, Resource resource)
