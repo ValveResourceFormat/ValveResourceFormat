@@ -314,10 +314,13 @@ namespace GUI
                     var tab2 = new TabPage(block.Key.ToString());
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = block.Value.ToString();
                     try
                     {
                         control.Text = block.Value.ToString();
+                        if (resource.ResourceType == ResourceType.Panorama)
+                        {
+                            control.Text = control.Text.Replace("\n", Environment.NewLine); //make sure panorama is new lines
+                        }
                     }
                     catch (Exception e)
                     {

@@ -24,6 +24,11 @@ namespace ValveResourceFormat.ResourceTypes
                 var sound = ((NTROSerialization.NTROValue<NTROSerialization.NTROStruct>)entry).value;
                 var soundName = ((NTROSerialization.NTROValue<string>) sound["m_SoundName"]).value;
                 var soundValue = ((NTROSerialization.NTROValue<string>) sound["m_OperatorsKV"]).value.Replace("\n", Environment.NewLine); //make sure we have new lines;
+                if (soundEventScript.ContainsKey(soundName))
+                {
+                    //Valve have duplicates, assume last is correct?
+                    soundEventScript.Remove(soundName);
+                }
                 soundEventScript.Add(soundName, soundValue);
             }
         }
