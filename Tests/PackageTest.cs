@@ -79,6 +79,8 @@ namespace Tests
                 Assert.Contains("jpg", package.Entries.Keys);
                 Assert.Contains("proto", package.Entries.Keys);
 
+                var flatEntries = new Dictionary<string, PackageEntry>();
+
                 using (var sha1 = new SHA1CryptoServiceProvider())
                 {
                     var data = new Dictionary<string, string>();
@@ -89,8 +91,9 @@ namespace Tests
                         {
                             Assert.AreEqual(a.Key, b.TypeName);
 
-                            byte[] entry;
+                            flatEntries.Add(b.FileName, b);
 
+                            byte[] entry;
                             package.ReadEntry(b, out entry);
 
                             data.Add(b.FileName + '.' + b.TypeName, BitConverter.ToString(sha1.ComputeHash(entry)).Replace("-", ""));
@@ -102,6 +105,10 @@ namespace Tests
                     Assert.AreEqual("2EFFCB09BE81E8BEE88CB7BA8C18E87D3E1168DB", data["steammessages_base.proto"]);
                     Assert.AreEqual("22741F66442A4DC880725D2CC019E6C9202FD70C", data["steammessages_clientserver.proto"]);
                 }
+
+                Assert.AreEqual(flatEntries["kitten"].TotalLength, 16361);
+                Assert.AreEqual(flatEntries["steammessages_base"].TotalLength, 2563);
+                Assert.AreEqual(flatEntries["steammessages_clientserver"].TotalLength, 39177);
             }
         }
     }
