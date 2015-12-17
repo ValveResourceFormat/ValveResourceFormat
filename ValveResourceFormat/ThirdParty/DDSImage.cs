@@ -15,6 +15,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.ThirdParty
 {
@@ -149,7 +150,7 @@ namespace ValveResourceFormat.ThirdParty
             uint a3 = (uint)blockStorage[6] << 16;
             uint a4 = (uint)blockStorage[7] << 24;
             uint alphaCode1 = a1 | a2 | a3 | a4;
-            
+
             ushort alphaCode2 = (ushort)(blockStorage[2] | (blockStorage[3] << 8));
 
             ushort color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
@@ -229,47 +230,76 @@ namespace ValveResourceFormat.ThirdParty
                         }
                     }
 
-                    byte colorCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
-
+                    byte positionCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
                     int finalR = 0, finalG = 0, finalB = 0;
 
-                    switch (colorCode)
+                    if (color0 > color1)
                     {
-                        case 0:
-                            finalR = r0;
-                            finalG = g0;
-                            finalB = b0;
-                            break;
-                        case 1:
-                            finalR = r1;
-                            finalG = g1;
-                            finalB = b1;
-                            break;
-                        case 2:
-                            finalR = (2 * r0 + r1) / 3;
-                            finalG = (2 * g0 + g1) / 3;
-                            finalB = (2 * b0 + b1) / 3;
-                            break;
-
-                        case 3:
-                            finalR = (2 * r1 + r0) / 3;
-                            finalG = (2 * g1 + g0) / 3;
-                            finalB = (2 * b1 + b0) / 3;
-                            break;
+                        switch (positionCode)
+                        {
+                            case 0:
+                                finalR = r0;
+                                finalG = g0;
+                                finalB = b0;
+                                break;
+                            case 1:
+                                finalR = r1;
+                                finalG = g1;
+                                finalB = b1;
+                                break;
+                            case 2:
+                                finalR = (2 * r0 + r1) / 3;
+                                finalG = (2 * g0 + g1) / 3;
+                                finalB = (2 * b0 + b1) / 3;
+                                break;
+                            case 3:
+                                finalR = (r0 + 2 * r1) / 3;
+                                finalG = (g0 + 2 * g1) / 3;
+                                finalB = (b0 + 2 * b1) / 3;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        switch (positionCode)
+                        {
+                            case 0:
+                                finalR = r0;
+                                finalG = g0;
+                                finalB = b0;
+                                break;
+                            case 1:
+                                finalR = r1;
+                                finalG = g1;
+                                finalB = b1;
+                                break;
+                            case 2:
+                                finalR = (r0 + r1) / 2;
+                                finalG = (g0 + g1) / 2;
+                                finalB = (b0 + b1) / 2;
+                                break;
+                            case 3:
+                                finalR = 0;
+                                finalG = 0;
+                                finalB = 0;
+                                break;
+                        }
                     }
 
                     if (x + i < width)
                     {
-                        // This converts YCoCg into RGB
-                        var s = (finalB >> 3) + 1;
-                        var co = (finalR - 128) / s;
-                        var cg = (finalG - 128) / s;
 
-                        image.SetPixel(x + i, y + j, Color.FromArgb(
-                            ClampColor(finalAlpha + co - cg),
-                            ClampColor(finalAlpha + cg),
-                            ClampColor(finalAlpha - co - cg)
-                        ));
+                        if (finalAlpha > 0) //Straighten alpha
+                        {
+                            float multiple = 255f / finalAlpha;
+                            finalR = ClampColor((int)(finalR * multiple));
+                            finalG = ClampColor((int)(finalG * multiple));
+                            finalB = ClampColor((int)(finalB * multiple));
+                        }
+
+                        Color finalColor = Color.FromArgb(finalAlpha, finalR, finalG, finalB);
+
+                        image.SetPixel(x + i, y + j, finalColor);
                     }
                 }
             }
