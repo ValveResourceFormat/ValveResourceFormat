@@ -172,6 +172,16 @@ namespace ValveKV
                 KVObject value = objStack.Pop();
                 objStack.Peek().AddProperty(value.key, new KVValue(typeof(KVObject),value));
             }
+            //Multiline string opening
+            else if (c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"')
+            {
+                stateStack.Pop();
+                stateStack.Push(State.VALUE_STRING_MULTI);
+                currentString.Clear();
+
+                //Skip to the start of the string
+                index += 2;
+            }
             //String opening
             else if (c == '"')
             {
@@ -180,8 +190,8 @@ namespace ValveKV
                 currentString.Clear();
             }
             //Booleans
-            else if ((c == 'f' && ( fileStream[index+1] == 'a' && fileStream[index+2] == 'l' && fileStream[index+3] == 's' && fileStream[index+4] == 'e' )) 
-                || (c == 't' && (fileStream[index+1] == 'r' && fileStream[index+2] == 'u' && fileStream[index+3] == 'e')))
+            else if ((c == 'f' && (fileStream[index + 1] == 'a' && fileStream[index + 2] == 'l' && fileStream[index + 3] == 's' && fileStream[index + 4] == 'e'))
+                || (c == 't' && (fileStream[index + 1] == 'r' && fileStream[index + 2] == 'u' && fileStream[index + 3] == 'e')))
             {
                 stateStack.Pop();
                 stateStack.Push(State.VALUE_BOOL);
@@ -257,23 +267,12 @@ namespace ValveKV
         //Read a string value
         private static void ReadValueString(char c)
         {
-            if (c == '"')
+            if (c == '"' && fileStream[index-1] != '\\')
             {
-                //Multiline string detected
-                if (currentString.ToString() == "\"")
-                {
-                    stateStack.Pop();
-                    stateStack.Push(State.VALUE_STRING_MULTI);
-                    currentString.Clear();
-                    return;
-                }
                 //String ending found
-                else if (currentString.Length > 0)
-                {
-                    stateStack.Pop();
-                    objStack.Peek().AddProperty(currentName, new KVValue(typeof(String), currentString.ToString()));
-                    return;
-                }
+                stateStack.Pop();
+                objStack.Peek().AddProperty(currentName, new KVValue(typeof(String), currentString.ToString()));
+                return;
             }
 
             currentString.Append(c);
@@ -283,10 +282,13 @@ namespace ValveKV
         private static void ReadValueStringMulti(char c)
         {
             //Check for ending
-            if (c == '"' && currentString.ToString().Substring(currentString.Length - 2) == "\"\"")
+            if (c == '"' && c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"' && fileStream[index-1] != '\\')
             {
                 stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(typeof(String), currentString.ToString().Substring(0, currentString.Length - 2)));
+                objStack.Peek().AddProperty(currentName, new KVValue(typeof(String), currentString.ToString()));
+
+                //Skip to end
+                index += 2;
                 return;
             }
 
