@@ -183,7 +183,7 @@ namespace ValveResourceFormat.KeyValues
                     break;
                 case KVType.STRING_MULTI:
                     stringBuilder.Append("\"\"\"\n");
-                    stringBuilder.Append(EscapeUnescaped((string)value, '"'));
+                    stringBuilder.Append((string)value);
                     stringBuilder.Append("\n\"\"\"");
                     break;
                 case KVType.BOOLEAN:
