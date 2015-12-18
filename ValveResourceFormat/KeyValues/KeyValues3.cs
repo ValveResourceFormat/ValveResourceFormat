@@ -35,7 +35,6 @@ namespace ValveResourceFormat.KeyValues
             VALUE_STRING,
             VALUE_STRING_MULTI,
             VALUE_NUMBER,
-            VALUE_BOOL,
             VALUE_FLAGGED,
             COMMENT,
             COMMENT_BLOCK
@@ -43,13 +42,15 @@ namespace ValveResourceFormat.KeyValues
 
         private class Parser
         {
-            public char[] fileStream;
-            public int index;
+            public StreamReader fileStream;
 
             public KVObject root = null;
 
             public String currentName;
             public StringBuilder currentString;
+
+            public char previousChar;
+            public Queue<char> charBuffer;
 
             public Stack<KVObject> objStack;
             public Stack<State> stateStack;
@@ -64,9 +65,10 @@ namespace ValveResourceFormat.KeyValues
                 root = new KVObject("root");
                 objStack.Push(root);
 
-                currentString = new StringBuilder();
+                previousChar = '\0';
+                charBuffer = new Queue<char>();
 
-                index = 0;
+                currentString = new StringBuilder();
             }
         }
 
@@ -74,16 +76,20 @@ namespace ValveResourceFormat.KeyValues
 
         public static KVFile ParseKVFile(string filename)
         {
+            return ParseKVFile(new FileStream(filename, FileMode.Open, FileAccess.Read));
+        }
+
+        public static KVFile ParseKVFile(Stream fileStream)
+        {
             var parser = new Parser();
 
-            //Open stream
-            parser.fileStream = File.ReadAllText(filename).ToCharArray();
+            //Open stream reader
+            parser.fileStream = new StreamReader(fileStream);
 
             char c;
-            while (parser.index < parser.fileStream.Length)
+            while (!parser.fileStream.EndOfStream)
             {
-                //Read character
-                c = parser.fileStream[parser.index];
+                c = NextChar(parser);
 
                 //Do something depending on the current state
                 switch (parser.stateStack.Peek())
@@ -106,9 +112,6 @@ namespace ValveResourceFormat.KeyValues
                     case State.VALUE_STRING_MULTI:
                         ReadValueStringMulti(c, parser);
                         break;
-                    case State.VALUE_BOOL:
-                        ReadValueBool(c, parser);
-                        break;
                     case State.VALUE_NUMBER:
                         ReadValueNumber(c, parser);
                         break;
@@ -126,8 +129,7 @@ namespace ValveResourceFormat.KeyValues
                         break;
                 }
 
-                //Advance read index
-                parser.index++;
+                parser.previousChar = c;
             }
 
             return new KVFile(parser.root.Properties.ElementAt(0).Key, (KVObject)parser.root.Properties.ElementAt(0).Value.Value);
@@ -182,33 +184,48 @@ namespace ValveResourceFormat.KeyValues
                 KVObject value = parser.objStack.Pop();
                 parser.objStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
             }
-            //Multiline string opening
-            else if (c == '"' && parser.fileStream[parser.index + 1] == '"' && parser.fileStream[parser.index + 2] == '"')
-            {
-                parser.stateStack.Pop();
-                parser.stateStack.Push(State.VALUE_STRING_MULTI);
-                parser.currentString.Clear();
-
-                //Skip to the start of the string
-                parser.index += 2;
-            }
             //String opening
             else if (c == '"')
             {
-                parser.stateStack.Pop();
-                parser.stateStack.Push(State.VALUE_STRING);
-                parser.currentString.Clear();
+                //Check if a multistring or single string was found
+                string next = PeekString(parser, 4);
+                if (next.Contains("\"\"\n") || next == "\"\"\r\n")
+                {
+                    //Skip the next two "'s
+                    SkipChars(parser, 2);
+
+                    parser.stateStack.Pop();
+                    parser.stateStack.Push(State.VALUE_STRING_MULTI);
+                    parser.currentString.Clear();
+                }
+                else
+                {
+                    parser.stateStack.Pop();
+                    parser.stateStack.Push(State.VALUE_STRING);
+                    parser.currentString.Clear();
+                }
             }
-            //Booleans
-            else if ((c == 'f' && (parser.fileStream[parser.index + 1] == 'a' && parser.fileStream[parser.index + 2] == 'l' &&
-                        parser.fileStream[parser.index + 3] == 's' && parser.fileStream[parser.index + 4] == 'e'))
-                    || (c == 't' && (parser.fileStream[parser.index + 1] == 'r' && parser.fileStream[parser.index + 2] == 'u' &&
-                        parser.fileStream[parser.index + 3] == 'e')))
+            //Boolean false
+            else if (c == 'f' && PeekString(parser, 4) == "alse")
             {
                 parser.stateStack.Pop();
-                parser.stateStack.Push(State.VALUE_BOOL);
-                parser.currentString.Clear();
-                parser.currentString.Append(c);
+                
+                //Can directly be added
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.BOOLEAN, false));
+
+                //Skip next characters
+                SkipChars(parser, 4);
+            }
+            //Boolean true
+            else if (c == 'f' && PeekString(parser, 3) == "rue")
+            {
+                parser.stateStack.Pop();
+
+                //Can directly be added
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.BOOLEAN, true));
+
+                //Skip next characters
+                SkipChars(parser, 3);
             }
             //Number
             else if (numerals.Contains(c))
@@ -279,7 +296,7 @@ namespace ValveResourceFormat.KeyValues
         //Read a string value
         private static void ReadValueString(char c, Parser parser)
         {
-            if (c == '"' && parser.fileStream[parser.index - 1] != '\\')
+            if (c == '"' && parser.previousChar != '\\')
             {
                 //String ending found
                 parser.stateStack.Pop();
@@ -294,7 +311,8 @@ namespace ValveResourceFormat.KeyValues
         private static void ReadValueStringMulti(char c, Parser parser)
         {
             //Check for ending
-            if (c == '"' && c == '"' && parser.fileStream[parser.index + 1] == '"' && parser.fileStream[parser.index + 2] == '"' && parser.fileStream[parser.index - 1] != '\\')
+            string next = PeekString(parser, 2);
+            if (c == '"' && next == "\"\"" && parser.previousChar != '\\')
             {
                 //Check for starting and trailing linebreaks
                 string multilineStr = parser.currentString.ToString();
@@ -330,23 +348,8 @@ namespace ValveResourceFormat.KeyValues
                 parser.stateStack.Pop();
                 parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.STRING_MULTI, multilineStr));
 
-                //Skip to end
-                parser.index += 2;
-                return;
-            }
-
-            parser.currentString.Append(c);
-        }
-
-        //Read a boolean variable
-        private static void ReadValueBool(char c, Parser parser)
-        {
-            //Stop reading once the end of true or false is reached
-            if (c == 'e')
-            {
-                parser.currentString.Append(c);
-                parser.stateStack.Pop();
-                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.BOOLEAN, parser.currentString.ToString() == "true" ? true : false));
+                //Skip to end of the block
+                SkipChars(parser, 2);
                 return;
             }
 
@@ -451,6 +454,48 @@ namespace ValveResourceFormat.KeyValues
             }
 
             parser.currentString.Append(c);
+        }
+
+        //Get the next char from the filestream
+        private static char NextChar(Parser parser)
+        {
+            //Check if there are characters in the buffer, otherwise read a new one
+            if (parser.charBuffer.Count > 0)
+            {
+                return parser.charBuffer.Dequeue();
+            }
+            else
+            {
+                return (char)parser.fileStream.Read();
+            }
+        }
+
+        //Skip the next X characters in the filestream
+        private static void SkipChars(Parser parser, int num)
+        {
+            for (int i = 0; i < num; i++)
+            {
+                NextChar(parser);
+            }
+        }
+
+        //Utility function
+        private static string PeekString(Parser parser, int length)
+        {
+            char[] buffer = new char[length];            
+            for (int i = 0; i < length; i++)
+            {
+                if (i < parser.charBuffer.Count)
+                {
+                    buffer[i] = parser.charBuffer.ElementAt(i);
+                }
+                else
+                {
+                    buffer[i] = (char)parser.fileStream.Read();
+                    parser.charBuffer.Enqueue(buffer[i]);
+                }
+            }
+            return String.Join("", buffer);
         }
     }
 
