@@ -41,105 +41,114 @@ namespace ValveResourceFormat.KeyValues
             COMMENT_BLOCK
         }
 
-        private static char[] fileStream;
-        private static int index;
+        private class Parser
+        {
+            public char[] fileStream;
+            public int index;
 
-        private static KVObject root = null;
+            public KVObject root = null;
 
-        private static String currentName;
-        private static StringBuilder currentString;
+            public String currentName;
+            public StringBuilder currentString;
 
-        private static Stack<KVObject> objStack;
-        private static Stack<State> stateStack;
+            public Stack<KVObject> objStack;
+            public Stack<State> stateStack;
+
+            public Parser()
+            {
+                //Initialise datastructures
+                objStack = new Stack<KVObject>();
+                stateStack = new Stack<State>();
+                stateStack.Push(State.HEADER);
+
+                root = new KVObject("root");
+                objStack.Push(root);
+
+                currentString = new StringBuilder();
+
+                index = 0;
+            }
+        }
 
         private const String numerals = "-0123456789.";
 
         public static KVFile ParseKVFile(string filename)
         {
-            //Initialise datastructures
-            objStack = new Stack<KVObject>();
-            stateStack = new Stack<State>();
-            stateStack.Push(State.HEADER);
-
-            root = new KVObject("root");
-            objStack.Push(root);
-
-            currentString = new StringBuilder();
-
+            var parser = new Parser();
+            
             //Open stream
-            fileStream = File.ReadAllText(filename).ToCharArray();
-            index = 0;
+            parser.fileStream = File.ReadAllText(filename).ToCharArray();
 
             char c;
-            while (index < fileStream.Length)
+            while (parser.index < parser.fileStream.Length)
             {
                 //Read character
-                c = fileStream[index];
+                c = parser.fileStream[parser.index];
 
                 //Do something depending on the current state
-                switch (stateStack.Peek())
+                switch (parser.stateStack.Peek())
                 {
                     case State.HEADER:
-                        ReadHeader(c);
+                        ReadHeader(c, parser);
                         break;
                     case State.PROP_NAME:
-                        ReadPropName(c);
+                        ReadPropName(c, parser);
                         break;
                     case State.SEEK_VALUE:
-                        SeekValue(c);
+                        SeekValue(c, parser);
                         break;
                     case State.VALUE_STRUCT:
-                        ReadValueStruct(c);
+                        ReadValueStruct(c, parser);
                         break;
                     case State.VALUE_STRING:
-                        ReadValueString(c);
+                        ReadValueString(c, parser);
                         break;
                     case State.VALUE_STRING_MULTI:
-                        ReadValueStringMulti(c);
+                        ReadValueStringMulti(c, parser);
                         break;
                     case State.VALUE_BOOL:
-                        ReadValueBool(c);
+                        ReadValueBool(c, parser);
                         break;
                     case State.VALUE_NUMBER:
-                        ReadValueNumber(c);
+                        ReadValueNumber(c, parser);
                         break;
                     case State.VALUE_ARRAY:
-                        ReadValueArray(c);
+                        ReadValueArray(c, parser);
                         break;
                     case State.VALUE_FLAGGED:
-                        ReadValueFlagged(c);
+                        ReadValueFlagged(c, parser);
                         break;
                     case State.COMMENT:
-                        ReadComment(c);
+                        ReadComment(c, parser);
                         break;
                     case State.COMMENT_BLOCK:
-                        ReadCommentBlock(c);
+                        ReadCommentBlock(c, parser);
                         break;
                 }
 
                 //Advance read index
-                index++;
+                parser.index++;
             }
 
-            return new KVFile(root.Properties.ElementAt(0).Key, (KVObject)root.Properties.ElementAt(0).Value.Value);
+            return new KVFile(parser.root.Properties.ElementAt(0).Key, (KVObject)parser.root.Properties.ElementAt(0).Value.Value);
         }
 
         //header state
-        private static void ReadHeader(char c)
+        private static void ReadHeader(char c, Parser parser)
         {
-            currentString.Append(c);
+            parser.currentString.Append(c);
 
             //Read until --> is encountered
-            if (c == '>' && currentString.ToString().Substring(currentString.Length - 3) == "-->")
+            if (c == '>' && parser.currentString.ToString().Substring(parser.currentString.Length - 3) == "-->")
             {
-                stateStack.Pop();
-                stateStack.Push(State.SEEK_VALUE);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.SEEK_VALUE);
                 return;
             }
         }
 
         //Seeking value state
-        private static void SeekValue(char c)
+        private static void SeekValue(char c, Parser parser)
         {
             //Ignore whitespace
             if (Char.IsWhiteSpace(c) || c == '=')
@@ -150,90 +159,92 @@ namespace ValveResourceFormat.KeyValues
             //Check struct opening
             if (c == '{')
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_STRUCT);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_STRUCT);
 
-                objStack.Push(new KVObject(currentString.ToString()));
+                parser.objStack.Push(new KVObject(parser.currentString.ToString()));
             }
             //Check for array opening
             else if (c == '[')
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_ARRAY);
-                stateStack.Push(State.SEEK_VALUE);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_ARRAY);
+                parser.stateStack.Push(State.SEEK_VALUE);
 
-                objStack.Push(new KVObject(currentString.ToString(), true));
+                parser.objStack.Push(new KVObject(parser.currentString.ToString(), true));
             }
             //Check for array closing
             else if (c == ']')
             {
-                stateStack.Pop();
-                stateStack.Pop();
+                parser.stateStack.Pop();
+                parser.stateStack.Pop();
 
-                KVObject value = objStack.Pop();
-                objStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
+                KVObject value = parser.objStack.Pop();
+                parser.objStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
             }
             //Multiline string opening
-            else if (c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"')
+            else if (c == '"' && parser.fileStream[parser.index + 1] == '"' && parser.fileStream[parser.index + 2] == '"')
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_STRING_MULTI);
-                currentString.Clear();
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_STRING_MULTI);
+                parser.currentString.Clear();
 
                 //Skip to the start of the string
-                index += 2;
+                parser.index += 2;
             }
             //String opening
             else if (c == '"')
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_STRING);
-                currentString.Clear();
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_STRING);
+                parser.currentString.Clear();
             }
             //Booleans
-            else if ((c == 'f' && (fileStream[index + 1] == 'a' && fileStream[index + 2] == 'l' && fileStream[index + 3] == 's' && fileStream[index + 4] == 'e'))
-                || (c == 't' && (fileStream[index + 1] == 'r' && fileStream[index + 2] == 'u' && fileStream[index + 3] == 'e')))
+            else if ((c == 'f' && (parser.fileStream[parser.index + 1] == 'a' && parser.fileStream[parser.index + 2] == 'l' &&
+                        parser.fileStream[parser.index + 3] == 's' && parser.fileStream[parser.index + 4] == 'e'))
+                    || (c == 't' && (parser.fileStream[parser.index + 1] == 'r' && parser.fileStream[parser.index + 2] == 'u' && 
+                        parser.fileStream[parser.index + 3] == 'e')))
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_BOOL);
-                currentString.Clear();
-                currentString.Append(c);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_BOOL);
+                parser.currentString.Clear();
+                parser.currentString.Append(c);
             }
             //Number
             else if (numerals.Contains(c))
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_NUMBER);
-                currentString.Clear();
-                currentString.Append(c);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_NUMBER);
+                parser.currentString.Clear();
+                parser.currentString.Append(c);
             }
             //Flagged resource
             else
             {
-                stateStack.Pop();
-                stateStack.Push(State.VALUE_FLAGGED);
-                currentString.Clear();
-                currentString.Append(c);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.VALUE_FLAGGED);
+                parser.currentString.Clear();
+                parser.currentString.Append(c);
             }
         }
 
         //Reading a property name
-        private static void ReadPropName(char c)
+        private static void ReadPropName(char c, Parser parser)
         {
             //Stop once whitespace is encountered
             if (Char.IsWhiteSpace(c))
             {
-                stateStack.Pop();
-                stateStack.Push(State.SEEK_VALUE);
-                currentName = currentString.ToString();
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.SEEK_VALUE);
+                parser.currentName = parser.currentString.ToString();
                 return;
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
 
         //Read a structure
-        private static void ReadValueStruct(char c)
+        private static void ReadValueStruct(char c, Parser parser)
         {
             //Ignore whitespace
             if (Char.IsWhiteSpace(c))
@@ -244,88 +255,88 @@ namespace ValveResourceFormat.KeyValues
             //Catch comments
             if (c == '/')
             {
-                stateStack.Push(State.COMMENT);
-                currentString.Clear();
-                currentString.Append(c);
+                parser.stateStack.Push(State.COMMENT);
+                parser.currentString.Clear();
+                parser.currentString.Append(c);
                 return;
             }
 
             //Check for the end of the structure
             if (c == '}')
             {
-                KVObject value = objStack.Pop();
-                objStack.Peek().AddProperty(value.Key, new KVValue(KVType.OBJECT, value));
-                stateStack.Pop();
+                KVObject value = parser.objStack.Pop();
+                parser.objStack.Peek().AddProperty(value.Key, new KVValue(KVType.OBJECT, value));
+                parser.stateStack.Pop();
                 return;
             }
 
             //Start looking for the next property name
-            stateStack.Push(State.PROP_NAME);
-            currentString.Clear();
-            currentString.Append(c);
+            parser.stateStack.Push(State.PROP_NAME);
+            parser.currentString.Clear();
+            parser.currentString.Append(c);
         }
 
         //Read a string value
-        private static void ReadValueString(char c)
+        private static void ReadValueString(char c, Parser parser)
         {
-            if (c == '"' && fileStream[index - 1] != '\\')
+            if (c == '"' && parser.fileStream[parser.index - 1] != '\\')
             {
                 //String ending found
-                stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(KVType.STRING, currentString.ToString()));
+                parser.stateStack.Pop();
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.STRING, parser.currentString.ToString()));
                 return;
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
 
         //Reading multiline string
-        private static void ReadValueStringMulti(char c)
+        private static void ReadValueStringMulti(char c, Parser parser)
         {
             //Check for ending
-            if (c == '"' && c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"' && fileStream[index - 1] != '\\')
+            if (c == '"' && c == '"' && parser.fileStream[parser.index + 1] == '"' && parser.fileStream[parser.index + 2] == '"' && parser.fileStream[parser.index - 1] != '\\')
             {
-                stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(KVType.STRING_MULTI, currentString.ToString()));
+                parser.stateStack.Pop();
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.STRING_MULTI, parser.currentString.ToString()));
 
                 //Skip to end
-                index += 2;
+                parser.index += 2;
                 return;
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
 
         //Read a boolean variable
-        private static void ReadValueBool(char c)
+        private static void ReadValueBool(char c, Parser parser)
         {
             //Stop reading once the end of true or false is reached
             if (c == 'e')
             {
-                currentString.Append(c);
-                stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(KVType.BOOLEAN, currentString.ToString() == "true" ? true : false));
+                parser.currentString.Append(c);
+                parser.stateStack.Pop();
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.BOOLEAN, parser.currentString.ToString() == "true" ? true : false));
                 return;
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
 
         //Read a numerical value
-        private static void ReadValueNumber(char c)
+        private static void ReadValueNumber(char c, Parser parser)
         {
             //For arrays
             if (c == ',')
             {
-                stateStack.Pop();
-                stateStack.Push(State.SEEK_VALUE);
-                if (currentString.ToString().Contains('.'))
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.SEEK_VALUE);
+                if (parser.currentString.ToString().Contains('.'))
                 {
-                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.DOUBLE, Double.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.DOUBLE, Double.Parse(parser.currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 else
                 {
-                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.INTEGER, Int32.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.INTEGER, Int32.Parse(parser.currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 return;
             }
@@ -333,24 +344,24 @@ namespace ValveResourceFormat.KeyValues
             //Stop reading the number once whtiespace is encountered
             if (Char.IsWhiteSpace(c))
             {
-                stateStack.Pop();
+                parser.stateStack.Pop();
                 //Distinguish between doubles and ints
-                if (currentString.ToString().Contains('.'))
+                if (parser.currentString.ToString().Contains('.'))
                 {
-                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.DOUBLE, Double.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.DOUBLE, Double.Parse(parser.currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 else
                 {
-                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.INTEGER, Int32.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.INTEGER, Int32.Parse(parser.currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 return;
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
 
         //Read an array
-        private static void ReadValueArray(char c)
+        private static void ReadValueArray(char c, Parser parser)
         {
             //This shouldn't happen
             if (!Char.IsWhiteSpace(c) && c != ',')
@@ -359,56 +370,56 @@ namespace ValveResourceFormat.KeyValues
             }
 
             //Just jump to seek_value state
-            stateStack.Push(State.SEEK_VALUE);
+            parser.stateStack.Push(State.SEEK_VALUE);
         }
 
         //Read a flagged value
-        private static void ReadValueFlagged(char c)
+        private static void ReadValueFlagged(char c, Parser parser)
         {
             //End at whitespace
             if (Char.IsWhiteSpace(c))
             {
-                stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(KVType.FLAGGED_STRING, currentString.ToString()));
+                parser.stateStack.Pop();
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.FLAGGED_STRING, parser.currentString.ToString()));
                 return;
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
 
         //Read comments
-        private static void ReadComment(char c)
+        private static void ReadComment(char c, Parser parser)
         {
             //Check for multiline comments
-            if (currentString.Length == 1 && c == '*')
+            if (parser.currentString.Length == 1 && c == '*')
             {
-                stateStack.Pop();
-                stateStack.Push(State.COMMENT_BLOCK);
+                parser.stateStack.Pop();
+                parser.stateStack.Push(State.COMMENT_BLOCK);
             }
 
             //Check for the end of a comment
             if (c == '\n')
             {
-                stateStack.Pop();
+                parser.stateStack.Pop();
                 return;
             }
 
             if (c != '\r')
             {
-                currentString.Append(c);
+                parser.currentString.Append(c);
             }
         }
 
         //Read a comment block
-        private static void ReadCommentBlock(char c)
+        private static void ReadCommentBlock(char c, Parser parser)
         {
             //Look for the end of the comment block
-            if (c == '/' && currentString.ToString().Last() == '*')
+            if (c == '/' && parser.currentString.ToString().Last() == '*')
             {
-                stateStack.Pop();
+                parser.stateStack.Pop();
             }
 
-            currentString.Append(c);
+            parser.currentString.Append(c);
         }
     }
 
@@ -500,6 +511,11 @@ namespace ValveResourceFormat.KeyValues
         //Serialize the contents of the KV object
         private void SerializeObject(StringBuilder stringBuilder, int indent)
         {
+            stringBuilder.Append(Environment.NewLine);
+            for (var i = 0; i < indent - 1; i++)
+            {
+                stringBuilder.Append("\t");
+            }
             stringBuilder.Append("{");
             stringBuilder.Append(Environment.NewLine);
 
@@ -527,6 +543,11 @@ namespace ValveResourceFormat.KeyValues
 
         private void SerializeArray(StringBuilder stringBuilder, int indent)
         {
+            stringBuilder.Append(Environment.NewLine);
+            for (var i = 0; i < indent - 1; i++)
+            {
+                stringBuilder.Append("\t");
+            }
             stringBuilder.Append("[");
             stringBuilder.Append(Environment.NewLine);
 
@@ -560,7 +581,7 @@ namespace ValveResourceFormat.KeyValues
                     ((KVObject)value).Serialize(stringBuilder, indent + 1);
                     break;
                 case KVType.ARRAY:
-                     ((KVObject)value).Serialize(stringBuilder, indent + 1);
+                    ((KVObject)value).Serialize(stringBuilder, indent + 1);
                     break;
                 case KVType.FLAGGED_STRING:
                     stringBuilder.Append((string)value);
