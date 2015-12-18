@@ -76,7 +76,10 @@ namespace ValveResourceFormat.KeyValues
 
         public static KVFile ParseKVFile(string filename)
         {
-            return ParseKVFile(new FileStream(filename, FileMode.Open, FileAccess.Read));
+            using (var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            {
+                return ParseKVFile(fileStream);
+            }
         }
 
         public static KVFile ParseKVFile(Stream fileStream)
