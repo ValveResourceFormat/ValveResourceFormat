@@ -75,7 +75,7 @@ namespace ValveResourceFormat.KeyValues
         public static KVFile ParseKVFile(string filename)
         {
             var parser = new Parser();
-            
+
             //Open stream
             parser.fileStream = File.ReadAllText(filename).ToCharArray();
 
@@ -202,7 +202,7 @@ namespace ValveResourceFormat.KeyValues
             //Booleans
             else if ((c == 'f' && (parser.fileStream[parser.index + 1] == 'a' && parser.fileStream[parser.index + 2] == 'l' &&
                         parser.fileStream[parser.index + 3] == 's' && parser.fileStream[parser.index + 4] == 'e'))
-                    || (c == 't' && (parser.fileStream[parser.index + 1] == 'r' && parser.fileStream[parser.index + 2] == 'u' && 
+                    || (c == 't' && (parser.fileStream[parser.index + 1] == 'r' && parser.fileStream[parser.index + 2] == 'u' &&
                         parser.fileStream[parser.index + 3] == 'e')))
             {
                 parser.stateStack.Pop();
@@ -296,8 +296,39 @@ namespace ValveResourceFormat.KeyValues
             //Check for ending
             if (c == '"' && c == '"' && parser.fileStream[parser.index + 1] == '"' && parser.fileStream[parser.index + 2] == '"' && parser.fileStream[parser.index - 1] != '\\')
             {
+                //Check for starting and trailing linebreaks
+                string multilineStr = parser.currentString.ToString();
+                int start = 0;
+                int end = multilineStr.Length;
+
+                //Check the start
+                if (multilineStr.ElementAt(0) == '\n')
+                {
+                    start = 1;
+                }
+                else if (multilineStr.ElementAt(0) == '\r' && multilineStr.ElementAt(1) == '\n')
+                {
+                    start = 2;
+                }
+
+                //Check the end
+                if (multilineStr.ElementAt(multilineStr.Length - 1) == '\n')
+                {
+                    if (multilineStr.ElementAt(multilineStr.Length - 2) == '\r')
+                    {
+                        end = multilineStr.Length - 1;
+                    }
+                    else
+                    {
+                        end = multilineStr.Length - 1;
+                    }
+                }
+
+                multilineStr = multilineStr.Substring(start, end - start);
+
+                //Set parser state
                 parser.stateStack.Pop();
-                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.STRING_MULTI, parser.currentString.ToString()));
+                parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.STRING_MULTI, multilineStr));
 
                 //Skip to end
                 parser.index += 2;
@@ -511,13 +542,17 @@ namespace ValveResourceFormat.KeyValues
         //Serialize the contents of the KV object
         private void SerializeObject(StringBuilder stringBuilder, int indent)
         {
-            stringBuilder.Append(Environment.NewLine);
+            //Don't enter the top-most object
+            if (indent > 1)
+            {
+                stringBuilder.Append("\n");
+            }
+
             for (var i = 0; i < indent - 1; i++)
             {
                 stringBuilder.Append("\t");
             }
-            stringBuilder.Append("{");
-            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("{\n");
 
             foreach (var pair in Properties)
             {
@@ -529,9 +564,9 @@ namespace ValveResourceFormat.KeyValues
                 stringBuilder.Append(pair.Key);
                 stringBuilder.Append(" = ");
 
-                PrintValue(stringBuilder, pair.Value.Type, pair.Value.Value, indent);
+                PrintValue(stringBuilder, pair.Value, indent);
 
-                stringBuilder.Append(Environment.NewLine);
+                stringBuilder.Append("\n");
             }
 
             for (var i = 0; i < indent - 1; i++)
@@ -543,13 +578,12 @@ namespace ValveResourceFormat.KeyValues
 
         private void SerializeArray(StringBuilder stringBuilder, int indent)
         {
-            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("\n");
             for (var i = 0; i < indent - 1; i++)
             {
                 stringBuilder.Append("\t");
             }
-            stringBuilder.Append("[");
-            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("[\n");
 
             //Need to preserve the order
             for (var i = 0; i < Count; i++)
@@ -559,10 +593,9 @@ namespace ValveResourceFormat.KeyValues
                     stringBuilder.Append("\t");
                 }
 
-                PrintValue(stringBuilder, Properties[i.ToString()].Type, Properties[i.ToString()].Value, indent);
+                PrintValue(stringBuilder, Properties[i.ToString()], indent);
 
-                stringBuilder.Append(",");
-                stringBuilder.Append(Environment.NewLine);
+                stringBuilder.Append(",\n");
             }
 
             for (var i = 0; i < indent - 1; i++)
@@ -573,8 +606,11 @@ namespace ValveResourceFormat.KeyValues
         }
 
         //Print a value in the correct representation
-        private void PrintValue(StringBuilder stringBuilder, KVType type, object value, int indent)
+        private void PrintValue(StringBuilder stringBuilder, KVValue kvValue, int indent)
         {
+            KVType type = kvValue.Type;
+            object value = kvValue.Value;
+
             switch (type)
             {
                 case KVType.OBJECT:
@@ -592,9 +628,9 @@ namespace ValveResourceFormat.KeyValues
                     stringBuilder.Append("\"");
                     break;
                 case KVType.STRING_MULTI:
-                    stringBuilder.Append("\"\"\"");
+                    stringBuilder.Append("\"\"\"\n");
                     stringBuilder.Append((string)value);
-                    stringBuilder.Append("\"\"\"");
+                    stringBuilder.Append("\n\"\"\"");
                     break;
                 case KVType.BOOLEAN:
                     stringBuilder.Append((bool)value ? "true" : "false");
