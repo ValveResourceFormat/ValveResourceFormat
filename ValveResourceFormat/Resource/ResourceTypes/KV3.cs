@@ -1,6 +1,6 @@
 /*
- * KV3Reader class.
- * This class reads in valve KV3 files and stores them in its datastructure.
+ * KeyValues3 class.
+ * This class reads in Valve KV3 files and stores them in its datastructure.
  *  
  * Interface:
  *  KVFile file = KV3Reader.ParseKVFile( fileName );
@@ -21,11 +21,12 @@ using System.Text;
 using System.IO;
 using System.Globalization;
 
-namespace ValveKV
+namespace ValveResourceFormat.KeyValues
 {
-    public static class KV3Reader
+    public static class KeyValues3
     {
-        private enum State {
+        private enum State
+        {
             HEADER,
             SEEK_VALUE,
             PROP_NAME,
@@ -51,7 +52,6 @@ namespace ValveKV
         private static Stack<KVObject> objStack;
         private static Stack<State> stateStack;
 
-        private const String whiteSpace = " \n\r\t";
         private const String numerals = "-0123456789.";
 
         public static KVFile ParseKVFile(string filename)
@@ -130,7 +130,8 @@ namespace ValveKV
             currentString.Append(c);
 
             //Read until --> is encountered
-            if (c == '>' && currentString.ToString().Substring( currentString.Length - 3 ) == "-->") {
+            if (c == '>' && currentString.ToString().Substring(currentString.Length - 3) == "-->")
+            {
                 stateStack.Pop();
                 stateStack.Push(State.SEEK_VALUE);
                 return;
@@ -141,7 +142,7 @@ namespace ValveKV
         private static void SeekValue(char c)
         {
             //Ignore whitespace
-            if (whiteSpace.Contains(c) || c == '=' )
+            if (Char.IsWhiteSpace(c) || c == '=')
             {
                 return;
             }
@@ -161,7 +162,7 @@ namespace ValveKV
                 stateStack.Push(State.VALUE_ARRAY);
                 stateStack.Push(State.SEEK_VALUE);
 
-                objStack.Push(new KVArray(currentString.ToString()));
+                objStack.Push(new KVObject(currentString.ToString(), true));
             }
             //Check for array closing
             else if (c == ']')
@@ -170,7 +171,7 @@ namespace ValveKV
                 stateStack.Pop();
 
                 KVObject value = objStack.Pop();
-                objStack.Peek().AddProperty(value.key, new KVValue(typeof(KVObject),value));
+                objStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
             }
             //Multiline string opening
             else if (c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"')
@@ -220,7 +221,7 @@ namespace ValveKV
         private static void ReadPropName(char c)
         {
             //Stop once whitespace is encountered
-            if (whiteSpace.Contains(c))
+            if (Char.IsWhiteSpace(c))
             {
                 stateStack.Pop();
                 stateStack.Push(State.SEEK_VALUE);
@@ -235,7 +236,7 @@ namespace ValveKV
         private static void ReadValueStruct(char c)
         {
             //Ignore whitespace
-            if (whiteSpace.Contains(c))
+            if (Char.IsWhiteSpace(c))
             {
                 return;
             }
@@ -253,7 +254,7 @@ namespace ValveKV
             if (c == '}')
             {
                 KVObject value = objStack.Pop();
-                objStack.Peek().AddProperty(value.key, new KVValue(typeof(KVObject), value));
+                objStack.Peek().AddProperty(value.Key, new KVValue(KVType.OBJECT, value));
                 stateStack.Pop();
                 return;
             }
@@ -263,15 +264,15 @@ namespace ValveKV
             currentString.Clear();
             currentString.Append(c);
         }
-        
+
         //Read a string value
         private static void ReadValueString(char c)
         {
-            if (c == '"' && fileStream[index-1] != '\\')
+            if (c == '"' && fileStream[index - 1] != '\\')
             {
                 //String ending found
                 stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(typeof(String), currentString.ToString()));
+                objStack.Peek().AddProperty(currentName, new KVValue(KVType.STRING, currentString.ToString()));
                 return;
             }
 
@@ -282,10 +283,10 @@ namespace ValveKV
         private static void ReadValueStringMulti(char c)
         {
             //Check for ending
-            if (c == '"' && c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"' && fileStream[index-1] != '\\')
+            if (c == '"' && c == '"' && fileStream[index + 1] == '"' && fileStream[index + 2] == '"' && fileStream[index - 1] != '\\')
             {
                 stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(typeof(String), currentString.ToString()));
+                objStack.Peek().AddProperty(currentName, new KVValue(KVType.STRING_MULTI, currentString.ToString()));
 
                 //Skip to end
                 index += 2;
@@ -303,7 +304,7 @@ namespace ValveKV
             {
                 currentString.Append(c);
                 stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(typeof(Boolean), currentString.ToString() == "true" ? true : false));
+                objStack.Peek().AddProperty(currentName, new KVValue(KVType.BOOLEAN, currentString.ToString() == "true" ? true : false));
                 return;
             }
 
@@ -318,26 +319,29 @@ namespace ValveKV
             {
                 stateStack.Pop();
                 stateStack.Push(State.SEEK_VALUE);
-                if ( currentString.ToString().Contains('.')) {
-                    objStack.Peek().AddProperty(currentName, new KVValue(typeof(Double), Double.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
-                } else {
-                    objStack.Peek().AddProperty(currentName, new KVValue(typeof(Int32), Int32.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                if (currentString.ToString().Contains('.'))
+                {
+                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.DOUBLE, Double.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                }
+                else
+                {
+                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.INTEGER, Int32.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 return;
             }
 
             //Stop reading the number once whtiespace is encountered
-            if (whiteSpace.Contains(c))
+            if (Char.IsWhiteSpace(c))
             {
                 stateStack.Pop();
                 //Distinguish between doubles and ints
                 if (currentString.ToString().Contains('.'))
                 {
-                    objStack.Peek().AddProperty(currentName, new KVValue(typeof(Double), Double.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.DOUBLE, Double.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 else
                 {
-                    objStack.Peek().AddProperty(currentName, new KVValue(typeof(Int32), Int32.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
+                    objStack.Peek().AddProperty(currentName, new KVValue(KVType.INTEGER, Int32.Parse(currentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 return;
             }
@@ -349,9 +353,9 @@ namespace ValveKV
         private static void ReadValueArray(char c)
         {
             //This shouldn't happen
-            if (!whiteSpace.Contains(c) && c != ',')
+            if (!Char.IsWhiteSpace(c) && c != ',')
             {
-                Console.WriteLine("ERROR");
+                throw new Exception("Error parsing array.");
             }
 
             //Just jump to seek_value state
@@ -362,10 +366,10 @@ namespace ValveKV
         private static void ReadValueFlagged(char c)
         {
             //End at whitespace
-            if (whiteSpace.Contains(c))
+            if (Char.IsWhiteSpace(c))
             {
                 stateStack.Pop();
-                objStack.Peek().AddProperty(currentName, new KVValue(typeof(FlaggedString), currentString.ToString()));
+                objStack.Peek().AddProperty(currentName, new KVValue(KVType.FLAGGED_STRING, currentString.ToString()));
                 return;
             }
 
@@ -383,7 +387,8 @@ namespace ValveKV
             }
 
             //Check for the end of a comment
-            if (c == '\n') {
+            if (c == '\n')
+            {
                 stateStack.Pop();
                 return;
             }
@@ -420,7 +425,7 @@ namespace ValveKV
         }
 
         //Serialize the contents of the data structure
-        public String Serialize()
+        public string Serialize()
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(Header);
@@ -429,28 +434,74 @@ namespace ValveKV
         }
     }
 
+    //Different type of value blocks for KeyValues3
+    public enum KVType
+    {
+        OBJECT,
+        ARRAY,
+        BOOLEAN,
+        INTEGER,
+        DOUBLE,
+        STRING,
+        STRING_MULTI,
+        FLAGGED_STRING
+    }
+
     //Datastructure for a KV Object
     public class KVObject
     {
-        public String key;
+        public string Key;
         public Dictionary<String, KVValue> Properties;
+        private bool IsArray;
+        public int Count;
 
-        public KVObject(String name)
+        public KVObject(string name)
         {
-            key = name;
+            Key = name;
             Properties = new Dictionary<String, KVValue>();
+            IsArray = false;
+            Count = 0;
+        }
+
+        public KVObject(string name, bool isArray)
+            : this(name)
+        {
+            IsArray = isArray;
         }
 
         //Add a property to the structure
         public virtual void AddProperty(String name, KVValue value)
         {
-            Properties.Add(name, value);
+            if (IsArray)
+            {
+                //Make up a key for the dictionary
+                Properties.Add(Count.ToString(), value);
+            }
+            else
+            {
+                Properties.Add(name, value);
+            }
+
+            Count++;
+        }
+
+        public void Serialize(StringBuilder stringBuilder, int indent)
+        {
+            if (IsArray)
+            {
+                SerializeArray(stringBuilder, indent);
+            }
+            else
+            {
+                SerializeObject(stringBuilder, indent);
+            }
         }
 
         //Serialize the contents of the KV object
-        public virtual void Serialize(StringBuilder stringBuilder, int indent)
+        private void SerializeObject(StringBuilder stringBuilder, int indent)
         {
-            stringBuilder.Append("{\n");
+            stringBuilder.Append("{");
+            stringBuilder.Append(Environment.NewLine);
 
             foreach (var pair in Properties)
             {
@@ -458,108 +509,36 @@ namespace ValveKV
                 {
                     stringBuilder.Append("\t");
                 }
-                
+
                 stringBuilder.Append(pair.Key);
                 stringBuilder.Append(" = ");
 
                 PrintValue(stringBuilder, pair.Value.Type, pair.Value.Value, indent);
-                
+
                 stringBuilder.Append(Environment.NewLine);
             }
 
-            for (var i = 0; i < indent-1; i++)
+            for (var i = 0; i < indent - 1; i++)
             {
                 stringBuilder.Append("\t");
             }
             stringBuilder.Append("}");
         }
 
-        //Print a value in the correct representation
-        protected void PrintValue(StringBuilder stringBuilder, Type type, Object value, int indent) {
-            if (type == typeof(KVObject))
-            {
-                ((KVObject)value).Serialize(stringBuilder, indent + 1);
-            }
-            else if (type == typeof(FlaggedString))
-            {
-                stringBuilder.Append((String)value);
-            }
-            else if (type == typeof(String))
-            {
-                String str = (String)value;
-
-                if (str.Contains("\n"))
-                {
-                    stringBuilder.Append("\"\"\"");
-                    stringBuilder.Append(str);
-                    stringBuilder.Append("\"\"\"");
-                }
-                else
-                {
-                    stringBuilder.Append("\"");
-                    stringBuilder.Append(str);
-                    stringBuilder.Append("\"");
-                }
-            }
-            else if (type == typeof(Boolean))
-            {
-                if ((Boolean)value)
-                {
-                    stringBuilder.Append("true");
-                }
-                else
-                {
-                    stringBuilder.Append("false");
-                }
-            }
-            else if (type == typeof(Double))
-            {
-                stringBuilder.Append(((Double)value).ToString("#0.000000",CultureInfo.InvariantCulture));
-            }
-            else if (type == typeof(Int32))
-            {
-                stringBuilder.Append((Int32)value);
-            }
-            else
-            {
-                //This shouldn't happen
-                stringBuilder.Append(value);
-            }
-        }
-    }
-
-    //KV Array extending the KVObject
-    public class KVArray : KVObject
-    {
-        new public List<KVValue> Properties;
-
-        public KVArray(String name) : base(name)
+        private void SerializeArray(StringBuilder stringBuilder, int indent)
         {
-            Properties = new List<KVValue>();
-        }
-
-        public override void AddProperty(String name, KVValue value)
-        {
-            Properties.Add(value);
-        }
-
-        public override void Serialize(StringBuilder stringBuilder, int indent)
-        {
-            stringBuilder.Append(Environment.NewLine);
-            for (var i = 0; i < indent-1; i++)
-            {
-                stringBuilder.Append("\t");
-            }
             stringBuilder.Append("[");
             stringBuilder.Append(Environment.NewLine);
 
-            foreach (KVValue entry in Properties) {
-                for (var i = 0; i < indent; i++)
+            //Need to preserve the order
+            for (var i = 0; i < Count; i++)
+            {
+                for (var j = 0; j < indent; j++)
                 {
                     stringBuilder.Append("\t");
                 }
 
-                PrintValue(stringBuilder, entry.Type, entry.Value, indent);
+                PrintValue(stringBuilder, Properties[i.ToString()].Type, Properties[i.ToString()].Value, indent);
 
                 stringBuilder.Append(",");
                 stringBuilder.Append(Environment.NewLine);
@@ -571,22 +550,57 @@ namespace ValveKV
             }
             stringBuilder.AppendLine("]");
         }
+
+        //Print a value in the correct representation
+        private void PrintValue(StringBuilder stringBuilder, KVType type, object value, int indent)
+        {
+            switch (type)
+            {
+                case KVType.OBJECT:
+                    ((KVObject)value).Serialize(stringBuilder, indent + 1);
+                    break;
+                case KVType.ARRAY:
+                     ((KVObject)value).Serialize(stringBuilder, indent + 1);
+                    break;
+                case KVType.FLAGGED_STRING:
+                    stringBuilder.Append((string)value);
+                    break;
+                case KVType.STRING:
+                    stringBuilder.Append("\"");
+                    stringBuilder.Append((string)value);
+                    stringBuilder.Append("\"");
+                    break;
+                case KVType.STRING_MULTI:
+                    stringBuilder.Append("\"\"\"");
+                    stringBuilder.Append((string)value);
+                    stringBuilder.Append("\"\"\"");
+                    break;
+                case KVType.BOOLEAN:
+                    stringBuilder.Append((bool)value ? "true" : "false");
+                    break;
+                case KVType.DOUBLE:
+                    stringBuilder.Append(((double)value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    break;
+                case KVType.INTEGER:
+                    stringBuilder.Append((int)value);
+                    break;
+                default:
+                    //Unknown type encountered
+                    throw new Exception("Unknown type encountered.");
+            }
+        }
     }
 
     //Class to hold type + value
     public class KVValue
     {
-        public Type Type;
-        public Object Value;
+        public KVType Type;
+        public object Value;
 
-        public KVValue(Type type, Object value)
+        public KVValue(KVType type, object value)
         {
             Type = type;
             Value = value;
         }
     }
-
-    //Empty class to keep track of flagged strings
-    //This could probably be done better but meh.
-    public class FlaggedString { }
 }
