@@ -287,15 +287,6 @@ namespace ValveResourceFormat.ThirdParty
 
                     if (x + i < width)
                     {
-
-                        if (finalAlpha > 0) //Straighten alpha
-                        {
-                            float multiple = 255f / finalAlpha;
-                            finalR = ClampColor((int)(finalR * multiple));
-                            finalG = ClampColor((int)(finalG * multiple));
-                            finalB = ClampColor((int)(finalB * multiple));
-                        }
-
                         Color finalColor = Color.FromArgb(finalAlpha, finalR, finalG, finalB);
 
                         image.SetPixel(x + i, y + j, finalColor);

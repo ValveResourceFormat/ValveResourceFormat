@@ -176,6 +176,81 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
         }
 
+        public Bitmap PremultipliedToStraightAlpha(Bitmap image)
+        {
+
+            Color color;
+            int r, g, b;
+            Bitmap output = new Bitmap(image.Width, image.Height);
+
+            for (int x = 0; x < image.Width; x++)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    color = image.GetPixel(x, y);
+                  
+                    if (color.A > 0)
+                    {
+                        r = color.R * byte.MaxValue / color.A;
+                        g = color.G * byte.MaxValue / color.A;
+                        b = color.B * byte.MaxValue / color.A;
+                        if (r > byte.MaxValue) r = byte.MaxValue;
+                        if (g > byte.MaxValue) g = byte.MaxValue;
+                        if (b > byte.MaxValue) b = byte.MaxValue;
+
+                        output.SetPixel(x, y, Color.FromArgb(color.A, r, g, b));
+                    }
+                    
+                }
+            }
+
+            return output;
+        }
+
+        public Bitmap ConvertYCgCotoRGB (Bitmap image)
+        {
+            Color color;
+            Bitmap output = new Bitmap(image.Width, image.Height);
+            int r, g, b;
+
+            for (int x = 0; x < image.Width; x++)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    color = image.GetPixel(x, y);
+                    b = color.B;
+                    g = color.G;
+                    r = color.R;
+                 
+
+                    var s = (b >> 3) + 1;
+                    var co = (r - 128) / s;
+                    var cg = (g - 128) / s;
+
+                    output.SetPixel(x, y, Color.FromArgb(
+                        byte.MaxValue,
+                        
+                        ClampColor((color.A + co - cg)),
+                        ClampColor((color.A + cg)),
+                        ClampColor((color.A - co - cg))
+                    ));
+                }
+            }
+            
+            return output;
+        }
+
+        private static int ClampColor(int a)
+        {
+            if (a > 255)
+                return 255;
+
+            if (a < 0)
+                return 0;
+
+            return a;
+        }
+
         private Bitmap ReadPNG()
         {
             // TODO: Seems stupid to provide stream length
