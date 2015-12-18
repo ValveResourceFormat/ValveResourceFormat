@@ -135,6 +135,30 @@ namespace ValveResourceFormat.KeyValues
             stringBuilder.AppendLine("]");
         }
 
+        private string EscapeUnescaped(string input, char toEscape)
+        {
+            int index = 1;
+            while (true)
+            {
+                index = input.IndexOf(toEscape, index);
+
+                //Break out of the loop if no more occurrences were found
+                if (index == -1)
+                {
+                    break;
+                }
+
+                if (input.ElementAt(index - 1) != '\\')
+                {
+                    input = input.Insert(index, "\\");
+                }
+
+                //Don't read this one again
+                index++;
+            }
+            return input;
+        }
+
         //Print a value in the correct representation
         private void PrintValue(StringBuilder stringBuilder, KVValue kvValue, int indent)
         {
@@ -154,12 +178,12 @@ namespace ValveResourceFormat.KeyValues
                     break;
                 case KVType.STRING:
                     stringBuilder.Append("\"");
-                    stringBuilder.Append((string)value);
+                    stringBuilder.Append(EscapeUnescaped((string)value, '"'));
                     stringBuilder.Append("\"");
                     break;
                 case KVType.STRING_MULTI:
                     stringBuilder.Append("\"\"\"\n");
-                    stringBuilder.Append((string)value);
+                    stringBuilder.Append(EscapeUnescaped((string)value, '"'));
                     stringBuilder.Append("\n\"\"\"");
                     break;
                 case KVType.BOOLEAN:
