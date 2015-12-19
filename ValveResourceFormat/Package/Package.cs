@@ -50,32 +50,32 @@ namespace ValveResourceFormat
         public uint Version { get; private set; }
 
         /// <summary>
-        /// The size, in bytes, of the directory tree.
+        /// Gets the size in bytes of the directory tree.
         /// </summary>
         public uint TreeSize { get; private set; }
 
         /// <summary>
-        /// How many bytes of file content are stored in this VPK file (0 in CSGO).
+        /// Gets how many bytes of file content are stored in this VPK file (0 in CSGO).
         /// </summary>
         public uint FileDataSectionSize { get; private set; }
 
         /// <summary>
-        /// The size, in bytes, of the section containing MD5 checksums for external archive content.
+        /// Gets the size in bytes of the section containing MD5 checksums for external archive content.
         /// </summary>
         public uint ArchiveMD5SectionSize { get; private set; }
 
         /// <summary>
-        /// The size, in bytes, of the section containing MD5 checksums for content in this file.
+        /// Gets the size in bytes of the section containing MD5 checksums for content in this file.
         /// </summary>
         public uint OtherMD5SectionSize { get; private set; }
 
         /// <summary>
-        /// The size, in bytes, of the section containing the public key and signature.
+        /// Gets the size in bytes of the section containing the public key and signature.
         /// </summary>
         public uint SignatureSectionSize { get; private set; }
 
         /// <summary>
-        /// Package entries.
+        /// Gets the package entries.
         /// </summary>
         public Dictionary<string, List<PackageEntry>> Entries { get; private set; }
 

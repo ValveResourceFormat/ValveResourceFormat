@@ -14,12 +14,12 @@ namespace ValveResourceFormat.Blocks
         public class ResourceReferenceInfo
         {
             /// <summary>
-            /// Resource id.
+            /// Gets or sets the resource id.
             /// </summary>
             public ulong Id { get; set; }
 
             /// <summary>
-            /// Resource name.
+            /// Gets or sets the resource name.
             /// </summary>
             public string Name { get; set; }
 

@@ -6,42 +6,42 @@ namespace ValveResourceFormat
     public class PackageEntry
     {
         /// <summary>
-        /// File name of this entry.
+        /// Gets or sets file name of this entry.
         /// </summary>
         public string FileName { get; set; }
 
         /// <summary>
-        /// The name of the directory this file is in.
+        /// Gets or sets the name of the directory this file is in.
         /// </summary>
         public string DirectoryName { get; set; }
 
         /// <summary>
-        /// File extension.
+        /// Gets or sets the file extension.
         /// </summary>
         public string TypeName { get; set; }
 
         /// <summary>
-        /// CRC32 checksum of this entry.
+        /// Gets or sets the CRC32 checksum of this entry.
         /// </summary>
         public uint CRC32 { get; set; }
 
         /// <summary>
-        /// Length in bytes.
+        /// Gets or sets the length in bytes.
         /// </summary>
         public uint Length { get; set; }
 
         /// <summary>
-        /// Offset in the package.
+        /// Gets or sets the offset in the package.
         /// </summary>
         public uint Offset { get; set; }
 
         /// <summary>
-        /// Which archive this entry is in.
+        /// Gets or sets which archive this entry is in.
         /// </summary>
         public ushort ArchiveIndex { get; set; }
 
         /// <summary>
-        /// Returns the length in bytes by adding Length + SmallData.Length
+        /// Gets the length in bytes by adding Length and length of SmallData.
         /// </summary>
         public uint TotalLength
         {
@@ -59,7 +59,7 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// TODO
+        /// Gets or sets the preloaded bytes.
         /// </summary>
         public byte[] SmallData { get; set; }
 

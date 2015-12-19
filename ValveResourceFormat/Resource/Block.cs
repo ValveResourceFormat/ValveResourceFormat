@@ -10,12 +10,12 @@ namespace ValveResourceFormat
     public abstract class Block
     {
         /// <summary>
-        /// Offset to the data.
+        /// Gets or sets the offset to the data.
         /// </summary>
         public uint Offset { get; set; }
 
         /// <summary>
-        /// Data size.
+        /// Gets or sets the data size.
         /// </summary>
         public uint Size { get; set; }
 

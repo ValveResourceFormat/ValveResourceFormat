@@ -17,7 +17,7 @@ namespace ValveResourceFormat
         private BinaryReader Reader;
 
         /// <summary>
-        /// Resource size.
+        /// Gets the resource size.
         /// </summary>
         public uint FileSize { get; private set; }
 
