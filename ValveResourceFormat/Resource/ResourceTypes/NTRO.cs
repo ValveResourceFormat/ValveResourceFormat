@@ -12,40 +12,30 @@ namespace ValveResourceFormat.ResourceTypes
         private BinaryReader Reader;
         private Resource Resource;
         private IndentedTextWriter Writer;
-        private string Output;
+        public NTROSerialization.NTROStruct Output { get; private set; }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             Reader = reader;
             Resource = resource;
 
-            using (var output = new StringWriter())
-            using (var writer = new IndentedTextWriter(output, "\t"))
+            foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
             {
-                Writer = writer;
+                Output = ReadStructure(refStruct, this.Offset);
 
-                foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
-                {
-                    ReadStructure(refStruct, Offset);
-
-                    break;
-                }
-
-                Output = output.ToString();
+                break;
             }
         }
 
-        private void ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
+        private NTROSerialization.NTROStruct ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
         {
-            Writer.WriteLine(refStruct.Name);
-            Writer.WriteLine("{");
-            Writer.Indent++;
+            NTROSerialization.NTROStruct structEntry = new NTROSerialization.NTROStruct(refStruct.Name);
 
             foreach (var field in refStruct.FieldIntrospection)
             {
                 Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
 
-                ReadFieldIntrospection(field);
+                ReadFieldIntrospection(field, ref structEntry);
             }
 
             if (refStruct.BaseStructId != 0)
@@ -59,17 +49,15 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
 
-                    ReadFieldIntrospection(field);
+                    ReadFieldIntrospection(field, ref structEntry);
                 }
 
                 Reader.BaseStream.Position = previousOffset;
             }
-
-            Writer.Indent--;
-            Writer.WriteLine("}");
+            return structEntry;
         }
 
-        private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
+        private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, ref NTROSerialization.NTROStruct structEntry)
         {
             uint count = (uint)field.Count;
             bool multiple = false; // TODO: get rid of this
@@ -106,7 +94,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (offset == 0)
                     {
-                        Writer.WriteLine("{0} {1}* = (ptr) ->NULL", ValveDataType(field.Type), field.FieldName);
+                        structEntry.Add(field.FieldName, new NTROSerialization.NTROValue<byte?>(field.Type, (byte?)null, true)); //being byte shouldn't matter
 
                         return;
                     }
@@ -134,39 +122,26 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (pointer)
+            //if (pointer)
+            //{
+            //    Writer.Write("{0} {1}* = (ptr) ->", ValveDataType(field.Type), field.FieldName);
+            //}
+            if (field.Count > 0 || field.Indirections.Count > 0)
             {
-                Writer.Write("{0} {1}* = (ptr) ->", ValveDataType(field.Type), field.FieldName);
-            }
-            else if (field.Count > 0 || field.Indirections.Count > 0)
-            {
-                // TODO: This is matching Valve's incosistency
-                if (field.Type == DataType.Byte && field.Indirections.Count > 0)
-                {
-                    Writer.WriteLine("{0}[{2}] {1} =", ValveDataType(field.Type), field.FieldName, count);
-                }
-                else
-                {
-                    Writer.WriteLine("{0} {1}[{2}] =", ValveDataType(field.Type), field.FieldName, count);
-                }
 
-                Writer.WriteLine("[");
-                Writer.Indent++;
+                NTROSerialization.NTROArray ntroValues = new NTROSerialization.NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
+                for (var i = 0; i < count; i++)
+                {
+                    ntroValues[i] = ReadField(field, multiple, pointer);
+                }
+                structEntry.Add(field.FieldName, ntroValues);
             }
             else
             {
-                Writer.Write("{0} {1} = ", ValveDataType(field.Type), field.FieldName);
-            }
-
-            for (var i = 0; i < count; i++)
-            {
-                ReadField(field, multiple);
-            }
-
-            if (!pointer && (field.Count > 0 || field.Indirections.Count > 0))
-            {
-                Writer.Indent--;
-                Writer.WriteLine("]");
+                for (var i = 0; i < count; i++)
+                {
+                    structEntry.Add(field.FieldName, ReadField(field, multiple, pointer));
+                }
             }
 
             if (prevOffset > 0)
@@ -175,160 +150,90 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, bool multiple)
+        private NTROSerialization.NTROValue ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, bool multiple, bool pointer)
         {
             switch (field.Type)
             {
                 case DataType.Struct:
                     var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
-
-                    ReadStructure(newStruct, Reader.BaseStream.Position);
-
-                    break;
+                    return new NTROSerialization.NTROValue<NTROSerialization.NTROStruct>(field.Type, ReadStructure(newStruct, Reader.BaseStream.Position), pointer);
 
                 case DataType.Enum:
                     // TODO: Lookup in ReferencedEnums
-                    Writer.WriteLine("{0}", Reader.ReadUInt32());
-                    break;
+                    return new NTROSerialization.NTROValue<UInt32>(field.Type, Reader.ReadUInt32(), pointer);
 
                 case DataType.SByte:
-                    Writer.WriteLine("{0}", Reader.ReadSByte());
-                    break;
+                    return new NTROSerialization.NTROValue<SByte>(field.Type, Reader.ReadSByte(), pointer);
 
-                case DataType.Byte: // TODO: Valve print it as hex, why?
-                    // TODO: if there are more than one uint8's, valve prints them without 0x, and on a single line
-                    if (multiple)
-                    {
-                        Writer.WriteLine("{0:X2}", Reader.ReadByte());
-                    }
-                    else
-                    {
-                        Writer.WriteLine("0x{0:X2}", Reader.ReadByte());
-                    }
-
-                    break;
+                case DataType.Byte:
+                    return new NTROSerialization.NTROValue<Byte>(field.Type, Reader.ReadByte(), pointer);
 
                 case DataType.Boolean:
-                    Writer.WriteLine("{0}", Reader.ReadByte() == 1 ? "true" : "false");
-                    break;
+                    return new NTROSerialization.NTROValue<Boolean>(field.Type, (Reader.ReadByte() == 1 ? true : false), pointer);
 
                 case DataType.Int16:
-                    Writer.WriteLine("{0}", Reader.ReadInt16());
-                    break;
+                    return new NTROSerialization.NTROValue<Int16>(field.Type, Reader.ReadInt16(), pointer);
 
-                case DataType.UInt16: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X4}", Reader.ReadUInt16());
-                    break;
+                case DataType.UInt16:
+                    return new NTROSerialization.NTROValue<UInt16>(field.Type, Reader.ReadUInt16(), pointer);
 
                 case DataType.Int32:
-                    Writer.WriteLine("{0}", Reader.ReadInt32());
-                    break;
+                    return new NTROSerialization.NTROValue<Int32>(field.Type, Reader.ReadInt32(), pointer);
 
-                case DataType.UInt32: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X8}", Reader.ReadUInt32());
-                    break;
+                case DataType.UInt32:
+                    return new NTROSerialization.NTROValue<UInt32>(field.Type, Reader.ReadUInt32(), pointer);
 
                 case DataType.Float:
-                    Writer.WriteLine("{0:F6}", Reader.ReadSingle());
-                    break;
+                    return new NTROSerialization.NTROValue<Single>(field.Type, Reader.ReadSingle(), pointer);
 
                 case DataType.Int64:
-                    Writer.WriteLine("{0}", Reader.ReadInt64());
-                    break;
+                    return new NTROSerialization.NTROValue<Int64>(field.Type, Reader.ReadInt64(), pointer);
 
-                case DataType.UInt64: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X16}", Reader.ReadUInt64());
-                    break;
-
-                case DataType.ExternalReference:
-                    Writer.WriteLine("ID: {0:X16}", Reader.ReadUInt64());
-                    break;
+                case DataType.ExternalReference: //Handled elsewhere
+                case DataType.UInt64:
+                    return new NTROSerialization.NTROValue<UInt64>(field.Type, Reader.ReadUInt64(), pointer);
 
                 case DataType.Vector:
-                    var vector3 = new[]
-                    {
+                    var vector3 = new NTROSerialization.Vector3(
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
                         Reader.ReadSingle()
-                    };
-
-                    Writer.WriteLine("({0:F6}, {1:F6}, {2:F6})", vector3[0], vector3[1], vector3[2]);
-
-                    break;
+                    );
+                    return new NTROSerialization.NTROValue<NTROSerialization.Vector3>(field.Type, vector3, pointer);
 
                 case DataType.Quaternion:
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
-                    var vector4 = new[]
-                    {
+                    var vector4 = new NTROSerialization.Vector4(
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
                         Reader.ReadSingle()
-                    };
-
-                    if (field.Type == DataType.Quaternion)
-                    {
-                        Writer.WriteLine("{{x: {0:F}, y: {1:F}, z: {2:F}, w: {3}}}", vector4[0], vector4[1], vector4[2], vector4[3].ToString("F"));
-                    }
-                    else
-                    {
-                        Writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4[0], vector4[1], vector4[2], vector4[3]);
-                    }
-
-                    break;
+                    );
+                    return new NTROSerialization.NTROValue<NTROSerialization.Vector4>(field.Type, vector4, pointer);
 
                 case DataType.String4:
                 case DataType.String:
-                    Writer.WriteLine("\"{0}\"", Reader.ReadOffsetString(Encoding.UTF8));
-
-                    break;
+                    return new NTROSerialization.NTROValue<String>(field.Type, Reader.ReadOffsetString(Encoding.UTF8), pointer);
 
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:
-                    var matrix3x4a = new[]
-                    {
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
+                    var matrix3x4a = new NTROSerialization.Matrix3x4(
+                        Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(),
+                        Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(),
+                        Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle()
+                     );
 
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle()
-                    };
-
-                    Writer.WriteLine();
-                    Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
-                    Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
-                    Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[8], matrix3x4a[9], matrix3x4a[10], matrix3x4a[11]);
-
-                    break;
+                    return new NTROSerialization.NTROValue<NTROSerialization.Matrix3x4>(field.Type, matrix3x4a, pointer);
 
                 case DataType.CTransform:
-                    var transform = new[]
-                    {
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle() // TODO: unused?
-                    };
+                    var transform = new NTROSerialization.CTransform(
+                        Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(),
+                        Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle(), Reader.ReadSingle()
+                     );
 
-                    // http://stackoverflow.com/a/15085178/2200891
-                    Writer.WriteLine("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", transform[4], transform[5], transform[6], transform[7].ToString("F"), transform[0], transform[1], transform[2].ToString("F"));
-
-                    break;
+                    return new NTROSerialization.NTROValue<NTROSerialization.CTransform>(field.Type, transform, pointer);
 
                 default:
                     throw new NotImplementedException(string.Format("Unknown data type: {0}", field.Type));
@@ -337,29 +242,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            return Output ?? "Nope.";
-        }
-
-        private static string ValveDataType(DataType type)
-        {
-            switch (type)
-            {
-                case DataType.SByte: return "int8";
-                case DataType.Byte: return "uint8";
-                case DataType.Int16: return "int16";
-                case DataType.UInt16: return "uint16";
-                case DataType.Int32: return "int32";
-                case DataType.UInt32: return "uint32";
-                case DataType.Int64: return "int64";
-                case DataType.UInt64: return "uint64";
-                case DataType.Float: return "float32";
-                case DataType.String: return "CResourceString";
-                case DataType.Boolean: return "bool";
-                case DataType.Fltx4: return "fltx4";
-                case DataType.Matrix3x4a: return "matrix3x4a_t";
-            }
-
-            return type.ToString();
+            return Output.ToString() ?? "Nope.";
         }
     }
 }

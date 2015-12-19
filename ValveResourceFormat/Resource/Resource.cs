@@ -220,6 +220,9 @@ namespace ValveResourceFormat
 
                 case ResourceType.Particle:
                     return new ResourceTypes.Particle();
+
+                case ResourceType.SoundEventScript:
+                    return new ResourceTypes.SoundEventScript();
             }
 
             if (Blocks.ContainsKey(BlockType.NTRO))
