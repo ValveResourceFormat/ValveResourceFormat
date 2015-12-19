@@ -226,47 +226,67 @@ namespace ValveResourceFormat.ThirdParty
                         }
                     }
 
-                    byte colorCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
-
+                    byte positionCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
                     int finalR = 0, finalG = 0, finalB = 0;
 
-                    switch (colorCode)
+                    if (color0 > color1)
                     {
-                        case 0:
-                            finalR = r0;
-                            finalG = g0;
-                            finalB = b0;
-                            break;
-                        case 1:
-                            finalR = r1;
-                            finalG = g1;
-                            finalB = b1;
-                            break;
-                        case 2:
-                            finalR = (2 * r0 + r1) / 3;
-                            finalG = (2 * g0 + g1) / 3;
-                            finalB = (2 * b0 + b1) / 3;
-                            break;
-
-                        case 3:
-                            finalR = (2 * r1 + r0) / 3;
-                            finalG = (2 * g1 + g0) / 3;
-                            finalB = (2 * b1 + b0) / 3;
-                            break;
+                        switch (positionCode)
+                        {
+                            case 0:
+                                finalR = r0;
+                                finalG = g0;
+                                finalB = b0;
+                                break;
+                            case 1:
+                                finalR = r1;
+                                finalG = g1;
+                                finalB = b1;
+                                break;
+                            case 2:
+                                finalR = (2 * r0 + r1) / 3;
+                                finalG = (2 * g0 + g1) / 3;
+                                finalB = (2 * b0 + b1) / 3;
+                                break;
+                            case 3:
+                                finalR = (r0 + 2 * r1) / 3;
+                                finalG = (g0 + 2 * g1) / 3;
+                                finalB = (b0 + 2 * b1) / 3;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        switch (positionCode)
+                        {
+                            case 0:
+                                finalR = r0;
+                                finalG = g0;
+                                finalB = b0;
+                                break;
+                            case 1:
+                                finalR = r1;
+                                finalG = g1;
+                                finalB = b1;
+                                break;
+                            case 2:
+                                finalR = (r0 + r1) / 2;
+                                finalG = (g0 + g1) / 2;
+                                finalB = (b0 + b1) / 2;
+                                break;
+                            case 3:
+                                finalR = 0;
+                                finalG = 0;
+                                finalB = 0;
+                                break;
+                        }
                     }
 
                     if (x + i < width)
                     {
-                        // This converts YCoCg into RGB
-                        var s = (finalB >> 3) + 1;
-                        var co = (finalR - 128) / s;
-                        var cg = (finalG - 128) / s;
+                        Color finalColor = Color.FromArgb(finalAlpha, finalR, finalG, finalB);
 
-                        image.SetPixel(x + i, y + j, Color.FromArgb(
-                            ClampColor(finalAlpha + co - cg),
-                            ClampColor(finalAlpha + cg),
-                            ClampColor(finalAlpha - co - cg)
-                        ));
+                        image.SetPixel(x + i, y + j, finalColor);
                     }
                 }
             }
