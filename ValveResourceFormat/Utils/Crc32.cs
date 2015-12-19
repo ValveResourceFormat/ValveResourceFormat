@@ -65,13 +65,13 @@ namespace ValveResourceFormat
             0x5D681B02, 0x2A6F2B94, 0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B,
             0x2D02EF8D
         };
-                
+
         /// <summary>
         /// Compute a checksum for a given array of bytes.
         /// </summary>
         /// <param name="buffer">The array of bytes to compute the checksum for.</param>
         /// <returns>The computed checksum.</returns>
-        static public uint Compute(byte[] buffer)
+        public static uint Compute(byte[] buffer)
         {
             uint crc = 0xFFFFFFFF;
 

@@ -14,17 +14,17 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader = reader;
 
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
-            if(resource.Blocks.ContainsKey(BlockType.NTRO))
+            if (resource.Blocks.ContainsKey(BlockType.NTRO))
             {
                 NTROBlock = new NTRO();
-                NTROBlock.Offset = this.Offset;
-                NTROBlock.Size = this.Size;
+                NTROBlock.Offset = Offset;
+                NTROBlock.Size = Size;
                 NTROBlock.Read(reader, resource);
             }
 
-            DataOffset = this.Offset + this.Size;
+            DataOffset = Offset + Size;
         }
 
         public byte[] GetSound()

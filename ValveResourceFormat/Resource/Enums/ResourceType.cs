@@ -7,9 +7,9 @@ namespace ValveResourceFormat
     {
         public string Extension { get; set; }
 
-        public ExtensionAttribute( string extension )
+        public ExtensionAttribute(string extension)
         {
-            this.Extension = extension;
+            Extension = extension;
         }
     }
 

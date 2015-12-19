@@ -178,13 +178,13 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
             IntrospectionVersion = reader.ReadUInt32();
 
             ReadStructs(reader);
 
-            reader.BaseStream.Position = this.Offset + 12; // skip 3 ints
+            reader.BaseStream.Position = Offset + 12; // skip 3 ints
 
             ReadEnums(reader);
         }
@@ -259,7 +259,7 @@ namespace ValveResourceFormat.Blocks
                 }
 
                 diskStruct.StructFlags = reader.ReadByte();
-                
+
                 reader.ReadBytes(3); // TODO: ????
 
                 ReferencedStructs.Add(diskStruct);

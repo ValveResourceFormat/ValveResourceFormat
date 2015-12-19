@@ -42,7 +42,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the File Name
         /// </summary>
-        public string FileName {  get; private set; }
+        public string FileName { get; private set; }
 
         /// <summary>
         /// Gets the VPK version.
@@ -164,7 +164,7 @@ namespace ValveResourceFormat
             {
                 string typeName = Reader.ReadNullTermString(Encoding.UTF8);
 
-                if (typeName == "")
+                if (typeName == string.Empty)
                 {
                     break;
                 }
@@ -176,7 +176,7 @@ namespace ValveResourceFormat
                 {
                     string directoryName = Reader.ReadNullTermString(Encoding.UTF8);
 
-                    if (directoryName == "")
+                    if (directoryName == string.Empty)
                     {
                         break;
                     }
@@ -186,7 +186,7 @@ namespace ValveResourceFormat
                     {
                         string fileName = Reader.ReadNullTermString(Encoding.UTF8);
 
-                        if (fileName == "")
+                        if (fileName == string.Empty)
                         {
                             break;
                         }
@@ -245,7 +245,7 @@ namespace ValveResourceFormat
 
             try
             {
-                fs = new FileStream(FileName + (IsDirVPK ? "_dir" : "") + ".vpk", FileMode.Open, FileAccess.Read);
+                fs = new FileStream(FileName + (IsDirVPK ? "_dir" : string.Empty) + ".vpk", FileMode.Open, FileAccess.Read);
 
                 hasInlineEntries = Read(fs);
             }

@@ -11,7 +11,7 @@ namespace ValveResourceFormat
     /// </summary>
     public class Resource : IDisposable
     {
-        private const ushort KNOWN_HEADER_VERSION = 12;
+        private const ushort KnownHeaderVersion = 12;
 
         private FileStream FileStream;
         private BinaryReader Reader;
@@ -35,9 +35,9 @@ namespace ValveResourceFormat
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; set; }
 
-        public ResourceExtRefList ExternalReferences;
-        public ResourceEditInfo EditInfo;
-        public ResourceIntrospectionManifest IntrospectionManifest;
+        public ResourceExtRefList ExternalReferences { get; private set; }
+        public ResourceEditInfo EditInfo { get; private set; }
+        public ResourceIntrospectionManifest IntrospectionManifest { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Resource"/> class.
@@ -98,9 +98,9 @@ namespace ValveResourceFormat
 
             HeaderVersion = Reader.ReadUInt16();
 
-            if (HeaderVersion != KNOWN_HEADER_VERSION)
+            if (HeaderVersion != KnownHeaderVersion)
             {
-                throw new InvalidDataException(string.Format("Bad header version. ({0} != expected {1})", HeaderVersion, KNOWN_HEADER_VERSION));
+                throw new InvalidDataException(string.Format("Bad header version. ({0} != expected {1})", HeaderVersion, KnownHeaderVersion));
             }
 
             Version = Reader.ReadUInt16();
@@ -244,7 +244,7 @@ namespace ValveResourceFormat
                 case "AnimGroup": return ResourceType.AnimationGroup;
                 case "VPhysXData": return ResourceType.PhysicsCollisionMesh;
                 case "Font": return ResourceType.BitmapFont;
-                case "RenderMesh": return  ResourceType.Mesh;
+                case "RenderMesh": return ResourceType.Mesh;
             }
 
             ResourceType resourceType;

@@ -26,7 +26,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
                 {
-                    ReadStructure(refStruct, this.Offset);
+                    ReadStructure(refStruct, Offset);
 
                     break;
                 }
@@ -40,8 +40,6 @@ namespace ValveResourceFormat.ResourceTypes
             Writer.WriteLine(refStruct.Name);
             Writer.WriteLine("{");
             Writer.Indent++;
-
-
 
             foreach (var field in refStruct.FieldIntrospection)
             {
@@ -207,6 +205,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         Writer.WriteLine("0x{0:X2}", Reader.ReadByte());
                     }
+
                     break;
 
                 case DataType.Boolean:
@@ -246,7 +245,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case DataType.Vector:
-                    var vector3 = new []
+                    var vector3 = new[]
                     {
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
@@ -261,7 +260,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
-                    var vector4 = new []
+                    var vector4 = new[]
                     {
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
@@ -288,7 +287,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:
-                    var matrix3x4a = new []
+                    var matrix3x4a = new[]
                     {
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
@@ -305,7 +304,7 @@ namespace ValveResourceFormat.ResourceTypes
                         Reader.ReadSingle(),
                         Reader.ReadSingle()
                     };
-                    
+
                     Writer.WriteLine();
                     Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[0], matrix3x4a[1], matrix3x4a[2], matrix3x4a[3]);
                     Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", matrix3x4a[4], matrix3x4a[5], matrix3x4a[6], matrix3x4a[7]);
@@ -314,7 +313,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case DataType.CTransform:
-                    var transform = new []
+                    var transform = new[]
                     {
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),

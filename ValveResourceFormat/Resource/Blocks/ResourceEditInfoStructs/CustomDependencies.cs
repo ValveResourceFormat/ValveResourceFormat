@@ -8,9 +8,9 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
     {
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
-            if (this.Size > 0)
+            if (Size > 0)
             {
                 throw new NotImplementedException("CustomDependencies block is not handled. Please report this on https://github.com/SteamDatabase/ValveResourceFormat and provide the file that caused this exception.");
             }

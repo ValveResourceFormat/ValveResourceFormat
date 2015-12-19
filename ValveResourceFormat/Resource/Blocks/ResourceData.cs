@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            
+            // TODO
         }
 
         public override void WriteText(IndentedTextWriter writer)

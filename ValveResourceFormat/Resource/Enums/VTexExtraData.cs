@@ -7,5 +7,5 @@
         FALLBACK_BITS = 1,
         SHEET = 2,
 #pragma warning restore 1591
-    };
+    }
 }

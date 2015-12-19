@@ -18,7 +18,6 @@ namespace ValveResourceFormat
 
             using (var ms = new MemoryStream())
             {
-
                 while (true)
                 {
                     var data = new byte[characterSize];

@@ -14,5 +14,5 @@ namespace ValveResourceFormat
         VOLUME_TEXTURE = 0x00000020,
         TEXTURE_ARRAY = 0x00000040,
 #pragma warning restore 1591
-    };
+    }
 }

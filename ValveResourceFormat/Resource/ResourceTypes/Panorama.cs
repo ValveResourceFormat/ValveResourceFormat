@@ -25,7 +25,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
             CRC32 = reader.ReadUInt32();
 
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.ResourceTypes
                 headerSize += entry.Name.Length + 1 + 4; // string length + null byte + 4 bytes
             }
 
-            Data = reader.ReadBytes((int)this.Size - headerSize);
+            Data = reader.ReadBytes((int)Size - headerSize);
 
             if (Crc32.Compute(Data) != CRC32)
             {

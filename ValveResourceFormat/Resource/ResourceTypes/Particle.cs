@@ -6,7 +6,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Particle : NTRO
     {
-        const int SIGNATURE = 55987030; // "VKV\x03" aka valve keyvalue, version 3
+        private const int SIGNATURE = 55987030; // "VKV\x03" aka valve keyvalue, version 3
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -46,7 +46,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             base.Read(reader, resource);
 
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
             // TODO: Use parsed NTRO data
             if (reader.ReadUInt32() != SIGNATURE)

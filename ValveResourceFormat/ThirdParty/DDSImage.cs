@@ -1,11 +1,11 @@
 ﻿/*
  * Kons 2012-12-03 Version .1
- * 
+ *
  * Supported features:
  * - DXT1
  * - DXT5
  * - LinearImage
- * 
+ *
  * http://code.google.com/p/kprojects/
  * Send me any change/improvement at kons.snok<at>gmail.com
  *
@@ -20,7 +20,6 @@ namespace ValveResourceFormat.ThirdParty
 {
     internal static class DDSImage
     {
-        #region DXT1
         public static Bitmap UncompressDXT1(BinaryReader r, int w, int h)
         {
             Bitmap res = new Bitmap(w, h);
@@ -117,9 +116,7 @@ namespace ValveResourceFormat.ThirdParty
                 }
             }
         }
-        #endregion
 
-        #region DXT5
         public static Bitmap UncompressDXT5(BinaryReader r, int w, int h)
         {
             Bitmap res = new Bitmap(w, h);
@@ -149,7 +146,7 @@ namespace ValveResourceFormat.ThirdParty
             uint a3 = (uint)blockStorage[6] << 16;
             uint a4 = (uint)blockStorage[7] << 24;
             uint alphaCode1 = a1 | a2 | a3 | a4;
-            
+
             ushort alphaCode2 = (ushort)(blockStorage[2] | (blockStorage[3] << 8));
 
             ushort color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
@@ -274,7 +271,6 @@ namespace ValveResourceFormat.ThirdParty
                 }
             }
         }
-        #endregion
 
         private static int ClampColor(int a)
         {

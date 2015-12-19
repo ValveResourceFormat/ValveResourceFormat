@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
             var modelName = reader.ReadOffsetString(Encoding.UTF8);
         }

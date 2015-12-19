@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
             for (var i = REDIStruct.InputDependencies; i < REDIStruct.End; i++)
             {
@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Blocks
             writer.WriteLine("}");
         }
 
-        static ResourceEditInfoStructs.REDIBlock ConstructStruct(REDIStruct id)
+        private static ResourceEditInfoStructs.REDIBlock ConstructStruct(REDIStruct id)
         {
             switch (id)
             {

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
     {
         public class EditStringData
         {
-            public string Name { get; set; } 
+            public string Name { get; set; }
             public string Value { get; set; }
 
             public void WriteText(IndentedTextWriter writer)
@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 writer.Indent++;
                 writer.WriteLine("CResourceString m_Name = \"{0}\"", Name);
 
-                var lines = Value.Split(new [] { "\r\n", "\n" }, StringSplitOptions.None);
+                var lines = Value.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
                 if (lines.Length > 1)
                 {
@@ -56,9 +56,9 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
-            for (var i = 0; i < this.Size; i++)
+            for (var i = 0; i < Size; i++)
             {
                 var dep = new EditStringData();
 

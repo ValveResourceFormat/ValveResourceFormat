@@ -40,7 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader = reader;
 
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
             Version = reader.ReadUInt16();
 
@@ -51,14 +51,13 @@ namespace ValveResourceFormat.ResourceTypes
 
             Flags = (VTexFlags)reader.ReadUInt16();
 
-            Reflectivity = new []
+            Reflectivity = new[]
             {
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle()
             };
-            
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
             Depth = reader.ReadUInt16();
@@ -89,7 +88,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            DataOffset = this.Offset + this.Size;
+            DataOffset = Offset + Size;
         }
 
         public Bitmap GenerateBitmap()
@@ -248,17 +247,17 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (Flags.HasFlag(value))
                     {
-                        writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", "", Convert.ToInt32(value), value);
+                        writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", string.Empty, Convert.ToInt32(value), value);
                     }
                 }
-                
+
                 writer.WriteLine("{0,-12} = {1} entries:", "Extra Data", ExtraData.Count);
 
                 int entry = 0;
 
                 foreach (var b in ExtraData)
                 {
-                    writer.WriteLine("{0,-12}   [ Entry {1}: VTEX_EXTRA_DATA_{2} - {3} bytes ]", "", entry++, b.Key, b.Value.Length);
+                    writer.WriteLine("{0,-12}   [ Entry {1}: VTEX_EXTRA_DATA_{2} - {3} bytes ]", string.Empty, entry++, b.Key, b.Value.Length);
                 }
 
                 return output.ToString();

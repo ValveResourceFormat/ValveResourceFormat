@@ -20,5 +20,5 @@
         RGBA32323232F = 14, // TODO: Not used in dota
         PNG = 16, // TODO: resourceinfo doesn't know about this
 #pragma warning restore 1591
-    };
+    }
 }

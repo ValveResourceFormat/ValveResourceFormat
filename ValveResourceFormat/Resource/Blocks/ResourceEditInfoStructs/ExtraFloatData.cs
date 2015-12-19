@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
     {
         public class EditFloatData
         {
-            public string Name { get; set; } 
+            public string Name { get; set; }
             public float Value { get; set; }
 
             public void WriteText(IndentedTextWriter writer)
@@ -34,9 +34,9 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            reader.BaseStream.Position = this.Offset;
+            reader.BaseStream.Position = Offset;
 
-            for (var i = 0; i < this.Size; i++)
+            for (var i = 0; i < Size; i++)
             {
                 var dep = new EditFloatData();
 

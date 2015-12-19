@@ -49,7 +49,7 @@ namespace ValveResourceFormat
             {
                 uint totalLength = Length;
 
-                if(SmallData != null)
+                if (SmallData != null)
                 {
                     totalLength += (uint)SmallData.Length;
                 }
