@@ -18,7 +18,7 @@ build:
   verbosity: minimal
 test_script:
 - ps: >-
-    .\packages\OpenCover.4.6.166\tools\OpenCover.Console.exe -register:user -target:.\packages\NUnit.Console.3.0.1\tools\nunit3-console.exe -register:user "-targetargs:""Tests/bin/$env:CONFIGURATION/Tests.dll""" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml
+    .\packages\OpenCover.4.6.166\tools\OpenCover.Console.exe -register:user -target:.\packages\NUnit.Console.3.0.1\tools\nunit3-console.exe -register:user "-targetargs:""Tests/bin/$env:CONFIGURATION/Tests.dll""" -returntargetcode -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml
 
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null) {
       $coveralls = (Resolve-Path "packages/coveralls.net.*/tools/csmacnz.coveralls.exe").ToString()
