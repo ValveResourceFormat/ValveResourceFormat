@@ -20,7 +20,7 @@ namespace Tests
                 var resource = new Resource();
                 resource.Read(file);
 
-                var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap(0);
 
                 using (var ms = new MemoryStream())
                 {

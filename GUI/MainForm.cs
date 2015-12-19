@@ -214,7 +214,7 @@ namespace GUI
 
                             var control = new Forms.Texture();
                             control.BackColor = Color.Black;
-                            control.SetImage(tex.GenerateBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
+                            control.SetImage(tex.GenerateBitmap(0), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
                         }

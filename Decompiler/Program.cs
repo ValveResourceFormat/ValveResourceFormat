@@ -196,8 +196,11 @@ namespace Decompiler
 
                         case ResourceType.Texture:
                             extension = "png";
+                            var textureoptions = new Texture.FormatOptions();
+                            if (Options.YCgCoConversion) textureoptions |= Texture.FormatOptions.YCgCoConversion;
+                            if (Options.StraightAlpha) textureoptions |= Texture.FormatOptions.StraightAlpha;
 
-                            var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                            var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap(textureoptions);
 
                             using (var ms = new MemoryStream())
                             {

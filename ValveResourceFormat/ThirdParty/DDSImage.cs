@@ -120,7 +120,7 @@ namespace ValveResourceFormat.ThirdParty
         #endregion
 
         #region DXT5
-        public static Bitmap UncompressDXT5(BinaryReader r, int w, int h)
+        public static Bitmap UncompressDXT5(BinaryReader r, int w, int h, ResourceTypes.Texture.FormatOptions options)
         {
             Bitmap res = new Bitmap(w, h);
 
@@ -132,14 +132,14 @@ namespace ValveResourceFormat.ThirdParty
                 for (int i = 0; i < blockCountX; i++)
                 {
                     byte[] blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, res);
+                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, res, options);
                 }
             }
 
             return res;
         }
 
-        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Bitmap image)
+        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Bitmap image, ResourceTypes.Texture.FormatOptions options)
         {
             byte alpha0 = blockStorage[0];
             byte alpha1 = blockStorage[1];
@@ -287,6 +287,26 @@ namespace ValveResourceFormat.ThirdParty
 
                     if (x + i < width)
                     {
+                        if (options.HasFlag(ResourceTypes.Texture.FormatOptions.YCgCoConversion))
+                        {
+                            var s = (finalB >> 3) + 1;
+                            var co = (finalR - 128) / s;
+                            var cg = (finalG - 128) / s;
+
+                            finalR = ClampColor(finalAlpha + co - cg);
+                            finalG = ClampColor(finalAlpha + cg);
+                            finalB = ClampColor(finalAlpha - co - cg);
+
+                            finalAlpha = byte.MaxValue;
+                        }
+
+                        if (options.HasFlag(ResourceTypes.Texture.FormatOptions.StraightAlpha))
+                        {
+                            finalR = ClampColor(finalR * byte.MaxValue / finalAlpha);
+                            finalG = ClampColor(finalG * byte.MaxValue / finalAlpha);
+                            finalB = ClampColor(finalB * byte.MaxValue / finalAlpha);
+                        }
+
                         Color finalColor = Color.FromArgb(finalAlpha, finalR, finalG, finalB);
 
                         image.SetPixel(x + i, y + j, finalColor);

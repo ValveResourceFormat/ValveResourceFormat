@@ -38,6 +38,14 @@ namespace Decompiler
             HelpText = "Write a file with files in given VPK and their CRC.")]
         public bool OutputVPKDir { get; set; }
 
+        [Option("ycgco", DefaultValue = false,
+            HelpText = "Makes DXT5 decoder perform YCgCo to RGB conversion.")]
+        public bool YCgCoConversion { get; set; }
+
+        [Option("straight_alpha", DefaultValue = false,
+            HelpText = "Makes DXT5 decoder convert from premultiplied colors to straight alpha.")]
+        public bool StraightAlpha { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
