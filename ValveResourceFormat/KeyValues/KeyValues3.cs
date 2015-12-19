@@ -209,18 +209,18 @@ namespace ValveResourceFormat.KeyValues
                 }
             }
             //Boolean false
-            else if (c == 'f' && PeekString(parser, 4) == "alse")
+            else if (ReadAheadMatches(parser, c, "false"))
             {
                 parser.stateStack.Pop();
-                
+
                 //Can directly be added
                 parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.BOOLEAN, false));
 
                 //Skip next characters
-                SkipChars(parser, 4);
+                SkipChars(parser, "false".Length - 1);
             }
             //Boolean true
-            else if (c == 'f' && PeekString(parser, 3) == "rue")
+            else if (ReadAheadMatches(parser, c, "true"))
             {
                 parser.stateStack.Pop();
 
@@ -228,7 +228,7 @@ namespace ValveResourceFormat.KeyValues
                 parser.objStack.Peek().AddProperty(parser.currentName, new KVValue(KVType.BOOLEAN, true));
 
                 //Skip next characters
-                SkipChars(parser, 3);
+                SkipChars(parser, "true".Length - 1);
             }
             //Number
             else if (numerals.Contains(c))
@@ -403,7 +403,7 @@ namespace ValveResourceFormat.KeyValues
             //This shouldn't happen
             if (!Char.IsWhiteSpace(c) && c != ',')
             {
-                throw new Exception("Error parsing array.");
+                throw new InvalidDataException("Error in array format.");
             }
 
             //Just jump to seek_value state
@@ -485,7 +485,7 @@ namespace ValveResourceFormat.KeyValues
         //Utility function
         private static string PeekString(Parser parser, int length)
         {
-            char[] buffer = new char[length];            
+            char[] buffer = new char[length];
             for (int i = 0; i < length; i++)
             {
                 if (i < parser.charBuffer.Count)
@@ -498,7 +498,16 @@ namespace ValveResourceFormat.KeyValues
                     parser.charBuffer.Enqueue(buffer[i]);
                 }
             }
-            return String.Join("", buffer);
+            return string.Join(string.Empty, buffer);
+        }
+
+        private static bool ReadAheadMatches(Parser parser, char c, string pattern)
+        {
+            if (c + PeekString(parser, pattern.Length - 1) == pattern)
+            {
+                return true;
+            }
+            return false;
         }
     }
 

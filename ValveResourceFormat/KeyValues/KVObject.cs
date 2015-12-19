@@ -78,18 +78,12 @@ namespace ValveResourceFormat.KeyValues
                 stringBuilder.Append("\n");
             }
 
-            for (var i = 0; i < indent - 1; i++)
-            {
-                stringBuilder.Append("\t");
-            }
+            PrintIndent(stringBuilder, indent - 1);
             stringBuilder.Append("{\n");
 
             foreach (var pair in Properties)
             {
-                for (var i = 0; i < indent; i++)
-                {
-                    stringBuilder.Append("\t");
-                }
+                PrintIndent(stringBuilder, indent);
 
                 stringBuilder.Append(pair.Key);
                 stringBuilder.Append(" = ");
@@ -99,39 +93,27 @@ namespace ValveResourceFormat.KeyValues
                 stringBuilder.Append("\n");
             }
 
-            for (var i = 0; i < indent - 1; i++)
-            {
-                stringBuilder.Append("\t");
-            }
+            PrintIndent(stringBuilder, indent - 1);
             stringBuilder.Append("}");
         }
 
         private void SerializeArray(StringBuilder stringBuilder, int indent)
         {
             stringBuilder.Append("\n");
-            for (var i = 0; i < indent - 1; i++)
-            {
-                stringBuilder.Append("\t");
-            }
+            PrintIndent(stringBuilder, indent - 1);
             stringBuilder.Append("[\n");
 
             //Need to preserve the order
             for (var i = 0; i < Count; i++)
             {
-                for (var j = 0; j < indent; j++)
-                {
-                    stringBuilder.Append("\t");
-                }
+                PrintIndent(stringBuilder, indent);
 
                 PrintValue(stringBuilder, Properties[i.ToString()], indent);
 
                 stringBuilder.Append(",\n");
             }
 
-            for (var i = 0; i < indent - 1; i++)
-            {
-                stringBuilder.Append("\t");
-            }
+            PrintIndent(stringBuilder, indent - 1);
             stringBuilder.AppendLine("]");
         }
 
@@ -197,7 +179,15 @@ namespace ValveResourceFormat.KeyValues
                     break;
                 default:
                     //Unknown type encountered
-                    throw new Exception("Unknown type encountered.");
+                    throw new InvalidOperationException("Trying to print unknown type.");
+            }
+        }
+
+        private void PrintIndent(StringBuilder stringBuilder, int num)
+        {
+            for (int i = 0; i < num; i++)
+            {
+                stringBuilder.Append("\t");
             }
         }
     }
