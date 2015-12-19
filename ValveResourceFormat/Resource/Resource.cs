@@ -37,7 +37,7 @@ namespace ValveResourceFormat
 
         public ResourceExtRefList ExternalReferences { get; private set; }
         public ResourceEditInfo EditInfo { get; private set; }
-        public ResourceIntrospectionManifest IntrospectionManifest { get; private set; }
+        public ResourceIntrospectionManifest IntrospectionManifest { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Resource"/> class.
