@@ -3,83 +3,87 @@ using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
     public class NTROStruct : IDictionary
     {
-        private Dictionary<string, NTROValue> contents;
-        public string name { get; private set; }
+        private Dictionary<string, NTROValue> Contents;
+        public string Name { get; private set; }
 
         public NTROStruct(string name)
         {
-            this.name = name;
-            contents = new Dictionary<string, NTROValue>();
+            Name = name;
+            Contents = new Dictionary<string, NTROValue>();
         }
-        public void WriteText(IndentedTextWriter Writer)
+
+        public void WriteText(IndentedTextWriter writer)
         {
-            Writer.WriteLine(name);
-            Writer.WriteLine("{");
-            Writer.Indent++;
+            writer.WriteLine(Name);
+            writer.WriteLine("{");
+            writer.Indent++;
 
-            foreach (KeyValuePair<string, NTROValue> entry in contents)
+            foreach (KeyValuePair<string, NTROValue> entry in Contents)
             {
-                NTROArray array = entry.Value as NTROArray;
-                if (entry.Value.pointer)
-                {
-                    Writer.Write("{0} {1}* = (ptr) ->", ValveDataType(entry.Value.Type), entry.Key);
-                    entry.Value.WriteText(Writer);
+                var array = entry.Value as NTROArray;
 
+                if (entry.Value.Pointer)
+                {
+                    writer.Write("{0} {1}* = (ptr) ->", ValveDataType(entry.Value.Type), entry.Key);
+                    entry.Value.WriteText(writer);
                 }
                 else if (array != null)
                 {
                     // TODO: This is matching Valve's incosistency
                     if (array.Type == DataType.Byte && array.IsIndirection)
                     {
-                        Writer.WriteLine("{0}[{2}] {1} =", ValveDataType(array.Type), entry.Key, array.Count);
+                        writer.WriteLine("{0}[{2}] {1} =", ValveDataType(array.Type), entry.Key, array.Count);
                     }
                     else
                     {
-                        Writer.WriteLine("{0} {1}[{2}] =", ValveDataType(array.Type), entry.Key, array.Count);
+                        writer.WriteLine("{0} {1}[{2}] =", ValveDataType(array.Type), entry.Key, array.Count);
                     }
-                    Writer.WriteLine("[");
-                    Writer.Indent++;
+
+                    writer.WriteLine("[");
+                    writer.Indent++;
+
                     foreach (var innerEntry in array)
                     {
                         if (array.Type == DataType.Byte && array.IsIndirection)
                         {
-                            Writer.WriteLine("{0:X2}", (innerEntry as NTROValue<byte>).value);
+                            writer.WriteLine("{0:X2}", (innerEntry as NTROValue<byte>).Value);
                         }
                         else
                         {
-                            innerEntry.WriteText(Writer);
+                            innerEntry.WriteText(writer);
                         }
                     }
-                    Writer.Indent--;
-                    Writer.WriteLine("]");
+
+                    writer.Indent--;
+                    writer.WriteLine("]");
                 }
-                else //Can either be NTROArray or NTROValue so...
+                else // Can either be NTROArray or NTROValue so...
                 {
-                    Writer.Write("{0} {1} = ", ValveDataType(entry.Value.Type), entry.Key);
-                    entry.Value.WriteText(Writer);
+                    writer.Write("{0} {1} = ", ValveDataType(entry.Value.Type), entry.Key);
+                    entry.Value.WriteText(writer);
                 }
             }
 
-            Writer.Indent--;
-            Writer.WriteLine("}");
+            writer.Indent--;
+            writer.WriteLine("}");
         }
+
         public override string ToString()
         {
             using (var output = new StringWriter())
-            using (var Writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter(output, "\t"))
             {
-                WriteText(Writer);
+                WriteText(writer);
+
                 return output.ToString();
             }
         }
+
         private static string ValveDataType(DataType type)
         {
             switch (type)
@@ -102,27 +106,27 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             return type.ToString();
         }
 
-
         public NTROValue this[string key]
         {
             get
             {
-                return contents[key];
+                return Contents[key];
             }
-
             set
             {
-                contents[key] = value;
+                Contents[key] = value;
             }
         }
-        public object this[object key] {
+
+        public object this[object key]
+        {
             get
             {
-                return ((IDictionary)contents)[key];
+                return ((IDictionary)Contents)[key];
             }
             set
             {
-
+                ((IDictionary)Contents)[key] = value;
             }
         }
 
@@ -130,7 +134,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return contents.Count;
+                return Contents.Count;
             }
         }
 
@@ -138,7 +142,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).IsFixedSize;
+                return ((IDictionary)Contents).IsFixedSize;
             }
         }
 
@@ -146,7 +150,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).IsReadOnly;
+                return ((IDictionary)Contents).IsReadOnly;
             }
         }
 
@@ -154,7 +158,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).IsSynchronized;
+                return ((IDictionary)Contents).IsSynchronized;
             }
         }
 
@@ -162,7 +166,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return contents.Keys;
+                return Contents.Keys;
             }
         }
 
@@ -170,7 +174,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return ((IDictionary)contents).SyncRoot;
+                return ((IDictionary)Contents).SyncRoot;
             }
         }
 
@@ -178,43 +182,43 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             get
             {
-                return contents.Values;
+                return Contents.Values;
             }
         }
 
         public void Add(object key, object value)
         {
-            ((IDictionary)contents).Add(key, value);
+            ((IDictionary)Contents).Add(key, value);
         }
 
         public void Clear()
         {
-            contents.Clear();
+            Contents.Clear();
         }
 
         public bool Contains(object key)
         {
-            return ((IDictionary)contents).Contains(key);
+            return ((IDictionary)Contents).Contains(key);
         }
 
         public void CopyTo(Array array, int index)
         {
-            ((IDictionary)contents).CopyTo(array, index);
+            ((IDictionary)Contents).CopyTo(array, index);
         }
 
         public IDictionaryEnumerator GetEnumerator()
         {
-            return ((IDictionary)contents).GetEnumerator();
+            return ((IDictionary)Contents).GetEnumerator();
         }
 
         public void Remove(object key)
         {
-            ((IDictionary)contents).Remove(key);
+            ((IDictionary)Contents).Remove(key);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return ((IDictionary)contents).GetEnumerator();
+            return ((IDictionary)Contents).GetEnumerator();
         }
     }
 }

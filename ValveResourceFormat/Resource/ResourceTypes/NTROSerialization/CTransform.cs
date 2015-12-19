@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
@@ -32,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         public override string ToString()
         {
             // http://stackoverflow.com/a/15085178/2200891
-            return String.Format("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", field4, field5, field6, field7.ToString("F"), field0, field1, field2.ToString("F"));
+            return string.Format("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", field4, field5, field6, field7.ToString("F"), field0, field1, field2.ToString("F"));
         }
     }
 }

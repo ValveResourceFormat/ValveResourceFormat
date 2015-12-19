@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+﻿namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
     class Vector4
     {
@@ -21,6 +15,6 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             this.field3 = field3;
         }
 
-        //Due to DataType needing to be known to do ToString() here, it is done elsewhere
+        // Due to DataType needing to be known to do ToString() here, it is done elsewhere
     }
 }

@@ -2,9 +2,6 @@
 using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
@@ -13,27 +10,26 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         private NTROValue[] contents;
         public bool IsIndirection { get; private set; }
 
-        public NTROArray(DataType Type, int count, bool pointer = false, bool isIndirection = false)
+        public NTROArray(DataType type, int count, bool pointer = false, bool isIndirection = false)
         {
-            this.Type = Type; //from NTROValue
-            this.pointer = pointer; //from NTROValue
+            Type = type; // from NTROValue
+            Pointer = pointer; // from NTROValue
 
             IsIndirection = isIndirection;
 
             contents = new NTROValue[count];
         }
-        public override void WriteText(IndentedTextWriter Writer)
+
+        public override void WriteText(IndentedTextWriter writer)
         {
-            if (this.Count > 1)
+            if (Count > 1)
             {
                 throw new NotImplementedException("NTROArray.Count > 1");
             }
-            else
+
+            foreach (var entry in this)
             {
-                foreach (var entry in this)
-                {
-                    entry.WriteText(Writer);
-                }
+                entry.WriteText(writer);
             }
         }
 
@@ -43,7 +39,6 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             {
                 return ((IList<NTROValue>)contents)[index];
             }
-
             set
             {
                 ((IList<NTROValue>)contents)[index] = value;

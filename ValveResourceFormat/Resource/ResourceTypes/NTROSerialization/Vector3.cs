@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
@@ -21,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 
         public override string ToString()
         {
-            return String.Format("({0:F6}, {1:F6}, {2:F6})", field0, field1, field2);
+            return string.Format("({0:F6}, {1:F6}, {2:F6})", field0, field1, field2);
         }
     }
 }

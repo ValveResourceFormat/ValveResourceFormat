@@ -11,7 +11,6 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private BinaryReader Reader;
         private Resource Resource;
-        private IndentedTextWriter Writer;
         public NTROSerialization.NTROStruct Output { get; private set; }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -21,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
             {
-                Output = ReadStructure(refStruct, this.Offset);
+                Output = ReadStructure(refStruct, Offset);
 
                 break;
             }
@@ -29,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private NTROSerialization.NTROStruct ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
         {
-            NTROSerialization.NTROStruct structEntry = new NTROSerialization.NTROStruct(refStruct.Name);
+            var structEntry = new NTROSerialization.NTROStruct(refStruct.Name);
 
             foreach (var field in refStruct.FieldIntrospection)
             {
@@ -54,13 +53,13 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Reader.BaseStream.Position = previousOffset;
             }
+
             return structEntry;
         }
 
         private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, ref NTROSerialization.NTROStruct structEntry)
         {
             uint count = (uint)field.Count;
-            bool multiple = false; // TODO: get rid of this
             bool pointer = false; // TODO: get rid of this
 
             if (count == 0)
@@ -111,8 +110,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (count > 0)
                     {
-                        multiple = true;
-
                         Reader.BaseStream.Position += offset - 8;
                     }
                 }
@@ -128,19 +125,20 @@ namespace ValveResourceFormat.ResourceTypes
             //}
             if (field.Count > 0 || field.Indirections.Count > 0)
             {
+                var ntroValues = new NTROSerialization.NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
 
-                NTROSerialization.NTROArray ntroValues = new NTROSerialization.NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
                 for (var i = 0; i < count; i++)
                 {
-                    ntroValues[i] = ReadField(field, multiple, pointer);
+                    ntroValues[i] = ReadField(field, pointer);
                 }
+
                 structEntry.Add(field.FieldName, ntroValues);
             }
             else
             {
                 for (var i = 0; i < count; i++)
                 {
-                    structEntry.Add(field.FieldName, ReadField(field, multiple, pointer));
+                    structEntry.Add(field.FieldName, ReadField(field, pointer));
                 }
             }
 
@@ -150,7 +148,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private NTROSerialization.NTROValue ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, bool multiple, bool pointer)
+        private NTROSerialization.NTROValue ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, bool pointer)
         {
             switch (field.Type)
             {
@@ -160,38 +158,38 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case DataType.Enum:
                     // TODO: Lookup in ReferencedEnums
-                    return new NTROSerialization.NTROValue<UInt32>(field.Type, Reader.ReadUInt32(), pointer);
+                    return new NTROSerialization.NTROValue<uint>(field.Type, Reader.ReadUInt32(), pointer);
 
                 case DataType.SByte:
-                    return new NTROSerialization.NTROValue<SByte>(field.Type, Reader.ReadSByte(), pointer);
+                    return new NTROSerialization.NTROValue<sbyte>(field.Type, Reader.ReadSByte(), pointer);
 
                 case DataType.Byte:
-                    return new NTROSerialization.NTROValue<Byte>(field.Type, Reader.ReadByte(), pointer);
+                    return new NTROSerialization.NTROValue<byte>(field.Type, Reader.ReadByte(), pointer);
 
                 case DataType.Boolean:
-                    return new NTROSerialization.NTROValue<Boolean>(field.Type, (Reader.ReadByte() == 1 ? true : false), pointer);
+                    return new NTROSerialization.NTROValue<bool>(field.Type, Reader.ReadByte() == 1 ? true : false, pointer);
 
                 case DataType.Int16:
-                    return new NTROSerialization.NTROValue<Int16>(field.Type, Reader.ReadInt16(), pointer);
+                    return new NTROSerialization.NTROValue<short>(field.Type, Reader.ReadInt16(), pointer);
 
                 case DataType.UInt16:
-                    return new NTROSerialization.NTROValue<UInt16>(field.Type, Reader.ReadUInt16(), pointer);
+                    return new NTROSerialization.NTROValue<ushort>(field.Type, Reader.ReadUInt16(), pointer);
 
                 case DataType.Int32:
-                    return new NTROSerialization.NTROValue<Int32>(field.Type, Reader.ReadInt32(), pointer);
+                    return new NTROSerialization.NTROValue<int>(field.Type, Reader.ReadInt32(), pointer);
 
                 case DataType.UInt32:
-                    return new NTROSerialization.NTROValue<UInt32>(field.Type, Reader.ReadUInt32(), pointer);
+                    return new NTROSerialization.NTROValue<uint>(field.Type, Reader.ReadUInt32(), pointer);
 
                 case DataType.Float:
-                    return new NTROSerialization.NTROValue<Single>(field.Type, Reader.ReadSingle(), pointer);
+                    return new NTROSerialization.NTROValue<float>(field.Type, Reader.ReadSingle(), pointer);
 
                 case DataType.Int64:
-                    return new NTROSerialization.NTROValue<Int64>(field.Type, Reader.ReadInt64(), pointer);
+                    return new NTROSerialization.NTROValue<long>(field.Type, Reader.ReadInt64(), pointer);
 
-                case DataType.ExternalReference: //Handled elsewhere
+                case DataType.ExternalReference: // Handled elsewhere
                 case DataType.UInt64:
-                    return new NTROSerialization.NTROValue<UInt64>(field.Type, Reader.ReadUInt64(), pointer);
+                    return new NTROSerialization.NTROValue<ulong>(field.Type, Reader.ReadUInt64(), pointer);
 
                 case DataType.Vector:
                     var vector3 = new NTROSerialization.Vector3(
@@ -199,6 +197,7 @@ namespace ValveResourceFormat.ResourceTypes
                         Reader.ReadSingle(),
                         Reader.ReadSingle()
                     );
+
                     return new NTROSerialization.NTROValue<NTROSerialization.Vector3>(field.Type, vector3, pointer);
 
                 case DataType.Quaternion:
@@ -211,11 +210,12 @@ namespace ValveResourceFormat.ResourceTypes
                         Reader.ReadSingle(),
                         Reader.ReadSingle()
                     );
+
                     return new NTROSerialization.NTROValue<NTROSerialization.Vector4>(field.Type, vector4, pointer);
 
                 case DataType.String4:
                 case DataType.String:
-                    return new NTROSerialization.NTROValue<String>(field.Type, Reader.ReadOffsetString(Encoding.UTF8), pointer);
+                    return new NTROSerialization.NTROValue<string>(field.Type, Reader.ReadOffsetString(Encoding.UTF8), pointer);
 
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:

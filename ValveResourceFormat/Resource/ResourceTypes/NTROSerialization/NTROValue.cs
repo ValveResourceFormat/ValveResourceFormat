@@ -7,111 +7,119 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
     public abstract class NTROValue
     {
         public DataType Type { get; protected set; }
-        public bool pointer { get; protected set; }
-        public abstract void WriteText(IndentedTextWriter Writer);
-
+        public bool Pointer { get; protected set; }
+        public abstract void WriteText(IndentedTextWriter writer);
     }
+
     public class NTROValue<T> : NTROValue
     {
-        public T value; //Can freely change, right?
+        public T Value { get; private set; }
 
-
-        public NTROValue(DataType Type, T value, bool pointer = false)
+        public NTROValue(DataType type, T value, bool pointer = false)
         {
-            this.Type = Type;
-            this.value = value;
-            this.pointer = pointer;
+            Type = type;
+            Value = value;
+            Pointer = pointer;
         }
 
         public override string ToString()
         {
             using (var output = new StringWriter())
-            using (var Writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter(output, "\t"))
             {
-                WriteText(Writer);
+                WriteText(writer);
+
                 return output.ToString();
             }
         }
-        public override void WriteText(IndentedTextWriter Writer)
+
+        public override void WriteText(IndentedTextWriter writer)
         {
-            if (value == null)
+            if (Value == null)
             {
-                Writer.WriteLine("NULL");
+                writer.WriteLine("NULL");
                 return;
             }
+
             switch (Type)
             {
                 case DataType.Enum:
                     // TODO: Lookup in ReferencedEnums
-                    Writer.WriteLine("0x{0:X8}", (value as UInt32?));
+                    writer.WriteLine("0x{0:X8}", Value);
                     break;
 
                 case DataType.Byte: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X2}", (value as byte?));
+                    writer.WriteLine("0x{0:X2}", Value);
                     break;
+
                 case DataType.Boolean:
-                    //Booleans ToString() returns "True" and "False", we want "true" and "false"
-                    Writer.WriteLine(value.ToString().ToLower());
+                    // Booleans ToString() returns "True" and "False", we want "true" and "false"
+                    writer.WriteLine(Value.ToString().ToLower());
                     break;
+
                 case DataType.UInt16: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X4}", (value as UInt16?));
+                    writer.WriteLine("0x{0:X4}", Value);
                     break;
 
                 case DataType.UInt32: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X8}", (value as UInt32?));
+                    writer.WriteLine("0x{0:X8}", Value);
                     break;
 
                 case DataType.Float:
-                    Writer.WriteLine("{0:F6}", (value as Single?));
+                    writer.WriteLine("{0:F6}", Value);
                     break;
 
                 case DataType.UInt64: // TODO: Valve print it as hex, why?
-                    Writer.WriteLine("0x{0:X16}", (value as UInt64?));
+                    writer.WriteLine("0x{0:X16}", Value);
                     break;
 
                 case DataType.ExternalReference:
-                    Writer.WriteLine("ID: {0:X16}", (value as UInt64?));
+                    writer.WriteLine("ID: {0:X16}", Value);
                     break;
 
                 case DataType.Quaternion:
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
-                    var vector4 = value as Vector4;
-                    if (this.Type == DataType.Quaternion)
+                    var vector4 = Value as Vector4;
+
+                    if (Type == DataType.Quaternion)
                     {
-                        Writer.WriteLine("{{x: {0:F}, y: {1:F}, z: {2:F}, w: {3}}}", vector4.field0, vector4.field1, vector4.field2, vector4.field3.ToString("F"));
+                        writer.WriteLine("{{x: {0:F}, y: {1:F}, z: {2:F}, w: {3}}}", vector4.field0, vector4.field1, vector4.field2, vector4.field3.ToString("F"));
                     }
                     else
                     {
-                        Writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.field0, vector4.field1, vector4.field2, vector4.field3);
+                        writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.field0, vector4.field1, vector4.field2, vector4.field3);
                     }
+
                     break;
 
                 case DataType.String4:
                 case DataType.String:
-                    Writer.WriteLine("\"{0}\"", value as String);
+                    writer.WriteLine("\"{0}\"", Value);
                     break;
 
-
-                //Stuff we can let our generic value ToString() handle.
+                // Stuff we can let our generic value ToString() handle.
                 case DataType.Int16:
                 case DataType.Int32:
                 case DataType.Int64:
                 case DataType.Vector:
                 case DataType.SByte:
                 case DataType.CTransform:
-                    Writer.WriteLine(value.ToString());
+                    writer.WriteLine(Value);
                     break;
+
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:
-                    (value as Matrix3x4).WriteText(Writer);
+                    (Value as Matrix3x4).WriteText(writer);
                     break;
+
                 case DataType.Struct:
-                    (value as NTROStruct).WriteText(Writer);
+                    (Value as NTROStruct).WriteText(writer);
                     break;
+
                 default:
-                    throw new NotImplementedException(string.Format("Unknown data type: {0}", value.GetType()));
+                    throw new NotImplementedException(string.Format("Unknown data type: {0}", Value.GetType()));
             }
         }
     }

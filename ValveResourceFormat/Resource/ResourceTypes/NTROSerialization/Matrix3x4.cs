@@ -1,10 +1,5 @@
-﻿using System;
-using System.CodeDom.Compiler;
-using System.Collections.Generic;
+﻿using System.CodeDom.Compiler;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
@@ -40,21 +35,24 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             this.field10 = field10;
             this.field11 = field11;
         }
+
         public override string ToString()
         {
             using (var output = new StringWriter())
-            using (var Writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter(output, "\t"))
             {
-                WriteText(Writer);
+                WriteText(writer);
+
                 return output.ToString();
             }
         }
-        public void WriteText(IndentedTextWriter Writer)
+
+        public void WriteText(IndentedTextWriter writer)
         {
-                Writer.WriteLine();
-                Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", field0, field1, field2, field3);
-                Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", field4, field5, field6, field7);
-                Writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", field8, field9, field10, field11);
+            writer.WriteLine();
+            writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", field0, field1, field2, field3);
+            writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", field4, field5, field6, field7);
+            writer.WriteLine("{0:F4} {1:F4} {2:F4} {3:F4}", field8, field9, field10, field11);
         }
     }
 }
