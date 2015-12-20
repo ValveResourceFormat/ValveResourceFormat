@@ -117,7 +117,7 @@ namespace ValveResourceFormat.ThirdParty
             }
         }
 
-        public static Bitmap UncompressDXT5(BinaryReader r, int w, int h)
+        public static Bitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg)
         {
             Bitmap res = new Bitmap(w, h);
 
@@ -129,14 +129,14 @@ namespace ValveResourceFormat.ThirdParty
                 for (int i = 0; i < blockCountX; i++)
                 {
                     byte[] blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, res);
+                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, res, yCoCg);
                 }
             }
 
             return res;
         }
 
-        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Bitmap image)
+        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Bitmap image, bool yCoCg)
         {
             byte alpha0 = blockStorage[0];
             byte alpha1 = blockStorage[1];
@@ -257,16 +257,18 @@ namespace ValveResourceFormat.ThirdParty
 
                     if (x + i < width)
                     {
-                        // This converts YCoCg into RGB
-                        var s = (finalB >> 3) + 1;
-                        var co = (finalR - 128) / s;
-                        var cg = (finalG - 128) / s;
+                        if (yCoCg)
+                        {
+                            var s = (finalB >> 3) + 1;
+                            var co = (finalR - 128) / s;
+                            var cg = (finalG - 128) / s;
 
-                        image.SetPixel(x + i, y + j, Color.FromArgb(
-                            ClampColor(finalAlpha + co - cg),
-                            ClampColor(finalAlpha + cg),
-                            ClampColor(finalAlpha - co - cg)
-                        ));
+                            finalR = ClampColor(finalAlpha + co - cg);
+                            finalG = ClampColor(finalAlpha + cg);
+                            finalB = ClampColor(finalAlpha - co - cg);
+                        }
+
+                        image.SetPixel(x + i, y + j, Color.FromArgb(finalR, finalG, finalB));
                     }
                 }
             }
@@ -275,12 +277,11 @@ namespace ValveResourceFormat.ThirdParty
         private static int ClampColor(int a)
         {
             if (a > 255)
+            {
                 return 255;
+            }
 
-            if (a < 0)
-                return 0;
-
-            return a;
+            return a < 0 ? 0 : a;
         }
     }
 }

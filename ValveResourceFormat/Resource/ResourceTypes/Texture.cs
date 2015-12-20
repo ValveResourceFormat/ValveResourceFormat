@@ -3,6 +3,7 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -10,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private BinaryReader Reader;
         private long DataOffset;
+        private Resource Resource;
 
         public ushort Version { get; private set; }
 
@@ -39,6 +41,7 @@ namespace ValveResourceFormat.ResourceTypes
         public override void Read(BinaryReader reader, Resource resource)
         {
             Reader = reader;
+            Resource = resource;
 
             reader.BaseStream.Position = Offset;
 
@@ -144,6 +147,23 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.DXT5:
+                    bool yCoCg = false;
+
+                    if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                    {
+                        var specialDeps = (Blocks.ResourceEditInfoStructs.SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+
+                        foreach (var dependancy in specialDeps.List)
+                        {
+                            if (dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion")
+                            {
+                                yCoCg = true;
+
+                                break;
+                            }
+                        }
+                    }
+
                     for (ushort i = 0; i < Depth && i < 0xFF; ++i)
                     {
                         // Horribly skip all mipmaps
@@ -161,7 +181,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
 
-                        return ThirdParty.DDSImage.UncompressDXT5(Reader, Width, Height);
+                        return ThirdParty.DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg);
                     }
 
                     break;
