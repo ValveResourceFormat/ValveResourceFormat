@@ -1,0 +1,89 @@
+CResourceIntrospectionManifest
+	{
+		uint32 m_nIntrospectionVersion = 0x00000004
+		Struct m_ReferencedStructs[2] = 
+		[
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x543B5F7E
+				CResourceString m_pName = "VSoundEventScript_t"
+				uint32 m_nDiskCrc = 0x15654130
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0008
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SoundEvents"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0xB820A3DA
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xB820A3DA
+				CResourceString m_pName = "VSoundEvent_t"
+				uint32 m_nDiskCrc = 0x8CEDFD62
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x000C
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_SoundName"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_GameData"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_OperatorsKV"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+				]
+				uint8 m_nStructFlags = 0x00
+			}
+		]
+		Struct m_ReferencedEnums[0] = 
+		[
+		]
+	}
