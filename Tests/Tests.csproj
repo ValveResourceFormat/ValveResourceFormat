@@ -39,11 +39,14 @@
   <ItemGroup>
     <Compile Include="Test.cs" />
     <Compile Include="PackageTest.cs" />
+    <Compile Include="KeyValuesTest.cs" />
     <Compile Include="TextureTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <None Include="Files\ghostanim_bg_ghostanim_lod0.vmesh_c" />
+    <None Include="Files\KeyValues\KeyValues3_CRLF.kv3" />
+    <None Include="Files\KeyValues\KeyValues3_LF.kv3" />
     <None Include="packages.config" />
     <None Include="Files\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
