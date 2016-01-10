@@ -3,34 +3,36 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Globalization;
+using System.CodeDom.Compiler;
 
 namespace ValveResourceFormat.KeyValues
 {
-    //Different type of value blocks for KeyValues3
+    //Different type of value blocks for KeyValues (All in use for KV3)
     public enum KVType
     {
-        OBJECT,
-        ARRAY,
+        STRING_MULTI, //STRING_MULTI doesn't have an ID
+        NULL,
         BOOLEAN,
         INTEGER,
-        DOUBLE,
+        FLAGGED_STRING, //TODO: Remove!
+        DOUBLE = 5,
         STRING,
-        STRING_MULTI,
-        FLAGGED_STRING
+        ARRAY = 8,
+        OBJECT
     }
 
     //Datastructure for a KV Object
     public class KVObject
     {
-        public string Key;
-        public Dictionary<String, KVValue> Properties;
+        public string Key { get; private set; }
+        public Dictionary<string, KVValue> Properties { get; private set; }
         private bool IsArray;
-        public int Count;
+        public int Count { get; private set; }
 
         public KVObject(string name)
         {
             Key = name;
-            Properties = new Dictionary<String, KVValue>();
+            Properties = new Dictionary<string, KVValue>();
             IsArray = false;
             Count = 0;
         }
@@ -42,11 +44,11 @@ namespace ValveResourceFormat.KeyValues
         }
 
         //Add a property to the structure
-        public virtual void AddProperty(String name, KVValue value)
+        public virtual void AddProperty(string name, KVValue value)
         {
             if (IsArray)
             {
-                //Make up a key for the dictionary
+                // Make up a key for the dictionary
                 Properties.Add(Count.ToString(), value);
             }
             else
@@ -57,68 +59,68 @@ namespace ValveResourceFormat.KeyValues
             Count++;
         }
 
-        public void Serialize(StringBuilder stringBuilder, int indent)
+        public void Serialize(IndentedTextWriter writer)
         {
             if (IsArray)
             {
-                SerializeArray(stringBuilder, indent);
+                SerializeArray(writer);
             }
             else
             {
-                SerializeObject(stringBuilder, indent);
+                SerializeObject(writer);
             }
         }
 
         //Serialize the contents of the KV object
-        private void SerializeObject(StringBuilder stringBuilder, int indent)
+        private void SerializeObject(IndentedTextWriter writer)
         {
             //Don't enter the top-most object
-            if (indent > 1)
+            if (Key != null)
             {
-                stringBuilder.Append("\n");
+                writer.WriteLine();
             }
 
-            PrintIndent(stringBuilder, indent - 1);
-            stringBuilder.Append("{\n");
+            writer.WriteLine("{");
+            writer.Indent++;
 
             foreach (var pair in Properties)
             {
-                PrintIndent(stringBuilder, indent);
+                writer.Write(pair.Key);
+                writer.Write(" = ");
 
-                stringBuilder.Append(pair.Key);
-                stringBuilder.Append(" = ");
+                PrintValue(writer, pair.Value);
 
-                PrintValue(stringBuilder, pair.Value, indent);
-
-                stringBuilder.Append("\n");
+                writer.WriteLine();
             }
 
-            PrintIndent(stringBuilder, indent - 1);
-            stringBuilder.Append("}");
+            writer.Indent--;
+            writer.Write("}");
         }
 
-        private void SerializeArray(StringBuilder stringBuilder, int indent)
+        private void SerializeArray(IndentedTextWriter writer)
         {
-            stringBuilder.Append("\n");
-            PrintIndent(stringBuilder, indent - 1);
-            stringBuilder.Append("[\n");
-
             //Need to preserve the order
+            writer.WriteLine();
+            writer.WriteLine("[");
+            writer.Indent++;
             for (var i = 0; i < Count; i++)
             {
-                PrintIndent(stringBuilder, indent);
+                PrintValue(writer, Properties[i.ToString()]);
 
-                PrintValue(stringBuilder, Properties[i.ToString()], indent);
-
-                stringBuilder.Append(",\n");
+                writer.WriteLine(",");
             }
 
-            PrintIndent(stringBuilder, indent - 1);
-            stringBuilder.AppendLine("]");
+            writer.Indent--;
+            writer.Write("]");
         }
 
         private string EscapeUnescaped(string input, char toEscape)
         {
+            if (input.Length == 0)
+            {
+                return input;
+            }
+
             int index = 1;
             while (true)
             {
@@ -138,70 +140,66 @@ namespace ValveResourceFormat.KeyValues
                 //Don't read this one again
                 index++;
             }
+
             return input;
         }
 
         //Print a value in the correct representation
-        private void PrintValue(StringBuilder stringBuilder, KVValue kvValue, int indent)
+        private void PrintValue(IndentedTextWriter writer, KVValue kvValue)
         {
             KVType type = kvValue.Type;
             object value = kvValue.Value;
+            var flagValue = kvValue as KVFlaggedValue;
+            if (flagValue != null)
+            {
+                switch (flagValue.Flag)
+                {
+                    case KVFlag.Resource:
+                        writer.Write("resource:");
+                        break;
+                    case KVFlag.DeferredResource:
+                        writer.Write("deferred_resource:");
+                        break;
+                    default:
+                        throw new InvalidOperationException("Trying to print unknown flag");
+                }
+            }
 
             switch (type)
             {
                 case KVType.OBJECT:
-                    ((KVObject)value).Serialize(stringBuilder, indent + 1);
-                    break;
                 case KVType.ARRAY:
-                    ((KVObject)value).Serialize(stringBuilder, indent + 1);
+                    ((KVObject)value).Serialize(writer);
                     break;
                 case KVType.FLAGGED_STRING:
-                    stringBuilder.Append((string)value);
+                    writer.Write((string)value);
                     break;
                 case KVType.STRING:
-                    stringBuilder.Append("\"");
-                    stringBuilder.Append(EscapeUnescaped((string)value, '"'));
-                    stringBuilder.Append("\"");
+                    writer.Write("\"");
+                    writer.Write(EscapeUnescaped((string)value, '"'));
+                    writer.Write("\"");
                     break;
                 case KVType.STRING_MULTI:
-                    stringBuilder.Append("\"\"\"\n");
-                    stringBuilder.Append((string)value);
-                    stringBuilder.Append("\n\"\"\"");
+                    writer.Write("\"\"\"\n");
+                    writer.Write((string)value);
+                    writer.Write("\n\"\"\"");
                     break;
                 case KVType.BOOLEAN:
-                    stringBuilder.Append((bool)value ? "true" : "false");
+                    writer.Write((bool)value ? "true" : "false");
                     break;
                 case KVType.DOUBLE:
-                    stringBuilder.Append(((double)value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    writer.Write(((double)value).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
                 case KVType.INTEGER:
-                    stringBuilder.Append((int)value);
+                    writer.Write((long)value);
+                    break;
+                case KVType.NULL:
+                    writer.Write("null");
                     break;
                 default:
-                    //Unknown type encountered
+                    // Unknown type encountered
                     throw new InvalidOperationException("Trying to print unknown type.");
             }
-        }
-
-        private void PrintIndent(StringBuilder stringBuilder, int num)
-        {
-            for (int i = 0; i < num; i++)
-            {
-                stringBuilder.Append("\t");
-            }
-        }
-    }
-
-    //Class to hold type + value
-    public class KVValue
-    {
-        public KVType Type;
-        public object Value;
-
-        public KVValue(KVType type, object value)
-        {
-            Type = type;
-            Value = value;
         }
     }
 }
