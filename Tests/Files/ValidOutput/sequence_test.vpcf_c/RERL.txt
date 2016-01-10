@@ -1,0 +1,11 @@
+ResourceExtRefList_t
+	{
+		Struct m_resourceRefInfoList[1] = 
+		[
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x3A21BC3218B6A9BC
+				CResourceString m_pResourceName = "materials/particles/sequence_test/sequence_test.vtex"
+			}
+		]
+	}

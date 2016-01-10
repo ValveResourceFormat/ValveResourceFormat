@@ -43,6 +43,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
+    <None Include="Files\ghostanim_bg_ghostanim_lod0.vmesh_c" />
     <None Include="packages.config" />
     <None Include="Files\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -53,5 +54,14 @@
       <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Content Include="Files\ValidOutput\ghostanim_bg_ghostanim_lod0.vmesh_c\DATA.txt" />
+    <Content Include="Files\ValidOutput\ghostanim_bg_ghostanim_lod0.vmesh_c\REDI.txt" />
+    <Content Include="Files\ValidOutput\ghostanim_bg_ghostanim_lod0.vmesh_c\RERL.txt" />
   </ItemGroup>
 </Project>

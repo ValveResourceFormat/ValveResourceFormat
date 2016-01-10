@@ -1,0 +1,11 @@
+ResourceExtRefList_t
+        {
+                Struct m_resourceRefInfoList[1] =
+                [
+                        ResourceReferenceInfo_t
+                        {
+                                uint64 m_nId = 0x331DE75DB535E515
+                                CResourceString m_pResourceName = "materials/models/props_vehicles/c130_propeller.vmat"
+                        }
+                ]
+        }

@@ -1,0 +1,32 @@
+{
+	_class = "CParticleSystemDefinition"
+	m_Operators =
+	[
+		{
+			_class = "C_OP_BasicMovement"
+		},
+	]
+	m_Renderers =
+	[
+		{
+			_class = "C_OP_RenderSprites"
+			m_hTexture = resource:"materials/particles/sequence_test/sequence_test.vtex"
+		},
+	]
+	m_Initializers =
+	[
+		{
+			_class = "C_INIT_CreateWithinSphere"
+			m_fRadiusMax = 64.000000
+		},
+		{
+			_class = "C_INIT_RandomRadius"
+		},
+	]
+	m_Emitters =
+	[
+		{
+			_class = "C_OP_ContinuousEmitter"
+		},
+	]
+}
