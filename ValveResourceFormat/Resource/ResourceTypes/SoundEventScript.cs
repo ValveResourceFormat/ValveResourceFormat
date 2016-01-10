@@ -40,7 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 foreach (KeyValuePair<string, string> entry in SoundEventScriptValue)
                 {
-                    writer.WriteLine(entry.Key);
+                    writer.WriteLine("\"" + entry.Key + "\"");
                     writer.WriteLine("{");
                     writer.Indent++;
                     // m_OperatorsKV wont be indented, so we manually indent it here, removing the last indent so we can close brackets later correctly.
