@@ -51,6 +51,7 @@
     <Compile Include="Package\PackageEntry.cs" />
     <Compile Include="Resource\Block.cs" />
     <Compile Include="Resource\Resource.cs" />
+    <Compile Include="Resource\ResourceTypes\BinaryKV3.cs" />
     <Compile Include="Resource\ResourceTypes\Model.cs" />
     <Compile Include="Resource\ResourceTypes\NTRO.cs" />
     <Compile Include="Resource\ResourceTypes\NTROSerialization\CTransform.cs" />

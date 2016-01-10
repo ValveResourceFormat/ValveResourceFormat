@@ -218,11 +218,11 @@ namespace ValveResourceFormat
                 case ResourceType.Texture:
                     return new ResourceTypes.Texture();
 
-                case ResourceType.Particle:
-                    return new ResourceTypes.Particle();
-
                 case ResourceType.SoundEventScript:
                     return new ResourceTypes.SoundEventScript();
+                case ResourceType.Particle:
+                case ResourceType.Mesh:
+                    return new ResourceTypes.BinaryKV3();
             }
 
             if (Blocks.ContainsKey(BlockType.NTRO))

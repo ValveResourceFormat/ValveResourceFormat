@@ -208,8 +208,9 @@ namespace Decompiler
                             }
 
                             break;
+                        //These all just use ToString() and WriteText() to do the job
                         case ResourceType.SoundEventScript:
-                            extension = "vsndevts";
+                        case ResourceType.Particle:
                             data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
                             break;
 
@@ -362,6 +363,7 @@ namespace Decompiler
                 DumpVPK(package, "vjs_c", "js");
                 DumpVPK(package, "vcss_c", "css");
                 DumpVPK(package, "vsndevts_c", "vsndevts");
+                DumpVPK(package, "vpcf_c", "vpcf");
 
                 DumpVPK(package, "txt", "txt");
                 DumpVPK(package, "cfg", "cfg");
@@ -421,11 +423,13 @@ namespace Decompiler
                         }
                         switch(type)
                         {
-                            case "vsndevts_c":
-                                output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                            case "vxml_c":
+                            case "vcss_c":
+                            case "vjs_c":
+                                output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
                                 break;
                             default:
-                                output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
                                 break;
                         }
                         
