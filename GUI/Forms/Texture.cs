@@ -31,7 +31,7 @@ namespace GUI.Forms
             menuStrip.Visible = false; //Hide it as we have pressed the button now!
 
             var saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tga";
+            saveFileDialog.Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tiff|Bitmap Image|*.bmp";
             saveFileDialog.Title = "Save an Image File";
             saveFileDialog.FileName = this.name;
             saveFileDialog.ShowDialog(this);
@@ -48,6 +48,9 @@ namespace GUI.Forms
 
                     case 3:
                         format = ImageFormat.Tiff;
+                        break;
+                    case 4:
+                        format = ImageFormat.Bmp;
                         break;
                 }
 
