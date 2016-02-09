@@ -44,7 +44,7 @@ deploy:
 - provider: NuGet
   api_key:
     secure: hqSxAQZqtX5Z5aWzulXmaIwPQmM87RvTurYOLmLnpHWHlQm1DfWmJn5fAUAuuLZH
-  artifact: ValveResourceFormat\*.nupkg
+  artifact: '*.nupkg'
   on:
     branch: master
     APPVEYOR_REPO_TAG: true
