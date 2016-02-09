@@ -6,9 +6,9 @@
 		<title>$title$</title>
 		<authors>$author$</authors>
 		<owners>$author$</owners>
-		<licenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</licenseUrl>
+		<licenseUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/LICENSE</licenseUrl>
 		<projectUrl>https://github.com/SteamDatabase/ValveResourceFormat</projectUrl>
-		<iconUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/Icons/Programs/1455066868_window-tools.png</iconUrl>
+		<iconUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/Icons/Programs/1455069708_api-code-window.png</iconUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<description>$description$</description>
 		<releaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</releaseNotes>
