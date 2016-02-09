@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package>
+	<metadata>
+		<id>$id$</id>
+		<version>$version$</version>
+		<title>$title$</title>
+		<authors>$author$</authors>
+		<owners>$author$</owners>
+		<licenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</licenseUrl>
+		<projectUrl>https://github.com/SteamDatabase/ValveResourceFormat</projectUrl>
+		<iconUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/Icons/Programs/1455066868_window-tools.png</iconUrl>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<description>$description$</description>
+		<releaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</releaseNotes>
+		<copyright />
+		<tags>source2 dota2 dota steam valve</tags>
+		<frameworkAssemblies>
+			<frameworkAssembly assemblyName="System.Drawing" />
+		</frameworkAssemblies>
+	</metadata>
+	<files>
+		<file src="bin\Release\ValveResourceFormat.dll" target="lib\net45\" />
+		<file src="bin\Release\ValveResourceFormat.pdb" target="lib\net45\" />
+		<file src="bin\Release\ValveResourceFormat.xml" target="lib\net45\" />
+	</files>
+</package>
