@@ -16,6 +16,8 @@ before_build:
 build:
   project: ValveResourceFormat.sln
   verbosity: minimal
+after_build:
+- cmd: nuget pack ValveResourceFormat\ValveResourceFormat.csproj
 test_script:
 - ps: >-
     .\packages\OpenCover.4.6.166\tools\OpenCover.Console.exe -register:user -target:.\packages\NUnit.Console.3.0.1\tools\nunit3-console.exe -register:user "-targetargs:""Tests/bin/$env:CONFIGURATION/Tests.dll""" -returntargetcode -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml
@@ -42,6 +44,7 @@ deploy:
 - provider: NuGet
   api_key:
     secure: hqSxAQZqtX5Z5aWzulXmaIwPQmM87RvTurYOLmLnpHWHlQm1DfWmJn5fAUAuuLZH
+  artifact: ValveResourceFormat\*.nupkg
   on:
     branch: master
     APPVEYOR_REPO_TAG: true
