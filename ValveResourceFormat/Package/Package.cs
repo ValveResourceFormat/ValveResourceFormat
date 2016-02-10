@@ -119,6 +119,36 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
+        /// Opens and reads the given filename.
+        /// </summary>
+        /// <param name="filename">The file to open and read.</param>
+        /// <returns>Returns true if this archive contains inline entries, false otherwise.</returns>
+        public bool Read(string filename)
+        {
+            SetFileName(filename);
+
+            var hasInlineEntries = false;
+
+            FileStream fs = null;
+
+            try
+            {
+                fs = new FileStream(FileName + (IsDirVPK ? "_dir" : string.Empty) + ".vpk", FileMode.Open, FileAccess.Read);
+
+                hasInlineEntries = Read(fs);
+            }
+            finally
+            {
+                if (!hasInlineEntries)
+                {
+                    fs.Close();
+                }
+            }
+
+            return hasInlineEntries;
+        }
+
+        /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
@@ -156,106 +186,7 @@ namespace ValveResourceFormat
                 throw new InvalidDataException(string.Format("Bad VPK version. ({0})", Version));
             }
 
-            var typeEntries = new Dictionary<string, List<PackageEntry>>();
-            bool hasInlineEntries = false;
-
-            // Types
-            while (true)
-            {
-                string typeName = Reader.ReadNullTermString(Encoding.UTF8);
-
-                if (typeName == string.Empty)
-                {
-                    break;
-                }
-
-                var entries = new List<PackageEntry>();
-
-                // Directories
-                while (true)
-                {
-                    string directoryName = Reader.ReadNullTermString(Encoding.UTF8);
-
-                    if (directoryName == string.Empty)
-                    {
-                        break;
-                    }
-
-                    // Files
-                    while (true)
-                    {
-                        string fileName = Reader.ReadNullTermString(Encoding.UTF8);
-
-                        if (fileName == string.Empty)
-                        {
-                            break;
-                        }
-
-                        var entry = new PackageEntry();
-                        entry.FileName = fileName;
-                        entry.DirectoryName = directoryName.Replace("/", "\\");
-                        entry.TypeName = typeName;
-                        entry.CRC32 = Reader.ReadUInt32();
-                        entry.SmallData = new byte[Reader.ReadUInt16()];
-                        entry.ArchiveIndex = Reader.ReadUInt16();
-                        entry.Offset = Reader.ReadUInt32();
-                        entry.Length = Reader.ReadUInt32();
-
-                        if (Reader.ReadUInt16() != 0xFFFF)
-                        {
-                            throw new FormatException("Invalid terminator.");
-                        }
-
-                        if (entry.SmallData.Length > 0)
-                        {
-                            Reader.Read(entry.SmallData, 0, entry.SmallData.Length);
-                        }
-
-                        if (entry.ArchiveIndex == 0x7FFF)
-                        {
-                            hasInlineEntries = true;
-                        }
-
-                        entries.Add(entry);
-                    }
-                }
-
-                typeEntries.Add(typeName, entries);
-            }
-
-            Entries = typeEntries;
-
-            OffsetAfterHeader = (uint)Reader.BaseStream.Position;
-
-            return hasInlineEntries;
-        }
-
-        /// <summary>
-        /// Opens and reads the given filename.
-        /// </summary>
-        /// <param name="filename">The file to open and read.</param>
-        /// <returns>Returns true if this archive contains inline entries, false otherwise.</returns>
-        public bool Read(string filename)
-        {
-            SetFileName(filename);
-
-            bool hasInlineEntries = false;
-
-            FileStream fs = null;
-
-            try
-            {
-                fs = new FileStream(FileName + (IsDirVPK ? "_dir" : string.Empty) + ".vpk", FileMode.Open, FileAccess.Read);
-
-                hasInlineEntries = Read(fs);
-            }
-            finally
-            {
-                if (!hasInlineEntries)
-                {
-                    fs.Close();
-                }
-            }
+            var hasInlineEntries = ReadEntries();
 
             return hasInlineEntries;
         }
@@ -306,9 +237,9 @@ namespace ValveResourceFormat
                 }
                 finally
                 {
-                    if (entry.ArchiveIndex != 0x7FFF && fs != null)
+                    if (entry.ArchiveIndex != 0x7FFF)
                     {
-                        fs.Close();
+                        fs?.Close();
                     }
                 }
             }
@@ -317,6 +248,82 @@ namespace ValveResourceFormat
             {
                 throw new InvalidDataException("CRC32 mismatch for read data.");
             }
+        }
+
+        private bool ReadEntries()
+        {
+            var typeEntries = new Dictionary<string, List<PackageEntry>>();
+            var hasInlineEntries = false;
+
+            // Types
+            while (true)
+            {
+                var typeName = Reader.ReadNullTermString(Encoding.UTF8);
+
+                if (typeName == string.Empty)
+                {
+                    break;
+                }
+
+                var entries = new List<PackageEntry>();
+
+                // Directories
+                while (true)
+                {
+                    var directoryName = Reader.ReadNullTermString(Encoding.UTF8);
+
+                    if (directoryName == string.Empty)
+                    {
+                        break;
+                    }
+
+                    // Files
+                    while (true)
+                    {
+                        var fileName = Reader.ReadNullTermString(Encoding.UTF8);
+
+                        if (fileName == string.Empty)
+                        {
+                            break;
+                        }
+
+                        var entry = new PackageEntry();
+                        entry.FileName = fileName;
+                        entry.DirectoryName = directoryName.Replace("/", "\\");
+                        entry.TypeName = typeName;
+                        entry.CRC32 = Reader.ReadUInt32();
+                        entry.SmallData = new byte[Reader.ReadUInt16()];
+                        entry.ArchiveIndex = Reader.ReadUInt16();
+                        entry.Offset = Reader.ReadUInt32();
+                        entry.Length = Reader.ReadUInt32();
+
+                        if (Reader.ReadUInt16() != 0xFFFF)
+                        {
+                            throw new FormatException("Invalid terminator.");
+                        }
+
+                        if (entry.SmallData.Length > 0)
+                        {
+                            Reader.Read(entry.SmallData, 0, entry.SmallData.Length);
+                        }
+
+                        if (entry.ArchiveIndex == 0x7FFF)
+                        {
+                            hasInlineEntries = true;
+                        }
+
+                        entries.Add(entry);
+                    }
+                }
+
+                typeEntries.Add(typeName, entries);
+            }
+
+            Entries = typeEntries;
+
+            OffsetAfterHeader = (uint)Reader.BaseStream.Position;
+
+            return hasInlineEntries;
         }
     }
 }
