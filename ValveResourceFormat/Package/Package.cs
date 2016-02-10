@@ -37,7 +37,7 @@ namespace ValveResourceFormat
 
         private BinaryReader Reader;
         private bool IsDirVPK;
-        private uint OffsetAfterHeader;
+        private uint HeaderSize;
 
         /// <summary>
         /// Gets the File Name
@@ -75,9 +75,34 @@ namespace ValveResourceFormat
         public uint SignatureSectionSize { get; private set; }
 
         /// <summary>
+        /// Gets the MD5 checksum of the file tree.
+        /// </summary>
+        public byte[] TreeChecksum { get; private set; }
+
+        /// <summary>
+        /// Gets the MD5 checksum of the archive MD5 checksum section entries.
+        /// </summary>
+        public byte[] ArchiveMD5EntriesChecksum { get; private set; }
+
+        /// <summary>
+        /// Gets the public key.
+        /// </summary>
+        public byte[] PublicKey { get; private set; }
+
+        /// <summary>
+        /// Gets the signature.
+        /// </summary>
+        public byte[] Signature { get; private set; }
+
+        /// <summary>
         /// Gets the package entries.
         /// </summary>
         public Dictionary<string, List<PackageEntry>> Entries { get; private set; }
+
+        /// <summary>
+        /// Gets the archive MD5 checksum section entries. Also known as cache line hashes.
+        /// </summary>
+        public List<ArchiveMD5SectionEntry> ArchiveMD5Entries { get; private set; }
 
         /// <summary>
         /// Releases binary reader.
@@ -186,7 +211,16 @@ namespace ValveResourceFormat
                 throw new InvalidDataException(string.Format("Bad VPK version. ({0})", Version));
             }
 
+            HeaderSize = (uint)input.Position;
+
             var hasInlineEntries = ReadEntries();
+
+            // Skip over file data, if any
+            input.Position += FileDataSectionSize;
+
+            ReadArchiveMD5Section();
+            ReadOtherMD5Section();
+            ReadSignatureSection();
 
             return hasInlineEntries;
         }
@@ -229,7 +263,7 @@ namespace ValveResourceFormat
                     {
                         fs = Reader.BaseStream;
 
-                        offset += OffsetAfterHeader;
+                        offset += HeaderSize + TreeSize;
                     }
 
                     fs.Seek(offset, SeekOrigin.Begin);
@@ -321,9 +355,56 @@ namespace ValveResourceFormat
 
             Entries = typeEntries;
 
-            OffsetAfterHeader = (uint)Reader.BaseStream.Position;
-
             return hasInlineEntries;
+        }
+
+        private void ReadArchiveMD5Section()
+        {
+            ArchiveMD5Entries = new List<ArchiveMD5SectionEntry>();
+
+            if (ArchiveMD5SectionSize == 0)
+            {
+                return;
+            }
+
+            var entries = ArchiveMD5SectionSize / 28; // 28 is sizeof(VPK_MD5SectionEntry), which is int + int + int + 16 chars
+
+            for (var i = 0; i < entries; i++)
+            {
+                ArchiveMD5Entries.Add(new ArchiveMD5SectionEntry
+                {
+                    ArchiveIndex = Reader.ReadUInt32(),
+                    Offset = Reader.ReadUInt32(),
+                    Length = Reader.ReadUInt32(),
+                    Checksum = Reader.ReadBytes(16)
+                });
+            }
+        }
+
+        private void ReadOtherMD5Section()
+        {
+            if (OtherMD5SectionSize != 48)
+            {
+                throw new InvalidDataException($"Encountered OtherMD5Section with size of {OtherMD5SectionSize} (should be 48)");
+            }
+
+            TreeChecksum = Reader.ReadBytes(16);
+            ArchiveMD5EntriesChecksum = Reader.ReadBytes(16);
+            Reader.ReadBytes(16); // TODO: unknown?
+        }
+
+        private void ReadSignatureSection()
+        {
+            if (SignatureSectionSize == 0)
+            {
+                return;
+            }
+
+            var publicKeySize = Reader.ReadInt32();
+            PublicKey = Reader.ReadBytes(publicKeySize);
+
+            var signatureSize = Reader.ReadInt32();
+            Signature = Reader.ReadBytes(signatureSize);
         }
     }
 }

@@ -46,6 +46,7 @@
     <Compile Include="KeyValues\KVFlaggedValue.cs" />
     <Compile Include="KeyValues\KVObject.cs" />
     <Compile Include="KeyValues\KVValue.cs" />
+    <Compile Include="Package\ArchiveMD5SectionEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Package\Package.cs" />
     <Compile Include="Package\PackageEntry.cs" />
