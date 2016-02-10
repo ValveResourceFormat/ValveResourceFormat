@@ -18,9 +18,4 @@
 			<frameworkAssembly assemblyName="System.Drawing" />
 		</frameworkAssemblies>
 	</metadata>
-	<files>
-		<file src="bin\Release\ValveResourceFormat.dll" target="lib\net45\" />
-		<file src="bin\Release\ValveResourceFormat.pdb" target="lib\net45\" />
-		<file src="bin\Release\ValveResourceFormat.xml" target="lib\net45\" />
-	</files>
 </package>
