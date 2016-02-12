@@ -27,6 +27,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace ValveResourceFormat
@@ -83,6 +85,11 @@ namespace ValveResourceFormat
         /// Gets the MD5 checksum of the archive MD5 checksum section entries.
         /// </summary>
         public byte[] ArchiveMD5EntriesChecksum { get; private set; }
+
+        /// <summary>
+        /// Gets the MD5 checksum of the complete package until the signature structure.
+        /// </summary>
+        public byte[] WholeFileChecksum { get; private set; }
 
         /// <summary>
         /// Gets the public key.
@@ -145,40 +152,23 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Opens and reads the given filename.
+        /// The file is held open until the object is disposed.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
-        /// <returns>Returns true if this archive contains inline entries, false otherwise.</returns>
-        public bool Read(string filename)
+        public void Read(string filename)
         {
             SetFileName(filename);
 
-            var hasInlineEntries = false;
+            var fs = new FileStream(FileName + (IsDirVPK ? "_dir" : string.Empty) + ".vpk", FileMode.Open, FileAccess.Read, FileShare.Read);
 
-            FileStream fs = null;
-
-            try
-            {
-                fs = new FileStream(FileName + (IsDirVPK ? "_dir" : string.Empty) + ".vpk", FileMode.Open, FileAccess.Read);
-
-                hasInlineEntries = Read(fs);
-            }
-            finally
-            {
-                if (!hasInlineEntries)
-                {
-                    fs.Close();
-                }
-            }
-
-            return hasInlineEntries;
+            Read(fs);
         }
 
         /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
-        /// <returns>Returns true if this archive contains inline entries, false otherwise.</returns>
-        public bool Read(Stream input)
+        public void Read(Stream input)
         {
             if (FileName == null)
             {
@@ -213,7 +203,7 @@ namespace ValveResourceFormat
 
             HeaderSize = (uint)input.Position;
 
-            var hasInlineEntries = ReadEntries();
+            ReadEntries();
 
             // Skip over file data, if any
             input.Position += FileDataSectionSize;
@@ -221,8 +211,6 @@ namespace ValveResourceFormat
             ReadArchiveMD5Section();
             ReadOtherMD5Section();
             ReadSignatureSection();
-
-            return hasInlineEntries;
         }
 
         /// <summary>
@@ -284,10 +272,9 @@ namespace ValveResourceFormat
             }
         }
 
-        private bool ReadEntries()
+        private void ReadEntries()
         {
             var typeEntries = new Dictionary<string, List<PackageEntry>>();
-            var hasInlineEntries = false;
 
             // Types
             while (true)
@@ -341,11 +328,6 @@ namespace ValveResourceFormat
                             Reader.Read(entry.SmallData, 0, entry.SmallData.Length);
                         }
 
-                        if (entry.ArchiveIndex == 0x7FFF)
-                        {
-                            hasInlineEntries = true;
-                        }
-
                         entries.Add(entry);
                     }
                 }
@@ -354,8 +336,80 @@ namespace ValveResourceFormat
             }
 
             Entries = typeEntries;
+        }
 
-            return hasInlineEntries;
+        /// <summary>
+        /// Verify checksums and signatures provided in the VPK
+        /// </summary>
+        public void VerifyHashes()
+        {
+            if (Version != 2)
+            {
+                throw new InvalidDataException("Only version 2 is supported.");
+            }
+
+            using (var md5 = MD5.Create())
+            {
+                Reader.BaseStream.Position = 0;
+
+                var hash = md5.ComputeHash(Reader.ReadBytes((int)(HeaderSize + TreeSize + FileDataSectionSize + ArchiveMD5SectionSize + 32)));
+
+                if (!hash.SequenceEqual(WholeFileChecksum))
+                {
+                    throw new InvalidDataException($"Package checksum mismatch ({BitConverter.ToString(hash)} != expected {BitConverter.ToString(WholeFileChecksum)})");
+                }
+
+                Reader.BaseStream.Position = HeaderSize;
+
+                hash = md5.ComputeHash(Reader.ReadBytes((int)TreeSize));
+
+                if (!hash.SequenceEqual(TreeChecksum))
+                {
+                    throw new InvalidDataException($"File tree checksum mismatch ({BitConverter.ToString(hash)} != expected {BitConverter.ToString(TreeChecksum)})");
+                }
+
+                Reader.BaseStream.Position = HeaderSize + TreeSize + FileDataSectionSize;
+
+                hash = md5.ComputeHash(Reader.ReadBytes((int)ArchiveMD5SectionSize));
+
+                if (!hash.SequenceEqual(ArchiveMD5EntriesChecksum))
+                {
+                    throw new InvalidDataException($"Archive MD5 entries checksum mismatch ({BitConverter.ToString(hash)} != expected {BitConverter.ToString(ArchiveMD5EntriesChecksum)})");
+                }
+
+                // TODO: verify archive checksums
+            }
+
+            if (PublicKey == null || Signature == null)
+            {
+                return;
+            }
+
+            if (!IsSignatureValid())
+            {
+                throw new InvalidDataException("VPK signature is not valid.");
+            }
+        }
+
+        /// <summary>
+        /// Verifies the RSA signature.
+        /// </summary>
+        /// <returns>True if signature is valid, false otherwise.</returns>
+        public bool IsSignatureValid()
+        {
+            Reader.BaseStream.Position = 0;
+
+            var keyParser = new ThirdParty.AsnKeyParser(PublicKey);
+
+            var rsa = new RSACryptoServiceProvider();
+            rsa.ImportParameters(keyParser.ParseRSAPublicKey());
+
+            var deformatter = new RSAPKCS1SignatureDeformatter(rsa);
+            deformatter.SetHashAlgorithm("SHA256");
+
+            var hash = new SHA256Managed().ComputeHash(Reader.ReadBytes((int)(HeaderSize + TreeSize + FileDataSectionSize + ArchiveMD5SectionSize + OtherMD5SectionSize)));
+
+            return deformatter.VerifySignature(hash, Signature);
         }
 
         private void ReadArchiveMD5Section()
@@ -390,7 +444,7 @@ namespace ValveResourceFormat
 
             TreeChecksum = Reader.ReadBytes(16);
             ArchiveMD5EntriesChecksum = Reader.ReadBytes(16);
-            Reader.ReadBytes(16); // TODO: unknown?
+            WholeFileChecksum = Reader.ReadBytes(16);
         }
 
         private void ReadSignatureSection()

@@ -80,6 +80,7 @@
     <Compile Include="Resource\Blocks\ResourceIntrospectionManifest.cs" />
     <Compile Include="Resource\Blocks\VBIB.cs" />
     <Compile Include="Resource\ResourceTypes\SoundEventScript.cs" />
+    <Compile Include="ThirdParty\AsnKeyParser.cs" />
     <Compile Include="Utils\StreamHelpers.cs" />
     <Compile Include="Utils\Crc32.cs" />
     <Compile Include="Resource\ResourceTypes\Sound.cs" />

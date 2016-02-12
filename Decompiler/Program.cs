@@ -344,6 +344,28 @@ namespace Decompiler
                 }
             }
 
+            if (Options.VerifyVPKChecksums)
+            {
+                try
+                {
+                    package.VerifyHashes();
+
+                    Console.WriteLine("VPK verification succeeded");
+                }
+                catch (Exception e)
+                {
+                    lock (ConsoleWriterLock)
+                    {
+                        Console.WriteLine("Failed to verify checksums and signature of given VPK:");
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(e.Message);
+                        Console.ResetColor();
+                    }
+                }
+                
+                return;
+            }
+
             if (Options.OutputFile == null)
             {
                 Console.WriteLine("--- Files in package:");

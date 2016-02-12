@@ -38,6 +38,10 @@ namespace Decompiler
             HelpText = "Write a file with files in given VPK and their CRC.")]
         public bool OutputVPKDir { get; set; }
 
+        [Option("vpk_verify", DefaultValue = false,
+            HelpText = "Verify checksums and signatures.")]
+        public bool VerifyVPKChecksums { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
