@@ -47,15 +47,17 @@ namespace ValveResourceFormat.ResourceTypes
             // Ok we are 100% sure its now KV, good
 
             // It is flags, right?
-            var flags = reader.ReadUInt32(); // TODO: Figure out what this is
+            var flags = reader.ReadBytes(4); // TODO: Figure out what this is
+
             // outWrite.Write(flags);
-            if ((flags & 0x80000000) > 0)
+            if ((flags[3] & 0x80) > 0)
             {
                 outWrite.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
             }
             else
             {
-                while (reader.BaseStream.Position != reader.BaseStream.Length)
+                var running = true;
+                while (reader.BaseStream.Position != reader.BaseStream.Length && running)
                 {
                     try
                     {
@@ -87,6 +89,13 @@ namespace ValveResourceFormat.ResourceTypes
                             {
                                 var data = reader.ReadByte();
                                 outWrite.Write(data);
+                            }
+
+                            //TODO: is there a better way of making an unsigned 12bit number?
+                            if (outWrite.BaseStream.Length == (flags[2] << 16) + (flags[1] << 8) + flags[0])
+                            {
+                                running = false;
+                                break;
                             }
                         }
                     }
