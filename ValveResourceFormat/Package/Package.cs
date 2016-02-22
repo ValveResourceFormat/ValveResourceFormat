@@ -205,12 +205,15 @@ namespace ValveResourceFormat
 
             ReadEntries();
 
-            // Skip over file data, if any
-            input.Position += FileDataSectionSize;
+            if (Version == 2)
+            {
+                // Skip over file data, if any
+                input.Position += FileDataSectionSize;
 
-            ReadArchiveMD5Section();
-            ReadOtherMD5Section();
-            ReadSignatureSection();
+                ReadArchiveMD5Section();
+                ReadOtherMD5Section();
+                ReadSignatureSection();
+            }
         }
 
         /// <summary>
