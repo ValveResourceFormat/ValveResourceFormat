@@ -220,8 +220,16 @@ namespace ValveResourceFormat
 
                 case ResourceType.SoundEventScript:
                     return new ResourceTypes.SoundEventScript();
+
                 case ResourceType.Particle:
+                    return new ResourceTypes.BinaryKV3();
+
                 case ResourceType.Mesh:
+                    if (Version == 0)
+                    {
+                        break;
+                    }
+
                     return new ResourceTypes.BinaryKV3();
             }
 
