@@ -143,7 +143,7 @@ namespace GUI
 
                     return true;
                 });
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
 
             task.ContinueWith(t =>
             {
