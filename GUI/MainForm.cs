@@ -137,7 +137,9 @@ namespace GUI
                 {
                     mainTabs.TabPages.Remove(tab);
 
-                    MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    this.Invoke(new Action(() =>
+                        MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error))
+                    );
 
                     return true;
                 });
