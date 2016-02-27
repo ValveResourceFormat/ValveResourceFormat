@@ -187,7 +187,10 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.Int64:
                     return new NTROSerialization.NTROValue<long>(field.Type, Reader.ReadInt64(), pointer);
 
-                case DataType.ExternalReference: // Handled elsewhere
+                case DataType.ExternalReference:
+                    var id = Reader.ReadUInt64();
+                    return new NTROSerialization.NTROValue<ResourceExtRefList.ResourceReferenceInfo>(field.Type, Resource.ExternalReferences.ResourceRefInfoList.First(c => c.Id == id), pointer);
+
                 case DataType.UInt64:
                     return new NTROSerialization.NTROValue<ulong>(field.Type, Reader.ReadUInt64(), pointer);
 

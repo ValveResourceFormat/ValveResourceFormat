@@ -2,6 +2,7 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace ValveResourceFormat.Blocks
@@ -35,7 +36,17 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public readonly List<ResourceReferenceInfo> ResourceRefInfoList;
+        public List<ResourceReferenceInfo> ResourceRefInfoList { get; private set; }
+
+        public string this[ulong id]
+        {
+            get
+            {
+                var value = ResourceRefInfoList.FirstOrDefault(c => c.Id == id);
+
+                return value?.Name;
+            }
+        }
 
         public ResourceExtRefList()
         {

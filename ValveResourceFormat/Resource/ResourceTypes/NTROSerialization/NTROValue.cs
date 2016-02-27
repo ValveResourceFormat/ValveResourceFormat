@@ -1,6 +1,7 @@
 ﻿using System;
 using System.CodeDom.Compiler;
 using System.IO;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
@@ -74,7 +75,9 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                     break;
 
                 case DataType.ExternalReference:
-                    writer.WriteLine("ID: {0:X16}", Value);
+                    var refInfo = Value as ResourceExtRefList.ResourceReferenceInfo;
+
+                    writer.WriteLine("ID: {0:X16}", refInfo.Id);
                     break;
 
                 case DataType.Quaternion:
