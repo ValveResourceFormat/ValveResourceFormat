@@ -274,6 +274,18 @@ namespace GUI
                         });
 
                         break;
+                    case ResourceType.Mesh:
+                        if (!resource.Blocks.ContainsKey(BlockType.VBIB))
+                        {
+                            Console.WriteLine("Old style model, no VBIB!");
+                            break;
+                        }
+                        var meshTab = new TabPage("MESH");
+                        var mv = new Types.Renderer.Renderer(fileName, resource, mainTabs);
+                        var glControl = mv.createGL();
+                        meshTab.Controls.Add(glControl);
+                        resTabs.TabPages.Add(meshTab);
+                        break;
                 }
 
                 foreach (var block in resource.Blocks)
