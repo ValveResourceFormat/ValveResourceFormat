@@ -163,6 +163,8 @@ namespace ValveResourceFormat
 
                 block.Read(Reader, this);
 
+                Blocks.Add(block.GetChar(), block);
+
                 switch (block.GetChar())
                 {
                     case BlockType.REDI:
@@ -196,8 +198,6 @@ namespace ValveResourceFormat
 
                         break;
                 }
-
-                Blocks.Add(block.GetChar(), block);
 
                 Reader.BaseStream.Position = position + 8;
             }
