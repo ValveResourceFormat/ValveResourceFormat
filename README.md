@@ -11,10 +11,13 @@ You can download latest builds from [AppVeyor here](https://ci.appveyor.com/proj
 
 Available under [MIT](LICENSE) license.
 
-## GUI
-
-This program allows opening all resource and package (VPKs) files for viewing and extracting.
-
-![](Icons/Screenshots/vpk.png)
-
-![](Icons/Screenshots/texture.png)
+<table>
+	<tr>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_glados.png"></td>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_potato.png"></td>
+	</tr>
+	<tr>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_vpk.png"></td>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_cli.png"></td>
+	</tr>
+</table>
