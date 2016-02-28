@@ -40,7 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                resource.IntrospectionManifest = new Blocks.ResourceIntrospectionManifest();
+                resource.Blocks[BlockType.NTRO] = new Blocks.ResourceIntrospectionManifest();
                 resource.IntrospectionManifest.ReferencedStructs.Add(block);
             }
 

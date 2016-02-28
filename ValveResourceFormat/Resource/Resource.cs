@@ -35,9 +35,49 @@ namespace ValveResourceFormat
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; set; }
 
-        public ResourceExtRefList ExternalReferences { get; private set; }
-        public ResourceEditInfo EditInfo { get; private set; }
-        public ResourceIntrospectionManifest IntrospectionManifest { get; set; }
+        /// <summary>
+        /// Gets the ResourceExtRefList block.
+        /// </summary>
+        public ResourceExtRefList ExternalReferences
+        {
+            get
+            {
+                return (ResourceExtRefList)Blocks[BlockType.RERL];
+            }
+        }
+
+        /// <summary>
+        /// Gets the ResourceEditInfo block.
+        /// </summary>
+        public ResourceEditInfo EditInfo
+        {
+            get
+            {
+                return (ResourceEditInfo)Blocks[BlockType.REDI];
+            }
+        }
+
+        /// <summary>
+        /// Gets the ResourceIntrospectionManifest block.
+        /// </summary>
+        public ResourceIntrospectionManifest IntrospectionManifest
+        {
+            get
+            {
+                return (ResourceIntrospectionManifest)Blocks[BlockType.NTRO];
+            }
+        }
+
+        /// <summary>
+        /// Gets the Vertex and Index Buffer block.
+        /// </summary>
+        public VBIB VBIB
+        {
+            get
+            {
+                return (VBIB)Blocks[BlockType.VBIB];
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Resource"/> class.
@@ -126,8 +166,6 @@ namespace ValveResourceFormat
                 switch (block.GetChar())
                 {
                     case BlockType.REDI:
-                        EditInfo = (ResourceEditInfo)block;
-
                         // Try to determine resource type by looking at first compiler indentifier
                         if (ResourceType == ResourceType.Unknown && EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                         {
@@ -141,13 +179,7 @@ namespace ValveResourceFormat
 
                         break;
 
-                    case BlockType.RERL:
-                        ExternalReferences = (ResourceExtRefList)block;
-                        break;
-
                     case BlockType.NTRO:
-                        IntrospectionManifest = (ResourceIntrospectionManifest)block;
-
                         if (ResourceType == ResourceType.Unknown && IntrospectionManifest.ReferencedStructs.Count > 0)
                         {
                             switch (IntrospectionManifest.ReferencedStructs[0].Name)
