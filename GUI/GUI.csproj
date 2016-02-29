@@ -45,6 +45,9 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="NAudio, Version=1.7.3.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\NAudio.1.7.3\lib\net35\NAudio.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controls\BetterTreeView.cs">
@@ -127,6 +130,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -137,6 +141,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <EmbeddedResource Include="AssetTypes\*" />
+    <Compile Include="Types\Audio\AudioPlayer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -148,4 +153,8 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Folder Include="Types\" />
+    <Folder Include="Types\Audio\" />
+  </ItemGroup>
 </Project>

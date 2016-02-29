@@ -42,7 +42,9 @@ namespace ValveResourceFormat
         {
             get
             {
-                return (ResourceExtRefList)Blocks[BlockType.RERL];
+                Block block;
+                Blocks.TryGetValue(BlockType.RERL, out block);
+                return (ResourceExtRefList)block;
             }
         }
 
@@ -53,7 +55,9 @@ namespace ValveResourceFormat
         {
             get
             {
-                return (ResourceEditInfo)Blocks[BlockType.REDI];
+                Block block;
+                Blocks.TryGetValue(BlockType.REDI, out block);
+                return (ResourceEditInfo)block;
             }
         }
 
@@ -64,7 +68,9 @@ namespace ValveResourceFormat
         {
             get
             {
-                return (ResourceIntrospectionManifest)Blocks[BlockType.NTRO];
+                Block block;
+                Blocks.TryGetValue(BlockType.NTRO, out block);
+                return (ResourceIntrospectionManifest)block;
             }
         }
 
@@ -75,7 +81,9 @@ namespace ValveResourceFormat
         {
             get
             {
-                return (VBIB)Blocks[BlockType.VBIB];
+                Block block;
+                Blocks.TryGetValue(BlockType.VBIB, out block);
+                return (VBIB)block;
             }
         }
 

@@ -9,8 +9,8 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class NTRO : ResourceData
     {
-        private BinaryReader Reader;
-        private Resource Resource;
+        protected BinaryReader Reader;
+        protected Resource Resource;
         public NTROSerialization.NTROStruct Output { get; private set; }
 
         public override void Read(BinaryReader reader, Resource resource)

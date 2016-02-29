@@ -254,6 +254,11 @@ namespace GUI
                             resTabs.TabPages.Add(nameTab);
                         }
                         break;
+                    case ResourceType.Sound:
+                        var soundTab = new TabPage("SOUND");
+                        var ap = new Types.Audio.Player(resource);
+                        resTabs.TabPages.Add(soundTab);
+                        break;
                 }
 
                 foreach (var block in resource.Blocks)
