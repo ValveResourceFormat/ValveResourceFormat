@@ -7,7 +7,6 @@ namespace ValveResourceFormat.ResourceTypes
     public class Sound : Blocks.ResourceData
     {
         private BinaryReader Reader;
-        private long DataOffset;
         private NTRO NTROBlock;
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -23,15 +22,13 @@ namespace ValveResourceFormat.ResourceTypes
                 NTROBlock.Size = Size;
                 NTROBlock.Read(reader, resource);
             }
-
-            DataOffset = Offset + Size;
         }
 
         public byte[] GetSound()
         {
-            Reader.BaseStream.Position = DataOffset;
+            Reader.BaseStream.Position = Offset + Size;
 
-            return Reader.ReadBytes((int)Reader.BaseStream.Length);
+            return Reader.ReadBytes((int)(Reader.BaseStream.Length - Reader.BaseStream.Position));
         }
 
         public override string ToString()
