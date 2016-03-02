@@ -46,6 +46,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         public uint SampleSize { get; private set; }
 
+        public int LoopStart { get; private set; }
+
+        public float Duration { get; private set; }
+
         public override void Read(BinaryReader reader, Resource resource)
         {
             // NTRO only in version 0?
@@ -60,12 +64,31 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
+                field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                {
+                    FieldName = "m_loopStart",
+                    Type = DataType.Int32,
+                    OnDiskOffset = 4,
+                };
+                block.FieldIntrospection.Add(field);
+
+                field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                {
+                    FieldName = "m_flDuration",
+                    Type = DataType.Float,
+                    OnDiskOffset = 12,
+                };
+                block.FieldIntrospection.Add(field);
+
                 resource.Blocks[BlockType.NTRO] = new Blocks.ResourceIntrospectionManifest();
                 resource.IntrospectionManifest.ReferencedStructs.Add(block);
             }
 
             reader.BaseStream.Position = Offset;
             base.Read(reader, resource);
+
+            LoopStart = ((NTROSerialization.NTROValue<int>)Output["m_loopStart"]).Value;
+            Duration = ((NTROSerialization.NTROValue<float>)Output["m_flDuration"]).Value;
 
             var bitpackedSoundInfo = ((NTROSerialization.NTROValue<uint>)Output["m_bitpackedsoundinfo"]).Value;
 
