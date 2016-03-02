@@ -1,15 +1,15 @@
-﻿using GUI.Controls;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -20,6 +20,7 @@ namespace GUI
     {
         private ImageList ImageList;
         private Forms.SearchForm searchForm;
+        private Regex NewLineRegex;
 
         public MainForm()
         {
@@ -36,6 +37,8 @@ namespace GUI
             };
             
             searchForm = new Forms.SearchForm();
+
+            NewLineRegex = new Regex(@"\r\n|\n\r|\n|\r", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture);
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -318,11 +321,7 @@ namespace GUI
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
                     try
                     {
-                        control.Text = block.Value.ToString();
-                        if (resource.ResourceType == ResourceType.Panorama)
-                        {
-                            control.Text = control.Text.Replace("\n", Environment.NewLine); //make sure panorama is new lines
-                        }
+                        control.Text = NormalizeLineEndings(block.Value.ToString());
                     }
                     catch (Exception e)
                     {
@@ -525,6 +524,11 @@ namespace GUI
                     treeView.SearchAndFillResults(searchText, searchForm.IsCaseSensitive, searchForm.SelectedSearchType);
                 }
             }
+        }
+
+        private string NormalizeLineEndings(string input)
+        {
+            return NewLineRegex.Replace(input, Environment.NewLine);
         }
     }
 }
