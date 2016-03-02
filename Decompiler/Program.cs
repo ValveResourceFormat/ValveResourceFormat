@@ -162,8 +162,24 @@ namespace Decompiler
 
                 if (Options.CollectStats)
                 {
-                    var id = resource.ResourceType == ResourceType.Texture ? ((Texture)resource.Blocks[BlockType.DATA]).Format.ToString() : string.Format("{0}_{1}", resource.ResourceType, resource.Version);
-                    var info = resource.ResourceType == ResourceType.Texture ? id : "";
+                    string id = string.Format("{0}_{1}", resource.ResourceType, resource.Version);
+                    string info = string.Empty;
+
+                    switch(resource.ResourceType)
+                    {
+                        case ResourceType.Texture:
+                            info = ((Texture)resource.Blocks[BlockType.DATA]).Format.ToString();
+                            break;
+
+                        case ResourceType.Sound:
+                            info = ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString();
+                            break;
+                    }
+
+                    if (info != string.Empty)
+                    {
+                        id = string.Concat(id, "_", info);
+                    }
 
                     lock (stats)
                     {
@@ -200,8 +216,21 @@ namespace Decompiler
                             break;
 
                         case ResourceType.Sound:
-                            extension = "mp3";
-                            data = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                            var sound = ((Sound)resource.Blocks[BlockType.DATA]);
+
+                            switch(sound.Type)
+                            {
+                                case Sound.AudioFileType.MP3:
+                                    extension = "mp3";
+                                    break;
+
+                                case Sound.AudioFileType.WAV:
+                                    extension = "wav";
+                                    break;
+                            }
+
+                            data = sound.GetSound();
+
                             break;
 
                         case ResourceType.Texture:

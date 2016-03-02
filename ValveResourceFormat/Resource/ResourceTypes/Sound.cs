@@ -8,8 +8,10 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public enum AudioFileType
         {
+            Unknown0 = 0,
             WAV = 1,
             MP3 = 2,
+            Unknown3 = 3,
         }
 
         /// <summary>
