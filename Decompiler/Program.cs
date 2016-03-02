@@ -18,6 +18,9 @@ namespace Decompiler
         private static int CurrentFile = 0;
         private static int TotalFiles = 0;
 
+        private static Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
+        private static Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
+
         // This decompiler is a test bed for our library,
         // don't expect to see any quality code in here
         public static void Main(string[] args)
@@ -60,8 +63,6 @@ namespace Decompiler
                 return;
             }
 
-            var stats = new Dictionary<string, ResourceStat>();
-            var uniqueSpecialDependancies = new Dictionary<string, string>();
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
@@ -71,14 +72,14 @@ namespace Decompiler
 
                 Parallel.ForEach(paths, new ParallelOptions { MaxDegreeOfParallelism = Options.MaxParallelismThreads }, (path, state) =>
                 {
-                    ProcessFile(path, stats, uniqueSpecialDependancies);
+                    ProcessFile(path);
                 });
             }
             else
             {
                 foreach (var path in paths)
                 {
-                    ProcessFile(path, stats, uniqueSpecialDependancies);
+                    ProcessFile(path);
                 }
             }
 
@@ -104,7 +105,7 @@ namespace Decompiler
             }
         }
 
-        private static void ProcessFile(string path, Dictionary<string, ResourceStat> stats, Dictionary<string, string> uniqueSpecialDependancies)
+        private static void ProcessFile(string path)
         {
             if (Path.GetExtension(path) == ".vpk")
             {
@@ -120,13 +121,21 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                ProcessFile(path, stream);
+            }
+        }
+
+        private static void ProcessFile(string path, Stream stream)
+        {
             var resource = new Resource();
 
             try
             {
                 var sw = Stopwatch.StartNew();
 
-                resource.Read(path);
+                resource.Read(stream);
 
                 sw.Stop();
 
@@ -375,6 +384,29 @@ namespace Decompiler
                 foreach (var entry in orderedEntries)
                 {
                     Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
+
+                    if (Options.CollectStats && entry.Key.EndsWith("_c", StringComparison.Ordinal))
+                    {
+                        TotalFiles += entry.Value.Count;
+
+                        foreach (var file in entry.Value)
+                        {
+                            lock (ConsoleWriterLock)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine("[{0}/{1}] {2}", ++CurrentFile, TotalFiles, file.GetFullPath());
+                                Console.ResetColor();
+                            }
+
+                            byte[] output;
+                            package.ReadEntry(file, out output);
+
+                            using (var stream = new MemoryStream(output))
+                            {
+                                ProcessFile(file.GetFullPath(), stream);
+                            }
+                        }
+                    }
                 }
             }
             else
