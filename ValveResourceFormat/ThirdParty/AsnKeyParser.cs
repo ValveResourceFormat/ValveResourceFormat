@@ -30,7 +30,6 @@ Portions of this software are Copyright of Alex Henderson
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
@@ -216,8 +215,6 @@ namespace ValveResourceFormat.ThirdParty
             parameters.Modulus = TrimLeadingZero(_parser.NextInteger());
             parameters.Exponent = TrimLeadingZero(_parser.NextInteger());
 
-            Debug.Assert(0 == _parser.RemainingBytes());
-
             return parameters;
         }
     }
@@ -260,6 +257,7 @@ namespace ValveResourceFormat.ThirdParty
                 {
                     return b;
                 }
+
                 int i = b & 0x7f;
 
                 if (i > 4)
@@ -310,7 +308,6 @@ namespace ValveResourceFormat.ThirdParty
 
                 return GetOctets(length);
             }
-
             catch (ArgumentOutOfRangeException ex)
             {
                 throw new BerDecodeException("Error Parsing Key", position, ex);
@@ -355,7 +352,6 @@ namespace ValveResourceFormat.ThirdParty
                 _octets.CopyTo(0, values, 0, octetCount);
                 _octets.RemoveRange(0, octetCount);
             }
-
             catch (ArgumentOutOfRangeException ex)
             {
                 throw new BerDecodeException("Error Parsing Key", position, ex);

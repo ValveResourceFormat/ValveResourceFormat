@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
                     }
-                    catch (EndOfStreamException e)
+                    catch (EndOfStreamException)
                     {
                         break;
                     }

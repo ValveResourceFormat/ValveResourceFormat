@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public List<ReferenceInfo> List;
+        public List<ReferenceInfo> List { get; }
 
         public ChildResourceList()
         {

@@ -6,7 +6,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class SoundEventScript : NTRO
     {
-        public Dictionary<string, string> SoundEventScriptValue; // TODO: be Dictionary<string, SomeKVObject>
+        public Dictionary<string, string> SoundEventScriptValue { get; private set; } // TODO: be Dictionary<string, SomeKVObject>
 
         public override void Read(BinaryReader reader, Resource resource)
         {

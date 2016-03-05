@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Blocks
             End
         }
 
-        public Dictionary<REDIStruct, ResourceEditInfoStructs.REDIBlock> Structs;
+        public Dictionary<REDIStruct, ResourceEditInfoStructs.REDIBlock> Structs { get; private set; }
 
         public ResourceEditInfo()
         {

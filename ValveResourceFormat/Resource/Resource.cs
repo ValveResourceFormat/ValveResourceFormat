@@ -21,13 +21,20 @@ namespace ValveResourceFormat
         /// </summary>
         public uint FileSize { get; private set; }
 
+        /// <summary>
+        /// Gets the version of this resource, should be 12.
+        /// </summary>
         public ushort HeaderVersion { get; private set; }
+
+        /// <summary>
+        /// Gets the file type version.
+        /// </summary>
         public ushort Version { get; private set; }
 
         /// <summary>
-        /// A list of blocks this resource has.
+        /// Gets the list of blocks this resource contains.
         /// </summary>
-        public readonly Dictionary<BlockType, Block> Blocks;
+        public Dictionary<BlockType, Block> Blocks { get; }
 
         /// <summary>
         /// Gets or sets the type of the resource.

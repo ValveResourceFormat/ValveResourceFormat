@@ -3,20 +3,21 @@ using System.IO;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
-    class Matrix3x4
+    public class Matrix3x4
     {
-        public float field0;
-        public float field1;
-        public float field2;
-        public float field3;
-        public float field4;
-        public float field5;
-        public float field6;
-        public float field7;
-        public float field8;
-        public float field9;
-        public float field10;
-        public float field11;
+        public float field0 { get; }
+        public float field1 { get; }
+        public float field2 { get; }
+        public float field3 { get; }
+        public float field4 { get; }
+        public float field5 { get; }
+        public float field6 { get; }
+        public float field7 { get; }
+        public float field8 { get; }
+        public float field9 { get; }
+        public float field10 { get; }
+        public float field11 { get; }
+
         public Matrix3x4(
             float field0, float field1, float field2, float field3,
             float field4, float field5, float field6, float field7,

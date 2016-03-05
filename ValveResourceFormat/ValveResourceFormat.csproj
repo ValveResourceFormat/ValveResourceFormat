@@ -96,7 +96,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="stylecop.json" />
+    <AdditionalFiles Include="stylecop.json" />
     <None Include="ValveResourceFormat.ruleset" />
   </ItemGroup>
   <ItemGroup>

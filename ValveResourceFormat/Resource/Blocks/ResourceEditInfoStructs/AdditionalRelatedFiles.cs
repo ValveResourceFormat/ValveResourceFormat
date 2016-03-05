@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public List<AdditionalRelatedFile> List;
+        public List<AdditionalRelatedFile> List { get; }
 
         public AdditionalRelatedFiles()
         {

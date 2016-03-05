@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public List<EditFloatData> List;
+        public List<EditFloatData> List { get; }
 
         public ExtraFloatData()
         {

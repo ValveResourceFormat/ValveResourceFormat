@@ -2,16 +2,16 @@
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
-    class CTransform
+    public class CTransform
     {
-        public float field0;
-        public float field1;
-        public float field2;
-        public float field3;
-        public float field4;
-        public float field5;
-        public float field6;
-        public float field7;
+        public float field0 { get; }
+        public float field1 { get; }
+        public float field2 { get; }
+        public float field3 { get; }
+        public float field4 { get; }
+        public float field5 { get; }
+        public float field6 { get; }
+        public float field7 { get; }
 
         public CTransform(float field0, float field1, float field2, float field3, float field4, float field5, float field6, float field7)
         {

@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public List<EditStringData> List;
+        public List<EditStringData> List { get; }
 
         public ExtraStringData()
         {

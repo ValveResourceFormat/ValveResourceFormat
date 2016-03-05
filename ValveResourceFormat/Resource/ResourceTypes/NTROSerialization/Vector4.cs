@@ -1,11 +1,11 @@
 ﻿namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
-    class Vector4
+    public class Vector4
     {
-        public float field0;
-        public float field1;
-        public float field2;
-        public float field3;
+        public float field0 { get; }
+        public float field1 { get; }
+        public float field2 { get; }
+        public float field3 { get; }
 
         public Vector4(float field0, float field1, float field2, float field3)
         {

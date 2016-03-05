@@ -6,8 +6,9 @@ using System.Globalization;
 
 namespace ValveResourceFormat.KeyValues
 {
-
-    // Class to hold type + value
+    /// <summary>
+    /// Class to hold type + value
+    /// </summary>
     public class KVValue
     {
         public KVType Type { get; private set; }

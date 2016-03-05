@@ -162,8 +162,8 @@ namespace ValveResourceFormat.Blocks
 
         public uint IntrospectionVersion { get; private set; }
 
-        public List<ResourceDiskStruct> ReferencedStructs;
-        public List<ResourceDiskEnum> ReferencedEnums;
+        public List<ResourceDiskStruct> ReferencedStructs { get; }
+        public List<ResourceDiskEnum> ReferencedEnums { get; }
 
         public ResourceIntrospectionManifest()
         {

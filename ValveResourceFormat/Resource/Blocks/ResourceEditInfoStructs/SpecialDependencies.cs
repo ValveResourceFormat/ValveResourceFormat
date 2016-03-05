@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             }
         }
 
-        public List<SpecialDependency> List;
+        public List<SpecialDependency> List { get; }
 
         public SpecialDependencies()
         {
