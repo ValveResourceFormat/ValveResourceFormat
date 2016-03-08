@@ -13,7 +13,7 @@ namespace GUI.Utils
         public static string ToFileSizeString(this uint byteCount)
         {
             string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" }; //Longs run out around EB
-            string result = String.Empty;
+            string result;
 
             if (byteCount == 0)
             {
@@ -24,7 +24,7 @@ namespace GUI.Utils
                 long absoluteByteCount = Math.Abs(byteCount);
                 int place = Convert.ToInt32(Math.Floor(Math.Log(absoluteByteCount, 1024)));
                 double num = Math.Round(absoluteByteCount / Math.Pow(1024, place), 1);
-                result = String.Format("{0} {1}", (Math.Sign(byteCount) * num).ToString(), suf[place]);
+                result = String.Format("{0} {1}", (Math.Sign(byteCount) * num), suf[place]);
             }
 
             return result;
@@ -42,21 +42,18 @@ namespace GUI.Utils
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\core"),
             };
 
-            string path = null;
-
             foreach (var searchPath in searchPaths)
             {
-                path = Path.Combine(searchPath, file + "_c");
+                var path = Path.Combine(searchPath, file + "_c");
+                path = Path.GetFullPath(path);
 
                 if (File.Exists(path))
                 {
-                    break;
+                    return path;
                 }
-
-                path = null;
             }
 
-            return path;
+            return null;
         }
     }
 }

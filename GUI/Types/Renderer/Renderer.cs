@@ -38,8 +38,6 @@ namespace GUI.Types.Renderer
 
         private List<drawCall> drawCalls = new List<drawCall>();
 
-        private string modelfilename;
-
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
 
@@ -71,9 +69,8 @@ namespace GUI.Types.Renderer
             public uint offset;
         }
 
-        public Renderer(string filename, Resource resource, TabControl mainTabs)
+        public Renderer(Resource resource, TabControl mainTabs)
         {
-            modelfilename = filename;
             block = resource.VBIB;
             data = (BinaryKV3)resource.Blocks[BlockType.DATA];
             tabs = mainTabs;
