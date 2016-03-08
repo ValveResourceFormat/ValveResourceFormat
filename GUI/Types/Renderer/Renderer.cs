@@ -488,29 +488,7 @@ void main()
 
         private int loadTexture(string name)
         {
-            // TODO: Make this a setting in the GUI
-            var searchPaths = new List<string> {
-                "D:\\Valve\\VR Mod\\vr",
-                "D:\\Valve\\VR Mod\\portal2_imported",
-                "D:\\Valve\\VR Mod\\core",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\vr"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\portal2_imported"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\core"),
-            };
-
-            string path = null;
-
-            foreach (var searchPath in searchPaths)
-            {
-                path = Path.Combine(searchPath, name + "_c");
-
-                if (File.Exists(path))
-                {
-                    break;
-                }
-
-                path = null;
-            }
+            string path = Utils.FileExtensions.FindResourcePath(name);
 
             if (path == null)
             {
