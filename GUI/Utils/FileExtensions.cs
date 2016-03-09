@@ -32,17 +32,7 @@ namespace GUI.Utils
 
         public static string FindResourcePath(string file)
         {
-            // TODO: Make this a setting in the GUI
-            var searchPaths = new List<string> {
-                "D:\\Valve\\VR Mod\\vr",
-                "D:\\Valve\\VR Mod\\portal2_imported",
-                "D:\\Valve\\VR Mod\\core",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\vr"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\portal2_imported"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "VR Mod\\core"),
-            };
-
-            foreach (var searchPath in searchPaths)
+            foreach (var searchPath in Settings.GameSearchPaths)
             {
                 var path = Path.Combine(searchPath, file + "_c");
                 path = Path.GetFullPath(path);

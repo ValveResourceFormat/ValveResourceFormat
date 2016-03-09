@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -37,6 +38,8 @@ namespace GUI
             };
             
             searchForm = new Forms.SearchForm();
+
+            Settings.Load();
 
             NewLineRegex = new Regex(@"\r\n|\n\r|\n|\r", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture);
         }
@@ -98,6 +101,12 @@ namespace GUI
         private void OnAboutItemClick(object sender, EventArgs e)
         {
             var form = new Forms.AboutForm();
+            form.ShowDialog(this);
+        }
+
+        private void OnSettingsItemClick(object sender, EventArgs e)
+        {
+            var form = new Forms.SettingsForm();
             form.ShowDialog(this);
         }
 
