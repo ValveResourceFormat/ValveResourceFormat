@@ -329,7 +329,7 @@ void main()
             GL.ActiveTexture(TextureUnit.Texture0);
 
             // Load error teture
-            Console.WriteLine("Error texture ID: " + loadTexture("materials/debug/debugempty.vtex"));
+            Console.WriteLine("Error texture ID: " + loadMaterial("materials/debug/debugempty.vmat"));
 
             for (int i = 0; i < c.Properties.Count; i++)
             {
@@ -350,7 +350,7 @@ void main()
                 drawCall.startIndex = Convert.ToUInt32(d.Properties["m_nStartIndex"].Value);
                 drawCall.indexCount = Convert.ToUInt32(d.Properties["m_nIndexCount"].Value);
                 drawCall.material = d.Properties["m_material"].Value.ToString();
-                drawCall.materialID = loadTexture(drawCall.material);
+                drawCall.materialID = loadMaterial(drawCall.material);
                 //if(drawCall.materialID == 0) { throw new Exception("Texture ID is 0!"); }
 
                 KVObject f = (KVObject)d.Properties["m_indexBuffer"].Value;
@@ -483,8 +483,10 @@ void main()
             Loaded = true;
         }
 
-        private int loadTexture(string name)
+        private int loadMaterial(string name)
         {
+            Console.WriteLine("Loading material " + name);
+
             string path = Utils.FileExtensions.FindResourcePath(name);
 
             if (path == null)
@@ -496,85 +498,86 @@ void main()
             var resource = new Resource();
             resource.Read(path);
 
-            if (resource.ResourceType == ResourceType.Material)
+            string texturePath = Utils.FileExtensions.FindResourcePath(resource.ExternalReferences.ResourceRefInfoList[0].Name);
+
+            if (texturePath == null)
             {
-                return loadTexture(resource.ExternalReferences.ResourceRefInfoList[0].Name);
+                Console.WriteLine("File " + resource.ExternalReferences.ResourceRefInfoList[0].Name + " not found");
+                return 1;
             }
-            else if (resource.ResourceType == ResourceType.Texture)
+
+            var textureResource = new Resource();
+
+            textureResource.Read(texturePath);
+
+            var tex = (Texture)textureResource.Blocks[BlockType.DATA];
+
+            var id = GL.GenTexture();
+
+            GL.BindTexture(TextureTarget.Texture2D, id);
+
+            BinaryReader textureReader = new BinaryReader(File.OpenRead(texturePath));
+            textureReader.BaseStream.Position = tex.Offset + tex.Size;
+                
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
+
+            int width = tex.Width / (int) Math.Pow(2.0, tex.NumMipLevels);
+            int height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
+
+            int blockSize;
+            PixelInternalFormat format;
+
+            if (tex.Format.HasFlag(VTexFormat.DXT1))
             {
-                Console.WriteLine("Loading texture " + name);
-                var tex = (Texture)resource.Blocks[BlockType.DATA];
-
-                var id = GL.GenTexture();
-
-                GL.BindTexture(TextureTarget.Texture2D, id);
-
-                BinaryReader textureReader = new BinaryReader(File.OpenRead(path));
-                textureReader.BaseStream.Position = tex.Offset + tex.Size;
-                
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
-
-                int width = tex.Width / (int) Math.Pow(2.0, tex.NumMipLevels);
-                int height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
-
-                int blockSize;
-                PixelInternalFormat format;
-
-                if (tex.Format.HasFlag(VTexFormat.DXT1))
-                {
-                    Console.WriteLine("Texture is DXT1");
-                    blockSize = 8;
-                    format = PixelInternalFormat.CompressedRgbaS3tcDxt1Ext;
-                }
-                else if (tex.Format.HasFlag(VTexFormat.DXT5))
-                {
-                    Console.WriteLine("Texture is DXT5");
-                    blockSize = 16;
-                    format = PixelInternalFormat.CompressedRgbaS3tcDxt5Ext;
-                }
-                else
-                {
-                    throw new Exception("Unsupported texture format: " + tex.Format.ToString());
-                }
-
-                for (int i = tex.NumMipLevels - 1; i >= 0; i--)
-                {
-                    if ((width *= 2) == 0) width = 1;
-                    if ((height *= 2) == 0) height = 1;
-
-                    int size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
-
-                    GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, size, textureReader.ReadBytes(size));
-                }
-
-                if (tex.NumMipLevels < 2)
-                {
-                    Console.WriteLine("Texture only has " + tex.NumMipLevels + " mipmap levels, should probably generate");
-                }
-
-                //var bmp = tex.GenerateBitmap();
-                //System.Drawing.Imaging.BitmapData bmp_data = bmp.LockBits(new Rectangle(0, 0, tex.Width, tex.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-                //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, bmp_data.Width, bmp_data.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bmp_data.Scan0);
-
-                if (MaxTextureMaxAnisotropy > 0)
-                {
-                    GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
-                }
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-                
-               // bmp.UnlockBits(bmp_data);
-
-                return id;
+                Console.WriteLine("Texture is DXT1");
+                blockSize = 8;
+                format = PixelInternalFormat.CompressedRgbaS3tcDxt1Ext;
+            }
+            else if (tex.Format.HasFlag(VTexFormat.DXT5))
+            {
+                Console.WriteLine("Texture is DXT5");
+                blockSize = 16;
+                format = PixelInternalFormat.CompressedRgbaS3tcDxt5Ext;
             }
             else
             {
-                return 1; // Return error texture (in the hopes that one did work)
+                throw new Exception("Unsupported texture format: " + tex.Format.ToString());
             }
+
+            for (int i = tex.NumMipLevels - 1; i >= 0; i--)
+            {
+                if ((width *= 2) == 0) width = 1;
+                if ((height *= 2) == 0) height = 1;
+
+                int size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+
+                GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, size, textureReader.ReadBytes(size));
+            }
+
+            if (tex.NumMipLevels < 2)
+            {
+                Console.WriteLine("Texture only has " + tex.NumMipLevels + " mipmap levels, should probably generate");
+            }
+
+            //var bmp = tex.GenerateBitmap();
+            //System.Drawing.Imaging.BitmapData bmp_data = bmp.LockBits(new Rectangle(0, 0, tex.Width, tex.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, bmp_data.Width, bmp_data.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bmp_data.Scan0);
+
+            if (MaxTextureMaxAnisotropy > 0)
+            {
+                GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+            }
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+                
+            // bmp.UnlockBits(bmp_data);
+
+            return id;
+
         }
 
         private void MeshControl_Paint(object sender, PaintEventArgs e)
