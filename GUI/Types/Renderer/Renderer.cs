@@ -98,12 +98,12 @@ namespace GUI.Types.Renderer
 
         private void MeshControl_MouseLeave(object sender, EventArgs e)
         {
-            ActiveCamera.mouseOverRenderArea = false;
+            ActiveCamera.MouseOverRenderArea = false;
         }
 
         private void MeshControl_MouseEnter(object sender, EventArgs e)
         {
-            ActiveCamera.mouseOverRenderArea = true;
+            ActiveCamera.MouseOverRenderArea = true;
         }
 
         private void MeshControl_Resize(object sender, EventArgs e)

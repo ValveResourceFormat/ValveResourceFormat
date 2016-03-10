@@ -10,8 +10,8 @@ namespace GUI.Types.Renderer
         public Matrix4 ProjectionMatrix;
         public Matrix4 CameraViewMatrix;
 
-        public bool mouseOverRenderArea = false;
-        private bool mouseDragging = true;
+        public bool MouseOverRenderArea { get; set; }
+        private bool MouseDragging;
 
         private Vector2 MouseDelta;
         private Vector2 MousePreviousPosition;
@@ -43,13 +43,11 @@ namespace GUI.Types.Renderer
 
             // setup projection
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
-            GL.MatrixMode(MatrixMode.Projection);
-            GL.LoadMatrix(ref ProjectionMatrix);
         }
 
         public void Tick()
         {
-            if (!mouseOverRenderArea)
+            if (!MouseOverRenderArea)
             {
                 return;
             }
@@ -96,20 +94,17 @@ namespace GUI.Types.Renderer
 
             var lookatPoint = new Vector3((float)Math.Cos(Yaw), (float)Math.Sin(Yaw), (float)Pitch);
             CameraViewMatrix = Matrix4.LookAt(Location, Location + lookatPoint, Vector3.UnitZ);
-
-            GL.MatrixMode(MatrixMode.Modelview);
-            GL.LoadMatrix(ref CameraViewMatrix);
         }
 
         public void HandleInput(MouseState mouseState, KeyboardState keyboardState)
         {
             KeyboardState = keyboardState;
 
-            if (mouseOverRenderArea && mouseState.LeftButton == OpenTK.Input.ButtonState.Pressed)
+            if (MouseOverRenderArea && mouseState.LeftButton == ButtonState.Pressed)
             {
-                if (!mouseDragging)
+                if (!MouseDragging)
                 {
-                    mouseDragging = true;
+                    MouseDragging = true;
                     MousePreviousPosition = new Vector2(mouseState.X, mouseState.Y);
                 }
 
@@ -121,9 +116,9 @@ namespace GUI.Types.Renderer
                 MousePreviousPosition = mouseNewCoords;
             }
 
-            if (!mouseOverRenderArea || mouseState.LeftButton == OpenTK.Input.ButtonState.Released)
+            if (!MouseOverRenderArea || mouseState.LeftButton == ButtonState.Released)
             {
-                mouseDragging = false;
+                MouseDragging = false;
             }
         }
 
