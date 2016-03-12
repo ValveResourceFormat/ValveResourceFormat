@@ -44,7 +44,7 @@ namespace GUI.Types.Renderer
 
         private int MaxTextureMaxAnisotropy;
 
-        private List<Material> materials = new List<Material>();
+        private Dictionary<int, Material> materials = new  Dictionary<int, Material>();
 
         private struct drawCall
         {
@@ -666,10 +666,9 @@ void main()
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-
             // bmp.UnlockBits(bmp_data);
 
-            materials.Add(mat);
+            materials.Add(id, mat);
             return id;
 
         }
@@ -685,9 +684,27 @@ void main()
             GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
             foreach (drawCall call in drawCalls)
             {
+                if(call.materialID != 1) // Don't do material lookups on error texture
+                {
+                    if (materials[call.materialID].intParams.ContainsKey("F_TRANSLUCENT") && materials[call.materialID].intParams["F_TRANSLUCENT"] == 1)
+                    {
+                        GL.Enable(EnableCap.Blend);
+                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                    }
+                    else if (materials[call.materialID].intParams.ContainsKey("F_ALPHA_TEST") && materials[call.materialID].intParams["F_ALPHA_TEST"] == 1)
+                    {
+                        GL.Enable(EnableCap.AlphaTest);
+                        GL.AlphaFunc(AlphaFunction.Greater, materials[call.materialID].floatParams["g_flAlphaTestReference"]);
+                    }
+                    else
+                    {
+                        GL.Disable(EnableCap.AlphaTest);
+                        GL.Disable(EnableCap.Blend);
+                    }
+                }
+                
                 GL.BindVertexArray(call.vertexArrayObject);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[call.vertexBuffer.id]);
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[call.indexBuffer.id]);
