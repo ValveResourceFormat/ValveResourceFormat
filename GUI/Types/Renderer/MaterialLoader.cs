@@ -5,6 +5,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 using OpenTK.Graphics.OpenGL;
 using System.IO;
+using ValveResourceFormat.Blocks;
 
 namespace GUI.Types.Renderer
 {
@@ -16,11 +17,15 @@ namespace GUI.Types.Renderer
         {
             public string name;
             public string shaderName;
-            public int textureID;
+            public int colorTextureID;
+            public int normalTextureID;
+            public int cubemapTextureID;
+            public int glossTextureID;
+            public int roughnessTextureID;
             public Dictionary<string, int> intParams;
             public Dictionary<string, float> floatParams;
             public Dictionary<string, OpenTK.Vector4> vectorParams;
-            public Dictionary<string, long> textureParams;
+            public Dictionary<string, ResourceExtRefList.ResourceReferenceInfo> textureParams;
             //public Dictionary<string, ????> dynamicParams;
             //public Dictionary<string, ????> dynamicTextureParams;
             public Dictionary<string, int> intAttributes;
@@ -52,14 +57,6 @@ namespace GUI.Types.Renderer
             var resource = new Resource();
             resource.Read(path);
 
-            string texturePath = Utils.FileExtensions.FindResourcePath(resource.ExternalReferences.ResourceRefInfoList[0].Name, currentFileName);
-
-            if (texturePath == null)
-            {
-                Console.WriteLine("File " + resource.ExternalReferences.ResourceRefInfoList[0].Name + " not found");
-                return 1;
-            }
-
             var matData = (NTRO)resource.Blocks[BlockType.DATA];
             mat.name = ((NTROValue<string>)matData.Output["m_materialName"]).Value;
             mat.shaderName = ((NTROValue<string>)matData.Output["m_shaderName"]).Value;
@@ -86,13 +83,17 @@ namespace GUI.Types.Renderer
             for (int i = 0; i < vectorParams.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
-                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
+                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
                 mat.vectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
             var textureParams = (NTROArray)matData.Output["m_textureParams"];
-            mat.textureParams = new Dictionary<string, long>();
-            //TODO
+            mat.textureParams = new Dictionary<string, ResourceExtRefList.ResourceReferenceInfo>();
+            for (int i = 0; i < textureParams.Count; i++)
+            {
+                var subStruct = ((NTROValue<NTROStruct>)textureParams[i]).Value;
+                mat.textureParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)subStruct["m_pValue"]).Value);
+            }
 
             var dynamicParams = (NTROArray)matData.Output["m_dynamicParams"];
             var dynamicTextureParams = (NTROArray)matData.Output["m_dynamicTextureParams"];
@@ -118,7 +119,7 @@ namespace GUI.Types.Renderer
             for (int i = 0; i < vectorAttributes.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorAttributes[i]).Value;
-                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
+                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
                 mat.vectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
@@ -128,15 +129,59 @@ namespace GUI.Types.Renderer
             var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
             //TODO
 
+            foreach (var textureReference in mat.textureParams)
+            {
+                switch (textureReference.Key)
+                {
+                    case "g_tColor":
+                    case "g_tColor1":
+                    case "g_tColor2":
+                        mat.colorTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture0);
+                        break;
+                    case "g_tNormal":
+                    case "g_tNormal2":
+                        mat.normalTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture1);
+                        break;
+                    case "g_tCubeMap":
+                        mat.cubemapTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture2);
+                        break;
+                    case "g_tGloss":
+                        mat.glossTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture3);
+                        break;
+                    case "g_tRoughness":
+                        mat.roughnessTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture4);
+                        break;
+                    default:
+                        Console.WriteLine("Unknown texture type: " + textureReference.Key);
+                        break;
+                }
+            }
+
+            materials.Add(name, mat);
+
+            return mat.colorTextureID;
+        }
+
+        private static int loadTexture(string path, string currentFileName, int maxTextureMaxAnisotropy, TextureUnit textureUnit)
+        {
+            string texturePath = Utils.FileExtensions.FindResourcePath(path, currentFileName);
+
+            if (texturePath == null)
+            {
+                Console.WriteLine("File " + path + " not found");
+                return 1;
+            }
+
             var textureResource = new Resource();
 
             textureResource.Read(texturePath);
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
-            mat.textureID = GL.GenTexture();
+            var id = GL.GenTexture();
 
-            GL.BindTexture(TextureTarget.Texture2D, mat.textureID);
+            GL.ActiveTexture(textureUnit);
+            GL.BindTexture(TextureTarget.Texture2D, id);
 
             BinaryReader textureReader = new BinaryReader(File.OpenRead(texturePath));
             textureReader.BaseStream.Position = tex.Offset + tex.Size;
@@ -197,10 +242,7 @@ namespace GUI.Types.Renderer
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
             // bmp.UnlockBits(bmp_data);
 
-            materials.Add(name, mat);
-
-            return mat.textureID;
+            return id;
         }
-
     }
 }

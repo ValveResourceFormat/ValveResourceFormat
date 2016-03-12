@@ -186,6 +186,9 @@ namespace GUI.Types.Renderer
 in vec3 vPosition;
 in vec3 vNormal;
 in vec2 vTexCoord;
+in vec4 vTangent;
+in ivec4 vBlendIndices;
+in vec4 vBlendWeight;
 
 out vec3 vNormalOut;
 out vec2 vTexCoordOut;
@@ -349,13 +352,14 @@ void main()
 
                 drawCall.material = d.Properties["m_material"].Value.ToString();
 
+
                 if (!MaterialLoader.materials.ContainsKey(drawCall.material))
                 {
                     drawCall.materialID = MaterialLoader.loadMaterial(drawCall.material, CurrentFileName, MaxTextureMaxAnisotropy);
                 }
                 else
                 {
-                    drawCall.materialID = MaterialLoader.materials[drawCall.material].textureID;
+                    drawCall.materialID = MaterialLoader.materials[drawCall.material].colorTextureID;
                 }
 
                 KVObject f = (KVObject)d.Properties["m_indexBuffer"].Value;
@@ -533,6 +537,7 @@ void main()
                 GL.BindVertexArray(call.vertexArrayObject);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[call.vertexBuffer.id]);
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[call.indexBuffer.id]);
+                GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, call.materialID);
                 GL.DrawElements(call.primitiveType, (int) call.indexCount, call.indiceType, IntPtr.Zero);
 
