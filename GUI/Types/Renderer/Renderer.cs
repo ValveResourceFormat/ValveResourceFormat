@@ -29,6 +29,7 @@ namespace GUI.Types.Renderer
         private int fragmentShader;
         private int shaderProgram;
 
+        private string CurrentFileName;
         private BinaryKV3 data;
         private VBIB block;
 
@@ -90,8 +91,9 @@ namespace GUI.Types.Renderer
             public string[] renderAttributesUsed; // ?
         }
 
-        public Renderer(Resource resource, TabControl mainTabs)
+        public Renderer(Resource resource, TabControl mainTabs, string fileName)
         {
+            CurrentFileName = fileName;
             block = resource.VBIB;
             data = (BinaryKV3)resource.Blocks[BlockType.DATA];
             tabs = mainTabs;
@@ -511,7 +513,7 @@ void main()
         {
             Console.WriteLine("Loading material " + name);
 
-            string path = Utils.FileExtensions.FindResourcePath(name);
+            string path = Utils.FileExtensions.FindResourcePath(name, CurrentFileName);
             var mat = new Material();
 
             if (path == null)
@@ -523,7 +525,7 @@ void main()
             var resource = new Resource();
             resource.Read(path);
 
-            string texturePath = Utils.FileExtensions.FindResourcePath(resource.ExternalReferences.ResourceRefInfoList[0].Name);
+            string texturePath = Utils.FileExtensions.FindResourcePath(resource.ExternalReferences.ResourceRefInfoList[0].Name, CurrentFileName);
 
             if (texturePath == null)
             {

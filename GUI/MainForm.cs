@@ -295,7 +295,7 @@ namespace GUI
                             break;
                         }
                         var modelmeshTab = new TabPage("MESH");
-                        var modelmv = new Types.Renderer.Renderer(resourceMesh, mainTabs);
+                        var modelmv = new Types.Renderer.Renderer(resourceMesh, mainTabs, fileName);
                         var modelglControl = modelmv.createGL();
                         modelmeshTab.Controls.Add(modelglControl);
                         resTabs.TabPages.Add(modelmeshTab);
@@ -307,7 +307,7 @@ namespace GUI
                             break;
                         }
                         var meshTab = new TabPage("MESH");
-                        var mv = new Types.Renderer.Renderer(resource, mainTabs);
+                        var mv = new Types.Renderer.Renderer(resource, mainTabs, fileName);
                         var glControl = mv.createGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);

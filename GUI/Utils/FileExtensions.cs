@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace GUI.Utils
 {
@@ -30,9 +31,16 @@ namespace GUI.Utils
             return result;
         }
 
-        public static string FindResourcePath(string file)
+        public static string FindResourcePath(string file, string currentFullPath = null)
         {
-            foreach (var searchPath in Settings.GameSearchPaths)
+            var paths = Settings.GameSearchPaths;
+                
+            if (currentFullPath != null)
+            {
+                paths = paths.OrderByDescending(x => currentFullPath.StartsWith(x, StringComparison.Ordinal)).ToList();
+            }
+
+            foreach (var searchPath in paths)
             {
                 var path = Path.Combine(searchPath, file + "_c");
                 path = Path.GetFullPath(path);
