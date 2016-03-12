@@ -12,6 +12,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace GUI.Types.Renderer
 {
@@ -77,13 +78,13 @@ namespace GUI.Types.Renderer
             public string shaderName;
             public Dictionary<string, int> intParams;
             public Dictionary<string, float> floatParams;
-            public Dictionary<string, Vector4> vectorParams;
+            public Dictionary<string, OpenTK.Vector4> vectorParams;
             public Dictionary<string, long> textureParams;
             //public Dictionary<string, ????> dynamicParams;
             //public Dictionary<string, ????> dynamicTextureParams;
             public Dictionary<string, int> intAttributes;
             public Dictionary<string, float> floatAttributes;
-            public Dictionary<string, Vector4> vectorAttributes;
+            public Dictionary<string, OpenTK.Vector4> vectorAttributes;
             public Dictionary<string, long> textureAttributes;
             public Dictionary<string, string> stringAttributes;
             public string[] renderAttributesUsed; // ?
@@ -528,71 +529,71 @@ void main()
             }
 
             var matData = (NTRO) resource.Blocks[BlockType.DATA];
-            mat.name =  ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)matData.Output["m_materialName"]).Value;
-            mat.shaderName = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)matData.Output["m_shaderName"]).Value;
+            mat.name =  ((NTROValue<string>)matData.Output["m_materialName"]).Value;
+            mat.shaderName = ((NTROValue<string>)matData.Output["m_shaderName"]).Value;
             //mat.renderAttributesUsed = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)matData.Output["m_renderAttributesUsed"]).Value; //TODO: string array?
 
-            var intParams = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_intParams"];
+            var intParams = (NTROArray)matData.Output["m_intParams"];
             mat.intParams = new Dictionary<string, int>();
             for (int i = 0; i < intParams.Count; i++)
             {
-                var subStruct = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.NTROStruct>)intParams[i]).Value;
-                mat.intParams.Add(((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)subStruct["m_name"]).Value, ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<int>)subStruct["m_nValue"]).Value);
+                var subStruct = ((NTROValue<NTROStruct>)intParams[i]).Value;
+                mat.intParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
             }
 
-            var floatParams = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_floatParams"];
+            var floatParams = (NTROArray)matData.Output["m_floatParams"];
             mat.floatParams = new Dictionary<string, float>();
             for (int i = 0; i < floatParams.Count; i++)
             {
-                var subStruct = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.NTROStruct>)floatParams[i]).Value;
-                mat.floatParams.Add(((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)subStruct["m_name"]).Value, ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<float>)subStruct["m_flValue"]).Value);
+                var subStruct = ((NTROValue<NTROStruct>)floatParams[i]).Value;
+                mat.floatParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
             }
 
-            var vectorParams = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_vectorParams"];
-            mat.vectorParams = new Dictionary<string, Vector4>();
+            var vectorParams = (NTROArray)matData.Output["m_vectorParams"];
+            mat.vectorParams = new Dictionary<string, OpenTK.Vector4>();
             for (int i = 0; i < vectorParams.Count; i++)
             {
-                var subStruct = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.NTROStruct>)vectorParams[i]).Value;
-                var ntroVector = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;  
-                mat.vectorParams.Add(((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)subStruct["m_name"]).Value, new Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
+                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;  
+                mat.vectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
-            var textureParams = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_textureParams"];
+            var textureParams = (NTROArray)matData.Output["m_textureParams"];
             mat.textureParams = new Dictionary<string, long>();
             //TODO
 
-            var dynamicParams = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_dynamicParams"];
-            var dynamicTextureParams = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_dynamicTextureParams"];
+            var dynamicParams = (NTROArray)matData.Output["m_dynamicParams"];
+            var dynamicTextureParams = (NTROArray)matData.Output["m_dynamicTextureParams"];
 
-            var intAttributes = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_intAttributes"];
+            var intAttributes = (NTROArray)matData.Output["m_intAttributes"];
             mat.intAttributes = new Dictionary<string, int>();
             for(int i = 0; i < intAttributes.Count; i++)
             {
-                var subStruct = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.NTROStruct>) intAttributes[i]).Value;
-                mat.intAttributes.Add(((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)subStruct["m_name"]).Value, ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<int>)subStruct["m_nValue"]).Value);
+                var subStruct = ((NTROValue<NTROStruct>) intAttributes[i]).Value;
+                mat.intAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
             }
 
-            var floatAttributes = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_floatAttributes"];
+            var floatAttributes = (NTROArray)matData.Output["m_floatAttributes"];
             mat.floatAttributes = new Dictionary<string, float>();
             for (int i = 0; i < floatAttributes.Count; i++)
             {
-                var subStruct = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.NTROStruct>)floatAttributes[i]).Value;
-                mat.floatAttributes.Add(((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)subStruct["m_name"]).Value, ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<float>)subStruct["m_flValue"]).Value);
+                var subStruct = ((NTROValue<NTROStruct>)floatAttributes[i]).Value;
+                mat.floatAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
             }
 
-            var vectorAttributes = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_vectorAttributes"];
-            mat.vectorAttributes = new Dictionary<string, Vector4>();
+            var vectorAttributes = (NTROArray)matData.Output["m_vectorAttributes"];
+            mat.vectorAttributes = new Dictionary<string, OpenTK.Vector4>();
             for (int i = 0; i < vectorAttributes.Count; i++)
             {
-                var subStruct = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.NTROStruct>)vectorAttributes[i]).Value;
-                var ntroVector = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
-                mat.vectorAttributes.Add(((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)subStruct["m_name"]).Value, new Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                var subStruct = ((NTROValue<NTROStruct>)vectorAttributes[i]).Value;
+                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
+                mat.vectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
-            var textureAttributes = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_textureAttributes"];
+            var textureAttributes = (NTROArray)matData.Output["m_textureAttributes"];
             //TODO
 
-            var stringAttributes = (ValveResourceFormat.ResourceTypes.NTROSerialization.NTROArray)matData.Output["m_stringAttributes"];
+            var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
             //TODO
 
             var textureResource = new Resource();
