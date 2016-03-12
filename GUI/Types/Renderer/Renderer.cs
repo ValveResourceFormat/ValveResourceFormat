@@ -698,11 +698,6 @@ void main()
                         GL.Enable(EnableCap.AlphaTest);
                         GL.AlphaFunc(AlphaFunction.Greater, materials[call.materialID].floatParams["g_flAlphaTestReference"]);
                     }
-                    else
-                    {
-                        GL.Disable(EnableCap.AlphaTest);
-                        GL.Disable(EnableCap.Blend);
-                    }
                 }
                 
                 GL.BindVertexArray(call.vertexArrayObject);
@@ -710,6 +705,9 @@ void main()
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[call.indexBuffer.id]);
                 GL.BindTexture(TextureTarget.Texture2D, call.materialID);
                 GL.DrawElements(call.primitiveType, (int) call.indexCount, call.indiceType, IntPtr.Zero);
+
+                GL.Disable(EnableCap.AlphaTest);
+                GL.Disable(EnableCap.Blend);
             }
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
