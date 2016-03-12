@@ -459,13 +459,13 @@ void main()
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R8G8B8A8_UINT:
-                                    GL.VertexAttribPointer(blendIndicesAttrib, 4, VertexAttribPointerType.UnsignedByte, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
+                                    GL.VertexAttribIPointer(blendIndicesAttrib, 4, VertexAttribIntegerType.UnsignedInt, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
                                     break;
                                 case DXGI_FORMAT.R16G16_SINT:
-                                    GL.VertexAttribPointer(blendIndicesAttrib, 2, VertexAttribPointerType.Short, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
+                                    GL.VertexAttribIPointer(blendIndicesAttrib, 2, VertexAttribIntegerType.Short, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
                                     break;
                                 case DXGI_FORMAT.R16G16B16A16_SINT:
-                                    GL.VertexAttribPointer(blendIndicesAttrib, 4, VertexAttribPointerType.Short, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
+                                    GL.VertexAttribIPointer(blendIndicesAttrib, 4, VertexAttribIntegerType.Short, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
                                     break;
                                 default:
                                     throw new Exception("Unsupported blend indices format " + attribute.Type);
