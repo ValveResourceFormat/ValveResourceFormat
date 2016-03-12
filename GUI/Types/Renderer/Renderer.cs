@@ -408,6 +408,7 @@ void main()
                 GL.BindVertexArray(drawCall.vertexArrayObject);
 
                 var curVertexBuffer = block.VertexBuffers[(int)drawCall.vertexBuffer.id];
+                var texcoordSet = false;
                 foreach (var attribute in curVertexBuffer.Attributes)
                 {
                     switch (attribute.Name)
@@ -440,6 +441,7 @@ void main()
                             }
                             break;
                         case "TEXCOORD":
+                            if (texcoordSet) { break; } // Ignore second set of texcoords 
                             GL.EnableClientState(ArrayCap.TextureCoordArray);
                             int texCoordAttrib = GL.GetAttribLocation(shaderProgram, "vTexCoord");
                             GL.EnableVertexAttribArray(texCoordAttrib);
@@ -454,6 +456,7 @@ void main()
                                 default:
                                     throw new Exception("Unsupported texcoord format " + attribute.Type);
                             }
+                            texcoordSet = true;
                             break;
                         case "TANGENT":
                             switch (attribute.Type)
