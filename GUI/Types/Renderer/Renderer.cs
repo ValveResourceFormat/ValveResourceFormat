@@ -328,12 +328,6 @@ void main()
             GL.Enable(EnableCap.Texture2D);
             GL.ActiveTexture(TextureUnit.Texture0);
 
-            // Load error teture
-            if (!MaterialLoader.materials.ContainsKey("materials/debug/debugempty.vmat"))
-            {
-                MaterialLoader.loadMaterial("materials/debug/debugempty.vmat", CurrentFileName, MaxTextureMaxAnisotropy);
-            }
-
             for (int i = 0; i < c.Properties.Count; i++)
             {
                 KVObject d = (KVObject)c.Properties[i.ToString()].Value;
@@ -357,10 +351,12 @@ void main()
 
                 if (!MaterialLoader.materials.ContainsKey(drawCall.material))
                 {
-                    MaterialLoader.loadMaterial(drawCall.material, CurrentFileName, MaxTextureMaxAnisotropy);
+                    drawCall.materialID = MaterialLoader.loadMaterial(drawCall.material, CurrentFileName, MaxTextureMaxAnisotropy);
                 }
-
-                drawCall.materialID = MaterialLoader.materials[drawCall.material].textureID;
+                else
+                {
+                    drawCall.materialID = MaterialLoader.materials[drawCall.material].textureID;
+                }
 
                 KVObject f = (KVObject)d.Properties["m_indexBuffer"].Value;
 
@@ -508,7 +504,7 @@ void main()
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             foreach (drawCall call in drawCalls)
             {
-                if(MaterialLoader.materials[call.material].textureID != 1) // Don't do material lookups on error texture
+                if(call.materialID != 1) // Don't do material lookups on error texture
                 {
                     if (MaterialLoader.materials[call.material].intParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.materials[call.material].intParams["F_TRANSLUCENT"] == 1)
                     {

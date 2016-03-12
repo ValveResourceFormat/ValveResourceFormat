@@ -31,8 +31,13 @@ namespace GUI.Types.Renderer
             //public string[] renderAttributesUsed; // ?
         }
 
-        public static void loadMaterial(string name, string currentFileName, int maxTextureMaxAnisotropy)
+        public static int loadMaterial(string name, string currentFileName, int maxTextureMaxAnisotropy)
         {
+            if (name != "materials/debug/debugempty.vmat" && !materials.ContainsKey("materials/debug/debugempty.vmat"))
+            {
+                loadMaterial("materials/debug/debugempty.vmat", currentFileName, maxTextureMaxAnisotropy);
+            }
+
             Console.WriteLine("Loading material " + name);
 
             string path = Utils.FileExtensions.FindResourcePath(name, currentFileName);
@@ -41,7 +46,7 @@ namespace GUI.Types.Renderer
             if (path == null)
             {
                 Console.WriteLine("File " + name + " not found");
-                return;
+                return 1;
             }
 
             var resource = new Resource();
@@ -52,7 +57,7 @@ namespace GUI.Types.Renderer
             if (texturePath == null)
             {
                 Console.WriteLine("File " + resource.ExternalReferences.ResourceRefInfoList[0].Name + " not found");
-                return;
+                return 1;
             }
 
             var matData = (NTRO)resource.Blocks[BlockType.DATA];
@@ -193,6 +198,8 @@ namespace GUI.Types.Renderer
             // bmp.UnlockBits(bmp_data);
 
             materials.Add(name, mat);
+
+            return mat.textureID;
         }
 
     }
