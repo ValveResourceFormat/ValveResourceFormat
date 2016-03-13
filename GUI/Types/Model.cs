@@ -26,5 +26,23 @@ namespace GUI.Types
 
             return Utils.FileExtensions.FindResourcePath(mesh.Name);
         }
+
+        public string GetAnimationGroup()
+        {
+            var data = (NTRO)Resource.Blocks[BlockType.DATA];
+
+            var refAnimGroups = (NTROArray)data.Output["m_refAnimGroups"];
+
+            if(refAnimGroups.Count > 0)
+            {
+                var animGroup = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refAnimGroups[0]).Value;
+                return Utils.FileExtensions.FindResourcePath(animGroup.Name);
+            }
+            else
+            {
+                return string.Empty;
+            }
+
+        }
     }
 }
