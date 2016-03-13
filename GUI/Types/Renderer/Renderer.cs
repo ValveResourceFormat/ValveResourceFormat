@@ -40,6 +40,8 @@ namespace GUI.Types.Renderer
 
         private int MaxTextureMaxAnisotropy;
 
+        private Vector3 LightPosition = new Vector3(0.0f, 0.0f, 0.0f);
+
         private struct drawCall
         {
             public PrimitiveType primitiveType;
@@ -460,6 +462,9 @@ namespace GUI.Types.Renderer
                 GL.Disable(EnableCap.AlphaTest);
                 GL.Disable(EnableCap.Blend);
             }
+
+            int lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
+            GL.Uniform3(lightPosAttrib, LightPosition);
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
