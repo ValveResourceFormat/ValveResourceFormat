@@ -164,6 +164,8 @@
     <Compile Include="Types\Renderer\Camera.cs" />
     <Compile Include="Types\Renderer\Renderer.cs" />
     <Compile Include="Types\Model.cs" />
+    <EmbeddedResource Include="Types\Renderer\Shaders\fragment.frag" />
+    <EmbeddedResource Include="Types\Renderer\Shaders\vertex.vert" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

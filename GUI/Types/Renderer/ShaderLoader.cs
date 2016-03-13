@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Reflection;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
@@ -14,30 +16,14 @@ namespace GUI.Types.Renderer
             /* Vertex shader */
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
 
-            string vertexShaderSource = @"
-#version 330
- 
-in vec3 vPosition;
-in vec3 vNormal;
-in vec2 vTexCoord;
-in vec4 vTangent;
-in ivec4 vBlendIndices;
-in vec4 vBlendWeight;
+            var assembly = Assembly.GetExecutingAssembly();
 
-out vec3 vNormalOut;
-out vec2 vTexCoordOut;
+            using (var stream = assembly.GetManifestResourceStream("GUI.Types.Renderer.Shaders.vertex.vert"))
+            using (var reader = new StreamReader(stream))
+            {
+                GL.ShaderSource(vertexShader, reader.ReadToEnd());
+            }
 
-uniform mat4 projection;
-uniform mat4 modelview;
-
-void main()
-{
-    gl_Position = projection * modelview * vec4(vPosition, 1.0);
-    vTexCoordOut = vTexCoord;
-}
-";
-
-            GL.ShaderSource(vertexShader, vertexShaderSource);
             GL.CompileShader(vertexShader);
 
             int vsStatus;
@@ -57,31 +43,12 @@ void main()
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-            string fragmentShaderSource = @"
-#version 330
- 
-in vec2 vTexCoordOut;
-out vec4 outputColor;
- 
-uniform float alphaReference;
-uniform sampler2D colorTexture;
-uniform sampler2D normalTexture;
+            using (var stream = assembly.GetManifestResourceStream("GUI.Types.Renderer.Shaders.fragment.frag"))
+            using (var reader = new StreamReader(stream))
+            {
+                GL.ShaderSource(fragmentShader, reader.ReadToEnd());
+            }
 
-void main()
-{
-    vec3 normal = normalize(texture2D(normalTexture, vTexCoordOut).rgb * 2.0 - 1.0);  
-  
-    vec3 light_pos = normalize(vec3(1.0, 1.0, 1.5));  
-  
-    float diffuse = max(dot(normal, light_pos), 0.0);  
-  
-    vec3 color = diffuse * texture2D(colorTexture, vTexCoordOut).rgb;  
-
-    // if(texture2D(colorTexture, vTexCoordOut).a <= alphaReference) discard;
-    outputColor = vec4(color, 1.0);
-}
-";
-            GL.ShaderSource(fragmentShader, fragmentShaderSource);
             GL.CompileShader(fragmentShader);
 
             int fsStatus;
