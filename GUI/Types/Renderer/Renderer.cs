@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
@@ -165,7 +166,7 @@ namespace GUI.Types.Renderer
 
             GL.Enable(EnableCap.DepthTest);
 
-            GL.ClearColor(Color.Black);
+            GL.ClearColor(Settings.BackgroundColor);
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 

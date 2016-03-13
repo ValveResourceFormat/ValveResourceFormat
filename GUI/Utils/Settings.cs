@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 
 namespace GUI.Utils
@@ -7,6 +8,8 @@ namespace GUI.Utils
     static class Settings
     {
         public static List<string> GameSearchPaths = new List<string>();
+
+        public static Color BackgroundColor = Color.Black;
 
         public static void Load()
         {

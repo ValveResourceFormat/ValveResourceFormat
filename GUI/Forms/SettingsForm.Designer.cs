@@ -32,6 +32,7 @@
             this.gamePathsAdd = new System.Windows.Forms.Button();
             this.gamePathsRemove = new System.Windows.Forms.Button();
             this.gamePathsLabel = new System.Windows.Forms.Label();
+            this.bgColorPickButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // gamePaths
@@ -71,11 +72,22 @@
             this.gamePathsLabel.TabIndex = 3;
             this.gamePathsLabel.Text = "Game content search paths";
             // 
+            // bgColorPickButton
+            // 
+            this.bgColorPickButton.Location = new System.Drawing.Point(12, 185);
+            this.bgColorPickButton.Name = "bgColorPickButton";
+            this.bgColorPickButton.Size = new System.Drawing.Size(156, 23);
+            this.bgColorPickButton.TabIndex = 4;
+            this.bgColorPickButton.Text = "Set model viewer background color";
+            this.bgColorPickButton.UseVisualStyleBackColor = true;
+            this.bgColorPickButton.Click += new System.EventHandler(this.button1_Click);
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(573, 261);
+            this.Controls.Add(this.bgColorPickButton);
             this.Controls.Add(this.gamePathsLabel);
             this.Controls.Add(this.gamePathsRemove);
             this.Controls.Add(this.gamePathsAdd);
@@ -95,5 +107,6 @@
         private System.Windows.Forms.Button gamePathsAdd;
         private System.Windows.Forms.Button gamePathsRemove;
         private System.Windows.Forms.Label gamePathsLabel;
+        private System.Windows.Forms.Button bgColorPickButton;
     }
 }
