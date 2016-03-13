@@ -61,15 +61,16 @@ void main()
 #version 330
  
 in vec2 vTexCoordOut;
-in float alphaReference;
 out vec4 outputColor;
  
-uniform sampler2D currentTexture;
+uniform float alphaReference;
+uniform sampler2D colorTexture;
+uniform sampler2D normalTexture;
 
 void main()
 {
-    outputColor = texture(currentTexture, vTexCoordOut);
-    if(outputColor.a <= alphaReference) discard;
+    if(texture2D(colorTexture, vTexCoordOut).a <= alphaReference) discard;
+    outputColor = texture(colorTexture, vTexCoordOut);
 }
 ";
             GL.ShaderSource(fragmentShader, fragmentShaderSource);

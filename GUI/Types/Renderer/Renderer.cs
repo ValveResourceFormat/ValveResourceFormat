@@ -403,8 +403,17 @@ namespace GUI.Types.Renderer
                     else if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[drawCall.material].intParams["F_ALPHA_TEST"] == 1)
                     {
                         GL.Enable(EnableCap.AlphaTest);
-                        int alphaReference = GL.GetAttribLocation(shaderProgram, "alphaReference");
+                        int alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
                         GL.Uniform1(alphaReference, MaterialLoader.materials[drawCall.material].floatParams["g_flAlphaTestReference"]);
+                    }
+
+                    int colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
+                    GL.Uniform1(colorTextureAttrib, 0);
+
+                    if (MaterialLoader.materials[drawCall.material].otherTextureIDs.ContainsKey("g_tNormal"))
+                    {
+                        int normalTextureAttrib = GL.GetUniformLocation(shaderProgram, "normalTexture");
+                        GL.Uniform1(normalTextureAttrib, 1);
                     }
                 }
 
@@ -436,8 +445,16 @@ namespace GUI.Types.Renderer
                 GL.BindVertexArray(call.vertexArrayObject);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[call.vertexBuffer.id]);
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[call.indexBuffer.id]);
+
                 GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, call.materialID);
+
+                if (MaterialLoader.materials[call.material].otherTextureIDs.ContainsKey("g_tNormal"))
+                {
+                    GL.ActiveTexture(TextureUnit.Texture1);
+                    GL.BindTexture(TextureTarget.Texture2D, MaterialLoader.materials[call.material].otherTextureIDs["g_tNormal"]);
+                }
+
                 GL.DrawElements(call.primitiveType, (int) call.indexCount, call.indiceType, IntPtr.Zero);
 
                 GL.Disable(EnableCap.AlphaTest);
