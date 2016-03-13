@@ -227,6 +227,7 @@ void main()
 #version 330
  
 in vec2 vTexCoordOut;
+in float alphaReference;
 out vec4 outputColor;
  
 uniform sampler2D currentTexture;
@@ -234,6 +235,7 @@ uniform sampler2D currentTexture;
 void main()
 {
     outputColor = texture(currentTexture, vTexCoordOut);
+    if(outputColor.a <= alphaReference) discard;
 }
 ";
             GL.ShaderSource(fragmentShader, fragmentShaderSource);
@@ -415,6 +417,7 @@ void main()
                         case "NORMAL":
                             GL.EnableClientState(ArrayCap.NormalArray);
                             int normalAttrib = GL.GetAttribLocation(shaderProgram, "vNormal");
+                            GL.EnableVertexAttribArray(normalAttrib);
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R32G32B32_FLOAT:
@@ -447,6 +450,7 @@ void main()
                             break;
                         case "TANGENT":
                             int tangentAttrib = GL.GetAttribLocation(shaderProgram, "vTangent");
+                            GL.EnableVertexAttribArray(tangentAttrib);
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R32G32B32A32_FLOAT:
@@ -458,6 +462,7 @@ void main()
                             break;
                         case "BLENDINDICES":
                             int blendIndicesAttrib = GL.GetAttribLocation(shaderProgram, "vBlendIndices");
+                            GL.EnableVertexAttribArray(blendIndicesAttrib);
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R8G8B8A8_UINT:
@@ -475,6 +480,7 @@ void main()
                             break;
                         case "BLENDWEIGHT":
                             int blendWeightAttrib = GL.GetAttribLocation(shaderProgram, "vBlendWeight");
+                            GL.EnableVertexAttribArray(blendWeightAttrib);
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R16G16_UNORM:
@@ -490,6 +496,21 @@ void main()
                                     throw new Exception("Unsupported blend weight format " + attribute.Type);
                             }
                             break;
+                    }
+                }
+
+                if (drawCall.materialID != 1) // Don't do material lookups on error texture
+                {
+                    if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.materials[drawCall.material].intParams["F_TRANSLUCENT"] == 1)
+                    {
+                        GL.Enable(EnableCap.Blend);
+                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                    }
+                    else if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[drawCall.material].intParams["F_ALPHA_TEST"] == 1)
+                    {
+                        GL.Enable(EnableCap.AlphaTest);
+                        int alphaReference = GL.GetAttribLocation(shaderProgram, "alphaReference");
+                        GL.Uniform1(alphaReference, MaterialLoader.materials[drawCall.material].floatParams["g_flAlphaTestReference"]);
                     }
                 }
 
@@ -518,20 +539,6 @@ void main()
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             foreach (drawCall call in drawCalls)
             {
-                if(call.materialID != 1) // Don't do material lookups on error texture
-                {
-                    if (MaterialLoader.materials[call.material].intParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.materials[call.material].intParams["F_TRANSLUCENT"] == 1)
-                    {
-                        GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-                    }
-                    else if (MaterialLoader.materials[call.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[call.material].intParams["F_ALPHA_TEST"] == 1)
-                    {
-                        GL.Enable(EnableCap.AlphaTest);
-                        GL.AlphaFunc(AlphaFunction.Greater, MaterialLoader.materials[call.material].floatParams["g_flAlphaTestReference"]);
-                    }
-                }
-                
                 GL.BindVertexArray(call.vertexArrayObject);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[call.vertexBuffer.id]);
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[call.indexBuffer.id]);
