@@ -15,8 +15,6 @@ namespace GUI.Types.Renderer
 {
     class Renderer
     {
-        // FIX ME: EVERYTHING IS SHITTY JUST SO IT WORKS MAKE IT PRETTY PLS
-
         bool Loaded = false;
 
         private uint[] vertexBuffers;
@@ -397,12 +395,7 @@ namespace GUI.Types.Renderer
 
                 if (drawCall.materialID != 1) // Don't do material lookups on error texture
                 {
-                    if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.materials[drawCall.material].intParams["F_TRANSLUCENT"] == 1)
-                    {
-                        GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-                    }
-                    else if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[drawCall.material].intParams["F_ALPHA_TEST"] == 1)
+                    if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[drawCall.material].intParams["F_ALPHA_TEST"] == 1)
                     {
                         GL.Enable(EnableCap.AlphaTest);
                         int alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
@@ -451,10 +444,19 @@ namespace GUI.Types.Renderer
                 GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, call.materialID);
 
-                if (MaterialLoader.materials[call.material].otherTextureIDs.ContainsKey("g_tNormal"))
+                if (call.materialID != 1) // Don't do material lookups on error texture
                 {
-                    GL.ActiveTexture(TextureUnit.Texture1);
-                    GL.BindTexture(TextureTarget.Texture2D, MaterialLoader.materials[call.material].otherTextureIDs["g_tNormal"]);
+                    if (MaterialLoader.materials[call.material].intParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.materials[call.material].intParams["F_TRANSLUCENT"] == 1)
+                    {
+                        GL.Enable(EnableCap.Blend);
+                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                    }
+
+                    if (MaterialLoader.materials[call.material].otherTextureIDs.ContainsKey("g_tNormal"))
+                    {
+                        GL.ActiveTexture(TextureUnit.Texture1);
+                        GL.BindTexture(TextureTarget.Texture2D, MaterialLoader.materials[call.material].otherTextureIDs["g_tNormal"]);
+                    }
                 }
 
                 GL.DrawElements(call.primitiveType, (int) call.indexCount, call.indiceType, IntPtr.Zero);
