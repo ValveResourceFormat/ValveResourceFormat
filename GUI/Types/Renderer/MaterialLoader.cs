@@ -18,10 +18,7 @@ namespace GUI.Types.Renderer
             public string name;
             public string shaderName;
             public int colorTextureID;
-            public int normalTextureID;
-            public int cubemapTextureID;
-            public int glossTextureID;
-            public int roughnessTextureID;
+            public Dictionary<string, int> otherTextureIDs;
             public Dictionary<string, int> intParams;
             public Dictionary<string, float> floatParams;
             public Dictionary<string, OpenTK.Vector4> vectorParams;
@@ -129,10 +126,12 @@ namespace GUI.Types.Renderer
             var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
             //TODO
 
+            mat.otherTextureIDs = new Dictionary<string, int>();
             foreach (var textureReference in mat.textureParams)
             {
                 switch (textureReference.Key)
                 {
+                    //TODO: Investigate why tColor and tNormal have differently numbered textures
                     case "g_tColor":
                     case "g_tColor1":
                     case "g_tColor2":
@@ -140,16 +139,22 @@ namespace GUI.Types.Renderer
                         break;
                     case "g_tNormal":
                     case "g_tNormal2":
-                        mat.normalTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture1);
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture1));
                         break;
                     case "g_tCubeMap":
-                        mat.cubemapTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture2);
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture2));
                         break;
                     case "g_tGloss":
-                        mat.glossTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture3);
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture3));
                         break;
                     case "g_tRoughness":
-                        mat.roughnessTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture4);
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture4));
+                        break;
+                    case "g_tSelfIllumMask":
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture5));
+                        break;
+                    case "g_tMetalnessReflectanceFresnel":
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture6));
                         break;
                     default:
                         Console.WriteLine("Unknown texture type: " + textureReference.Key);
@@ -178,6 +183,8 @@ namespace GUI.Types.Renderer
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
+            Console.WriteLine("     Loading texture " + path + " " + tex.Flags.ToString());
+
             var id = GL.GenTexture();
 
             GL.ActiveTexture(textureUnit);
@@ -196,13 +203,11 @@ namespace GUI.Types.Renderer
 
             if (tex.Format.HasFlag(VTexFormat.DXT1))
             {
-                Console.WriteLine("Texture is DXT1");
                 blockSize = 8;
                 format = PixelInternalFormat.CompressedRgbaS3tcDxt1Ext;
             }
             else if (tex.Format.HasFlag(VTexFormat.DXT5))
             {
-                Console.WriteLine("Texture is DXT5");
                 blockSize = 16;
                 format = PixelInternalFormat.CompressedRgbaS3tcDxt5Ext;
             }

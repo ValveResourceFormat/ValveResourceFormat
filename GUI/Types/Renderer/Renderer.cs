@@ -307,7 +307,6 @@ void main()
 
                 int verticeBufferSize = 0;
                 GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out verticeBufferSize);
-                Console.WriteLine("VBuffer size: " + verticeBufferSize);
             }
 
             for (int i = 0; i < block.IndexBuffers.Count; i++)
@@ -317,7 +316,6 @@ void main()
 
                 int indiceBufferSize = 0;
                 GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out indiceBufferSize);
-                Console.WriteLine("IBuffer size: " + indiceBufferSize);
             }
 
             Console.WriteLine("Pushed buffers");

@@ -50,8 +50,6 @@ namespace ValveResourceFormat.Blocks
             var vertexOffset = reader.ReadUInt32();
             var vertexCount = reader.ReadUInt32();
 
-            Console.WriteLine("vertex buffers " + vertexCount);
-
             reader.BaseStream.Position = Offset + vertexOffset;
             for (var i = 0; i < vertexCount; i++)
             {
@@ -88,7 +86,7 @@ namespace ValveResourceFormat.Blocks
                     attribute.Type = (DXGI_FORMAT)reader.ReadUInt32();
                     attribute.Offset = reader.ReadUInt32();
 
-                    Console.WriteLine("VB" + i + " " + attribute.Name + " " + attribute.Offset + " (" + attribute.Type + ")");
+                    //Console.WriteLine("VB" + i + " " + attribute.Name + " " + attribute.Offset + " (" + attribute.Type + ")");
 
                     // There's unusual amount of padding in attributes
                     reader.BaseStream.Position = previousPosition + 56;
