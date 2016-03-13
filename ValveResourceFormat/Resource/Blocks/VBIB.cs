@@ -40,9 +40,9 @@ namespace ValveResourceFormat.Blocks
         // TEMPORARY
         public struct Vector3
         {
-            public float x;
-            public float y;
-            public float z;
+            public float X;
+            public float Y;
+            public float Z;
         }
 
         public override BlockType GetChar()
@@ -53,7 +53,6 @@ namespace ValveResourceFormat.Blocks
         public override void Read(BinaryReader reader, Resource resource)
         {
             //var objsw = new StreamWriter(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "test.obj"));
-
             reader.BaseStream.Position = Offset;
 
             var vertexOffset = reader.ReadUInt32();
@@ -62,13 +61,12 @@ namespace ValveResourceFormat.Blocks
             reader.BaseStream.Position = Offset + vertexOffset;
             for (var i = 0; i < vertexCount; i++)
             {
-                var vertexBuffer = new VertexBuffer();
+                var vertexBuffer = default(VertexBuffer);
 
                 vertexBuffer.Count = reader.ReadUInt32();            //0
                 vertexBuffer.Size = reader.ReadUInt32();             //4
 
                 //objsw.WriteLine(string.Format("# Vertex Buffer {0}. Count: {1}, Size: {2}", i, vertexBuffer.Count, vertexBuffer.Size));
-
                 var refA = reader.BaseStream.Position;
                 var attributeOffset = reader.ReadUInt32();  //8
                 var attributeCount = reader.ReadUInt32();   //12
@@ -85,7 +83,7 @@ namespace ValveResourceFormat.Blocks
                 {
                     var previousPosition = reader.BaseStream.Position;
 
-                    var attribute = new VertexAttribute();
+                    var attribute = default(VertexAttribute);
 
                     attribute.Name = reader.ReadNullTermString(Encoding.UTF8);
 
@@ -121,9 +119,9 @@ namespace ValveResourceFormat.Blocks
                                         reader.BaseStream.Position = (refB + dataOffset) + (j * vertexBuffer.Size) + attribute.Offset;
 
                                         var tangent = default(Vector3);
-                                        tangent.x = reader.ReadSingle();
-                                        tangent.y = reader.ReadSingle();
-                                        tangent.z = reader.ReadSingle();
+                                        tangent.X = reader.ReadSingle();
+                                        tangent.Y = reader.ReadSingle();
+                                        tangent.Z = reader.ReadSingle();
 
                                         vertexBuffer.Tangents.Add(tangent);
                                         break;
@@ -153,13 +151,12 @@ namespace ValveResourceFormat.Blocks
             reader.BaseStream.Position = Offset + 8 + indexOffset; //8 to take into account vertexOffset / count
             for (var i = 0; i < indexCount; i++)
             {
-                var indexBuffer = new IndexBuffer();
+                var indexBuffer = default(IndexBuffer);
 
                 indexBuffer.Count = reader.ReadUInt32();        //0
                 indexBuffer.Size = reader.ReadUInt32();         //4
 
                 //objsw.WriteLine(string.Format("# Index Buffer {0}. Count: {1}, Size: {2}", i, indexBuffer.Count, indexBuffer.Size));
-
                 var unknown1 = reader.ReadUInt32();     //8
                 var unknown2 = reader.ReadUInt32();     //12
 
