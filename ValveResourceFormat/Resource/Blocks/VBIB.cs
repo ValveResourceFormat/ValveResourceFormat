@@ -20,6 +20,7 @@ namespace ValveResourceFormat.Blocks
             public uint Size;
             public List<VertexAttribute> Attributes;
             public byte[] Buffer;
+            public List<Vector3> Tangents;
         }
 
         public struct VertexAttribute
@@ -34,6 +35,14 @@ namespace ValveResourceFormat.Blocks
             public uint Count;
             public uint Size;
             public byte[] Buffer;
+        }
+
+        // TEMPORARY
+        public struct Vector3
+        {
+            public float x;
+            public float y;
+            public float z;
         }
 
         public override BlockType GetChar()
@@ -97,8 +106,7 @@ namespace ValveResourceFormat.Blocks
                 reader.BaseStream.Position = refB + dataOffset;
 
                 vertexBuffer.Buffer = reader.ReadBytes((int)vertexBuffer.Count * (int)vertexBuffer.Size);
-                VertexBuffers.Add(vertexBuffer);
-
+                vertexBuffer.Tangents = new List<Vector3>();
                 reader.BaseStream.Position = refB + dataOffset;
                 for (var j = 0; j < vertexBuffer.Count; j++)
                 {
@@ -106,33 +114,29 @@ namespace ValveResourceFormat.Blocks
                     {
                         switch (attribute.Name)
                         {
-                            case "POSITION":
-                                var vertexX = reader.ReadSingle();
-                                var vertexY = reader.ReadSingle();
-                                var vertexZ = reader.ReadSingle();
+                            case "TANGENT":
+                                switch (attribute.Type)
+                                {
+                                    case DXGI_FORMAT.R32G32B32A32_FLOAT:
+                                        reader.BaseStream.Position = (refB + dataOffset) + (j * vertexBuffer.Size) + attribute.Offset;
 
-                                //objsw.WriteLine(string.Format("v {0} {1} {2}", vertexX, vertexY, vertexZ));
+                                        var tangent = default(Vector3);
+                                        tangent.x = reader.ReadSingle();
+                                        tangent.y = reader.ReadSingle();
+                                        tangent.z = reader.ReadSingle();
 
-                                break;
-                            case "NORMAL":
-                                reader.ReadUInt32(); // TODO
-
-                                break;
-                            case "TEXCOORD":
-                                reader.ReadUInt32(); // TODO
-
-                                break;
-                            case "BLENDINDICES":
-                                reader.ReadUInt32(); // TODO
-
-                                break;
-                            case "BLENDWEIGHT":
-                                reader.ReadUInt32(); // TODO
+                                        vertexBuffer.Tangents.Add(tangent);
+                                        break;
+                                    default:
+                                        throw new Exception("Unsupported tangent format " + attribute.Type);
+                                }
 
                                 break;
                         }
                     }
                 }
+
+                VertexBuffers.Add(vertexBuffer);
 
                 reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
 

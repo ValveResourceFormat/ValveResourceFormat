@@ -87,15 +87,13 @@ namespace GUI.Types.Renderer
             //  AnimResourceDataChannel_t
             //      CResourceString m_szChannelClass
             //      CResourceString m_szVariableName
-            //		int32 m_nFlags
+            //      int32 m_nFlags
             //      int32 m_nType
             //      CResourceString m_szGrouping
             //      CResourceString m_szDescription
             //      CResourceString m_szElementNameArray[]
             //      int32 m_nElementIndexArray[]
             //      uint32 m_nElementMaskArray[]
-
-            Console.WriteLine();
         }
     }
 }
