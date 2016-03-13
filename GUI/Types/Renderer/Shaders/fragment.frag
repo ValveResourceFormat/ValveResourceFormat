@@ -18,6 +18,11 @@ void main()
     //RGBA of our diffuse color
     vec4 DiffuseColor = texture2D(colorTexture, vTexCoordOut);
 
+    if(alphaReference > 0.0 && DiffuseColor.a <= alphaReference)
+    {
+        discard;
+    }
+
     //RGB of our normal map
     vec3 NormalMap = texture2D(normalTexture, vTexCoordOut).rgb;
 
