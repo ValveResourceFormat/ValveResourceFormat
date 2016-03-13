@@ -20,7 +20,6 @@ namespace ValveResourceFormat.Blocks
             public uint Size;
             public List<VertexAttribute> Attributes;
             public byte[] Buffer;
-            public List<Vector3> Tangents;
         }
 
         public struct VertexAttribute
@@ -37,14 +36,6 @@ namespace ValveResourceFormat.Blocks
             public byte[] Buffer;
         }
 
-        // TEMPORARY
-        public struct Vector3
-        {
-            public float X;
-            public float Y;
-            public float Z;
-        }
-
         public override BlockType GetChar()
         {
             return BlockType.VBIB;
@@ -52,7 +43,6 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            //var objsw = new StreamWriter(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "test.obj"));
             reader.BaseStream.Position = Offset;
 
             var vertexOffset = reader.ReadUInt32();
@@ -66,7 +56,6 @@ namespace ValveResourceFormat.Blocks
                 vertexBuffer.Count = reader.ReadUInt32();            //0
                 vertexBuffer.Size = reader.ReadUInt32();             //4
 
-                //objsw.WriteLine(string.Format("# Vertex Buffer {0}. Count: {1}, Size: {2}", i, vertexBuffer.Count, vertexBuffer.Size));
                 var refA = reader.BaseStream.Position;
                 var attributeOffset = reader.ReadUInt32();  //8
                 var attributeCount = reader.ReadUInt32();   //12
@@ -93,8 +82,6 @@ namespace ValveResourceFormat.Blocks
                     attribute.Type = (DXGI_FORMAT)reader.ReadUInt32();
                     attribute.Offset = reader.ReadUInt32();
 
-                    //Console.WriteLine("VB" + i + " " + attribute.Name + " " + attribute.Offset + " (" + attribute.Type + ")");
-
                     // There's unusual amount of padding in attributes
                     reader.BaseStream.Position = previousPosition + 56;
 
@@ -104,36 +91,6 @@ namespace ValveResourceFormat.Blocks
                 reader.BaseStream.Position = refB + dataOffset;
 
                 vertexBuffer.Buffer = reader.ReadBytes((int)vertexBuffer.Count * (int)vertexBuffer.Size);
-                vertexBuffer.Tangents = new List<Vector3>();
-                reader.BaseStream.Position = refB + dataOffset;
-                for (var j = 0; j < vertexBuffer.Count; j++)
-                {
-                    foreach (var attribute in vertexBuffer.Attributes)
-                    {
-                        switch (attribute.Name)
-                        {
-                            case "TANGENT":
-                                switch (attribute.Type)
-                                {
-                                    case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                                        reader.BaseStream.Position = (refB + dataOffset) + (j * vertexBuffer.Size) + attribute.Offset;
-
-                                        var tangent = default(Vector3);
-                                        tangent.X = reader.ReadSingle();
-                                        tangent.Y = reader.ReadSingle();
-                                        tangent.Z = reader.ReadSingle();
-
-                                        vertexBuffer.Tangents.Add(tangent);
-                                        break;
-                                    default:
-                                        throw new Exception("Unsupported tangent format " + attribute.Type);
-                                }
-
-                                break;
-                        }
-                    }
-                }
-
                 VertexBuffers.Add(vertexBuffer);
 
                 reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
@@ -156,7 +113,6 @@ namespace ValveResourceFormat.Blocks
                 indexBuffer.Count = reader.ReadUInt32();        //0
                 indexBuffer.Size = reader.ReadUInt32();         //4
 
-                //objsw.WriteLine(string.Format("# Index Buffer {0}. Count: {1}, Size: {2}", i, indexBuffer.Count, indexBuffer.Size));
                 var unknown1 = reader.ReadUInt32();     //8
                 var unknown2 = reader.ReadUInt32();     //12
 
@@ -169,28 +125,15 @@ namespace ValveResourceFormat.Blocks
                 indexBuffer.Buffer = reader.ReadBytes((int)indexBuffer.Count * (int)indexBuffer.Size);
                 IndexBuffers.Add(indexBuffer);
 
-                reader.BaseStream.Position = refC + dataOffset;
-
-                for (var j = 0; j < indexBuffer.Count; j += 3)
-                {
-                    var indexOne = reader.ReadUInt16() + 1;
-                    var indexTwo = reader.ReadUInt16() + 1;
-                    var indexThree = reader.ReadUInt16() + 1;
-
-                    //objsw.WriteLine(string.Format("f {0} {1} {2}", indexOne, indexTwo, indexThree));
-                }
-
                 reader.BaseStream.Position = refC + 4 + 4; //Go back to the index array to read the next iteration.
 
                 //if(i > 0)break; // TODO: Read only first buffer
             }
 
-            //objsw.Close();
         }
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            //writer.Write(obj);
             writer.WriteLine("{0:X8}", Offset);
         }
     }
