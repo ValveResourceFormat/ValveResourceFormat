@@ -29,7 +29,7 @@ namespace GUI.Types.Renderer
             public Dictionary<string, float> floatAttributes;
             public Dictionary<string, OpenTK.Vector4> vectorAttributes;
             //public Dictionary<string, long> textureAttributes;
-            //public Dictionary<string, string> stringAttributes;
+            public Dictionary<string, string> stringAttributes;
             //public string[] renderAttributesUsed; // ?
         }
 
@@ -124,7 +124,12 @@ namespace GUI.Types.Renderer
             //TODO
 
             var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
-            //TODO
+            mat.stringAttributes = new Dictionary<string, string>();
+            for (int i = 0; i < stringAttributes.Count; i++)
+            {
+                var subStruct = ((NTROValue<NTROStruct>)stringAttributes[i]).Value;
+                mat.stringAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<string>)subStruct["m_value"]).Value);
+            }
 
             mat.otherTextureIDs = new Dictionary<string, int>();
             foreach (var textureReference in mat.textureParams)
