@@ -80,7 +80,11 @@ namespace GUI.Types.Renderer
 
         public Control CreateGL()
         {
+#if DEBUG
+            meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 0, GraphicsContextFlags.Debug);
+#else
             meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 0, GraphicsContextFlags.Default);
+#endif
             meshControl.Dock = DockStyle.Fill;
             meshControl.AutoSize = true;
             meshControl.Load += MeshControl_Load;
@@ -166,9 +170,6 @@ namespace GUI.Types.Renderer
             Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
             Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
 
-            GL.Enable(EnableCap.Texture2D);
-            GL.ActiveTexture(TextureUnit.Texture0);
-
             GL.Enable(EnableCap.DepthTest);
 
             GL.ClearColor(Settings.BackgroundColor);
@@ -226,9 +227,6 @@ namespace GUI.Types.Renderer
             var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
             var b = (KVObject)a.Properties["0"].Value;
             var c = (KVObject)b.Properties["m_drawCalls"].Value;
-
-            GL.Enable(EnableCap.Texture2D);
-            GL.ActiveTexture(TextureUnit.Texture0);
 
             for (var i = 0; i < c.Properties.Count; i++)
             {
@@ -303,7 +301,6 @@ namespace GUI.Types.Renderer
                     switch (attribute.Name)
                     {
                         case "POSITION":
-                            GL.EnableClientState(ArrayCap.VertexArray);
                             var posAttrib = GL.GetAttribLocation(shaderProgram, "vPosition");
                             //Ignore this attribute if it is not found in the shader
                             if (posAttrib == -1)
@@ -323,7 +320,6 @@ namespace GUI.Types.Renderer
 
                             break;
                         case "NORMAL":
-                            GL.EnableClientState(ArrayCap.NormalArray);
                             var normalAttrib = GL.GetAttribLocation(shaderProgram, "vNormal");
                             //Ignore this attribute if it is not found in the shader
                             if (normalAttrib == -1)
@@ -352,7 +348,6 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            GL.EnableClientState(ArrayCap.TextureCoordArray);
                             var texCoordAttrib = GL.GetAttribLocation(shaderProgram, "vTexCoord");
                             //Ignore this attribute if it is not found in the shader
                             if (texCoordAttrib == -1)
@@ -520,9 +515,6 @@ namespace GUI.Types.Renderer
                 }
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
-
-                GL.Disable(EnableCap.AlphaTest);
-                GL.Disable(EnableCap.Blend);
             }
 
             var lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
