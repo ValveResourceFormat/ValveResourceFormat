@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using NAudio.Wave;
+﻿using NAudio.Wave;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 

@@ -10,18 +10,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Forms;
+using GUI.Types.Audio;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using Model = GUI.Types.Model;
+using Texture = ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI
 {
     public partial class MainForm : Form
     {
         private ImageList ImageList;
-        private Forms.SearchForm searchForm;
-        private Regex NewLineRegex;
+        private readonly SearchForm searchForm;
+        private readonly Regex NewLineRegex;
 
         public MainForm()
         {
@@ -32,12 +37,12 @@ namespace GUI
             {
                 if (mainTabs.SelectedTab != null)
                 {
-                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as Controls.TreeViewWithSearchResults;
+                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
                     findToolStripButton.Enabled = (treeView != null);
                 }
             };
             
-            searchForm = new Forms.SearchForm();
+            searchForm = new SearchForm();
 
             Settings.Load();
 
@@ -47,7 +52,7 @@ namespace GUI
         private void MainForm_Load(object sender, EventArgs e)
         {
             // so we can bind keys to actions properly
-            this.KeyPreview = true;
+            KeyPreview = true;
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -100,13 +105,13 @@ namespace GUI
 
         private void OnAboutItemClick(object sender, EventArgs e)
         {
-            var form = new Forms.AboutForm();
+            var form = new AboutForm();
             form.ShowDialog(this);
         }
 
         private void OnSettingsItemClick(object sender, EventArgs e)
         {
-            var form = new Forms.SettingsForm();
+            var form = new SettingsForm();
             form.ShowDialog(this);
         }
 
@@ -136,7 +141,7 @@ namespace GUI
         private void OpenFile(string fileName, byte[] input = null, Package currentPackage = null)
         {
             var tab = new TabPage(Path.GetFileName(fileName));
-            tab.Controls.Add(new Forms.LoadingFile());
+            tab.Controls.Add(new LoadingFile());
 
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
@@ -149,7 +154,7 @@ namespace GUI
                 {
                     mainTabs.TabPages.Remove(tab);
 
-                    this.Invoke(new Action(() =>
+                    Invoke(new Action(() =>
                         MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error))
                     );
 
@@ -186,7 +191,7 @@ namespace GUI
                 }
 
                 // create a TreeView with search capabilities, register its events, and add it to the tab
-                var treeViewWithSearch = new GUI.Controls.TreeViewWithSearchResults(ImageList);
+                var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
                 treeViewWithSearch.Dock = DockStyle.Fill;
                 treeViewWithSearch.InitializeTreeViewFromPackage("treeViewVpk", package);
                 treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
@@ -196,7 +201,7 @@ namespace GUI
                 tab.Controls.Add(treeViewWithSearch);
 
                 // since we're in a separate thread, invoke to update the UI
-                this.Invoke((MethodInvoker)delegate
+                Invoke((MethodInvoker)delegate
                 {
                     findToolStripButton.Enabled = true;
                 });
@@ -266,7 +271,7 @@ namespace GUI
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
-                        var ap = new Types.Audio.Player(resource);
+                        var ap = new Player(resource);
                         resTabs.TabPages.Add(soundTab);
 
                         Invoke((MethodInvoker)delegate
@@ -284,7 +289,7 @@ namespace GUI
 
                         break;
                     case ResourceType.Model:
-                        var model = new Types.Model(resource);
+                        var model = new Model(resource);
 
                         var animGroupPath = model.GetAnimationGroup();
                         if (!string.IsNullOrEmpty(animGroupPath))
@@ -292,7 +297,7 @@ namespace GUI
                             var animGroup = new Resource();
                             animGroup.Read(animGroupPath);
 
-                            var animGroupLoader = new Types.Renderer.AnimationGroupLoader(animGroup, fileName);
+                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName);
                         }
 
                         var resourceMesh = new Resource();
@@ -304,7 +309,7 @@ namespace GUI
                             break;
                         }
                         var modelmeshTab = new TabPage("MESH");
-                        var modelmv = new Types.Renderer.Renderer(resourceMesh, mainTabs, fileName, currentPackage);
+                        var modelmv = new Renderer(resourceMesh, mainTabs, fileName, currentPackage);
                         var modelglControl = modelmv.CreateGL();
                         modelmeshTab.Controls.Add(modelglControl);
                         resTabs.TabPages.Add(modelmeshTab);
@@ -316,7 +321,7 @@ namespace GUI
                             break;
                         }
                         var meshTab = new TabPage("MESH");
-                        var mv = new Types.Renderer.Renderer(resource, mainTabs, fileName, currentPackage);
+                        var mv = new Renderer(resource, mainTabs, fileName, currentPackage);
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);
@@ -502,9 +507,9 @@ namespace GUI
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
-            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
 
-            foreach (string fileName in files)
+            foreach (var fileName in files)
             {
                 OpenFile(fileName);
             }
@@ -532,7 +537,7 @@ namespace GUI
             // enable/disable the search button as necessary
             if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
             {
-                var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as Controls.TreeViewWithSearchResults;
+                var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
                 findToolStripButton.Enabled = (treeView != null);
             }
             else
@@ -598,14 +603,14 @@ namespace GUI
         /// <param name="e"></param>
         private void findToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            DialogResult result = searchForm.ShowDialog();
+            var result = searchForm.ShowDialog();
             if (result == DialogResult.OK)
             {
                 // start searching only if the user entered non-empty string, a tab exists, and a tab is selected
-                string searchText = searchForm.SearchText;
-                if (!String.IsNullOrEmpty(searchText) && mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
+                var searchText = searchForm.SearchText;
+                if (!string.IsNullOrEmpty(searchText) && mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
                 {
-                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as Controls.TreeViewWithSearchResults;
+                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
                     treeView.SearchAndFillResults(searchText, searchForm.IsCaseSensitive, searchForm.SelectedSearchType);
                 }
             }

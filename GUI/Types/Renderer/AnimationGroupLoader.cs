@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
 {
     internal class AnimationGroupLoader
     {
-        private NTRO data;
+        private readonly NTRO data;
         public List<ResourceExtRefList.ResourceReferenceInfo> AnimationList;
 
         public AnimationGroupLoader(Resource resource, string filename)
@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
             var animArray = (NTROArray)data.Output["m_localHAnimArray"];
 
             AnimationList = new List<ResourceExtRefList.ResourceReferenceInfo>();
-            for (int i = 0; i < animArray.Count; i++)
+            for (var i = 0; i < animArray.Count; i++)
             {
                 AnimationList.Add(((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)animArray[i]).Value);
             }

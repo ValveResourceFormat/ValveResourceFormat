@@ -20,7 +20,7 @@ namespace GUI.Forms
         {
             get
             {
-                SearchTypeItem selectedItem = (SearchTypeItem)searchTypeComboBox.SelectedItem;
+                var selectedItem = (SearchTypeItem)searchTypeComboBox.SelectedItem;
                 return (SearchType)selectedItem.Id;
             }
         }

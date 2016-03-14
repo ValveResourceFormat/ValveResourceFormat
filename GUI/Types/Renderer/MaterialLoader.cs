@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
-using OpenTK.Graphics.OpenGL;
-using System.IO;
-using ValveResourceFormat.Blocks;
+using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types.Renderer
 {
@@ -21,13 +22,13 @@ namespace GUI.Types.Renderer
             public Dictionary<string, int> OtherTextureIDs;
             public Dictionary<string, int> IntParams;
             public Dictionary<string, float> FloatParams;
-            public Dictionary<string, OpenTK.Vector4> VectorParams;
+            public Dictionary<string, Vector4> VectorParams;
             public Dictionary<string, ResourceExtRefList.ResourceReferenceInfo> TextureParams;
             //public Dictionary<string, ????> dynamicParams;
             //public Dictionary<string, ????> dynamicTextureParams;
             public Dictionary<string, int> IntAttributes;
             public Dictionary<string, float> FloatAttributes;
-            public Dictionary<string, OpenTK.Vector4> VectorAttributes;
+            public Dictionary<string, Vector4> VectorAttributes;
             //public Dictionary<string, long> textureAttributes;
             public Dictionary<string, string> StringAttributes;
             //public string[] renderAttributesUsed; // ?
@@ -44,7 +45,7 @@ namespace GUI.Types.Renderer
 
             var resource = new Resource();
 
-            if (!Utils.FileExtensions.LoadFileByAnyMeansNecessary(resource, name + "_c", currentFileName, currentPackage))
+            if (!FileExtensions.LoadFileByAnyMeansNecessary(resource, name + "_c", currentFileName, currentPackage))
             {
                 Console.WriteLine("File " + name + " not found");
                 return 1;
@@ -57,7 +58,7 @@ namespace GUI.Types.Renderer
             //mat.renderAttributesUsed = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)matData.Output["m_renderAttributesUsed"]).Value; //TODO: string array?
             var intParams = (NTROArray)matData.Output["m_intParams"];
             mat.IntParams = new Dictionary<string, int>();
-            for (int i = 0; i < intParams.Count; i++)
+            for (var i = 0; i < intParams.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)intParams[i]).Value;
                 mat.IntParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
@@ -65,24 +66,24 @@ namespace GUI.Types.Renderer
 
             var floatParams = (NTROArray)matData.Output["m_floatParams"];
             mat.FloatParams = new Dictionary<string, float>();
-            for (int i = 0; i < floatParams.Count; i++)
+            for (var i = 0; i < floatParams.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)floatParams[i]).Value;
                 mat.FloatParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
             }
 
             var vectorParams = (NTROArray)matData.Output["m_vectorParams"];
-            mat.VectorParams = new Dictionary<string, OpenTK.Vector4>();
-            for (int i = 0; i < vectorParams.Count; i++)
+            mat.VectorParams = new Dictionary<string, Vector4>();
+            for (var i = 0; i < vectorParams.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
-                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
+                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
             var textureParams = (NTROArray)matData.Output["m_textureParams"];
             mat.TextureParams = new Dictionary<string, ResourceExtRefList.ResourceReferenceInfo>();
-            for (int i = 0; i < textureParams.Count; i++)
+            for (var i = 0; i < textureParams.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)textureParams[i]).Value;
                 mat.TextureParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)subStruct["m_pValue"]).Value);
@@ -93,7 +94,7 @@ namespace GUI.Types.Renderer
 
             var intAttributes = (NTROArray)matData.Output["m_intAttributes"];
             mat.IntAttributes = new Dictionary<string, int>();
-            for (int i = 0; i < intAttributes.Count; i++)
+            for (var i = 0; i < intAttributes.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)intAttributes[i]).Value;
                 mat.IntAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
@@ -101,26 +102,26 @@ namespace GUI.Types.Renderer
 
             var floatAttributes = (NTROArray)matData.Output["m_floatAttributes"];
             mat.FloatAttributes = new Dictionary<string, float>();
-            for (int i = 0; i < floatAttributes.Count; i++)
+            for (var i = 0; i < floatAttributes.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)floatAttributes[i]).Value;
                 mat.FloatAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
             }
 
             var vectorAttributes = (NTROArray)matData.Output["m_vectorAttributes"];
-            mat.VectorAttributes = new Dictionary<string, OpenTK.Vector4>();
-            for (int i = 0; i < vectorAttributes.Count; i++)
+            mat.VectorAttributes = new Dictionary<string, Vector4>();
+            for (var i = 0; i < vectorAttributes.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorAttributes[i]).Value;
-                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
+                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
             var textureAttributes = (NTROArray)matData.Output["m_textureAttributes"];
             //TODO
             var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
             mat.StringAttributes = new Dictionary<string, string>();
-            for (int i = 0; i < stringAttributes.Count; i++)
+            for (var i = 0; i < stringAttributes.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)stringAttributes[i]).Value;
                 mat.StringAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<string>)subStruct["m_value"]).Value);
@@ -171,7 +172,7 @@ namespace GUI.Types.Renderer
         {
             var textureResource = new Resource();
 
-            if (!Utils.FileExtensions.LoadFileByAnyMeansNecessary(textureResource, name + "_c", currentFileName, currentPackage))
+            if (!FileExtensions.LoadFileByAnyMeansNecessary(textureResource, name + "_c", currentFileName, currentPackage))
             {
                 Console.WriteLine("File " + name + " not found");
                 return 1;
@@ -179,20 +180,20 @@ namespace GUI.Types.Renderer
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
-            Console.WriteLine("     Loading texture " + name + " " + tex.Flags.ToString());
+            Console.WriteLine("     Loading texture " + name + " " + tex.Flags);
 
             var id = GL.GenTexture();
 
             GL.ActiveTexture(textureUnit);
             GL.BindTexture(TextureTarget.Texture2D, id);
 
-            BinaryReader textureReader = textureResource.Reader;
+            var textureReader = textureResource.Reader;
             textureReader.BaseStream.Position = tex.Offset + tex.Size;
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
 
-            int width = tex.Width / (int)Math.Pow(2.0, tex.NumMipLevels);
-            int height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
+            var width = tex.Width / (int)Math.Pow(2.0, tex.NumMipLevels);
+            var height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
 
             int blockSize;
             PixelInternalFormat format;
@@ -209,10 +210,10 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                throw new Exception("Unsupported texture format: " + tex.Format.ToString());
+                throw new Exception("Unsupported texture format: " + tex.Format);
             }
 
-            for (int i = tex.NumMipLevels - 1; i >= 0; i--)
+            for (var i = tex.NumMipLevels - 1; i >= 0; i--)
             {
                 if ((width *= 2) == 0)
                 {
@@ -224,7 +225,7 @@ namespace GUI.Types.Renderer
                     height = 1;
                 }
 
-                int size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+                var size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
 
                 GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, size, textureReader.ReadBytes(size));
             }

@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 
 namespace GUI.Utils
 {
-    static class Settings
+    internal static class Settings
     {
-        public static List<string> GameSearchPaths = new List<string>();
+        public static List<string> GameSearchPaths { get; } = new List<string>();
 
-        public static Color BackgroundColor = Color.Black;
+        public static Color BackgroundColor { get; set; } = Color.Black;
 
         public static void Load()
         {

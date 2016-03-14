@@ -5,10 +5,10 @@ using OpenTK.Input;
 
 namespace GUI.Types.Renderer
 {
-    class Camera
+    internal class Camera
     {
-        public Matrix4 ProjectionMatrix;
-        public Matrix4 CameraViewMatrix;
+        public Matrix4 ProjectionMatrix { get; private set; }
+        public Matrix4 CameraViewMatrix { get; private set; }
 
         public bool MouseOverRenderArea { get; set; }
         private bool MouseDragging;
@@ -38,7 +38,7 @@ namespace GUI.Types.Renderer
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
-            float aspectRatio = viewportWidth / (float)viewportHeight;
+            var aspectRatio = viewportWidth / (float)viewportHeight;
             ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspectRatio, 1.0f, 4096.0f);
 
             // setup projection

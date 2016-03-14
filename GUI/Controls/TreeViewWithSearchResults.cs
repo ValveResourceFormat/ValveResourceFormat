@@ -1,9 +1,8 @@
-﻿using GUI.Forms;
-using System;
+﻿using System;
 using System.Windows.Forms;
-using ValveResourceFormat;
+using GUI.Forms;
 using GUI.Utils;
-using System.Drawing;
+using ValveResourceFormat;
 
 namespace GUI.Controls
 {
@@ -14,7 +13,7 @@ namespace GUI.Controls
     /// </summary>
     public partial class TreeViewWithSearchResults : UserControl
     {
-        private ImageList imageList;
+        private readonly ImageList imageList;
 
         public TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick;             // when a TreeNode is double clicked
         public TreeNodeMouseClickEventHandler TreeNodeMouseClick;                   // when a TreeNode is single clicked
@@ -129,7 +128,7 @@ namespace GUI.Controls
 
             var results = mainTreeView.Search(searchText, isCaseSensitive, selectedSearchType);
 
-            foreach (TreeNode node in results)
+            foreach (var node in results)
             {
                 AddNodeToListView(node);
             }
@@ -145,7 +144,7 @@ namespace GUI.Controls
         /// <param name="e"></param>
         private void MainListView_MouseDown(object sender, MouseEventArgs e)
         {
-            ListViewHitTestInfo info = mainListView.HitTest(e.X, e.Y);
+            var info = mainListView.HitTest(e.X, e.Y);
 
             // if an item was clicked in the list view
             if (info.Item != null)
@@ -185,7 +184,7 @@ namespace GUI.Controls
         {
             if (e.Button == MouseButtons.Left)
             {
-                ListViewHitTestInfo info = mainListView.HitTest(e.X, e.Y);
+                var info = mainListView.HitTest(e.X, e.Y);
 
                 if (info.Item != null)
                 {
@@ -227,7 +226,7 @@ namespace GUI.Controls
 
         private void AddNodeToListView(TreeNode node)
         {
-            ListViewItem item = new ListViewItem(node.Text);
+            var item = new ListViewItem(node.Text);
             item.ImageKey = node.ImageKey;
             item.Tag = node;
 
@@ -237,10 +236,10 @@ namespace GUI.Controls
                 item.SubItems.Add(file.TotalLength.ToFileSizeString());
                 item.SubItems.Add(file.TypeName);
             }
-            else if (node.Tag.GetType() == typeof(Controls.TreeViewFolder))
+            else if (node.Tag.GetType() == typeof(TreeViewFolder))
             {
                 var folder = node.Tag as TreeViewFolder;
-                item.SubItems.Add(String.Format("{0} items", folder.ItemCount));
+                item.SubItems.Add(string.Format("{0} items", folder.ItemCount));
                 item.SubItems.Add("folder");
             }
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat;
@@ -19,14 +18,14 @@ namespace GUI.Utils
 
             if (byteCount == 0)
             {
-                result = String.Format("{0} {1}", byteCount, suf[0]);
+                result = string.Format("{0} {1}", byteCount, suf[0]);
             }
             else
             {
-                long absoluteByteCount = Math.Abs(byteCount);
-                int place = Convert.ToInt32(Math.Floor(Math.Log(absoluteByteCount, 1024)));
-                double num = Math.Round(absoluteByteCount / Math.Pow(1024, place), 1);
-                result = String.Format("{0} {1}", (Math.Sign(byteCount) * num), suf[place]);
+                var absoluteByteCount = Math.Abs(byteCount);
+                var place = Convert.ToInt32(Math.Floor(Math.Log(absoluteByteCount, 1024)));
+                var num = Math.Round(absoluteByteCount / Math.Pow(1024, place), 1);
+                result = string.Format("{0} {1}", (Math.Sign(byteCount) * num), suf[place]);
             }
 
             return result;
@@ -48,7 +47,7 @@ namespace GUI.Utils
                 }
             }
 
-            string path = FindResourcePath(file, currentFullPath);
+            var path = FindResourcePath(file, currentFullPath);
 
             if (path == null)
             {

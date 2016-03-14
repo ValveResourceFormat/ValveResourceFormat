@@ -38,10 +38,7 @@ namespace GUI.Types.Renderer
                 GL.GetShaderInfoLog(vertexShader, out vsInfo);
                 throw new Exception("Error setting up Vertex Shader: " + vsInfo);
             }
-            else
-            {
-                Console.WriteLine("Vertex shader compiled succesfully.");
-            }
+            Console.WriteLine("Vertex shader compiled succesfully.");
 
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
@@ -63,10 +60,7 @@ namespace GUI.Types.Renderer
                 GL.GetShaderInfoLog(fragmentShader, out fsInfo);
                 throw new Exception("Error setting up Fragment Shader: " + fsInfo);
             }
-            else
-            {
-                Console.WriteLine("Fragment shader compiled succesfully.");
-            }
+            Console.WriteLine("Fragment shader compiled succesfully.");
 
             ShaderProgram = GL.CreateProgram();
             GL.AttachShader(ShaderProgram, vertexShader);
@@ -74,7 +68,7 @@ namespace GUI.Types.Renderer
 
             GL.LinkProgram(ShaderProgram);
 
-            string programInfoLog = GL.GetProgramInfoLog(ShaderProgram);
+            var programInfoLog = GL.GetProgramInfoLog(ShaderProgram);
             Console.Write(programInfoLog);
 
             int linkStatus;
@@ -86,10 +80,7 @@ namespace GUI.Types.Renderer
                 GL.GetProgramInfoLog(ShaderProgram, out linkInfo);
                 throw new Exception("Error linking shaders: " + linkInfo);
             }
-            else
-            {
-                Console.WriteLine("Shaders linked succesfully.");
-            }
+            Console.WriteLine("Shaders linked succesfully.");
 
             GL.DetachShader(ShaderProgram, vertexShader);
             GL.DeleteShader(vertexShader);

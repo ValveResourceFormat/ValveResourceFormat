@@ -16,9 +16,9 @@ namespace GUI.Forms
 
         public void SetImage(Bitmap image, string name, int w, int h)
         {
-            this.pictureBox1.Image = image;
+            pictureBox1.Image = image;
             this.name = name;
-            this.pictureBox1.MaximumSize = new Size(w, h);
+            pictureBox1.MaximumSize = new Size(w, h);
         }
 
         private void contextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
@@ -33,12 +33,12 @@ namespace GUI.Forms
             var saveFileDialog = new SaveFileDialog();
             saveFileDialog.Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tiff|Bitmap Image|*.bmp";
             saveFileDialog.Title = "Save an Image File";
-            saveFileDialog.FileName = this.name;
+            saveFileDialog.FileName = name;
             saveFileDialog.ShowDialog(this);
 
             if (saveFileDialog.FileName != "")
             {
-                ImageFormat format = ImageFormat.Png;
+                var format = ImageFormat.Png;
 
                 switch (saveFileDialog.FilterIndex)
                 {
@@ -56,7 +56,7 @@ namespace GUI.Forms
 
                 using (var fs = (FileStream)saveFileDialog.OpenFile())
                 {
-                    this.pictureBox1.Image.Save(fs, format);
+                    pictureBox1.Image.Save(fs, format);
                 }
             }
         }
