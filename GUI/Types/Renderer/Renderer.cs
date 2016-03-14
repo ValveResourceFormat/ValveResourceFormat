@@ -289,8 +289,9 @@ namespace GUI.Types.Renderer
 
                 GL.GenVertexArrays(1, out drawCall.vertexArrayObject);
 
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.vertexBuffer.id]);
                 GL.BindVertexArray(drawCall.vertexArrayObject);
+                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.vertexBuffer.id]);
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.indexBuffer.id]);
 
                 var curVertexBuffer = block.VertexBuffers[(int)drawCall.vertexBuffer.id];
                 var texcoordSet = false;
@@ -469,8 +470,6 @@ namespace GUI.Types.Renderer
             foreach (drawCall call in drawCalls)
             {
                 GL.BindVertexArray(call.vertexArrayObject);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[call.vertexBuffer.id]);
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[call.indexBuffer.id]);
 
                 GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, call.materialID);
@@ -499,10 +498,6 @@ namespace GUI.Types.Renderer
             int lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
             GL.Uniform3(lightPosAttrib, LightPosition);
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
-            GL.BindVertexArray(0);
-            GL.BindTexture(TextureTarget.Texture2D, 0);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
