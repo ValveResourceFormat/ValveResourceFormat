@@ -141,7 +141,7 @@
     </Compile>
     <EmbeddedResource Include="AssetTypes\*" />
     <Compile Include="Types\Audio\AudioPlayer.cs" />
-    <None Include="stylecop.json" />
+    <AdditionalFiles Include="stylecop.json" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
