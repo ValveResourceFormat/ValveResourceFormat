@@ -456,6 +456,12 @@ namespace GUI.Types.Renderer
                         }
                     }
 
+                    if (MaterialLoader.Materials[drawCall.Material].IntParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.Materials[drawCall.Material].IntParams["F_TRANSLUCENT"] == 1)
+                    {
+                        GL.Enable(EnableCap.Blend);
+                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                    }
+
                     var colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
                     GL.Uniform1(colorTextureAttrib, 0);
 
@@ -501,12 +507,6 @@ namespace GUI.Types.Renderer
                 // Don't do material lookups on error texture
                 if (call.MaterialID != 1)
                 {
-                    if (MaterialLoader.Materials[call.Material].IntParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.Materials[call.Material].IntParams["F_TRANSLUCENT"] == 1)
-                    {
-                        GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-                    }
-
                     if (MaterialLoader.Materials[call.Material].OtherTextureIDs.ContainsKey("g_tNormal"))
                     {
                         GL.ActiveTexture(TextureUnit.Texture1);
