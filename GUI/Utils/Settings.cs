@@ -8,10 +8,12 @@ namespace GUI.Utils
     {
         public static List<string> GameSearchPaths { get; } = new List<string>();
 
-        public static Color BackgroundColor { get; set; } = Color.Black;
+        public static Color BackgroundColor { get; set; }
 
         public static void Load()
         {
+            BackgroundColor = Color.FromArgb(60, 60, 60);
+
             // TODO: Be dumb about it for now.
             if (!File.Exists("gamepaths.txt"))
             {
