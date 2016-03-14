@@ -81,9 +81,9 @@ namespace GUI.Types.Renderer
         public Control CreateGL()
         {
 #if DEBUG
-            meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 0, GraphicsContextFlags.Debug);
+            meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
 #else
-            meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 0, GraphicsContextFlags.Default);
+            meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Default);
 #endif
             meshControl.Dock = DockStyle.Fill;
             meshControl.AutoSize = true;
