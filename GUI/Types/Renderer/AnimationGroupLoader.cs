@@ -8,28 +8,28 @@ using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace GUI.Types.Renderer
 {
-    class AnimationGroupLoader
+    internal class AnimationGroupLoader
     {
         private NTRO data;
-        public List<ResourceExtRefList.ResourceReferenceInfo> animationList;
+        public List<ResourceExtRefList.ResourceReferenceInfo> AnimationList;
 
         public AnimationGroupLoader(Resource resource, string filename)
         {
             data = (NTRO) resource.Blocks[BlockType.DATA];
-            loadAnimationGroup();
+            LoadAnimationGroup();
         }
 
-        private void loadAnimationGroup()
+        private void LoadAnimationGroup()
         {
             var animArray = (NTROArray)data.Output["m_localHAnimArray"];
 
-            animationList = new List<ResourceExtRefList.ResourceReferenceInfo>();
+            AnimationList = new List<ResourceExtRefList.ResourceReferenceInfo>();
             for (int i = 0; i < animArray.Count; i++)
             {
-                animationList.Add(((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)animArray[i]).Value);
+                AnimationList.Add(((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)animArray[i]).Value);
             }
 
-            foreach(var animation in animationList)
+            foreach (var animation in AnimationList)
             {
                 var animClean = Path.GetFileNameWithoutExtension(animation.Name);
                 Console.WriteLine("Animation found: " + animClean);

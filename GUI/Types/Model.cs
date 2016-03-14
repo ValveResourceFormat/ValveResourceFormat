@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace GUI.Types
 {
-    class Model
+    internal class Model
     {
         private readonly Resource Resource;
 
@@ -36,7 +36,7 @@ namespace GUI.Types
 
             var refAnimGroups = (NTROArray)data.Output["m_refAnimGroups"];
 
-            if(refAnimGroups.Count > 0)
+            if (refAnimGroups.Count > 0)
             {
                 var animGroup = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refAnimGroups[0]).Value;
                 return Utils.FileExtensions.FindResourcePath(animGroup.Name);

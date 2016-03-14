@@ -5,13 +5,16 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class ShaderLoader
+    internal class ShaderLoader
     {
-        public static int shaderProgram;
+        public static int ShaderProgram;
 
-        public static void loadShaders()
+        public static void LoadShaders()
         {
-            if (shaderProgram != 0) return;
+            if (ShaderProgram != 0)
+            {
+                return;
+            }
 
             /* Vertex shader */
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
@@ -65,22 +68,22 @@ namespace GUI.Types.Renderer
                 Console.WriteLine("Fragment shader compiled succesfully.");
             }
 
-            shaderProgram = GL.CreateProgram();
-            GL.AttachShader(shaderProgram, vertexShader);
-            GL.AttachShader(shaderProgram, fragmentShader);
+            ShaderProgram = GL.CreateProgram();
+            GL.AttachShader(ShaderProgram, vertexShader);
+            GL.AttachShader(ShaderProgram, fragmentShader);
 
-            GL.LinkProgram(shaderProgram);
+            GL.LinkProgram(ShaderProgram);
 
-            string programInfoLog = GL.GetProgramInfoLog(shaderProgram);
+            string programInfoLog = GL.GetProgramInfoLog(ShaderProgram);
             Console.Write(programInfoLog);
 
             int linkStatus;
-            GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
+            GL.GetProgram(ShaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
 
             if (linkStatus != 1)
             {
                 string linkInfo;
-                GL.GetProgramInfoLog(shaderProgram, out linkInfo);
+                GL.GetProgramInfoLog(ShaderProgram, out linkInfo);
                 throw new Exception("Error linking shaders: " + linkInfo);
             }
             else
@@ -88,10 +91,10 @@ namespace GUI.Types.Renderer
                 Console.WriteLine("Shaders linked succesfully.");
             }
 
-            GL.DetachShader(shaderProgram, vertexShader);
+            GL.DetachShader(ShaderProgram, vertexShader);
             GL.DeleteShader(vertexShader);
 
-            GL.DetachShader(shaderProgram, fragmentShader);
+            GL.DetachShader(ShaderProgram, fragmentShader);
             GL.DeleteShader(fragmentShader);
         }
     }

@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Audio
 {
-    class Player
+    internal class Player
     {
         public Player(Resource resource)
         {

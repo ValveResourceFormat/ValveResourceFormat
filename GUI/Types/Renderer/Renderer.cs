@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -14,9 +13,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    class Renderer
+    internal class Renderer
     {
-        bool Loaded = false;
+        private bool Loaded = false;
 
         private uint[] vertexBuffers;
         private uint[] indexBuffers;
@@ -33,7 +32,7 @@ namespace GUI.Types.Renderer
         private Camera ActiveCamera;
         private TabControl tabs;
 
-        private List<drawCall> drawCalls = new List<drawCall>();
+        private List<DrawCall> drawCalls = new List<DrawCall>();
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
@@ -42,30 +41,30 @@ namespace GUI.Types.Renderer
 
         private Vector3 LightPosition = new Vector3(0.0f, 0.0f, 0.0f);
 
-        private struct drawCall
+        private struct DrawCall
         {
-            public PrimitiveType primitiveType;
-            public uint baseVertex;
-            public uint vertexCount;
-            public uint startIndex;
-            public uint indexCount;
-            public uint instanceIndex;   //TODO
-            public uint instanceCount;   //TODO
-            public float uvDensity;     //TODO
-            public string flags;        //TODO
-            public Vector3 tintColor;   //TODO
-            public string material;
-            public int materialID;
-            public uint vertexArrayObject;
-            public drawBuffer vertexBuffer;
-            public DrawElementsType indiceType;
-            public drawBuffer indexBuffer;
+            public PrimitiveType PrimitiveType;
+            public uint BaseVertex;
+            public uint VertexCount;
+            public uint StartIndex;
+            public uint IndexCount;
+            public uint InstanceIndex;   //TODO
+            public uint InstanceCount;   //TODO
+            public float UvDensity;     //TODO
+            public string Flags;        //TODO
+            public Vector3 TintColor;   //TODO
+            public string Material;
+            public int MaterialID;
+            public uint VertexArrayObject;
+            public DrawBuffer VertexBuffer;
+            public DrawElementsType IndiceType;
+            public DrawBuffer IndexBuffer;
         }
 
-        private struct drawBuffer
+        private struct DrawBuffer
         {
-            public uint id;
-            public uint offset;
+            public uint Id;
+            public uint Offset;
         }
 
         public Renderer(Resource resource, TabControl mainTabs, string fileName, Package currentPackage)
@@ -77,7 +76,7 @@ namespace GUI.Types.Renderer
             tabs = mainTabs;
         }
 
-        public Control createGL()
+        public Control CreateGL()
         {
             meshControl = new GLControl(new OpenTK.Graphics.GraphicsMode(32, 24, 0, 8), 3, 0, OpenTK.Graphics.GraphicsContextFlags.Default);
             meshControl.Dock = DockStyle.Fill;
@@ -110,7 +109,9 @@ namespace GUI.Types.Renderer
         private void MeshControl_Resize(object sender, EventArgs e)
         {
             if (!Loaded)
+            {
                 return;
+            }
 
             ActiveCamera.SetViewportSize(tabs.Width, tabs.Height);
             int transformLoc = GL.GetUniformLocation(shaderProgram, "projection");
@@ -178,8 +179,8 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Setting up shaders..");
 
-            ShaderLoader.loadShaders();
-            shaderProgram = ShaderLoader.shaderProgram;
+            ShaderLoader.LoadShaders();
+            shaderProgram = ShaderLoader.ShaderProgram;
 
             GL.UseProgram(shaderProgram);
 
@@ -199,7 +200,7 @@ namespace GUI.Types.Renderer
             Console.WriteLine(block.VertexBuffers.Count + " vertex buffers");
             Console.WriteLine(block.IndexBuffers.Count + " index buffers");
 
-            for(int i = 0; i < block.VertexBuffers.Count; i++)
+            for (int i = 0; i < block.VertexBuffers.Count; i++)
             {
                 GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
                 GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(block.VertexBuffers[i].Count * block.VertexBuffers[i].Size), block.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
@@ -220,7 +221,6 @@ namespace GUI.Types.Renderer
             Console.WriteLine("Pushed buffers");
 
             //Prepare drawcalls
-
             KVObject a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
             KVObject b = (KVObject)a.Properties["0"].Value;
             KVObject c = (KVObject)b.Properties["m_drawCalls"].Value;
@@ -231,48 +231,49 @@ namespace GUI.Types.Renderer
             for (int i = 0; i < c.Properties.Count; i++)
             {
                 KVObject d = (KVObject)c.Properties[i.ToString()].Value;
-                var drawCall = new drawCall();
+                var drawCall = default(DrawCall);
 
                 switch (d.Properties["m_nPrimitiveType"].Value.ToString())
                 {
                     case "RENDER_PRIM_TRIANGLES":
-                        drawCall.primitiveType = PrimitiveType.Triangles;
+                        drawCall.PrimitiveType = PrimitiveType.Triangles;
                         break;
                     default:
                         throw new Exception("Unknown PrimitiveType in drawCall! (" + d.Properties["m_nPrimitiveType"].Value.ToString() + ")");
                 }
 
-                drawCall.baseVertex = Convert.ToUInt32(d.Properties["m_nBaseVertex"].Value);
-                drawCall.vertexCount = Convert.ToUInt32(d.Properties["m_nVertexCount"].Value);
-                drawCall.startIndex = Convert.ToUInt32(d.Properties["m_nStartIndex"].Value);
-                drawCall.indexCount = Convert.ToUInt32(d.Properties["m_nIndexCount"].Value);
+                drawCall.BaseVertex = Convert.ToUInt32(d.Properties["m_nBaseVertex"].Value);
+                drawCall.VertexCount = Convert.ToUInt32(d.Properties["m_nVertexCount"].Value);
+                drawCall.StartIndex = Convert.ToUInt32(d.Properties["m_nStartIndex"].Value);
+                drawCall.IndexCount = Convert.ToUInt32(d.Properties["m_nIndexCount"].Value);
 
-                drawCall.material = d.Properties["m_material"].Value.ToString();
+                drawCall.Material = d.Properties["m_material"].Value.ToString();
 
-
-                if (!MaterialLoader.materials.ContainsKey(drawCall.material))
+                if (!MaterialLoader.Materials.ContainsKey(drawCall.Material))
                 {
-                    drawCall.materialID = MaterialLoader.loadMaterial(drawCall.material, CurrentFileName, CurrentPackage, MaxTextureMaxAnisotropy);
+                    drawCall.MaterialID = MaterialLoader.LoadMaterial(drawCall.Material, CurrentFileName, CurrentPackage, MaxTextureMaxAnisotropy);
                 }
                 else
                 {
-                    drawCall.materialID = MaterialLoader.materials[drawCall.material].colorTextureID;
+                    drawCall.MaterialID = MaterialLoader.Materials[drawCall.Material].ColorTextureID;
                 }
 
                 KVObject f = (KVObject)d.Properties["m_indexBuffer"].Value;
 
-                var indexBuffer = new drawBuffer();
-                indexBuffer.id = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
-                indexBuffer.offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
-                drawCall.indexBuffer = indexBuffer;
+                var indexBuffer = default(DrawBuffer);
+                indexBuffer.Id = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
+                indexBuffer.Offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
+                drawCall.IndexBuffer = indexBuffer;
 
-                if (block.IndexBuffers[(int)drawCall.indexBuffer.id].Size == 2) //shopkeeper_vr
+                if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 2)
                 {
-                    drawCall.indiceType = DrawElementsType.UnsignedShort;
+                    //shopkeeper_vr
+                    drawCall.IndiceType = DrawElementsType.UnsignedShort;
                 }
-                else if (block.IndexBuffers[(int)drawCall.indexBuffer.id].Size == 4) //glados
+                else if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 4)
                 {
-                    drawCall.indiceType = DrawElementsType.UnsignedInt;
+                    //glados
+                    drawCall.IndiceType = DrawElementsType.UnsignedInt;
                 }
                 else
                 {
@@ -282,18 +283,18 @@ namespace GUI.Types.Renderer
                 KVObject g = (KVObject)d.Properties["m_vertexBuffers"].Value;
                 KVObject h = (KVObject)g.Properties["0"].Value;
 
-                var vertexBuffer = new drawBuffer();
-                vertexBuffer.id = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
-                vertexBuffer.offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
-                drawCall.vertexBuffer = vertexBuffer;
+                var vertexBuffer = default(DrawBuffer);
+                vertexBuffer.Id = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
+                vertexBuffer.Offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
+                drawCall.VertexBuffer = vertexBuffer;
 
-                GL.GenVertexArrays(1, out drawCall.vertexArrayObject);
+                GL.GenVertexArrays(1, out drawCall.VertexArrayObject);
 
-                GL.BindVertexArray(drawCall.vertexArrayObject);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.vertexBuffer.id]);
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.indexBuffer.id]);
+                GL.BindVertexArray(drawCall.VertexArrayObject);
+                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.VertexBuffer.Id]);
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.IndexBuffer.Id]);
 
-                var curVertexBuffer = block.VertexBuffers[(int)drawCall.vertexBuffer.id];
+                var curVertexBuffer = block.VertexBuffers[(int)drawCall.VertexBuffer.Id];
                 var texcoordSet = false;
                 foreach (var attribute in curVertexBuffer.Attributes)
                 {
@@ -304,7 +305,9 @@ namespace GUI.Types.Renderer
                             int posAttrib = GL.GetAttribLocation(shaderProgram, "vPosition");
                             //Ignore this attribute if it is not found in the shader
                             if (posAttrib == -1)
+                            {
                                 break;
+                            }
 
                             GL.EnableVertexAttribArray(posAttrib);
                             switch (attribute.Type)
@@ -315,13 +318,16 @@ namespace GUI.Types.Renderer
                                 default:
                                     throw new Exception("Unknown position format " + attribute.Type);
                             }
+
                             break;
                         case "NORMAL":
                             GL.EnableClientState(ArrayCap.NormalArray);
                             int normalAttrib = GL.GetAttribLocation(shaderProgram, "vNormal");
                             //Ignore this attribute if it is not found in the shader
                             if (normalAttrib == -1)
+                            {
                                 break;
+                            }
 
                             GL.EnableVertexAttribArray(normalAttrib);
                             switch (attribute.Type)
@@ -335,14 +341,22 @@ namespace GUI.Types.Renderer
                                 default:
                                     throw new Exception("Unsupported normal format " + attribute.Type);
                             }
+
                             break;
                         case "TEXCOORD":
-                            if (texcoordSet) { break; } // Ignore second set of texcoords 
+                            // Ignore second set of texcoords
+                            if (texcoordSet)
+                            {
+                                break;
+                            }
+
                             GL.EnableClientState(ArrayCap.TextureCoordArray);
                             int texCoordAttrib = GL.GetAttribLocation(shaderProgram, "vTexCoord");
                             //Ignore this attribute if it is not found in the shader
                             if (texCoordAttrib == -1)
+                            {
                                 break;
+                            }
 
                             GL.EnableVertexAttribArray(texCoordAttrib);
                             switch (attribute.Type)
@@ -356,13 +370,16 @@ namespace GUI.Types.Renderer
                                 default:
                                     throw new Exception("Unsupported texcoord format " + attribute.Type);
                             }
+
                             texcoordSet = true;
                             break;
                         case "TANGENT":
                             int tangentAttrib = GL.GetAttribLocation(shaderProgram, "vTangent");
                             //Ignore this attribute if it is not found in the shader
                             if (tangentAttrib == -1)
+                            {
                                 break;
+                            }
 
                             GL.EnableVertexAttribArray(tangentAttrib);
                             switch (attribute.Type)
@@ -373,12 +390,15 @@ namespace GUI.Types.Renderer
                                 default:
                                     throw new Exception("Unsupported tangent format " + attribute.Type);
                             }
+
                             break;
                         case "BLENDINDICES":
                             int blendIndicesAttrib = GL.GetAttribLocation(shaderProgram, "vBlendIndices");
                             //Ignore this attribute if it is not found in the shader
                             if (blendIndicesAttrib == -1)
+                            {
                                 break;
+                            }
 
                             GL.EnableVertexAttribArray(blendIndicesAttrib);
                             switch (attribute.Type)
@@ -395,12 +415,15 @@ namespace GUI.Types.Renderer
                                 default:
                                     throw new Exception("Unsupported blend indices format " + attribute.Type);
                             }
+
                             break;
                         case "BLENDWEIGHT":
                             int blendWeightAttrib = GL.GetAttribLocation(shaderProgram, "vBlendWeight");
                             //Ignore this attribute if it is not found in the shader
                             if (blendWeightAttrib == -1)
+                            {
                                 break;
+                            }
 
                             GL.EnableVertexAttribArray(blendWeightAttrib);
                             switch (attribute.Type)
@@ -417,27 +440,29 @@ namespace GUI.Types.Renderer
                                 default:
                                     throw new Exception("Unsupported blend weight format " + attribute.Type);
                             }
+
                             break;
                     }
                 }
 
-                if (drawCall.materialID != 1) // Don't do material lookups on error texture
+                // Don't do material lookups on error texture
+                if (drawCall.MaterialID != 1)
                 {
-                    if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[drawCall.material].intParams["F_ALPHA_TEST"] == 1)
+                    if (MaterialLoader.Materials[drawCall.Material].IntParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.Materials[drawCall.Material].IntParams["F_ALPHA_TEST"] == 1)
                     {
                         GL.Enable(EnableCap.AlphaTest);
 
-                        if (MaterialLoader.materials[drawCall.material].floatParams.ContainsKey("g_flAlphaTestReference"))
+                        if (MaterialLoader.Materials[drawCall.Material].FloatParams.ContainsKey("g_flAlphaTestReference"))
                         {
                             int alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
-                            GL.Uniform1(alphaReference, MaterialLoader.materials[drawCall.material].floatParams["g_flAlphaTestReference"]);
+                            GL.Uniform1(alphaReference, MaterialLoader.Materials[drawCall.Material].FloatParams["g_flAlphaTestReference"]);
                         }
                     }
 
                     int colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
                     GL.Uniform1(colorTextureAttrib, 0);
 
-                    if (MaterialLoader.materials[drawCall.material].otherTextureIDs.ContainsKey("g_tNormal"))
+                    if (MaterialLoader.Materials[drawCall.Material].OtherTextureIDs.ContainsKey("g_tNormal"))
                     {
                         int normalTextureAttrib = GL.GetUniformLocation(shaderProgram, "normalTexture");
                         GL.Uniform1(normalTextureAttrib, 1);
@@ -445,7 +470,7 @@ namespace GUI.Types.Renderer
                 }
 
                 GL.BindVertexArray(0);
-                GL.EnableVertexAttribArray(drawCall.vertexArrayObject);
+                GL.EnableVertexAttribArray(drawCall.VertexArrayObject);
 
                 drawCalls.Add(drawCall);
             }
@@ -459,7 +484,9 @@ namespace GUI.Types.Renderer
         private void MeshControl_Paint(object sender, PaintEventArgs e)
         {
             if (!Loaded)
+            {
                 return;
+            }
 
             ActiveCamera.Tick();
 
@@ -467,29 +494,30 @@ namespace GUI.Types.Renderer
             GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-            foreach (drawCall call in drawCalls)
+            foreach (DrawCall call in drawCalls)
             {
-                GL.BindVertexArray(call.vertexArrayObject);
+                GL.BindVertexArray(call.VertexArrayObject);
 
                 GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(TextureTarget.Texture2D, call.materialID);
+                GL.BindTexture(TextureTarget.Texture2D, call.MaterialID);
 
-                if (call.materialID != 1) // Don't do material lookups on error texture
+                // Don't do material lookups on error texture
+                if (call.MaterialID != 1)
                 {
-                    if (MaterialLoader.materials[call.material].intParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.materials[call.material].intParams["F_TRANSLUCENT"] == 1)
+                    if (MaterialLoader.Materials[call.Material].IntParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.Materials[call.Material].IntParams["F_TRANSLUCENT"] == 1)
                     {
                         GL.Enable(EnableCap.Blend);
                         GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
                     }
 
-                    if (MaterialLoader.materials[call.material].otherTextureIDs.ContainsKey("g_tNormal"))
+                    if (MaterialLoader.Materials[call.Material].OtherTextureIDs.ContainsKey("g_tNormal"))
                     {
                         GL.ActiveTexture(TextureUnit.Texture1);
-                        GL.BindTexture(TextureTarget.Texture2D, MaterialLoader.materials[call.material].otherTextureIDs["g_tNormal"]);
+                        GL.BindTexture(TextureTarget.Texture2D, MaterialLoader.Materials[call.Material].OtherTextureIDs["g_tNormal"]);
                     }
                 }
 
-                GL.DrawElements(call.primitiveType, (int) call.indexCount, call.indiceType, IntPtr.Zero);
+                GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
 
                 GL.Disable(EnableCap.AlphaTest);
                 GL.Disable(EnableCap.Blend);
@@ -497,7 +525,6 @@ namespace GUI.Types.Renderer
 
             int lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
             GL.Uniform3(lightPosAttrib, LightPosition);
-
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
