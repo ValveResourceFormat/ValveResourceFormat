@@ -401,8 +401,12 @@ namespace GUI.Types.Renderer
                     if (MaterialLoader.materials[drawCall.material].intParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.materials[drawCall.material].intParams["F_ALPHA_TEST"] == 1)
                     {
                         GL.Enable(EnableCap.AlphaTest);
-                        int alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
-                        GL.Uniform1(alphaReference, MaterialLoader.materials[drawCall.material].floatParams["g_flAlphaTestReference"]);
+
+                        if (MaterialLoader.materials[drawCall.material].floatParams.ContainsKey("g_flAlphaTestReference"))
+                        {
+                            int alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
+                            GL.Uniform1(alphaReference, MaterialLoader.materials[drawCall.material].floatParams["g_flAlphaTestReference"]);
+                        }
                     }
 
                     int colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
