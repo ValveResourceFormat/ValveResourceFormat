@@ -23,6 +23,7 @@ namespace GUI.Types.Renderer
 
         private int shaderProgram;
 
+        private Package CurrentPackage;
         private string CurrentFileName;
         private BinaryKV3 data;
         private VBIB block;
@@ -67,8 +68,9 @@ namespace GUI.Types.Renderer
             public uint offset;
         }
 
-        public Renderer(Resource resource, TabControl mainTabs, string fileName)
+        public Renderer(Resource resource, TabControl mainTabs, string fileName, Package currentPackage)
         {
+            CurrentPackage = currentPackage;
             CurrentFileName = fileName;
             block = resource.VBIB;
             data = (BinaryKV3)resource.Blocks[BlockType.DATA];
@@ -250,7 +252,7 @@ namespace GUI.Types.Renderer
 
                 if (!MaterialLoader.materials.ContainsKey(drawCall.material))
                 {
-                    drawCall.materialID = MaterialLoader.loadMaterial(drawCall.material, CurrentFileName, MaxTextureMaxAnisotropy);
+                    drawCall.materialID = MaterialLoader.loadMaterial(drawCall.material, CurrentFileName, CurrentPackage, MaxTextureMaxAnisotropy);
                 }
                 else
                 {

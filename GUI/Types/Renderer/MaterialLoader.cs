@@ -33,27 +33,24 @@ namespace GUI.Types.Renderer
             //public string[] renderAttributesUsed; // ?
         }
 
-        public static int loadMaterial(string name, string currentFileName, int maxTextureMaxAnisotropy)
+        public static int loadMaterial(string name, string currentFileName, Package currentPackage, int maxTextureMaxAnisotropy)
         {
             if (name != "materials/debug/debugempty.vmat" && !materials.ContainsKey("materials/debug/debugempty.vmat"))
             {
-                loadMaterial("materials/debug/debugempty.vmat", currentFileName, maxTextureMaxAnisotropy);
+                loadMaterial("materials/debug/debugempty.vmat", currentFileName, null, maxTextureMaxAnisotropy);
             }
 
             Console.WriteLine("Loading material " + name);
 
-            string path = Utils.FileExtensions.FindResourcePath(name, currentFileName);
-            var mat = new Material();
+            var resource = new Resource();
 
-            if (path == null)
+            if(!Utils.FileExtensions.LoadFileByAnyMeansNecessary(resource, name + "_c", currentFileName, currentPackage))
             {
                 Console.WriteLine("File " + name + " not found");
                 return 1;
             }
 
-            var resource = new Resource();
-            resource.Read(path);
-
+            var mat = new Material();
             var matData = (NTRO)resource.Blocks[BlockType.DATA];
             mat.name = ((NTROValue<string>)matData.Output["m_materialName"]).Value;
             mat.shaderName = ((NTROValue<string>)matData.Output["m_shaderName"]).Value;
@@ -140,26 +137,26 @@ namespace GUI.Types.Renderer
                     case "g_tColor":
                     case "g_tColor1":
                     case "g_tColor2":
-                        mat.colorTextureID = loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture0);
+                        mat.colorTextureID = loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture0);
                         break;
                     case "g_tNormal":
                     case "g_tNormal2":
-                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture1));
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture1));
                         break;
                     case "g_tCubeMap":
-                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture2));
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture2));
                         break;
                     case "g_tGloss":
-                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture3));
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture3));
                         break;
                     case "g_tRoughness":
-                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture4));
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture4));
                         break;
                     case "g_tSelfIllumMask":
-                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture5));
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture5));
                         break;
                     case "g_tMetalnessReflectanceFresnel":
-                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, maxTextureMaxAnisotropy, TextureUnit.Texture6));
+                        mat.otherTextureIDs.Add(textureReference.Key, loadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture6));
                         break;
                     default:
                         Console.WriteLine("Unknown texture type: " + textureReference.Key);
@@ -172,30 +169,26 @@ namespace GUI.Types.Renderer
             return mat.colorTextureID;
         }
 
-        private static int loadTexture(string path, string currentFileName, int maxTextureMaxAnisotropy, TextureUnit textureUnit)
+        private static int loadTexture(string name, string currentFileName, Package currentPackage, int maxTextureMaxAnisotropy, TextureUnit textureUnit)
         {
-            string texturePath = Utils.FileExtensions.FindResourcePath(path, currentFileName);
+            var textureResource = new Resource();
 
-            if (texturePath == null)
+            if(!Utils.FileExtensions.LoadFileByAnyMeansNecessary(textureResource, name + "_c", currentFileName, currentPackage))
             {
-                Console.WriteLine("File " + path + " not found");
+                Console.WriteLine("File " + name + " not found");
                 return 1;
             }
 
-            var textureResource = new Resource();
-
-            textureResource.Read(texturePath);
-
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
-            Console.WriteLine("     Loading texture " + path + " " + tex.Flags.ToString());
+            Console.WriteLine("     Loading texture " + name + " " + tex.Flags.ToString());
 
             var id = GL.GenTexture();
 
             GL.ActiveTexture(textureUnit);
             GL.BindTexture(TextureTarget.Texture2D, id);
 
-            BinaryReader textureReader = new BinaryReader(File.OpenRead(texturePath));
+            BinaryReader textureReader = textureResource.Reader;
             textureReader.BaseStream.Position = tex.Offset + tex.Size;
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);

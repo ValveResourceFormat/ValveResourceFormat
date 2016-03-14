@@ -14,7 +14,13 @@ namespace ValveResourceFormat
         private const ushort KnownHeaderVersion = 12;
 
         private FileStream FileStream;
-        private BinaryReader Reader;
+
+        /// <summary>
+        /// Gets the binary reader. USE AT YOUR OWN RISK!
+        /// It is exposed publicly to ease of reading the same file.
+        /// </summary>
+        /// <value>The binary reader.</value>
+        public BinaryReader Reader { get; private set; }
 
         /// <summary>
         /// Gets the resource size.

@@ -121,7 +121,7 @@ namespace GUI
             {
                 foreach (var file in openDialog.FileNames)
                 {
-                    if (file.EndsWith("_c") | file.EndsWith(".vpk"))
+                    if (file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal))
                     {
                         OpenFile(file);
                     }
@@ -133,7 +133,7 @@ namespace GUI
             }
         }
 
-        private void OpenFile(string fileName, byte[] stream = null)
+        private void OpenFile(string fileName, byte[] input = null, Package currentPackage = null)
         {
             var tab = new TabPage(Path.GetFileName(fileName));
             tab.Controls.Add(new Forms.LoadingFile());
@@ -141,7 +141,7 @@ namespace GUI
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(fileName, stream));
+            var task = Task.Factory.StartNew(() => ProcessFile(fileName, input, currentPackage));
 
             task.ContinueWith(t =>
             {
@@ -168,7 +168,7 @@ namespace GUI
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        private TabPage ProcessFile(string fileName, byte[] input = null)
+        private TabPage ProcessFile(string fileName, byte[] input, Package currentPackage)
         {
             var tab = new TabPage();
 
@@ -296,7 +296,7 @@ namespace GUI
                         }
 
                         var resourceMesh = new Resource();
-                        resourceMesh.Read(model.GetMesh());
+                        model.GetMesh(resourceMesh, currentPackage);
 
                         if (!resourceMesh.Blocks.ContainsKey(BlockType.VBIB))
                         {
@@ -304,7 +304,7 @@ namespace GUI
                             break;
                         }
                         var modelmeshTab = new TabPage("MESH");
-                        var modelmv = new Types.Renderer.Renderer(resourceMesh, mainTabs, fileName);
+                        var modelmv = new Types.Renderer.Renderer(resourceMesh, mainTabs, fileName, currentPackage);
                         var modelglControl = modelmv.createGL();
                         modelmeshTab.Controls.Add(modelglControl);
                         resTabs.TabPages.Add(modelmeshTab);
@@ -316,7 +316,7 @@ namespace GUI
                             break;
                         }
                         var meshTab = new TabPage("MESH");
-                        var mv = new Types.Renderer.Renderer(resource, mainTabs, fileName);
+                        var mv = new Types.Renderer.Renderer(resource, mainTabs, fileName, currentPackage);
                         var glControl = mv.createGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);
@@ -456,9 +456,9 @@ namespace GUI
                 var file = node.Tag as PackageEntry;
                 byte[] output;
                 package.ReadEntry(file, out output);
-                if (file.TypeName.EndsWith("_c") | file.TypeName == "vpk")
+                if (file.TypeName.EndsWith("_c", StringComparison.Ordinal) || file.TypeName == "vpk")
                 {
-                    OpenFile(file.FileName + "." + file.TypeName, output);
+                    OpenFile(file.FileName + "." + file.TypeName, output, package);
                 }
                 else
                 {

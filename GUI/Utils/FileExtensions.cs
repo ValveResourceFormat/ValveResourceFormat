@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using ValveResourceFormat;
 
 namespace GUI.Utils
 {
@@ -31,10 +32,52 @@ namespace GUI.Utils
             return result;
         }
 
+        public static bool LoadFileByAnyMeansNecessary(Resource resource, string file, string currentFullPath, Package currentPackage)
+        {
+            if (currentPackage != null)
+            {
+                var entry = FindPackageEntry(currentPackage, file);
+
+                if (entry != null)
+                {
+                    byte[] output;
+                    currentPackage.ReadEntry(entry, out output);
+                    resource.Read(new MemoryStream(output));
+
+                    return true;
+                }
+            }
+
+            string path = FindResourcePath(file, currentFullPath);
+
+            if (path == null)
+            {
+                return false;
+            }
+
+            resource.Read(path);
+
+            return true;
+        }
+
+        public static PackageEntry FindPackageEntry(Package currentPackage, string file)
+        {
+            var extension = Path.GetExtension(file).Substring(1);
+
+            if (!currentPackage.Entries.ContainsKey(extension))
+            {
+                return null;
+            }
+
+            file = file.Replace("/", "\\");
+
+            return currentPackage.Entries[extension].FirstOrDefault(x => x.GetFullPath() == file);
+        }
+
         public static string FindResourcePath(string file, string currentFullPath = null)
         {
             var paths = Settings.GameSearchPaths;
-                
+
             if (currentFullPath != null)
             {
                 paths = paths.OrderByDescending(x => currentFullPath.StartsWith(x, StringComparison.Ordinal)).ToList();
@@ -42,7 +85,7 @@ namespace GUI.Utils
 
             foreach (var searchPath in paths)
             {
-                var path = Path.Combine(searchPath, file + "_c");
+                var path = Path.Combine(searchPath, file);
                 path = Path.GetFullPath(path);
 
                 if (File.Exists(path))

@@ -15,7 +15,7 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public string GetMesh()
+        public void GetMesh(Resource newResource, Package currentPackage = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
@@ -24,7 +24,10 @@ namespace GUI.Types
             // TODO: We're taking first mesh only for now
             var mesh = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refMeshes[0]).Value;
 
-            return Utils.FileExtensions.FindResourcePath(mesh.Name);
+            if (!Utils.FileExtensions.LoadFileByAnyMeansNecessary(newResource, mesh.Name + "_c", null, currentPackage))
+            {
+                Console.WriteLine("unable to load mesh " + mesh.Name);
+            }
         }
 
         public string GetAnimationGroup()
