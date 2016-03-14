@@ -7,8 +7,8 @@ namespace GUI.Types.Renderer
 {
     internal class Camera
     {
-        public Matrix4 ProjectionMatrix { get; private set; }
-        public Matrix4 CameraViewMatrix { get; private set; }
+        public Matrix4 ProjectionMatrix;
+        public Matrix4 CameraViewMatrix;
 
         public bool MouseOverRenderArea { get; set; }
         private bool MouseDragging;
