@@ -314,7 +314,10 @@ namespace GUI.Types.Renderer
                         case "NORMAL":
                             GL.EnableClientState(ArrayCap.NormalArray);
                             int normalAttrib = GL.GetAttribLocation(shaderProgram, "vNormal");
-                            GL.EnableVertexAttribArray(normalAttrib);
+                            if(normalAttrib != -1)
+                            {
+                                GL.EnableVertexAttribArray(normalAttrib);
+                            }
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R32G32B32_FLOAT:
@@ -331,7 +334,11 @@ namespace GUI.Types.Renderer
                             if (texcoordSet) { break; } // Ignore second set of texcoords 
                             GL.EnableClientState(ArrayCap.TextureCoordArray);
                             int texCoordAttrib = GL.GetAttribLocation(shaderProgram, "vTexCoord");
-                            GL.EnableVertexAttribArray(texCoordAttrib);
+                            if (texCoordAttrib != -1)
+                            {
+                                GL.EnableVertexAttribArray(texCoordAttrib);
+
+                            }
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R32G32_FLOAT:
@@ -347,7 +354,10 @@ namespace GUI.Types.Renderer
                             break;
                         case "TANGENT":
                             int tangentAttrib = GL.GetAttribLocation(shaderProgram, "vTangent");
-                            GL.EnableVertexAttribArray(tangentAttrib);
+                            if(tangentAttrib != -1)
+                            {
+                                GL.EnableVertexAttribArray(tangentAttrib);
+                            }
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R32G32B32A32_FLOAT:
@@ -359,7 +369,10 @@ namespace GUI.Types.Renderer
                             break;
                         case "BLENDINDICES":
                             int blendIndicesAttrib = GL.GetAttribLocation(shaderProgram, "vBlendIndices");
-                            GL.EnableVertexAttribArray(blendIndicesAttrib);
+                            if(blendIndicesAttrib != -1)
+                            {
+                                GL.EnableVertexAttribArray(blendIndicesAttrib);
+                            }
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R8G8B8A8_UINT:
@@ -377,7 +390,10 @@ namespace GUI.Types.Renderer
                             break;
                         case "BLENDWEIGHT":
                             int blendWeightAttrib = GL.GetAttribLocation(shaderProgram, "vBlendWeight");
-                            GL.EnableVertexAttribArray(blendWeightAttrib);
+                            if (blendWeightAttrib != -1)
+                            {
+                                GL.EnableVertexAttribArray(blendWeightAttrib);
+                            }
                             switch (attribute.Type)
                             {
                                 case DXGI_FORMAT.R16G16_UNORM:
