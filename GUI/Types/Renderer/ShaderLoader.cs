@@ -29,10 +29,10 @@ namespace GUI.Types.Renderer
 
             GL.CompileShader(vertexShader);
 
-            int vsStatus;
-            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out vsStatus);
+            int shaderStatus;
+            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out shaderStatus);
 
-            if (vsStatus != 1)
+            if (shaderStatus != 1)
             {
                 string vsInfo;
                 GL.GetShaderInfoLog(vertexShader, out vsInfo);
@@ -51,10 +51,9 @@ namespace GUI.Types.Renderer
 
             GL.CompileShader(fragmentShader);
 
-            int fsStatus;
-            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out fsStatus);
+            GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out shaderStatus);
 
-            if (fsStatus != 1)
+            if (shaderStatus != 1)
             {
                 string fsInfo;
                 GL.GetShaderInfoLog(fragmentShader, out fsInfo);
