@@ -167,12 +167,10 @@ namespace GUI.Types.Renderer
                     case "g_tSpecular":
                     case "g_tDiffuseWarp":
                     case "g_tTintMask":
-                        //TODO: Doto textures! Return error texture for now.
-                        Console.WriteLine("Unsupported texture parameter, using error texture for now");
-                        mat.OtherTextureIDs.Add(textureReference.Key, 1);
-                        break;
                     default:
-                        Console.WriteLine("Unknown texture type: " + textureReference.Key);
+                        //TODO: Doto textures! Return error texture for now.
+                        Console.WriteLine("Unsupported texture parameter " + textureReference.Key + ", using error texture for now");
+                        mat.OtherTextureIDs.Add(textureReference.Key, 1);
                         break;
                 }
             }
