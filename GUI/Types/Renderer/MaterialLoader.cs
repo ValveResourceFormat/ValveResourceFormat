@@ -158,16 +158,18 @@ namespace GUI.Types.Renderer
                     case "g_tMetalnessReflectanceFresnel":
                         mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture6));
                         break;
-                    case "g_tDetail1": // seen in Doto
-                    case "g_tDetail2": // seen in Doto
-                        mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture7));
-                        break;
-                    case "g_tFresnelWarp": // seen in Doto
-                        mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture8));
-                        break;
-                    case "g_tMasks1": // seen in Doto
-                    case "g_tMasks2": // seen in Doto
-                        mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture9));
+                    case "g_tDetail":
+                    case "g_tDetail2":
+                    case "g_tFresnelWarp":
+                    case "g_tMasks1":
+                    case "g_tMasks2":
+                    case "g_tScrollSpeed":
+                    case "g_tSpecular":
+                    case "g_tDiffuseWarp":
+                    case "g_tTintMask":
+                        //TODO: Doto textures! Return error texture for now.
+                        Console.WriteLine("Unsupported texture parameter, using error texture for now");
+                        mat.OtherTextureIDs.Add(textureReference.Key, 1);
                         break;
                     default:
                         Console.WriteLine("Unknown texture type: " + textureReference.Key);
@@ -219,6 +221,12 @@ namespace GUI.Types.Renderer
             {
                 blockSize = 16;
                 format = PixelInternalFormat.CompressedRgbaS3tcDxt5Ext;
+            }
+            else if (tex.Format.HasFlag(VTexFormat.RGBA8888))
+            {
+                // materials/default/default_fresnelwarprim_tga_d9279d65.vtex has this
+                Console.WriteLine("Don't support RGBA8888 but don't want to crash either. Using error texture!");
+                return 1;
             }
             else
             {
