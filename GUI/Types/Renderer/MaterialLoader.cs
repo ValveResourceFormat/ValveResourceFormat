@@ -130,9 +130,10 @@ namespace GUI.Types.Renderer
             mat.OtherTextureIDs = new Dictionary<string, int>();
             foreach (var textureReference in mat.TextureParams)
             {
+                //TODO: This sucks! Rethink how TextureUnits are used!
                 switch (textureReference.Key)
                 {
-                    //TODO: Investigate why tColor and tNormal have differently numbered textures
+                    //TODO: Investigate why some things have differently numbered textures, Doto's slark has both g_tMasks1 and g_tMasks2
                     case "g_tColor":
                     case "g_tColor1":
                     case "g_tColor2":
@@ -156,6 +157,17 @@ namespace GUI.Types.Renderer
                         break;
                     case "g_tMetalnessReflectanceFresnel":
                         mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture6));
+                        break;
+                    case "g_tDetail1": // seen in Doto
+                    case "g_tDetail2": // seen in Doto
+                        mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture7));
+                        break;
+                    case "g_tFresnelWarp": // seen in Doto
+                        mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture8));
+                        break;
+                    case "g_tMasks1": // seen in Doto
+                    case "g_tMasks2": // seen in Doto
+                        mat.OtherTextureIDs.Add(textureReference.Key, LoadTexture(textureReference.Value.Name, currentFileName, currentPackage, maxTextureMaxAnisotropy, TextureUnit.Texture9));
                         break;
                     default:
                         Console.WriteLine("Unknown texture type: " + textureReference.Key);
