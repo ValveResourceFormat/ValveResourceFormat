@@ -496,6 +496,9 @@ namespace GUI.Types.Renderer
             var modelviewLoc = GL.GetUniformLocation(shaderProgram, "modelview");
             GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
+            var lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
+            GL.Uniform3(lightPosAttrib, ActiveCamera.Location);
+
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             foreach (var call in drawCalls)
             {
@@ -516,9 +519,6 @@ namespace GUI.Types.Renderer
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
             }
-
-            var lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
-            GL.Uniform3(lightPosAttrib, LightPosition);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*

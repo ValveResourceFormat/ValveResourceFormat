@@ -7,7 +7,9 @@ in vec4 vTangent;
 in ivec4 vBlendIndices;
 in vec4 vBlendWeight;
 
+out vec3 vFragPosition;
 out vec3 vNormalOut;
+out vec3 vTangentOut;
 out vec2 vTexCoordOut;
 
 uniform mat4 projection;
@@ -16,5 +18,8 @@ uniform mat4 modelview;
 void main()
 {
 	gl_Position = projection * modelview * vec4(vPosition, 1.0);
+	vFragPosition = vPosition;
+	vNormalOut = vNormal;
+	vTangentOut = vTangent.xyz;
 	vTexCoordOut = vTexCoord;
 }

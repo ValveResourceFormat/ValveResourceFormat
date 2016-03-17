@@ -17,7 +17,7 @@ namespace GUI.Types.Renderer
         private Vector2 MousePreviousPosition;
         private Vector2 MouseSpeed = new Vector2(0f, 0f);
 
-        private Vector3 Location;
+        public Vector3 Location;
         private double Pitch;
         private double Yaw;
 
@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var speed = KeyboardState.IsKeyDown(Key.ShiftLeft) ? 8.0f : 2.0f;
+            var speed = KeyboardState.IsKeyDown(Key.ShiftLeft) ? 1.0f : 0.02f;
 
             if (KeyboardState.IsKeyDown(Key.W))
             {
@@ -80,10 +80,20 @@ namespace GUI.Types.Renderer
                 Location.Y += (float)Math.Sin(Yaw + Math.PI / 2) * speed;
             }
 
+            if (KeyboardState.IsKeyDown(Key.Z))
+            {
+                Location.Z -= speed;
+            }
+
+            if (KeyboardState.IsKeyDown(Key.Q))
+            {
+                Location.Z += speed;
+            }
+
             MouseSpeed.X *= 0.4f;
             MouseSpeed.Y *= 0.4f;
-            MouseSpeed.X -= MouseDelta.X / 1000f;
-            MouseSpeed.Y -= MouseDelta.Y / 1000f;
+            MouseSpeed.X -= MouseDelta.X / 200f;
+            MouseSpeed.Y -= MouseDelta.Y / 200f;
             MouseDelta.X = 0f;
             MouseDelta.Y = 0f;
 

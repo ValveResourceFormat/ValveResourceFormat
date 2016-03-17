@@ -1,6 +1,10 @@
 ﻿#version 330
 
+in vec3 vFragPosition;
+in vec3 vNormalOut;
+in vec3 vTangentOut;
 in vec2 vTexCoordOut;
+
 out vec4 outputColor;
 
 uniform float alphaReference;
@@ -9,42 +13,50 @@ uniform sampler2D normalTexture;
 
 uniform vec3 vLightPosition;
 
+//The lights used to calculate the normal map
+const vec3 bumpLight1 = vec3(sqrt(2.0) / sqrt(3.0), 0.0, 1.0 / sqrt(3.0)); 
+const vec3 bumpLight2 = vec3(-1.0 / sqrt(6.0),  1.0 / sqrt(2.0), 1.0 / sqrt(3.0));
+const vec3 bumpLight3 = vec3(-1.0 / sqrt(6.0), -1.0 / sqrt(2.0), 1.0 / sqrt(3.0));
+
+//Calculate the normal of this fragment in world space
+vec3 calculateWorldNormal() 
+{
+    //Get the noral from the texture map -- Normal map seems broken
+    vec3 bumpNormal = texture2D(normalTexture, vTexCoordOut).rga;
+
+    //Reconstruct the tangent vector from the map
+    vec3 tangentNormal = normalize(bumpLight1 * bumpNormal.x + bumpLight2 * bumpNormal.y + bumpLight3 * bumpNormal.z);
+    //Invert the x and y of the tangent normal because ???
+    tangentNormal.x *= -1;
+    tangentNormal.y *= -1;
+
+    //Get normal and tangent and calculate the final tangent-space axis (bitangent)
+    vec3 normal = normalize(vNormalOut);
+    vec3 tangent = normalize(vTangentOut);
+    vec3 bitangent = cross( normal, tangent );
+
+    //Make the tangent space matrix
+    mat3 tangentSpace = mat3(tangent, bitangent, normal);
+
+    //Calculate the tangent normal in world space and return it
+    return tangentSpace * tangentNormal;
+}
+
+//Main entry point
 void main()
 {
-    vec4 light_color = vec4(0.5, 0.5, 0.5, 1.0);
-    vec4 ambient_color = vec4(0.9, 0.9, 0.9, 1.0);
-    vec3 falloff = vec3(0.4, 3.0, 20.0);
+    //Get the direction from the fragment to the light - light position == camera position for now
+    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
-    //RGBA of our diffuse color
-    vec4 DiffuseColor = texture2D(colorTexture, vTexCoordOut);
+    //Get the ambient color from the color texture
+    vec3 color = texture2D(colorTexture, vTexCoordOut).rgb;
 
-    if(alphaReference > 0.0 && DiffuseColor.a <= alphaReference)
-    {
-        discard;
-    }
+    //Get the world normal for this fragment
+    vec3 worldNormal = calculateWorldNormal();
 
-    //RGB of our normal map
-    vec3 NormalMap = texture2D(normalTexture, vTexCoordOut).rgb;
+    //Calculate the illumination value by taking the dot product
+    float illumination = dot(worldNormal, lightDirection);
 
-    //Determine distance (used for attenuation) BEFORE we normalize our LightDir
-    float D = length(vLightPosition);
-
-    //normalize our vectors
-    vec3 N = normalize(NormalMap * 2.0 - 1.0);
-    vec3 L = normalize(vLightPosition);
-
-    //Pre-multiply light color with intensity
-    //Then perform "N dot L" to determine our diffuse term
-    vec3 Diffuse = (light_color.rgb * light_color.a) * max(dot(N, L), 0.0);
-
-    //pre-multiply ambient color with intensity
-    vec3 Ambient = ambient_color.rgb * ambient_color.a;
-
-    //calculate attenuation
-    float Attenuation = 1.0 / ( falloff.x + (falloff.y*D) + (falloff.z*D*D) );
-
-    //the calculation which brings it all together
-    vec3 Intensity = Ambient + Diffuse * Attenuation;
-    vec3 FinalColor = DiffuseColor.rgb * Intensity;
-    outputColor = vec4(FinalColor, DiffuseColor.a);
+    //Simply multiply the color from the color texture with the illumination
+    outputColor = vec4(illumination * color, 1);
 }
