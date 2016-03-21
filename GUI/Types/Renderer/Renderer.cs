@@ -301,46 +301,13 @@ namespace GUI.Types.Renderer
                     switch (attribute.Name)
                     {
                         case "POSITION":
-                            var posAttrib = GL.GetAttribLocation(shaderProgram, "vPosition");
-                            //Ignore this attribute if it is not found in the shader
-                            if (posAttrib == -1)
-                            {
-                                break;
-                            }
-
-                            GL.EnableVertexAttribArray(posAttrib);
-                            switch (attribute.Type)
-                            {
-                                case DXGI_FORMAT.R32G32B32_FLOAT:
-                                    GL.VertexAttribPointer(posAttrib, 3, VertexAttribPointerType.Float, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                default:
-                                    throw new Exception("Unknown position format " + attribute.Type);
-                            }
-
+                            BindVertexAttrib(attribute, "vPosition", (int)curVertexBuffer.Size);
                             break;
+
                         case "NORMAL":
-                            var normalAttrib = GL.GetAttribLocation(shaderProgram, "vNormal");
-                            //Ignore this attribute if it is not found in the shader
-                            if (normalAttrib == -1)
-                            {
-                                break;
-                            }
-
-                            GL.EnableVertexAttribArray(normalAttrib);
-                            switch (attribute.Type)
-                            {
-                                case DXGI_FORMAT.R32G32B32_FLOAT:
-                                    GL.VertexAttribPointer(normalAttrib, 3, VertexAttribPointerType.Float, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                                    GL.VertexAttribPointer(normalAttrib, 4, VertexAttribPointerType.UnsignedByte, true, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                default:
-                                    throw new Exception("Unsupported normal format " + attribute.Type);
-                            }
-
+                            BindVertexAttrib(attribute, "vNormal", (int)curVertexBuffer.Size);
                             break;
+
                         case "TEXCOORD":
                             // Ignore second set of texcoords
                             if (texcoordSet)
@@ -348,96 +315,20 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            var texCoordAttrib = GL.GetAttribLocation(shaderProgram, "vTexCoord");
-                            //Ignore this attribute if it is not found in the shader
-                            if (texCoordAttrib == -1)
-                            {
-                                break;
-                            }
-
-                            GL.EnableVertexAttribArray(texCoordAttrib);
-                            switch (attribute.Type)
-                            {
-                                case DXGI_FORMAT.R32G32_FLOAT:
-                                    GL.VertexAttribPointer(texCoordAttrib, 2, VertexAttribPointerType.Float, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                case DXGI_FORMAT.R16G16_FLOAT:
-                                    GL.VertexAttribPointer(texCoordAttrib, 2, VertexAttribPointerType.HalfFloat, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                default:
-                                    throw new Exception("Unsupported texcoord format " + attribute.Type);
-                            }
+                            BindVertexAttrib(attribute, "vTexCoord", (int)curVertexBuffer.Size);
 
                             texcoordSet = true;
                             break;
                         case "TANGENT":
-                            var tangentAttrib = GL.GetAttribLocation(shaderProgram, "vTangent");
-                            //Ignore this attribute if it is not found in the shader
-                            if (tangentAttrib == -1)
-                            {
-                                break;
-                            }
-
-                            GL.EnableVertexAttribArray(tangentAttrib);
-                            switch (attribute.Type)
-                            {
-                                case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                                    GL.VertexAttribPointer(tangentAttrib, 4, VertexAttribPointerType.Float, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                default:
-                                    throw new Exception("Unsupported tangent format " + attribute.Type);
-                            }
-
+                            BindVertexAttrib(attribute, "vTangent", (int)curVertexBuffer.Size);
                             break;
+
                         case "BLENDINDICES":
-                            var blendIndicesAttrib = GL.GetAttribLocation(shaderProgram, "vBlendIndices");
-                            //Ignore this attribute if it is not found in the shader
-                            if (blendIndicesAttrib == -1)
-                            {
-                                break;
-                            }
-
-                            GL.EnableVertexAttribArray(blendIndicesAttrib);
-                            switch (attribute.Type)
-                            {
-                                case DXGI_FORMAT.R8G8B8A8_UINT:
-                                    GL.VertexAttribIPointer(blendIndicesAttrib, 4, VertexAttribIntegerType.UnsignedInt, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                case DXGI_FORMAT.R16G16_SINT:
-                                    GL.VertexAttribIPointer(blendIndicesAttrib, 2, VertexAttribIntegerType.Short, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                case DXGI_FORMAT.R16G16B16A16_SINT:
-                                    GL.VertexAttribIPointer(blendIndicesAttrib, 4, VertexAttribIntegerType.Short, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                default:
-                                    throw new Exception("Unsupported blend indices format " + attribute.Type);
-                            }
-
+                            BindVertexAttrib(attribute, "vBlendIndices", (int)curVertexBuffer.Size);
                             break;
+
                         case "BLENDWEIGHT":
-                            var blendWeightAttrib = GL.GetAttribLocation(shaderProgram, "vBlendWeight");
-                            //Ignore this attribute if it is not found in the shader
-                            if (blendWeightAttrib == -1)
-                            {
-                                break;
-                            }
-
-                            GL.EnableVertexAttribArray(blendWeightAttrib);
-                            switch (attribute.Type)
-                            {
-                                case DXGI_FORMAT.R16G16_UNORM:
-                                    GL.VertexAttribPointer(blendWeightAttrib, 2, VertexAttribPointerType.UnsignedShort, true, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                case DXGI_FORMAT.R8G8B8A8_UINT:
-                                    GL.VertexAttribPointer(blendWeightAttrib, 4, VertexAttribPointerType.UnsignedByte, false, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                                    GL.VertexAttribPointer(blendWeightAttrib, 4, VertexAttribPointerType.UnsignedByte, true, (int)curVertexBuffer.Size, (IntPtr)attribute.Offset);
-                                    break;
-                                default:
-                                    throw new Exception("Unsupported blend weight format " + attribute.Type);
-                            }
-
+                            BindVertexAttrib(attribute, "vBlendWeight", (int)curVertexBuffer.Size);
                             break;
                     }
                 }
@@ -547,6 +438,61 @@ namespace GUI.Types.Renderer
             MinBounds.Y = (float)Convert.ToDouble(minBounds.Properties["1"].Value);
             MaxBounds.Z = (float)Convert.ToDouble(maxBounds.Properties["2"].Value);
             MinBounds.Z = (float)Convert.ToDouble(minBounds.Properties["2"].Value);
+        }
+
+        private void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int stride)
+        {
+            var attributeLocation = GL.GetAttribLocation(shaderProgram, attributeName);
+
+            //Ignore this attribute if it is not found in the shader
+            if (attributeLocation == -1)
+            {
+                return;
+            }
+
+            GL.EnableVertexAttribArray(attributeLocation);
+
+            switch (attribute.Type)
+            {
+                case DXGI_FORMAT.R32G32B32_FLOAT:
+                    GL.VertexAttribPointer(attributeLocation, 3, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R8G8B8A8_UNORM:
+                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R32G32_FLOAT:
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R16G16_FLOAT:
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.HalfFloat, false, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R32G32B32A32_FLOAT:
+                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R8G8B8A8_UINT:
+                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.UnsignedInt, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R16G16_SINT:
+                    GL.VertexAttribIPointer(attributeLocation, 2, VertexAttribIntegerType.Short, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R16G16B16A16_SINT:
+                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.Short, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                case DXGI_FORMAT.R16G16_UNORM:
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, (IntPtr)attribute.Offset);
+                    break;
+
+                default:
+                    throw new Exception("Unknown attribute format " + attribute.Type);
+            }
         }
     }
 }
