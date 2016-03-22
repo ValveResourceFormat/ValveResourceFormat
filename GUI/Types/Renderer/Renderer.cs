@@ -143,20 +143,14 @@ namespace GUI.Types.Renderer
 
         public void CheckOpenGL()
         {
-            var x = new Version(GL.GetString(StringName.Version).Split(' ')[0]);
-            var y = new Version(3, 3, 0, 0);
-
-            if (x < y)
-            {
-                Console.WriteLine("OpenGL {0} or newer required.", y);
-            }
-
             var extensions = GL.GetString(StringName.Extensions).Split(' ');
             if (extensions.Contains("GL_EXT_texture_filter_anisotropic"))
             {
                 MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
-
-                Console.WriteLine("MaxTextureMaxAnisotropy: " + MaxTextureMaxAnisotropy);
+            }
+            else
+            {
+                Console.Error.WriteLine("GL_EXT_texture_filter_anisotropic is not supported");
             }
         }
 
