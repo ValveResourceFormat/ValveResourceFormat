@@ -2,7 +2,7 @@
 
 in vec3 vFragPosition;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
+in vec4 vTangentOut;
 in vec2 vTexCoordOut;
 
 out vec4 outputColor;
@@ -32,11 +32,12 @@ vec3 calculateWorldNormal()
 
     //Get normal and tangent and calculate the final tangent-space axis (bitangent)
     vec3 normal = normalize(vNormalOut);
-    vec3 tangent = normalize(vTangentOut);
-    vec3 bitangent = cross( normal, tangent );
+    vec4 tangent = normalize(vTangentOut);
+    vec3 bitangent = cross( normal, tangent.xyz );
+    bitangent *= tangent.w;
 
     //Make the tangent space matrix
-    mat3 tangentSpace = mat3(tangent, bitangent, normal);
+    mat3 tangentSpace = mat3(tangent.xyz, bitangent, normal);
 
     //Calculate the tangent normal in world space and return it
     return tangentSpace * tangentNormal;
@@ -49,14 +50,17 @@ void main()
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Get the ambient color from the color texture
-    vec3 color = texture2D(colorTexture, vTexCoordOut).rgb;
+    vec4 color = texture2D(colorTexture, vTexCoordOut);
 
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
+    //vec3 worldNormal = DecompressNormal(vNormalOut);
 
     //Calculate the illumination value by taking the dot product
     float illumination = dot(worldNormal, lightDirection);
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color, 1);
+    outputColor = vec4(worldNormal, color.a);
 }
+
+
