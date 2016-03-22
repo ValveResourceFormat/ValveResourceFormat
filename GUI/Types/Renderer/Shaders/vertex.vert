@@ -12,8 +12,11 @@ in ivec4 vBlendIndices;
 in vec4 vBlendWeight;
 
 out vec3 vFragPosition;
+
 out vec3 vNormalOut;
-out vec4 vTangentOut;
+out vec3 vTangentOut;
+out vec3 vBitangentOut;
+
 out vec2 vTexCoordOut;
 
 uniform mat4 projection;
@@ -40,7 +43,7 @@ vec4 DecompressTangent( vec4 inputNormal )
     outputTangent.z    *= ztztSigns.z;                                      // Restore z sign
     outputTangent.w     = ztztSigns.w;                                      // Binormal sign
 
-    return outputTangent;
+    return normalize(outputTangent);
 }
 
 //Decompress a byte4 normal in the 0..255 range to a float3 normal 
@@ -72,9 +75,12 @@ void main()
 #if param_fullTangent == 1
 	vNormalOut = vNormal.xyz;
 	vTangentOut = vTangent;
+	vBitangentOut = cross( normal, tangent );
 #else
-	vNormalOut = DecompressNormal(vNormal).yxz;
-	vTangentOut = DecompressTangent(vNormal).yxzw;
+	vec4 tangent = DecompressTangent(vNormal);
+	vNormalOut = DecompressNormal(vNormal);
+	vTangentOut = tangent.xyz;
+	vBitangentOut = cross( vNormalOut, vTangentOut * tangent.w );
 #endif
 
 	vTexCoordOut = vTexCoord;
