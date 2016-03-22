@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
@@ -23,8 +24,12 @@ namespace GUI.Types.Renderer
 
         private KeyboardState KeyboardState;
 
+        private Stopwatch PreciseTimer;
+
         public Camera(int viewportWidth, int viewportHeight, Vector3 minBounds, Vector3 maxBounds)
         {
+            PreciseTimer = new Stopwatch();
+
             SetViewportSize(viewportWidth, viewportHeight);
 
             Location.Y = (maxBounds.X + minBounds.X) / 2;
@@ -52,7 +57,12 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var speed = KeyboardState.IsKeyDown(Key.ShiftLeft) ? 1.0f : 0.02f;
+            var deltaTime = GetElapsedTime();
+
+            Console.WriteLine(deltaTime);
+
+            var speed = KeyboardState.IsKeyDown(Key.ShiftLeft) ? 1.0f : 0.2f;
+            speed *= deltaTime;
 
             if (KeyboardState.IsKeyDown(Key.W))
             {
@@ -70,14 +80,14 @@ namespace GUI.Types.Renderer
 
             if (KeyboardState.IsKeyDown(Key.D))
             {
-                Location.X -= (float)Math.Cos(Yaw + Math.PI / 2) * speed;
-                Location.Y -= (float)Math.Sin(Yaw + Math.PI / 2) * speed;
+                Location.X -= (float)Math.Cos(Yaw + MathHelper.PiOver2) * speed;
+                Location.Y -= (float)Math.Sin(Yaw + MathHelper.PiOver2) * speed;
             }
 
             if (KeyboardState.IsKeyDown(Key.A))
             {
-                Location.X += (float)Math.Cos(Yaw + Math.PI / 2) * speed;
-                Location.Y += (float)Math.Sin(Yaw + Math.PI / 2) * speed;
+                Location.X += (float)Math.Cos(Yaw + MathHelper.PiOver2) * speed;
+                Location.Y += (float)Math.Sin(Yaw + MathHelper.PiOver2) * speed;
             }
 
             if (KeyboardState.IsKeyDown(Key.Z))
@@ -92,8 +102,8 @@ namespace GUI.Types.Renderer
 
             MouseSpeed.X *= 0.4f;
             MouseSpeed.Y *= 0.4f;
-            MouseSpeed.X -= MouseDelta.X / 200f;
-            MouseSpeed.Y -= MouseDelta.Y / 200f;
+            MouseSpeed.X -= MouseDelta.X / (6000f / deltaTime);
+            MouseSpeed.Y -= MouseDelta.Y / (6000f / deltaTime);
             MouseDelta.X = 0f;
             MouseDelta.Y = 0f;
 
@@ -151,6 +161,16 @@ namespace GUI.Types.Renderer
             {
                 Yaw += MathHelper.TwoPi;
             }
+        }
+
+        private float GetElapsedTime()
+        {
+            var timeslice = PreciseTimer.Elapsed.TotalMilliseconds;
+
+            PreciseTimer.Reset();
+            PreciseTimer.Start();
+
+            return (float)timeslice;
         }
     }
 }
