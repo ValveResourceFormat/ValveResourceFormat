@@ -58,10 +58,7 @@ namespace GUI.Types.Renderer
             }
 
             var deltaTime = GetElapsedTime();
-
-            Console.WriteLine(deltaTime);
-
-            var speed = KeyboardState.IsKeyDown(Key.ShiftLeft) ? 1.0f : 0.2f;
+            var speed = KeyboardState.IsKeyDown(Key.ShiftLeft) ? 0.6f : 0.1f;
             speed *= deltaTime;
 
             if (KeyboardState.IsKeyDown(Key.W))
@@ -100,10 +97,11 @@ namespace GUI.Types.Renderer
                 Location.Z += speed;
             }
 
+            // TODO: Scale all this by detaltime properly, fails awfully at 5000FPS (yes, really)
             MouseSpeed.X *= 0.4f;
             MouseSpeed.Y *= 0.4f;
-            MouseSpeed.X -= MouseDelta.X / (6000f / deltaTime);
-            MouseSpeed.Y -= MouseDelta.Y / (6000f / deltaTime);
+            MouseSpeed.X -= MouseDelta.X / (10000f / deltaTime); // TODO: wtf fix this
+            MouseSpeed.Y -= MouseDelta.Y / (10000f / deltaTime); // TODO: wtf fix this
             MouseDelta.X = 0f;
             MouseDelta.Y = 0f;
 

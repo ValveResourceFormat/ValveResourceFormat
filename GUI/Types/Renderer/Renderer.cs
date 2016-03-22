@@ -100,6 +100,7 @@ namespace GUI.Types.Renderer
         {
             meshControl.MakeCurrent();
             meshControl.SwapBuffers();
+            meshControl.VSync = true;
         }
 
         private void MeshControl_MouseLeave(object sender, EventArgs e)
