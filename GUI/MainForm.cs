@@ -253,11 +253,26 @@ namespace GUI
                             nameTab.Controls.Add(nameControl);
                             resTabs.TabPages.Add(nameTab);
                         }
+
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
                         var ap = new Types.Audio.Player(resource);
                         resTabs.TabPages.Add(soundTab);
+
+                        Invoke((MethodInvoker)delegate
+                        {
+                            exportToolStripButton.Enabled = true;
+
+                            var ts = new ToolStripMenuItem();
+                            ts.Name = "WAV";
+                            ts.Size = new Size(150, 20);
+                            ts.Text = "WAV";
+                            ts.Click += new EventHandler(exportToolStripMenuItem_Click);
+
+                            exportToolStripButton.DropDownItems.Add(ts);
+                        });
+
                         break;
                 }
 
@@ -534,6 +549,12 @@ namespace GUI
         private string NormalizeLineEndings(string input)
         {
             return NewLineRegex.Replace(input, Environment.NewLine);
+        }
+
+        private void exportToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // No idea yet what to do from here
+            Console.WriteLine("Export requested to " + ((ToolStripMenuItem)sender).Text);
         }
     }
 }
