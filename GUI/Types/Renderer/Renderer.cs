@@ -12,6 +12,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Timer = System.Timers.Timer;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace GUI.Types.Renderer
 {
@@ -27,6 +28,7 @@ namespace GUI.Types.Renderer
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
         private readonly BinaryKV3 data;
+        private readonly ArgumentDependencies modelArguments;
         private readonly VBIB block;
 
         private GLControl meshControl;
@@ -75,6 +77,7 @@ namespace GUI.Types.Renderer
             CurrentFileName = fileName;
             block = resource.VBIB;
             data = (BinaryKV3)resource.Blocks[BlockType.DATA];
+            modelArguments = (ArgumentDependencies)((ResourceEditInfo)resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
             tabs = mainTabs;
         }
 
@@ -177,7 +180,7 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Setting up shaders..");
 
-            ShaderLoader.LoadShaders();
+            ShaderLoader.LoadShaders(modelArguments);
             shaderProgram = ShaderLoader.ShaderProgram;
 
             GL.UseProgram(shaderProgram);

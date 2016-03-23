@@ -1,8 +1,6 @@
-﻿#version 330
+﻿//Parameter definitions are added here
 
-//Parameter definitions
-#define param_fulltangent 0
-//End of parameter definitions
+//#version 330 - automatically added before parameter definitions
 
 in vec3 vPosition;
 in vec4 vNormal;
@@ -72,10 +70,10 @@ void main()
 	vFragPosition = vPosition;
 
 	//Unpack normals
-#if param_fullTangent == 1
+#if param_fulltangent == 1
 	vNormalOut = vNormal.xyz;
-	vTangentOut = vTangent;
-	vBitangentOut = cross( normal, tangent );
+	vTangentOut = vTangent.xyz;
+	vBitangentOut = cross( vNormalOut, vTangentOut );
 #else
 	vec4 tangent = DecompressTangent(vNormal);
 	vNormalOut = DecompressNormal(vNormal);

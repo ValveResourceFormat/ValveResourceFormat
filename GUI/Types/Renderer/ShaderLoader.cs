@@ -2,6 +2,8 @@
 using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using System.Collections.Generic;
 
 namespace GUI.Types.Renderer
 {
@@ -9,11 +11,17 @@ namespace GUI.Types.Renderer
     {
         public static int ShaderProgram;
 
-        public static void LoadShaders()
+        //REDI parameters that should be passed to the shader and their default value
+        private static Dictionary<string, object> shaderParameters = new Dictionary<string, object>()
+        {
+            {"fulltangent", 1 }
+        };
+
+        public static void LoadShaders(ArgumentDependencies modelArguments)
         {
             if (ShaderProgram != 0)
             {
-                return;
+                //return;
             }
 
             /* Vertex shader */
@@ -24,7 +32,8 @@ namespace GUI.Types.Renderer
             using (var stream = assembly.GetManifestResourceStream("GUI.Types.Renderer.Shaders.vertex.vert"))
             using (var reader = new StreamReader(stream))
             {
-                GL.ShaderSource(vertexShader, reader.ReadToEnd());
+                var shaderSource = reader.ReadToEnd();
+                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource,modelArguments));
             }
 
             GL.CompileShader(vertexShader);
@@ -86,6 +95,36 @@ namespace GUI.Types.Renderer
 
             GL.DetachShader(ShaderProgram, fragmentShader);
             GL.DeleteShader(fragmentShader);
+        }
+
+        //Preprocess a vertex shader's source to include the #version plus #defines for parameters
+        private static string PreprocessVertexShader(string source, ArgumentDependencies arguments)
+        {
+            //Add all parameters to a dictionary
+            var argumentDict = new Dictionary<string, double>();
+            foreach (var argument in arguments.List)
+            {
+                argumentDict.Add(argument.ParameterName, argument.Fingerprint);
+            }
+
+            //Start the new header to be appended with the version
+            var dependencyHeader = "#version 330\n";
+
+            //For each parameter in shaderParameters add the default value, or an overridden value from the REDI
+            foreach (var argument in shaderParameters)
+            {
+                if (argumentDict.ContainsKey(argument.Key))
+                {
+                    dependencyHeader += $"#define param_{argument.Key} {argumentDict[argument.Key]}\n";
+                }
+                else
+                {
+                    dependencyHeader += $"#define param_{argument.Key} {argument.Value}\n";
+                }
+            }
+
+            //Return header + shader
+            return dependencyHeader + source;
         }
     }
 }

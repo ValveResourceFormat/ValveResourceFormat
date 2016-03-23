@@ -1,9 +1,5 @@
 ﻿#version 330
 
-//Parameter definitions
-#define param_fulltangent 0
-//End of parameter definitions
-
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -32,15 +28,8 @@ vec3 calculateWorldNormal()
     vec4 bumpNormal = texture2D(normalTexture, vTexCoordOut);
 
     //Reconstruct the tangent vector from the map
-#if param_fullTangent == 1    
-    vec3 tangentNormal = normalize(bumpLight1 * bumpNormal.x + bumpLight2 * bumpNormal.y + bumpLight3 * bumpNormal.z);
-    //Invert the x and y of the tangent normal because ???
-    tangentNormal.x *= -1;
-    tangentNormal.y *= -1;
-#else
     vec2 temp = vec2(bumpNormal.y, bumpNormal.w) * 2 - 1;
     vec3 tangentNormal = vec3(temp, 1 - temp.x*temp.x - temp.y*temp.y);
-#endif
 
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
