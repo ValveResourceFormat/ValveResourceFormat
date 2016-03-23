@@ -43,33 +43,9 @@ namespace GUI.Types.Renderer
 
         private int MaxTextureMaxAnisotropy;
 
+        private MaterialLoader MaterialLoader;
+
         private readonly Vector3 LightPosition = new Vector3(0.0f, 0.0f, 0.0f);
-
-        private struct DrawCall
-        {
-            public PrimitiveType PrimitiveType;
-            public uint BaseVertex;
-            public uint VertexCount;
-            public uint StartIndex;
-            public uint IndexCount;
-            public uint InstanceIndex;   //TODO
-            public uint InstanceCount;   //TODO
-            public float UvDensity;     //TODO
-            public string Flags;        //TODO
-            public Vector3 TintColor;   //TODO
-            public string Material;
-            public int MaterialID;
-            public uint VertexArrayObject;
-            public DrawBuffer VertexBuffer;
-            public DrawElementsType IndiceType;
-            public DrawBuffer IndexBuffer;
-        }
-
-        private struct DrawBuffer
-        {
-            public uint Id;
-            public uint Offset;
-        }
 
         public Renderer(Resource resource, TabControl mainTabs, string fileName, Package currentPackage)
         {
@@ -79,6 +55,8 @@ namespace GUI.Types.Renderer
             data = (BinaryKV3)resource.Blocks[BlockType.DATA];
             modelArguments = (ArgumentDependencies)((ResourceEditInfo)resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
             tabs = mainTabs;
+
+            MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
         public Control CreateGL()
@@ -252,16 +230,9 @@ namespace GUI.Types.Renderer
                 drawCall.StartIndex = Convert.ToUInt32(d.Properties["m_nStartIndex"].Value);
                 drawCall.IndexCount = Convert.ToUInt32(d.Properties["m_nIndexCount"].Value);
 
-                drawCall.Material = d.Properties["m_material"].Value.ToString();
+                drawCall.Material = MaterialLoader.GetMaterial(d.Properties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
 
-                if (!MaterialLoader.Materials.ContainsKey(drawCall.Material))
-                {
-                    drawCall.MaterialID = MaterialLoader.LoadMaterial(drawCall.Material, CurrentFileName, CurrentPackage, MaxTextureMaxAnisotropy);
-                }
-                else
-                {
-                    drawCall.MaterialID = MaterialLoader.Materials[drawCall.Material].ColorTextureID;
-                }
+                drawCall.MaterialID = drawCall.Material.TextureIDs["g_tColor"];
 
                 var f = (KVObject)d.Properties["m_indexBuffer"].Value;
 
@@ -338,34 +309,30 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                // Don't do material lookups on error texture
-                if (drawCall.MaterialID != 1)
+                if (drawCall.Material.IntParams.ContainsKey("F_ALPHA_TEST") && drawCall.Material.IntParams["F_ALPHA_TEST"] == 1)
                 {
-                    if (MaterialLoader.Materials[drawCall.Material].IntParams.ContainsKey("F_ALPHA_TEST") && MaterialLoader.Materials[drawCall.Material].IntParams["F_ALPHA_TEST"] == 1)
+                    GL.Enable(EnableCap.AlphaTest);
+
+                    if (drawCall.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
                     {
-                        GL.Enable(EnableCap.AlphaTest);
-
-                        if (MaterialLoader.Materials[drawCall.Material].FloatParams.ContainsKey("g_flAlphaTestReference"))
-                        {
-                            var alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
-                            GL.Uniform1(alphaReference, MaterialLoader.Materials[drawCall.Material].FloatParams["g_flAlphaTestReference"]);
-                        }
+                        var alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
+                        GL.Uniform1(alphaReference, drawCall.Material.FloatParams["g_flAlphaTestReference"]);
                     }
+                }
 
-                    if (MaterialLoader.Materials[drawCall.Material].IntParams.ContainsKey("F_TRANSLUCENT") && MaterialLoader.Materials[drawCall.Material].IntParams["F_TRANSLUCENT"] == 1)
-                    {
-                        GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-                    }
+                if (drawCall.Material.IntParams.ContainsKey("F_TRANSLUCENT") && drawCall.Material.IntParams["F_TRANSLUCENT"] == 1)
+                {
+                    GL.Enable(EnableCap.Blend);
+                    GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                }
 
-                    var colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
-                    GL.Uniform1(colorTextureAttrib, 0);
+                var colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
+                GL.Uniform1(colorTextureAttrib, 0);
 
-                    if (MaterialLoader.Materials[drawCall.Material].OtherTextureIDs.ContainsKey("g_tNormal"))
-                    {
-                        var normalTextureAttrib = GL.GetUniformLocation(shaderProgram, "normalTexture");
-                        GL.Uniform1(normalTextureAttrib, 1);
-                    }
+                if (drawCall.Material.TextureIDs.ContainsKey("g_tNormal"))
+                {
+                    var normalTextureAttrib = GL.GetUniformLocation(shaderProgram, "normalTexture");
+                    GL.Uniform1(normalTextureAttrib, 1);
                 }
 
                 GL.BindVertexArray(0);
@@ -403,14 +370,10 @@ namespace GUI.Types.Renderer
                 GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, call.MaterialID);
 
-                // Don't do material lookups on error texture
-                if (call.MaterialID != 1)
+                if (call.Material.TextureIDs.ContainsKey("g_tNormal"))
                 {
-                    if (MaterialLoader.Materials[call.Material].OtherTextureIDs.ContainsKey("g_tNormal"))
-                    {
-                        GL.ActiveTexture(TextureUnit.Texture1);
-                        GL.BindTexture(TextureTarget.Texture2D, MaterialLoader.Materials[call.Material].OtherTextureIDs["g_tNormal"]);
-                    }
+                    GL.ActiveTexture(TextureUnit.Texture1);
+                    GL.BindTexture(TextureTarget.Texture2D, call.Material.TextureIDs["g_tNormal"]);
                 }
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);

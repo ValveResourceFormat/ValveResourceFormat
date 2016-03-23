@@ -1,0 +1,32 @@
+﻿using System;
+using OpenTK.Graphics.OpenGL;
+using OpenTK;
+
+namespace GUI.Types.Renderer
+{
+    internal struct DrawCall
+    {
+        public PrimitiveType PrimitiveType;
+        public uint BaseVertex;
+        public uint VertexCount;
+        public uint StartIndex;
+        public uint IndexCount;
+        public uint InstanceIndex;   //TODO
+        public uint InstanceCount;   //TODO
+        public float UvDensity;     //TODO
+        public string Flags;        //TODO
+        public Vector3 TintColor;   //TODO
+        public Material Material;
+        public int MaterialID;
+        public uint VertexArrayObject;
+        public DrawBuffer VertexBuffer;
+        public DrawElementsType IndiceType;
+        public DrawBuffer IndexBuffer;
+    }
+
+    internal struct DrawBuffer
+    {
+        public uint Id;
+        public uint Offset;
+    }
+}
