@@ -41,13 +41,13 @@ namespace GUI.Types.Renderer
                 LoadMaterial("materials/debug/debugempty.vmat", currentFileName, null, maxTextureMaxAnisotropy);
             }
 
-            Console.WriteLine("Loading material " + name);
+            Console.WriteLine(">> Loading material " + name);
 
             var resource = new Resource();
 
             if (!FileExtensions.LoadFileByAnyMeansNecessary(resource, name + "_c", currentFileName, currentPackage))
             {
-                Console.WriteLine("File " + name + " not found");
+                Console.Error.WriteLine("File " + name + " not found");
                 return 1;
             }
 
@@ -169,7 +169,7 @@ namespace GUI.Types.Renderer
                     case "g_tTintMask":
                     default:
                         //TODO: Doto textures! Return error texture for now.
-                        Console.WriteLine("Unsupported texture parameter " + textureReference.Key + ", using error texture for now");
+                        Console.Error.WriteLine("Unsupported texture parameter " + textureReference.Key + ", using error texture for now");
                         mat.OtherTextureIDs.Add(textureReference.Key, 1);
                         break;
                 }
@@ -186,13 +186,13 @@ namespace GUI.Types.Renderer
 
             if (!FileExtensions.LoadFileByAnyMeansNecessary(textureResource, name + "_c", currentFileName, currentPackage))
             {
-                Console.WriteLine("File " + name + " not found");
+                Console.Error.WriteLine("File " + name + " not found");
                 return 1;
             }
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
-            Console.WriteLine("     Loading texture " + name + " " + tex.Flags);
+            Console.WriteLine(">> Loading texture " + name + " " + tex.Flags);
 
             var id = GL.GenTexture();
 
@@ -222,8 +222,9 @@ namespace GUI.Types.Renderer
             }
             else if (tex.Format.HasFlag(VTexFormat.RGBA8888))
             {
-                // materials/default/default_fresnelwarprim_tga_d9279d65.vtex has this
-                Console.WriteLine("Don't support RGBA8888 but don't want to crash either. Using error texture!");
+                //blockSize = 4;
+                //format = PixelInternalFormat.Rgba8i;
+                Console.Error.WriteLine("Don't support RGBA8888 but don't want to crash either. Using error texture!");
                 return 1;
             }
             else
@@ -253,10 +254,6 @@ namespace GUI.Types.Renderer
                 Console.WriteLine("Texture only has " + tex.NumMipLevels + " mipmap levels, should probably generate");
             }
 
-            //var bmp = tex.GenerateBitmap();
-            //System.Drawing.Imaging.BitmapData bmp_data = bmp.LockBits(new Rectangle(0, 0, tex.Width, tex.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, bmp_data.Width, bmp_data.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bmp_data.Scan0);
             if (maxTextureMaxAnisotropy > 0)
             {
                 GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, maxTextureMaxAnisotropy);
@@ -264,9 +261,9 @@ namespace GUI.Types.Renderer
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            // bmp.UnlockBits(bmp_data);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)(tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat));
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)(tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat));
+
             return id;
         }
     }
