@@ -146,8 +146,15 @@ namespace GUI.Types.Renderer
 
         public void CheckOpenGL()
         {
-            var extensions = GL.GetString(StringName.Extensions).Split(' ');
-            if (extensions.Contains("GL_EXT_texture_filter_anisotropic"))
+            var extensions = new Dictionary<string, bool>();
+            int count = GL.GetInteger(GetPName.NumExtensions);
+            for (int i = 0; i < count; i++)
+            {
+                string extension = GL.GetString(StringNameIndexed.Extensions, i);
+                extensions.Add(extension, true);
+            }
+
+            if (extensions.ContainsKey("GL_EXT_texture_filter_anisotropic"))
             {
                 MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
             }
@@ -159,14 +166,14 @@ namespace GUI.Types.Renderer
 
         private void MeshControl_Load(object sender, EventArgs e)
         {
-            CheckOpenGL();
-            LoadBoundingBox();
-
             meshControl.MakeCurrent();
 
             Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));
             Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
             Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
+
+            CheckOpenGL();
+            LoadBoundingBox();
 
             GL.Enable(EnableCap.DepthTest);
 
