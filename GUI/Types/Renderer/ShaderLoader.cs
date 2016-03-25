@@ -27,7 +27,7 @@ namespace GUI.Types.Renderer
                 default:
                     //Shader names that are supposed to use this:
                     //vr_simple.vfx
-                    return "vr_standard"; //Default vr_standard for now because that works, replace with more basic one later
+                    return "simple";
             }
         }
 

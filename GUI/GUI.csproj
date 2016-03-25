@@ -169,6 +169,8 @@
     <Compile Include="Types\Renderer\DrawCall.cs" />
     <EmbeddedResource Include="Types\Renderer\Shaders\vr_standard.frag" />
     <EmbeddedResource Include="Types\Renderer\Shaders\vr_standard.vert" />
+    <EmbeddedResource Include="Types\Renderer\Shaders\simple.frag" />
+    <EmbeddedResource Include="Types\Renderer\Shaders\simple.vert" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
