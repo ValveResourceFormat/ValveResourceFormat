@@ -23,14 +23,36 @@ This repository is split into three components:
 - NTRO support
 
 ### Supported resource types
-Type | Reading | Export
------|---------|-------
-vsnd | Yes | WAV, MP3
-vtex | Yes | RGBA8888, RGBA16161616F, DXT1, DXT5, PNG
-vmesh | Yes | Vertex and index buffers, vertex attributes
-vjs | Yes | Yes
-vcss | Yes | Yes
-vxml | Yes | Yes
+Ext      | Name                    | Support
+-------- | ----------------------- | -------
+vanim    | Animation               | No
+vagrp    | Animation Group         | No
+vseq     | Sequence Group          | No
+vpcf     | Particle System         | :+1: NTRO, KV3
+vmat     | Material                | :+1: NTRO
+vmks     | Sheet                   | No
+vmesh    | Mesh                    | Vertex and index buffers, vertex attributes
+vtex     | Compiled Texture        | :+1: RGBA8888, RGBA16161616F, DXT1, DXT5, PNG
+vmdl     | Model                   | Started
+vphys    | Physics Collision Mesh  | No
+vsnd     | Sound                   | :+1: wav, mp3
+vmorf    | MorphSet                | No
+vrman    | ResourceManifest        | No
+vwrld    | World                   | No
+vwnod    | WorldNode               | No
+vvis     | WorldVisibility         | No
+vents    | EntityLump              | No
+vsurf    | Surface Properties      | No
+vsndevts | Sound Event Script      | No
+vsndstck | Sound Stack Script      | No
+vfont    | Bitmap Font             | No
+vrmap    | Resource Remap Table    | No
+vcss     | Panorama Style          | :+1:
+vxml     | Panorama Layout         | :+1:
+vpdi     | Panorama Dynamic Images | No
+vjs      | Panorama Script         | :+1:
+vpsf     | Particle Snapshot       | No
+vmap     | Map                     | No
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
