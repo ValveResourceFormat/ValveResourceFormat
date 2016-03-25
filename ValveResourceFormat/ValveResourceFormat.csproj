@@ -20,7 +20,6 @@
     <ConsolePause>false</ConsolePause>
     <DocumentationFile>bin\Debug\ValveResourceFormat.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     <RunCodeAnalysis>true</RunCodeAnalysis>
     <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
@@ -94,6 +93,13 @@
     <Compile Include="ThirdParty\DDSImage.cs" />
     <Compile Include="Resource\ResourceTypes\Particle.cs" />
     <Compile Include="CompiledShader\CompiledShader.cs" />
+    <Compile Include="ThirdParty\LZMA\ICoder.cs" />
+    <Compile Include="ThirdParty\LZMA\Compress\LZ\LzOutWindow.cs" />
+    <Compile Include="ThirdParty\LZMA\Compress\LZMA\LzmaBase.cs" />
+    <Compile Include="ThirdParty\LZMA\Compress\LZMA\LzmaDecoder.cs" />
+    <Compile Include="ThirdParty\LZMA\Compress\RangeCoder\RangeCoderBit.cs" />
+    <Compile Include="ThirdParty\LZMA\Compress\RangeCoder\RangeCoderBitTree.cs" />
+    <Compile Include="ThirdParty\LZMA\Compress\RangeCoder\RangeCoder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
