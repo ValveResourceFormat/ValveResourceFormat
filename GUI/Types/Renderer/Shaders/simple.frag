@@ -27,7 +27,6 @@ void main()
 
     //Get the world normal for this fragment
     vec3 worldNormal = vNormalOut;
-    //vec3 worldNormal = DecompressNormal(vNormalOut);
 
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);

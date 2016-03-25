@@ -16,11 +16,6 @@ uniform sampler2D normalTexture;
 
 uniform vec3 vLightPosition;
 
-//The lights used to calculate the normal map
-const vec3 bumpLight1 = vec3(sqrt(2.0) / sqrt(3.0), 0.0, 1.0 / sqrt(3.0)); 
-const vec3 bumpLight2 = vec3(-1.0 / sqrt(6.0),  1.0 / sqrt(2.0), 1.0 / sqrt(3.0));
-const vec3 bumpLight3 = vec3(-1.0 / sqrt(6.0), -1.0 / sqrt(2.0), 1.0 / sqrt(3.0));
-
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal() 
 {
@@ -53,7 +48,6 @@ void main()
 
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
-    //vec3 worldNormal = DecompressNormal(vNormalOut);
 
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);

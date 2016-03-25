@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using System.Collections.Generic;
@@ -38,8 +39,11 @@ namespace GUI.Types.Renderer
 
             var assembly = Assembly.GetExecutingAssembly();
 
-            //using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{GetShaderFileByName(shaderName)}.vert", FileMode.Open)) //<-- reloading at runtime
+#if DEBUG
+            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{GetShaderFileByName(shaderName)}.vert", FileMode.Open)) //<-- reloading at runtime
+#else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{GetShaderFileByName(shaderName)}.vert"))
+#endif
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
@@ -62,8 +66,11 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-            //using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.','/')}{GetShaderFileByName(shaderName)}.frag", FileMode.Open)) //<-- reloading at runtime
+#if DEBUG
+            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.','/')}{GetShaderFileByName(shaderName)}.frag", FileMode.Open)) //<-- reloading at runtime
+#else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{GetShaderFileByName(shaderName)}.frag"))
+#endif
             using (var reader = new StreamReader(stream))
             {
                 GL.ShaderSource(fragmentShader, reader.ReadToEnd());
@@ -115,31 +122,72 @@ namespace GUI.Types.Renderer
         //Preprocess a vertex shader's source to include the #version plus #defines for parameters
         private static string PreprocessVertexShader(string source, ArgumentDependencies arguments)
         {
+            //Update parameter defines
+            string paramSource = UpdateDefines(source, arguments);
+
+            //Inject code into shader based on #includes
+            string includedSource = ResolveIncludes(paramSource);
+
+            return includedSource;
+        }
+
+        //Update default defines with possible overrides from the model
+        private static string UpdateDefines(string source, ArgumentDependencies arguments)
+        {
             //Add all parameters to a dictionary
-            var argumentDict = new Dictionary<string, double>();
+            var argumentDict = new Dictionary<string, uint>();
             foreach (var argument in arguments.List)
             {
                 argumentDict.Add(argument.ParameterName, argument.Fingerprint);
             }
 
-            //Start the new header to be appended with the version
-            var dependencyHeader = "#version 330\n";
-
-            //For each parameter in shaderParameters add the default value, or an overridden value from the REDI
-            foreach (var argument in shaderParameters)
+            //Find all #define param_(paramName) (paramValue) using regex
+            var defines = Regex.Matches(source, @"#define param_(\S*?) (\S*?)\s*?\n");
+            foreach (Match define in defines)
             {
-                if (argumentDict.ContainsKey(argument.Key))
+                //Check if this parameter is in the arguments
+                if (argumentDict.ContainsKey(define.Groups[1].Value))
                 {
-                    dependencyHeader += $"#define param_{argument.Key} {argumentDict[argument.Key]}\n";
-                }
-                else
-                {
-                    dependencyHeader += $"#define param_{argument.Key} {argument.Value}\n";
+                    //Overwrite default value
+                    int index = define.Groups[2].Index;
+                    int length = define.Groups[2].Length;
+                    source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, argumentDict[define.Groups[1].Value].ToString());
                 }
             }
 
-            //Return header + shader
-            return dependencyHeader + source;
+            return source;
+        }
+
+        //Remove any #includes from the shader and replace with the included code
+        private static string ResolveIncludes(string source)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+
+            var includes = Regex.Matches(source, @"#include ""(\S*?)""\s*?\n");
+
+            foreach (Match define in includes)
+            {
+                //Read included code
+#if DEBUG
+                using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{define.Groups[1].Value}", FileMode.Open)) //<-- reloading at runtime
+#else
+                using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups[1].Value}"))
+#endif
+                using (var reader = new StreamReader(stream))
+                {
+                    var includedCode = reader.ReadToEnd();
+
+                    //Recursively resolve includes in the included code. (Watch out for cyclic dependencies!)
+                    includedCode = ResolveIncludes(includedCode);
+
+                    //Replace the include with the code
+                    int index = define.Index;
+                    int length = define.Length;
+                    source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, includedCode);
+                }
+            }
+
+            return source;
         }
     }
 }
