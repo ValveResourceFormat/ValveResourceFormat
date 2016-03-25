@@ -93,7 +93,10 @@ namespace ValveResourceFormat
             Console.WriteLine("File identifier: {0}", BitConverter.ToString(fileIdentifier));
             Console.WriteLine("Static identifier: {0}", BitConverter.ToString(staticIdentifier));
 
+            // 2
             var count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
@@ -112,6 +115,75 @@ namespace ValveResourceFormat
 
                 Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
             }
+
+            // 3
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            for (var i = 0; i < count; i++)
+            {
+                Reader.BaseStream.Position += 118 * 4;
+            }
+
+            // 4
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            for (var i = 0; i < count; i++)
+            {
+                var previousPosition = Reader.BaseStream.Position;
+
+                var name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                Reader.BaseStream.Position = previousPosition + 128;
+
+                var a = Reader.ReadInt32();
+                var b = Reader.ReadInt32();
+                var c = Reader.ReadInt32();
+                var d = Reader.ReadInt32();
+                var e = Reader.ReadInt32();
+                var f = Reader.ReadInt32();
+
+                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
+            }
+
+            // 5
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            for (var i = 0; i < count; i++)
+            {
+                Reader.BaseStream.Position += 118 * 4;
+            }
+
+            // 6
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            for (var i = 0; i < count; i++)
+            {
+                var previousPosition = Reader.BaseStream.Position;
+
+                var name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                Reader.BaseStream.Position = previousPosition + 200; // ??
+
+                var type = Reader.ReadInt32();
+                var b = Reader.ReadInt32();
+
+                Reader.BaseStream.Position = previousPosition + 480; // wrong
+
+                Console.WriteLine($"{type} {b} {name}");
+            }
+
+            // 7
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             //ReadShaderChunk();
         }
