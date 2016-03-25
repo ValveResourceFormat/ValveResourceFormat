@@ -177,7 +177,7 @@ namespace ValveResourceFormat
 
             Reader = new BinaryReader(input);
 
-            if (Reader.ReadUInt32() != Package.MAGIC)
+            if (Reader.ReadUInt32() != MAGIC)
             {
                 throw new InvalidDataException("Given file is not a VPK.");
             }

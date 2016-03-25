@@ -131,6 +131,18 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
+        /// Opens and reads the given filename.
+        /// The file is held open until the object is disposed.
+        /// </summary>
+        /// <param name="filename">The file to open and read.</param>
+        public void Read(string filename)
+        {
+            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+            Read(FileStream);
+        }
+
+        /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
@@ -143,6 +155,11 @@ namespace ValveResourceFormat
             if (FileSize == Package.MAGIC)
             {
                 throw new InvalidDataException("Use Package() class to parse VPK files.");
+            }
+
+            if (FileSize == CompiledShader.MAGIC)
+            {
+                throw new InvalidDataException("Use CompiledShader() class to parse compiled shader files.");
             }
 
             // TODO: Some real files seem to have different file size
@@ -216,17 +233,6 @@ namespace ValveResourceFormat
 
                 Reader.BaseStream.Position = position + 8;
             }
-        }
-
-        /// <summary>
-        /// Opens and reads the given filename.
-        /// </summary>
-        /// <param name="filename">The file to open and read.</param>
-        public void Read(string filename)
-        {
-            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-
-            Read(FileStream);
         }
 
         private Block ConstructFromType(string input)

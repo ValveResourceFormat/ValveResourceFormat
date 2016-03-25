@@ -107,9 +107,18 @@ namespace Decompiler
 
         private static void ProcessFile(string path)
         {
-            if (Path.GetExtension(path) == ".vpk")
+            var extension = Path.GetExtension(path);
+
+            if (extension == ".vpk")
             {
                 ParseVPK(path);
+
+                return;
+            }
+
+            if (extension == ".vcs")
+            {
+                ParseVCS(path);
 
                 return;
             }
@@ -358,6 +367,34 @@ namespace Decompiler
                     Console.WriteLine(block.Value);
                 }
             }
+        }
+
+        private static void ParseVCS(string path)
+        {
+            lock (ConsoleWriterLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("--- Loading shader file \"{0}\" ---", path);
+                Console.ResetColor();
+            }
+
+            var shader = new CompiledShader();
+
+            try
+            {
+                shader.Read(path);
+            }
+            catch (Exception e)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
+            }
+
+            shader.Dispose();
         }
 
         private static void ParseVPK(string path)

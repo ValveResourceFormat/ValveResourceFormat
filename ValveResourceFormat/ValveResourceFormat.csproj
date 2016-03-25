@@ -93,6 +93,7 @@
     <Compile Include="Resource\Enums\VTexExtraData.cs" />
     <Compile Include="ThirdParty\DDSImage.cs" />
     <Compile Include="Resource\ResourceTypes\Particle.cs" />
+    <Compile Include="CompiledShader\CompiledShader.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -105,4 +106,7 @@
     <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\StyleCop.Analyzers.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Folder Include="CompiledShader\" />
+  </ItemGroup>
 </Project>
