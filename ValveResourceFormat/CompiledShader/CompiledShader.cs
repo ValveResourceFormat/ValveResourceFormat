@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace ValveResourceFormat
 {
@@ -53,10 +54,69 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("Given file is not a vcs2.");
             }
 
-            ReadShaderChunk();
+            // This is static across all files, is it version?
+            if (Reader.ReadUInt32() != 0x0000003E)
+            {
+                throw new InvalidDataException("Not 3E.");
+            }
+
+            var wtf = Reader.ReadUInt32();
+
+            // TODO: Odd assumption, features.vcs seems to have this
+            if (wtf < 100)
+            {
+                Console.WriteLine("wtf: {0}", wtf);
+                ReadFeatures();
+            }
+            else
+            {
+                Reader.BaseStream.Position -= 4;
+                ReadShader();
+            }
         }
 
-        public void ReadShaderChunk()
+        private void ReadFeatures()
+        {
+            var name = Encoding.UTF8.GetString(Reader.ReadBytes(Reader.ReadInt32()));
+
+            Console.WriteLine("Name: {0}", name);
+        }
+
+        private void ReadShader()
+        {
+            var fileIdentifier = Reader.ReadBytes(16);
+
+            // This appears to always be CD B1 D4 A1 82 20 D5 E2 D5 A3 78 2E C8 0F D7 7C 0E 00 00 00
+            // Including aperture robot repair and dota 2
+            var staticIdentifier = Reader.ReadBytes(20);
+
+            Console.WriteLine("File identifier: {0}", BitConverter.ToString(fileIdentifier));
+            Console.WriteLine("Static identifier: {0}", BitConverter.ToString(staticIdentifier));
+
+            var count = Reader.ReadUInt32();
+
+            for (var i = 0; i < count; i++)
+            {
+                var previousPosition = Reader.BaseStream.Position;
+
+                var name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                Reader.BaseStream.Position = previousPosition + 128;
+
+                var a = Reader.ReadInt32();
+                var b = Reader.ReadInt32();
+                var c = Reader.ReadInt32();
+                var d = Reader.ReadInt32();
+                var e = Reader.ReadInt32();
+                var f = Reader.ReadInt32();
+
+                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
+            }
+
+            //ReadShaderChunk();
+        }
+
+        private void ReadShaderChunk()
         {
             // Steam\steamapps\common\dota 2 beta\game\dota\shaders\vfx\hero_pc_40_ps.vcs
             Reader.BaseStream.Position = 90272; // Offset to number of LZMA chunks
