@@ -23,8 +23,6 @@ namespace GUI.Types.Renderer
         private uint[] vertexBuffers;
         private uint[] indexBuffers;
 
-        private int shaderProgram;
-
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
         private readonly BinaryKV3 data;
@@ -102,8 +100,6 @@ namespace GUI.Types.Renderer
             }
 
             ActiveCamera.SetViewportSize(tabs.Width, tabs.Height);
-            var transformLoc = GL.GetUniformLocation(shaderProgram, "projection");
-            GL.UniformMatrix4(transformLoc, false, ref ActiveCamera.ProjectionMatrix);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             meshControl.SwapBuffers();
         }
@@ -162,18 +158,6 @@ namespace GUI.Types.Renderer
             InitializeInputTick();
 
             ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
-
-            Console.WriteLine("Setting up shaders..");
-
-            ShaderLoader.LoadShaders(modelArguments);
-            shaderProgram = ShaderLoader.ShaderProgram;
-
-            GL.UseProgram(shaderProgram);
-
-            GL.ValidateProgram(shaderProgram);
-
-            var transformLoc = GL.GetUniformLocation(shaderProgram, "projection");
-            GL.UniformMatrix4(transformLoc, false, ref ActiveCamera.ProjectionMatrix);
 
             Console.WriteLine("Setting up buffers..");
 
@@ -234,6 +218,12 @@ namespace GUI.Types.Renderer
 
                 drawCall.MaterialID = drawCall.Material.TextureIDs["g_tColor"];
 
+                // Load shader
+                drawCall.Shader = ShaderLoader.LoadShaders(drawCall.Material.ShaderName, modelArguments);
+
+                //Bind and validate shader
+                GL.UseProgram(drawCall.Shader);
+
                 var f = (KVObject)d.Properties["m_indexBuffer"].Value;
 
                 var indexBuffer = default(DrawBuffer);
@@ -277,11 +267,11 @@ namespace GUI.Types.Renderer
                     switch (attribute.Name)
                     {
                         case "POSITION":
-                            BindVertexAttrib(attribute, "vPosition", (int)curVertexBuffer.Size);
+                            BindVertexAttrib(attribute, "vPosition", drawCall.Shader, (int)curVertexBuffer.Size);
                             break;
 
                         case "NORMAL":
-                            BindVertexAttrib(attribute, "vNormal", (int)curVertexBuffer.Size);
+                            BindVertexAttrib(attribute, "vNormal", drawCall.Shader, (int)curVertexBuffer.Size);
                             break;
 
                         case "TEXCOORD":
@@ -291,20 +281,20 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            BindVertexAttrib(attribute, "vTexCoord", (int)curVertexBuffer.Size);
+                            BindVertexAttrib(attribute, "vTexCoord", drawCall.Shader, (int)curVertexBuffer.Size);
 
                             texcoordSet = true;
                             break;
                         case "TANGENT":
-                            BindVertexAttrib(attribute, "vTangent", (int)curVertexBuffer.Size);
+                            BindVertexAttrib(attribute, "vTangent", drawCall.Shader, (int)curVertexBuffer.Size);
                             break;
 
                         case "BLENDINDICES":
-                            BindVertexAttrib(attribute, "vBlendIndices", (int)curVertexBuffer.Size);
+                            BindVertexAttrib(attribute, "vBlendIndices", drawCall.Shader, (int)curVertexBuffer.Size);
                             break;
 
                         case "BLENDWEIGHT":
-                            BindVertexAttrib(attribute, "vBlendWeight", (int)curVertexBuffer.Size);
+                            BindVertexAttrib(attribute, "vBlendWeight", drawCall.Shader, (int)curVertexBuffer.Size);
                             break;
                     }
                 }
@@ -315,7 +305,7 @@ namespace GUI.Types.Renderer
 
                     if (drawCall.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
                     {
-                        var alphaReference = GL.GetUniformLocation(shaderProgram, "alphaReference");
+                        var alphaReference = GL.GetUniformLocation(drawCall.Shader, "alphaReference");
                         GL.Uniform1(alphaReference, drawCall.Material.FloatParams["g_flAlphaTestReference"]);
                     }
                 }
@@ -326,23 +316,11 @@ namespace GUI.Types.Renderer
                     GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
                 }
 
-                var colorTextureAttrib = GL.GetUniformLocation(shaderProgram, "colorTexture");
-                GL.Uniform1(colorTextureAttrib, 0);
-
-                if (drawCall.Material.TextureIDs.ContainsKey("g_tNormal"))
-                {
-                    var normalTextureAttrib = GL.GetUniformLocation(shaderProgram, "normalTexture");
-                    GL.Uniform1(normalTextureAttrib, 1);
-                }
-
                 GL.BindVertexArray(0);
                 GL.EnableVertexAttribArray(drawCall.VertexArrayObject);
 
                 drawCalls.Add(drawCall);
             }
-
-            var projectionLoc = GL.GetUniformLocation(shaderProgram, "projection");
-            GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
 
             Loaded = true;
         }
@@ -356,24 +334,39 @@ namespace GUI.Types.Renderer
 
             ActiveCamera.Tick();
 
-            var modelviewLoc = GL.GetUniformLocation(shaderProgram, "modelview");
-            GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
-
-            var lightPosAttrib = GL.GetUniformLocation(shaderProgram, "vLightPosition");
-            GL.Uniform3(lightPosAttrib, ActiveCamera.Location);
-
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             foreach (var call in drawCalls)
             {
+                //Bind shader
+                GL.UseProgram(call.Shader);
+
+                //Set shader uniforms
+                var transformLoc = GL.GetUniformLocation(call.Shader, "projection");
+                GL.UniformMatrix4(transformLoc, false, ref ActiveCamera.ProjectionMatrix);
+
+                var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
+                GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
+
+                var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
+                GL.Uniform3(lightPosAttrib, ActiveCamera.Location);
+
+                //Bind VAO
                 GL.BindVertexArray(call.VertexArrayObject);
 
+                //Set shader texture samplers
+                //Color texture
                 GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, call.MaterialID);
+                var colorTextureAttrib = GL.GetUniformLocation(call.Shader, "colorTexture");
+                GL.Uniform1(colorTextureAttrib, 0);
 
+                //Normal texture if it exists
                 if (call.Material.TextureIDs.ContainsKey("g_tNormal"))
                 {
                     GL.ActiveTexture(TextureUnit.Texture1);
                     GL.BindTexture(TextureTarget.Texture2D, call.Material.TextureIDs["g_tNormal"]);
+                    var normalTextureAttrib = GL.GetUniformLocation(call.Shader, "normalTexture");
+                    GL.Uniform1(normalTextureAttrib, 1);
                 }
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
@@ -408,7 +401,7 @@ namespace GUI.Types.Renderer
             MinBounds.Z = (float)Convert.ToDouble(minBounds.Properties["2"].Value);
         }
 
-        private void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int stride)
+        private void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int shaderProgram, int stride)
         {
             var attributeLocation = GL.GetAttribLocation(shaderProgram, attributeName);
 

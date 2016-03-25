@@ -7,6 +7,7 @@ namespace GUI.Types.Renderer
     internal struct DrawCall
     {
         public PrimitiveType PrimitiveType;
+        public int Shader;
         public uint BaseVertex;
         public uint VertexCount;
         public uint StartIndex;

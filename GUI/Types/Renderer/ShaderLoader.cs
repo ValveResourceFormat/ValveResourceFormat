@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
 {
     internal class ShaderLoader
     {
-        public static int ShaderProgram;
+        private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
         //REDI parameters that should be passed to the shader and their default value
         private static Dictionary<string, object> shaderParameters = new Dictionary<string, object>()
@@ -17,23 +17,33 @@ namespace GUI.Types.Renderer
             {"fulltangent", 1 }
         };
 
-        public static void LoadShaders(ArgumentDependencies modelArguments)
+        //Map shader names to shader files
+        public static string GetShaderFileByName(string shaderName)
         {
-            if (ShaderProgram != 0)
+            switch (shaderName)
             {
-                //return;
+                case "vr_standard.vfx":
+                    return "vr_standard";
+                default:
+                    //Shader names that are supposed to use this:
+                    //vr_simple.vfx
+                    return "vr_standard"; //Default vr_standard for now because that works, replace with more basic one later
             }
+        }
 
+        public static int LoadShaders(string shaderName, ArgumentDependencies modelArguments)
+        {
             /* Vertex shader */
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
 
             var assembly = Assembly.GetExecutingAssembly();
 
-            using (var stream = assembly.GetManifestResourceStream("GUI.Types.Renderer.Shaders.vertex.vert"))
+            //using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{GetShaderFileByName(shaderName)}.vert", FileMode.Open)) //<-- reloading at runtime
+            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{GetShaderFileByName(shaderName)}.vert"))
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource,modelArguments));
+                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, modelArguments));
             }
 
             GL.CompileShader(vertexShader);
@@ -52,7 +62,8 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-            using (var stream = assembly.GetManifestResourceStream("GUI.Types.Renderer.Shaders.fragment.frag"))
+            //using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.','/')}{GetShaderFileByName(shaderName)}.frag", FileMode.Open)) //<-- reloading at runtime
+            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{GetShaderFileByName(shaderName)}.frag"))
             using (var reader = new StreamReader(stream))
             {
                 GL.ShaderSource(fragmentShader, reader.ReadToEnd());
@@ -70,31 +81,35 @@ namespace GUI.Types.Renderer
             }
             Console.WriteLine("Fragment shader compiled succesfully.");
 
-            ShaderProgram = GL.CreateProgram();
-            GL.AttachShader(ShaderProgram, vertexShader);
-            GL.AttachShader(ShaderProgram, fragmentShader);
+            int shaderProgram = GL.CreateProgram();
+            GL.AttachShader(shaderProgram, vertexShader);
+            GL.AttachShader(shaderProgram, fragmentShader);
 
-            GL.LinkProgram(ShaderProgram);
+            GL.LinkProgram(shaderProgram);
 
-            var programInfoLog = GL.GetProgramInfoLog(ShaderProgram);
+            var programInfoLog = GL.GetProgramInfoLog(shaderProgram);
             Console.Write(programInfoLog);
 
             int linkStatus;
-            GL.GetProgram(ShaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
+            GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
 
             if (linkStatus != 1)
             {
                 string linkInfo;
-                GL.GetProgramInfoLog(ShaderProgram, out linkInfo);
+                GL.GetProgramInfoLog(shaderProgram, out linkInfo);
                 throw new Exception("Error linking shaders: " + linkInfo);
             }
             Console.WriteLine("Shaders linked succesfully.");
 
-            GL.DetachShader(ShaderProgram, vertexShader);
+            GL.DetachShader(shaderProgram, vertexShader);
             GL.DeleteShader(vertexShader);
 
-            GL.DetachShader(ShaderProgram, fragmentShader);
+            GL.DetachShader(shaderProgram, fragmentShader);
             GL.DeleteShader(fragmentShader);
+
+            GL.ValidateProgram(shaderProgram);
+
+            return shaderProgram;
         }
 
         //Preprocess a vertex shader's source to include the #version plus #defines for parameters
