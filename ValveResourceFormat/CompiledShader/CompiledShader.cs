@@ -47,11 +47,7 @@ namespace ValveResourceFormat
         {
             Reader = new BinaryReader(input);
 
-            var test = Reader.ReadUInt32();
-            Console.WriteLine(test);
-            Console.WriteLine(MAGIC);
-
-            if (test != MAGIC)
+            if (Reader.ReadUInt32() != MAGIC)
             {
                 throw new InvalidDataException("Given file is not a vcs2.");
             }
