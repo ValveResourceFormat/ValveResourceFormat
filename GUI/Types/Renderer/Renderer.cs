@@ -20,9 +20,6 @@ namespace GUI.Types.Renderer
     {
         private bool Loaded;
 
-        private uint[] vertexBuffers;
-        private uint[] indexBuffers;
-
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
         private readonly BinaryKV3 data;
@@ -161,8 +158,8 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Setting up buffers..");
 
-            vertexBuffers = new uint[block.VertexBuffers.Count];
-            indexBuffers = new uint[block.IndexBuffers.Count];
+            var vertexBuffers = new uint[block.VertexBuffers.Count];
+            var indexBuffers = new uint[block.IndexBuffers.Count];
 
             GL.GenBuffers(block.VertexBuffers.Count, vertexBuffers);
             GL.GenBuffers(block.IndexBuffers.Count, indexBuffers);
