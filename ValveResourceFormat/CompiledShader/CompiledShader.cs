@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace ValveResourceFormat
@@ -58,35 +59,53 @@ namespace ValveResourceFormat
         public void ReadShaderChunk()
         {
             // Steam\steamapps\common\dota 2 beta\game\dota\shaders\vfx\hero_pc_40_ps.vcs
-            Reader.BaseStream.Position = 314629;
+            Reader.BaseStream.Position = 90272; // Offset to number of LZMA chunks
+            var lzmaCount = Reader.ReadUInt32();
 
-            var chunkSize = Reader.ReadUInt32();
+            Reader.BaseStream.Position = 237892; // Start of offsets
+            var lzmaOffsets = new uint[lzmaCount];
 
-            if (Reader.ReadUInt32() != 0x414D5A4C)
+            for (int i = 0; i < lzmaCount; i++)
             {
-                throw new InvalidDataException("Not LZMA?");
+                lzmaOffsets[i] = Reader.ReadUInt32();
             }
 
-            var uncompressedSize = Reader.ReadUInt32();
-            var compressedSize = Reader.ReadUInt32();
-
-            Console.WriteLine("Chunk size: {0}", chunkSize);
-            Console.WriteLine("Compressed size: {0}", compressedSize);
-            Console.WriteLine("Uncompressed size: {0} ({1:P2} compression)", uncompressedSize, (uncompressedSize - compressedSize) / (double)uncompressedSize);
-
-            var decoder = new SevenZip.Compression.LZMA.Decoder();
-            decoder.SetDecoderProperties(Reader.ReadBytes(5));
-
-            var compressedBuffer = Reader.ReadBytes((int)compressedSize);
-
-            using (var inputStream = new MemoryStream(compressedBuffer))
-            using (var outStream = new MemoryStream((int)uncompressedSize))
+            // Yes, well aware that I can do reading of offsets and parsing in one go, but this is super temp
+            for (int i = 0; i < lzmaCount; i++)
             {
-                decoder.Code(inputStream, outStream, compressedBuffer.Length, uncompressedSize, null);
+                Reader.BaseStream.Position = lzmaOffsets[i];
 
-                var outData = outStream.ToArray();
+                var chunkSize = Reader.ReadUInt32();
 
-                File.WriteAllBytes(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "shader_out.bin"), outData);
+                if (Reader.ReadUInt32() != 0x414D5A4C)
+                {
+                    throw new InvalidDataException("Not LZMA?");
+                }
+
+                var uncompressedSize = Reader.ReadUInt32();
+                var compressedSize = Reader.ReadUInt32();
+
+                Console.WriteLine("Chunk size: {0}", chunkSize);
+                Console.WriteLine("Compressed size: {0}", compressedSize);
+                Console.WriteLine("Uncompressed size: {0} ({1:P2} compression)", uncompressedSize, (uncompressedSize - compressedSize) / (double)uncompressedSize);
+
+                var decoder = new SevenZip.Compression.LZMA.Decoder();
+                decoder.SetDecoderProperties(Reader.ReadBytes(5));
+
+                var compressedBuffer = Reader.ReadBytes((int)compressedSize);
+
+                using (var inputStream = new MemoryStream(compressedBuffer))
+                using (var outStream = new MemoryStream((int)uncompressedSize))
+                {
+                    decoder.Code(inputStream, outStream, compressedBuffer.Length, uncompressedSize, null);
+
+                    var outData = outStream.ToArray();
+                    // Let's not dump all shaders to desktop shall we
+                    if (i == 1)
+                    {
+                        File.WriteAllBytes(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "shader_out_" + i + ".bin"), outData);
+                    }
+                }
             }
         }
     }
