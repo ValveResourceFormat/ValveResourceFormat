@@ -12,12 +12,6 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
-        //REDI parameters that should be passed to the shader and their default value
-        private static Dictionary<string, object> shaderParameters = new Dictionary<string, object>()
-        {
-            {"fulltangent", 1 }
-        };
-
         //Map shader names to shader files
         public static string GetShaderFileByName(string shaderName)
         {
@@ -25,7 +19,10 @@ namespace GUI.Types.Renderer
             {
                 case "vr_standard.vfx":
                     return "vr_standard";
+                case "hero.vfx":
+                    return "dota_hero";
                 default:
+                    Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
                     //Shader names that are supposed to use this:
                     //vr_simple.vfx
                     return "simple";

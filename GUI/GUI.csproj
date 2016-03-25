@@ -172,6 +172,8 @@
     <EmbeddedResource Include="Types\Renderer\Shaders\simple.frag" />
     <EmbeddedResource Include="Types\Renderer\Shaders\simple.vert" />
     <EmbeddedResource Include="Types\Renderer\Shaders\compression.incl" />
+    <None Include="Types\Renderer\Shaders\dota_hero.frag" />
+    <None Include="Types\Renderer\Shaders\dota_hero.vert" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

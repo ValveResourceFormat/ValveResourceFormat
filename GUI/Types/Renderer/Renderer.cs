@@ -352,18 +352,24 @@ namespace GUI.Types.Renderer
 
                 //Set shader texture samplers
                 //Color texture
-                GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(TextureTarget.Texture2D, call.MaterialID);
-                var colorTextureAttrib = GL.GetUniformLocation(call.Shader, "colorTexture");
-                GL.Uniform1(colorTextureAttrib, 0);
+                TryToBindTexture(call.Shader, 0, "colorTexture", call.MaterialID);
 
-                //Normal texture if it exists
                 if (call.Material.TextureIDs.ContainsKey("g_tNormal"))
                 {
-                    GL.ActiveTexture(TextureUnit.Texture1);
-                    GL.BindTexture(TextureTarget.Texture2D, call.Material.TextureIDs["g_tNormal"]);
-                    var normalTextureAttrib = GL.GetUniformLocation(call.Shader, "normalTexture");
-                    GL.Uniform1(normalTextureAttrib, 1);
+                    //Bind normal texture
+                    TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureIDs["g_tNormal"]);
+                }
+
+                if (call.Material.TextureIDs.ContainsKey("g_tMask1"))
+                {
+                    //Bind normal texture
+                    TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMask1"]);
+                }
+
+                if (call.Material.TextureIDs.ContainsKey("g_tMask2"))
+                {
+                    //Bind normal texture
+                    TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMask2"]);
                 }
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
@@ -381,6 +387,25 @@ namespace GUI.Types.Renderer
 
             meshControl.SwapBuffers();
             meshControl.Invalidate();
+        }
+
+        private void TryToBindTexture(int shader, int textureUnit, string uniform, int textureID)
+        {
+            //Get uniform location from the shader
+            var uniformLocation = GL.GetUniformLocation(shader, uniform);
+
+            //Stop if the uniform loction does not exist
+            if (uniformLocation == -1)
+            {
+                return;
+            }
+
+            //Bind texture unit and texture
+            GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
+
+            //Set uniform location
+            GL.Uniform1(uniformLocation, textureUnit);
         }
 
         private void LoadBoundingBox()
