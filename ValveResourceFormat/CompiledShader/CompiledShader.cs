@@ -51,6 +51,43 @@ namespace ValveResourceFormat
             {
                 throw new InvalidDataException("Given file is not a vcs2.");
             }
+
+            ReadShaderChunk();
+        }
+
+        public void ReadShaderChunk()
+        {
+            // Steam\steamapps\common\dota 2 beta\game\dota\shaders\vfx\hero_pc_40_ps.vcs
+            Reader.BaseStream.Position = 314629;
+
+            var chunkSize = Reader.ReadUInt32();
+
+            if (Reader.ReadUInt32() != 0x414D5A4C)
+            {
+                throw new InvalidDataException("Not LZMA?");
+            }
+
+            var uncompressedSize = Reader.ReadUInt32();
+            var compressedSize = Reader.ReadUInt32();
+
+            Console.WriteLine("Chunk size: {0}", chunkSize);
+            Console.WriteLine("Compressed size: {0}", compressedSize);
+            Console.WriteLine("Uncompressed size: {0} ({1:P2} compression)", uncompressedSize, (uncompressedSize - compressedSize) / (double)uncompressedSize);
+
+            var decoder = new SevenZip.Compression.LZMA.Decoder();
+            decoder.SetDecoderProperties(Reader.ReadBytes(5));
+
+            var compressedBuffer = Reader.ReadBytes((int)compressedSize);
+
+            using (var inputStream = new MemoryStream(compressedBuffer))
+            using (var outStream = new MemoryStream((int)uncompressedSize))
+            {
+                decoder.Code(inputStream, outStream, compressedBuffer.Length, uncompressedSize, null);
+
+                var outData = outStream.ToArray();
+
+                File.WriteAllBytes(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "shader_out.bin"), outData);
+            }
         }
     }
 }
