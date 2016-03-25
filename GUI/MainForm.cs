@@ -341,7 +341,25 @@ namespace GUI
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
                     try
                     {
-                        control.Text = NormalizeLineEndings(block.Value.ToString());
+                        if (block.Key == BlockType.DATA)
+                        {
+                            switch (resource.ResourceType)
+                            {
+                                case ResourceType.Particle:
+                                case ResourceType.Mesh:
+                                    //Wrap it around a KV3File object to get the header.
+                                    control.Text = NormalizeLineEndings(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)block.Value).Data).ToString());
+                                    break;
+                                default:
+                                    control.Text = NormalizeLineEndings(block.Value.ToString());
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            control.Text = NormalizeLineEndings(block.Value.ToString());
+                        }
+                        
                     }
                     catch (Exception e)
                     {

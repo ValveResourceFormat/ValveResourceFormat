@@ -246,9 +246,14 @@ namespace Decompiler
                             }
 
                             break;
+                        case ResourceType.Particle:
+                        case ResourceType.Mesh:
+                            //Wrap it around a KV3File object to get the header.
+                            data = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
+                            break;
+
                         //These all just use ToString() and WriteText() to do the job
                         case ResourceType.SoundEventScript:
-                        case ResourceType.Particle:
                             data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
                             break;
 
