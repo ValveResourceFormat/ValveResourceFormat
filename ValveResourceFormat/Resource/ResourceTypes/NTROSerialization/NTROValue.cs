@@ -38,6 +38,12 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             if (Value == null)
             {
+                if (Type == DataType.ExternalReference)
+                {
+                    writer.WriteLine("ID: {0:X16}", 0);
+                    return;
+                }
+
                 writer.WriteLine("NULL");
                 return;
             }
