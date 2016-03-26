@@ -175,7 +175,14 @@ namespace ValveResourceFormat
                 var type = Reader.ReadInt32();
                 var b = Reader.ReadInt32();
 
-                Reader.BaseStream.Position = previousPosition + 480; // wrong
+                if (b > -1 && type != 0)
+                {
+                    Reader.BaseStream.Position = previousPosition + 480 + b + 4;
+                }
+                else
+                {
+                    Reader.BaseStream.Position = previousPosition + 480;
+                }
 
                 Console.WriteLine($"{type} {b} {name}");
             }
@@ -184,6 +191,42 @@ namespace ValveResourceFormat
             count = Reader.ReadUInt32();
 
             Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            Reader.ReadBytes(280 * (int)count);
+
+            // 8
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            for (int i = 0; i < count; i++)
+            {
+                var prevPos = Reader.BaseStream.Position;
+
+                Console.WriteLine("[SUB CHUNK] Key or something: " + Reader.ReadNullTermString(Encoding.UTF8));
+
+                Reader.BaseStream.Position = prevPos + 72;
+
+                var subCount = Reader.ReadUInt32();
+
+                Console.WriteLine("[SUB CHUNK] Count: {0} - Offset: {1}", subCount, Reader.BaseStream.Position);
+
+                for (var j = 0; j < subCount; j++)
+                {
+                    var previousPosition = Reader.BaseStream.Position;
+
+                    var name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                    Console.WriteLine(name);
+
+                    Reader.BaseStream.Position = previousPosition + 80;
+                }
+
+                Reader.ReadBytes(4);
+            }
+
+            // Should have reached the offset to number of LZMA chunks (90272 for hero_pc_40_ps)
+            Console.WriteLine("Offset: {0}", Reader.BaseStream.Position);
 
             //ReadShaderChunk();
         }
