@@ -1,0 +1,120 @@
+CResourceIntrospectionManifest
+	{
+		uint32 m_nIntrospectionVersion = 0x00000004
+		Struct m_ReferencedStructs[4] = 
+		[
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xE5769226
+				CResourceString m_pName = "CActionList"
+				uint32 m_nDiskCrc = 0x1D2AE324
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[3] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_eventName"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 0
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 31
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_nEventHash"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[0] m_Indirection =
+						[
+
+						]
+						uint32 m_nTypeData = 0x00000000
+						int16 m_nType = 15
+					}
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_actions"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 8
+						uint8[2] m_Indirection =
+						[
+							0403
+
+						]
+						uint32 m_nTypeData = 0xD66E671B
+						int16 m_nType = 1
+					}
+				]
+				uint8 m_nStructFlags = 0x0A
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xD66E671B
+				CResourceString m_pName = "IActionDescription"
+				uint32 m_nDiskCrc = 0xB9B8A64E
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0004
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0x00000000
+				Struct m_FieldIntrospection[0] = 
+				[
+				]
+				uint8 m_nStructFlags = 0x0B
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0x7FF8F57F
+				CResourceString m_pName = "CParticlesAction"
+				uint32 m_nDiskCrc = 0xFCA574E6
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0010
+				uint16 m_nAlignment = 0x0008
+				uint32 m_nBaseStructId = 0xC22E794B
+				Struct m_FieldIntrospection[1] = 
+				[
+					CResourceDiskStructField
+					{
+						CResourceString m_pFieldName = "m_particles"
+						int16 m_nCount = 0
+						int16 m_nOnDiskOffset = 4
+						uint8[1] m_Indirection =
+						[
+							04
+
+						]
+						uint32 m_nTypeData = 0x00666370
+						int16 m_nType = 3
+					}
+				]
+				uint8 m_nStructFlags = 0x1B
+			}
+			CResourceDiskStruct
+			{
+				uint32 m_nIntrospectionVersion = 0x00000004
+				uint32 m_nId = 0xC22E794B
+				CResourceString m_pName = "CActionDescriptionClientServer"
+				uint32 m_nDiskCrc = 0x80ECFF26
+				int32 m_nUserVersion = 0
+				uint16 m_nDiskSize = 0x0004
+				uint16 m_nAlignment = 0x0004
+				uint32 m_nBaseStructId = 0xD66E671B
+				Struct m_FieldIntrospection[0] = 
+				[
+				]
+				uint8 m_nStructFlags = 0x0B
+			}
+		]
+		Struct m_ReferencedEnums[0] = 
+		[
+		]
+	}

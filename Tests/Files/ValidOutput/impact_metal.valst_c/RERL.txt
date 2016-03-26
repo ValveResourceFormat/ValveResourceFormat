@@ -1,0 +1,11 @@
+ResourceExtRefList_t
+	{
+		Struct m_resourceRefInfoList[1] = 
+		[
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x753C8E38F114C270
+				CResourceString m_pResourceName = "particles/impacts/impact_metal.vpcf"
+			}
+		]
+	}
