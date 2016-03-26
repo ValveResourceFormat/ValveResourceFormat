@@ -238,7 +238,12 @@ namespace ValveResourceFormat
 
             var lzmaCount = Reader.ReadUInt32();
 
-            Reader.BaseStream.Position = 237892; // Start of offsets
+            var unkLongs = new long[lzmaCount];
+            for (int i = 0; i < lzmaCount; i++)
+            {
+                unkLongs[i] = Reader.ReadInt64();
+            }
+
             var lzmaOffsets = new int[lzmaCount];
 
             for (int i = 0; i < lzmaCount; i++)
