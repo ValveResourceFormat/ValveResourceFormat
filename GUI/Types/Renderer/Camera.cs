@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
 
         public Vector3 Location;
         private double Pitch;
-        private double Yaw;
+        public double Yaw;
 
         private KeyboardState KeyboardState;
 

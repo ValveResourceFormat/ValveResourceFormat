@@ -16,11 +16,11 @@ in ivec4 vBlendIndices;
 in vec4 vBlendWeight;
 
 out vec3 vFragPosition;
-out vec3 vViewDirection;
 
 out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
+out float fTangentW;
 
 out vec2 vTexCoordOut;
 
@@ -32,7 +32,6 @@ void main()
 	vec4 v = modelview * vec4(vPosition, 1.0);
 	gl_Position = projection * v;
 	vFragPosition = vPosition;
-	vViewDirection = normalize(-v.xyz);
 
 	//Unpack normals
 #if param_fulltangent == 1
@@ -43,6 +42,7 @@ void main()
 	vec4 tangent = DecompressTangent(vNormal);
 	vNormalOut = DecompressNormal(vNormal);
 	vTangentOut = tangent.xyz;
+	fTangentW = tangent.w;
 	vBitangentOut = cross( vNormalOut, vTangentOut * tangent.w );
 #endif
 

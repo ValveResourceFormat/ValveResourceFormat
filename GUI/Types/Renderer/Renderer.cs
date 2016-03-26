@@ -329,6 +329,11 @@ namespace GUI.Types.Renderer
 
             ActiveCamera.Tick();
 
+            //Animate light position
+            Vector3 lightPos = ActiveCamera.Location;
+            Vector3 cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
+            lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
+
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             foreach (var call in drawCalls)
             {
@@ -343,7 +348,10 @@ namespace GUI.Types.Renderer
                 GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
                 var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
-                GL.Uniform3(lightPosAttrib, ActiveCamera.Location);
+                GL.Uniform3(lightPosAttrib, lightPos);
+
+                var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
+                GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
 
                 //Bind VAO
                 GL.BindVertexArray(call.VertexArrayObject);
@@ -360,14 +368,20 @@ namespace GUI.Types.Renderer
 
                 if (call.Material.TextureIDs.ContainsKey("g_tMasks1"))
                 {
-                    //Bind normal texture
+                    //Bind mask 1 texture
                     TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMasks1"]);
                 }
 
                 if (call.Material.TextureIDs.ContainsKey("g_tMasks2"))
                 {
-                    //Bind normal texture
+                    //Bind mask 2 texture
                     TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMasks2"]);
+                }
+
+                if (call.Material.TextureIDs.ContainsKey("g_tDiffuseWarp"))
+                {
+                    //Bind diffuse warp texture
+                    TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureIDs["g_tDiffuseWarp"]);
                 }
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);

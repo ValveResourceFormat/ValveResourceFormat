@@ -94,6 +94,8 @@ namespace GUI.Types.Renderer
             var programInfoLog = GL.GetProgramInfoLog(shaderProgram);
             Console.Write(programInfoLog);
 
+            GL.ValidateProgram(shaderProgram);
+
             int linkStatus;
             GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
 
@@ -110,8 +112,6 @@ namespace GUI.Types.Renderer
 
             GL.DetachShader(shaderProgram, fragmentShader);
             GL.DeleteShader(fragmentShader);
-
-            GL.ValidateProgram(shaderProgram);
 
             return shaderProgram;
         }
