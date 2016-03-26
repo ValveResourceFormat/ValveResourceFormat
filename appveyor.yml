@@ -20,7 +20,8 @@ after_build:
 - cmd: nuget pack ValveResourceFormat\ValveResourceFormat.csproj
 test_script:
 - ps: >-
-    .\packages\OpenCover.4.6.166\tools\OpenCover.Console.exe -target:nunit3-console.exe "-targetargs:Tests/bin/$($env:CONFIGURATION)/Tests.dll --result=testResults.xml;format=AppVeyor" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml -register:user -returntargetcode
+    $opencover = (Resolve-Path "packages/OpenCover.*/tools/OpenCover.Console.exe").ToString()
+    & $opencover -target:nunit3-console.exe "-targetargs:Tests/bin/$($env:CONFIGURATION)/Tests.dll --result=testResults.xml;format=AppVeyor" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml -register:user -returntargetcode
 
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null) {
       $coveralls = (Resolve-Path "packages/coveralls.net.*/tools/csmacnz.coveralls.exe").ToString()
