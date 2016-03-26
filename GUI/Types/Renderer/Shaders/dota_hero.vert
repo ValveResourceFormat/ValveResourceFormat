@@ -16,6 +16,7 @@ in ivec4 vBlendIndices;
 in vec4 vBlendWeight;
 
 out vec3 vFragPosition;
+out vec3 vViewDirection;
 
 out vec3 vNormalOut;
 out vec3 vTangentOut;
@@ -28,8 +29,10 @@ uniform mat4 modelview;
 
 void main()
 {
-	gl_Position = projection * modelview * vec4(vPosition, 1.0);
+	vec4 v = modelview * vec4(vPosition, 1.0);
+	gl_Position = projection * v;
 	vFragPosition = vPosition;
+	vViewDirection = normalize(-v.xyz);
 
 	//Unpack normals
 #if param_fulltangent == 1

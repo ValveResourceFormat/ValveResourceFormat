@@ -358,16 +358,16 @@ namespace GUI.Types.Renderer
                     TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureIDs["g_tNormal"]);
                 }
 
-                if (call.Material.TextureIDs.ContainsKey("g_tMask1"))
+                if (call.Material.TextureIDs.ContainsKey("g_tMasks1"))
                 {
                     //Bind normal texture
-                    TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMask1"]);
+                    TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMasks1"]);
                 }
 
-                if (call.Material.TextureIDs.ContainsKey("g_tMask2"))
+                if (call.Material.TextureIDs.ContainsKey("g_tMasks2"))
                 {
                     //Bind normal texture
-                    TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMask2"]);
+                    TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMasks2"]);
                 }
 
                 GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
