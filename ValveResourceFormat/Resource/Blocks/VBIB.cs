@@ -103,8 +103,6 @@ namespace ValveResourceFormat.Blocks
             var indexOffset = reader.ReadUInt32();
             var indexCount = reader.ReadUInt32();
 
-            Console.WriteLine("index buffers " + indexCount);
-
             reader.BaseStream.Position = Offset + 8 + indexOffset; //8 to take into account vertexOffset / count
             for (var i = 0; i < indexCount; i++)
             {

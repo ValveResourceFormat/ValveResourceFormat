@@ -40,8 +40,6 @@ namespace GUI.Types.Renderer
 
         private MaterialLoader MaterialLoader;
 
-        private readonly Vector3 LightPosition = new Vector3(0.0f, 0.0f, 0.0f);
-
         public Renderer(Resource resource, TabControl mainTabs, string fileName, Package currentPackage)
         {
             CurrentPackage = currentPackage;
