@@ -20,12 +20,11 @@ after_build:
 - cmd: nuget pack ValveResourceFormat\ValveResourceFormat.csproj
 test_script:
 - ps: >-
-    $opencover = (Resolve-Path "packages/OpenCover.*/tools/OpenCover.Console.exe").ToString()
+    $opencover = (Resolve-Path "packages/OpenCover.*/tools/OpenCover.Console.exe").ToString();
     & $opencover -target:nunit3-console.exe "-targetargs:Tests/bin/$($env:CONFIGURATION)/Tests.dll --result=testResults.xml;format=AppVeyor" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml -register:user -returntargetcode
 
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null) {
-      $coveralls = (Resolve-Path "packages/coveralls.net.*/tools/csmacnz.coveralls.exe").ToString()
-
+      $coveralls = (Resolve-Path "packages/coveralls.net.*/tools/csmacnz.coveralls.exe").ToString();
       & $coveralls --opencover -i opencoverCoverage.xml --repoToken $env:COVERALLS_REPO_TOKEN --commitId $env:APPVEYOR_REPO_COMMIT --commitBranch $env:APPVEYOR_REPO_BRANCH --commitAuthor $env:APPVEYOR_REPO_COMMIT_AUTHOR --commitEmail $env:APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL --commitMessage $env:APPVEYOR_REPO_COMMIT_MESSAGE --jobId $env:APPVEYOR_BUILD_NUMBER --serviceName appveyor
     }
 artifacts:
