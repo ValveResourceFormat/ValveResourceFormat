@@ -25,6 +25,9 @@ namespace ValveResourceFormat
         [Extension("vagrp")]
         AnimationGroup,
 
+        [Extension("valst")]
+        ActionList,
+
         [Extension("vseq")]
         Sequence,
 
