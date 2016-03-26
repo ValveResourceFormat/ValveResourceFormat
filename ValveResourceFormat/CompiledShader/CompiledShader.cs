@@ -248,6 +248,7 @@ namespace ValveResourceFormat
 
             for (int i = 0; i < lzmaCount; i++)
             {
+                //File.WriteAllBytes(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "shader_out_" + i + ".bin"), ReadShaderChunk(lzmaOffsets[i]));
             }
         }
 
