@@ -192,7 +192,7 @@ namespace ValveResourceFormat
 
             Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
-            Reader.ReadBytes(280 * (int)count);
+            Reader.ReadBytes(280 * (int)count); // ?
 
             // 8
             count = Reader.ReadUInt32();
@@ -203,26 +203,34 @@ namespace ValveResourceFormat
             {
                 var prevPos = Reader.BaseStream.Position;
 
-                Console.WriteLine("[SUB CHUNK] Key or something: " + Reader.ReadNullTermString(Encoding.UTF8));
+                var name = Reader.ReadNullTermString(Encoding.UTF8);
 
-                Reader.BaseStream.Position = prevPos + 72;
+                Reader.BaseStream.Position = prevPos + 64;
+
+                var a = Reader.ReadUInt32();
+                var b = Reader.ReadUInt32();
 
                 var subCount = Reader.ReadUInt32();
 
-                Console.WriteLine("[SUB CHUNK] Count: {0} - Offset: {1}", subCount, Reader.BaseStream.Position);
+                Console.WriteLine("[SUB CHUNK] Name: {0} - unk1: {1} - unk2: {2} - Count: {3} - Offset: {4}", name, a, b, subCount, Reader.BaseStream.Position);
 
                 for (var j = 0; j < subCount; j++)
                 {
                     var previousPosition = Reader.BaseStream.Position;
 
-                    var name = Reader.ReadNullTermString(Encoding.UTF8);
+                    var subname = Reader.ReadNullTermString(Encoding.UTF8);
 
-                    Console.WriteLine(name);
+                    Reader.BaseStream.Position = previousPosition + 64;
 
-                    Reader.BaseStream.Position = previousPosition + 80;
+                    var unk1 = Reader.ReadUInt32();
+                    var unk2 = Reader.ReadUInt32();
+                    var unk3 = Reader.ReadUInt32();
+                    var unk4 = Reader.ReadUInt32();
+
+                    Console.WriteLine("     Name: {0} - unk1: {1} - unk2: {2} - unk3: {3} - unk4: {4}", subname, unk1, unk2, unk3, unk4);
                 }
 
-                Reader.ReadBytes(4);
+                Reader.ReadBytes(4); // ?
             }
 
             // Should have reached the offset to number of LZMA chunks (90272 for hero_pc_40_ps)
