@@ -78,10 +78,19 @@ namespace ValveResourceFormat
         private void ReadFeatures()
         {
             var name = Encoding.UTF8.GetString(Reader.ReadBytes(Reader.ReadInt32()));
+            Reader.ReadByte(); // null term?
 
             Console.WriteLine("Name: {0} - Offset: {1}", name, Reader.BaseStream.Position);
 
-            Reader.ReadBytes(29);
+            var a = Reader.ReadInt32();
+            var b = Reader.ReadInt32();
+            var c = Reader.ReadInt32();
+            var d = Reader.ReadInt32();
+            var e = Reader.ReadInt32();
+            var f = Reader.ReadInt32();
+            var g = Reader.ReadInt32();
+
+            Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g}");
 
             var count = Reader.ReadUInt32();
 
@@ -114,18 +123,35 @@ namespace ValveResourceFormat
                     Reader.ReadUInt32();
                 }
             }
+
+            // Appears to be always 112 bytes
+            for (var i = 0; i < 7; i++)
+            {
+                // 0 - 
+                // 1 - vertex shader
+                // 2 - pixel shader
+                // 3 - geometry shader
+                // 4 - 
+                // 5 - 
+                // 6 - CD B1 D4.... hardcoded
+                var identifier = Reader.ReadBytes(16);
+
+                Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
+            }
         }
 
         private void ReadShader()
         {
             var fileIdentifier = Reader.ReadBytes(16);
 
-            // This appears to always be CD B1 D4 A1 82 20 D5 E2 D5 A3 78 2E C8 0F D7 7C 0E 00 00 00
+            // This appears to always be CD B1 D4 A1 82 20 D5 E2 D5 A3 78 2E C8 0F D7 7C
             // Including aperture robot repair and dota 2
-            var staticIdentifier = Reader.ReadBytes(20);
+            var staticIdentifier = Reader.ReadBytes(16);
 
             Console.WriteLine("File identifier: {0}", BitConverter.ToString(fileIdentifier));
             Console.WriteLine("Static identifier: {0}", BitConverter.ToString(staticIdentifier));
+
+            Console.WriteLine("wtf {0}", Reader.ReadUInt32());
 
             // 2
             var count = Reader.ReadUInt32();
