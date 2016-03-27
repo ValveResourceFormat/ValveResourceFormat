@@ -98,7 +98,6 @@ namespace ValveResourceFormat
 
             Console.WriteLine("Count: {0}", count);
 
-            // This loop is wrong for other shaders, not how it works
             for (int i = 0; i < count; i++)
             {
                 prevPos = Reader.BaseStream.Position;
@@ -137,6 +136,37 @@ namespace ValveResourceFormat
                 var identifier = Reader.ReadBytes(16);
 
                 Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
+            }
+
+            Reader.ReadUInt32(); // 0E 00 00 00
+
+            count = Reader.ReadUInt32();
+
+            for (int i = 0; i < count; i++)
+            {
+                prevPos = Reader.BaseStream.Position;
+
+                name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                Reader.BaseStream.Position = prevPos + 64;
+
+                prevPos = Reader.BaseStream.Position;
+
+                var desc = Reader.ReadNullTermString(Encoding.UTF8);
+
+                Reader.BaseStream.Position = prevPos + 84;
+
+                var subcount = Reader.ReadUInt32();
+
+                Console.WriteLine("Name: {0} - Desc: {1} - Count: {2} - Offset: {3}", name, desc, subcount, Reader.BaseStream.Position);
+
+                if (subcount != 0)
+                {
+                    for (int j = 0; j < subcount; j++)
+                    {
+                        Console.WriteLine("     " + Reader.ReadNullTermString(Encoding.UTF8));
+                    }
+                }
             }
         }
 
