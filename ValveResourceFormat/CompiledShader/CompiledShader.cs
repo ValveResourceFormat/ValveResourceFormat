@@ -79,7 +79,42 @@ namespace ValveResourceFormat
         {
             var name = Encoding.UTF8.GetString(Reader.ReadBytes(Reader.ReadInt32()));
 
-            Console.WriteLine("Name: {0}", name);
+            Console.WriteLine("Name: {0} - Offset: {1}", name, Reader.BaseStream.Position);
+
+            Reader.ReadBytes(29);
+
+            var count = Reader.ReadUInt32();
+
+            long prevPos;
+
+            Console.WriteLine("Count: {0}", count);
+
+            // This loop is wrong for other shaders, not how it works
+            for (int i = 0; i < count; i++)
+            {
+                if (i == 0)
+                {
+                    prevPos = Reader.BaseStream.Position;
+
+                    name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                    Reader.BaseStream.Position = prevPos + 128;
+
+                    Console.WriteLine("Name: {0} - Offset: {1}", name, count, Reader.BaseStream.Position);
+                }
+                else
+                {
+                    prevPos = Reader.BaseStream.Position;
+
+                    var type = Reader.ReadUInt32();
+
+                    name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                    Reader.BaseStream.Position = prevPos + 200;
+
+                    Console.WriteLine("Name: {0} - Type: {1} - Offset: {2}", name, type, Reader.BaseStream.Position);
+                }
+            }
         }
 
         private void ReadShader()
