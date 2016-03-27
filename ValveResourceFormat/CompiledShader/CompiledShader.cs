@@ -160,14 +160,13 @@ namespace ValveResourceFormat
 
                 Console.WriteLine("Name: {0} - Desc: {1} - Count: {2} - Offset: {3}", name, desc, subcount, Reader.BaseStream.Position);
 
-                if (subcount != 0)
+                for (int j = 0; j < subcount; j++)
                 {
-                    for (int j = 0; j < subcount; j++)
-                    {
-                        Console.WriteLine("     " + Reader.ReadNullTermString(Encoding.UTF8));
-                    }
+                    Console.WriteLine("     " + Reader.ReadNullTermString(Encoding.UTF8));
                 }
             }
+
+            count = Reader.ReadUInt32();
         }
 
         private void ReadShader()
