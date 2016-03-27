@@ -131,9 +131,9 @@ namespace ValveResourceFormat
                 // 1 - vertex shader
                 // 2 - pixel shader
                 // 3 - geometry shader
-                // 4 - 
-                // 5 - 
-                // 6 - CD B1 D4.... hardcoded
+                // 4 - hull shader
+                // 5 - domain shader
+                // 6 - CD B1 D4.... hardcoded, this one might be 20 bytes because (0E 00 00 00) appears in other files too
                 var identifier = Reader.ReadBytes(16);
 
                 Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
