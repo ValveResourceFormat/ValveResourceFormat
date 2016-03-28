@@ -52,13 +52,15 @@
             // 
             // menuStrip1
             // 
+            this.menuStrip1.BackColor = System.Drawing.SystemColors.Window;
             this.menuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
             this.helpToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Padding = new System.Windows.Forms.Padding(4, 1, 0, 1);
+            this.menuStrip1.Padding = new System.Windows.Forms.Padding(4, 1, 0, 0);
+            this.menuStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
             this.menuStrip1.Size = new System.Drawing.Size(944, 24);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
@@ -68,7 +70,7 @@
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 22);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 23);
             this.fileToolStripMenuItem.Text = "File";
             // 
             // openToolStripMenuItem
@@ -87,7 +89,7 @@
             this.settingsToolStripMenuItem,
             this.aboutToolStripMenuItem});
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 22);
+            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 23);
             this.helpToolStripMenuItem.Text = "Help";
             // 
             // settingsToolStripMenuItem
@@ -111,9 +113,11 @@
             // mainTabs
             // 
             this.mainTabs.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
             this.mainTabs.Location = new System.Drawing.Point(0, 49);
-            this.mainTabs.Margin = new System.Windows.Forms.Padding(2);
+            this.mainTabs.Margin = new System.Windows.Forms.Padding(0);
             this.mainTabs.Name = "mainTabs";
+            this.mainTabs.Padding = new System.Drawing.Point(0, 0);
             this.mainTabs.SelectedIndex = 0;
             this.mainTabs.Size = new System.Drawing.Size(944, 412);
             this.mainTabs.TabIndex = 1;
@@ -141,7 +145,8 @@
             this.exportToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("exportToolStripButton.Image")));
             this.exportToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.exportToolStripButton.Name = "exportToolStripButton";
-            this.exportToolStripButton.Size = new System.Drawing.Size(69, 22);
+            this.exportToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.exportToolStripButton.Size = new System.Drawing.Size(77, 22);
             this.exportToolStripButton.Text = "Export";
             // 
             // vpkContextMenu
@@ -160,12 +165,17 @@
             // 
             // mainToolStrip
             // 
+            this.mainToolStrip.BackColor = System.Drawing.SystemColors.Window;
+            this.mainToolStrip.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
             this.mainToolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.findToolStripButton,
             this.exportToolStripButton});
             this.mainToolStrip.Location = new System.Drawing.Point(0, 24);
             this.mainToolStrip.Name = "mainToolStrip";
+            this.mainToolStrip.Padding = new System.Windows.Forms.Padding(4, 0, 0, 0);
+            this.mainToolStrip.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
             this.mainToolStrip.Size = new System.Drawing.Size(944, 25);
+            this.mainToolStrip.Stretch = true;
             this.mainToolStrip.TabIndex = 2;
             this.mainToolStrip.Text = "toolStrip1";
             // 
@@ -175,7 +185,8 @@
             this.findToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("findToolStripButton.Image")));
             this.findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.findToolStripButton.Name = "findToolStripButton";
-            this.findToolStripButton.Size = new System.Drawing.Size(50, 22);
+            this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.findToolStripButton.Size = new System.Drawing.Size(58, 22);
             this.findToolStripButton.Text = "Find";
             this.findToolStripButton.Click += new System.EventHandler(this.findToolStripMenuItem_Click);
             // 
