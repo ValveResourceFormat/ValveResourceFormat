@@ -274,14 +274,18 @@ namespace GUI
                         var ap = new Player(resource);
                         resTabs.TabPages.Add(soundTab);
 
+
+                        //TODO: Make this a function somewhere to simplify implementation for future types (I'm looking at you Panorama).
                         Invoke((MethodInvoker)delegate
                         {
                             exportToolStripButton.Enabled = true;
 
                             var ts = new ToolStripMenuItem();
-                            ts.Name = "WAV";
+                            ts.Name = "Sound";
                             ts.Size = new Size(150, 20);
-                            ts.Text = "WAV";
+                            ts.Text = $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}";
+                            ts.ToolTipText = fileName; //This is required for the dialog to know the default name and path.
+                            ts.Tag = resource; //This makes it trivial to dump without exploring our nested TabPages.
                             ts.Click += new EventHandler(exportToolStripMenuItem_Click);
 
                             exportToolStripButton.DropDownItems.Add(ts);
@@ -623,8 +627,41 @@ namespace GUI
 
         private void exportToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // No idea yet what to do from here
-            Console.WriteLine("Export requested to " + ((ToolStripMenuItem)sender).Text);
+            //ToolTipText is the full filename
+            var fileName = ((ToolStripMenuItem)sender).ToolTipText;
+            //Tag is the resource object.
+            Resource resource = ((ToolStripMenuItem)sender).Tag as Resource;
+
+            Console.WriteLine($"Export requested for {fileName}");
+            string extension = null;
+            byte[] data = null;
+            switch (resource.ResourceType)
+            {
+                case ResourceType.Sound:
+                    //WAV or MP3
+                    extension = ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString();
+                    data = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                    break;
+            }
+
+            //Did we find a format we like?
+            if (extension != null)
+            {
+                var dialog = new SaveFileDialog();
+                dialog.FileName = Path.GetFileName(Path.ChangeExtension(fileName, extension));
+                dialog.InitialDirectory = Path.GetFullPath(fileName);
+                dialog.DefaultExt = extension;
+                dialog.Filter = $"{extension} files (*.{extension})|*.{extension}";
+                var result = dialog.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    using (var stream = dialog.OpenFile())
+                    {
+                        stream.Write(data, 0, data.Length);
+                    }
+                }
+                MessageBox.Show(result.ToString());
+            }
         }
     }
 }
