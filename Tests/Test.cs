@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 
 namespace Tests
 {
@@ -88,6 +90,8 @@ namespace Tests
 
         private void VerifyResources(Dictionary<string, Resource> resources)
         {
+            SoundWavCorrectlyExports(resources["beep.vsnd_c"]);
+
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
             var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
             var exceptions = new StringBuilder();
@@ -120,8 +124,8 @@ namespace Tests
                 var expectedOutput = File.ReadAllText(file);
 
                 // We don't care about Valve's messy whitespace, so just strip it.
-                actualOutput = Regex.Replace(actualOutput, @"\s+", String.Empty);
-                expectedOutput = Regex.Replace(expectedOutput, @"\s+", String.Empty);
+                actualOutput = Regex.Replace(actualOutput, @"\s+", string.Empty);
+                expectedOutput = Regex.Replace(expectedOutput, @"\s+", string.Empty);
 
                 try
                 {
@@ -137,6 +141,19 @@ namespace Tests
             if (exceptions.Length > 0)
             {
                 throw new AssertionException(exceptions.ToString());
+            }
+        }
+
+        private void SoundWavCorrectlyExports(Resource resource)
+        {
+            Assert.AreEqual(ResourceType.Sound, resource.ResourceType);
+
+            using (var sha1 = new SHA1CryptoServiceProvider())
+            {
+                var sound = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                var actualHash = BitConverter.ToString(sha1.ComputeHash(sound)).Replace("-", "");
+
+                Assert.AreEqual("59AC27F1A4395D8D02E4B3ADAA99023F243C8B41", actualHash);
             }
         }
 
