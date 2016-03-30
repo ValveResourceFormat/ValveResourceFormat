@@ -162,5 +162,16 @@ namespace Tests
                 Assert.Throws<InvalidDataException>(() => resource.Read(path));
             }
         }
+
+        [Test]
+        public void CompiledShaderInResourceThrows()
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Shaders", "error_pcgl_40_ps.vcs");
+
+            using (var resource = new Resource())
+            {
+                Assert.Throws<InvalidDataException>(() => resource.Read(path));
+            }
+        }
     }
 }
