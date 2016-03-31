@@ -58,6 +58,73 @@ namespace Tests
         }
 
         [Test]
+        public void FindEntryDeep()
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "platform_misc_dir.vpk");
+
+            using (var package = new Package())
+            {
+                package.Read(path);
+
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons\\chess\\chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons\\chess\\", "chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons\\chess\\", "chess", "vdf")?.CRC32);
+
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons/chess\\chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons/chess\\", "chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons/chess\\", "chess", "vdf")?.CRC32);
+
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons/chess/chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons/chess/", "chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("addons/chess/", "chess", "vdf")?.CRC32);
+
+                Assert.AreEqual(0xA4115395, package.FindEntry("\\addons/chess/chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("\\addons/chess/", "chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("\\addons/chess/", "chess", "vdf")?.CRC32);
+
+                Assert.AreEqual(0xA4115395, package.FindEntry("/addons/chess/chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("/addons/chess/", "chess.vdf")?.CRC32);
+                Assert.AreEqual(0xA4115395, package.FindEntry("/addons/chess/", "chess", "vdf")?.CRC32);
+
+                Assert.IsNull(package.FindEntry("\\addons/chess/hello_github_reader.vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/chess/", "hello_github_reader.vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/chess/", "hello_github_reader", "vdf"));
+
+                Assert.IsNull(package.FindEntry("\\addons/hello_github_reader/chess.vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/hello_github_reader/", "chess.vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/hello_github_reader/", "chess", "vdf"));
+            }
+        }
+
+        [Test]
+        public void FindEntryRoot()
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "steamdb_test_single.vpk");
+
+            using (var package = new Package())
+            {
+                package.Read(path);
+
+                Assert.AreEqual(0x9C800116, package.FindEntry("kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("", "kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("", "kitten", "jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry(null, "kitten.jpg")?.CRC32);
+
+                Assert.AreEqual(0x9C800116, package.FindEntry("\\kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("\\", "kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("\\", "kitten", "jpg")?.CRC32);
+
+                Assert.AreEqual(0x9C800116, package.FindEntry("/kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("/", "kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("/", "kitten", "jpg")?.CRC32);
+
+                Assert.AreEqual(0x9C800116, package.FindEntry("\\/kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("\\/\\", "kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry("\\\\/", "kitten", "jpg")?.CRC32);
+            }
+        }
+
+        [Test]
         public void ExtractInlineVPK()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "steamdb_test_single.vpk");

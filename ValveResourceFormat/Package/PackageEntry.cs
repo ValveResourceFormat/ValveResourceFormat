@@ -65,7 +65,14 @@ namespace ValveResourceFormat
 
         public string GetFullPath()
         {
-            return Path.Combine(DirectoryName, string.Format("{0}.{1}", FileName, TypeName));
+            var fileName = $"{FileName}.{TypeName}";
+
+            if (DirectoryName == null)
+            {
+                return fileName;
+            }
+
+            return Path.Combine(DirectoryName, fileName);
         }
 
         public override string ToString()

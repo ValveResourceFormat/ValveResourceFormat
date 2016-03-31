@@ -217,6 +217,50 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
+        /// Searches for a given file entry in the file list.
+        /// </summary>
+        /// <param name="filePath">Full path to the file to find.</param>
+        public PackageEntry FindEntry(string filePath)
+        {
+            // Even though technically we are passing in full path as file name, relevant functions in next overload fix it
+            return FindEntry(Path.GetDirectoryName(filePath), filePath);
+        }
+
+        /// <summary>
+        /// Searches for a given file entry in the file list.
+        /// </summary>
+        /// <param name="directory">Directory to search in.</param>
+        /// <param name="fileName">File name to find.</param>
+        public PackageEntry FindEntry(string directory, string fileName)
+        {
+            return FindEntry(directory, Path.GetFileNameWithoutExtension(fileName), Path.GetExtension(fileName)?.TrimStart('.'));
+        }
+
+        /// <summary>
+        /// Searches for a given file entry in the file list.
+        /// </summary>
+        /// <param name="directory">Directory to search in.</param>
+        /// <param name="fileName">File name to find, without the extension.</param>
+        /// <param name="extension">File extension, without the leading dot.</param>
+        public PackageEntry FindEntry(string directory, string fileName, string extension)
+        {
+            // We normalize path separators when reading the file list
+            if (directory != null)
+            {
+                directory = directory.Replace("/", "\\");
+                directory = directory.Trim('\\');
+            }
+
+            // If the directory is empty after trimming, set it to null
+            if (directory == string.Empty)
+            {
+                directory = null;
+            }
+
+            return Entries[extension]?.FirstOrDefault(x => x.DirectoryName == directory && x.FileName == fileName);
+        }
+
+        /// <summary>
         /// Reads the entry from the VPK package.
         /// </summary>
         /// <param name="entry">Package entry.</param>
@@ -301,6 +345,11 @@ namespace ValveResourceFormat
                         break;
                     }
 
+                    // Valve uses a space for blank directory names,
+                    // we replace it with a null to match how System.IO.Path deals with root paths.
+                    // We also normalize folder separators to always be '\'
+                    directoryName = directoryName == " " ? null : directoryName.Replace("/", "\\");
+
                     // Files
                     while (true)
                     {
@@ -313,7 +362,7 @@ namespace ValveResourceFormat
 
                         var entry = new PackageEntry();
                         entry.FileName = fileName;
-                        entry.DirectoryName = directoryName.Replace("/", "\\");
+                        entry.DirectoryName = directoryName;
                         entry.TypeName = typeName;
                         entry.CRC32 = Reader.ReadUInt32();
                         entry.SmallData = new byte[Reader.ReadUInt16()];
