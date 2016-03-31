@@ -12,6 +12,7 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Gets or sets the name of the directory this file is in.
+        /// '\' is always used as a dictionary separator.
         /// </summary>
         public string DirectoryName { get; set; }
 
