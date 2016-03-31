@@ -98,13 +98,12 @@ namespace GUI.Controls
             mainListView.Tag = package;
 
             var control = mainTreeView;
+            control.BeginUpdate();
             control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.Name = name;
             control.Tag = package; //so we can access it later
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
-
-            //http://stackoverflow.com/a/24591871
 
             foreach (var fileType in package.Entries)
             {
@@ -114,7 +113,7 @@ namespace GUI.Controls
                 }
             }
 
-            control.Sort();
+            control.EndUpdate();
         }
 
         /// <summary>
