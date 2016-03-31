@@ -159,7 +159,7 @@ namespace ValveResourceFormat
         {
             SetFileName(filename);
 
-            var fs = new FileStream(FileName + (IsDirVPK ? "_dir" : string.Empty) + ".vpk", FileMode.Open, FileAccess.Read, FileShare.Read);
+            var fs = new FileStream($"{FileName}{(IsDirVPK ? "_dir" : string.Empty)}.vpk", FileMode.Open, FileAccess.Read, FileShare.Read);
 
             Read(fs);
         }
@@ -290,7 +290,7 @@ namespace ValveResourceFormat
                             throw new InvalidOperationException("Given VPK is not a _dir, but entry is referencing an external archive.");
                         }
 
-                        var fileName = string.Format("{0}_{1:D3}.vpk", FileName, entry.ArchiveIndex);
+                        var fileName = $"{FileName}_{entry.ArchiveIndex:D3}.vpk";
 
                         fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
                     }
@@ -360,15 +360,17 @@ namespace ValveResourceFormat
                             break;
                         }
 
-                        var entry = new PackageEntry();
-                        entry.FileName = fileName;
-                        entry.DirectoryName = directoryName;
-                        entry.TypeName = typeName;
-                        entry.CRC32 = Reader.ReadUInt32();
-                        entry.SmallData = new byte[Reader.ReadUInt16()];
-                        entry.ArchiveIndex = Reader.ReadUInt16();
-                        entry.Offset = Reader.ReadUInt32();
-                        entry.Length = Reader.ReadUInt32();
+                        var entry = new PackageEntry
+                        {
+                            FileName = fileName,
+                            DirectoryName = directoryName,
+                            TypeName = typeName,
+                            CRC32 = Reader.ReadUInt32(),
+                            SmallData = new byte[Reader.ReadUInt16()],
+                            ArchiveIndex = Reader.ReadUInt16(),
+                            Offset = Reader.ReadUInt32(),
+                            Length = Reader.ReadUInt32()
+                        };
 
                         if (Reader.ReadUInt16() != 0xFFFF)
                         {

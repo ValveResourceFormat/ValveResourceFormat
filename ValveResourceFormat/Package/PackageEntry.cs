@@ -77,7 +77,7 @@ namespace ValveResourceFormat
 
         public override string ToString()
         {
-            return string.Format("{0} crc=0x{1:x2} metadatasz={2} fnumber={3} ofs=0x{4:x2} sz={5}", GetFullPath(), CRC32, SmallData.Length, ArchiveIndex, Offset, Length);
+            return $"{GetFullPath()} crc=0x{CRC32:x2} metadatasz={SmallData.Length} fnumber={ArchiveIndex} ofs=0x{Offset:x2} sz={Length}";
         }
     }
 }
