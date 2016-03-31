@@ -5,7 +5,7 @@ using System;
 
 namespace SevenZip.Compression.RangeCoder
 {
-	struct BitTreeDecoder
+	internal struct BitTreeDecoder
 	{
 		BitDecoder[] Models;
 		int NumBitLevels;

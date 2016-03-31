@@ -5,7 +5,7 @@ using System;
 
 namespace SevenZip.Compression.RangeCoder
 {
-	struct BitDecoder
+	internal struct BitDecoder
 	{
 		public const int kNumBitModelTotalBits = 11;
 		public const uint kBitModelTotal = (1 << kNumBitModelTotalBits);

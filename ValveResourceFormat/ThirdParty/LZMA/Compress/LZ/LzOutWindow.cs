@@ -4,7 +4,7 @@
 
 namespace SevenZip.Compression.LZ
 {
-	public class OutWindow
+	internal class OutWindow
 	{
 		byte[] _buffer = null;
 		uint _pos;

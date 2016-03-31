@@ -9,7 +9,7 @@ namespace SevenZip
 	/// <summary>
 	/// The exception that is thrown when an error in input stream occurs during decoding.
 	/// </summary>
-	class DataErrorException : ApplicationException
+	internal class DataErrorException : ApplicationException
 	{
 		public DataErrorException(): base("Data Error") { }
 	}
@@ -17,12 +17,12 @@ namespace SevenZip
 	/// <summary>
 	/// The exception that is thrown when the value of an argument is outside the allowable range.
 	/// </summary>
-	class InvalidParamException : ApplicationException
+	internal class InvalidParamException : ApplicationException
 	{
 		public InvalidParamException(): base("Invalid Parameter") { }
 	}
 
-	public interface ICodeProgress
+	internal interface ICodeProgress
 	{
 		/// <summary>
 		/// Callback progress.
@@ -36,7 +36,7 @@ namespace SevenZip
 		void SetProgress(Int64 inSize, Int64 outSize);
 	};
 
-	public interface ICoder
+	internal interface ICoder
 	{
 		/// <summary>
 		/// Codes streams.
@@ -63,7 +63,7 @@ namespace SevenZip
 			Int64 inSize, Int64 outSize, ICodeProgress progress);
 	};
 
-	public interface ISetDecoderProperties
+	internal interface ISetDecoderProperties
 	{
 		void SetDecoderProperties(byte[] properties);
 	}
