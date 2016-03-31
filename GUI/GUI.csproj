@@ -63,6 +63,7 @@
       <DependentUpon>BetterTreeView.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
+    <Compile Include="Controls\TreeViewFileSorter.cs" />
     <Compile Include="Controls\TreeViewWithSearchResults.cs">
       <SubType>UserControl</SubType>
     </Compile>

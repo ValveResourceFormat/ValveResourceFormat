@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
@@ -97,6 +98,7 @@ namespace GUI.Controls
             mainListView.Tag = package;
 
             var control = mainTreeView;
+            control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.Name = name;
             control.Tag = package; //so we can access it later
             control.Dock = DockStyle.Fill;
