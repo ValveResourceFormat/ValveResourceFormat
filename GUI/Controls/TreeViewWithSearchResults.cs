@@ -113,7 +113,6 @@ namespace GUI.Controls
             }
 
             control.Sort();
-            control.ExpandAll();
         }
 
         /// <summary>
