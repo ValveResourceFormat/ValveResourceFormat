@@ -111,73 +111,72 @@ namespace GUI.Controls
         /// <summary>
         /// Adds a node to the tree based on the passed file information. This is useful when building a directory-based tree.
         /// </summary>
-        /// <param name="file"></param>
-        /// <param name="fileType"></param>
-        public void AddFileNode(PackageEntry file, KeyValuePair<string, List<PackageEntry>> fileType)
+        /// <param name="file">File entry.</param>
+        public void AddFileNode(PackageEntry file)
         {
             TreeNode currentNode = null;
 
-            var fileName = string.Format("{0}.{1}", file.FileName, fileType.Key);
-            var path = Path.Combine(file.DirectoryName, fileName);
-            var subPaths = path.Split(Path.DirectorySeparatorChar);
-
-            foreach (var subPath in subPaths)
+            if (file.DirectoryName != null)
             {
-                // Root directory
-                if (currentNode == null)
+                var subPaths = file.DirectoryName.Split('\\'); // VRF always uses \\
+
+                foreach (var subPath in subPaths)
                 {
-                    if (subPath == " ")
+                    if (currentNode == null)
                     {
-                        continue; //root files
+                        currentNode = Nodes[subPath] ?? Nodes.Add(subPath, subPath);
                     }
-
-                    currentNode = Nodes[subPath] ?? Nodes.Add(subPath, subPath);
-                }
-                else
-                {
-                    currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath);
-                }
-
-                var ext = Path.GetExtension(currentNode.Name);
-
-                if (ext.Length == 0)
-                {
-                    ext = "_folder";
+                    else
+                    {
+                        currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath);
+                    }
 
                     currentNode.Tag = new TreeViewFolder(file.DirectoryName, currentNode.Nodes.Count + 1); //is this enough?
+
+                    currentNode.ImageKey = @"_folder";
+                    currentNode.SelectedImageKey = @"_folder";
                 }
-                else
+            }
+
+            var fileName = $"{file.FileName}.{file.TypeName}";
+
+            if (currentNode == null)
+            {
+                currentNode = Nodes[fileName] ?? Nodes.Add(fileName, fileName);
+            }
+            else
+            {
+                currentNode = currentNode.Nodes[fileName] ?? currentNode.Nodes.Add(fileName, fileName);
+            }
+
+            currentNode.Tag = file; //so we can use it later
+
+            var ext = file.TypeName;
+
+            if (ext.EndsWith("_c", StringComparison.Ordinal))
+            {
+                ext = ext.Substring(0, ext.Length - 2);
+            }
+
+            if (!ImageList.Images.ContainsKey(ext))
+            {
+                if (ext[0] == 'v')
                 {
-                    currentNode.Tag = file; //so we can use it later
-
                     ext = ext.Substring(1);
-
-                    if (ext.EndsWith("_c", StringComparison.Ordinal))
-                    {
-                        ext = ext.Substring(0, ext.Length - 2);
-                    }
 
                     if (!ImageList.Images.ContainsKey(ext))
                     {
-                        if (ext[0] == 'v')
-                        {
-                            ext = ext.Substring(1);
-
-                            if (!ImageList.Images.ContainsKey(ext))
-                            {
-                                ext = "_default";
-                            }
-                        }
-                        else
-                        {
-                            ext = "_default";
-                        }
+                        ext = "_default";
                     }
                 }
-
-                currentNode.ImageKey = ext;
-                currentNode.SelectedImageKey = ext;
+                else
+                {
+                    ext = "_default";
+                }
             }
+
+            currentNode.ImageKey = ext;
+            currentNode.SelectedImageKey = ext;
         }
     }
 }

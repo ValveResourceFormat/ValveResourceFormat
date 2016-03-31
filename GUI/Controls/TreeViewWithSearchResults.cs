@@ -108,7 +108,7 @@ namespace GUI.Controls
             {
                 foreach (var file in fileType.Value)
                 {
-                    control.AddFileNode(file, fileType);
+                    control.AddFileNode(file);
                 }
             }
 
