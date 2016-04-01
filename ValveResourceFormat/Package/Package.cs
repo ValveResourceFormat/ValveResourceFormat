@@ -222,11 +222,7 @@ namespace ValveResourceFormat
         /// <param name="filePath">Full path to the file to find.</param>
         public PackageEntry FindEntry(string filePath)
         {
-            // Don't explode on linux
-            if (Path.DirectorySeparatorChar != '\\')
-            {
-                filePath = filePath.Replace('\\', Path.DirectorySeparatorChar);
-            }
+            filePath = filePath?.Replace('\\', '/');
 
             // Even though technically we are passing in full path as file name, relevant functions in next overload fix it
             return FindEntry(Path.GetDirectoryName(filePath), filePath);
@@ -239,11 +235,7 @@ namespace ValveResourceFormat
         /// <param name="fileName">File name to find.</param>
         public PackageEntry FindEntry(string directory, string fileName)
         {
-            // Don't explode on linux
-            if (Path.DirectorySeparatorChar != '\\')
-            {
-                fileName = fileName.Replace('\\', Path.DirectorySeparatorChar);
-            }
+            fileName = fileName?.Replace('\\', '/');
 
             return FindEntry(directory, Path.GetFileNameWithoutExtension(fileName), Path.GetExtension(fileName)?.TrimStart('.'));
         }
@@ -256,29 +248,19 @@ namespace ValveResourceFormat
         /// <param name="extension">File extension, without the leading dot.</param>
         public PackageEntry FindEntry(string directory, string fileName, string extension)
         {
-            // We normalize path separators when reading the file list
-            if (directory != null)
+            // Entries[null] throws as dictionary keys can not be null
+            if (extension == null)
             {
-                // Don't explode on linux
-                if (Path.DirectorySeparatorChar != '\\')
-                {
-                    directory = directory.Replace('\\', Path.DirectorySeparatorChar);
-                }
-
-                directory = directory.Replace("/", "\\");
-                directory = directory.Trim('\\');
+                return null;
             }
+
+            // We normalize path separators when reading the file list
+            directory = directory?.Replace('\\', '/').Trim('/');
 
             // If the directory is empty after trimming, set it to null
             if (directory == string.Empty)
             {
                 directory = null;
-            }
-
-            // Entries[null] throws as dictionary keys can not be null
-            if (extension == null)
-            {
-                return null;
             }
 
             return Entries[extension]?.FirstOrDefault(x => x.DirectoryName == directory && x.FileName == fileName);
@@ -371,8 +353,10 @@ namespace ValveResourceFormat
 
                     // Valve uses a space for blank directory names,
                     // we replace it with a null to match how System.IO.Path deals with root paths.
-                    // We also normalize folder separators to always be '\'
-                    directoryName = directoryName == " " ? null : directoryName.Replace("/", "\\");
+                    if (directoryName == " ")
+                    {
+                        directoryName = null;
+                    }
 
                     // Files
                     while (true)

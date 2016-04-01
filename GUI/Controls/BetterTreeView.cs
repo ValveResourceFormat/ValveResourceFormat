@@ -118,7 +118,7 @@ namespace GUI.Controls
 
             if (file.DirectoryName != null)
             {
-                var subPaths = file.DirectoryName.Split('\\'); // VRF always uses \\
+                var subPaths = file.DirectoryName.Split('/'); // VPKs always use '/' for paths
 
                 foreach (var subPath in subPaths)
                 {
