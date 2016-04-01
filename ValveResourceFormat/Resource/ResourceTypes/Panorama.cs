@@ -10,7 +10,8 @@ namespace ValveResourceFormat.ResourceTypes
         public class NameEntry
         {
             public string Name { get; set; }
-            public uint CRC32 { get; set; } // TODO: unconfirmed
+            public uint Unknown1 { get; set; } // TODO: unconfirmed
+            public uint Unknown2 { get; set; } // TODO: unconfirmed
         }
 
         public List<NameEntry> Names { get; }
@@ -30,22 +31,22 @@ namespace ValveResourceFormat.ResourceTypes
             CRC32 = reader.ReadUInt32();
 
             var size = reader.ReadUInt16();
-            int headerSize = 4 + 2;
 
             for (var i = 0; i < size; i++)
             {
                 var entry = new NameEntry
                 {
                     Name = reader.ReadNullTermString(Encoding.UTF8),
-                    CRC32 = reader.ReadUInt32(),
+                    Unknown1 = reader.ReadUInt32(), // TODO: This might be uint64 and be m_nId, same as RERL
+                    Unknown2 = reader.ReadUInt32(),
                 };
 
                 Names.Add(entry);
-
-                headerSize += entry.Name.Length + 1 + 4; // string length + null byte + 4 bytes
             }
 
-            Data = reader.ReadBytes((int)Size - headerSize);
+            var headerSize = reader.BaseStream.Position - Offset;
+
+            Data = reader.ReadBytes((int)Size - (int)headerSize);
 
             if (Crc32.Compute(Data) != CRC32)
             {
