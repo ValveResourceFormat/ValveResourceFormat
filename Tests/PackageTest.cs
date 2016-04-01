@@ -138,6 +138,44 @@ namespace Tests
         }
 
         [Test]
+        public void FindEntrySpacesAndExtensionless()
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "broken_dir.vpk");
+
+            using (var package = new Package())
+            {
+                package.Read(path);
+
+                Assert.AreEqual(0x0BA144CC, package.FindEntry("test")?.CRC32);
+                Assert.AreEqual(0x0BA144CC, package.FindEntry("\\/\\", "test")?.CRC32);
+                Assert.AreEqual(0x0BA144CC, package.FindEntry("\\\\/", "test", "")?.CRC32);
+                Assert.AreEqual(0x0BA144CC, package.FindEntry("\\\\/", "test", null)?.CRC32);
+                Assert.AreEqual(0x0BA144CC, package.FindEntry(null, "test", null)?.CRC32);
+
+                Assert.AreEqual(0xBF108706, package.FindEntry("folder with space/test")?.CRC32);
+                Assert.AreEqual(0xBF108706, package.FindEntry("folder with space", "test")?.CRC32);
+                Assert.AreEqual(0xBF108706, package.FindEntry("\\folder with space", "test", "")?.CRC32);
+                Assert.AreEqual(0xBF108706, package.FindEntry("//folder with space//", "test", null)?.CRC32);
+                
+                Assert.IsNull(package.FindEntry(null, null, "test"));
+                Assert.IsNull(package.FindEntry("test", null, null));
+                Assert.IsNull(package.FindEntry("folder with space", null, "test"));
+
+                Assert.AreEqual(0x09321FC0, package.FindEntry("folder with space\\space_extension. txt")?.CRC32);
+                Assert.AreEqual(0x09321FC0, package.FindEntry("/folder with space", "space_extension. txt")?.CRC32);
+                Assert.AreEqual(0x09321FC0, package.FindEntry("folder with space/", "space_extension", " txt")?.CRC32);
+
+                Assert.AreEqual(0x76D91432, package.FindEntry("folder with space/file name with space.txt")?.CRC32);
+
+                Assert.AreEqual(0x15C1490F, package.FindEntry("uppercasefolder/bad_file_forfun.txt")?.CRC32);
+                Assert.AreEqual(0x32CFF012, package.FindEntry("UpperCaseFolder/UpperCaseFile.txt")?.CRC32);
+
+                Assert.IsNull(package.FindEntry("UpperCaseFolder/bad_file_forfun.txt"));
+                Assert.IsNull(package.FindEntry("uppercasefolder/UpperCaseFile.txt"));
+            }
+        }
+
+        [Test]
         public void ExtractInlineVPK()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "steamdb_test_single.vpk");
