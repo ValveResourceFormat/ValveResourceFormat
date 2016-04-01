@@ -176,6 +176,28 @@ namespace Tests
         }
 
         [Test]
+        public void TestGetFullPath()
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "broken_dir.vpk");
+
+            using (var package = new Package())
+            {
+                package.Read(path);
+
+                Assert.AreEqual("test", package.FindEntry("test")?.GetFullPath());
+                Assert.AreEqual("folder with space/test", package.FindEntry("folder with space/test")?.GetFullPath());
+                Assert.AreEqual("folder with space/space_extension. txt", package.FindEntry("folder with space\\space_extension. txt")?.GetFullPath());
+                Assert.AreEqual("uppercasefolder/bad_file_forfun.txt", package.FindEntry("uppercasefolder/bad_file_forfun.txt")?.GetFullPath());
+                Assert.AreEqual("UpperCaseFolder/UpperCaseFile.txt", package.FindEntry("UpperCaseFolder/UpperCaseFile.txt")?.GetFullPath());
+
+                Assert.AreEqual("test", package.FindEntry("test")?.GetFileName());
+                Assert.AreEqual("test", package.FindEntry("folder with space/test")?.GetFileName());
+                Assert.AreEqual("space_extension. txt", package.FindEntry("folder with space\\space_extension. txt")?.GetFileName());
+                Assert.AreEqual("bad_file_forfun.txt", package.FindEntry("uppercasefolder/bad_file_forfun.txt")?.GetFileName());
+            }
+        }
+
+        [Test]
         public void ExtractInlineVPK()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "steamdb_test_single.vpk");
