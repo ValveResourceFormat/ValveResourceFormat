@@ -37,6 +37,11 @@ namespace ValveResourceFormat
     {
         public const int MAGIC = 0x55AA1234;
 
+        /// <summary>
+        /// Always '/' as per Valve's vpk implementation.
+        /// </summary>
+        public const char DirectorySeparatorChar = '/';
+
         private BinaryReader Reader;
         private bool IsDirVPK;
         private uint HeaderSize;
@@ -222,7 +227,7 @@ namespace ValveResourceFormat
         /// <param name="filePath">Full path to the file to find.</param>
         public PackageEntry FindEntry(string filePath)
         {
-            filePath = filePath?.Replace('\\', '/');
+            filePath = filePath?.Replace('\\', DirectorySeparatorChar);
 
             // Even though technically we are passing in full path as file name, relevant functions in next overload fix it
             return FindEntry(Path.GetDirectoryName(filePath), filePath);
@@ -235,7 +240,7 @@ namespace ValveResourceFormat
         /// <param name="fileName">File name to find.</param>
         public PackageEntry FindEntry(string directory, string fileName)
         {
-            fileName = fileName?.Replace('\\', '/');
+            fileName = fileName?.Replace('\\', DirectorySeparatorChar);
 
             return FindEntry(directory, Path.GetFileNameWithoutExtension(fileName), Path.GetExtension(fileName)?.TrimStart('.'));
         }
@@ -260,7 +265,7 @@ namespace ValveResourceFormat
             }
 
             // We normalize path separators when reading the file list
-            directory = directory?.Replace('\\', '/').Trim('/');
+            directory = directory?.Replace('\\', DirectorySeparatorChar).Trim(DirectorySeparatorChar);
 
             // If the directory is empty after trimming, set it to null
             if (directory == string.Empty)

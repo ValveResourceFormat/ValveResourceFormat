@@ -75,12 +75,12 @@ namespace ValveResourceFormat
                 fileName += "." + TypeName;
             }
 
-            if (DirectoryName == null)
+            if (DirectoryName != null)
             {
                 return fileName;
             }
 
-            return Path.Combine(DirectoryName, fileName);
+            return DirectoryName + Package.DirectorySeparatorChar + fileName;
         }
 
         public override string ToString()
