@@ -248,8 +248,13 @@ namespace ValveResourceFormat
         /// <param name="extension">File extension, without the leading dot.</param>
         public PackageEntry FindEntry(string directory, string fileName, string extension)
         {
-            // Entries[null] throws as dictionary keys can not be null
+            // Assume no extension
             if (extension == null)
+            {
+                extension = string.Empty;
+            }
+
+            if (!Entries.ContainsKey(extension))
             {
                 return null;
             }
@@ -263,7 +268,7 @@ namespace ValveResourceFormat
                 directory = null;
             }
 
-            return Entries[extension]?.FirstOrDefault(x => x.DirectoryName == directory && x.FileName == fileName);
+            return Entries[extension].FirstOrDefault(x => x.DirectoryName == directory && x.FileName == fileName);
         }
 
         /// <summary>
@@ -337,6 +342,13 @@ namespace ValveResourceFormat
                 if (typeName == string.Empty)
                 {
                     break;
+                }
+
+                // Valve uses a space for missing extensions,
+                // we replace it with an empty string to match how System.IO.Path deals with it.
+                if (typeName == " ")
+                {
+                    typeName = string.Empty;
                 }
 
                 var entries = new List<PackageEntry>();

@@ -19,6 +19,7 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Gets or sets the file extension.
+        /// If the file has no extension, this is an empty string.
         /// </summary>
         public string TypeName { get; set; }
 
@@ -67,7 +68,12 @@ namespace ValveResourceFormat
 
         public string GetFullPath()
         {
-            var fileName = $"{FileName}.{TypeName}";
+            var fileName = FileName;
+
+            if (TypeName != string.Empty)
+            {
+                fileName += "." + TypeName;
+            }
 
             if (DirectoryName == null)
             {
