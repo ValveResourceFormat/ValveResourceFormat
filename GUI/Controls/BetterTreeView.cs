@@ -124,33 +124,18 @@ namespace GUI.Controls
                 {
                     if (currentNode == null)
                     {
-                        currentNode = Nodes[subPath] ?? Nodes.Add(subPath, subPath);
+                        currentNode = Nodes[subPath] ?? Nodes.Add(subPath, subPath, @"_folder", @"_folder");
                     }
                     else
                     {
-                        currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath);
+                        currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath, @"_folder", @"_folder");
                     }
 
                     currentNode.Tag = new TreeViewFolder(file.DirectoryName, currentNode.Nodes.Count + 1); //is this enough?
-
-                    currentNode.ImageKey = @"_folder";
-                    currentNode.SelectedImageKey = @"_folder";
                 }
             }
 
             var fileName = $"{file.FileName}.{file.TypeName}";
-
-            if (currentNode == null)
-            {
-                currentNode = Nodes[fileName] ?? Nodes.Add(fileName, fileName);
-            }
-            else
-            {
-                currentNode = currentNode.Nodes[fileName] ?? currentNode.Nodes.Add(fileName, fileName);
-            }
-
-            currentNode.Tag = file; //so we can use it later
-
             var ext = file.TypeName;
 
             if (ext.EndsWith("_c", StringComparison.Ordinal))
@@ -175,8 +160,16 @@ namespace GUI.Controls
                 }
             }
 
-            currentNode.ImageKey = ext;
-            currentNode.SelectedImageKey = ext;
+            if (currentNode == null)
+            {
+                currentNode = Nodes.Add(fileName, fileName, ext, ext);
+            }
+            else
+            {
+                currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
+            }
+
+            currentNode.Tag = file; //so we can use it later
         }
     }
 }
