@@ -93,6 +93,11 @@ namespace Tests
                 Assert.IsNull(package.FindEntry("\\addons/hello_github_reader/chess.vdf"));
                 Assert.IsNull(package.FindEntry("\\addons/hello_github_reader/", "chess.vdf"));
                 Assert.IsNull(package.FindEntry("\\addons/hello_github_reader/", "chess", "vdf"));
+
+                Assert.IsNull(package.FindEntry("\\addons/", "chess/chess.vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/", "chess/chess", "vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/", "chess\\chess.vdf"));
+                Assert.IsNull(package.FindEntry("\\addons/", "chess\\chess", "vdf"));
             }
         }
 
@@ -109,6 +114,9 @@ namespace Tests
                 Assert.AreEqual(0x9C800116, package.FindEntry("", "kitten.jpg")?.CRC32);
                 Assert.AreEqual(0x9C800116, package.FindEntry("", "kitten", "jpg")?.CRC32);
                 Assert.AreEqual(0x9C800116, package.FindEntry(null, "kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry(null, "kitten", "jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry(null, "/kitten.jpg")?.CRC32);
+                Assert.AreEqual(0x9C800116, package.FindEntry(null, "\\kitten.jpg")?.CRC32);
 
                 Assert.AreEqual(0x9C800116, package.FindEntry("\\kitten.jpg")?.CRC32);
                 Assert.AreEqual(0x9C800116, package.FindEntry("\\", "kitten.jpg")?.CRC32);
@@ -121,6 +129,11 @@ namespace Tests
                 Assert.AreEqual(0x9C800116, package.FindEntry("\\/kitten.jpg")?.CRC32);
                 Assert.AreEqual(0x9C800116, package.FindEntry("\\/\\", "kitten.jpg")?.CRC32);
                 Assert.AreEqual(0x9C800116, package.FindEntry("\\\\/", "kitten", "jpg")?.CRC32);
+
+                Assert.IsNull(package.FindEntry(null));
+                Assert.IsNull(package.FindEntry(null, null));
+                Assert.IsNull(package.FindEntry(null, null, null));
+
             }
         }
 

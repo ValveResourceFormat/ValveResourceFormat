@@ -222,6 +222,12 @@ namespace ValveResourceFormat
         /// <param name="filePath">Full path to the file to find.</param>
         public PackageEntry FindEntry(string filePath)
         {
+            // Don't explode on linux
+            if (Path.DirectorySeparatorChar != '\\')
+            {
+                filePath = filePath.Replace('\\', Path.DirectorySeparatorChar);
+            }
+
             // Even though technically we are passing in full path as file name, relevant functions in next overload fix it
             return FindEntry(Path.GetDirectoryName(filePath), filePath);
         }
@@ -233,6 +239,12 @@ namespace ValveResourceFormat
         /// <param name="fileName">File name to find.</param>
         public PackageEntry FindEntry(string directory, string fileName)
         {
+            // Don't explode on linux
+            if (Path.DirectorySeparatorChar != '\\')
+            {
+                fileName = fileName.Replace('\\', Path.DirectorySeparatorChar);
+            }
+
             return FindEntry(directory, Path.GetFileNameWithoutExtension(fileName), Path.GetExtension(fileName)?.TrimStart('.'));
         }
 
@@ -247,6 +259,12 @@ namespace ValveResourceFormat
             // We normalize path separators when reading the file list
             if (directory != null)
             {
+                // Don't explode on linux
+                if (Path.DirectorySeparatorChar != '\\')
+                {
+                    directory = directory.Replace('\\', Path.DirectorySeparatorChar);
+                }
+
                 directory = directory.Replace("/", "\\");
                 directory = directory.Trim('\\');
             }
@@ -255,6 +273,12 @@ namespace ValveResourceFormat
             if (directory == string.Empty)
             {
                 directory = null;
+            }
+
+            // Entries[null] throws as dictionary keys can not be null
+            if (extension == null)
+            {
+                return null;
             }
 
             return Entries[extension]?.FirstOrDefault(x => x.DirectoryName == directory && x.FileName == fileName);
