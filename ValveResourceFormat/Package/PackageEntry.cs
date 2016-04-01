@@ -66,7 +66,11 @@ namespace ValveResourceFormat
         /// </summary>
         public byte[] SmallData { get; set; }
 
-        public string GetFullPath()
+        /// <summary>
+        /// Returns the file name and extension.
+        /// </summary>
+        /// <returns>File name and extension.</returns>
+        public string GetFileName()
         {
             var fileName = FileName;
 
@@ -75,12 +79,21 @@ namespace ValveResourceFormat
                 fileName += "." + TypeName;
             }
 
-            if (DirectoryName != null)
+            return fileName;
+        }
+
+        /// <summary>
+        /// Returns the absolute path of the file in the package.
+        /// </summary>
+        /// <returns>Absolute path.</returns>
+        public string GetFullPath()
+        {
+            if (DirectoryName == null)
             {
-                return fileName;
+                return GetFileName();
             }
 
-            return DirectoryName + Package.DirectorySeparatorChar + fileName;
+            return DirectoryName + Package.DirectorySeparatorChar + GetFileName();
         }
 
         public override string ToString()

@@ -135,7 +135,7 @@ namespace GUI.Controls
                 }
             }
 
-            var fileName = $"{file.FileName}.{file.TypeName}";
+            var fileName = file.GetFileName();
             var ext = file.TypeName;
 
             if (ext.EndsWith("_c", StringComparison.Ordinal))
@@ -145,7 +145,7 @@ namespace GUI.Controls
 
             if (!ImageList.Images.ContainsKey(ext))
             {
-                if (ext[0] == 'v')
+                if (ext.Length > 0 && ext[0] == 'v')
                 {
                     ext = ext.Substring(1);
 
