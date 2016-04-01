@@ -1,0 +1,31 @@
+ResourceExtRefList_t
+	{
+		Struct m_resourceRefInfoList[5] = 
+		[
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x2D50975179486E31
+				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/candles_psd.vtex"
+			}
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0xD225F8EAF308472B
+				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip1_psd.vtex"
+			}
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x954142EC49FC4717
+				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip2_psd.vtex"
+			}
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0x73C0FDC254EC45DA
+				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip3_psd.vtex"
+			}
+			ResourceReferenceInfo_t
+			{
+				uint64 m_nId = 0xA5826E470B3364EF
+				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip4_psd.vtex"
+			}
+		]
+	}

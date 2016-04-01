@@ -1,0 +1,20 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/dotastyles.vcss_c" />
+		<include src="s2r://panorama/styles/dashboard_page_shared.vcss_c" />
+		<include src="s2r://panorama/styles/dashboard_page_credits.vcss_c" />
+	</styles>
+
+	<DOTACreditsPage class="DashboardPage SafeDashboardPage">
+		<Label id="CreditsTitle" text="#DOTA_Credits" />
+		<Panel id="CreditsScroller">
+			<Panel id="CreditsList">
+				<!-- Filled in dynamically -->
+			</Panel>
+			<Panel id="SpecialThanks">
+				<Label id="SpecialThanksTitle" text="#DOTA_SpecialThanks_Title" />
+				<Label id="SpecialThanksText" text="#DOTA_SpecialThanks" />
+			</Panel>
+		</Panel>
+	</DOTACreditsPage>
+</root>

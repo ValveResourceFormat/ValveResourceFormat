@@ -1,0 +1,78 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/dotastyles.vcss_c" />
+		<include src="s2r://panorama/styles/dashboard_page_shared.vcss_c" />
+		<include src="s2r://panorama/styles/leaf_pages/dashboard_page_halloween2015.vcss_c" />
+	</styles>
+
+	<DOTAReferencePage class="DashboardPage SafeDashboardPage BGDark">
+
+		<Panel id="MainContainer" class="">
+			<Panel id="BackgroundContainer" >
+				<Panel id="BackgroundPlate" />
+				<Panel id="BackgroundSplash" class="BackgroundImage" />
+				<Panel id="BackgroundHeaderImage" class="BackgroundImage" />
+				<DOTAScenePanel id="BatsModel" map="scenes/halloween2015_bats" camera="camera_1" antialias="true"/>
+				<Panel id="ForegroundImage" />
+				<Label class="SplashDescription" text="#DOTA_Leaf_Halloween2015_Desc"/>			
+			</Panel>	
+			<Panel id="Header" class="TopBottomFlow">
+				<Label class="MainTitle TitleFont" text="#DOTA_Leaf_Halloween2015_Title"/>
+				<Label class="SubTitle" text="#DOTA_Leaf_Halloween2015_SubTitle"/>
+			</Panel>
+			<Panel id="DetailsHeader" class="TopBottomFlow">
+				<Label class="DMainTitle TitleFont" text="#DOTA_Leaf_Halloween2015_Title"/>
+				<Label class="DSubTitle" text="#DOTA_Leaf_Halloween2015_SubTitle"/>
+			</Panel>			
+			<Label class="Description" text="#DOTA_Leaf_Halloween2015_Desc"/>
+			<Panel id="Body">
+				<Panel id="PanelContainer">
+					<Panel id="Panel1" class="TipPanel TopBottomFlow">
+						<Label class="TipTitle" text="#DOTA_Leaf_Halloween2015_Capture"/>
+						<Label class="TipDescription" html="true" text="#DOTA_Leaf_Halloween2015_Capture_Desc"/>
+					</Panel>
+					<Panel id="Panel2" class="TipPanel TopBottomFlow">
+						<Label class="TipTitle" text="#DOTA_Leaf_Halloween2015_Control"/>
+						<Label class="TipDescription" html="true" text="#DOTA_Leaf_Halloween2015_Control_Desc"/>
+					</Panel>
+					<Panel id="Panel3" class="TipPanel TopBottomFlow">
+						<Label class="TipTitle" text="#DOTA_Leaf_Halloween2015_Tricks"/>
+						<Label class="TipDescription" html="true" text="#DOTA_Leaf_Halloween2015_Tricks_Desc"/>
+					</Panel>					
+					<Panel id="Panel4" class="TipPanel TopBottomFlow">
+						<Label class="TipTitle" text="#DOTA_Leaf_Halloween2015_Win"/>
+						<Label class="TipDescription" html="true" text="#DOTA_Leaf_Halloween2015_Win_Desc"/>
+					</Panel>					
+				</Panel>
+				<Panel id="PanelArt">
+					<Panel id="Tip1" class="PanelArtImage">
+						<Image src="s2r://panorama/images/leaf_pages/halloween2015/tip1_psd.vtex"/>
+					</Panel>
+					<Panel id="Tip2" class="PanelArtImage">
+						<Image src="s2r://panorama/images/leaf_pages/halloween2015/tip2_psd.vtex"/>
+					</Panel>		
+					<Panel id="Tip3" class="PanelArtImage">
+						<Image src="s2r://panorama/images/leaf_pages/halloween2015/tip3_psd.vtex"/>
+					</Panel>		
+					<Panel id="Tip4" class="PanelArtImage">
+						<Image src="s2r://panorama/images/leaf_pages/halloween2015/tip4_psd.vtex"/>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Button id="GoToDetailsButton" class="HalloweenButtonBevel ButtonBevel" onactivate="DOTAShowReferencePageStyled( file://{resources}/layout/leaf_pages/dashboard_page_halloween2015.xml, PageTwoActive )">			
+				<Label text="#DOTA_View_Details_Arrow"/>
+			</Button>
+
+			<Button id="GoToPageButton" class="HalloweenButtonBevel ButtonBevel" onactivate="DOTAShowCustomGamePage( 543155633 )">			
+				<Label text="#DOTA_Leaf_Halloween2015_Play"/>
+			</Button>
+
+			<Button id="ClosePageButton" class="CloseButton" onactivate="DOTAShowHomePage()" />
+
+			<Panel id="Candles">
+				<Image src="s2r://panorama/images/leaf_pages/halloween2015/candles_psd.vtex"/>
+			</Panel>
+			<DOTAScenePanel id="CandlesModel" map="scenes/halloween2015_candles" camera="camera_1" antialias="true"/>
+		</Panel>
+	</DOTAReferencePage>
+</root>
