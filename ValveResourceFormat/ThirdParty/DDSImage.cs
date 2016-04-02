@@ -24,42 +24,52 @@ namespace ValveResourceFormat.ThirdParty
     {
         public static Bitmap UncompressDXT1(BinaryReader r, int w, int h)
         {
-            Bitmap res = new Bitmap(w, h);
-            int blockCountX = (w + 3) / 4;
-            int blockCountY = (h + 3) / 4;
+            var rect = new Rectangle(0, 0, w, h);
+            var res = new Bitmap(w, h, PixelFormat.Format32bppRgb);
 
-            for (int j = 0; j < blockCountY; j++)
+            var blockCountX = (w + 3) / 4;
+            var blockCountY = (h + 3) / 4;
+
+            var lockBits = res.LockBits(rect, ImageLockMode.WriteOnly, res.PixelFormat);
+
+            var data = new byte[lockBits.Stride * lockBits.Height];
+
+            for (var j = 0; j < blockCountY; j++)
             {
-                for (int i = 0; i < blockCountX; i++)
+                for (var i = 0; i < blockCountX; i++)
                 {
-                    byte[] blockStorage = r.ReadBytes(8);
-                    DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, res);
+                    var blockStorage = r.ReadBytes(8);
+                    DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, ref data, lockBits.Stride);
                 }
             }
+
+            Marshal.Copy(data, 0, lockBits.Scan0, data.Length);
+
+            res.UnlockBits(lockBits);
 
             return res;
         }
 
-        private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, Bitmap image)
+        private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride)
         {
             ushort color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
             ushort color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
 
             int temp;
 
-            temp = (color0 >> 11) * 255 + 16;
-            byte r0 = (byte)((temp / 32 + temp) / 32);
-            temp = ((color0 & 0x07E0) >> 5) * 255 + 32;
-            byte g0 = (byte)((temp / 64 + temp) / 64);
-            temp = (color0 & 0x001F) * 255 + 16;
-            byte b0 = (byte)((temp / 32 + temp) / 32);
+            temp = ((color0 >> 11) * 255) + 16;
+            byte r0 = (byte)(((temp / 32) + temp) / 32);
+            temp = (((color0 & 0x07E0) >> 5) * 255) + 32;
+            byte g0 = (byte)(((temp / 64) + temp) / 64);
+            temp = ((color0 & 0x001F) * 255) + 16;
+            byte b0 = (byte)(((temp / 32) + temp) / 32);
 
-            temp = (color1 >> 11) * 255 + 16;
-            byte r1 = (byte)((temp / 32 + temp) / 32);
-            temp = ((color1 & 0x07E0) >> 5) * 255 + 32;
-            byte g1 = (byte)((temp / 64 + temp) / 64);
-            temp = (color1 & 0x001F) * 255 + 16;
-            byte b1 = (byte)((temp / 32 + temp) / 32);
+            temp = ((color1 >> 11) * 255) + 16;
+            byte r1 = (byte)(((temp / 32) + temp) / 32);
+            temp = (((color1 & 0x07E0) >> 5) * 255) + 32;
+            byte g1 = (byte)(((temp / 64) + temp) / 64);
+            temp = ((color1 & 0x001F) * 255) + 16;
+            byte b1 = (byte)(((temp / 32) + temp) / 32);
 
             uint c1 = blockStorage[4];
             uint c2 = (uint)blockStorage[5] << 8;
@@ -71,49 +81,55 @@ namespace ValveResourceFormat.ThirdParty
             {
                 for (int i = 0; i < 4; i++)
                 {
-                    Color finalColor = Color.FromArgb(0);
-                    byte positionCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
+                    byte positionCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
 
-                    if (color0 > color1)
+                    byte finalR = 0, finalG = 0, finalB = 0;
+
+                    switch (positionCode)
                     {
-                        switch (positionCode)
-                        {
-                            case 0:
-                                finalColor = Color.FromArgb(255, r0, g0, b0);
+                        case 0:
+                            finalR = r0;
+                            finalG = g0;
+                            finalB = b0;
+                            break;
+                        case 1:
+                            finalR = r1;
+                            finalG = g1;
+                            finalB = b1;
+                            break;
+                        case 2:
+                            if (color0 > color1)
+                            {
+                                finalR = (byte)(((2 * r0) + r1) / 3);
+                                finalG = (byte)(((2 * g0) + g1) / 3);
+                                finalB = (byte)(((2 * b0) + b1) / 3);
+                            }
+                            else
+                            {
+                                finalR = (byte)((r0 + r1) / 2);
+                                finalG = (byte)((g0 + g1) / 2);
+                                finalB = (byte)((b0 + b1) / 2);
+                            }
+
+                            break;
+                        case 3:
+                            if (color0 < color1)
+                            {
                                 break;
-                            case 1:
-                                finalColor = Color.FromArgb(255, r1, g1, b1);
-                                break;
-                            case 2:
-                                finalColor = Color.FromArgb(255, (2 * r0 + r1) / 3, (2 * g0 + g1) / 3, (2 * b0 + b1) / 3);
-                                break;
-                            case 3:
-                                finalColor = Color.FromArgb(255, (r0 + 2 * r1) / 3, (g0 + 2 * g1) / 3, (b0 + 2 * b1) / 3);
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        switch (positionCode)
-                        {
-                            case 0:
-                                finalColor = Color.FromArgb(255, r0, g0, b0);
-                                break;
-                            case 1:
-                                finalColor = Color.FromArgb(255, r1, g1, b1);
-                                break;
-                            case 2:
-                                finalColor = Color.FromArgb(255, (r0 + r1) / 2, (g0 + g1) / 2, (b0 + b1) / 2);
-                                break;
-                            case 3:
-                                finalColor = Color.FromArgb(255, 0, 0, 0);
-                                break;
-                        }
+                            }
+
+                            finalR = (byte)(((2 * r1) + r0) / 3);
+                            finalG = (byte)(((2 * g1) + g0) / 3);
+                            finalB = (byte)(((2 * b1) + b0) / 3);
+                            break;
                     }
 
                     if (x + i < width)
                     {
-                        image.SetPixel(x + i, y + j, finalColor);
+                        var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
+                        pixels[pixelIndex] = finalB;
+                        pixels[pixelIndex + 1] = finalG;
+                        pixels[pixelIndex + 2] = finalR;
                     }
                 }
             }
