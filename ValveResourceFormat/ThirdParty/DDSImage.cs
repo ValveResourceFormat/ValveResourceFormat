@@ -14,7 +14,9 @@
 
 using System;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.ThirdParty
 {
@@ -119,24 +121,33 @@ namespace ValveResourceFormat.ThirdParty
 
         public static Bitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg)
         {
-            Bitmap res = new Bitmap(w, h);
+            var rect = new Rectangle(0, 0, w, h);
+            var res = new Bitmap(w, h, PixelFormat.Format32bppArgb);
 
-            int blockCountX = (w + 3) / 4;
-            int blockCountY = (h + 3) / 4;
+            var blockCountX = (w + 3) / 4;
+            var blockCountY = (h + 3) / 4;
 
-            for (int j = 0; j < blockCountY; j++)
+            var lockBits = res.LockBits(rect, ImageLockMode.WriteOnly, res.PixelFormat);
+
+            var data = new byte[lockBits.Stride * lockBits.Height];
+
+            for (var j = 0; j < blockCountY; j++)
             {
-                for (int i = 0; i < blockCountX; i++)
+                for (var i = 0; i < blockCountX; i++)
                 {
-                    byte[] blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, res, yCoCg);
+                    var blockStorage = r.ReadBytes(16);
+                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, ref data, lockBits.Stride, yCoCg);
                 }
             }
+
+            Marshal.Copy(data, 0, lockBits.Scan0, data.Length);
+
+            res.UnlockBits(lockBits);
 
             return res;
         }
 
-        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Bitmap image, bool yCoCg)
+        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride, bool yCoCg)
         {
             byte alpha0 = blockStorage[0];
             byte alpha1 = blockStorage[1];
@@ -178,7 +189,7 @@ namespace ValveResourceFormat.ThirdParty
             {
                 for (int i = 0; i < 4; i++)
                 {
-                    int alphaCodeIndex = 3 * (4 * j + i);
+                    int alphaCodeIndex = 3 * ((4 * j) + i);
                     int alphaCode;
 
                     if (alphaCodeIndex <= 12)
@@ -207,7 +218,7 @@ namespace ValveResourceFormat.ThirdParty
                     {
                         if (alpha0 > alpha1)
                         {
-                            finalAlpha = (byte)(((8 - alphaCode) * alpha0 + (alphaCode - 1) * alpha1) / 7);
+                            finalAlpha = (byte)((((8 - alphaCode) * alpha0) + ((alphaCode - 1) * alpha1)) / 7);
                         }
                         else
                         {
@@ -221,14 +232,14 @@ namespace ValveResourceFormat.ThirdParty
                             }
                             else
                             {
-                                finalAlpha = (byte)(((6 - alphaCode) * alpha0 + (alphaCode - 1) * alpha1) / 5);
+                                finalAlpha = (byte)((((6 - alphaCode) * alpha0) + ((alphaCode - 1) * alpha1)) / 5);
                             }
                         }
                     }
 
-                    byte colorCode = (byte)((code >> 2 * (4 * j + i)) & 0x03);
+                    byte colorCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
 
-                    int finalR = 0, finalG = 0, finalB = 0;
+                    byte finalR = 0, finalG = 0, finalB = 0;
 
                     switch (colorCode)
                     {
@@ -243,15 +254,14 @@ namespace ValveResourceFormat.ThirdParty
                             finalB = b1;
                             break;
                         case 2:
-                            finalR = (2 * r0 + r1) / 3;
-                            finalG = (2 * g0 + g1) / 3;
-                            finalB = (2 * b0 + b1) / 3;
+                            finalR = (byte)(((2 * r0) + r1) / 3);
+                            finalG = (byte)(((2 * g0) + g1) / 3);
+                            finalB = (byte)(((2 * b0) + b1) / 3);
                             break;
-
                         case 3:
-                            finalR = (2 * r1 + r0) / 3;
-                            finalG = (2 * g1 + g0) / 3;
-                            finalB = (2 * b1 + b0) / 3;
+                            finalR = (byte)(((2 * r1) + r0) / 3);
+                            finalG = (byte)(((2 * g1) + g0) / 3);
+                            finalB = (byte)(((2 * b1) + b0) / 3);
                             break;
                     }
 
@@ -268,20 +278,24 @@ namespace ValveResourceFormat.ThirdParty
                             finalB = ClampColor(finalAlpha - co - cg);
                         }
 
-                        image.SetPixel(x + i, y + j, Color.FromArgb(finalR, finalG, finalB));
+                        var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
+                        pixels[pixelIndex] = finalB;
+                        pixels[pixelIndex + 1] = finalG;
+                        pixels[pixelIndex + 2] = finalR;
+                        pixels[pixelIndex + 3] = byte.MaxValue; // TODO: Where's my alpha at?
                     }
                 }
             }
         }
 
-        private static int ClampColor(int a)
+        private static byte ClampColor(int a)
         {
             if (a > 255)
             {
                 return 255;
             }
 
-            return a < 0 ? 0 : a;
+            return a < 0 ? (byte)0 : (byte)a;
         }
     }
 }
