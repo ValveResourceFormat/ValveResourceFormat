@@ -28,6 +28,7 @@ namespace ValveResourceFormat
         Matrix3x4 = 33,
         Matrix3x4a = 36,
         CTransform = 40,
+        Vector4D_44 = 44,
 #pragma warning restore 1591
     }
 }

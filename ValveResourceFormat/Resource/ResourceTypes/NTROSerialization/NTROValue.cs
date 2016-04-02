@@ -90,6 +90,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
+                case DataType.Vector4D_44:
                     var vector4 = Value as Vector4;
 
                     if (Type == DataType.Quaternion)

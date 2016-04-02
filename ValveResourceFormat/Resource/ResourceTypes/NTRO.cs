@@ -207,6 +207,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
+                case DataType.Vector4D_44:
                     var vector4 = new NTROSerialization.Vector4(
                         Reader.ReadSingle(),
                         Reader.ReadSingle(),
@@ -239,7 +240,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return new NTROSerialization.NTROValue<NTROSerialization.CTransform>(field.Type, transform, pointer);
 
                 default:
-                    throw new NotImplementedException(string.Format("Unknown data type: {0}", field.Type));
+                    throw new NotImplementedException($"Unknown data type: {field.Type} (name: {field.FieldName})");
             }
         }
 
