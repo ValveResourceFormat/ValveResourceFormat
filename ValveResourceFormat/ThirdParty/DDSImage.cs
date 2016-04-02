@@ -266,9 +266,16 @@ namespace ValveResourceFormat.ThirdParty
                             finalR = ClampColor(finalAlpha + co - cg);
                             finalG = ClampColor(finalAlpha + cg);
                             finalB = ClampColor(finalAlpha - co - cg);
+
+                            finalAlpha = byte.MaxValue;
+                        } else if (finalAlpha > 0)
+                        {
+                            finalR = ClampColor(finalR * byte.MaxValue / finalAlpha);
+                            finalG = ClampColor(finalG * byte.MaxValue / finalAlpha);
+                            finalB = ClampColor(finalB * byte.MaxValue / finalAlpha);
                         }
 
-                        image.SetPixel(x + i, y + j, Color.FromArgb(finalR, finalG, finalB));
+                        image.SetPixel(x + i, y + j, Color.FromArgb(finalAlpha, finalR, finalG, finalB));
                     }
                 }
             }
