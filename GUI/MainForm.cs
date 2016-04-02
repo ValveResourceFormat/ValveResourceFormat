@@ -271,7 +271,7 @@ namespace GUI
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
-                        var ap = new Player(resource);
+                        var ap = new Player(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
 
@@ -312,6 +312,7 @@ namespace GUI
                             Console.WriteLine("Old style model, no VBIB!");
                             break;
                         }
+
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(resourceMesh, mainTabs, fileName, currentPackage);
                         var modelglControl = modelmv.CreateGL();
@@ -415,7 +416,6 @@ namespace GUI
                         {
                             control.Text = NormalizeLineEndings(block.Value.ToString());
                         }
-                        
                     }
                     catch (Exception e)
                     {
