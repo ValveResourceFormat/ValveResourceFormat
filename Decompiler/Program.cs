@@ -298,6 +298,11 @@ namespace Decompiler
                 }
             }
 
+            if (Options.CollectStats)
+            {
+                return;
+            }
+
             //Console.WriteLine("\tInput Path: \"{0}\"", args[fi]);
             //Console.WriteLine("\tResource Name: \"{0}\"", "???");
             //Console.WriteLine("\tID: {0:x16}", 0);
@@ -452,14 +457,19 @@ namespace Decompiler
 
                 var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key);
 
+                if (Options.CollectStats)
+                {
+                    TotalFiles += orderedEntries
+                        .Where(entry => entry.Key.EndsWith("_c", StringComparison.Ordinal))
+                        .Sum(x => x.Value.Count);
+                }
+
                 foreach (var entry in orderedEntries)
                 {
                     Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
 
                     if (Options.CollectStats && entry.Key.EndsWith("_c", StringComparison.Ordinal))
                     {
-                        TotalFiles += entry.Value.Count;
-
                         foreach (var file in entry.Value)
                         {
                             lock (ConsoleWriterLock)
