@@ -325,7 +325,38 @@ namespace ValveResourceFormat
             // Should have reached the offset to number of LZMA chunks (90272 for hero_pc_40_ps)
             Console.WriteLine("Offset: {0}", Reader.BaseStream.Position);
 
-            var lzmaCount = Reader.ReadUInt32();
+            var lzmaCountorBufferCount = Reader.ReadUInt32();
+
+            int lzmaCount;
+
+            //is lzmacount for vs total count of vertex buffers or something? lets hope for now theres no shaders with less than 10 lzma chunks/more than 10 buffers
+            if (lzmaCountorBufferCount < 10)
+            {
+                uint unk = 0;
+
+                for (int h = 0; h < lzmaCountorBufferCount; h++)
+                {
+                    count = Reader.ReadUInt32(); // number of attributes
+                    for (int i = 0; i < count; i++)
+                    {
+                        for (int j = 0; j < 3; j++)
+                        {
+                            Console.WriteLine(Reader.ReadNullTermString(Encoding.UTF8));
+                        }
+
+                        unk = Reader.ReadUInt32(); // 0, 13 or 14
+                        Console.WriteLine("Unknown uint: " + unk);
+                    }
+                }
+
+                lzmaCount = Reader.ReadInt32();
+            }
+            else
+            {
+                lzmaCount = (int)lzmaCountorBufferCount;
+            }
+
+            Console.WriteLine("Offset: {0}", Reader.BaseStream.Position);
 
             var unkLongs = new long[lzmaCount];
             for (int i = 0; i < lzmaCount; i++)
