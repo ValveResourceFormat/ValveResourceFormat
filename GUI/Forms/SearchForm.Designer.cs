@@ -33,7 +33,6 @@
             this.cancelButton = new System.Windows.Forms.Button();
             this.findTextBox = new System.Windows.Forms.TextBox();
             this.findLabel = new System.Windows.Forms.Label();
-            this.caseSensitiveCheckBox = new System.Windows.Forms.CheckBox();
             this.searchTypeComboBox = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
@@ -74,16 +73,6 @@
             this.findLabel.TabIndex = 3;
             this.findLabel.Text = "Find what:";
             // 
-            // caseSensitiveCheckBox
-            // 
-            this.caseSensitiveCheckBox.AutoSize = true;
-            this.caseSensitiveCheckBox.Location = new System.Drawing.Point(69, 68);
-            this.caseSensitiveCheckBox.Name = "caseSensitiveCheckBox";
-            this.caseSensitiveCheckBox.Size = new System.Drawing.Size(96, 17);
-            this.caseSensitiveCheckBox.TabIndex = 4;
-            this.caseSensitiveCheckBox.Text = "Case Sensitive";
-            this.caseSensitiveCheckBox.UseVisualStyleBackColor = true;
-            // 
             // searchTypeComboBox
             // 
             this.searchTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
@@ -101,7 +90,6 @@
             this.CancelButton = this.cancelButton;
             this.ClientSize = new System.Drawing.Size(348, 88);
             this.Controls.Add(this.searchTypeComboBox);
-            this.Controls.Add(this.caseSensitiveCheckBox);
             this.Controls.Add(this.findLabel);
             this.Controls.Add(this.findTextBox);
             this.Controls.Add(this.cancelButton);
@@ -126,7 +114,6 @@
         private System.Windows.Forms.Button cancelButton;
         private System.Windows.Forms.TextBox findTextBox;
         private System.Windows.Forms.Label findLabel;
-        private System.Windows.Forms.CheckBox caseSensitiveCheckBox;
         private System.Windows.Forms.ComboBox searchTypeComboBox;
     }
 }

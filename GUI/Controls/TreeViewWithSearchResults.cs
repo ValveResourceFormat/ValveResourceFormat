@@ -100,6 +100,7 @@ namespace GUI.Controls
             var control = mainTreeView;
             control.BeginUpdate();
             control.TreeViewNodeSorter = new TreeViewFileSorter();
+            control.PathSeparator = Package.DirectorySeparatorChar.ToString();
             control.Name = name;
             control.Tag = package; //so we can access it later
             control.Dock = DockStyle.Fill;
@@ -120,13 +121,13 @@ namespace GUI.Controls
         /// Performs a search for the entered text and search types. Before a search is performed, the contents of the ListView (previous search results) are cleared.
         /// Results of whatever search function is used are displayed in the ListView with name, file size, and file type.
         /// </summary>
-        /// <param name="searchText"></param>
-        /// <param name="selectedSearchType"></param>
-        internal void SearchAndFillResults(string searchText, bool isCaseSensitive, SearchType selectedSearchType)
+        /// <param name="searchText">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
+        /// <param name="selectedSearchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
+        internal void SearchAndFillResults(string searchText, SearchType selectedSearchType)
         {
             mainListView.Items.Clear();
 
-            var results = mainTreeView.Search(searchText, isCaseSensitive, selectedSearchType);
+            var results = mainTreeView.Search(searchText, selectedSearchType);
 
             foreach (var node in results)
             {

@@ -27,18 +27,13 @@ namespace GUI.Controls
         /// Performs a breadth-first-search on the TreeView's nodes in search of the passed value. The matching conditions are based on the passed search type parameter.
         /// </summary>
         /// <param name="value">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
-        /// <param name="isCaseSensitive">Specify is search is case sensitive.</param>
         /// <param name="searchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
         /// <returns>A collection of nodes who match the conditions based on the search type.</returns>
-        public IReadOnlyCollection<TreeNode> Search(string value, bool isCaseSensitive, SearchType searchType)
+        public IReadOnlyCollection<TreeNode> Search(string value, SearchType searchType)
         {
             IReadOnlyCollection<TreeNode> results = new List<TreeNode>().AsReadOnly();
 
-            // if the user is not choosing case sensitive, then lower everything so we clear out any case
-            if (!isCaseSensitive)
-            {
-                value = value.ToLower();
-            }
+            value = value.ToLower();
 
             if (searchType == SearchType.FileNameExactMatch)
             {
@@ -46,18 +41,13 @@ namespace GUI.Controls
             }
             else if (searchType == SearchType.FileNamePartialMatch)
             {
-                Func<TreeNode, string, bool> matchFunction = (node, searchText) =>
-                {
-                    return node.Text.ToLower().Contains(searchText);
-                };
+                Func<TreeNode, string, bool> matchFunction = (node, searchText) => node.Text.Contains(searchText);
                 results = Search(value, matchFunction);
             }
             else if (searchType == SearchType.FullPath)
             {
-                Func<TreeNode, string, bool> matchFunction = (node, searchText) =>
-                {
-                    return node.FullPath.ToLower().Contains(searchText);
-                };
+                Func<TreeNode, string, bool> matchFunction = (node, searchText) => node.FullPath.Contains(searchText);
+                value = value.Replace('\\', Package.DirectorySeparatorChar);
                 results = Search(value, matchFunction);
             }
 

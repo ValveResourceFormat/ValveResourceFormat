@@ -25,11 +25,6 @@ namespace GUI.Forms
             }
         }
 
-        public bool IsCaseSensitive
-        {
-            get { return caseSensitiveCheckBox.Checked; }
-        }
-
         public SearchForm()
         {
             InitializeComponent();

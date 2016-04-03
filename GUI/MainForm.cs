@@ -615,7 +615,7 @@ namespace GUI
                 if (!string.IsNullOrEmpty(searchText) && mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
                 {
                     var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                    treeView.SearchAndFillResults(searchText, searchForm.IsCaseSensitive, searchForm.SelectedSearchType);
+                    treeView.SearchAndFillResults(searchText, searchForm.SelectedSearchType);
                 }
             }
         }
