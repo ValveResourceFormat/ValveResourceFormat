@@ -1,4 +1,5 @@
-{
+AnimationGroupResourceData_t
+	{
 		uint32 m_nFlags = 0x00000000
 		CResourceString m_name = ""
 		ExternalReference m_localHAnimArray[0] =
