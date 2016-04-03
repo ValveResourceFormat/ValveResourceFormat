@@ -10,6 +10,7 @@ namespace ValveResourceFormat
         public const int MAGIC = 0x32736376; // "vcs2"
 
         private BinaryReader Reader;
+        private string ShaderType;
 
         /// <summary>
         /// Releases binary reader.
@@ -38,15 +39,30 @@ namespace ValveResourceFormat
         {
             var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-            Read(fs);
+            Read(filename, fs);
         }
 
         /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
+        /// <param name="filename">The filename <see cref="string"/>.</param>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
-        public void Read(Stream input)
+        public void Read(string filename, Stream input)
         {
+            // TODO: Does Valve really have separate parsing for different shader files? See vertex buffer only string chunk below.
+            if (filename.EndsWith("vs.vcs"))
+            {
+                ShaderType = "vertex";
+            }
+            else if (filename.EndsWith("ps.vcs"))
+            {
+                ShaderType = "pixel";
+            }
+            else if (filename.EndsWith("features.vcs"))
+            {
+                ShaderType = "features";
+            }
+
             Reader = new BinaryReader(input);
 
             if (Reader.ReadUInt32() != MAGIC)
@@ -322,39 +338,33 @@ namespace ValveResourceFormat
                 Reader.ReadBytes(4); // ?
             }
 
-            // Should have reached the offset to number of LZMA chunks (90272 for hero_pc_40_ps)
             Console.WriteLine("Offset: {0}", Reader.BaseStream.Position);
 
-            var lzmaCountorBufferCount = Reader.ReadUInt32();
-
-            int lzmaCount;
-
-            //is lzmacount for vs total count of vertex buffers or something? lets hope for now theres no shaders with less than 10 lzma chunks/more than 10 buffers
-            if (lzmaCountorBufferCount < 10)
+            // Vertex shader has a string chunk which seems to be vertex buffer specifications
+            if (ShaderType == "vertex")
             {
-                uint unk = 0;
+                var bufferCount = Reader.ReadUInt32();
 
-                for (int h = 0; h < lzmaCountorBufferCount; h++)
+                Console.WriteLine(bufferCount + " vertex buffer descriptors");
+                for (int h = 0; h < bufferCount; h++)
                 {
                     count = Reader.ReadUInt32(); // number of attributes
+
+                    Console.WriteLine("Buffer #{0}, {1} attributes", h, count);
+
                     for (int i = 0; i < count; i++)
                     {
-                        for (int j = 0; j < 3; j++)
-                        {
-                            Console.WriteLine(Reader.ReadNullTermString(Encoding.UTF8));
-                        }
+                        var name = Reader.ReadNullTermString(Encoding.UTF8);
+                        var type = Reader.ReadNullTermString(Encoding.UTF8);
+                        var option = Reader.ReadNullTermString(Encoding.UTF8);
+                        var unk = Reader.ReadUInt32(); // 0, 1, 2, 13 or 14
 
-                        unk = Reader.ReadUInt32(); // 0, 13 or 14
-                        Console.WriteLine("Unknown uint: " + unk);
+                        Console.WriteLine("     Name: {0}, Type: {1}, Option: {2}, Unknown uint: {3}", name, type, option, unk); 
                     }
                 }
+            }
 
-                lzmaCount = Reader.ReadInt32();
-            }
-            else
-            {
-                lzmaCount = (int)lzmaCountorBufferCount;
-            }
+            var lzmaCount = Reader.ReadUInt32();
 
             Console.WriteLine("Offset: {0}", Reader.BaseStream.Position);
 
