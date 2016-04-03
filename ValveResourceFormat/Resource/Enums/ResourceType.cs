@@ -89,19 +89,21 @@ namespace ValveResourceFormat
         ResourceRemapTable,
 
         // All Panorama* are compiled just as CompilePanorama
+        // vtxt is not a real extension
+        [Extension("vtxt")]
         Panorama,
 
         [Extension("vcss")]
-        PanoramaStyle = Panorama,
+        PanoramaStyle,
 
         [Extension("vxml")]
-        PanoramaLayout = Panorama,
+        PanoramaLayout,
 
         [Extension("vpdi")]
-        PanoramaDynamicImages = Panorama,
+        PanoramaDynamicImages,
 
         [Extension("vjs")]
-        PanoramaScript = Panorama,
+        PanoramaScript,
 
         [Extension("vpsf")]
         ParticleSnapshot,

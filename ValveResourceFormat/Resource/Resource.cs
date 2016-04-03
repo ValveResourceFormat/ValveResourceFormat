@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace ValveResourceFormat
 {
@@ -213,7 +214,7 @@ namespace ValveResourceFormat
 
                             if (specialDeps.List.Count > 0)
                             {
-                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0].CompilerIdentifier);
+                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0]);
                             }
                         }
 
@@ -269,6 +270,10 @@ namespace ValveResourceFormat
             switch (ResourceType)
             {
                 case ResourceType.Panorama:
+                case ResourceType.PanoramaStyle:
+                case ResourceType.PanoramaScript:
+                case ResourceType.PanoramaLayout:
+                case ResourceType.PanoramaDynamicImages:
                     return new ResourceTypes.Panorama();
 
                 case ResourceType.Sound:
@@ -300,8 +305,10 @@ namespace ValveResourceFormat
             return new ResourceData();
         }
 
-        private static ResourceType DetermineResourceTypeByCompilerIdentifier(string identifier)
+        private static ResourceType DetermineResourceTypeByCompilerIdentifier(SpecialDependencies.SpecialDependency input)
         {
+            var identifier = input.CompilerIdentifier;
+
             if (identifier.StartsWith("Compile", StringComparison.Ordinal))
             {
                 identifier = identifier.Remove(0, "Compile".Length);
@@ -315,6 +322,16 @@ namespace ValveResourceFormat
                 case "VPhysXData": return ResourceType.PhysicsCollisionMesh;
                 case "Font": return ResourceType.BitmapFont;
                 case "RenderMesh": return ResourceType.Mesh;
+                case "Panorama":
+                    switch (input.String)
+                    {
+                        case "Panorama Style Compiler Version": return ResourceType.PanoramaStyle;
+                        case "Panorama Script Compiler Version": return ResourceType.PanoramaScript;
+                        case "Panorama Layout Compiler Version": return ResourceType.PanoramaLayout;
+                        case "Panorama Dynamic Images Compiler Version": return ResourceType.PanoramaDynamicImages;
+                    }
+
+                    return ResourceType.Panorama;
             }
 
             ResourceType resourceType;
