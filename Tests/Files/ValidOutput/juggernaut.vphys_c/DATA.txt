@@ -4869,12 +4869,86 @@ VPhysXAggregateData_t
 			}
 			VPhysXJoint_t
 			{
-				uint16 m_nType = 0x0000
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0001
+				uint16 m_nBody2 = 0x0002
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={0.00, -0.12, 0.00; w=-0.99} p={-39.76, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
 				uint16 m_nBody1 = 0x0000
+				uint16 m_nBody2 = 0x0003
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={-0.09, 0.67, 0.20; w=0.71} p={0.00, 11.50, -4.72}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0003
 				uint16 m_nBody2 = 0x0004
-				uint16 m_nFlags = 0x0001
-				CTransform m_Frame1 = q={0.00, 0.00, -0.12; w=0.00} p={0.00, -39.76, 0.00}
-				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=0.00} p={-0.99, 0.00, 0.00}
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={0.00, 0.12, 0.00; w=0.99} p={39.76, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=1.00} p={0.00, 0.00, 0.00}
 				bool m_bEnableLinearLimit = false
 				Struct m_LinearLimit = VPhysXRange_t
 				{
@@ -4906,86 +4980,12 @@ VPhysXAggregateData_t
 			}
 			VPhysXJoint_t
 			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0004
+				uint16 m_nBody2 = 0x0005
 				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={-4.72, 0.00, -0.09; w=0.67} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=0.00} p={0.20, 0.71, 0.00}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 1.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxForce = 0.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=0.00} p={0.12, 0.00, 0.99}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 1.000000
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxForce = 0.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={42.87, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=0.00} p={0.03, -0.49, -0.09}
+				CTransform m_Frame1 = q={0.03, -0.49, -0.09; w=0.87} p={42.87, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
 				bool m_bEnableLinearLimit = false
 				Struct m_LinearLimit = VPhysXRange_t
 				{
@@ -5017,160 +5017,12 @@ VPhysXAggregateData_t
 			}
 			VPhysXJoint_t
 			{
-				uint16 m_nType = 0x0000
+				uint16 m_nType = 0x0004
 				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
+				uint16 m_nBody2 = 0x0006
 				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, -3.20, 0.00; w=12.52} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={-0.65, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.76}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (-1.000000, 0.000000, 0.000000)
-				float32 m_flMaxForce = 0.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 31.45; w=-19.07} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.03, -0.16, 0.00; w=0.00} p={-2.15, 0.00, -0.95}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (0.000000, 1.000000, 0.000000)
-				float32 m_flMaxForce = 0.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=-32.32} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.15, 0.00, 0.99; w=0.00} p={0.00, 0.00, 0.00}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000004
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 1.000000)
-				float32 m_flMaxForce = 0.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, -0.47, 0.00; w=-0.88} p={34.53, 0.00, -3.01}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = -0.000010
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxForce = -1.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = 0.000000
-				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, -0.03, 0.16; w=-0.95} p={0.00, 31.45, 19.07}
+				CTransform m_Frame1 = q={0.00, 0.76, 0.00; w=-0.65} p={-3.20, 0.00, 12.52}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
 				bool m_bEnableLinearLimit = false
 				Struct m_LinearLimit = VPhysXRange_t
 				{
@@ -5202,16 +5054,16 @@ VPhysXAggregateData_t
 			}
 			VPhysXJoint_t
 			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0006
+				uint16 m_nBody2 = 0x0007
 				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-0.15} p={0.00, 0.00, 32.32}
+				CTransform m_Frame1 = q={-0.95, -0.27, 0.03; w=-0.16} p={31.45, -19.07, -2.15}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=1.00} p={0.00, 0.00, 0.00}
 				bool m_bEnableLinearLimit = false
 				Struct m_LinearLimit = VPhysXRange_t
 				{
-					float32 m_flMin = -0.988973
+					float32 m_flMin = 0.000000
 					float32 m_flMax = 0.000000
 				}
 				bool m_bEnableLinearMotor = false
@@ -5220,7 +5072,7 @@ VPhysXAggregateData_t
 				bool m_bEnableSwingLimit = false
 				Struct m_SwingLimit = VPhysXRange_t
 				{
-					float32 m_flMin = -1.000000
+					float32 m_flMin = 0.000000
 					float32 m_flMax = 0.000000
 				}
 				bool m_bEnableTwistLimit = false
@@ -5239,57 +5091,20 @@ VPhysXAggregateData_t
 			}
 			VPhysXJoint_t
 			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x8000
-				uint16 m_nBody2 = 0x0000
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0007
+				uint16 m_nBody2 = 0x0008
 				uint16 m_nFlags = 0x0000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-0.20} p={0.00, 0.00, 0.00}
+				CTransform m_Frame1 = q={0.00, 0.15, 0.00; w=0.99} p={-32.32, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=1.00} p={0.00, 0.00, 0.00}
 				bool m_bEnableLinearLimit = false
 				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.095623
-					float32 m_flMax = -0.968404
-				}
-				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (-0.000015, 0.000000, 0.000000)
-				float32 m_flMaxForce = 0.000000
-				bool m_bEnableSwingLimit = false
-				Struct m_SwingLimit = VPhysXRange_t
-				{
-					float32 m_flMin = 0.000000
-					float32 m_flMax = -1.000000
-				}
-				bool m_bEnableTwistLimit = false
-				Struct m_TwistLimit = VPhysXRange_t
 				{
 					float32 m_flMin = 0.000000
 					float32 m_flMax = 0.000000
 				}
-				bool m_bEnableAngularMotor = false
-				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
-				float32 m_flMaxTorque = 0.000000
-				float32 m_flLinearFrequency = 0.000000
-				float32 m_flLinearDampingRatio = 0.000000
-				float32 m_flAngularFrequency = 0.000000
-				float32 m_flAngularDampingRatio = 0.000000
-			}
-			VPhysXJoint_t
-			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x8000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x8000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={-20.73, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				bool m_bEnableLinearLimit = false
-				Struct m_LinearLimit = VPhysXRange_t
-				{
-					float32 m_flMin = -0.136553
-					float32 m_flMax = 0.022637
-				}
 				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (0.000011, 0.000000, 0.000000)
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
 				float32 m_flMaxForce = 0.000000
 				bool m_bEnableSwingLimit = false
 				Struct m_SwingLimit = VPhysXRange_t
@@ -5313,20 +5128,20 @@ VPhysXAggregateData_t
 			}
 			VPhysXJoint_t
 			{
-				uint16 m_nType = 0x0000
-				uint16 m_nBody1 = 0x0000
-				uint16 m_nBody2 = 0x0000
-				uint16 m_nFlags = 0x8000
-				CTransform m_Frame1 = q={0.00, 0.00, 0.00; w=0.00} p={0.00, 0.00, 0.00}
-				CTransform m_Frame2 = q={0.00, -42.87, 0.00; w=0.00} p={0.00, 0.00, 0.00}
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0006
+				uint16 m_nBody2 = 0x0009
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={0.00, -0.47, 0.00; w=-0.88} p={34.53, 0.00, -3.01}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
 				bool m_bEnableLinearLimit = false
 				Struct m_LinearLimit = VPhysXRange_t
 				{
-					float32 m_flMin = 0.017555
-					float32 m_flMax = 0.498164
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
 				}
 				bool m_bEnableLinearMotor = false
-				Vector m_vLinearTargetVelocity = (-0.864432, -0.000001, 0.000002)
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
 				float32 m_flMaxForce = 0.000000
 				bool m_bEnableSwingLimit = false
 				Struct m_SwingLimit = VPhysXRange_t
@@ -5337,7 +5152,192 @@ VPhysXAggregateData_t
 				bool m_bEnableTwistLimit = false
 				Struct m_TwistLimit = VPhysXRange_t
 				{
-					float32 m_flMin = -1.000000
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0006
+				uint16 m_nBody2 = 0x000A
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={-0.03, 0.16, -0.95; w=-0.27} p={31.45, 19.07, -2.15}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x000A
+				uint16 m_nBody2 = 0x000B
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={0.00, -0.15, 0.00; w=-0.99} p={32.32, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x000B
+				uint16 m_nBody2 = 0x000C
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={-0.20, 0.11, 0.10; w=-0.97} p={20.73, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0008
+				uint16 m_nBody2 = 0x000D
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={0.19, -0.14, 0.02; w=0.97} p={-20.73, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableAngularMotor = false
+				Vector m_vAngularTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxTorque = 0.000000
+				float32 m_flLinearFrequency = 0.000000
+				float32 m_flLinearDampingRatio = 0.000000
+				float32 m_flAngularFrequency = 0.000000
+				float32 m_flAngularDampingRatio = 0.000000
+			}
+			VPhysXJoint_t
+			{
+				uint16 m_nType = 0x0004
+				uint16 m_nBody1 = 0x0002
+				uint16 m_nBody2 = 0x000E
+				uint16 m_nFlags = 0x0000
+				CTransform m_Frame1 = q={0.02, 0.50, 0.07; w=-0.86} p={-42.87, 0.00, 0.00}
+				CTransform m_Frame2 = q={0.00, 0.00, 0.00; w=-1.00} p={0.00, 0.00, 0.00}
+				bool m_bEnableLinearLimit = false
+				Struct m_LinearLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableLinearMotor = false
+				Vector m_vLinearTargetVelocity = (0.000000, 0.000000, 0.000000)
+				float32 m_flMaxForce = 0.000000
+				bool m_bEnableSwingLimit = false
+				Struct m_SwingLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
+					float32 m_flMax = 0.000000
+				}
+				bool m_bEnableTwistLimit = false
+				Struct m_TwistLimit = VPhysXRange_t
+				{
+					float32 m_flMin = 0.000000
 					float32 m_flMax = 0.000000
 				}
 				bool m_bEnableAngularMotor = false

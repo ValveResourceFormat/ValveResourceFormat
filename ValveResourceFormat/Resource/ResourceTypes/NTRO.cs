@@ -37,6 +37,9 @@ namespace ValveResourceFormat.ResourceTypes
                 ReadFieldIntrospection(field, ref structEntry);
             }
 
+            // Some structs are padded, so all the field sizes do not add up to the size on disk
+            Reader.BaseStream.Position = startingOffset + refStruct.DiskSize;
+
             if (refStruct.BaseStructId != 0)
             {
                 var previousOffset = Reader.BaseStream.Position;
