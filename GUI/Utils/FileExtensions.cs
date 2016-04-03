@@ -25,7 +25,7 @@ namespace GUI.Utils
                 var absoluteByteCount = Math.Abs(byteCount);
                 var place = Convert.ToInt32(Math.Floor(Math.Log(absoluteByteCount, 1024)));
                 var num = Math.Round(absoluteByteCount / Math.Pow(1024, place), 1);
-                result = string.Format("{0} {1}", (Math.Sign(byteCount) * num), suf[place]);
+                result = string.Format("{0} {1}", Math.Sign(byteCount) * num, suf[place]);
             }
 
             return result;
@@ -33,18 +33,15 @@ namespace GUI.Utils
 
         public static bool LoadFileByAnyMeansNecessary(Resource resource, string file, string currentFullPath, Package currentPackage)
         {
-            if (currentPackage != null)
+            var entry = currentPackage?.FindEntry(file);
+
+            if (entry != null)
             {
-                var entry = FindPackageEntry(currentPackage, file);
+                byte[] output;
+                currentPackage.ReadEntry(entry, out output);
+                resource.Read(new MemoryStream(output));
 
-                if (entry != null)
-                {
-                    byte[] output;
-                    currentPackage.ReadEntry(entry, out output);
-                    resource.Read(new MemoryStream(output));
-
-                    return true;
-                }
+                return true;
             }
 
             var path = FindResourcePath(file, currentFullPath);
@@ -57,20 +54,6 @@ namespace GUI.Utils
             resource.Read(path);
 
             return true;
-        }
-
-        public static PackageEntry FindPackageEntry(Package currentPackage, string file)
-        {
-            var extension = Path.GetExtension(file).Substring(1);
-
-            if (!currentPackage.Entries.ContainsKey(extension))
-            {
-                return null;
-            }
-
-            file = file.Replace("/", "\\");
-
-            return currentPackage.Entries[extension].FirstOrDefault(x => x.GetFullPath() == file);
         }
 
         public static string FindResourcePath(string file, string currentFullPath = null)
