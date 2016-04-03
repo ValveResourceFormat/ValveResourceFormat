@@ -13,7 +13,7 @@ ResourceEditInfoBlock_t
 			{
 				CResourceString m_ContentRelativeFilename = "panorama/layout/dashboard_page_credits.xml"
 				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x99D21FB4
+				uint32 m_nFileCRC = 0x63DAA69B
 				uint32 m_nFlags = 0x00000002
 			}
 		]
@@ -34,9 +34,9 @@ ResourceEditInfoBlock_t
 		[
 			ResourceSpecialDependency_t
 			{
-				CResourceString m_String = "Panorama Compiler Version"
+				CResourceString m_String = "Panorama Layout Compiler Version"
 				CResourceString m_CompilerIdentifier = "CompilePanorama"
-				uint32 m_nFingerprint = 0x00000007
+				uint32 m_nFingerprint = 0x00000001
 				uint32 m_nUserData = 0x00000000
 			}
 		]

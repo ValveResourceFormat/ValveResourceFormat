@@ -8,13 +8,27 @@
 	<DOTACreditsPage class="DashboardPage SafeDashboardPage">
 		<Label id="CreditsTitle" text="#DOTA_Credits" />
 		<Panel id="CreditsScroller">
-			<Panel id="CreditsList">
-				<!-- Filled in dynamically -->
+
+			<Panel id="EnglishCredits" class="LanguageCredits">
+				<Label class="LanguageCreditsTitle" text="#DOTA_Credits_EnglishVoices" />
+				<Panel id="EnglishCreditsList" class="CreditsList">
+					<!-- Filled in dynamically -->
+				</Panel>
 			</Panel>
+
+			<Panel id="RussianCredits" class="LanguageCredits">
+				<Label class="LanguageCreditsTitle" text="#DOTA_Credits_RussianVoices" />
+				<Panel id="RussianCreditsList" class="CreditsList">
+					<!-- Filled in dynamically -->
+				</Panel>
+			</Panel>
+			
 			<Panel id="SpecialThanks">
 				<Label id="SpecialThanksTitle" text="#DOTA_SpecialThanks_Title" />
 				<Label id="SpecialThanksText" text="#DOTA_SpecialThanks" />
 			</Panel>
 		</Panel>
 	</DOTACreditsPage>
+	
+	
 </root>
