@@ -162,7 +162,6 @@
     </Compile>
     <EmbeddedResource Include="AssetTypes\*" />
     <Compile Include="Types\Audio\AudioPlayer.cs" />
-    <AdditionalFiles Include="stylecop.json" />
     <Compile Include="Types\Renderer\Camera.cs" />
     <Compile Include="Types\Renderer\Renderer.cs" />
     <Compile Include="Types\Model.cs" />

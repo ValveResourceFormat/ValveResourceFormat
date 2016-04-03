@@ -104,7 +104,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <AdditionalFiles Include="stylecop.json" />
     <None Include="ValveResourceFormat.ruleset" />
   </ItemGroup>
   <ItemGroup>
@@ -113,7 +112,5 @@
     <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\StyleCop.Analyzers.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup>
-    <Folder Include="CompiledShader\" />
-  </ItemGroup>
+  <ItemGroup />
 </Project>
