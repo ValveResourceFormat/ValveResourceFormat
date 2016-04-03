@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
 
         public AnimationGroupLoader(Resource resource, string filename)
         {
-            data = (NTRO) resource.Blocks[BlockType.DATA];
+            data = (NTRO)resource.Blocks[BlockType.DATA];
             LoadAnimationGroup();
         }
 

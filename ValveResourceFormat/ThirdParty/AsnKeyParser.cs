@@ -41,7 +41,7 @@ namespace ValveResourceFormat.ThirdParty
     [Serializable]
     internal sealed class BerDecodeException : Exception
     {
-        readonly int _position;
+        private readonly int _position;
 
         public BerDecodeException(string message, int position)
             : base(message)
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.ThirdParty
 
     internal sealed class AsnKeyParser
     {
-        readonly AsnParser _parser;
+        private readonly AsnParser _parser;
 
         public AsnKeyParser(ICollection<byte> contents)
         {
@@ -194,7 +194,7 @@ namespace ValveResourceFormat.ThirdParty
                 var sb = new StringBuilder("Incorrect PublicKey Size. ");
                 sb.AppendFormat("Specified: {0}, Remaining: {1}",
                                 length.ToString(CultureInfo.InvariantCulture),
-                                (_parser.RemainingBytes()).ToString(CultureInfo.InvariantCulture));
+                                _parser.RemainingBytes().ToString(CultureInfo.InvariantCulture));
                 throw new BerDecodeException(sb.ToString(), position);
             }
 
@@ -221,8 +221,8 @@ namespace ValveResourceFormat.ThirdParty
 
     internal sealed class AsnParser
     {
-        readonly int _initialCount;
-        readonly List<byte> _octets;
+        private readonly int _initialCount;
+        private readonly List<byte> _octets;
 
         public AsnParser(ICollection<byte> values)
         {

@@ -127,7 +127,6 @@ namespace ValveResourceFormat.Blocks
 
                 //if(i > 0)break; // TODO: Read only first buffer
             }
-
         }
 
         public override void WriteText(IndentedTextWriter writer)

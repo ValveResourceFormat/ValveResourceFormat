@@ -42,6 +42,7 @@ namespace GUI.Types
                 var animGroup = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refAnimGroups[0]).Value;
                 return FileExtensions.FindResourcePath(animGroup.Name);
             }
+
             return string.Empty;
         }
     }

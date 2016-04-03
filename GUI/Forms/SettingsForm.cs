@@ -59,7 +59,7 @@ namespace GUI.Forms
             var colorPicker = new ColorDialog();
             colorPicker.Color = Settings.BackgroundColor;
 
-            // Update the text box color if the user clicks OK 
+            // Update the text box color if the user clicks OK
             if (colorPicker.ShowDialog() == DialogResult.OK)
             {
                 Settings.BackgroundColor = colorPicker.Color;

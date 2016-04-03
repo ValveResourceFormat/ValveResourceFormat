@@ -27,6 +27,7 @@ namespace GUI.Forms
             {
                 return;
             }
+
             var menuStrip = sender as ContextMenuStrip;
             menuStrip.Visible = false; //Hide it as we have pressed the button now!
 
@@ -36,7 +37,7 @@ namespace GUI.Forms
             saveFileDialog.FileName = name;
             saveFileDialog.ShowDialog(this);
 
-            if (saveFileDialog.FileName != "")
+            if (saveFileDialog.FileName != string.Empty)
             {
                 var format = ImageFormat.Png;
 

@@ -359,7 +359,7 @@ namespace ValveResourceFormat
                         var option = Reader.ReadNullTermString(Encoding.UTF8);
                         var unk = Reader.ReadUInt32(); // 0, 1, 2, 13 or 14
 
-                        Console.WriteLine("     Name: {0}, Type: {1}, Option: {2}, Unknown uint: {3}", name, type, option, unk); 
+                        Console.WriteLine("     Name: {0}, Type: {1}, Option: {2}, Unknown uint: {3}", name, type, option, unk);
                     }
                 }
             }

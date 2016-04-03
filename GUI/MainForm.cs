@@ -24,9 +24,9 @@ namespace GUI
 {
     public partial class MainForm : Form
     {
-        private ImageList ImageList;
         private readonly SearchForm searchForm;
         private readonly Regex NewLineRegex;
+        private ImageList ImageList;
 
         public MainForm()
         {
@@ -38,10 +38,10 @@ namespace GUI
                 if (mainTabs.SelectedTab != null)
                 {
                     var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                    findToolStripButton.Enabled = (treeView != null);
+                    findToolStripButton.Enabled = treeView != null;
                 }
             };
-            
+
             searchForm = new SearchForm();
 
             Settings.Load();
@@ -201,10 +201,7 @@ namespace GUI
                 tab.Controls.Add(treeViewWithSearch);
 
                 // since we're in a separate thread, invoke to update the UI
-                Invoke((MethodInvoker)delegate
-                {
-                    findToolStripButton.Enabled = true;
-                });
+                Invoke((MethodInvoker)(() => findToolStripButton.Enabled = true));
             }
             else
             {
@@ -271,25 +268,26 @@ namespace GUI
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
-                        var ap = new Player(resource, soundTab);
+                        var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-
                         //TODO: Make this a function somewhere to simplify implementation for future types (I'm looking at you Panorama).
-                        Invoke((MethodInvoker)delegate
+                        Invoke((MethodInvoker)(() =>
                         {
                             exportToolStripButton.Enabled = true;
 
                             var ts = new ToolStripMenuItem();
                             ts.Name = "Sound";
                             ts.Size = new Size(150, 20);
-                            ts.Text = $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}";
-                            ts.ToolTipText = fileName; //This is required for the dialog to know the default name and path.
+                            ts.Text =
+                                $"Export {Path.GetFileName(fileName)} as {((Sound) resource.Blocks[BlockType.DATA]).Type}";
+                            ts.ToolTipText = fileName;
+                                //This is required for the dialog to know the default name and path.
                             ts.Tag = resource; //This makes it trivial to dump without exploring our nested TabPages.
                             ts.Click += new EventHandler(exportToolStripMenuItem_Click);
 
                             exportToolStripButton.DropDownItems.Add(ts);
-                        });
+                        }));
 
                         break;
                     case ResourceType.Model:
@@ -325,6 +323,7 @@ namespace GUI
                             Console.WriteLine("Old style model, no VBIB!");
                             break;
                         }
+
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(resource, mainTabs, fileName, currentPackage);
                         var glControl = mv.CreateGL();
@@ -465,6 +464,7 @@ namespace GUI
                 var file = node.Tag as PackageEntry;
                 byte[] output;
                 package.ReadEntry(file, out output);
+
                 if (file.TypeName.EndsWith("_c", StringComparison.Ordinal) || file.TypeName == "vpk")
                 {
                     OpenFile(file.FileName + "." + file.TypeName, output, package);
@@ -476,6 +476,7 @@ namespace GUI
                     {
                         stream.Write(output, 0, output.Length);
                     }
+
                     Process.Start(tempPath);
                 }
             }
@@ -542,7 +543,7 @@ namespace GUI
             if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
             {
                 var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                findToolStripButton.Enabled = (treeView != null);
+                findToolStripButton.Enabled = treeView != null;
             }
             else
             {
@@ -600,7 +601,7 @@ namespace GUI
         }
 
         /// <summary>
-        /// When the user clicks to search from the toolbar, open a dialog with search options. If the user clicks OK in the dialog, 
+        /// When the user clicks to search from the toolbar, open a dialog with search options. If the user clicks OK in the dialog,
         /// perform a search in the selected tab's TreeView for the entered value and display the results in a ListView.
         /// </summary>
         /// <param name="sender"></param>
@@ -652,7 +653,9 @@ namespace GUI
                 dialog.InitialDirectory = Path.GetFullPath(fileName);
                 dialog.DefaultExt = extension;
                 dialog.Filter = $"{extension} files (*.{extension})|*.{extension}";
+
                 var result = dialog.ShowDialog();
+
                 if (result == DialogResult.OK)
                 {
                     using (var stream = dialog.OpenFile())
@@ -660,6 +663,7 @@ namespace GUI
                         stream.Write(data, 0, data.Length);
                     }
                 }
+
                 MessageBox.Show(result.ToString());
             }
         }

@@ -5,13 +5,12 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Audio
 {
-    internal class Player
+    internal class AudioPlayer
     {
-
         private WaveOutEvent waveOut;
         private Button playButton;
 
-        public Player(Resource resource, TabPage tab)
+        public AudioPlayer(Resource resource, TabPage tab)
         {
             var soundData = (Sound)resource.Blocks[BlockType.DATA];
 

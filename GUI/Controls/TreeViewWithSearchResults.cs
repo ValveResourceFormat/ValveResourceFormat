@@ -22,15 +22,18 @@ namespace GUI.Controls
         public EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick;     // when a ListViewItem is single clicked
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Constructor to require an image list for display on listed TreeView nodes and ListView items.
         /// </summary>
         /// <param name="imageList"></param>
-        public TreeViewWithSearchResults(ImageList imageList) : this()
+        public TreeViewWithSearchResults(ImageList imageList)
+            : this()
         {
             this.imageList = imageList;
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
         /// </summary>
         public TreeViewWithSearchResults()
@@ -46,7 +49,7 @@ namespace GUI.Controls
 
             mainTreeView.NodeMouseDoubleClick += (o, e) =>
             {
-                if (TreeNodeMouseDoubleClick != null) { TreeNodeMouseDoubleClick(o, e); }
+                TreeNodeMouseDoubleClick?.Invoke(o, e);
             };
 
             mainTreeView.NodeMouseClick += (o, e) =>
@@ -194,16 +197,13 @@ namespace GUI.Controls
                     if (node.Tag is TreeViewFolder)
                     {
                         mainListView.Items.Clear();
-                        foreach(TreeNode childNode in node.Nodes)
+                        foreach (TreeNode childNode in node.Nodes)
                         {
                             AddNodeToListView(childNode);
                         }
                     }
 
-                    if (ListViewItemDoubleClick != null)
-                    {
-                        ListViewItemDoubleClick(sender, new ListViewItemClickEventArgs(info.Item.Tag));
-                    }
+                    ListViewItemDoubleClick?.Invoke(sender, new ListViewItemClickEventArgs(info.Item.Tag));
                 }
                 else
                 {
