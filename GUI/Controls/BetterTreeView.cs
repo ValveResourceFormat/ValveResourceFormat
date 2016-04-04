@@ -13,6 +13,8 @@ namespace GUI.Controls
     /// </summary>
     public partial class BetterTreeView : TreeView
     {
+        private Dictionary<string, string> ExtensionIconList;
+
         public BetterTreeView()
         {
             InitializeComponent();
@@ -98,6 +100,40 @@ namespace GUI.Controls
             return matchedNodes.AsReadOnly();
         }
 
+        public void GenerateIconList(IEnumerable<string> extensions)
+        {
+            ExtensionIconList = new Dictionary<string, string>();
+
+            foreach (var originalExtension in extensions)
+            {
+                var extension = originalExtension;
+
+                if (extension.EndsWith("_c", StringComparison.Ordinal))
+                {
+                    extension = extension.Substring(0, extension.Length - 2);
+                }
+
+                if (!ImageList.Images.ContainsKey(extension))
+                {
+                    if (extension.Length > 0 && extension[0] == 'v')
+                    {
+                        extension = extension.Substring(1);
+
+                        if (!ImageList.Images.ContainsKey(extension))
+                        {
+                            extension = "_default";
+                        }
+                    }
+                    else
+                    {
+                        extension = "_default";
+                    }
+                }
+
+                ExtensionIconList.Add(originalExtension, extension);
+            }
+        }
+
         /// <summary>
         /// Adds a node to the tree based on the passed file information. This is useful when building a directory-based tree.
         /// </summary>
@@ -126,29 +162,7 @@ namespace GUI.Controls
             }
 
             var fileName = file.GetFileName();
-            var ext = file.TypeName;
-
-            if (ext.EndsWith("_c", StringComparison.Ordinal))
-            {
-                ext = ext.Substring(0, ext.Length - 2);
-            }
-
-            if (!ImageList.Images.ContainsKey(ext))
-            {
-                if (ext.Length > 0 && ext[0] == 'v')
-                {
-                    ext = ext.Substring(1);
-
-                    if (!ImageList.Images.ContainsKey(ext))
-                    {
-                        ext = "_default";
-                    }
-                }
-                else
-                {
-                    ext = "_default";
-                }
-            }
+            var ext = ExtensionIconList[file.TypeName];
 
             if (currentNode == null)
             {

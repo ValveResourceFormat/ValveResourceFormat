@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
@@ -108,6 +109,8 @@ namespace GUI.Controls
             control.Tag = package; //so we can access it later
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
+
+            control.GenerateIconList(package.Entries.Keys.ToList());
 
             foreach (var fileType in package.Entries)
             {
