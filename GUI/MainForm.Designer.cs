@@ -160,7 +160,8 @@
             // 
             this.extractToolStripMenuItem.Name = "extractToolStripMenuItem";
             this.extractToolStripMenuItem.Size = new System.Drawing.Size(109, 22);
-            this.extractToolStripMenuItem.Text = "Extract";
+            this.extractToolStripMenuItem.Text = "Export";
+            this.extractToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("exportToolStripButton.Image")));
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.extractToolStripMenuItem_Click);
             // 
             // mainToolStrip
