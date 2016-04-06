@@ -36,6 +36,8 @@ artifacts:
   name: Decompiler
 - path: GUI\bin\$(configuration)
   name: GUI
+- path: '*.nupkg'
+  name: ValveResourceFormat
 deploy:
 - provider: GitHub
   auth_token:
@@ -48,7 +50,7 @@ deploy:
 - provider: NuGet
   api_key:
     secure: hqSxAQZqtX5Z5aWzulXmaIwPQmM87RvTurYOLmLnpHWHlQm1DfWmJn5fAUAuuLZH
-  artifact: '*.nupkg'
+  artifact: ValveResourceFormat
   on:
     branch: master
     APPVEYOR_REPO_TAG: true
