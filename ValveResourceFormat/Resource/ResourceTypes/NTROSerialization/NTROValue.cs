@@ -95,11 +95,11 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 
                     if (Type == DataType.Quaternion)
                     {
-                        writer.WriteLine("{{x: {0:F}, y: {1:F}, z: {2:F}, w: {3}}}", vector4.field0, vector4.field1, vector4.field2, vector4.field3.ToString("F"));
+                        writer.WriteLine("{{x: {0:F}, y: {1:F}, z: {2:F}, w: {3}}}", vector4.X, vector4.Y, vector4.Z, vector4.W.ToString("F"));
                     }
                     else
                     {
-                        writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.field0, vector4.field1, vector4.field2, vector4.field3);
+                        writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.X, vector4.Y, vector4.Z, vector4.W);
                     }
 
                     break;

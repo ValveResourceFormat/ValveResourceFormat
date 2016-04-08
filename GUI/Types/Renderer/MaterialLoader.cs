@@ -74,7 +74,7 @@ namespace GUI.Types.Renderer
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
                 var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
             }
 
             var textureParams = (NTROArray)matData.Output["m_textureParams"];
@@ -106,7 +106,7 @@ namespace GUI.Types.Renderer
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorAttributes[i]).Value;
                 var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
             }
 
             var textureAttributes = (NTROArray)matData.Output["m_textureAttributes"];

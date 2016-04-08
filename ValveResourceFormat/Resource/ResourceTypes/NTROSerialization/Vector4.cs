@@ -1,18 +1,45 @@
-﻿namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+﻿using System;
+
+namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
+    /// <summary>
+    /// Represents a 4D vector.
+    /// </summary>
     public class Vector4
     {
-        public float field0 { get; }
-        public float field1 { get; }
-        public float field2 { get; }
-        public float field3 { get; }
+        /// <summary>
+        /// Gets the X component of the Vector4.
+        /// </summary>
+        public float X { get; }
 
-        public Vector4(float field0, float field1, float field2, float field3)
+        /// <summary>
+        /// Gets the Y component of the Vector4.
+        /// </summary>
+        public float Y { get; }
+
+        /// <summary>
+        /// Gets the Z component of the Vector4.
+        /// </summary>
+        public float Z { get; }
+
+        /// <summary>
+        /// Gets the W component of the Vector4.
+        /// </summary>
+        public float W { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Vector4"/> class.
+        /// </summary>
+        /// <param name="x">The x component of the Vector4.</param>
+        /// <param name="y">The y component of the Vector4.</param>
+        /// <param name="z">The z component of the Vector4.</param>
+        /// <param name="w">The w component of the Vector4.</param>
+        public Vector4(float x, float y, float z, float w)
         {
-            this.field0 = field0;
-            this.field1 = field1;
-            this.field2 = field2;
-            this.field3 = field3;
+            X = x;
+            Y = y;
+            Z = z;
+            W = w;
         }
 
         // Due to DataType needing to be known to do ToString() here, it is done elsewhere

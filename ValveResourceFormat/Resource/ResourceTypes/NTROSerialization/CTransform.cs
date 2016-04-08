@@ -2,33 +2,46 @@
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
+    /// <summary>
+    /// Represents a transformation matrix.
+    /// </summary>
     public class CTransform
     {
-        public float field0 { get; }
-        public float field1 { get; }
-        public float field2 { get; }
-        public float field3 { get; }
-        public float field4 { get; }
-        public float field5 { get; }
-        public float field6 { get; }
-        public float field7 { get; }
+        /// <summary>
+        /// Gets the matrix values.
+        /// </summary>
+        public float[] Values { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CTransform"/> class.
+        /// </summary>
+        /// <param name="field0">First item of the matrix.</param>
+        /// <param name="field1">Second item of the matrix.</param>
+        /// <param name="field2">Third item of the matrix.</param>
+        /// <param name="field3">Fourth item of the matrix.</param>
+        /// <param name="field4">Fifth item of the matrix.</param>
+        /// <param name="field5">Sixth item of the matrix.</param>
+        /// <param name="field6">Seventh item of the matrix.</param>
+        /// <param name="field7">Eighth item of the matrix.</param>
         public CTransform(float field0, float field1, float field2, float field3, float field4, float field5, float field6, float field7)
         {
-            this.field0 = field0;
-            this.field1 = field1;
-            this.field2 = field2;
-            this.field3 = field3;
-            this.field4 = field4;
-            this.field5 = field5;
-            this.field6 = field6;
-            this.field7 = field7;
+            Values = new[]
+            {
+                field0,
+                field1,
+                field2,
+                field3,
+                field4,
+                field5,
+                field6,
+                field7,
+            };
         }
 
         public override string ToString()
         {
             // http://stackoverflow.com/a/15085178/2200891
-            return string.Format("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", field4, field5, field6, field7.ToString("F"), field0, field1, field2.ToString("F"));
+            return string.Format("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", Values[4], Values[5], Values[6], Values[7].ToString("F"), Values[0], Values[1], Values[2].ToString("F"));
         }
     }
 }
