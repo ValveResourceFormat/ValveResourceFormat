@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat
 {
@@ -210,7 +211,7 @@ namespace ValveResourceFormat
                         // Try to determine resource type by looking at first compiler indentifier
                         if (ResourceType == ResourceType.Unknown && EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                         {
-                            var specialDeps = (Blocks.ResourceEditInfoStructs.SpecialDependencies)EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+                            var specialDeps = (SpecialDependencies)EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
 
                             if (specialDeps.List.Count > 0)
                             {
@@ -274,19 +275,19 @@ namespace ValveResourceFormat
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaLayout:
                 case ResourceType.PanoramaDynamicImages:
-                    return new ResourceTypes.Panorama();
+                    return new Panorama();
 
                 case ResourceType.Sound:
-                    return new ResourceTypes.Sound();
+                    return new Sound();
 
                 case ResourceType.Texture:
-                    return new ResourceTypes.Texture();
+                    return new Texture();
 
                 case ResourceType.SoundEventScript:
-                    return new ResourceTypes.SoundEventScript();
+                    return new SoundEventScript();
 
                 case ResourceType.Particle:
-                    return new ResourceTypes.BinaryKV3();
+                    return new BinaryKV3();
 
                 case ResourceType.Mesh:
                     if (Version == 0)
@@ -294,12 +295,12 @@ namespace ValveResourceFormat
                         break;
                     }
 
-                    return new ResourceTypes.BinaryKV3();
+                    return new BinaryKV3();
             }
 
             if (Blocks.ContainsKey(BlockType.NTRO))
             {
-                return new ResourceTypes.NTRO();
+                return new NTRO();
             }
 
             return new ResourceData();

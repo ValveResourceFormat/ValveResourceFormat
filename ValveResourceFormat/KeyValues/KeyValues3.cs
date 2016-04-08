@@ -14,12 +14,11 @@
  * Author: Perry - https://github.com/Perryvw
  *
  */
-using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.IO;
-using System.Globalization;
 
 namespace ValveResourceFormat.KeyValues
 {
@@ -436,7 +435,7 @@ namespace ValveResourceFormat.KeyValues
             if (char.IsWhiteSpace(c))
             {
                 parser.StateStack.Pop();
-                var strings = parser.CurrentString.ToString().Split(new char[] {':'}, 2);
+                var strings = parser.CurrentString.ToString().Split(new char[] { ':' }, 2);
                 KVFlag flag;
                 switch (strings[0])
                 {

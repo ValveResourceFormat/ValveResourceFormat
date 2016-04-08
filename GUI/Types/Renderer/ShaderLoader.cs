@@ -1,10 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using System.Collections.Generic;
 
 namespace GUI.Types.Renderer
 {
@@ -87,7 +87,7 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Fragment shader compiled succesfully.");
 
-            int shaderProgram = GL.CreateProgram();
+            var shaderProgram = GL.CreateProgram();
             GL.AttachShader(shaderProgram, vertexShader);
             GL.AttachShader(shaderProgram, fragmentShader);
 
@@ -123,10 +123,10 @@ namespace GUI.Types.Renderer
         private static string PreprocessVertexShader(string source, ArgumentDependencies arguments)
         {
             //Update parameter defines
-            string paramSource = UpdateDefines(source, arguments);
+            var paramSource = UpdateDefines(source, arguments);
 
             //Inject code into shader based on #includes
-            string includedSource = ResolveIncludes(paramSource);
+            var includedSource = ResolveIncludes(paramSource);
 
             return includedSource;
         }
@@ -149,8 +149,8 @@ namespace GUI.Types.Renderer
                 if (argumentDict.ContainsKey(define.Groups[1].Value))
                 {
                     //Overwrite default value
-                    int index = define.Groups[2].Index;
-                    int length = define.Groups[2].Length;
+                    var index = define.Groups[2].Index;
+                    var length = define.Groups[2].Length;
                     source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, argumentDict[define.Groups[1].Value].ToString());
                 }
             }
@@ -181,8 +181,8 @@ namespace GUI.Types.Renderer
                     includedCode = ResolveIncludes(includedCode);
 
                     //Replace the include with the code
-                    int index = define.Index;
-                    int length = define.Length;
+                    var index = define.Index;
+                    var length = define.Length;
                     source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, includedCode);
                 }
             }

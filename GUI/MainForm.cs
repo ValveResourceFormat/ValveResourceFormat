@@ -16,6 +16,7 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Model = GUI.Types.Model;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
@@ -93,8 +94,7 @@ namespace GUI
 
                 tabs.Remove(tabs.Cast<TabPage>()
                     .Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location))
-                    .First()
-                );
+                    .First());
             }
             else if (e.Button == MouseButtons.Right)
             {
@@ -148,21 +148,21 @@ namespace GUI
 
             var task = Task.Factory.StartNew(() => ProcessFile(fileName, input, currentPackage));
 
-            task.ContinueWith(t =>
+            task.ContinueWith(
+                t =>
             {
                 t.Exception.Flatten().Handle(ex =>
                 {
                     mainTabs.TabPages.Remove(tab);
 
-                    Invoke(new Action(() =>
-                        MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error))
-                    );
+                    Invoke(new Action(() => MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error)));
 
                     return true;
                 });
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
 
-            task.ContinueWith(t =>
+            task.ContinueWith(
+                t =>
             {
                 tab.Controls.Clear();
 
@@ -280,11 +280,11 @@ namespace GUI
                             ts.Name = "Sound";
                             ts.Size = new Size(150, 20);
                             ts.Text =
-                                $"Export {Path.GetFileName(fileName)} as {((Sound) resource.Blocks[BlockType.DATA]).Type}";
+                                $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}";
                             ts.ToolTipText = fileName;
                                 //This is required for the dialog to know the default name and path.
                             ts.Tag = resource; //This makes it trivial to dump without exploring our nested TabPages.
-                            ts.Click += new EventHandler(exportToolStripMenuItem_Click);
+                            ts.Click += exportToolStripMenuItem_Click;
 
                             exportToolStripButton.DropDownItems.Add(ts);
                         }));
@@ -404,7 +404,7 @@ namespace GUI
                                 case ResourceType.Particle:
                                 case ResourceType.Mesh:
                                     //Wrap it around a KV3File object to get the header.
-                                    control.Text = NormalizeLineEndings(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)block.Value).Data).ToString());
+                                    control.Text = NormalizeLineEndings(new KV3File(((BinaryKV3)block.Value).Data).ToString());
                                     break;
                                 default:
                                     control.Text = NormalizeLineEndings(block.Value.ToString());
@@ -536,8 +536,7 @@ namespace GUI
 
             tabs.Remove(tabs.Cast<TabPage>()
                 .Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag))
-                .First()
-            );
+                .First());
 
             // enable/disable the search button as necessary
             if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
@@ -631,7 +630,7 @@ namespace GUI
             //ToolTipText is the full filename
             var fileName = ((ToolStripMenuItem)sender).ToolTipText;
             //Tag is the resource object.
-            Resource resource = ((ToolStripMenuItem)sender).Tag as Resource;
+            var resource = ((ToolStripMenuItem)sender).Tag as Resource;
 
             Console.WriteLine($"Export requested for {fileName}");
             string extension = null;

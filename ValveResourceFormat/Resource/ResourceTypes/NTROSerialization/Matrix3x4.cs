@@ -19,9 +19,18 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         public float field11 { get; }
 
         public Matrix3x4(
-            float field0, float field1, float field2, float field3,
-            float field4, float field5, float field6, float field7,
-            float field8, float field9, float field10, float field11)
+            float field0,
+            float field1,
+            float field2,
+            float field3,
+            float field4,
+            float field5,
+            float field6,
+            float field7,
+            float field8,
+            float field9,
+            float field10,
+            float field11)
         {
             this.field0 = field0;
             this.field1 = field1;

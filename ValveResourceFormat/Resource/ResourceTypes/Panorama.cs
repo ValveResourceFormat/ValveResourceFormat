@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Panorama : Blocks.ResourceData
+    public class Panorama : ResourceData
     {
         public class NameEntry
         {

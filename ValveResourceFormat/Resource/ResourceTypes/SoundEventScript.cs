@@ -2,6 +2,8 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using ValveResourceFormat.ResourceTypes.NTROSerialization;
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class SoundEventScript : NTRO
@@ -14,14 +16,14 @@ namespace ValveResourceFormat.ResourceTypes
             SoundEventScriptValue = new Dictionary<string, string>();
 
             // Output is VSoundEventScript_t we need to iterate m_SoundEvents inside it.
-            var soundEvents = (NTROSerialization.NTROArray)Output["m_SoundEvents"];
+            var soundEvents = (NTROArray)Output["m_SoundEvents"];
 
-            foreach (NTROSerialization.NTROValue entry in soundEvents)
+            foreach (var entry in soundEvents)
             {
                 // sound is VSoundEvent_t
-                var sound = ((NTROSerialization.NTROValue<NTROSerialization.NTROStruct>)entry).Value;
-                var soundName = ((NTROSerialization.NTROValue<string>)sound["m_SoundName"]).Value;
-                var soundValue = ((NTROSerialization.NTROValue<string>)sound["m_OperatorsKV"]).Value.Replace("\n", Environment.NewLine); // make sure we have new lines
+                var sound = ((NTROValue<NTROStruct>)entry).Value;
+                var soundName = ((NTROValue<string>)sound["m_SoundName"]).Value;
+                var soundValue = ((NTROValue<string>)sound["m_OperatorsKV"]).Value.Replace("\n", Environment.NewLine); // make sure we have new lines
 
                 if (SoundEventScriptValue.ContainsKey(soundName))
                 {
@@ -38,7 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
             using (var output = new StringWriter())
             using (var writer = new IndentedTextWriter(output, "\t"))
             {
-                foreach (KeyValuePair<string, string> entry in SoundEventScriptValue)
+                foreach (var entry in SoundEventScriptValue)
                 {
                     writer.WriteLine("\"" + entry.Key + "\"");
                     writer.WriteLine("{");

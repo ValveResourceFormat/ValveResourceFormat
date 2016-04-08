@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
     public class NTROStruct : IDictionary
     {
-        private Dictionary<string, NTROValue> Contents;
+        private readonly Dictionary<string, NTROValue> Contents;
         public string Name { get; private set; }
 
         public NTROStruct(string name)
@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             writer.WriteLine("{");
             writer.Indent++;
 
-            foreach (KeyValuePair<string, NTROValue> entry in Contents)
+            foreach (var entry in Contents)
             {
                 var array = entry.Value as NTROArray;
 
@@ -62,8 +62,9 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                     writer.Indent--;
                     writer.WriteLine("]");
                 }
-                else // Can either be NTROArray or NTROValue so...
+                else
                 {
+                    // Can either be NTROArray or NTROValue so...
                     writer.Write("{0} {1} = ", ValveDataType(entry.Value.Type), entry.Key);
                     entry.Value.WriteText(writer);
                 }

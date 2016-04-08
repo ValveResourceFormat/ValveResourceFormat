@@ -1,5 +1,4 @@
-﻿using System;
-using System.CodeDom.Compiler;
+﻿using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -11,8 +10,8 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class VBIB : Block
     {
-        public List<VertexBuffer> VertexBuffers = new List<VertexBuffer>();
-        public List<IndexBuffer> IndexBuffers = new List<IndexBuffer>();
+        public List<VertexBuffer> VertexBuffers { get; }
+        public List<IndexBuffer> IndexBuffers { get; }
 
         public struct VertexBuffer
         {
@@ -34,6 +33,12 @@ namespace ValveResourceFormat.Blocks
             public uint Count;
             public uint Size;
             public byte[] Buffer;
+        }
+
+        public VBIB()
+        {
+            VertexBuffers = new List<VertexBuffer>();
+            IndexBuffers = new List<IndexBuffer>();
         }
 
         public override BlockType GetChar()

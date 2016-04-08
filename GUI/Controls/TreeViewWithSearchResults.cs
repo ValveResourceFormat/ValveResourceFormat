@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -17,10 +16,10 @@ namespace GUI.Controls
     {
         private readonly ImageList imageList;
 
-        public TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick;             // when a TreeNode is double clicked
-        public TreeNodeMouseClickEventHandler TreeNodeMouseClick;                   // when a TreeNode is single clicked
-        public EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick;    // when a ListViewItem is double clicked
-        public EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick;     // when a ListViewItem is single clicked
+        public TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick { get; set;  } // when a TreeNode is double clicked
+        public TreeNodeMouseClickEventHandler TreeNodeMouseClick { get; set; } // when a TreeNode is single clicked
+        public EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick { get; set; } // when a ListViewItem is double clicked
+        public EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick { get; set; } // when a ListViewItem is single clicked
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
@@ -159,14 +158,11 @@ namespace GUI.Controls
                 // right click should just notify our subscribers
                 if (e.Button == MouseButtons.Right)
                 {
-                    if (ListViewItemRightClick != null)
-                    {
-                        ListViewItemRightClick(sender, new ListViewItemClickEventArgs(info.Item, e.Location));
-                    }
+                    ListViewItemRightClick?.Invoke(sender, new ListViewItemClickEventArgs(info.Item, e.Location));
                 }
-                // left click should focus the node in its tree view
                 else if (e.Button == MouseButtons.Left)
                 {
+                    // left click should focus the node in its tree view
                     var node = info.Item.Tag as TreeNode;
                     if (node.Tag is TreeViewFolder)
                     {

@@ -5,12 +5,9 @@ using ValveResourceFormat;
 
 namespace GUI.Utils
 {
-    public static class FileExtensions
+    internal static class FileExtensions
     {
-        /// <summary>
-        /// http://stackoverflow.com/a/4975942/272647
-        /// </summary>
-        /// <returns></returns>
+        // http://stackoverflow.com/a/4975942/272647
         public static string ToFileSizeString(this uint byteCount)
         {
             string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" }; //Longs run out around EB

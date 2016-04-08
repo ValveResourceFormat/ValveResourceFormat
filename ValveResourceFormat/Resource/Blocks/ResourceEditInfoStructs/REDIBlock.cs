@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
+﻿namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {
     public abstract class REDIBlock : Block
     {

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using OpenTK;
@@ -9,16 +8,18 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Timer = System.Timers.Timer;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace GUI.Types.Renderer
 {
     internal class Renderer
     {
-        private bool Loaded;
+        private readonly MaterialLoader MaterialLoader;
+        private readonly TabControl tabs;
+        private readonly List<DrawCall> drawCalls = new List<DrawCall>();
 
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
@@ -26,19 +27,16 @@ namespace GUI.Types.Renderer
         private readonly ArgumentDependencies modelArguments;
         private readonly VBIB block;
 
+        private bool Loaded;
+
         private GLControl meshControl;
 
         private Camera ActiveCamera;
-        private readonly TabControl tabs;
-
-        private readonly List<DrawCall> drawCalls = new List<DrawCall>();
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
 
         private int MaxTextureMaxAnisotropy;
-
-        private MaterialLoader MaterialLoader;
 
         public Renderer(Resource resource, TabControl mainTabs, string fileName, Package currentPackage)
         {
@@ -116,10 +114,10 @@ namespace GUI.Types.Renderer
         public void CheckOpenGL()
         {
             var extensions = new Dictionary<string, bool>();
-            int count = GL.GetInteger(GetPName.NumExtensions);
-            for (int i = 0; i < count; i++)
+            var count = GL.GetInteger(GetPName.NumExtensions);
+            for (var i = 0; i < count; i++)
             {
-                string extension = GL.GetString(StringNameIndexed.Extensions, i);
+                var extension = GL.GetString(StringNameIndexed.Extensions, i);
                 extensions.Add(extension, true);
             }
 
@@ -330,8 +328,8 @@ namespace GUI.Types.Renderer
             ActiveCamera.Tick();
 
             //Animate light position
-            Vector3 lightPos = ActiveCamera.Location;
-            Vector3 cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
+            var lightPos = ActiveCamera.Location;
+            var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
             lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

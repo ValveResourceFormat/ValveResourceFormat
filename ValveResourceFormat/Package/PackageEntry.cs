@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 
 namespace ValveResourceFormat
 {
@@ -50,7 +49,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                uint totalLength = Length;
+                var totalLength = Length;
 
                 if (SmallData != null)
                 {

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
     public class NTROArray : NTROValue, IList<NTROValue>
     {
-        private NTROValue[] contents;
+        private readonly NTROValue[] contents;
         public bool IsIndirection { get; private set; }
 
         public NTROArray(DataType type, int count, bool pointer = false, bool isIndirection = false)

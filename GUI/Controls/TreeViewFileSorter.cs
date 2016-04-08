@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Windows.Forms;
 
 namespace GUI.Controls
@@ -18,7 +17,7 @@ namespace GUI.Controls
             {
                 return -1;
             }
-            else if (!folderx && foldery)
+            if (!folderx && foldery)
             {
                 return 1;
             }

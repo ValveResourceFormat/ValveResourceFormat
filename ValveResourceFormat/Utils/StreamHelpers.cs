@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat
@@ -14,7 +13,7 @@ namespace ValveResourceFormat
         /// <param name="encoding">Encoding.</param>
         public static string ReadNullTermString(this BinaryReader stream, Encoding encoding)
         {
-            int characterSize = encoding.GetByteCount("e");
+            var characterSize = encoding.GetByteCount("e");
 
             using (var ms = new MemoryStream())
             {

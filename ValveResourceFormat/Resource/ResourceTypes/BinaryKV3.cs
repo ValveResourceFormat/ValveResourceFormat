@@ -1,12 +1,12 @@
-﻿using System;
-using System.CodeDom.Compiler;
+﻿using System.CodeDom.Compiler;
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class BinaryKV3 : Blocks.ResourceData
+    public class BinaryKV3 : ResourceData
     {
         private static readonly byte[] ENCODING = { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 };
         private static readonly byte[] FORMAT = { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 };
@@ -19,8 +19,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
             var outStream = new MemoryStream();
-            BinaryWriter outWrite = new BinaryWriter(outStream);
-            BinaryReader outRead = new BinaryReader(outStream); // Why why why why why why why
+            var outWrite = new BinaryWriter(outStream);
+            var outRead = new BinaryReader(outStream); // Why why why why why why why
 
             var sig = reader.ReadBytes(4);
             if (Encoding.ASCII.GetString(sig) != Encoding.ASCII.GetString(SIG))
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.ResourceTypes
                     try
                     {
                         var blockMask = reader.ReadUInt16();
-                        for (int i = 0; i < 16; i++)
+                        for (var i = 0; i < 16; i++)
                         {
                             // is the ith bit 1
                             if ((blockMask & (1 << i)) > 0)
@@ -127,7 +127,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var datatype = reader.ReadByte();
-            KVFlag flagInfo = KVFlag.None;
+            var flagInfo = KVFlag.None;
             if ((datatype & 0x80) > 0)
             {
                 datatype &= 0x7F; //Remove the flag bit.
@@ -193,10 +193,8 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return new KVFlaggedValue((KVType)type, flag, data);
             }
-            else
-            {
-                return new KVValue((KVType)type, data);
-            }
+
+            return new KVValue((KVType)type, data);
         }
 
         public override void WriteText(IndentedTextWriter writer)

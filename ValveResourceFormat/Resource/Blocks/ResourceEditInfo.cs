@@ -1,8 +1,7 @@
-﻿using System;
-using System.CodeDom.Compiler;
+﻿using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -30,11 +29,11 @@ namespace ValveResourceFormat.Blocks
             End
         }
 
-        public Dictionary<REDIStruct, ResourceEditInfoStructs.REDIBlock> Structs { get; private set; }
+        public Dictionary<REDIStruct, REDIBlock> Structs { get; private set; }
 
         public ResourceEditInfo()
         {
-            Structs = new Dictionary<REDIStruct, ResourceEditInfoStructs.REDIBlock>();
+            Structs = new Dictionary<REDIStruct, REDIBlock>();
         }
 
         public override BlockType GetChar()
@@ -77,30 +76,30 @@ namespace ValveResourceFormat.Blocks
             writer.WriteLine("}");
         }
 
-        private static ResourceEditInfoStructs.REDIBlock ConstructStruct(REDIStruct id)
+        private static REDIBlock ConstructStruct(REDIStruct id)
         {
             switch (id)
             {
                 case REDIStruct.InputDependencies:
-                    return new ResourceEditInfoStructs.InputDependencies();
+                    return new InputDependencies();
                 case REDIStruct.AdditionalInputDependencies:
-                    return new ResourceEditInfoStructs.AdditionalInputDependencies();
+                    return new AdditionalInputDependencies();
                 case REDIStruct.ArgumentDependencies:
-                    return new ResourceEditInfoStructs.ArgumentDependencies();
+                    return new ArgumentDependencies();
                 case REDIStruct.SpecialDependencies:
-                    return new ResourceEditInfoStructs.SpecialDependencies();
+                    return new SpecialDependencies();
                 case REDIStruct.CustomDependencies:
-                    return new ResourceEditInfoStructs.CustomDependencies();
+                    return new CustomDependencies();
                 case REDIStruct.AdditionalRelatedFiles:
-                    return new ResourceEditInfoStructs.AdditionalRelatedFiles();
+                    return new AdditionalRelatedFiles();
                 case REDIStruct.ChildResourceList:
-                    return new ResourceEditInfoStructs.ChildResourceList();
+                    return new ChildResourceList();
                 case REDIStruct.ExtraIntData:
-                    return new ResourceEditInfoStructs.ExtraIntData();
+                    return new ExtraIntData();
                 case REDIStruct.ExtraFloatData:
-                    return new ResourceEditInfoStructs.ExtraFloatData();
+                    return new ExtraFloatData();
                 case REDIStruct.ExtraStringData:
-                    return new ResourceEditInfoStructs.ExtraStringData();
+                    return new ExtraStringData();
             }
 
             throw new InvalidDataException("Unknown struct in REDI block.");

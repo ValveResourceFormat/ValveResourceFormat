@@ -6,17 +6,15 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
-using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types.Renderer
 {
     internal class MaterialLoader
     {
-        private Dictionary<string, Material> Materials = new Dictionary<string, Material>();
-
-        private int ErrorTextureID;
+        private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
+        private int ErrorTextureID;
 
         public MaterialLoader(string currentFileName, Package currentPackage)
         {
@@ -75,8 +73,8 @@ namespace GUI.Types.Renderer
             for (var i = 0; i < vectorParams.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
-                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
-                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
+                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
             var textureParams = (NTROArray)matData.Output["m_textureParams"];
@@ -107,8 +105,8 @@ namespace GUI.Types.Renderer
             for (var i = 0; i < vectorAttributes.Count; i++)
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorAttributes[i]).Value;
-                var ntroVector = ((NTROValue<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>)subStruct["m_value"]).Value;
-                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
+                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
+                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.field0, ntroVector.field1, ntroVector.field2, ntroVector.field3));
             }
 
             var textureAttributes = (NTROArray)matData.Output["m_textureAttributes"];

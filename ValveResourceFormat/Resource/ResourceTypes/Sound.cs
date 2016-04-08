@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
-using System.Text;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -55,16 +56,16 @@ namespace ValveResourceFormat.ResourceTypes
             // NTRO only in version 0?
             if (resource.IntrospectionManifest == null)
             {
-                var block = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct();
+                var block = new ResourceIntrospectionManifest.ResourceDiskStruct();
 
-                var field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                var field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_bitpackedsoundinfo",
                     Type = DataType.UInt32
                 };
                 block.FieldIntrospection.Add(field);
 
-                field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_loopStart",
                     Type = DataType.Int32,
@@ -72,7 +73,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_flDuration",
                     Type = DataType.Float,
@@ -80,17 +81,17 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                resource.Blocks[BlockType.NTRO] = new Blocks.ResourceIntrospectionManifest();
+                resource.Blocks[BlockType.NTRO] = new ResourceIntrospectionManifest();
                 resource.IntrospectionManifest.ReferencedStructs.Add(block);
             }
 
             reader.BaseStream.Position = Offset;
             base.Read(reader, resource);
 
-            LoopStart = ((NTROSerialization.NTROValue<int>)Output["m_loopStart"]).Value;
-            Duration = ((NTROSerialization.NTROValue<float>)Output["m_flDuration"]).Value;
+            LoopStart = ((NTROValue<int>)Output["m_loopStart"]).Value;
+            Duration = ((NTROValue<float>)Output["m_flDuration"]).Value;
 
-            var bitpackedSoundInfo = ((NTROSerialization.NTROValue<uint>)Output["m_bitpackedsoundinfo"]).Value;
+            var bitpackedSoundInfo = ((NTROValue<uint>)Output["m_bitpackedsoundinfo"]).Value;
 
             Type = (AudioFileType)ExtractSub(bitpackedSoundInfo, 0, 2);
             Bits = ExtractSub(bitpackedSoundInfo, 2, 5);

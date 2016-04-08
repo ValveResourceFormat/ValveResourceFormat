@@ -30,6 +30,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat
 {
@@ -478,7 +479,7 @@ namespace ValveResourceFormat
         {
             Reader.BaseStream.Position = 0;
 
-            var keyParser = new ThirdParty.AsnKeyParser(PublicKey);
+            var keyParser = new AsnKeyParser(PublicKey);
 
             var rsa = new RSACryptoServiceProvider();
             rsa.ImportParameters(keyParser.ParseRSAPublicKey());

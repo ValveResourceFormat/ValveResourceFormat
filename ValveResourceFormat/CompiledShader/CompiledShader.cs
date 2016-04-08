@@ -142,7 +142,7 @@ namespace ValveResourceFormat
             // Appears to be always 112 bytes
             for (var i = 0; i < 7; i++)
             {
-                // 0 - 
+                // 0 -
                 // 1 - vertex shader
                 // 2 - pixel shader
                 // 3 - geometry shader

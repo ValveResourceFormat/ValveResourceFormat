@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -61,7 +60,7 @@ namespace GUI.Controls
         /// </summary>
         /// <param name="value">Value to search for in the TreeView. Matching on this value is based on the function.</param>
         /// <param name="matchFunction">Function which performs matching on the TreeNode and the passed value. Returns true if there's a match.</param>
-        /// <returns></returns>
+        /// <returns>Returns matched nodes.</returns>
         private IReadOnlyCollection<TreeNode> Search(string value, Func<TreeNode, string, bool> matchFunction)
         {
             var searchQueue = new Queue<TreeNode>();

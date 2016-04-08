@@ -1,10 +1,10 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Text;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Model : Blocks.ResourceData
+    public class Model : ResourceData
     {
         public override void Read(BinaryReader reader, Resource resource)
         {

@@ -1,8 +1,7 @@
-﻿using System;
-using System.IO;
+﻿using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
-using System.CodeDom.Compiler;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {

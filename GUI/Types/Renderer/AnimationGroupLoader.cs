@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
     internal class AnimationGroupLoader
     {
         private readonly NTRO data;
-        public List<ResourceExtRefList.ResourceReferenceInfo> AnimationList;
+        public List<ResourceExtRefList.ResourceReferenceInfo> AnimationList { get; private set; }
 
         public AnimationGroupLoader(Resource resource, string filename)
         {

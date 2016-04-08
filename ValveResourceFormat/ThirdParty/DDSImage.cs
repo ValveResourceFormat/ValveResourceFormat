@@ -12,7 +12,6 @@
  * License: MIT
  */
 
-using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -52,36 +51,36 @@ namespace ValveResourceFormat.ThirdParty
 
         private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride)
         {
-            ushort color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
-            ushort color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
+            var color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
+            var color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
 
             int temp;
 
             temp = ((color0 >> 11) * 255) + 16;
-            byte r0 = (byte)(((temp / 32) + temp) / 32);
+            var r0 = (byte)(((temp / 32) + temp) / 32);
             temp = (((color0 & 0x07E0) >> 5) * 255) + 32;
-            byte g0 = (byte)(((temp / 64) + temp) / 64);
+            var g0 = (byte)(((temp / 64) + temp) / 64);
             temp = ((color0 & 0x001F) * 255) + 16;
-            byte b0 = (byte)(((temp / 32) + temp) / 32);
+            var b0 = (byte)(((temp / 32) + temp) / 32);
 
             temp = ((color1 >> 11) * 255) + 16;
-            byte r1 = (byte)(((temp / 32) + temp) / 32);
+            var r1 = (byte)(((temp / 32) + temp) / 32);
             temp = (((color1 & 0x07E0) >> 5) * 255) + 32;
-            byte g1 = (byte)(((temp / 64) + temp) / 64);
+            var g1 = (byte)(((temp / 64) + temp) / 64);
             temp = ((color1 & 0x001F) * 255) + 16;
-            byte b1 = (byte)(((temp / 32) + temp) / 32);
+            var b1 = (byte)(((temp / 32) + temp) / 32);
 
             uint c1 = blockStorage[4];
-            uint c2 = (uint)blockStorage[5] << 8;
-            uint c3 = (uint)blockStorage[6] << 16;
-            uint c4 = (uint)blockStorage[7] << 24;
-            uint code = c1 | c2 | c3 | c4;
+            var c2 = (uint)blockStorage[5] << 8;
+            var c3 = (uint)blockStorage[6] << 16;
+            var c4 = (uint)blockStorage[7] << 24;
+            var code = c1 | c2 | c3 | c4;
 
-            for (int j = 0; j < 4; j++)
+            for (var j = 0; j < 4; j++)
             {
-                for (int i = 0; i < 4; i++)
+                for (var i = 0; i < 4; i++)
                 {
-                    byte positionCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
+                    var positionCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
 
                     byte finalR = 0, finalG = 0, finalB = 0;
 
@@ -165,47 +164,47 @@ namespace ValveResourceFormat.ThirdParty
 
         private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride, bool yCoCg)
         {
-            byte alpha0 = blockStorage[0];
-            byte alpha1 = blockStorage[1];
+            var alpha0 = blockStorage[0];
+            var alpha1 = blockStorage[1];
 
             uint a1 = blockStorage[4];
-            uint a2 = (uint)blockStorage[5] << 8;
-            uint a3 = (uint)blockStorage[6] << 16;
-            uint a4 = (uint)blockStorage[7] << 24;
-            uint alphaCode1 = a1 | a2 | a3 | a4;
+            var a2 = (uint)blockStorage[5] << 8;
+            var a3 = (uint)blockStorage[6] << 16;
+            var a4 = (uint)blockStorage[7] << 24;
+            var alphaCode1 = a1 | a2 | a3 | a4;
 
-            ushort alphaCode2 = (ushort)(blockStorage[2] | (blockStorage[3] << 8));
+            var alphaCode2 = (ushort)(blockStorage[2] | (blockStorage[3] << 8));
 
-            ushort color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
-            ushort color1 = (ushort)(blockStorage[10] | blockStorage[11] << 8);
+            var color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
+            var color1 = (ushort)(blockStorage[10] | blockStorage[11] << 8);
 
             int temp;
 
-            temp = (color0 >> 11) * 255 + 16;
-            byte r0 = (byte)((temp / 32 + temp) / 32);
-            temp = ((color0 & 0x07E0) >> 5) * 255 + 32;
-            byte g0 = (byte)((temp / 64 + temp) / 64);
-            temp = (color0 & 0x001F) * 255 + 16;
-            byte b0 = (byte)((temp / 32 + temp) / 32);
+            temp = ((color0 >> 11) * 255) + 16;
+            var r0 = (byte)(((temp / 32) + temp) / 32);
+            temp = (((color0 & 0x07E0) >> 5) * 255) + 32;
+            var g0 = (byte)(((temp / 64) + temp) / 64);
+            temp = ((color0 & 0x001F) * 255) + 16;
+            var b0 = (byte)(((temp / 32) + temp) / 32);
 
-            temp = (color1 >> 11) * 255 + 16;
-            byte r1 = (byte)((temp / 32 + temp) / 32);
-            temp = ((color1 & 0x07E0) >> 5) * 255 + 32;
-            byte g1 = (byte)((temp / 64 + temp) / 64);
-            temp = (color1 & 0x001F) * 255 + 16;
-            byte b1 = (byte)((temp / 32 + temp) / 32);
+            temp = ((color1 >> 11) * 255) + 16;
+            var r1 = (byte)(((temp / 32) + temp) / 32);
+            temp = (((color1 & 0x07E0) >> 5) * 255) + 32;
+            var g1 = (byte)(((temp / 64) + temp) / 64);
+            temp = ((color1 & 0x001F) * 255) + 16;
+            var b1 = (byte)(((temp / 32) + temp) / 32);
 
             uint c1 = blockStorage[12];
-            uint c2 = (uint)blockStorage[13] << 8;
-            uint c3 = (uint)blockStorage[14] << 16;
-            uint c4 = (uint)blockStorage[15] << 24;
-            uint code = c1 | c2 | c3 | c4;
+            var c2 = (uint)blockStorage[13] << 8;
+            var c3 = (uint)blockStorage[14] << 16;
+            var c4 = (uint)blockStorage[15] << 24;
+            var code = c1 | c2 | c3 | c4;
 
-            for (int j = 0; j < 4; j++)
+            for (var j = 0; j < 4; j++)
             {
-                for (int i = 0; i < 4; i++)
+                for (var i = 0; i < 4; i++)
                 {
-                    int alphaCodeIndex = 3 * ((4 * j) + i);
+                    var alphaCodeIndex = 3 * ((4 * j) + i);
                     int alphaCode;
 
                     if (alphaCodeIndex <= 12)
@@ -253,7 +252,7 @@ namespace ValveResourceFormat.ThirdParty
                         }
                     }
 
-                    byte colorCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
+                    var colorCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
 
                     byte finalR = 0, finalG = 0, finalB = 0;
 

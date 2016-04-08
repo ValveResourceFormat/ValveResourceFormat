@@ -6,7 +6,7 @@ namespace GUI.Forms
     public partial class SearchForm : Form
     {
         /// <summary>
-        /// Contains whatever text was entered by the user in the search textbox.
+        /// Gets whatever text was entered by the user in the search textbox.
         /// </summary>
         public string SearchText
         {
@@ -14,7 +14,7 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// Contains whatever options was selected by the user in the search type combobox.
+        /// Gets whatever options was selected by the user in the search type combobox.
         /// </summary>
         public SearchType SelectedSearchType
         {

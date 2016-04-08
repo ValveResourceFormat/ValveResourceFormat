@@ -1,6 +1,5 @@
-﻿using System;
-using System.IO;
-using System.Text;
+﻿using System.IO;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -12,9 +11,9 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (resource.IntrospectionManifest == null)
             {
-                var block = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct();
+                var block = new ResourceIntrospectionManifest.ResourceDiskStruct();
 
-                var field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                var field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_Signature",
                     Count = 1,
@@ -22,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_Encoding",
                     Count = 4,
@@ -31,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                field = new Blocks.ResourceIntrospectionManifest.ResourceDiskStruct.Field
+                field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_Format",
                     Count = 4,
@@ -40,7 +39,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                resource.Blocks[BlockType.NTRO] = new Blocks.ResourceIntrospectionManifest();
+                resource.Blocks[BlockType.NTRO] = new ResourceIntrospectionManifest();
                 resource.IntrospectionManifest.ReferencedStructs.Add(block);
             }
 

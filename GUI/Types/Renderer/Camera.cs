@@ -8,6 +8,8 @@ namespace GUI.Types.Renderer
 {
     internal class Camera
     {
+        private readonly Stopwatch PreciseTimer;
+
         public Matrix4 ProjectionMatrix;
         public Matrix4 CameraViewMatrix;
 
@@ -23,8 +25,6 @@ namespace GUI.Types.Renderer
         public double Yaw;
 
         private KeyboardState KeyboardState;
-
-        private Stopwatch PreciseTimer;
 
         public Camera(int viewportWidth, int viewportHeight, Vector3 minBounds, Vector3 maxBounds)
         {

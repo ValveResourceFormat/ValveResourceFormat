@@ -1,5 +1,7 @@
-﻿using NAudio.Wave;
+﻿using System;
+using System.Drawing;
 using System.Windows.Forms;
+using NAudio.Wave;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
@@ -7,8 +9,8 @@ namespace GUI.Types.Audio
 {
     internal class AudioPlayer
     {
-        private WaveOutEvent waveOut;
-        private Button playButton;
+        private readonly WaveOutEvent waveOut;
+        private readonly Button playButton;
 
         public AudioPlayer(Resource resource, TabPage tab)
         {
@@ -31,13 +33,13 @@ namespace GUI.Types.Audio
             playButton = new Button();
             playButton.Text = "Play";
             playButton.TabIndex = 1;
-            playButton.Size = new System.Drawing.Size(100, 25);
+            playButton.Size = new Size(100, 25);
             playButton.Click += PlayButton_Click;
 
             tab.Controls.Add(playButton);
         }
 
-        private void PlayButton_Click(object sender, System.EventArgs e)
+        private void PlayButton_Click(object sender, EventArgs e)
         {
             if (waveOut.PlaybackState == PlaybackState.Playing)
             {

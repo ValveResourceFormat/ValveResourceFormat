@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Texture : Blocks.ResourceData
+    public class Texture : ResourceData
     {
         private BinaryReader Reader;
         private long DataOffset;
@@ -105,7 +107,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         // Horribly skip all mipmaps
                         // TODO: Either this needs to be optimized, or allow saving each individual mipmap
-                        for (byte j = NumMipLevels; j > 0; j--)
+                        for (var j = NumMipLevels; j > 0; j--)
                         {
                             if (j == 1) break;
 
@@ -128,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         // Horribly skip all mipmaps
                         // TODO: Either this needs to be optimized, or allow saving each individual mipmap
-                        for (byte j = NumMipLevels; j > 0; j--)
+                        for (var j = NumMipLevels; j > 0; j--)
                         {
                             if (j == 1) break;
 
@@ -141,17 +143,17 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
 
-                        return ThirdParty.DDSImage.UncompressDXT1(Reader, Width, Height);
+                        return DDSImage.UncompressDXT1(Reader, Width, Height);
                     }
 
                     break;
 
                 case VTexFormat.DXT5:
-                    bool yCoCg = false;
+                    var yCoCg = false;
 
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {
-                        var specialDeps = (Blocks.ResourceEditInfoStructs.SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+                        var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
 
                         foreach (var dependancy in specialDeps.List)
                         {
@@ -168,7 +170,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         // Horribly skip all mipmaps
                         // TODO: Either this needs to be optimized, or allow saving each individual mipmap
-                        for (byte j = NumMipLevels; j > 0; j--)
+                        for (var j = NumMipLevels; j > 0; j--)
                         {
                             if (j == 1) break;
 
@@ -181,7 +183,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
 
-                        return ThirdParty.DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg);
+                        return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg);
                     }
 
                     break;
@@ -208,9 +210,9 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var res = new Bitmap(w, h);
 
-            for (int y = 0; y < h; y++)
+            for (var y = 0; y < h; y++)
             {
-                for (int x = 0; x < w; x++)
+                for (var x = 0; x < w; x++)
                 {
                     var rawColor = r.ReadInt32();
 
@@ -218,8 +220,7 @@ namespace ValveResourceFormat.ResourceTypes
                         (rawColor >> 24) & 0x0FF,
                         rawColor & 0x0FF,
                         (rawColor >> 8) & 0x0FF,
-                        (rawColor >> 16) & 0x0FF
-                    );
+                        (rawColor >> 16) & 0x0FF);
 
                     res.SetPixel(x, y, color);
                 }
@@ -273,7 +274,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 writer.WriteLine("{0,-12} = {1} entries:", "Extra Data", ExtraData.Count);
 
-                int entry = 0;
+                var entry = 0;
 
                 foreach (var b in ExtraData)
                 {
