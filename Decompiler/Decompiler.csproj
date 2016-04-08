@@ -31,6 +31,7 @@
     <Externalconsole>true</Externalconsole>
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
+    <AllowedReferenceRelatedFileExtensions>.absolutelyNothing</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
