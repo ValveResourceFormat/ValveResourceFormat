@@ -20,6 +20,7 @@ using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Model = GUI.Types.Model;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
+using System.Drawing.Imaging;
 
 namespace GUI
 {
@@ -233,6 +234,8 @@ namespace GUI
                             control.SetImage(tex.GenerateBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
+                            Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as an image", fileName, resource });
+
                         }
                         catch (Exception e)
                         {
@@ -266,28 +269,21 @@ namespace GUI
                         }
 
                         break;
+                    case ResourceType.PanoramaLayout:
+                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as XML", fileName, resource });
+                        break;
+                    case ResourceType.PanoramaScript:
+                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as JS", fileName, resource });
+                        break;
+                    case ResourceType.PanoramaStyle:
+                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as CSS", fileName, resource });
+                        break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
                         var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-                        //TODO: Make this a function somewhere to simplify implementation for future types (I'm looking at you Panorama).
-                        Invoke((MethodInvoker)(() =>
-                        {
-                            exportToolStripButton.Enabled = true;
-
-                            var ts = new ToolStripMenuItem();
-                            ts.Name = "Sound";
-                            ts.Size = new Size(150, 20);
-                            ts.Text =
-                                $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}";
-                            ts.ToolTipText = fileName;
-                                //This is required for the dialog to know the default name and path.
-                            ts.Tag = resource; //This makes it trivial to dump without exploring our nested TabPages.
-                            ts.Click += exportToolStripMenuItem_Click;
-
-                            exportToolStripButton.DropDownItems.Add(ts);
-                        }));
+                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, resource });
 
                         break;
                     case ResourceType.Model:
@@ -625,6 +621,20 @@ namespace GUI
             return NewLineRegex.Replace(input, Environment.NewLine);
         }
 
+        private delegate void ExportDel(string name, string filename, Resource resource);
+        private void AddToExport(string name, string filename, Resource resource) {
+            exportToolStripButton.Enabled = true;
+
+            var ts = new ToolStripMenuItem();
+            ts.Size = new Size(150, 20);
+            ts.Text = name;
+            ts.ToolTipText = filename;
+                //This is required for the dialog to know the default name and path.
+            ts.Tag = resource; //This makes it trivial to dump without exploring our nested TabPages.
+            ts.Click += exportToolStripMenuItem_Click;
+
+            exportToolStripButton.DropDownItems.Add(ts);
+        }
         private void exportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //ToolTipText is the full filename
@@ -633,25 +643,43 @@ namespace GUI
             var resource = ((ToolStripMenuItem)sender).Tag as Resource;
 
             Console.WriteLine($"Export requested for {fileName}");
-            string extension = null;
-            byte[] data = null;
+            string[] extensions = null;
             switch (resource.ResourceType)
             {
                 case ResourceType.Sound:
                     //WAV or MP3
-                    extension = ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString();
-                    data = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                    extensions = new string[] { ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString().ToLower() };
+                    break;
+                case ResourceType.Texture:
+                    extensions = new string[] { "png", "jpg", "tiff", "bmp" };
+                    break;
+                case ResourceType.PanoramaLayout:
+                    extensions = new string[] { "xml", "vxml" };
+                    break;
+                case ResourceType.PanoramaScript:
+                    extensions = new string[] { "js", "vjs" };
+                    break;
+                case ResourceType.PanoramaStyle:
+                    extensions = new string[] { "css", "vcss" };
                     break;
             }
 
             //Did we find a format we like?
-            if (extension != null)
+            if (extensions != null)
             {
                 var dialog = new SaveFileDialog();
-                dialog.FileName = Path.GetFileName(Path.ChangeExtension(fileName, extension));
+                dialog.FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0]));
                 dialog.InitialDirectory = Path.GetFullPath(fileName);
-                dialog.DefaultExt = extension;
-                dialog.Filter = $"{extension} files (*.{extension})|*.{extension}";
+                dialog.DefaultExt = extensions[0];
+
+                var filter = string.Empty;
+                foreach (string extension in extensions)
+                {
+                    filter += $"{extension} files (*.{extension})|*.{extension}|";
+                }
+
+                //Remove the last |
+                dialog.Filter = filter.Substring(0, filter.Length - 1);
 
                 var result = dialog.ShowDialog();
 
@@ -659,11 +687,39 @@ namespace GUI
                 {
                     using (var stream = dialog.OpenFile())
                     {
-                        stream.Write(data, 0, data.Length);
+                        switch (resource.ResourceType)
+                        {
+                            case ResourceType.Sound:
+                                var soundData = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                                stream.Write(soundData, 0, soundData.Length);
+                                break;
+                            case ResourceType.Texture:
+                                var format = ImageFormat.Png;
+                                switch (dialog.FilterIndex)
+                                {
+                                    case 2:
+                                        format = ImageFormat.Jpeg;
+                                        break;
+
+                                    case 3:
+                                        format = ImageFormat.Tiff;
+                                        break;
+                                    case 4:
+                                        format = ImageFormat.Bmp;
+                                        break;
+                                }
+
+                                ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap().Save(stream, format);
+                                break;
+                            case ResourceType.PanoramaLayout:
+                            case ResourceType.PanoramaScript:
+                            case ResourceType.PanoramaStyle:
+                                var panoramaData = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                stream.Write(panoramaData, 0, panoramaData.Length);
+                                break;
+                        }
                     }
                 }
-
-                MessageBox.Show(result.ToString());
             }
         }
     }
