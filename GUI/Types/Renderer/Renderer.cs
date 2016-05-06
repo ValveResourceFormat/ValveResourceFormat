@@ -310,7 +310,6 @@ namespace GUI.Types.Renderer
                 }
 
                 GL.BindVertexArray(0);
-                GL.EnableVertexAttribArray(drawCall.VertexArrayObject);
 
                 drawCalls.Add(drawCall);
             }
