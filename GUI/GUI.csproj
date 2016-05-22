@@ -163,19 +163,13 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <EmbeddedResource Include="AssetTypes\*" />
+    <EmbeddedResource Include="Types\Renderer\Shaders\*" />
     <Compile Include="Types\Audio\AudioPlayer.cs" />
     <Compile Include="Types\Renderer\Camera.cs" />
     <Compile Include="Types\Renderer\Renderer.cs" />
     <Compile Include="Types\Model.cs" />
     <Compile Include="Types\Renderer\Material.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\vr_standard.frag" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\vr_standard.vert" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\simple.frag" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\simple.vert" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\compression.incl" />
-    <None Include="Types\Renderer\Shaders\dota_hero.frag" />
-    <None Include="Types\Renderer\Shaders\dota_hero.vert" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
