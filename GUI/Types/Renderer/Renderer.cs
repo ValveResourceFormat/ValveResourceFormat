@@ -185,136 +185,146 @@ namespace GUI.Types.Renderer
 
             //Prepare drawcalls
             var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
-            var b = (KVObject)a.Properties["0"].Value;
-            var c = (KVObject)b.Properties["m_drawCalls"].Value;
 
-            for (var i = 0; i < c.Properties.Count; i++)
+            for (var b = 0; b < a.Properties.Count; b++)
             {
-                var d = (KVObject)c.Properties[i.ToString()].Value;
-                var drawCall = default(DrawCall);
+                var c = (KVObject)((KVObject)a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
 
-                switch (d.Properties["m_nPrimitiveType"].Value.ToString())
+                for (var i = 0; i < c.Properties.Count; i++)
                 {
-                    case "RENDER_PRIM_TRIANGLES":
-                        drawCall.PrimitiveType = PrimitiveType.Triangles;
-                        break;
-                    default:
-                        throw new Exception("Unknown PrimitiveType in drawCall! (" + d.Properties["m_nPrimitiveType"].Value + ")");
+                    var d = (KVObject) c.Properties[i.ToString()].Value;
+
+                    var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers);
+                    drawCalls.Add(drawCall);
                 }
-
-                drawCall.BaseVertex = Convert.ToUInt32(d.Properties["m_nBaseVertex"].Value);
-                drawCall.VertexCount = Convert.ToUInt32(d.Properties["m_nVertexCount"].Value);
-                drawCall.StartIndex = Convert.ToUInt32(d.Properties["m_nStartIndex"].Value);
-                drawCall.IndexCount = Convert.ToUInt32(d.Properties["m_nIndexCount"].Value);
-
-                drawCall.Material = MaterialLoader.GetMaterial(d.Properties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
-
-                drawCall.MaterialID = drawCall.Material.TextureIDs["g_tColor"];
-
-                // Load shader
-                drawCall.Shader = ShaderLoader.LoadShaders(drawCall.Material.ShaderName, modelArguments);
-
-                //Bind and validate shader
-                GL.UseProgram(drawCall.Shader);
-
-                var f = (KVObject)d.Properties["m_indexBuffer"].Value;
-
-                var indexBuffer = default(DrawBuffer);
-                indexBuffer.Id = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
-                indexBuffer.Offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
-                drawCall.IndexBuffer = indexBuffer;
-
-                if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 2)
-                {
-                    //shopkeeper_vr
-                    drawCall.IndiceType = DrawElementsType.UnsignedShort;
-                }
-                else if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 4)
-                {
-                    //glados
-                    drawCall.IndiceType = DrawElementsType.UnsignedInt;
-                }
-                else
-                {
-                    throw new Exception("Unsupported indice type");
-                }
-
-                var g = (KVObject)d.Properties["m_vertexBuffers"].Value;
-                var h = (KVObject)g.Properties["0"].Value;
-
-                var vertexBuffer = default(DrawBuffer);
-                vertexBuffer.Id = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
-                vertexBuffer.Offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
-                drawCall.VertexBuffer = vertexBuffer;
-
-                GL.GenVertexArrays(1, out drawCall.VertexArrayObject);
-
-                GL.BindVertexArray(drawCall.VertexArrayObject);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.VertexBuffer.Id]);
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.IndexBuffer.Id]);
-
-                var curVertexBuffer = block.VertexBuffers[(int)drawCall.VertexBuffer.Id];
-                var texcoordSet = false;
-                foreach (var attribute in curVertexBuffer.Attributes)
-                {
-                    switch (attribute.Name)
-                    {
-                        case "POSITION":
-                            BindVertexAttrib(attribute, "vPosition", drawCall.Shader, (int)curVertexBuffer.Size);
-                            break;
-
-                        case "NORMAL":
-                            BindVertexAttrib(attribute, "vNormal", drawCall.Shader, (int)curVertexBuffer.Size);
-                            break;
-
-                        case "TEXCOORD":
-                            // Ignore second set of texcoords
-                            if (texcoordSet)
-                            {
-                                break;
-                            }
-
-                            BindVertexAttrib(attribute, "vTexCoord", drawCall.Shader, (int)curVertexBuffer.Size);
-
-                            texcoordSet = true;
-                            break;
-                        case "TANGENT":
-                            BindVertexAttrib(attribute, "vTangent", drawCall.Shader, (int)curVertexBuffer.Size);
-                            break;
-
-                        case "BLENDINDICES":
-                            BindVertexAttrib(attribute, "vBlendIndices", drawCall.Shader, (int)curVertexBuffer.Size);
-                            break;
-
-                        case "BLENDWEIGHT":
-                            BindVertexAttrib(attribute, "vBlendWeight", drawCall.Shader, (int)curVertexBuffer.Size);
-                            break;
-                    }
-                }
-
-                if (drawCall.Material.IntParams.ContainsKey("F_ALPHA_TEST") && drawCall.Material.IntParams["F_ALPHA_TEST"] == 1)
-                {
-                    GL.Enable(EnableCap.AlphaTest);
-
-                    if (drawCall.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-                    {
-                        var alphaReference = GL.GetUniformLocation(drawCall.Shader, "alphaReference");
-                        GL.Uniform1(alphaReference, drawCall.Material.FloatParams["g_flAlphaTestReference"]);
-                    }
-                }
-
-                if (drawCall.Material.IntParams.ContainsKey("F_TRANSLUCENT") && drawCall.Material.IntParams["F_TRANSLUCENT"] == 1)
-                {
-                    GL.Enable(EnableCap.Blend);
-                    GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-                }
-
-                GL.BindVertexArray(0);
-
-                drawCalls.Add(drawCall);
             }
 
             Loaded = true;
+        }
+
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers)
+        {
+            var drawCall = default(DrawCall);
+
+            switch (drawProperties["m_nPrimitiveType"].Value.ToString())
+            {
+                case "RENDER_PRIM_TRIANGLES":
+                    drawCall.PrimitiveType = PrimitiveType.Triangles;
+                    break;
+                default:
+                    throw new Exception("Unknown PrimitiveType in drawCall! (" + drawProperties["m_nPrimitiveType"].Value + ")");
+            }
+
+            drawCall.BaseVertex = Convert.ToUInt32(drawProperties["m_nBaseVertex"].Value);
+            drawCall.VertexCount = Convert.ToUInt32(drawProperties["m_nVertexCount"].Value);
+            drawCall.StartIndex = Convert.ToUInt32(drawProperties["m_nStartIndex"].Value);
+            drawCall.IndexCount = Convert.ToUInt32(drawProperties["m_nIndexCount"].Value);
+
+            drawCall.Material = MaterialLoader.GetMaterial(drawProperties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
+
+            drawCall.MaterialID = drawCall.Material.TextureIDs["g_tColor"];
+
+            // Load shader
+            drawCall.Shader = ShaderLoader.LoadShaders(drawCall.Material.ShaderName, modelArguments);
+
+            //Bind and validate shader
+            GL.UseProgram(drawCall.Shader);
+
+            var f = (KVObject)drawProperties["m_indexBuffer"].Value;
+
+            var indexBuffer = default(DrawBuffer);
+            indexBuffer.Id = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
+            indexBuffer.Offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
+            drawCall.IndexBuffer = indexBuffer;
+
+            if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 2)
+            {
+                //shopkeeper_vr
+                drawCall.IndiceType = DrawElementsType.UnsignedShort;
+            }
+            else if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 4)
+            {
+                //glados
+                drawCall.IndiceType = DrawElementsType.UnsignedInt;
+            }
+            else
+            {
+                throw new Exception("Unsupported indice type");
+            }
+
+            var g = (KVObject)drawProperties["m_vertexBuffers"].Value;
+            var h = (KVObject)g.Properties["0"].Value; // TODO: Not just 0
+
+            var vertexBuffer = default(DrawBuffer);
+            vertexBuffer.Id = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
+            vertexBuffer.Offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
+            drawCall.VertexBuffer = vertexBuffer;
+
+            GL.GenVertexArrays(1, out drawCall.VertexArrayObject);
+
+            GL.BindVertexArray(drawCall.VertexArrayObject);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.VertexBuffer.Id]);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.IndexBuffer.Id]);
+
+            var curVertexBuffer = block.VertexBuffers[(int)drawCall.VertexBuffer.Id];
+            var texcoordSet = false;
+            foreach (var attribute in curVertexBuffer.Attributes)
+            {
+                switch (attribute.Name)
+                {
+                    case "POSITION":
+                        BindVertexAttrib(attribute, "vPosition", drawCall.Shader, (int)curVertexBuffer.Size);
+                        break;
+
+                    case "NORMAL":
+                        BindVertexAttrib(attribute, "vNormal", drawCall.Shader, (int)curVertexBuffer.Size);
+                        break;
+
+                    case "TEXCOORD":
+                        // Ignore second set of texcoords
+                        if (texcoordSet)
+                        {
+                            break;
+                        }
+
+                        BindVertexAttrib(attribute, "vTexCoord", drawCall.Shader, (int)curVertexBuffer.Size);
+
+                        texcoordSet = true;
+                        break;
+                    case "TANGENT":
+                        BindVertexAttrib(attribute, "vTangent", drawCall.Shader, (int)curVertexBuffer.Size);
+                        break;
+
+                    case "BLENDINDICES":
+                        BindVertexAttrib(attribute, "vBlendIndices", drawCall.Shader, (int)curVertexBuffer.Size);
+                        break;
+
+                    case "BLENDWEIGHT":
+                        BindVertexAttrib(attribute, "vBlendWeight", drawCall.Shader, (int)curVertexBuffer.Size);
+                        break;
+                }
+            }
+
+            if (drawCall.Material.IntParams.ContainsKey("F_ALPHA_TEST") && drawCall.Material.IntParams["F_ALPHA_TEST"] == 1)
+            {
+                GL.Enable(EnableCap.AlphaTest);
+
+                if (drawCall.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
+                {
+                    var alphaReference = GL.GetUniformLocation(drawCall.Shader, "alphaReference");
+                    GL.Uniform1(alphaReference, drawCall.Material.FloatParams["g_flAlphaTestReference"]);
+                }
+            }
+
+            if (drawCall.Material.IntParams.ContainsKey("F_TRANSLUCENT") && drawCall.Material.IntParams["F_TRANSLUCENT"] == 1)
+            {
+                GL.Enable(EnableCap.Blend);
+                GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+            }
+
+            GL.BindVertexArray(0);
+
+            return drawCall;
         }
 
         private void MeshControl_Paint(object sender, PaintEventArgs e)
