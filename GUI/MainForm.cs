@@ -326,7 +326,7 @@ namespace GUI
 
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
-                        mv.AddResource(resource);
+                        mv.AddResource(new SceneObject { Resource = resource });
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);

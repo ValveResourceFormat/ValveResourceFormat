@@ -1,5 +1,7 @@
 ﻿using System;
+using GUI.Types.Renderer;
 using GUI.Utils;
+using OpenTK;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -16,7 +18,7 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void LoadMeshes(Renderer.Renderer renderer, string path, Package currentPackage = null)
+        public void LoadMeshes(Renderer.Renderer renderer, string path, Package currentPackage = null, Matrix4 transform = default(Matrix4))
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
@@ -41,7 +43,7 @@ namespace GUI.Types
                     continue;
                 }
 
-                renderer.AddResource(newResource);
+                renderer.AddResource(new SceneObject { Resource = newResource, Transform = transform });
             }
         }
 

@@ -16,6 +16,12 @@ using Timer = System.Timers.Timer;
 
 namespace GUI.Types.Renderer
 {
+    internal class SceneObject
+    {
+        public Resource Resource;
+        public Matrix4 Transform;
+    }
+
     internal class Renderer
     {
         private readonly MaterialLoader MaterialLoader;
@@ -25,7 +31,7 @@ namespace GUI.Types.Renderer
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
 
-        private readonly List<Resource> MeshesToRender;
+        private readonly List<SceneObject> MeshesToRender;
 
         private bool Loaded;
 
@@ -40,7 +46,7 @@ namespace GUI.Types.Renderer
 
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
-            MeshesToRender = new List<Resource>();
+            MeshesToRender = new List<SceneObject>();
 
             CurrentPackage = currentPackage;
             CurrentFileName = fileName;
@@ -49,9 +55,9 @@ namespace GUI.Types.Renderer
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
-        public void AddResource(Resource resource)
+        public void AddResource(SceneObject obj)
         {
-            MeshesToRender.Add(resource);
+            MeshesToRender.Add(obj);
         }
 
         public Control CreateGL()
@@ -158,8 +164,9 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Setting up buffers..");
 
-            foreach (var resource in MeshesToRender)
+            foreach (var obj in MeshesToRender)
             {
+                var resource = obj.Resource;
                 var block = resource.VBIB;
                 var data = (BinaryKV3)resource.Blocks[BlockType.DATA];
                 var modelArguments = (ArgumentDependencies)((ResourceEditInfo)resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
@@ -202,6 +209,7 @@ namespace GUI.Types.Renderer
 
                         // TODO: Don't pass around so much shit
                         var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, resource.VBIB);
+                        drawCall.Transform = obj.Transform;
                         drawCalls.Add(drawCall);
                     }
                 }
@@ -356,11 +364,15 @@ namespace GUI.Types.Renderer
                 GL.UseProgram(call.Shader);
 
                 //Set shader uniforms
-                var transformLoc = GL.GetUniformLocation(call.Shader, "projection");
-                GL.UniformMatrix4(transformLoc, false, ref ActiveCamera.ProjectionMatrix);
+                var projectionLoc = GL.GetUniformLocation(call.Shader, "projection");
+                GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
 
                 var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
                 GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
+
+                var transform = call.Transform;
+                var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
+                GL.UniformMatrix4(transformLoc, false, ref transform);
 
                 var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
                 GL.Uniform3(lightPosAttrib, lightPos);
@@ -439,7 +451,7 @@ namespace GUI.Types.Renderer
         // TODO: we're taking boundaries of first scene
         private void LoadBoundingBox()
         {
-            var data = (BinaryKV3)MeshesToRender.First().Blocks[BlockType.DATA];
+            var data = (BinaryKV3)MeshesToRender.First().Resource.Blocks[BlockType.DATA];
             var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
             var b = (KVObject)a.Properties["0"].Value;
             var minBounds = (KVObject)b.Properties["m_vMinBounds"].Value;

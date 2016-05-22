@@ -26,6 +26,7 @@ out vec2 vTexCoordOut;
 
 uniform mat4 projection;
 uniform mat4 modelview;
+uniform mat4 transform;
 
 void main()
 {
