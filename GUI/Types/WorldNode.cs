@@ -33,7 +33,7 @@ namespace GUI.Types
                 //i++;
                 // sceneObject is SceneObject_t
                 var sceneObject = ((NTROValue<NTROStruct>)entry).Value;
-                var model = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderableModel"]).Value;
+                var renderableModel = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderableModel"]).Value;
                 var transform = (NTROArray)sceneObject["m_vTransform"];
 
                 var matrix = default(Matrix4);
@@ -52,16 +52,34 @@ namespace GUI.Types
                     }
                 }
 
-                var newResource = new Resource();
-                if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, model.Name + "_c", path, package))
+                if (renderableModel != null)
                 {
-                    Console.WriteLine("unable to load model " + model.Name + "_c");
+                    var newResource = new Resource();
+                    if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, renderableModel.Name + "_c", path, package))
+                    {
+                        Console.WriteLine("unable to load model " + renderableModel.Name + "_c");
 
-                    continue;
+                        continue;
+                    }
+
+                    var modelEntry = new Model(newResource);
+                    modelEntry.LoadMeshes(renderer, path, matrix, package);
                 }
 
-                var modelEntry = new Model(newResource);
-                modelEntry.LoadMeshes(renderer, path, matrix, package);
+                var renderable = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderable"]).Value;
+
+                if (renderable != null)
+                {
+                    var newResource = new Resource();
+                    if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, renderable.Name + "_c", path, package))
+                    {
+                        Console.WriteLine("unable to load renderable " + renderable.Name + "_c");
+
+                        continue;
+                    }
+
+                    renderer.AddResource(new SceneObject { Resource = newResource, Transform = matrix });
+                }
             }
         }
     }

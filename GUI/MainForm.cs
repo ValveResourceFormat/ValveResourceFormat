@@ -158,6 +158,8 @@ namespace GUI
                 {
                     mainTabs.TabPages.Remove(tab);
 
+                    Console.WriteLine(ex);
+
                     Invoke(new Action(() => MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error)));
 
                     return true;
