@@ -34,7 +34,7 @@ namespace GUI.Types.Renderer
 
         private Material LoadMaterial(string name, int maxTextureMaxAnisotropy)
         {
-            Console.WriteLine("\n>> Loading material " + name);
+            //Console.WriteLine("\n>> Loading material " + name);
 
             var mat = new Material();
             var resource = new Resource();
@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
             {
                 var key = textureReference.Key;
 
-                Console.WriteLine(">>> " + textureReference.Key + " - " + textureReference.Value.Name);
+                //Console.WriteLine(">>> " + textureReference.Key + " - " + textureReference.Value.Name);
 
                 // TODO: Investigate why some things have differently numbered textures, Doto's slark has both g_tMasks1 and g_tMasks2
                 /*if (key == "g_tColor1" || key == "g_tColor2")
@@ -158,7 +158,7 @@ namespace GUI.Types.Renderer
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
-            Console.WriteLine(">>>> Loading texture " + name + " " + tex.Flags);
+            //Console.WriteLine(">>>> Loading texture " + name + " " + tex.Flags);
 
             var id = GL.GenTexture();
 

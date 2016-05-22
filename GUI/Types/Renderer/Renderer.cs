@@ -170,9 +170,6 @@ namespace GUI.Types.Renderer
                 GL.GenBuffers(block.VertexBuffers.Count, vertexBuffers);
                 GL.GenBuffers(block.IndexBuffers.Count, indexBuffers);
 
-                Console.WriteLine(block.VertexBuffers.Count + " vertex buffers");
-                Console.WriteLine(block.IndexBuffers.Count + " index buffers");
-
                 for (var i = 0; i < block.VertexBuffers.Count; i++)
                 {
                     GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
@@ -191,8 +188,6 @@ namespace GUI.Types.Renderer
                     var indiceBufferSize = 0;
                     GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out indiceBufferSize);
                 }
-
-                Console.WriteLine("Pushed buffers");
 
                 //Prepare drawcalls
                 var a = (KVObject) data.Data.Properties["m_sceneObjects"].Value;
