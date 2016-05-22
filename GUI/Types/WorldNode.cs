@@ -61,7 +61,7 @@ namespace GUI.Types
                 }
 
                 var modelEntry = new Model(newResource);
-                modelEntry.LoadMeshes(renderer, path, package, matrix);
+                modelEntry.LoadMeshes(renderer, path, matrix, package);
             }
         }
     }

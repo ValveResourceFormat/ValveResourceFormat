@@ -18,7 +18,7 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void LoadMeshes(Renderer.Renderer renderer, string path, Package currentPackage = null, Matrix4 transform = default(Matrix4))
+        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, Package currentPackage = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 

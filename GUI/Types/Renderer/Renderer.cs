@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
     internal class SceneObject
     {
         public Resource Resource;
-        public Matrix4 Transform;
+        public Matrix4 Transform = Matrix4.Identity;
     }
 
     internal class Renderer

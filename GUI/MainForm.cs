@@ -22,6 +22,7 @@ using Model = GUI.Types.Model;
 using WorldNode = GUI.Types.WorldNode;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 using System.Drawing.Imaging;
+using OpenTK;
 
 namespace GUI
 {
@@ -311,7 +312,7 @@ namespace GUI
 
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage);
-                        model.LoadMeshes(modelmv, fileName, currentPackage);
+                        model.LoadMeshes(modelmv, fileName, Matrix4.Identity, currentPackage);
 
                         var modelglControl = modelmv.CreateGL();
                         modelmeshTab.Controls.Add(modelglControl);
