@@ -12,6 +12,8 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
+        private static Dictionary<string, int> CachedShaders = new Dictionary<string, int>();
+
         //Map shader names to shader files
         public static string GetShaderFileByName(string shaderName)
         {
@@ -22,7 +24,7 @@ namespace GUI.Types.Renderer
                 case "hero.vfx":
                     return "dota_hero";
                 default:
-                    Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
+                    //Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
                     //Shader names that are supposed to use this:
                     //vr_simple.vfx
                     return "simple";
@@ -31,15 +33,26 @@ namespace GUI.Types.Renderer
 
         public static int LoadShaders(string shaderName, ArgumentDependencies modelArguments)
         {
+            var shaderFileName = GetShaderFileByName(shaderName);
+
+#if !DEBUG_SHADERS
+            int shaderProgram;
+
+            if (CachedShaders.TryGetValue(shaderFileName, out shaderProgram))
+            {
+                return shaderProgram;
+            }
+#endif
+
             /* Vertex shader */
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
 
             var assembly = Assembly.GetExecutingAssembly();
 
-#if DEBUG
-            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{GetShaderFileByName(shaderName)}.vert", FileMode.Open)) //<-- reloading at runtime
+#if DEBUG_SHADERS
+            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.vert", FileMode.Open)) //<-- reloading at runtime
 #else
-            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{GetShaderFileByName(shaderName)}.vert"))
+            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
 #endif
             using (var reader = new StreamReader(stream))
             {
@@ -64,10 +77,10 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-#if DEBUG
-            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{GetShaderFileByName(shaderName)}.frag", FileMode.Open)) //<-- reloading at runtime
+#if DEBUG_SHADERS
+            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.frag", FileMode.Open)) //<-- reloading at runtime
 #else
-            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{GetShaderFileByName(shaderName)}.frag"))
+            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
 #endif
             using (var reader = new StreamReader(stream))
             {
@@ -87,7 +100,7 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Fragment shader compiled succesfully.");
 
-            var shaderProgram = GL.CreateProgram();
+            shaderProgram = GL.CreateProgram();
             GL.AttachShader(shaderProgram, vertexShader);
             GL.AttachShader(shaderProgram, fragmentShader);
 
@@ -115,6 +128,8 @@ namespace GUI.Types.Renderer
 
             GL.DetachShader(shaderProgram, fragmentShader);
             GL.DeleteShader(fragmentShader);
+
+            CachedShaders[shaderFileName] = shaderProgram;
 
             return shaderProgram;
         }
@@ -168,7 +183,7 @@ namespace GUI.Types.Renderer
             foreach (Match define in includes)
             {
                 //Read included code
-#if DEBUG
+#if DEBUG_SHADERS
                 using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{define.Groups[1].Value}", FileMode.Open)) //<-- reloading at runtime
 #else
                 using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups[1].Value}"))
