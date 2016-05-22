@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using OpenTK;
@@ -23,9 +24,8 @@ namespace GUI.Types.Renderer
 
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
-        private readonly BinaryKV3 data;
-        private readonly ArgumentDependencies modelArguments;
-        private readonly VBIB block;
+
+        private readonly List<Resource> MeshesToRender;
 
         private bool Loaded;
 
@@ -38,16 +38,20 @@ namespace GUI.Types.Renderer
 
         private int MaxTextureMaxAnisotropy;
 
-        public Renderer(Resource resource, TabControl mainTabs, string fileName, Package currentPackage)
+        public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
+            MeshesToRender = new List<Resource>();
+
             CurrentPackage = currentPackage;
             CurrentFileName = fileName;
-            block = resource.VBIB;
-            data = (BinaryKV3)resource.Blocks[BlockType.DATA];
-            modelArguments = (ArgumentDependencies)((ResourceEditInfo)resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
             tabs = mainTabs;
 
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
+        }
+
+        public void AddResource(Resource resource)
+        {
+            MeshesToRender.Add(resource);
         }
 
         public Control CreateGL()
@@ -154,55 +158,64 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine("Setting up buffers..");
 
-            var vertexBuffers = new uint[block.VertexBuffers.Count];
-            var indexBuffers = new uint[block.IndexBuffers.Count];
-
-            GL.GenBuffers(block.VertexBuffers.Count, vertexBuffers);
-            GL.GenBuffers(block.IndexBuffers.Count, indexBuffers);
-
-            Console.WriteLine(block.VertexBuffers.Count + " vertex buffers");
-            Console.WriteLine(block.IndexBuffers.Count + " index buffers");
-
-            for (var i = 0; i < block.VertexBuffers.Count; i++)
+            foreach (var resource in MeshesToRender)
             {
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
-                GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(block.VertexBuffers[i].Count * block.VertexBuffers[i].Size), block.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
+                var block = resource.VBIB;
+                var data = (BinaryKV3)resource.Blocks[BlockType.DATA];
+                var modelArguments = (ArgumentDependencies)((ResourceEditInfo)resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
 
-                var verticeBufferSize = 0;
-                GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out verticeBufferSize);
-            }
+                var vertexBuffers = new uint[block.VertexBuffers.Count];
+                var indexBuffers = new uint[block.IndexBuffers.Count];
 
-            for (var i = 0; i < block.IndexBuffers.Count; i++)
-            {
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[i]);
-                GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(block.IndexBuffers[i].Count * block.IndexBuffers[i].Size), block.IndexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
+                GL.GenBuffers(block.VertexBuffers.Count, vertexBuffers);
+                GL.GenBuffers(block.IndexBuffers.Count, indexBuffers);
 
-                var indiceBufferSize = 0;
-                GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out indiceBufferSize);
-            }
+                Console.WriteLine(block.VertexBuffers.Count + " vertex buffers");
+                Console.WriteLine(block.IndexBuffers.Count + " index buffers");
 
-            Console.WriteLine("Pushed buffers");
-
-            //Prepare drawcalls
-            var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
-
-            for (var b = 0; b < a.Properties.Count; b++)
-            {
-                var c = (KVObject)((KVObject)a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
-
-                for (var i = 0; i < c.Properties.Count; i++)
+                for (var i = 0; i < block.VertexBuffers.Count; i++)
                 {
-                    var d = (KVObject) c.Properties[i.ToString()].Value;
+                    GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
+                    GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(block.VertexBuffers[i].Count * block.VertexBuffers[i].Size), block.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
 
-                    var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers);
-                    drawCalls.Add(drawCall);
+                    var verticeBufferSize = 0;
+                    GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize,
+                        out verticeBufferSize);
+                }
+
+                for (var i = 0; i < block.IndexBuffers.Count; i++)
+                {
+                    GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[i]);
+                    GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(block.IndexBuffers[i].Count * block.IndexBuffers[i].Size), block.IndexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
+
+                    var indiceBufferSize = 0;
+                    GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out indiceBufferSize);
+                }
+
+                Console.WriteLine("Pushed buffers");
+
+                //Prepare drawcalls
+                var a = (KVObject) data.Data.Properties["m_sceneObjects"].Value;
+
+                for (var b = 0; b < a.Properties.Count; b++)
+                {
+                    var c = (KVObject) ((KVObject) a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
+
+                    for (var i = 0; i < c.Properties.Count; i++)
+                    {
+                        var d = (KVObject) c.Properties[i.ToString()].Value;
+
+                        // TODO: Don't pass around so much shit
+                        var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, resource.VBIB);
+                        drawCalls.Add(drawCall);
+                    }
                 }
             }
 
             Loaded = true;
         }
 
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers)
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block)
         {
             var drawCall = default(DrawCall);
 
@@ -427,8 +440,10 @@ namespace GUI.Types.Renderer
             GL.Uniform1(uniformLocation, textureUnit);
         }
 
+        // TODO: we're taking boundaries of first scene
         private void LoadBoundingBox()
         {
+            var data = (BinaryKV3)MeshesToRender.First().Blocks[BlockType.DATA];
             var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
             var b = (KVObject)a.Properties["0"].Value;
             var minBounds = (KVObject)b.Properties["m_vMinBounds"].Value;

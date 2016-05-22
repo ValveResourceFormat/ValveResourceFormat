@@ -16,18 +16,32 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void GetMesh(Resource newResource, Package currentPackage = null)
+        public void LoadMeshes(Renderer.Renderer renderer, Package currentPackage = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
             var refMeshes = (NTROArray)data.Output["m_refMeshes"];
 
-            // TODO: We're taking first mesh only for now
-            var mesh = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refMeshes[0]).Value;
-
-            if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, mesh.Name + "_c", null, currentPackage))
+            for (var i = 0; i < refMeshes.Count; i++)
             {
-                Console.WriteLine("unable to load mesh " + mesh.Name);
+                var refMesh = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refMeshes[i]).Value;
+
+                var newResource = new Resource();
+                if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, refMesh.Name + "_c", null, currentPackage))
+                {
+                    Console.WriteLine("unable to load mesh " + refMesh.Name);
+
+                    continue;
+                }
+
+                if (!newResource.Blocks.ContainsKey(BlockType.VBIB))
+                {
+                    Console.WriteLine("Old style model, no VBIB!");
+
+                    continue;
+                }
+
+                renderer.AddResource(newResource);
             }
         }
 

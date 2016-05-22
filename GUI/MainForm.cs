@@ -298,17 +298,10 @@ namespace GUI
                             var animGroupLoader = new AnimationGroupLoader(animGroup, fileName);
                         }
 
-                        var resourceMesh = new Resource();
-                        model.GetMesh(resourceMesh, currentPackage);
-
-                        if (!resourceMesh.Blocks.ContainsKey(BlockType.VBIB))
-                        {
-                            Console.WriteLine("Old style model, no VBIB!");
-                            break;
-                        }
-
                         var modelmeshTab = new TabPage("MESH");
-                        var modelmv = new Renderer(resourceMesh, mainTabs, fileName, currentPackage);
+                        var modelmv = new Renderer(mainTabs, fileName, currentPackage);
+                        model.LoadMeshes(modelmv, currentPackage);
+
                         var modelglControl = modelmv.CreateGL();
                         modelmeshTab.Controls.Add(modelglControl);
                         resTabs.TabPages.Add(modelmeshTab);
@@ -321,7 +314,8 @@ namespace GUI
                         }
 
                         var meshTab = new TabPage("MESH");
-                        var mv = new Renderer(resource, mainTabs, fileName, currentPackage);
+                        var mv = new Renderer(mainTabs, fileName, currentPackage);
+                        mv.AddResource(resource);
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);
