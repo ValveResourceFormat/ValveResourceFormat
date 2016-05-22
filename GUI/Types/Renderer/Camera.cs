@@ -44,7 +44,7 @@ namespace GUI.Types.Renderer
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
             var aspectRatio = viewportWidth / (float)viewportHeight;
-            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspectRatio, 1.0f, 4096.0f);
+            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspectRatio, 1.0f, 409600.0f);
 
             // setup projection
             GL.Viewport(0, 0, viewportWidth, viewportHeight);

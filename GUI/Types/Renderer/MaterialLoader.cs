@@ -125,13 +125,21 @@ namespace GUI.Types.Renderer
                 Console.WriteLine(">>> " + textureReference.Key + " - " + textureReference.Value.Name);
 
                 // TODO: Investigate why some things have differently numbered textures, Doto's slark has both g_tMasks1 and g_tMasks2
-                if (key == "g_tColor1" || key == "g_tColor2")
+                /*if (key == "g_tColor1" || key == "g_tColor2")
                 {
                     Console.Error.WriteLine(">>> Found {0}, investigate me please, {1}", key, textureReference.Value.Name);
+                    key = "g_tColor";
+                }*/
+                if (key == "g_tColor1")
+                {
                     key = "g_tColor";
                 }
 
                 mat.TextureIDs.Add(key, LoadTexture(textureReference.Value.Name, maxTextureMaxAnisotropy));
+            }
+            if (!mat.TextureIDs.ContainsKey("g_tColor"))
+            {
+                mat.TextureIDs.Add("g_tColor", GetErrorTexture());
             }
 
             return mat;

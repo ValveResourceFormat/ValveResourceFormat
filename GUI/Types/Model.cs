@@ -16,7 +16,7 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void LoadMeshes(Renderer.Renderer renderer, Package currentPackage = null)
+        public void LoadMeshes(Renderer.Renderer renderer, string path, Package currentPackage = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
@@ -27,7 +27,7 @@ namespace GUI.Types
                 var refMesh = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refMeshes[i]).Value;
 
                 var newResource = new Resource();
-                if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, refMesh.Name + "_c", null, currentPackage))
+                if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, refMesh.Name + "_c", path, currentPackage))
                 {
                     Console.WriteLine("unable to load mesh " + refMesh.Name);
 

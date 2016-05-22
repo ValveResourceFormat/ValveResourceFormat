@@ -404,7 +404,8 @@ namespace GUI.Types.Renderer
                     TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureIDs["g_tDiffuseWarp"]);
                 }
 
-                GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
+                //GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
+                GL.DrawRangeElements(call.PrimitiveType, (int)call.StartIndex, (int)(call.StartIndex + call.IndexCount - 1), (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
             }
 
             // Only needed when debugging if something doesnt work, causes high CPU
