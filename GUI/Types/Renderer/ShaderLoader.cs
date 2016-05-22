@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
-        private static Dictionary<string, int> CachedShaders = new Dictionary<string, int>();
+        private static Dictionary<int, int> CachedShaders = new Dictionary<int, int>();
 
         //Map shader names to shader files
         public static string GetShaderFileByName(string shaderName)
@@ -34,11 +34,12 @@ namespace GUI.Types.Renderer
         public static int LoadShaders(string shaderName, ArgumentDependencies modelArguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
+            var shaderCacheHash = (shaderFileName + modelArguments.ToString()).GetHashCode(); // shader collision roulette
 
 #if !DEBUG_SHADERS
             int shaderProgram;
 
-            if (CachedShaders.TryGetValue(shaderFileName, out shaderProgram))
+            if (CachedShaders.TryGetValue(shaderCacheHash, out shaderProgram))
             {
                 return shaderProgram;
             }
@@ -129,7 +130,7 @@ namespace GUI.Types.Renderer
             GL.DetachShader(shaderProgram, fragmentShader);
             GL.DeleteShader(fragmentShader);
 
-            CachedShaders[shaderFileName] = shaderProgram;
+            CachedShaders[shaderCacheHash] = shaderProgram;
 
             return shaderProgram;
         }
