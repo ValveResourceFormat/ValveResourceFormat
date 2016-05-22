@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat;
@@ -7,6 +8,8 @@ namespace GUI.Utils
 {
     internal static class FileExtensions
     {
+        private static Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
+
         // http://stackoverflow.com/a/4975942/272647
         public static string ToFileSizeString(this uint byteCount)
         {
@@ -41,7 +44,41 @@ namespace GUI.Utils
                 return true;
             }
 
-            var path = FindResourcePath(file, currentFullPath);
+            var paths = Settings.GameSearchPaths.ToList();
+            var packages = new List<Package>();
+
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk")).ToList())
+            {
+                paths.Remove(searchPath);
+
+                Package package;
+                if (!CachedPackages.TryGetValue(searchPath, out package))
+                {
+                    Console.WriteLine("Preloading vpk {0}", searchPath);
+
+                    package = new Package();
+                    package.Read(searchPath);
+                    CachedPackages[searchPath] = package;
+                }
+
+                packages.Add(package);
+            }
+
+            foreach (var package in packages)
+            {
+                entry = package?.FindEntry(file);
+
+                if (entry != null)
+                {
+                    byte[] output;
+                    package.ReadEntry(entry, out output);
+                    resource.Read(new MemoryStream(output));
+
+                    return true;
+                }
+            }
+
+            var path = FindResourcePath(paths, file, currentFullPath);
 
             if (path == null)
             {
@@ -55,8 +92,11 @@ namespace GUI.Utils
 
         public static string FindResourcePath(string file, string currentFullPath = null)
         {
-            var paths = Settings.GameSearchPaths;
+            return FindResourcePath(Settings.GameSearchPaths.Where(path => !path.EndsWith(".vpk")).ToList(), file, currentFullPath);
+        }
 
+        public static string FindResourcePath(IList<string> paths, string file, string currentFullPath = null)
+        {
             if (currentFullPath != null)
             {
                 paths = paths.OrderByDescending(x => currentFullPath.StartsWith(x, StringComparison.Ordinal)).ToList();
