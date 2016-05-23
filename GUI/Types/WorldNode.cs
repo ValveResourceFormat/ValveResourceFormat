@@ -21,10 +21,9 @@ namespace GUI.Types
 
         internal void AddMeshes(Renderer.Renderer renderer, string path, Package package)
         {
-
             var data = Resource.Blocks[BlockType.DATA] as NTRO;
 
-            // Output is WorldNNode_t we need to iterate m_sceneObjects inside it.
+            // Output is WorldNode_t we need to iterate m_sceneObjects inside it.
             var sceneObjects = (NTROArray)data.Output["m_sceneObjects"];
             var i = 0;
             foreach (var entry in sceneObjects)

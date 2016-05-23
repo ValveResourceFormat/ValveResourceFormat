@@ -19,6 +19,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Model = GUI.Types.Model;
+using World = GUI.Types.World;
 using WorldNode = GUI.Types.WorldNode;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 using System.Drawing.Imaging;
@@ -290,15 +291,25 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, resource });
 
                         break;
-                    case ResourceType.WorldNode:
-                        var world = new WorldNode(resource);
+                    case ResourceType.World:
+                        var world = new World(resource);
                         var worldmv = new Renderer(mainTabs, fileName, currentPackage);
-                        world.AddMeshes(worldmv, fileName, currentPackage);
+                        world.AddObjects(worldmv, fileName, currentPackage);
 
                         var worldmeshTab = new TabPage("MAP");
                         var worldglControl = worldmv.CreateGL();
                         worldmeshTab.Controls.Add(worldglControl);
                         resTabs.TabPages.Add(worldmeshTab);
+                        break;
+                    case ResourceType.WorldNode:
+                        var node = new WorldNode(resource);
+                        var nodemv = new Renderer(mainTabs, fileName, currentPackage);
+                        node.AddMeshes(nodemv, fileName, currentPackage);
+
+                        var nodemeshTab = new TabPage("MAP");
+                        var nodeglControl = nodemv.CreateGL();
+                        nodemeshTab.Controls.Add(nodeglControl);
+                        resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
                         var model = new Model(resource);

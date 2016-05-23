@@ -285,6 +285,8 @@ namespace ValveResourceFormat
 
                 case ResourceType.SoundEventScript:
                     return new SoundEventScript();
+                case ResourceType.EntityLump:
+                    return new EntitiyLump();
 
                 case ResourceType.Particle:
                     return new BinaryKV3();

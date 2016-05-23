@@ -51,6 +51,7 @@
     <Compile Include="Package\PackageEntry.cs" />
     <Compile Include="Resource\Block.cs" />
     <Compile Include="Resource\Enums\DXGIFormat.cs" />
+    <Compile Include="Resource\ResourceTypes\EntityLump.cs" />
     <Compile Include="Utils\ExtensionAttribute.cs" />
     <Compile Include="Resource\Resource.cs" />
     <Compile Include="Resource\ResourceTypes\BinaryKV3.cs" />
