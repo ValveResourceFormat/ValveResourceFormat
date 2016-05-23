@@ -43,7 +43,7 @@ namespace GUI.Types
                     continue;
                 }
 
-                renderer.AddResource(new SceneObject { Resource = newResource, Transform = transform });
+                renderer.AddMeshObject(new MeshObject { Resource = newResource, Transform = transform });
 
                 // TODO: Only first, again.
                 break;

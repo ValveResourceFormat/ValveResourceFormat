@@ -22,7 +22,6 @@ namespace GUI.Types.Renderer
         public DrawBuffer VertexBuffer;
         public DrawElementsType IndiceType;
         public DrawBuffer IndexBuffer;
-        public Matrix4 Transform;
     }
 
     internal struct DrawBuffer

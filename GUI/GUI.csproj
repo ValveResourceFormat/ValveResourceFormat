@@ -114,6 +114,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
+    <Compile Include="Types\Renderer\MeshObject.cs" />
     <Compile Include="Types\Renderer\ShaderLoader.cs" />
     <Compile Include="Types\World.cs" />
     <Compile Include="Types\WorldNode.cs" />

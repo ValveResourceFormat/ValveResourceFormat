@@ -77,7 +77,7 @@ namespace GUI.Types
                         continue;
                     }
 
-                    renderer.AddResource(new SceneObject { Resource = newResource, Transform = matrix });
+                    renderer.AddMeshObject(new MeshObject { Resource = newResource, Transform = matrix });
                 }
             }
         }

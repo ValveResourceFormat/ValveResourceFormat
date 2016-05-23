@@ -16,22 +16,15 @@ using Timer = System.Timers.Timer;
 
 namespace GUI.Types.Renderer
 {
-    internal class SceneObject
-    {
-        public Resource Resource;
-        public Matrix4 Transform = Matrix4.Identity;
-    }
-
     internal class Renderer
     {
         private readonly MaterialLoader MaterialLoader;
         private readonly TabControl tabs;
-        private readonly List<DrawCall> drawCalls = new List<DrawCall>();
 
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
 
-        private readonly List<SceneObject> MeshesToRender;
+        private readonly List<MeshObject> MeshesToRender;
 
         private bool Loaded;
 
@@ -46,7 +39,7 @@ namespace GUI.Types.Renderer
 
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
-            MeshesToRender = new List<SceneObject>();
+            MeshesToRender = new List<MeshObject>();
 
             CurrentPackage = currentPackage;
             CurrentFileName = fileName;
@@ -55,7 +48,7 @@ namespace GUI.Types.Renderer
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
-        public void AddResource(SceneObject obj)
+        public void AddMeshObject(MeshObject obj)
         {
             MeshesToRender.Add(obj);
         }
@@ -181,8 +174,7 @@ namespace GUI.Types.Renderer
                     GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(block.VertexBuffers[i].Count * block.VertexBuffers[i].Size), block.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
 
                     var verticeBufferSize = 0;
-                    GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize,
-                        out verticeBufferSize);
+                    GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out verticeBufferSize);
                 }
 
                 for (var i = 0; i < block.IndexBuffers.Count; i++)
@@ -195,11 +187,11 @@ namespace GUI.Types.Renderer
                 }
 
                 //Prepare drawcalls
-                var a = (KVObject) data.Data.Properties["m_sceneObjects"].Value;
+                var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
 
                 for (var b = 0; b < a.Properties.Count; b++)
                 {
-                    var c = (KVObject) ((KVObject) a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
+                    var c = (KVObject)((KVObject)a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
 
                     for (var i = 0; i < c.Properties.Count; i++)
                     {
@@ -207,15 +199,14 @@ namespace GUI.Types.Renderer
 
                         // TODO: Don't pass around so much shit
                         var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, resource.VBIB);
-                        drawCall.Transform = obj.Transform;
-                        drawCalls.Add(drawCall);
+                        obj.DrawCalls.Add(drawCall);
                     }
                 }
             }
 
             Loaded = true;
 
-            Console.WriteLine("{0} draw calls total", drawCalls.Count);
+            Console.WriteLine("{0} draw calls total", MeshesToRender.Sum(x => x.DrawCalls.Count));
         }
 
         private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block)
@@ -358,61 +349,65 @@ namespace GUI.Types.Renderer
             lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-            foreach (var call in drawCalls)
+
+            foreach (var obj in MeshesToRender)
             {
-                //Bind shader
-                GL.UseProgram(call.Shader);
-
-                //Set shader uniforms
-                var projectionLoc = GL.GetUniformLocation(call.Shader, "projection");
-                GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
-
-                var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
-                GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
-
-                var transform = call.Transform;
-                var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
-                GL.UniformMatrix4(transformLoc, false, ref transform);
-
-                var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
-                GL.Uniform3(lightPosAttrib, lightPos);
-
-                var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
-                GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
-
-                //Bind VAO
-                GL.BindVertexArray(call.VertexArrayObject);
-
-                //Set shader texture samplers
-                //Color texture
-                TryToBindTexture(call.Shader, 0, "colorTexture", call.MaterialID);
-
-                if (call.Material.TextureIDs.ContainsKey("g_tNormal"))
+                foreach (var call in obj.DrawCalls)
                 {
-                    //Bind normal texture
-                    TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureIDs["g_tNormal"]);
-                }
+                    //Bind shader
+                    GL.UseProgram(call.Shader);
 
-                if (call.Material.TextureIDs.ContainsKey("g_tMasks1"))
-                {
-                    //Bind mask 1 texture
-                    TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMasks1"]);
-                }
+                    //Set shader uniforms
+                    var projectionLoc = GL.GetUniformLocation(call.Shader, "projection");
+                    GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
 
-                if (call.Material.TextureIDs.ContainsKey("g_tMasks2"))
-                {
-                    //Bind mask 2 texture
-                    TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMasks2"]);
-                }
+                    var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
+                    GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
-                if (call.Material.TextureIDs.ContainsKey("g_tDiffuseWarp"))
-                {
-                    //Bind diffuse warp texture
-                    TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureIDs["g_tDiffuseWarp"]);
-                }
+                    var transform = obj.Transform;
+                    var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
+                    GL.UniformMatrix4(transformLoc, false, ref transform);
 
-                //GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
-                GL.DrawRangeElements(call.PrimitiveType, (int)call.StartIndex, (int)(call.StartIndex + call.IndexCount - 1), (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
+                    var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
+                    GL.Uniform3(lightPosAttrib, lightPos);
+
+                    var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
+                    GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
+
+                    //Bind VAO
+                    GL.BindVertexArray(call.VertexArrayObject);
+
+                    //Set shader texture samplers
+                    //Color texture
+                    TryToBindTexture(call.Shader, 0, "colorTexture", call.MaterialID);
+
+                    if (call.Material.TextureIDs.ContainsKey("g_tNormal"))
+                    {
+                        //Bind normal texture
+                        TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureIDs["g_tNormal"]);
+                    }
+
+                    if (call.Material.TextureIDs.ContainsKey("g_tMasks1"))
+                    {
+                        //Bind mask 1 texture
+                        TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMasks1"]);
+                    }
+
+                    if (call.Material.TextureIDs.ContainsKey("g_tMasks2"))
+                    {
+                        //Bind mask 2 texture
+                        TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMasks2"]);
+                    }
+
+                    if (call.Material.TextureIDs.ContainsKey("g_tDiffuseWarp"))
+                    {
+                        //Bind diffuse warp texture
+                        TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureIDs["g_tDiffuseWarp"]);
+                    }
+
+                    //GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
+                    GL.DrawRangeElements(call.PrimitiveType, (int) call.StartIndex, (int)(call.StartIndex + call.IndexCount - 1), (int) call.IndexCount, call.IndiceType, IntPtr.Zero);
+                }
             }
 
             // Only needed when debugging if something doesnt work, causes high CPU
