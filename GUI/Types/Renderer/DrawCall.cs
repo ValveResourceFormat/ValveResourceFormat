@@ -17,7 +17,6 @@ namespace GUI.Types.Renderer
         public string Flags;        //TODO
         public Vector3 TintColor;   //TODO
         public Material Material;
-        public int MaterialID;
         public uint VertexArrayObject;
         public DrawBuffer VertexBuffer;
         public DrawElementsType IndiceType;

@@ -8,7 +8,13 @@ namespace GUI.Types.Renderer
     {
         public string Name;
         public string ShaderName;
-        public Dictionary<string, int> TextureIDs;
+
+        public int TextureColor { get; set; }
+        public int TextureNormal { get; set; }
+        public int TextureMasks1 { get; set; }
+        public int TextureMasks2 { get; set; }
+        public int TextureDiffuseWarp { get; set; }
+
         public Dictionary<string, int> IntParams;
         public Dictionary<string, float> FloatParams;
         public Dictionary<string, Vector4> VectorParams;
@@ -33,8 +39,6 @@ namespace GUI.Types.Renderer
             FloatAttributes = new Dictionary<string, float>();
             VectorAttributes = new Dictionary<string, Vector4>();
             StringAttributes = new Dictionary<string, string>();
-
-            TextureIDs = new Dictionary<string, int>();
         }
     }
 }

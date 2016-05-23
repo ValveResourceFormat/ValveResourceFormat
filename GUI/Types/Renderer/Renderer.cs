@@ -229,8 +229,6 @@ namespace GUI.Types.Renderer
 
             drawCall.Material = MaterialLoader.GetMaterial(drawProperties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
 
-            drawCall.MaterialID = drawCall.Material.TextureIDs["g_tColor"];
-
             // Load shader
             drawCall.Shader = ShaderLoader.LoadShaders(drawCall.Material.ShaderName, modelArguments);
 
@@ -350,6 +348,8 @@ namespace GUI.Types.Renderer
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
+            //var sw = System.Diagnostics.Stopwatch.StartNew();
+
             foreach (var obj in MeshesToRender)
             {
                 foreach (var call in obj.DrawCalls)
@@ -379,36 +379,38 @@ namespace GUI.Types.Renderer
 
                     //Set shader texture samplers
                     //Color texture
-                    TryToBindTexture(call.Shader, 0, "colorTexture", call.MaterialID);
+                    TryToBindTexture(call.Shader, 0, "colorTexture", call.Material.TextureColor);
 
-                    if (call.Material.TextureIDs.ContainsKey("g_tNormal"))
+                    if (call.Material.TextureNormal > 0)
                     {
                         //Bind normal texture
-                        TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureIDs["g_tNormal"]);
+                        TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureNormal);
                     }
 
-                    if (call.Material.TextureIDs.ContainsKey("g_tMasks1"))
+                    if (call.Material.TextureMasks1 > 0)
                     {
                         //Bind mask 1 texture
-                        TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureIDs["g_tMasks1"]);
+                        TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureMasks1);
                     }
 
-                    if (call.Material.TextureIDs.ContainsKey("g_tMasks2"))
+                    if (call.Material.TextureMasks2 > 0)
                     {
                         //Bind mask 2 texture
-                        TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureIDs["g_tMasks2"]);
+                        TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureMasks2);
                     }
 
-                    if (call.Material.TextureIDs.ContainsKey("g_tDiffuseWarp"))
+                    if (call.Material.TextureDiffuseWarp > 0)
                     {
                         //Bind diffuse warp texture
-                        TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureIDs["g_tDiffuseWarp"]);
+                        TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureDiffuseWarp);
                     }
 
                     //GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
                     GL.DrawRangeElements(call.PrimitiveType, (int) call.StartIndex, (int)(call.StartIndex + call.IndexCount - 1), (int) call.IndexCount, call.IndiceType, IntPtr.Zero);
                 }
             }
+
+            //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
