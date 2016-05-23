@@ -202,7 +202,12 @@ namespace GUI.Types.Renderer
                         obj.DrawCalls.Add(drawCall);
                     }
                 }
+
+                obj.Resource = null;
             }
+
+            // TODO: poor hack
+            FileExtensions.ClearCache();
 
             Loaded = true;
 

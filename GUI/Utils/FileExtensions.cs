@@ -32,6 +32,16 @@ namespace GUI.Utils
             return result;
         }
 
+        public static void ClearCache()
+        {
+            foreach (var res in CachedResources)
+            {
+                res.Value.Dispose();
+            }
+
+            CachedResources.Clear();
+        }
+
         public static Resource LoadFileByAnyMeansNecessary(string file, string currentFullPath, Package currentPackage)
         {
             Resource resource;
