@@ -37,11 +37,11 @@ namespace GUI.Types.Renderer
             //Console.WriteLine("\n>> Loading material " + name);
 
             var mat = new Material();
-            var resource = new Resource();
+            var resource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
 
             Materials.Add(name, mat);
 
-            if (!FileExtensions.LoadFileByAnyMeansNecessary(resource, name + "_c", CurrentFileName, CurrentPackage))
+            if (resource == null)
             {
                 Console.Error.WriteLine("File " + name + " not found");
 
@@ -137,6 +137,7 @@ namespace GUI.Types.Renderer
 
                 mat.TextureIDs.Add(key, LoadTexture(textureReference.Value.Name, maxTextureMaxAnisotropy));
             }
+
             if (!mat.TextureIDs.ContainsKey("g_tColor"))
             {
                 mat.TextureIDs.Add("g_tColor", GetErrorTexture());
@@ -147,9 +148,9 @@ namespace GUI.Types.Renderer
 
         private int LoadTexture(string name, int maxTextureMaxAnisotropy)
         {
-            var textureResource = new Resource();
+            var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
 
-            if (!FileExtensions.LoadFileByAnyMeansNecessary(textureResource, name + "_c", CurrentFileName, CurrentPackage))
+            if (textureResource == null)
             {
                 Console.Error.WriteLine("File " + name + " not found");
 

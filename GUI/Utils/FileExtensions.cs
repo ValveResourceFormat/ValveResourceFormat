@@ -9,6 +9,7 @@ namespace GUI.Utils
     internal static class FileExtensions
     {
         private static Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
+        private static Dictionary<string, Resource> CachedResources = new Dictionary<string, Resource>();
 
         // http://stackoverflow.com/a/4975942/272647
         public static string ToFileSizeString(this uint byteCount)
@@ -31,8 +32,18 @@ namespace GUI.Utils
             return result;
         }
 
-        public static bool LoadFileByAnyMeansNecessary(Resource resource, string file, string currentFullPath, Package currentPackage)
+        public static Resource LoadFileByAnyMeansNecessary(string file, string currentFullPath, Package currentPackage)
         {
+            Resource resource;
+
+            // TODO: Might conflict where same file name is available in different paths
+            if (CachedResources.TryGetValue(file, out resource))
+            {
+                return resource;
+            }
+
+            resource = new Resource();
+
             var entry = currentPackage?.FindEntry(file);
 
             if (entry != null)
@@ -40,8 +51,9 @@ namespace GUI.Utils
                 byte[] output;
                 currentPackage.ReadEntry(entry, out output);
                 resource.Read(new MemoryStream(output));
+                CachedResources[file] = resource;
 
-                return true;
+                return resource;
             }
 
             var paths = Settings.GameSearchPaths.ToList();
@@ -73,8 +85,9 @@ namespace GUI.Utils
                     byte[] output;
                     package.ReadEntry(entry, out output);
                     resource.Read(new MemoryStream(output));
+                    CachedResources[file] = resource;
 
-                    return true;
+                    return resource;
                 }
             }
 
@@ -82,20 +95,16 @@ namespace GUI.Utils
 
             if (path == null)
             {
-                return false;
+                return resource;
             }
 
             resource.Read(path);
+            CachedResources[file] = resource;
 
-            return true;
+            return null;
         }
 
-        public static string FindResourcePath(string file, string currentFullPath = null)
-        {
-            return FindResourcePath(Settings.GameSearchPaths.Where(path => !path.EndsWith(".vpk")).ToList(), file, currentFullPath);
-        }
-
-        public static string FindResourcePath(IList<string> paths, string file, string currentFullPath = null)
+        private static string FindResourcePath(IList<string> paths, string file, string currentFullPath = null)
         {
             if (currentFullPath != null)
             {

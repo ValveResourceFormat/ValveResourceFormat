@@ -53,8 +53,8 @@ namespace GUI.Types
 
                 if (renderableModel != null)
                 {
-                    var newResource = new Resource();
-                    if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, renderableModel.Name + "_c", path, package))
+                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderableModel.Name + "_c", path, package);
+                    if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + renderableModel.Name + "_c");
 
@@ -69,8 +69,8 @@ namespace GUI.Types
 
                 if (renderable != null)
                 {
-                    var newResource = new Resource();
-                    if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, renderable.Name + "_c", path, package))
+                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderable.Name + "_c", path, package);
+                    if (newResource == null)
                     {
                         Console.WriteLine("unable to load renderable " + renderable.Name + "_c");
 

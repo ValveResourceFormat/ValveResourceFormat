@@ -29,8 +29,8 @@ namespace GUI.Types
             var worldNode = ((NTROValue<string>)nodeData["m_worldNodePrefix"]).Value;
             if (worldNode != null)
             {
-                var newResource = new Resource();
-                if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, worldNode + ".vwnod_c", path, package))
+                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c", path, package);
+                if (newResource == null)
                 {
                     Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
                     throw new Exception("WTF");
@@ -47,8 +47,8 @@ namespace GUI.Types
 
                 if (reference != null)
                 {
-                    var newResource = new Resource();
-                    if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, reference.Name + "_c", path, package))
+                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(reference.Name + "_c", path, package);
+                    if (newResource == null)
                     {
                         Console.WriteLine("unable to load entity lump " + reference.Name + "_c");
 
@@ -118,8 +118,8 @@ namespace GUI.Types
 
                             var megaMatrix = scaleMatrix * rotationMatrix * posMatrix;
 
-                            var newEntity = new Resource();
-                            if (!FileExtensions.LoadFileByAnyMeansNecessary(newEntity, model + "_c", path, package))
+                            var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
+                            if (newEntity == null)
                             {
                                 Console.WriteLine("unable to load entity " + model + "_c");
 

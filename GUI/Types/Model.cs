@@ -28,8 +28,8 @@ namespace GUI.Types
             {
                 var refMesh = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refMeshes[i]).Value;
 
-                var newResource = new Resource();
-                if (!FileExtensions.LoadFileByAnyMeansNecessary(newResource, refMesh.Name + "_c", path, currentPackage))
+                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(refMesh.Name + "_c", path, currentPackage);
+                if (newResource == null)
                 {
                     Console.WriteLine("unable to load mesh " + refMesh.Name);
 
@@ -59,7 +59,7 @@ namespace GUI.Types
             if (refAnimGroups.Count > 0)
             {
                 var animGroup = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refAnimGroups[0]).Value;
-                return FileExtensions.FindResourcePath(animGroup.Name);
+                //return FileExtensions.FindResourcePath(animGroup.Name);
             }
 
             return string.Empty;
