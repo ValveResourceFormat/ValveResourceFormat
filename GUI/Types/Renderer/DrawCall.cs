@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
         public uint BaseVertex;
         public uint VertexCount;
         public uint StartIndex;
-        public uint IndexCount;
+        public int IndexCount;
         public uint InstanceIndex;   //TODO
         public uint InstanceCount;   //TODO
         public float UvDensity;     //TODO

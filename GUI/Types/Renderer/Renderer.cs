@@ -227,11 +227,6 @@ namespace GUI.Types.Renderer
                     throw new Exception("Unknown PrimitiveType in drawCall! (" + drawProperties["m_nPrimitiveType"].Value + ")");
             }
 
-            drawCall.BaseVertex = Convert.ToUInt32(drawProperties["m_nBaseVertex"].Value);
-            drawCall.VertexCount = Convert.ToUInt32(drawProperties["m_nVertexCount"].Value);
-            drawCall.StartIndex = Convert.ToUInt32(drawProperties["m_nStartIndex"].Value);
-            drawCall.IndexCount = Convert.ToUInt32(drawProperties["m_nIndexCount"].Value);
-
             drawCall.Material = MaterialLoader.GetMaterial(drawProperties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
 
             // Load shader
@@ -247,12 +242,18 @@ namespace GUI.Types.Renderer
             indexBuffer.Offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
             drawCall.IndexBuffer = indexBuffer;
 
-            if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 2)
+            var bufferSize = block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
+            drawCall.BaseVertex = Convert.ToUInt32(drawProperties["m_nBaseVertex"].Value);
+            drawCall.VertexCount = Convert.ToUInt32(drawProperties["m_nVertexCount"].Value);
+            drawCall.StartIndex = Convert.ToUInt32(drawProperties["m_nStartIndex"].Value) * bufferSize;
+            drawCall.IndexCount = Convert.ToInt32(drawProperties["m_nIndexCount"].Value);
+
+            if (bufferSize == 2)
             {
                 //shopkeeper_vr
                 drawCall.IndiceType = DrawElementsType.UnsignedShort;
             }
-            else if (block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size == 4)
+            else if (bufferSize == 4)
             {
                 //glados
                 drawCall.IndiceType = DrawElementsType.UnsignedInt;
@@ -410,8 +411,7 @@ namespace GUI.Types.Renderer
                         TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureDiffuseWarp);
                     }
 
-                    //GL.DrawElements(call.PrimitiveType, (int)call.IndexCount, call.IndiceType, IntPtr.Zero);
-                    GL.DrawRangeElements(call.PrimitiveType, (int) call.StartIndex, (int)(call.StartIndex + call.IndexCount - 1), (int) call.IndexCount, call.IndiceType, IntPtr.Zero);
+                    GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
                 }
             }
 
