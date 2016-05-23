@@ -162,8 +162,6 @@ namespace GUI.Types.Renderer
 
             ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
 
-            Console.WriteLine("Setting up buffers..");
-
             foreach (var obj in MeshesToRender)
             {
                 var resource = obj.Resource;
@@ -216,6 +214,8 @@ namespace GUI.Types.Renderer
             }
 
             Loaded = true;
+
+            Console.WriteLine("{0} draw calls total", drawCalls.Count);
         }
 
         private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block)

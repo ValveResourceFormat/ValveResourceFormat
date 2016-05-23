@@ -32,9 +32,10 @@ void main()
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
+	
+	// TODO: for now, screw the actual illumination
+	illumination = 1.0;
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb, color.a);
 }
-
-

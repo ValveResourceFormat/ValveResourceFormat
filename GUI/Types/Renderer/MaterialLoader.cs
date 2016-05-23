@@ -214,11 +214,6 @@ namespace GUI.Types.Renderer
                 GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, size, textureReader.ReadBytes(size));
             }
 
-            if (tex.NumMipLevels < 2)
-            {
-                Console.WriteLine("Texture only has " + tex.NumMipLevels + " mipmap levels, should probably generate");
-            }
-
             if (maxTextureMaxAnisotropy > 0)
             {
                 GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, maxTextureMaxAnisotropy);
