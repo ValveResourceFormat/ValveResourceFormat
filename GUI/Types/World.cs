@@ -92,7 +92,7 @@ namespace GUI.Types
                                 scaleTemp2[i] = float.Parse(scaleTemp[i]);
                             }
 
-                            var scaleMatrix =  Matrix4.CreateScale(scaleTemp2[0], scaleTemp2[1], scaleTemp2[2]);
+                            var scaleMatrix = Matrix4.CreateScale(scaleTemp2[0], scaleTemp2[1], scaleTemp2[2]);
 
                             //Must be something remotely useful.
                             var angleTemp = angles.Split(' ');
@@ -102,9 +102,9 @@ namespace GUI.Types
                                 angleTemp2[i] = float.Parse(angleTemp[i]);
                             }
 
-                            var xMatrix = Matrix4.CreateRotationX(angleTemp2[0]);
-                            var yMatrix = Matrix4.CreateRotationY(angleTemp2[1]);
-                            var zMatrix = Matrix4.CreateRotationZ(angleTemp2[2]);
+                            var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(angleTemp2[2]));
+                            rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(angleTemp2[0]));
+                            rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(angleTemp2[1]));
 
                             //Must be something remotely useful.
                             var positionTemp = position.Split(' ');
@@ -116,7 +116,7 @@ namespace GUI.Types
 
                             var posMatrix = Matrix4.CreateTranslation(positionTemp2[0], positionTemp2[1], positionTemp2[2]);
 
-                            var megaMatrix = scaleMatrix * xMatrix * yMatrix * zMatrix * posMatrix;
+                            var megaMatrix = scaleMatrix * rotationMatrix * posMatrix;
 
                             var newEntity = new Resource();
                             if (!FileExtensions.LoadFileByAnyMeansNecessary(newEntity, model + "_c", path, package))

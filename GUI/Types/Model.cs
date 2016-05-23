@@ -44,6 +44,9 @@ namespace GUI.Types
                 }
 
                 renderer.AddResource(new SceneObject { Resource = newResource, Transform = transform });
+
+                // TODO: Only first, again.
+                break;
             }
         }
 
