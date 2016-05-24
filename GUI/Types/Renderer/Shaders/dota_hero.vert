@@ -30,8 +30,7 @@ uniform mat4 transform;
 
 void main()
 {
-	vec4 v = modelview * vec4(vPosition, 1.0);
-	gl_Position = projection * v;
+	gl_Position = projection * modelview * transform * vec4(vPosition, 1.0);
 	vFragPosition = vPosition;
 
 	//Unpack normals
