@@ -378,9 +378,10 @@ namespace GUI.Types.Renderer
                     //Bind VAO
                     GL.BindVertexArray(call.VertexArrayObject);
 
+                    var textureUnit = 0;
                     foreach (var texture in call.Material.Textures)
                     {
-                        TryToBindTexture(call.Shader, 0, texture.Key, texture.Value);
+                        TryToBindTexture(call.Shader, textureUnit++, texture.Key, texture.Value);
                     }
 
                     if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1)
