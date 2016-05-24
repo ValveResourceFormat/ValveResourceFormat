@@ -40,6 +40,7 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ValveFont\ValveFont.cs" />
     <Compile Include="KeyValues\KeyValues3.cs" />
     <Compile Include="KeyValues\KV3File.cs" />
     <Compile Include="KeyValues\KVFlaggedValue.cs" />

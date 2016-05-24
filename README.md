@@ -56,9 +56,9 @@ vmap     | Map                     | :+1:
 
 Ext      | Name                    | Support
 -------- | ----------------------- | -------
-vpk      | Pak (package)           | Supported by `Package`
+vpk      | Pak (package)           | :+1: Supported by `Package`
 vcs      | Compiled Shader         | Partially supported by `CompiledShader`
-vfont    | Bitmap Font             | Not in a resource format, it's "encrypted", has `VFONT1` at the end of file
+vfont    | Bitmap Font             | :+1: Decrypts `VFONT`, supported in Source 1 (CS:GO) and Source 2 (Dota 2).
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
