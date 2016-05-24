@@ -278,42 +278,18 @@ namespace GUI.Types.Renderer
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.IndexBuffer.Id]);
 
             var curVertexBuffer = block.VertexBuffers[(int)drawCall.VertexBuffer.Id];
-            var texcoordSet = false;
+            var texCoordNum = 0;
             foreach (var attribute in curVertexBuffer.Attributes)
             {
-                switch (attribute.Name)
+                var attributeName = "v" + attribute.Name;
+
+                // TODO: other params too?
+                if (attribute.Name == "TEXCOORD" && texCoordNum++ > 0)
                 {
-                    case "POSITION":
-                        BindVertexAttrib(attribute, "vPosition", drawCall.Shader, (int)curVertexBuffer.Size);
-                        break;
-
-                    case "NORMAL":
-                        BindVertexAttrib(attribute, "vNormal", drawCall.Shader, (int)curVertexBuffer.Size);
-                        break;
-
-                    case "TEXCOORD":
-                        // Ignore second set of texcoords
-                        if (texcoordSet)
-                        {
-                            break;
-                        }
-
-                        BindVertexAttrib(attribute, "vTexCoord", drawCall.Shader, (int)curVertexBuffer.Size);
-
-                        texcoordSet = true;
-                        break;
-                    case "TANGENT":
-                        BindVertexAttrib(attribute, "vTangent", drawCall.Shader, (int)curVertexBuffer.Size);
-                        break;
-
-                    case "BLENDINDICES":
-                        BindVertexAttrib(attribute, "vBlendIndices", drawCall.Shader, (int)curVertexBuffer.Size);
-                        break;
-
-                    case "BLENDWEIGHT":
-                        BindVertexAttrib(attribute, "vBlendWeight", drawCall.Shader, (int)curVertexBuffer.Size);
-                        break;
+                    attributeName += texCoordNum;
                 }
+
+                BindVertexAttrib(attribute, attributeName, drawCall.Shader, (int)curVertexBuffer.Size);
             }
 
             GL.BindVertexArray(0);

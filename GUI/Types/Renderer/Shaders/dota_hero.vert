@@ -8,12 +8,12 @@
 #define param_fulltangent 1
 //End of parameter defines
 
-in vec3 vPosition;
-in vec4 vNormal;
-in vec2 vTexCoord;
-in vec4 vTangent;
-in ivec4 vBlendIndices;
-in vec4 vBlendWeight;
+in vec3 vPOSITION;
+in vec4 vNORMAL;
+in vec2 vTEXCOORD;
+in vec4 vTANGENT;
+in ivec4 vBLENDINDICES;
+in vec4 vBLENDWEIGHT;
 
 out vec3 vFragPosition;
 
@@ -30,21 +30,21 @@ uniform mat4 transform;
 
 void main()
 {
-	gl_Position = projection * modelview * transform * vec4(vPosition, 1.0);
-	vFragPosition = vPosition;
+	gl_Position = projection * modelview * transform * vec4(vPOSITION, 1.0);
+	vFragPosition = vPOSITION;
 
 	//Unpack normals
 #if param_fulltangent == 1
-	vNormalOut = vNormal.xyz;
-	vTangentOut = vTangent.xyz;
+	vNormalOut = vNORMAL.xyz;
+	vTangentOut = vTANGENT.xyz;
 	vBitangentOut = cross( vNormalOut, vTangentOut );
 #else
-	vec4 tangent = DecompressTangent(vNormal);
-	vNormalOut = DecompressNormal(vNormal);
+	vec4 tangent = DecompressTangent(vNORMAL);
+	vNormalOut = DecompressNormal(vNORMAL);
 	vTangentOut = tangent.xyz;
 	fTangentW = tangent.w;
 	vBitangentOut = cross( vNormalOut, vTangentOut * tangent.w );
 #endif
 
-	vTexCoordOut = vTexCoord;
+	vTexCoordOut = vTEXCOORD;
 }
