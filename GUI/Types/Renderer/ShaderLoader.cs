@@ -41,7 +41,7 @@ namespace GUI.Types.Renderer
 
             if (CachedShaders.TryGetValue(shaderCacheHash, out shaderProgram))
             {
-                //return shaderProgram;
+                return shaderProgram;
             }
 #endif
 

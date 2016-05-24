@@ -360,10 +360,6 @@ namespace GUI.Types.Renderer
                         var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
                         GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
-                        var transform = obj.Transform;
-                        var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
-                        GL.UniformMatrix4(transformLoc, false, ref transform);
-
                         var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
                         GL.Uniform3(lightPosAttrib, lightPos);
 
@@ -374,6 +370,10 @@ namespace GUI.Types.Renderer
                     {
                         count++;
                     }
+
+                    var transform = obj.Transform;
+                    var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
+                    GL.UniformMatrix4(transformLoc, false, ref transform);
 
                     //Bind VAO
                     GL.BindVertexArray(call.VertexArrayObject);
@@ -386,12 +386,7 @@ namespace GUI.Types.Renderer
                     if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1)
                     {
                         GL.Enable(EnableCap.AlphaTest);
-
-                        if (call.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-                        {
-                            var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
-                            GL.Uniform1(alphaReference, call.Material.FloatParams["g_flAlphaTestReference"]);
-                        }
+                        GL.AlphaFunc(AlphaFunction.Gequal, call.Material.FloatParams.ContainsKey("g_flAlphaTestReference") ? call.Material.FloatParams["g_flAlphaTestReference"] : 0f);
                     }
 
                     if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
@@ -407,7 +402,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            Console.WriteLine(count + " saved");
+            //Console.WriteLine(count + " saved");
 
             //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 

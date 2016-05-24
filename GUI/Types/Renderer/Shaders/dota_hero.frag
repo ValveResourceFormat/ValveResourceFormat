@@ -11,7 +11,6 @@ in vec2 vTexCoordOut;
 
 out vec4 outputColor;
 
-uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tMasks1;
