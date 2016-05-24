@@ -316,23 +316,6 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (drawCall.Material.IntParams.ContainsKey("F_ALPHA_TEST") && drawCall.Material.IntParams["F_ALPHA_TEST"] == 1)
-            {
-                GL.Enable(EnableCap.AlphaTest);
-
-                if (drawCall.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-                {
-                    var alphaReference = GL.GetUniformLocation(drawCall.Shader, "alphaReference");
-                    GL.Uniform1(alphaReference, drawCall.Material.FloatParams["g_flAlphaTestReference"]);
-                }
-            }
-
-            if (drawCall.Material.IntParams.ContainsKey("F_TRANSLUCENT") && drawCall.Material.IntParams["F_TRANSLUCENT"] == 1)
-            {
-                GL.Enable(EnableCap.Blend);
-                GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-            }
-
             GL.BindVertexArray(0);
 
             return drawCall;
@@ -356,64 +339,75 @@ namespace GUI.Types.Renderer
 
             //var sw = System.Diagnostics.Stopwatch.StartNew();
 
+            var prevShader = -1;
+            var count = 0;
+
             foreach (var obj in MeshesToRender)
             {
                 foreach (var call in obj.DrawCalls)
                 {
-                    //Bind shader
-                    GL.UseProgram(call.Shader);
+                    if (call.Shader != prevShader)
+                    {
+                        prevShader = call.Shader;
 
-                    //Set shader uniforms
-                    var projectionLoc = GL.GetUniformLocation(call.Shader, "projection");
-                    GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
+                        //Bind shader
+                        GL.UseProgram(call.Shader);
 
-                    var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
-                    GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
+                        //Set shader uniforms
+                        var projectionLoc = GL.GetUniformLocation(call.Shader, "projection");
+                        GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
 
-                    var transform = obj.Transform;
-                    var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
-                    GL.UniformMatrix4(transformLoc, false, ref transform);
+                        var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
+                        GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
-                    var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
-                    GL.Uniform3(lightPosAttrib, lightPos);
+                        var transform = obj.Transform;
+                        var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
+                        GL.UniformMatrix4(transformLoc, false, ref transform);
 
-                    var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
-                    GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
+                        var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
+                        GL.Uniform3(lightPosAttrib, lightPos);
+
+                        var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
+                        GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
+                    }
+                    else
+                    {
+                        count++;
+                    }
 
                     //Bind VAO
                     GL.BindVertexArray(call.VertexArrayObject);
 
-                    //Set shader texture samplers
-                    //Color texture
-                    TryToBindTexture(call.Shader, 0, "colorTexture", call.Material.TextureColor);
-
-                    if (call.Material.TextureNormal > 0)
+                    foreach (var texture in call.Material.Textures)
                     {
-                        //Bind normal texture
-                        TryToBindTexture(call.Shader, 1, "normalTexture", call.Material.TextureNormal);
+                        TryToBindTexture(call.Shader, 0, texture.Key, texture.Value);
                     }
 
-                    if (call.Material.TextureMasks1 > 0)
+                    if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1)
                     {
-                        //Bind mask 1 texture
-                        TryToBindTexture(call.Shader, 2, "mask1Texture", call.Material.TextureMasks1);
+                        GL.Enable(EnableCap.AlphaTest);
+
+                        if (call.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
+                        {
+                            var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
+                            GL.Uniform1(alphaReference, call.Material.FloatParams["g_flAlphaTestReference"]);
+                        }
                     }
 
-                    if (call.Material.TextureMasks2 > 0)
+                    if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
                     {
-                        //Bind mask 2 texture
-                        TryToBindTexture(call.Shader, 3, "mask2Texture", call.Material.TextureMasks2);
-                    }
-
-                    if (call.Material.TextureDiffuseWarp > 0)
-                    {
-                        //Bind diffuse warp texture
-                        TryToBindTexture(call.Shader, 4, "diffuseWarpTexture", call.Material.TextureDiffuseWarp);
+                        GL.Enable(EnableCap.Blend);
+                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
                     }
 
                     GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
+
+                    GL.Disable(EnableCap.AlphaTest);
+                    GL.Disable(EnableCap.Blend);
                 }
             }
+
+            Console.WriteLine(count + " saved");
 
             //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 

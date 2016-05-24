@@ -11,12 +11,12 @@ in vec2 vTexCoordOut;
 
 out vec4 outputColor;
 
-uniform float alphaReference;
-uniform sampler2D colorTexture;
-uniform sampler2D normalTexture;
-uniform sampler2D mask1Texture;
-uniform sampler2D mask2Texture;
-uniform sampler2D diffuseWarpTexture;
+uniform float g_flAlphaTestReference;
+uniform sampler2D g_tColor;
+uniform sampler2D g_tNormal;
+uniform sampler2D g_tMasks1;
+uniform sampler2D g_tMasks2;
+uniform sampler2D g_tDiffuseWarp;
 
 uniform vec3 vLightPosition;
 uniform vec3 vEyePosition;
@@ -25,7 +25,7 @@ uniform vec3 vEyePosition;
 vec3 calculateWorldNormal() 
 {
     //Get the noral from the texture map -- Normal map seems broken
-    vec4 bumpNormal = texture2D(normalTexture, vTexCoordOut);
+    vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);
 
     //Reconstruct the tangent vector from the map
     vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
@@ -52,15 +52,15 @@ void main()
     vec3 viewDirection = normalize(vEyePosition - vFragPosition);
 
     //Read textures
-    vec4 color = texture2D(colorTexture, vTexCoordOut);
-    vec4 mask1 = texture2D(mask1Texture, vTexCoordOut);
-    vec4 mask2 = texture2D(mask2Texture, vTexCoordOut);
+    vec4 color = texture2D(g_tColor, vTexCoordOut);
+    vec4 mask1 = texture2D(g_tMasks1, vTexCoordOut);
+    vec4 mask2 = texture2D(g_tMasks2, vTexCoordOut);
 
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
 
     //Get shadow and light color
-    vec3 shadowColor = texture2D(diffuseWarpTexture, vec2(0, mask1.g)).rgb;
+    vec3 shadowColor = texture2D(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);

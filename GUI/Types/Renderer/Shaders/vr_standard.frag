@@ -10,9 +10,9 @@ in vec2 vTexCoordOut;
 
 out vec4 outputColor;
 
-uniform float alphaReference;
-uniform sampler2D colorTexture;
-uniform sampler2D normalTexture;
+uniform float g_flAlphaTestReference;
+uniform sampler2D g_tColor;
+uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
 
@@ -20,7 +20,7 @@ uniform vec3 vLightPosition;
 vec3 calculateWorldNormal() 
 {
     //Get the noral from the texture map -- Normal map seems broken
-    vec4 bumpNormal = texture2D(normalTexture, vTexCoordOut);
+    vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);
 
     //Reconstruct the tangent vector from the map
     vec2 temp = vec2(bumpNormal.y, bumpNormal.w) * 2 - 1;
@@ -44,7 +44,7 @@ void main()
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Get the ambient color from the color texture
-    vec4 color = texture2D(colorTexture, vTexCoordOut);
+    vec4 color = texture2D(g_tColor, vTexCoordOut);
 
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();

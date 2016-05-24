@@ -10,9 +10,9 @@ in vec2 vTexCoordOut;
 
 out vec4 outputColor;
 
-uniform float alphaReference;
-uniform sampler2D colorTexture;
-uniform sampler2D normalTexture;
+uniform float g_flAlphaTestReference;
+uniform sampler2D g_tColor;
+uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
 
@@ -23,7 +23,7 @@ void main()
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Get the ambient color from the color texture
-    vec4 color = texture2D(colorTexture, vTexCoordOut);
+    vec4 color = texture2D(g_tColor, vTexCoordOut);
 
     //Get the world normal for this fragment
     vec3 worldNormal = vNormalOut;

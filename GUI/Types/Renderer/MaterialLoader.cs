@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
             //Console.WriteLine("\n>> Loading material " + name);
 
             var mat = new Material();
-            mat.TextureColor = GetErrorTexture();
+            mat.Textures["g_tColor"] = GetErrorTexture();
 
             var resource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
 
@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
             {
                 Console.Error.WriteLine("File " + name + " not found");
 
-                mat.TextureNormal = GetErrorTexture();
+                mat.Textures["g_tNormal"] = GetErrorTexture();
 
                 return mat;
             }
@@ -136,16 +136,7 @@ namespace GUI.Types.Renderer
                     key = "g_tColor";
                 }
 
-                var texture = LoadTexture(textureReference.Value.Name, maxTextureMaxAnisotropy);
-
-                switch (key)
-                {
-                    case "g_tColor": mat.TextureColor = texture; break;
-                    case "g_tNormal": mat.TextureNormal = texture; break;
-                    case "g_tMasks1": mat.TextureMasks1 = texture; break;
-                    case "g_tMasks2": mat.TextureMasks2 = texture; break;
-                    case "g_tDiffuseWarp": mat.TextureDiffuseWarp = texture; break;
-                }
+                mat.Textures[key] = LoadTexture(textureReference.Value.Name, maxTextureMaxAnisotropy);
             }
 
             return mat;
