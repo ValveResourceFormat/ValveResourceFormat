@@ -385,20 +385,28 @@ namespace GUI.Types.Renderer
 
                     if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1)
                     {
-                        GL.Enable(EnableCap.AlphaTest);
-                        GL.AlphaFunc(AlphaFunction.Gequal, call.Material.FloatParams.ContainsKey("g_flAlphaTestReference") ? call.Material.FloatParams["g_flAlphaTestReference"] : 0f);
+                        var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
+                        GL.Uniform1(alphaReference, call.Material.FloatParams.ContainsKey("g_flAlphaTestReference") ? call.Material.FloatParams["g_flAlphaTestReference"] : 0f);
+                    }
+                    else
+                    {
+                        var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
+                        GL.Uniform1(alphaReference, 0f);
                     }
 
+                    /*
                     if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
                     {
                         GL.Enable(EnableCap.Blend);
                         GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
                     }
+                    else
+                    {
+                        GL.Disable(EnableCap.Blend);
+                    }
+                    */
 
                     GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
-
-                    GL.Disable(EnableCap.AlphaTest);
-                    GL.Disable(EnableCap.Blend);
                 }
             }
 

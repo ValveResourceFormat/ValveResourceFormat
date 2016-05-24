@@ -10,6 +10,7 @@ in vec2 vTexCoordOut;
 
 out vec4 outputColor;
 
+uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 
@@ -18,11 +19,16 @@ uniform vec3 vLightPosition;
 //Main entry point
 void main()
 {
-    //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
-
     //Get the ambient color from the color texture
     vec4 color = texture2D(g_tColor, vTexCoordOut);
+
+	if(color.a <= g_flAlphaTestReference)
+    {
+        discard;
+    }
+
+	//Get the direction from the fragment to the light - light position == camera position for now
+    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Get the world normal for this fragment
     vec3 worldNormal = vNormalOut;
