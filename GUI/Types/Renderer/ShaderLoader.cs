@@ -21,6 +21,8 @@ namespace GUI.Types.Renderer
             {
                 case "vr_standard.vfx":
                     return "vr_standard";
+                case "water_dota.vfx":
+                    return "water";
                 case "hero.vfx":
                     return "dota_hero";
                 case "multiblend.vfx":
