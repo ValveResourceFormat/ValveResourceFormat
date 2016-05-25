@@ -447,7 +447,13 @@ namespace GUI.Types.Renderer
         // TODO: we're taking boundaries of first scene
         private void LoadBoundingBox()
         {
-            var data = (BinaryKV3)MeshesToRender.First().Resource.Blocks[BlockType.DATA];
+            var yo = MeshesToRender.FirstOrDefault();
+            if (yo == null)
+            {
+                return;
+            }
+
+            var data = (BinaryKV3)yo.Resource.Blocks[BlockType.DATA];
             var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
             var b = (KVObject)a.Properties["0"].Value;
             var minBounds = (KVObject)b.Properties["m_vMinBounds"].Value;

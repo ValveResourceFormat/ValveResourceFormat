@@ -105,13 +105,13 @@ namespace GUI.Utils
 
             if (path == null)
             {
-                return resource;
+                return null;
             }
 
             resource.Read(path);
             CachedResources[file] = resource;
 
-            return null;
+            return resource;
         }
 
         private static string FindResourcePath(IList<string> paths, string file, string currentFullPath = null)
