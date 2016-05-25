@@ -173,6 +173,8 @@
     <Compile Include="Types\Model.cs" />
     <Compile Include="Types\Renderer\Material.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
+    <None Include="Types\Renderer\Shaders\multiblend.frag" />
+    <None Include="Types\Renderer\Shaders\multiblend.vert" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

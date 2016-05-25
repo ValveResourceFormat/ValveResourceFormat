@@ -23,6 +23,8 @@ namespace GUI.Types.Renderer
                     return "vr_standard";
                 case "hero.vfx":
                     return "dota_hero";
+                case "multiblend.vfx":
+                    return "multiblend";
                 default:
                     //Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
                     //Shader names that are supposed to use this:
@@ -36,9 +38,9 @@ namespace GUI.Types.Renderer
             var shaderFileName = GetShaderFileByName(shaderName);
             var shaderCacheHash = (shaderFileName + modelArguments.ToString()).GetHashCode(); // shader collision roulette
 
-#if !DEBUG_SHADERS
             int shaderProgram;
 
+#if !DEBUG_SHADERS
             if (CachedShaders.TryGetValue(shaderCacheHash, out shaderProgram))
             {
                 return shaderProgram;
@@ -70,6 +72,7 @@ namespace GUI.Types.Renderer
             {
                 string vsInfo;
                 GL.GetShaderInfoLog(vertexShader, out vsInfo);
+                Console.WriteLine("Error setting up Fragment Shader: " + vsInfo);
                 throw new Exception("Error setting up Vertex Shader: " + vsInfo);
             }
 
@@ -94,6 +97,7 @@ namespace GUI.Types.Renderer
             {
                 string fsInfo;
                 GL.GetShaderInfoLog(fragmentShader, out fsInfo);
+                Console.WriteLine("Error setting up Fragment Shader: " + fsInfo);
                 throw new Exception("Error setting up Fragment Shader: " + fsInfo);
             }
 
