@@ -360,6 +360,26 @@ namespace GUI.Types.Renderer
                         TryToBindTexture(call.Shader, textureUnit++, texture.Key, texture.Value);
                     }
 
+                    foreach (var param in call.Material.FloatParams)
+                    {
+                        var uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
+
+                        if (uniformLocation > -1)
+                        {
+                            GL.Uniform1(uniformLocation, param.Value);
+                        }
+                    }
+
+                    foreach (var param in call.Material.VectorParams)
+                    {
+                        var uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
+
+                        if (uniformLocation > -1)
+                        {
+                            GL.Uniform4(uniformLocation, param.Value);
+                        }
+                    }
+
                     if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1)
                     {
                         var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
