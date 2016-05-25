@@ -128,6 +128,13 @@ namespace GUI.Types.Renderer
                 mat.Textures[key] = LoadTexture(textureReference.Value.Name, maxTextureMaxAnisotropy);
             }
 
+            if (mat.IntParams.ContainsKey("F_SOLID_COLOR") && mat.IntParams["F_SOLID_COLOR"] == 1)
+            {
+                var a = mat.VectorParams["g_vColorTint"];
+
+                mat.Textures["g_tColor"] = GenerateSolidColorTexture(new[] { a.X, a.Y, a.Z, a.W });
+            }
+
             return mat;
         }
 
@@ -217,20 +224,25 @@ namespace GUI.Types.Renderer
         {
             if (ErrorTextureID == 0)
             {
-                ErrorTextureID = GL.GenTexture();
-
-                var bytes = new byte[] { 173, 255, 47, 255 };
-
-                GL.BindTexture(TextureTarget.Texture2D, ErrorTextureID);
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, 1, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, bytes);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, 0);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+                ErrorTextureID = GenerateSolidColorTexture(new[] { 173 / 255f, 255 / 255f, 47 / 255f, 255 / 255f });
             }
 
             return ErrorTextureID;
+        }
+
+        private static int GenerateSolidColorTexture(float[] color)
+        {
+            var texture = GL.GenTexture();
+
+            GL.BindTexture(TextureTarget.Texture2D, texture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 1, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, color);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, 0);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+            return texture;
         }
     }
 }
