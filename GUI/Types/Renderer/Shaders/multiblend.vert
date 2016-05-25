@@ -46,5 +46,6 @@ void main()
 
     vTexCoordOut = vTEXCOORD;
 
-    vWeightsOut = vTEXCOORD3;
+    //Normalize (?)
+    vWeightsOut = vTEXCOORD3/255;
 }
