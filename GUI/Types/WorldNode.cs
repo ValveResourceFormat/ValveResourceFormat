@@ -24,12 +24,21 @@ namespace GUI.Types
             var data = Resource.Blocks[BlockType.DATA] as NTRO;
 
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it.
+
+            var sceneObjectLayerIndices = (NTROArray)data.Output["m_sceneObjectLayerIndices"];
             var sceneObjects = (NTROArray)data.Output["m_sceneObjects"];
             var i = 0;
             foreach (var entry in sceneObjects)
             {
-                //if (i > 7) break;
-                //i++;
+                var layerIndice = ((NTROValue<byte>)sceneObjectLayerIndices[i]).Value;
+                i++;
+
+                // TODO: We want UI for this
+                if (layerIndice == 2 || layerIndice == 4)
+                {
+                    continue;
+                }
+
                 // sceneObject is SceneObject_t
                 var sceneObject = ((NTROValue<NTROStruct>)entry).Value;
                 var renderableModel = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderableModel"]).Value;
