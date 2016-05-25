@@ -45,73 +45,94 @@ namespace GUI.Types
             var entityLumps = (NTROArray)data.Output["m_entityLumps"];
             foreach (var lump in entityLumps)
             {
-                var reference = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)lump).Value;
-                if (reference == null)
+                LoadEntities(lump, renderer, path, package);
+            }
+        }
+
+        private static void LoadEntities(NTROValue lump, Renderer.Renderer renderer, string path, Package package)
+        {
+            var reference = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)lump).Value;
+            if (reference == null)
+            {
+                return;
+            }
+
+            var newResource = FileExtensions.LoadFileByAnyMeansNecessary(reference.Name + "_c", path, package);
+            if (newResource == null)
+            {
+                Console.WriteLine("unable to load entity lump " + reference.Name + "_c");
+
+                return;
+            }
+
+            var entityLump = newResource.Blocks[BlockType.DATA] as EntitiyLump;
+
+            var childLumps = (NTROArray)entityLump.Output["m_childLumps"];
+            Console.WriteLine(reference.Name);
+            foreach (var lump2 in childLumps)
+            {
+                var lol = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)lump).Value;
+
+                // TODO: Should be controlled in UI with world layers
+                if (lol.Name.Contains("_destruction"))
                 {
                     continue;
                 }
 
-                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(reference.Name + "_c", path, package);
-                if (newResource == null)
+                LoadEntities(lump2, renderer, path, package);
+            }
+
+            foreach (var entity in entityLump.Datas)
+            {
+                var scale = string.Empty;
+                var position = string.Empty;
+                var angles = string.Empty;
+                var model = string.Empty;
+                foreach (var property in entity)
                 {
-                    Console.WriteLine("unable to load entity lump " + reference.Name + "_c");
+                    //metadata
+                    switch (property.Item2)
+                    {
+                        case 3368008710: //World Model
+                            model = property.Item3 as string;
+                            break;
+                        case 3827302934: //Position
+                            position = property.Item3 as string;
+                            break;
+                        case 3130579663: //Angles
+                            angles = property.Item3 as string;
+                            break;
+                        case 432137260: //Scale
+                            scale = property.Item3 as string;
+                            break;
+                    }
+                }
+
+                if (scale == string.Empty || position == string.Empty || angles == string.Empty || model == string.Empty)
+                {
+                    continue;
+                }
+
+                var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
+                var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
+
+                var rotationVector = ParseCoordinates(angles);
+                var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
+                rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
+                rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
+
+                var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+
+                var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
+                if (newEntity == null)
+                {
+                    Console.WriteLine("unable to load entity " + model + "_c");
 
                     continue;
                 }
 
-                var entityLump = newResource.Blocks[BlockType.DATA] as EntitiyLump;
-                foreach (var entity in entityLump.Datas)
-                {
-                    var scale = string.Empty;
-                    var position = string.Empty;
-                    var angles = string.Empty;
-                    var model = string.Empty;
-                    foreach (var property in entity)
-                    {
-                        //metadata
-                        switch (property.Item2)
-                        {
-                            case 3368008710: //World Model
-                                model = property.Item3 as string;
-                                break;
-                            case 3827302934: //Position
-                                position = property.Item3 as string;
-                                break;
-                            case 3130579663: //Angles
-                                angles = property.Item3 as string;
-                                break;
-                            case 432137260: //Scale
-                                scale = property.Item3 as string;
-                                break;
-                        }
-                    }
-
-                    if (scale == string.Empty || position == string.Empty || angles == string.Empty || model == string.Empty)
-                    {
-                        continue;
-                    }
-
-                    var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
-                    var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
-
-                    var rotationVector = ParseCoordinates(angles);
-                    var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
-                    rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
-                    rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
-
-                    var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
-
-                    var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
-                    if (newEntity == null)
-                    {
-                        Console.WriteLine("unable to load entity " + model + "_c");
-
-                        continue;
-                    }
-
-                    var entityModel = new Model(newEntity);
-                    entityModel.LoadMeshes(renderer, path, megaMatrix, OpenTK.Vector4.One, package);
-                }
+                var entityModel = new Model(newEntity);
+                entityModel.LoadMeshes(renderer, path, megaMatrix, OpenTK.Vector4.One, package);
             }
         }
 
