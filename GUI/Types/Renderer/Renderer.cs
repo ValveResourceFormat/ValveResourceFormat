@@ -216,7 +216,7 @@ namespace GUI.Types.Renderer
 
         private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block)
         {
-            var drawCall = default(DrawCall);
+            var drawCall = new DrawCall();
 
             switch (drawProperties["m_nPrimitiveType"].Value.ToString())
             {
@@ -247,6 +247,16 @@ namespace GUI.Types.Renderer
             drawCall.VertexCount = Convert.ToUInt32(drawProperties["m_nVertexCount"].Value);
             drawCall.StartIndex = Convert.ToUInt32(drawProperties["m_nStartIndex"].Value) * bufferSize;
             drawCall.IndexCount = Convert.ToInt32(drawProperties["m_nIndexCount"].Value);
+
+            if (drawProperties.ContainsKey("m_vTintColor"))
+            {
+                var tint = (KVObject) drawProperties["m_vTintColor"].Value;
+                drawCall.TintColor = new Vector3(
+                    Convert.ToSingle(tint.Properties["0"].Value),
+                    Convert.ToSingle(tint.Properties["1"].Value),
+                    Convert.ToSingle(tint.Properties["2"].Value)
+                );
+            }
 
             if (bufferSize == 2)
             {
@@ -360,9 +370,23 @@ namespace GUI.Types.Renderer
                         TryToBindTexture(call.Shader, textureUnit++, texture.Key, texture.Value);
                     }
 
+                    var uniformLocation = GL.GetUniformLocation(call.Shader, "m_vTintColorDrawCall");
+
+                    if (uniformLocation > -1)
+                    {
+                        GL.Uniform3(uniformLocation, call.TintColor);
+                    }
+
+                    uniformLocation = GL.GetUniformLocation(call.Shader, "m_vTintColorSceneObject");
+
+                    if (uniformLocation > -1)
+                    {
+                        GL.Uniform4(uniformLocation, obj.TintColor);
+                    }
+
                     foreach (var param in call.Material.FloatParams)
                     {
-                        var uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
+                        uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
 
                         if (uniformLocation > -1)
                         {
@@ -372,7 +396,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var param in call.Material.VectorParams)
                     {
-                        var uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
+                        uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
 
                         if (uniformLocation > -1)
                         {

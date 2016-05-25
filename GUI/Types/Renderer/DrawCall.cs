@@ -3,7 +3,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal struct DrawCall
+    internal class DrawCall
     {
         public PrimitiveType PrimitiveType;
         public int Shader;
@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
         public uint InstanceCount;   //TODO
         public float UvDensity;     //TODO
         public string Flags;        //TODO
-        public Vector3 TintColor;   //TODO
+        public Vector3 TintColor = Vector3.One;
         public Material Material;
         public uint VertexArrayObject;
         public DrawBuffer VertexBuffer;

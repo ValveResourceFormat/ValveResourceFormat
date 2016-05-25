@@ -18,7 +18,7 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, Package currentPackage = null)
+        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, OpenTK.Vector4 tintColor, Package currentPackage = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
@@ -43,7 +43,12 @@ namespace GUI.Types
                     continue;
                 }
 
-                renderer.AddMeshObject(new MeshObject { Resource = newResource, Transform = transform });
+                renderer.AddMeshObject(new MeshObject
+                {
+                    Resource = newResource,
+                    Transform = transform,
+                    TintColor = tintColor,
+                });
 
                 // TODO: Only first, again.
                 break;

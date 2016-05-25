@@ -16,11 +16,14 @@ uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
 
+uniform vec4 m_vTintColorSceneObject;
+uniform vec3 m_vTintColorDrawCall;
+
 //Main entry point
 void main()
 {
     //Get the ambient color from the color texture
-    vec4 color = texture2D(g_tColor, vTexCoordOut);
+    vec4 color = texture2D(g_tColor, vTexCoordOut) * m_vTintColorSceneObject;
 
 	if(color.a <= g_flAlphaTestReference)
     {
@@ -42,5 +45,5 @@ void main()
 	illumination = 1.0;
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb, color.a);
+    outputColor = vec4(illumination * color.rgb * m_vTintColorDrawCall, color.a);
 }

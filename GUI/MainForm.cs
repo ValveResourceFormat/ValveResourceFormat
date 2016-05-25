@@ -325,7 +325,7 @@ namespace GUI
 
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage);
-                        model.LoadMeshes(modelmv, fileName, Matrix4.Identity, currentPackage);
+                        model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
 
                         var modelglControl = modelmv.CreateGL();
                         modelmeshTab.Controls.Add(modelglControl);

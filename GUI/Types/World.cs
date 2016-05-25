@@ -110,7 +110,7 @@ namespace GUI.Types
                     }
 
                     var entityModel = new Model(newEntity);
-                    entityModel.LoadMeshes(renderer, path, megaMatrix, package);
+                    entityModel.LoadMeshes(renderer, path, megaMatrix, OpenTK.Vector4.One, package);
                 }
             }
         }

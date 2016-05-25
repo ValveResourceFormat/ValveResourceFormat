@@ -51,6 +51,9 @@ namespace GUI.Types
                     }
                 }
 
+                var tintColorWrongVector = ((NTROValue<Vector4>)sceneObject["m_vTintColor"]).Value;
+                var tintColor = new OpenTK.Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
+
                 if (renderableModel != null)
                 {
                     var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderableModel.Name + "_c", path, package);
@@ -62,7 +65,7 @@ namespace GUI.Types
                     }
 
                     var modelEntry = new Model(newResource);
-                    modelEntry.LoadMeshes(renderer, path, matrix, package);
+                    modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
                 }
 
                 var renderable = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderable"]).Value;
@@ -77,7 +80,12 @@ namespace GUI.Types
                         continue;
                     }
 
-                    renderer.AddMeshObject(new MeshObject { Resource = newResource, Transform = matrix });
+                    renderer.AddMeshObject(new MeshObject
+                    {
+                        Resource = newResource,
+                        Transform = matrix,
+                        TintColor = tintColor,
+                    });
                 }
             }
         }
