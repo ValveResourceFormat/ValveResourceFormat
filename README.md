@@ -37,9 +37,9 @@ vmdl     | Model                   | Started
 vphys    | Physics Collision Mesh  | No
 vsnd     | Sound                   | :+1: wav, mp3
 vmorf    | MorphSet                | No
-vrman    | ResourceManifest        | No
-vwrld    | World                   | No
-vwnod    | WorldNode               | No
+vrman    | ResourceManifest        | :+1:
+vwrld    | World                   | :+1:
+vwnod    | WorldNode               | :+1:
 vvis     | WorldVisibility         | No
 vents    | EntityLump              | No
 vsurf    | Surface Properties      | No
@@ -52,7 +52,7 @@ vxml     | Panorama Layout         | :+1:
 vpdi     | Panorama Dynamic Images | No
 vjs      | Panorama Script         | :+1:
 vpsf     | Particle Snapshot       | No
-vmap     | Map                     | No
+vmap     | Map                     | :+1:
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
