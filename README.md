@@ -45,7 +45,6 @@ vents    | EntityLump              | No
 vsurf    | Surface Properties      | No
 vsndevts | Sound Event Script      | No
 vsndstck | Sound Stack Script      | No
-vfont    | Bitmap Font             | No
 vrmap    | Resource Remap Table    | No
 vcss     | Panorama Style          | :+1:
 vxml     | Panorama Layout         | :+1:
@@ -53,6 +52,12 @@ vpdi     | Panorama Dynamic Images | No
 vjs      | Panorama Script         | :+1:
 vpsf     | Particle Snapshot       | No
 vmap     | Map                     | :+1:
+
+Ext      | Name                    | Support
+-------- | ----------------------- | -------
+vpk      | Pak (package)           | Supported by `Package`
+vcs      | Compiled Shader         | Partially supported by `CompiledShader`
+vfont    | Bitmap Font             | Not in a resource format, it's "encrypted", has `VFONT1` at the end of file
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
