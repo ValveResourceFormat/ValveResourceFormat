@@ -6,7 +6,8 @@ in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 
-in vec4 vWeightsOut;
+in vec4 vBlendWeights;
+in vec4 vWeightsOut2;
 
 in vec2 vTexCoordOut;
 
@@ -69,11 +70,17 @@ void main()
 
     //Simple blending
     //Calculate each of the 4 colours to blend
-    vec4 c0 = max(0, 1 - vWeightsOut.x - vWeightsOut.y - vWeightsOut.z) * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0);
-    vec4 c1 = vWeightsOut.x * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1);
-    vec4 c2 = vWeightsOut.y * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2);
-    vec4 c3 = vWeightsOut.z * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3);
+    vec4 b2 = vec4(max(0, 1 - vBlendWeights.x - vBlendWeights.y - vBlendWeights.z), vBlendWeights.x, max(0, vBlendWeights.y - vBlendWeights.x), max(0, vBlendWeights.z - vBlendWeights.w - vBlendWeights.y));
+    b2 = b2/(b2.x + b2.y + b2.z + b2.w);
+    vec4 c0 = b2.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0);
+    vec4 c1 = b2.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1);
+    vec4 c2 = b2.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2);
+    vec4 c3 = b2.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3);
     
     //Add up the result
-    outputColor = c0 + c1 + c2 + c3;
+    vec4 finalColor = c0 + c1 + c2 + c3;
+    //Apply ambient occlusion
+    finalColor *= vec4(vWeightsOut2.xyz, 1);
+
+    outputColor = finalColor;
 }
