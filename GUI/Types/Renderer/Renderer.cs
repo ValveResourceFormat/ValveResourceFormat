@@ -348,6 +348,8 @@ namespace GUI.Types.Renderer
                 {
                     if (call.Shader.Program != prevShader)
                     {
+                        objChanged = true;
+                        prevMaterial = string.Empty;
                         prevShader = call.Shader.Program;
 
                         GL.UseProgram(call.Shader.Program);
