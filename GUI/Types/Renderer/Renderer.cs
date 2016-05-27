@@ -204,6 +204,8 @@ namespace GUI.Types.Renderer
                     }
                 }
 
+                obj.DrawCalls = obj.DrawCalls.OrderBy(x => x.Material.Name).ToList();
+
                 obj.Resource = null;
             }
 
