@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
-        private static Dictionary<int, int> CachedShaders = new Dictionary<int, int>();
+        private static Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
 
         //Map shader names to shader files
         public static string GetShaderFileByName(string shaderName)
@@ -35,17 +35,17 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public static int LoadShaders(string shaderName, ArgumentDependencies modelArguments)
+        public static Shader LoadShader(string shaderName, ArgumentDependencies modelArguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
             var shaderCacheHash = (shaderFileName + modelArguments.ToString()).GetHashCode(); // shader collision roulette
 
-            int shaderProgram;
+            Shader shader;
 
 #if !DEBUG_SHADERS
-            if (CachedShaders.TryGetValue(shaderCacheHash, out shaderProgram))
+            if (CachedShaders.TryGetValue(shaderCacheHash, out shader))
             {
-                return shaderProgram;
+                return shader;
             }
 #endif
 
@@ -103,38 +103,53 @@ namespace GUI.Types.Renderer
                 throw new Exception("Error setting up Fragment Shader: " + fsInfo);
             }
 
-            shaderProgram = GL.CreateProgram();
-            GL.AttachShader(shaderProgram, vertexShader);
-            GL.AttachShader(shaderProgram, fragmentShader);
+            shader = new Shader();
+            shader.Program = GL.CreateProgram();
+            GL.AttachShader(shader.Program, vertexShader);
+            GL.AttachShader(shader.Program, fragmentShader);
 
-            GL.LinkProgram(shaderProgram);
+            GL.LinkProgram(shader.Program);
 
-            var programInfoLog = GL.GetProgramInfoLog(shaderProgram);
+            var programInfoLog = GL.GetProgramInfoLog(shader.Program);
             Console.Write(programInfoLog);
 
-            GL.ValidateProgram(shaderProgram);
+            GL.ValidateProgram(shader.Program);
 
             int linkStatus;
-            GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
+            GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out linkStatus);
 
             if (linkStatus != 1)
             {
                 string linkInfo;
-                GL.GetProgramInfoLog(shaderProgram, out linkInfo);
+                GL.GetProgramInfoLog(shader.Program, out linkInfo);
                 throw new Exception("Error linking shaders: " + linkInfo);
             }
 
-            GL.DetachShader(shaderProgram, vertexShader);
+            GL.DetachShader(shader.Program, vertexShader);
             GL.DeleteShader(vertexShader);
 
-            GL.DetachShader(shaderProgram, fragmentShader);
+            GL.DetachShader(shader.Program, fragmentShader);
             GL.DeleteShader(fragmentShader);
 
-            CachedShaders[shaderCacheHash] = shaderProgram;
+            int uniformCount;
+            GL.GetProgram(shader.Program, GetProgramParameterName.ActiveUniforms, out uniformCount);
+
+            for (var i = 0; i < uniformCount; ++i)
+            {
+                int size;
+                ActiveUniformType type;
+
+                var name = GL.GetActiveUniform(shader.Program, i, out size, out type);
+                var slot = GL.GetUniformLocation(shader.Program, name);
+
+                shader.Uniforms.Add(name, slot);
+            }
+
+            CachedShaders[shaderCacheHash] = shader;
 
             Console.WriteLine("Shader #{0} compiled and linked succesfully", CachedShaders.Count);
 
-            return shaderProgram;
+            return shader;
         }
 
         //Preprocess a vertex shader's source to include the #version plus #defines for parameters

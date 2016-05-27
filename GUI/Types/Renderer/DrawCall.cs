@@ -6,7 +6,7 @@ namespace GUI.Types.Renderer
     internal class DrawCall
     {
         public PrimitiveType PrimitiveType;
-        public int Shader;
+        public Shader Shader;
         public uint BaseVertex;
         public uint VertexCount;
         public uint StartIndex;

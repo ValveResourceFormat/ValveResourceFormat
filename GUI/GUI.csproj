@@ -113,6 +113,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
+    <Compile Include="Types\Renderer\Shader.cs" />
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
     <Compile Include="Types\Renderer\MeshObject.cs" />
     <Compile Include="Types\Renderer\ShaderLoader.cs" />

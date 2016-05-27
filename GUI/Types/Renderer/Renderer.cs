@@ -231,10 +231,10 @@ namespace GUI.Types.Renderer
             drawCall.Material = MaterialLoader.GetMaterial(drawProperties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
 
             // Load shader
-            drawCall.Shader = ShaderLoader.LoadShaders(drawCall.Material.ShaderName, modelArguments);
+            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.ShaderName, modelArguments);
 
             //Bind and validate shader
-            GL.UseProgram(drawCall.Shader);
+            GL.UseProgram(drawCall.Shader.Program);
 
             var f = (KVObject)drawProperties["m_indexBuffer"].Value;
 
@@ -300,7 +300,7 @@ namespace GUI.Types.Renderer
                     attributeName += texCoordNum;
                 }
 
-                BindVertexAttrib(attribute, attributeName, drawCall.Shader, (int)curVertexBuffer.Size);
+                BindVertexAttrib(attribute, attributeName, drawCall.Shader.Program, (int)curVertexBuffer.Size);
             }
 
             GL.BindVertexArray(0);
@@ -326,33 +326,35 @@ namespace GUI.Types.Renderer
 
             var prevShader = -1;
 
+            //var sw = System.Diagnostics.Stopwatch.StartNew();
+
             foreach (var obj in MeshesToRender)
             {
                 foreach (var call in obj.DrawCalls)
                 {
-                    if (call.Shader != prevShader)
+                    if (call.Shader.Program != prevShader)
                     {
-                        prevShader = call.Shader;
+                        prevShader = call.Shader.Program;
 
                         //Bind shader
-                        GL.UseProgram(call.Shader);
+                        GL.UseProgram(call.Shader.Program);
 
                         //Set shader uniforms
-                        var projectionLoc = GL.GetUniformLocation(call.Shader, "projection");
+                        var projectionLoc = call.Shader.GetUniformLocation("projection");
                         GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
 
-                        var modelviewLoc = GL.GetUniformLocation(call.Shader, "modelview");
+                        var modelviewLoc = call.Shader.GetUniformLocation("modelview");
                         GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
 
-                        var lightPosAttrib = GL.GetUniformLocation(call.Shader, "vLightPosition");
+                        var lightPosAttrib = call.Shader.GetUniformLocation("vLightPosition");
                         GL.Uniform3(lightPosAttrib, lightPos);
 
-                        var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
+                        var eyePosAttrib = call.Shader.GetUniformLocation("vEyePosition");
                         GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
                     }
 
                     var transform = obj.Transform;
-                    var transformLoc = GL.GetUniformLocation(call.Shader, "transform");
+                    var transformLoc = call.Shader.GetUniformLocation("transform");
                     GL.UniformMatrix4(transformLoc, false, ref transform);
 
                     //Bind VAO
@@ -361,17 +363,17 @@ namespace GUI.Types.Renderer
                     var textureUnit = 0;
                     foreach (var texture in call.Material.Textures)
                     {
-                        TryToBindTexture(call.Shader, textureUnit++, texture.Key, texture.Value);
+                        TryToBindTexture(call.Shader.Program, textureUnit++, texture.Key, texture.Value);
                     }
 
-                    var uniformLocation = GL.GetUniformLocation(call.Shader, "m_vTintColorDrawCall");
+                    var uniformLocation = call.Shader.GetUniformLocation("m_vTintColorDrawCall");
 
                     if (uniformLocation > -1)
                     {
                         GL.Uniform3(uniformLocation, call.TintColor);
                     }
 
-                    uniformLocation = GL.GetUniformLocation(call.Shader, "m_vTintColorSceneObject");
+                    uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
 
                     if (uniformLocation > -1)
                     {
@@ -380,7 +382,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var param in call.Material.FloatParams)
                     {
-                        uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
+                        uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
                         if (uniformLocation > -1)
                         {
@@ -390,7 +392,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var param in call.Material.VectorParams)
                     {
-                        uniformLocation = GL.GetUniformLocation(call.Shader, param.Key);
+                        uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
                         if (uniformLocation > -1)
                         {
@@ -398,16 +400,14 @@ namespace GUI.Types.Renderer
                         }
                     }
 
-                    if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1)
+                    var alpha = 0f;
+                    if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1 && call.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
                     {
-                        var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
-                        GL.Uniform1(alphaReference, call.Material.FloatParams.ContainsKey("g_flAlphaTestReference") ? call.Material.FloatParams["g_flAlphaTestReference"] : 0f);
+                        alpha = call.Material.FloatParams["g_flAlphaTestReference"];
                     }
-                    else
-                    {
-                        var alphaReference = GL.GetUniformLocation(call.Shader, "g_flAlphaTestReference");
-                        GL.Uniform1(alphaReference, 0f);
-                    }
+
+                    var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
+                    GL.Uniform1(alphaReference, alpha);
 
                     /*
                     if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
@@ -424,6 +424,8 @@ namespace GUI.Types.Renderer
                     GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
                 }
             }
+
+            //sw.Stop(); Console.WriteLine("{0} {1} {2}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
