@@ -10,7 +10,6 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class EntitiyLump : NTRO
     {
-        public List<byte[]> Headers { get; private set; }
         public List<List<Tuple<uint, uint, object>>> Datas { get; private set; }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -20,8 +19,8 @@ namespace ValveResourceFormat.ResourceTypes
             // Output is PermEntityLumpData_t we need to iterate m_entityKeyValues inside it.
             var entityKeyValues = (NTROArray)Output["m_entityKeyValues"];
 
-            Headers = new List<byte[]>();
             Datas = new List<List<Tuple<uint, uint, object>>>();
+
             foreach (var entityKV in entityKeyValues)
             {
                 // entity is EntityKeyValueData_t
@@ -36,8 +35,10 @@ namespace ValveResourceFormat.ResourceTypes
                 using (var dataStream = new MemoryStream(data.ToArray()))
                 using (var dataReader = new BinaryReader(dataStream))
                 {
-                    //Header is 16, skipping for now for juciy info.
-                    var header = dataReader.ReadBytes(12);
+                    var a = dataReader.ReadUInt32(); // always 1?
+                    var valuesCount = dataReader.ReadUInt32();
+                    var c = dataReader.ReadUInt32(); // always 0?
+
                     var values = new List<Tuple<uint, uint, object>>();
                     while (dataStream.Position != dataStream.Length)
                     {
@@ -73,7 +74,6 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    Headers.Add(header);
                     Datas.Add(values);
                 }
             }
