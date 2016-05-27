@@ -12,7 +12,9 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
+#if !DEBUG_SHADERS
         private static Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
+#endif
 
         //Map shader names to shader files
         public static string GetShaderFileByName(string shaderName)
@@ -145,9 +147,11 @@ namespace GUI.Types.Renderer
                 shader.Uniforms.Add(name, slot);
             }
 
+#if !DEBUG_SHADERS
             CachedShaders[shaderCacheHash] = shader;
 
             Console.WriteLine("Shader #{0} compiled and linked succesfully", CachedShaders.Count);
+#endif
 
             return shader;
         }
