@@ -8,7 +8,7 @@ using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class EntitiyLump : NTRO
+    public class EntityLump : NTRO
     {
         public List<List<Tuple<uint, uint, object>>> Datas { get; private set; }
 

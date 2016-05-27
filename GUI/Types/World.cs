@@ -65,7 +65,7 @@ namespace GUI.Types
                 return;
             }
 
-            var entityLump = newResource.Blocks[BlockType.DATA] as EntitiyLump;
+            var entityLump = newResource.Blocks[BlockType.DATA] as EntityLump;
 
             var childLumps = (NTROArray)entityLump.Output["m_childLumps"];
 
