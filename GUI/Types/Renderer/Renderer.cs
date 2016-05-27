@@ -326,40 +326,59 @@ namespace GUI.Types.Renderer
 
             var prevShader = -1;
             var prevMaterial = string.Empty;
+            var objChanged = false;
+            int uniformLocation;
 
             //var sw = System.Diagnostics.Stopwatch.StartNew();
 
             foreach (var obj in MeshesToRender)
             {
+                objChanged = true;
+
                 foreach (var call in obj.DrawCalls)
                 {
                     if (call.Shader.Program != prevShader)
                     {
                         prevShader = call.Shader.Program;
 
-                        //Bind shader
                         GL.UseProgram(call.Shader.Program);
 
-                        //Set shader uniforms
-                        var projectionLoc = call.Shader.GetUniformLocation("projection");
-                        GL.UniformMatrix4(projectionLoc, false, ref ActiveCamera.ProjectionMatrix);
+                        uniformLocation = call.Shader.GetUniformLocation("projection");
+                        GL.UniformMatrix4(uniformLocation, false, ref ActiveCamera.ProjectionMatrix);
 
-                        var modelviewLoc = call.Shader.GetUniformLocation("modelview");
-                        GL.UniformMatrix4(modelviewLoc, false, ref ActiveCamera.CameraViewMatrix);
+                        uniformLocation = call.Shader.GetUniformLocation("modelview");
+                        GL.UniformMatrix4(uniformLocation, false, ref ActiveCamera.CameraViewMatrix);
 
-                        var lightPosAttrib = call.Shader.GetUniformLocation("vLightPosition");
-                        GL.Uniform3(lightPosAttrib, lightPos);
+                        uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
+                        GL.Uniform3(uniformLocation, lightPos);
 
-                        var eyePosAttrib = call.Shader.GetUniformLocation("vEyePosition");
-                        GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
+                        uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
+                        GL.Uniform3(uniformLocation, ActiveCamera.Location);
                     }
 
-                    var transform = obj.Transform;
-                    var transformLoc = call.Shader.GetUniformLocation("transform");
-                    GL.UniformMatrix4(transformLoc, false, ref transform);
+                    // Stupidly hacky
+                    if (objChanged)
+                    {
+                        objChanged = false;
 
-                    //Bind VAO
+                        var transform = obj.Transform;
+                        uniformLocation = call.Shader.GetUniformLocation("transform");
+                        GL.UniformMatrix4(uniformLocation, false, ref transform);
+
+                        uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
+                        if (uniformLocation > -1)
+                        {
+                            GL.Uniform4(uniformLocation, obj.TintColor);
+                        }
+                    }
+
                     GL.BindVertexArray(call.VertexArrayObject);
+
+                    uniformLocation = call.Shader.GetUniformLocation("m_vTintColorDrawCall");
+                    if (uniformLocation > -1)
+                    {
+                        GL.Uniform3(uniformLocation, call.TintColor);
+                    }
 
                     if (call.Material.Name != prevMaterial)
                     {
@@ -369,20 +388,6 @@ namespace GUI.Types.Renderer
                         foreach (var texture in call.Material.Textures)
                         {
                             TryToBindTexture(call.Shader.Program, textureUnit++, texture.Key, texture.Value);
-                        }
-
-                        var uniformLocation = call.Shader.GetUniformLocation("m_vTintColorDrawCall");
-
-                        if (uniformLocation > -1)
-                        {
-                            GL.Uniform3(uniformLocation, call.TintColor);
-                        }
-
-                        uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
-
-                        if (uniformLocation > -1)
-                        {
-                            GL.Uniform4(uniformLocation, obj.TintColor);
                         }
 
                         foreach (var param in call.Material.FloatParams)
