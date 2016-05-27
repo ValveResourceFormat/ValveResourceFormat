@@ -145,6 +145,7 @@ namespace GUI.Types.Renderer
             CheckOpenGL();
             LoadBoundingBox();
 
+            GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
 
             GL.ClearColor(Settings.BackgroundColor);
@@ -323,10 +324,7 @@ namespace GUI.Types.Renderer
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            //var sw = System.Diagnostics.Stopwatch.StartNew();
-
             var prevShader = -1;
-            var count = 0;
 
             foreach (var obj in MeshesToRender)
             {
@@ -351,10 +349,6 @@ namespace GUI.Types.Renderer
 
                         var eyePosAttrib = GL.GetUniformLocation(call.Shader, "vEyePosition");
                         GL.Uniform3(eyePosAttrib, ActiveCamera.Location);
-                    }
-                    else
-                    {
-                        count++;
                     }
 
                     var transform = obj.Transform;
@@ -430,10 +424,6 @@ namespace GUI.Types.Renderer
                     GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
                 }
             }
-
-            //Console.WriteLine(count + " saved");
-
-            //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
