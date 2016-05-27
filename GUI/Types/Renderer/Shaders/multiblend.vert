@@ -25,6 +25,7 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 
 out vec4 vBlendWeights;
+out vec4 vWeightsOut1;
 out vec4 vWeightsOut2;
 
 out vec2 vTexCoordOut;
@@ -52,5 +53,6 @@ void main()
     //vTEXCOORD2 - (X,Y,Z) - Ambient occlusion, W - ???
     //vTEXCOORD3 - X - amount of tex1, Y - amount of tex2, Z - amount of tex3, W - ???
     vBlendWeights = vTEXCOORD3/255.0;
+    vWeightsOut1 = vTEXCOORD1;
     vWeightsOut2 = vTEXCOORD2/255.0;
 }
