@@ -325,6 +325,7 @@ namespace GUI.Types.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             var prevShader = -1;
+            var prevMaterial = string.Empty;
 
             //var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -360,66 +361,73 @@ namespace GUI.Types.Renderer
                     //Bind VAO
                     GL.BindVertexArray(call.VertexArrayObject);
 
-                    var textureUnit = 0;
-                    foreach (var texture in call.Material.Textures)
+                    if (call.Material.Name != prevMaterial)
                     {
-                        TryToBindTexture(call.Shader.Program, textureUnit++, texture.Key, texture.Value);
-                    }
+                        prevMaterial = call.Material.Name;
 
-                    var uniformLocation = call.Shader.GetUniformLocation("m_vTintColorDrawCall");
+                        var textureUnit = 0;
+                        foreach (var texture in call.Material.Textures)
+                        {
+                            TryToBindTexture(call.Shader.Program, textureUnit++, texture.Key, texture.Value);
+                        }
 
-                    if (uniformLocation > -1)
-                    {
-                        GL.Uniform3(uniformLocation, call.TintColor);
-                    }
-
-                    uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
-
-                    if (uniformLocation > -1)
-                    {
-                        GL.Uniform4(uniformLocation, obj.TintColor);
-                    }
-
-                    foreach (var param in call.Material.FloatParams)
-                    {
-                        uniformLocation = call.Shader.GetUniformLocation(param.Key);
+                        var uniformLocation = call.Shader.GetUniformLocation("m_vTintColorDrawCall");
 
                         if (uniformLocation > -1)
                         {
-                            GL.Uniform1(uniformLocation, param.Value);
+                            GL.Uniform3(uniformLocation, call.TintColor);
                         }
-                    }
 
-                    foreach (var param in call.Material.VectorParams)
-                    {
-                        uniformLocation = call.Shader.GetUniformLocation(param.Key);
+                        uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
 
                         if (uniformLocation > -1)
                         {
-                            GL.Uniform4(uniformLocation, param.Value);
+                            GL.Uniform4(uniformLocation, obj.TintColor);
                         }
-                    }
 
-                    var alpha = 0f;
-                    if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") && call.Material.IntParams["F_ALPHA_TEST"] == 1 && call.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-                    {
-                        alpha = call.Material.FloatParams["g_flAlphaTestReference"];
-                    }
+                        foreach (var param in call.Material.FloatParams)
+                        {
+                            uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
-                    var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
-                    GL.Uniform1(alphaReference, alpha);
+                            if (uniformLocation > -1)
+                            {
+                                GL.Uniform1(uniformLocation, param.Value);
+                            }
+                        }
 
-                    /*
-                    if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
-                    {
-                        GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                        foreach (var param in call.Material.VectorParams)
+                        {
+                            uniformLocation = call.Shader.GetUniformLocation(param.Key);
+
+                            if (uniformLocation > -1)
+                            {
+                                GL.Uniform4(uniformLocation, param.Value);
+                            }
+                        }
+
+                        var alpha = 0f;
+                        if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") &&
+                            call.Material.IntParams["F_ALPHA_TEST"] == 1 &&
+                            call.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
+                        {
+                            alpha = call.Material.FloatParams["g_flAlphaTestReference"];
+                        }
+
+                        var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
+                        GL.Uniform1(alphaReference, alpha);
+
+                        /*
+                        if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
+                        {
+                            GL.Enable(EnableCap.Blend);
+                            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                        }
+                        else
+                        {
+                            GL.Disable(EnableCap.Blend);
+                        }
+                        */
                     }
-                    else
-                    {
-                        GL.Disable(EnableCap.Blend);
-                    }
-                    */
 
                     GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
                 }
