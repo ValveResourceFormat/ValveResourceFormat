@@ -196,10 +196,17 @@ namespace GUI.Types.Renderer
 
                     for (var i = 0; i < c.Properties.Count; i++)
                     {
-                        var d = (KVObject) c.Properties[i.ToString()].Value;
+                        var d = (KVObject)c.Properties[i.ToString()].Value;
+
+                        string material = d.Properties["m_material"].Value.ToString();
+
+                        if (obj.SkinMaterials.Any())
+                        {
+                            material = obj.SkinMaterials[i];
+                        }
 
                         // TODO: Don't pass around so much shit
-                        var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, resource.VBIB);
+                        var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, resource.VBIB, material);
                         obj.DrawCalls.Add(drawCall);
                     }
                 }
@@ -217,7 +224,7 @@ namespace GUI.Types.Renderer
             Console.WriteLine("{0} draw calls total", MeshesToRender.Sum(x => x.DrawCalls.Count));
         }
 
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block)
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, string material)
         {
             var drawCall = new DrawCall();
 
@@ -230,7 +237,7 @@ namespace GUI.Types.Renderer
                     throw new Exception("Unknown PrimitiveType in drawCall! (" + drawProperties["m_nPrimitiveType"].Value + ")");
             }
 
-            drawCall.Material = MaterialLoader.GetMaterial(drawProperties["m_material"].Value.ToString(), MaxTextureMaxAnisotropy);
+            drawCall.Material = MaterialLoader.GetMaterial(material, MaxTextureMaxAnisotropy);
 
             // Load shader
             drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.ShaderName, modelArguments);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
@@ -18,11 +19,12 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, OpenTK.Vector4 tintColor, Package currentPackage = null)
+        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, OpenTK.Vector4 tintColor, Package currentPackage = null, string skin = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
             var refMeshes = (NTROArray)data.Output["m_refMeshes"];
+            var materialGroups = (NTROArray)data.Output["m_materialGroups"];
 
             for (var i = 0; i < refMeshes.Count; i++)
             {
@@ -43,11 +45,34 @@ namespace GUI.Types
                     continue;
                 }
 
+                var skinMaterials = new List<string>();
+
+                if (!string.IsNullOrEmpty(skin))
+                {
+                    foreach (var materialGroup2 in materialGroups)
+                    {
+                        var materialGroup = ((NTROValue<NTROStruct>)materialGroup2).Value;
+
+                        if (((NTROValue<string>)materialGroup["m_name"]).Value == skin)
+                        {
+                            var materials = (NTROArray)materialGroup["m_materials"];
+
+                            foreach (var material in materials)
+                            {
+                                skinMaterials.Add(((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)material).Value.Name);
+                            }
+
+                            break;
+                        }
+                    }
+                }
+
                 renderer.AddMeshObject(new MeshObject
                 {
                     Resource = newResource,
                     Transform = transform,
                     TintColor = tintColor,
+                    SkinMaterials = skinMaterials,
                 });
 
                 // TODO: Only first, again.

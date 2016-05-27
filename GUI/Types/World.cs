@@ -68,7 +68,7 @@ namespace GUI.Types
             var entityLump = newResource.Blocks[BlockType.DATA] as EntitiyLump;
 
             var childLumps = (NTROArray)entityLump.Output["m_childLumps"];
-            Console.WriteLine(reference.Name);
+
             foreach (var lump2 in childLumps)
             {
                 var lol = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)lump).Value;
@@ -88,6 +88,7 @@ namespace GUI.Types
                 var position = string.Empty;
                 var angles = string.Empty;
                 var model = string.Empty;
+                var skin = string.Empty;
                 foreach (var property in entity)
                 {
                     //metadata
@@ -104,6 +105,9 @@ namespace GUI.Types
                             break;
                         case 432137260: //Scale
                             scale = property.Item3 as string;
+                            break;
+                        case 2020856412: //Skin
+                            skin = property.Item3 as string;
                             break;
                     }
                 }
@@ -132,7 +136,7 @@ namespace GUI.Types
                 }
 
                 var entityModel = new Model(newEntity);
-                entityModel.LoadMeshes(renderer, path, megaMatrix, OpenTK.Vector4.One, package);
+                entityModel.LoadMeshes(renderer, path, megaMatrix, OpenTK.Vector4.One, package, skin);
             }
         }
 
