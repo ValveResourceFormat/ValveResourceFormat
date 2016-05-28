@@ -19,7 +19,12 @@ uniform sampler2D g_tColor0;
 uniform sampler2D g_tColor1;
 uniform sampler2D g_tColor2;
 uniform sampler2D g_tColor3;
-uniform sampler2D g_tNormal;
+
+uniform sampler2D g_tNormal0;
+uniform sampler2D g_tNormal1;
+uniform sampler2D g_tNormal2;
+uniform sampler2D g_tNormal3;
+
 uniform sampler2D g_tTintMasks;
 
 uniform float g_flTexCoordScale0;
@@ -64,40 +69,64 @@ vec4 interpolateTint(int id, vec4 tint1, vec4 tint2, float coordScale, float coo
 //Main entry point
 void main()
 {
+    //Calculate coordinates
+    vec2 coord0 = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0);
+    vec2 coord1 = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1);
+    vec2 coord2 = getTexCoord(g_flTexCoordScale2, g_flTexCoordRotate2);
+    vec2 coord3 = getTexCoord(g_flTexCoordScale3, g_flTexCoordRotate3);
+
     //Get the ambient color from the color texture
-    vec4 color0 = texture2D(g_tColor0, getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0));
-    vec4 color1 = texture2D(g_tColor1, getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1));
-    vec4 color2 = texture2D(g_tColor2, getTexCoord(g_flTexCoordScale2, g_flTexCoordRotate2));
-    vec4 color3 = texture2D(g_tColor3, getTexCoord(g_flTexCoordScale3, g_flTexCoordRotate3));
+    vec4 color0 = texture2D(g_tColor0, coord0);
+    vec4 color1 = texture2D(g_tColor1, coord1);
+    vec4 color2 = texture2D(g_tColor2, coord2);
+    vec4 color3 = texture2D(g_tColor3, coord3);
+
+    //Get normal
+    vec4 normal0 = texture2D(g_tNormal0, coord0);
+    vec4 normal1 = texture2D(g_tNormal1, coord1);
+    vec4 normal2 = texture2D(g_tNormal2, coord2);
+    vec4 normal3 = texture2D(g_tNormal3, coord3);
+
+    //calculate blend
+    vec4 blend = vec4(max(0, 1 - vBlendWeights.x - vBlendWeights.y - vBlendWeights.z), vBlendWeights.x, max(0, vBlendWeights.y - vBlendWeights.x), max(0, vBlendWeights.z - vBlendWeights.w - vBlendWeights.y));
+    blend = blend/(blend.x + blend.y + blend.z + blend.w);
+
+    //calculate blended normal
+    vec4 bumpNormal = blend.x * normal0 + blend.y * normal1 + blend.z * normal2 + blend.w * normal3;
+
+    //Reconstruct the tangent vector from the map
+    vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
+    vec3 finalBumpNormal = vec3(temp, 1 - dot(temp,temp));
+
+    vec3 tangent = vec3(vNormalOut.z, vNormalOut.y, -vNormalOut.x);
+    vec3 bitangent = cross(vNormalOut, tangent);
+
+    //Make the tangent space matrix
+    mat3 tangentSpace = mat3(tangent, bitangent, vNormalOut);
+
+    //Calculate the tangent normal in world space and return it
+    vec3 finalNormal = normalize(tangentSpace * finalBumpNormal);
 
     //Don't need lighting yet
     //Get the direction from the fragment to the light - light position == camera position for now
-    /*vec3 lightDirection = normalize(vLightPosition - vFragPosition);
-
-    //Get the world normal for this fragment
-    vec3 worldNormal = vNormalOut;
+    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Calculate half-lambert lighting
-    float illumination = dot(worldNormal, lightDirection);
+    float illumination = dot(finalNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
-    
-    // TODO: for now, screw the actual illumination
-    illumination = 1.0;*/
 
     //Simple blending
     //Calculate each of the 4 colours to blend
-    vec4 b2 = vec4(max(0, 1 - vBlendWeights.x - vBlendWeights.y - vBlendWeights.z), vBlendWeights.x, max(0, vBlendWeights.y - vBlendWeights.x), max(0, vBlendWeights.z - vBlendWeights.w - vBlendWeights.y));
-    b2 = b2/(b2.x + b2.y + b2.z + b2.w);
-    vec4 c0 = b2.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
-    vec4 c1 = b2.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
-    vec4 c2 = b2.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2, g_flTexCoordRotate2);
-    vec4 c3 = b2.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3, g_flTexCoordRotate3);
+    vec4 c0 = blend.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
+    vec4 c1 = blend.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
+    vec4 c2 = blend.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2, g_flTexCoordRotate2);
+    vec4 c3 = blend.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3, g_flTexCoordRotate3);
     
     //Add up the result
     vec4 finalColor = c0 + c1 + c2 + c3;
     //Apply ambient occlusion
     finalColor *= vec4(vWeightsOut2.xyz, 1);
 
-    outputColor = finalColor;
+    outputColor = vec4(illumination*finalColor.xyz, 1);
 }

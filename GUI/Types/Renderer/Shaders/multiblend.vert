@@ -47,6 +47,7 @@ void main()
 #endif
 
     vTexCoordOut = vTEXCOORD;
+    vBitangentOut = vTANGENT.xyz;
 
     //Normalize (?)
     //vTEXCOORD1 - seems empty

@@ -34,9 +34,11 @@ void main()
 
 	//Unpack normals
 #if param_fulltangent == 1
-	vNormalOut = vNORMAL.xyz;
+    vec4 transformedNormal = transpose(inverse(transform)) * vec4(DecompressNormal(vNORMAL.xyz), 0.0);
+	vNormalOut = transformedNormal.xyz;
 #else
-	vNormalOut = DecompressNormal(vNORMAL);
+    vec4 transformedNormal = transpose(inverse(transform)) * vec4(DecompressNormal(vNORMAL), 0.0);
+	vNormalOut = transformedNormal.xyz;
 #endif
 
 	vTexCoordOut = vTEXCOORD;
