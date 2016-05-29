@@ -25,6 +25,11 @@ uniform sampler2D g_tNormal1;
 uniform sampler2D g_tNormal2;
 uniform sampler2D g_tNormal3;
 
+uniform sampler2D g_tSpecular0;
+uniform sampler2D g_tSpecular1;
+uniform sampler2D g_tSpecular2;
+uniform sampler2D g_tSpecular3;
+
 uniform sampler2D g_tTintMasks;
 
 uniform float g_flTexCoordScale0;
@@ -47,6 +52,7 @@ uniform float g_flTexCoordRotate2;
 uniform float g_flTexCoordRotate3;
 
 uniform vec3 vLightPosition;
+uniform vec3 vEyePosition;
 
 vec2 getTexCoord(float scale, float rotation) {
     //Transform degrees to radians
@@ -87,9 +93,25 @@ void main()
     vec4 normal2 = texture2D(g_tNormal2, coord2);
     vec4 normal3 = texture2D(g_tNormal3, coord3);
 
+    //Get specular
+    vec4 specular0 = texture2D(g_tSpecular0, coord0);
+    vec4 specular1 = texture2D(g_tSpecular1, coord1);
+    vec4 specular2 = texture2D(g_tSpecular2, coord2);
+    vec4 specular3 = texture2D(g_tSpecular3, coord3);
+
     //calculate blend
     vec4 blend = vec4(max(0, 1 - vBlendWeights.x - vBlendWeights.y - vBlendWeights.z), vBlendWeights.x, max(0, vBlendWeights.y - vBlendWeights.x), max(0, vBlendWeights.z - vBlendWeights.w - vBlendWeights.y));
     blend = blend/(blend.x + blend.y + blend.z + blend.w);
+
+    //Simple blending
+    //Calculate each of the 4 colours to blend
+    vec4 c0 = blend.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
+    vec4 c1 = blend.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
+    vec4 c2 = blend.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2, g_flTexCoordRotate2);
+    vec4 c3 = blend.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3, g_flTexCoordRotate3);
+    
+    //Add up the result
+    vec4 finalColor = c0 + c1 + c2 + c3;
 
     //calculate blended normal
     vec4 bumpNormal = blend.x * normal0 + blend.y * normal1 + blend.z * normal2 + blend.w * normal3;
@@ -115,18 +137,14 @@ void main()
     float illumination = dot(finalNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
+    illumination = min(illumination + 0.3, 1.0);
 
-    //Simple blending
-    //Calculate each of the 4 colours to blend
-    vec4 c0 = blend.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
-    vec4 c1 = blend.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
-    vec4 c2 = blend.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2, g_flTexCoordRotate2);
-    vec4 c3 = blend.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3, g_flTexCoordRotate3);
-    
-    //Add up the result
-    vec4 finalColor = c0 + c1 + c2 + c3;
+    //Calculate specular
+    vec4 blendSpecular = blend.x * specular0 + blend.y * specular1 + blend.z * specular2 + blend.w * specular3;
+    float specular = blendSpecular.x * pow(max(0,dot(lightDirection, finalNormal)), 6);
+
     //Apply ambient occlusion
     finalColor *= vec4(vWeightsOut2.xyz, 1);
 
-    outputColor = vec4(illumination*finalColor.xyz, 1);
+    outputColor = vec4(illumination * finalColor.xyz + vec3(0.7) * specular, 1);
 }

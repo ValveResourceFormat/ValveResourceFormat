@@ -40,8 +40,8 @@ void main()
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
+    illumination = min(illumination + 0.3, 1.0);
 
     //Simply multiply the color from the color texture with the illumination
-    //outputColor = vec4(illumination * color.rgb * m_vTintColorDrawCall, color.a);
-    outputColor = vec4(illumination * color.xyz, 1);
+    outputColor = vec4(illumination * color.rgb * m_vTintColorDrawCall, color.a);
 }
