@@ -15,8 +15,9 @@ This repository is split into three components:
 - *Library* - The only sane part of this repository, provides public API.
 
 ## What's supported?
-- Sound player
 - Model viewer
+- Map viewer
+- Sound player
 - VPK viewer which supports opening and exporting files
 - Read only VPK API
 - Binary KeyValues3 parser
