@@ -53,7 +53,7 @@ namespace GUI.Types.Renderer
         double accumulator = 0;
         int idleCounter = 0;
 
-        public void Tick()
+        public void Tick(ref string fpsString)
         {
             if (!MouseOverRenderArea)
             {
@@ -68,7 +68,8 @@ namespace GUI.Types.Renderer
             accumulator += deltaTime;
             if (accumulator > 1000)
             {
-                Console.WriteLine("{0} FPS, {1}", idleCounter, accumulator / idleCounter);
+                //Console.WriteLine("{0} FPS, {1}", idleCounter, accumulator / idleCounter);
+                fpsString = $"FPS: {idleCounter}";
                 accumulator -= 1000;
                 idleCounter = 0; // don't forget to reset the counter!
             }

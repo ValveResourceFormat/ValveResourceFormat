@@ -61,7 +61,17 @@ namespace GUI.Types
                 }
 
                 var tintColorWrongVector = ((NTROValue<Vector4>)sceneObject["m_vTintColor"]).Value;
-                var tintColor = new OpenTK.Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
+
+                OpenTK.Vector4 tintColor;
+                if (tintColorWrongVector.W == 0)
+                {
+                    tintColor = OpenTK.Vector4.One;
+                    Console.WriteLine("Ignoring tintColor, it will fuck things up.");
+                }
+                else
+                {
+                    tintColor = new OpenTK.Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
+                }
 
                 if (renderableModel != null)
                 {

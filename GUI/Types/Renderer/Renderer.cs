@@ -29,6 +29,8 @@ namespace GUI.Types.Renderer
         private bool Loaded;
 
         private GLControl meshControl;
+        private Label cameraLabel;
+        private Label fpsLabel;
 
         private Camera ActiveCamera;
 
@@ -55,6 +57,21 @@ namespace GUI.Types.Renderer
 
         public Control CreateGL()
         {
+            var panel = new Panel();
+            panel.Dock = DockStyle.Fill;
+
+            cameraLabel = new Label();
+            cameraLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            cameraLabel.AutoSize = true;
+            cameraLabel.Dock = DockStyle.Top;
+            panel.Controls.Add(cameraLabel);
+
+            fpsLabel = new Label();
+            fpsLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            fpsLabel.AutoSize = true;
+            fpsLabel.Dock = DockStyle.Top;
+            panel.Controls.Add(fpsLabel);
+
 #if DEBUG
             meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
 #else
@@ -68,7 +85,9 @@ namespace GUI.Types.Renderer
             meshControl.MouseEnter += MeshControl_MouseEnter;
             meshControl.MouseLeave += MeshControl_MouseLeave;
             meshControl.GotFocus += MeshControl_GotFocus;
-            return meshControl;
+
+            panel.Controls.Add(meshControl);
+            return panel;
         }
 
         private void MeshControl_GotFocus(object sender, EventArgs e)
@@ -324,7 +343,11 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            ActiveCamera.Tick();
+            var fps = fpsLabel.Text;
+            ActiveCamera.Tick(ref fps);
+            fpsLabel.Text = fps;
+
+            cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw})";
 
             //Animate light position
             var lightPos = ActiveCamera.Location;
