@@ -135,6 +135,12 @@ namespace GUI.Types.Renderer
                 mat.Textures["g_tColor"] = GenerateSolidColorTexture(new[] { a.X, a.Y, a.Z, a.W });
             }
 
+            // TODO: Perry, this probably needs to be in shader or something
+            if (mat.Textures.ContainsKey("g_tColor2") && mat.Textures["g_tColor"] == GetErrorTexture())
+            {
+                mat.Textures["g_tColor"] = mat.Textures["g_tColor2"];
+            }
+
             return mat;
         }
 
