@@ -8,6 +8,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 using Vector3 = OpenTK.Vector3;
 using Vector4 = ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4;
+using System.Globalization;
 
 namespace GUI.Types
 {
@@ -147,7 +148,7 @@ namespace GUI.Types
 
             for (var i = 0; i < split.Length; i++)
             {
-                vector[i] = float.Parse(split[i]);
+                vector[i] = float.Parse(split[i], CultureInfo.InvariantCulture);
             }
 
             return vector;
