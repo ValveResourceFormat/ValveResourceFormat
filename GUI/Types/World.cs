@@ -90,6 +90,7 @@ namespace GUI.Types
                 var angles = string.Empty;
                 var model = string.Empty;
                 var skin = string.Empty;
+                var colour = new byte[0];
                 foreach (var property in entity)
                 {
                     //metadata
@@ -110,6 +111,9 @@ namespace GUI.Types
                         case 2020856412: //Skin
                             skin = property.Item3 as string;
                             break;
+                        case 588463423: //Colour
+                            colour = property.Item3 as byte[];
+                            break;
                     }
                 }
 
@@ -128,6 +132,16 @@ namespace GUI.Types
 
                 var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
 
+                var objColor = OpenTK.Vector4.One;
+                // Parse colour if present
+                if (colour.Length == 4)
+                {
+                    for (var i = 0; i < 4; i++)
+                    {
+                        objColor[i] = colour[i] / 255.0f;
+                    }
+                }
+
                 var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
                 if (newEntity == null)
                 {
@@ -137,7 +151,7 @@ namespace GUI.Types
                 }
 
                 var entityModel = new Model(newEntity);
-                entityModel.LoadMeshes(renderer, path, megaMatrix, OpenTK.Vector4.One, package, skin);
+                entityModel.LoadMeshes(renderer, path, megaMatrix, objColor, package, skin);
             }
         }
 
