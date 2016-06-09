@@ -207,6 +207,10 @@ namespace GUI.Types.Renderer
                 GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, size, textureReader.ReadBytes(size));
             }
 
+            // Dispose texture otherwise we run out of memory
+            // TODO: This might conflict when opening multiple files due to shit caching
+            textureResource.Dispose();
+
             if (maxTextureMaxAnisotropy > 0)
             {
                 GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, maxTextureMaxAnisotropy);
