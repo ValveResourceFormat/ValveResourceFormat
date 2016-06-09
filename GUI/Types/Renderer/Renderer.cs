@@ -444,6 +444,25 @@ namespace GUI.Types.Renderer
                             }
                         }
 
+                        // Set default values for scale and positions
+                        if (!call.Material.VectorParams.ContainsKey("g_vTexCoordScale"))
+                        {
+                            uniformLocation = call.Shader.GetUniformLocation("g_vTexCoordScale");
+                            if (uniformLocation > -1)
+                            {
+                                GL.Uniform4(uniformLocation, Vector4.One);
+                            }
+                        }
+
+                        if (!call.Material.VectorParams.ContainsKey("g_vTexCoordOffset"))
+                        {
+                            uniformLocation = call.Shader.GetUniformLocation("g_vTexCoordOffset");
+                            if (uniformLocation > -1)
+                            {
+                                GL.Uniform4(uniformLocation, Vector4.Zero);
+                            }
+                        }
+
                         var alpha = 0f;
                         if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") &&
                             call.Material.IntParams["F_ALPHA_TEST"] == 1 &&
