@@ -47,7 +47,7 @@ namespace GUI.Utils
             Resource resource;
 
             // TODO: Might conflict where same file name is available in different paths
-            if (CachedResources.TryGetValue(file, out resource))
+            if (CachedResources.TryGetValue(file, out resource) && resource.Reader != null)
             {
                 return resource;
             }

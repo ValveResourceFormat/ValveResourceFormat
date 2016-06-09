@@ -150,7 +150,7 @@ namespace GUI.Types.Renderer
 #if !DEBUG_SHADERS
             CachedShaders[shaderCacheHash] = shader;
 
-            Console.WriteLine("Shader #{0} compiled and linked succesfully", CachedShaders.Count);
+            Console.WriteLine("Shader #{0} ({1}) compiled and linked succesfully", CachedShaders.Count, shaderName);
 #endif
 
             return shader;
