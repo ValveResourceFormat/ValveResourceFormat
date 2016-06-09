@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace GUI
@@ -11,16 +12,30 @@ namespace GUI
         [STAThread]
         internal static void Main()
         {
-            try
-            {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new MainForm());
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message + Environment.NewLine + Environment.NewLine + e.StackTrace, "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+            //Application.ThreadException += WinFormsException;
+
+            Application.EnableVisualStyles();
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
+
+        private static void WinFormsException(object sender, ThreadExceptionEventArgs t)
+        {
+            ShowError("Windows Forms Exception", t.Exception);
+        }
+
+        private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
+        {
+            ShowError("Unhandled Error", (Exception)ex.ExceptionObject);
+        }
+
+        private static void ShowError(string title, Exception e)
+        {
+            Console.WriteLine(e);
+
+            MessageBox.Show(e.Message + Environment.NewLine + Environment.NewLine + e.StackTrace, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

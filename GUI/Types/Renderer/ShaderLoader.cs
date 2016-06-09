@@ -76,8 +76,8 @@ namespace GUI.Types.Renderer
             {
                 string vsInfo;
                 GL.GetShaderInfoLog(vertexShader, out vsInfo);
-                Console.WriteLine("Error setting up Fragment Shader: " + vsInfo);
-                throw new Exception("Error setting up Vertex Shader: " + vsInfo);
+
+                throw new Exception($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
             }
 
             /* Fragment shader */
@@ -101,8 +101,8 @@ namespace GUI.Types.Renderer
             {
                 string fsInfo;
                 GL.GetShaderInfoLog(fragmentShader, out fsInfo);
-                Console.WriteLine("Error setting up Fragment Shader: " + fsInfo);
-                throw new Exception("Error setting up Fragment Shader: " + fsInfo);
+
+                throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
 
             shader = new Shader();

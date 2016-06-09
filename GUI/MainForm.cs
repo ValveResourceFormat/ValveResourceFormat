@@ -154,29 +154,35 @@ namespace GUI
 
             task.ContinueWith(
                 t =>
-            {
-                t.Exception.Flatten().Handle(ex =>
                 {
-                    mainTabs.TabPages.Remove(tab);
+                    t.Exception?.Flatten().Handle(ex =>
+                    {
+                        mainTabs.TabPages.Remove(tab);
 
-                    Console.WriteLine(ex);
+                        Console.WriteLine(ex);
 
-                    Invoke(new Action(() => MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error)));
+                        Invoke(new Action(() => MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error)));
 
-                    return true;
-                });
-            }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
+                        return false;
+                    });
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.FromCurrentSynchronizationContext());
 
             task.ContinueWith(
                 t =>
-            {
-                tab.Controls.Clear();
-
-                foreach (Control c in t.Result.Controls)
                 {
-                    tab.Controls.Add(c);
-                }
-            }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
+                    tab.Controls.Clear();
+
+                    foreach (Control c in t.Result.Controls)
+                    {
+                        tab.Controls.Add(c);
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion,
+                TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private TabPage ProcessFile(string fileName, byte[] input, Package currentPackage)
