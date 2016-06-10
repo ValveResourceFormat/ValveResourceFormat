@@ -32,6 +32,9 @@ namespace GUI.Types.Renderer
         private Label cameraLabel;
         private Label fpsLabel;
 
+        private CheckedListBox cameraBox;
+        private List<Tuple<string, Matrix4>> cameras;
+
         private Camera ActiveCamera;
 
         private Vector3 MinBounds;
@@ -42,6 +45,7 @@ namespace GUI.Types.Renderer
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
             MeshesToRender = new List<MeshObject>();
+            cameras = new List<Tuple<string, Matrix4>>();
 
             CurrentPackage = currentPackage;
             CurrentFileName = fileName;
@@ -72,6 +76,13 @@ namespace GUI.Types.Renderer
             fpsLabel.Dock = DockStyle.Top;
             panel.Controls.Add(fpsLabel);
 
+            cameraBox = new CheckedListBox();
+            cameraBox.Width *= 2;
+            cameraBox.Dock = DockStyle.Left;
+            cameraBox.ItemCheck += CameraBox_ItemCheck;
+            cameraBox.CheckOnClick = true;
+            panel.Controls.Add(cameraBox);
+
 #if DEBUG
             meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
 #else
@@ -88,6 +99,28 @@ namespace GUI.Types.Renderer
 
             panel.Controls.Add(meshControl);
             return panel;
+        }
+
+        private void CameraBox_ItemCheck(object sender, ItemCheckEventArgs e)
+        {
+            //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
+            if (e.NewValue == CheckState.Checked)
+            {
+                for (int ix = 0; ix < cameraBox.Items.Count; ++ix)
+                {
+                    if (e.Index != ix)
+                    {
+                        cameraBox.ItemCheck -= CameraBox_ItemCheck;
+                        cameraBox.SetItemChecked(ix, false);
+                        cameraBox.ItemCheck += CameraBox_ItemCheck;
+                    }
+                }
+                ActiveCamera = cameraBox.Items[e.Index] as Camera;
+            }
+            else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
+            {
+                e.NewValue = CheckState.Checked;
+            }
         }
 
         private void MeshControl_GotFocus(object sender, EventArgs e)
@@ -174,6 +207,12 @@ namespace GUI.Types.Renderer
             InitializeInputTick();
 
             ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
+            cameraBox.Items.Add(ActiveCamera, true);
+            foreach (var cameraInfo in cameras)
+            {
+                var camera = new Camera(tabs.Width, tabs.Height, cameraInfo.Item2, cameraInfo.Item1);
+                cameraBox.Items.Add(camera);
+            }
 
             foreach (var obj in MeshesToRender)
             {
@@ -241,6 +280,12 @@ namespace GUI.Types.Renderer
             Loaded = true;
 
             Console.WriteLine("{0} draw calls total", MeshesToRender.Sum(x => x.DrawCalls.Count));
+        }
+
+        public void AddCamera(string name, Matrix4 megaMatrix)
+        {
+            Console.WriteLine($"Adding Camera {name} with matrix {megaMatrix}");
+            cameras.Add(new Tuple<string, Matrix4>(name, megaMatrix));
         }
 
         private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, string material)

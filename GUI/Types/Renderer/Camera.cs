@@ -26,7 +26,9 @@ namespace GUI.Types.Renderer
 
         private KeyboardState KeyboardState;
 
-        public Camera(int viewportWidth, int viewportHeight, Vector3 minBounds, Vector3 maxBounds)
+        private string Name;
+
+        public Camera(int viewportWidth, int viewportHeight, Vector3 minBounds, Vector3 maxBounds, string name = "Default")
         {
             PreciseTimer = new Stopwatch();
 
@@ -35,16 +37,37 @@ namespace GUI.Types.Renderer
             Location.Y = (maxBounds.X + minBounds.X) / 2;
             Location.X = maxBounds.Y + 30.0f;
             Location.Z = maxBounds.Z + 30.0f;
-
+            var quaternion = CameraViewMatrix.ExtractRotation(true);
+            Pitch = quaternion.Y;
+            Yaw = quaternion.Z;
             // TODO: needs fixing
             Yaw = 3f;
             Pitch = -0.9f;
+
+            Name = name;
+        }
+
+        public Camera(int viewportWidth, int viewportHeight, Matrix4 cameraViewMatrix, string name = "Default")
+        {
+            PreciseTimer = new Stopwatch();
+
+            SetViewportSize(viewportWidth, viewportHeight);
+
+            Location = cameraViewMatrix.ExtractTranslation();
+            CameraViewMatrix = cameraViewMatrix;
+
+            //TODO: Someone figure out what this section is meant to be. (tree_game is a good test)
+            var quaternion = CameraViewMatrix.ExtractRotation(false);
+            Pitch = quaternion.Y;
+            Yaw = quaternion.Z;
+
+            Name = name;
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
             var aspectRatio = viewportWidth / (float)viewportHeight;
-            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspectRatio, 1.0f, 409600.0f);
+            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspectRatio, 1.0f, 40000.0f);
 
             // setup projection
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
@@ -182,6 +205,11 @@ namespace GUI.Types.Renderer
             PreciseTimer.Start();
 
             return (float)timeslice;
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
     }
 }

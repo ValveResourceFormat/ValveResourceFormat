@@ -128,6 +128,9 @@ namespace ValveResourceFormat.ResourceTypes
                         case 588463423:
                             builder.AppendLine($"   {"Colour", -20} | {value}\n");
                             break;
+                        case 1094168427:
+                            builder.AppendLine($"   {"Name", -20} | {value}\n");
+                            break;
                         default:
                             builder.AppendLine($"   {i, 3}: {value} (type={tuple.Item1}, meta={tuple.Item2})\n");
                             break;

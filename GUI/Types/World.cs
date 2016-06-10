@@ -16,6 +16,8 @@ namespace GUI.Types
     {
         private readonly Resource Resource;
 
+        private static int anonymousCameraCount = 0;
+
         public World(Resource resource)
         {
             Resource = resource;
@@ -27,22 +29,24 @@ namespace GUI.Types
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = (NTROArray)data.Output["m_worldNodes"];
-            var nodeData = ((NTROValue<NTROStruct>)worldNodes[0]).Value; //TODO: Not be 0.
-
-            var worldNode = ((NTROValue<string>)nodeData["m_worldNodePrefix"]).Value;
-            if (worldNode != null)
+            if (worldNodes.Count > 0)
             {
-                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c", path, package);
-                if (newResource == null)
+                var nodeData = ((NTROValue<NTROStruct>)worldNodes[0]).Value; //TODO: Not be 0.
+
+                var worldNode = ((NTROValue<string>)nodeData["m_worldNodePrefix"]).Value;
+                if (worldNode != null)
                 {
-                    Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
-                    throw new Exception("WTF");
+                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c", path, package);
+                    if (newResource == null)
+                    {
+                        Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
+                        throw new Exception("WTF");
+                    }
+
+                    var node = new WorldNode(newResource);
+                    node.AddMeshes(renderer, path, package);
                 }
-
-                var node = new WorldNode(newResource);
-                node.AddMeshes(renderer, path, package);
             }
-
             var entityLumps = (NTROArray)data.Output["m_entityLumps"];
             foreach (var lump in entityLumps)
             {
@@ -91,6 +95,9 @@ namespace GUI.Types
                 var model = string.Empty;
                 var skin = string.Empty;
                 var colour = new byte[0];
+                var classname = string.Empty;
+                var name = string.Empty;
+
                 foreach (var property in entity)
                 {
                     //metadata
@@ -114,44 +121,59 @@ namespace GUI.Types
                         case 588463423: //Colour
                             colour = property.Item3 as byte[];
                             break;
+                        case 3323665506: //Classname
+                            classname = property.Item3 as string;
+                            break;
+                        case 1094168427:
+                            name = property.Item3 as string;
+                            break;
                     }
                 }
-
-                if (scale == string.Empty || position == string.Empty || angles == string.Empty || model == string.Empty)
+                if (scale == string.Empty || position == string.Empty || angles == string.Empty)
                 {
                     continue;
                 }
 
-                var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
-                var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
-
-                var rotationVector = ParseCoordinates(angles);
-                var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
-                rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
-                rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
-
-                var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
-
-                var objColor = OpenTK.Vector4.One;
-                // Parse colour if present
-                if (colour.Length == 4)
+                if (classname == "point_camera" || model != string.Empty)
                 {
-                    for (var i = 0; i < 4; i++)
+                    var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
+                    var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
+
+                    var rotationVector = ParseCoordinates(angles);
+                    var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
+                    rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
+                    rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
+
+                    var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+
+                    var objColor = OpenTK.Vector4.One;
+                    // Parse colour if present
+                    if (colour.Length == 4)
                     {
-                        objColor[i] = colour[i] / 255.0f;
+                        for (var i = 0; i < 4; i++)
+                        {
+                            objColor[i] = colour[i] / 255.0f;
+                        }
+                    }
+
+                    if (classname == "point_camera")
+                    {
+                        renderer.AddCamera(name == string.Empty ? $"Camera {anonymousCameraCount++}" : name, megaMatrix);
+                    }
+                    else
+                    {
+                        var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
+                        if (newEntity == null)
+                        {
+                            Console.WriteLine("unable to load entity " + model + "_c");
+
+                            continue;
+                        }
+
+                        var entityModel = new Model(newEntity);
+                        entityModel.LoadMeshes(renderer, path, megaMatrix, objColor, package, skin);
                     }
                 }
-
-                var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
-                if (newEntity == null)
-                {
-                    Console.WriteLine("unable to load entity " + model + "_c");
-
-                    continue;
-                }
-
-                var entityModel = new Model(newEntity);
-                entityModel.LoadMeshes(renderer, path, megaMatrix, objColor, package, skin);
             }
         }
 
