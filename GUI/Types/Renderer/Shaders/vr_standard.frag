@@ -25,6 +25,7 @@ vec3 calculateWorldNormal()
     //Reconstruct the tangent vector from the map
     vec2 temp = vec2(bumpNormal.y, bumpNormal.w) * 2 - 1;
     vec3 tangentNormal = vec3(temp, 1 - temp.x*temp.x - temp.y*temp.y);
+    tangentNormal = tangentNormal.xzy;
 
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
@@ -53,6 +54,7 @@ void main()
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
+    illumination = min(illumination + 0.3, 1.0);
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb, color.a);

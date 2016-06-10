@@ -39,11 +39,10 @@ void main()
 	vTangentOut = vTANGENT.xyz;
 	vBitangentOut = cross( vNormalOut, vTangentOut );
 #else
-	vec4 tangent = DecompressTangent(vNORMAL);
+	vec3 tangent = DecompressTangent(vNORMAL);
 	vNormalOut = DecompressNormal(vNORMAL);
-	vTangentOut = tangent.xyz;
-	fTangentW = tangent.w;
-	vBitangentOut = cross( vNormalOut, vTangentOut * tangent.w );
+	vTangentOut = tangent;
+	vBitangentOut = cross( vNormalOut, vTangentOut );
 #endif
 
 	vTexCoordOut = vTEXCOORD;

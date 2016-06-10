@@ -7,27 +7,25 @@
 */
 
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
-vec4 DecompressTangent( vec4 inputNormal )
+vec3 DecompressTangent( vec4 inputNormal )
 {
     float fOne   = 1.0f;
-    vec4 outputTangent = vec4(0);
+    vec3 outputTangent;
 
-    vec4 ztztSignBits = -floor(( inputNormal - 128.0f )/127.0f);       // sign bits for zs and binormal (1 or 0)  set-less-than (slt) asm instruction
+    vec4 ztztSignBits = -sign( inputNormal - 128.0f );                     // sign bits for zs and binormal (1 or 0)  set-less-than (slt) asm instruction
     vec4 xyxyAbs      = abs( inputNormal - 128.0f ) - ztztSignBits;       // 0..127
-    vec4 xyxySignBits = -floor(( xyxyAbs - 64.0f )/63.0f);                  // sign bits for xs and ys (1 or 0)
+    vec4 xyxySignBits = -sign( xyxyAbs - 64.0f );                          // sign bits for xs and ys (1 or 0)
+
     vec4 normTan      = (abs( xyxyAbs - 64.0f ) - xyxySignBits) / 63.0f;  // abs({nX, nY, tX, tY})
-    outputTangent.xy    = normTan.zw;                                       // abs({tX, tY, __, __})
+    outputTangent.xy    = normTan.zw;
 
     vec4 xyxySigns    = 1 - 2*xyxySignBits;                               // Convert sign bits to signs
     vec4 ztztSigns    = 1 - 2*ztztSignBits;                               // ( [1,0] -> [-1,+1] )
 
-    outputTangent.z     = 1.0f - outputTangent.x - outputTangent.y;         // Project onto x+y+z=1
-    outputTangent.xyz   = normalize( outputTangent.xyz );                   // Normalize onto unit sphere
-    outputTangent.xy   *= xyxySigns.zw;                                     // Restore x and y signs
-    outputTangent.z    *= ztztSigns.z;                                      // Restore z sign
-    outputTangent.w     = ztztSigns.w;                                      // Binormal sign
+    outputTangent.z       = 1.0f - outputTangent.x - outputTangent.y;         // Project onto x+y+z=1
+    outputTangent         = normalize( outputTangent );                   // Normalize onto unit sphere
 
-    return normalize(outputTangent);
+    return normalize(outputTangent * vec3(xyxySigns.z, xyxySigns.w, ztztSigns.z) * ztztSigns.w);
 }
 
 //Decompress a byte4 normal in the 0..255 range to a float3 normal 

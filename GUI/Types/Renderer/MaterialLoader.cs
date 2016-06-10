@@ -75,7 +75,11 @@ namespace GUI.Types.Renderer
             {
                 var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
                 var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
+                // Prevent error
+                if (!mat.VectorParams.ContainsKey(((NTROValue<string>)subStruct["m_name"]).Value))
+                {
+                    mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
+                }
             }
 
             var textureParams = (NTROArray)matData.Output["m_textureParams"];
@@ -139,6 +143,11 @@ namespace GUI.Types.Renderer
             if (mat.Textures.ContainsKey("g_tColor2") && mat.Textures["g_tColor"] == GetErrorTexture())
             {
                 mat.Textures["g_tColor"] = mat.Textures["g_tColor2"];
+            }
+
+            if (mat.Textures.ContainsKey("g_tColor1") && mat.Textures["g_tColor"] == GetErrorTexture())
+            {
+                mat.Textures["g_tColor"] = mat.Textures["g_tColor1"];
             }
 
             return mat;

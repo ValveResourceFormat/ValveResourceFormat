@@ -5,7 +5,6 @@ in vec3 vFragPosition;
 in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
-in float fTangentW;
 
 in vec2 vTexCoordOut;
 
@@ -93,7 +92,7 @@ void main()
     rimLight = smoothstep( 0.6, 1.0, rimLight );
 
     //Multiply the rim light by the rim light intensity - mask 2 channel G
-    rimLight = 2 * rimLight * mask2.g * smoothstep(1.0, 0.3, metalness);
+    rimLight = rimLight * mask2.g * smoothstep(1.0, 0.3, metalness);
 
     //Final color
     vec3 finalColor = ambientColor  * mix(1, 0.5, metalness) + specularColor * specular + specularColor * rimLight;
