@@ -150,6 +150,17 @@ namespace GUI.Types.Renderer
                 mat.Textures["g_tColor"] = mat.Textures["g_tColor1"];
             }
 
+            // Set default values for scale and positions
+            if (!mat.VectorParams.ContainsKey("g_vTexCoordScale"))
+            {
+                mat.VectorParams["g_vTexCoordScale"] = OpenTK.Vector4.One;
+            }
+
+            if (!mat.VectorParams.ContainsKey("g_vTexCoordOffset"))
+            {
+                mat.VectorParams["g_vTexCoordOffset"] = OpenTK.Vector4.Zero;
+            }
+
             return mat;
         }
 
