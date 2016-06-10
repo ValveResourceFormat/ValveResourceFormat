@@ -417,7 +417,6 @@ namespace GUI.Types.Renderer
                     if (call.Shader.Program != prevShader)
                     {
                         objChanged = true;
-                        prevMaterial = string.Empty;
                         prevShader = call.Shader.Program;
 
                         GL.UseProgram(call.Shader.Program);
@@ -439,6 +438,7 @@ namespace GUI.Types.Renderer
                     if (objChanged)
                     {
                         objChanged = false;
+                        prevMaterial = string.Empty;
 
                         var transform = obj.Transform;
                         uniformLocation = call.Shader.GetUniformLocation("transform");
