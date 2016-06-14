@@ -21,7 +21,7 @@ after_build:
 test_script:
 - ps: >-
     $opencover = (Resolve-Path "packages/OpenCover.*/tools/OpenCover.Console.exe").ToString();
-    & $opencover -target:nunit3-console.exe "-targetargs:Tests/bin/$($env:CONFIGURATION)/Tests.dll --result=testResults.xml;format=AppVeyor" -filter:"+[ValveResourceFormat*]*" -output:opencoverCoverage.xml -register:user -returntargetcode
+    & $opencover -target:nunit3-console.exe "-targetargs:Tests/bin/$($env:CONFIGURATION)/Tests.dll --result=testResults.xml;format=AppVeyor" -filter:"+[ValveResourceFormat*]* -[ValveResourceFormat]SevenZip*" -output:opencoverCoverage.xml -register:user -returntargetcode
 
     if ($LastExitCode -ne 0) {
       throw "Exec: $ErrorMessage`nExit code: $LastExitCode";
