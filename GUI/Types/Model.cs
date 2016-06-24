@@ -73,6 +73,7 @@ namespace GUI.Types
                     Transform = transform,
                     TintColor = tintColor,
                     SkinMaterials = skinMaterials,
+                    Skeleton = new Renderer.Animation.Skeleton(newResource)
                 });
 
                 // TODO: Only first, again.

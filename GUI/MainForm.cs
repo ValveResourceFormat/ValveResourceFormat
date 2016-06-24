@@ -24,6 +24,7 @@ using WorldNode = GUI.Types.WorldNode;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 using System.Drawing.Imaging;
 using OpenTK;
+using GUI.Types.Renderer.Animation;
 
 namespace GUI
 {
@@ -346,7 +347,7 @@ namespace GUI
 
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
-                        mv.AddMeshObject(new MeshObject { Resource = resource });
+                        mv.AddMeshObject(new MeshObject { Resource = resource, Skeleton = new Skeleton(resource) });
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);
