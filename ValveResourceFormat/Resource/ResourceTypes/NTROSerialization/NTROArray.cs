@@ -110,5 +110,21 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             return ((IList<NTROValue>)contents).GetEnumerator();
         }
+
+        public T Get<T>(int index)
+        {
+            return ((NTROValue<T>)this[index]).Value;
+        }
+
+        public T[] ToArray<T>()
+        {
+            var array = new T[Count];
+            for (var i = 0; i < Count; i++)
+            {
+                array[i] = Get<T>(i);
+            }
+
+            return array;
+        }
     }
 }

@@ -221,5 +221,15 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             return ((IDictionary)Contents).GetEnumerator();
         }
+
+        public T Get<T>(object key)
+        {
+            if (typeof(T) == typeof(NTROArray))
+            {
+                return (T)this[key];
+            }
+
+            return ((NTROValue<T>)this[key]).Value;
+        }
     }
 }
