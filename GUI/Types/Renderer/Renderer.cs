@@ -25,6 +25,7 @@ namespace GUI.Types.Renderer
         private readonly string CurrentFileName;
 
         private readonly List<MeshObject> MeshesToRender;
+        private readonly List<Animation.Animation> Animations;
 
         private bool Loaded;
 
@@ -45,6 +46,7 @@ namespace GUI.Types.Renderer
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
             MeshesToRender = new List<MeshObject>();
+            Animations = new List<Animation.Animation>();
             cameras = new List<Tuple<string, Matrix4>>();
 
             CurrentPackage = currentPackage;
@@ -57,6 +59,11 @@ namespace GUI.Types.Renderer
         public void AddMeshObject(MeshObject obj)
         {
             MeshesToRender.Add(obj);
+        }
+
+        public void AddAnimations(List<Animation.Animation> animations)
+        {
+            Animations.AddRange(animations);
         }
 
         public Control CreateGL()

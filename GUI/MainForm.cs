@@ -319,21 +319,25 @@ namespace GUI
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
+                        // Create model
                         var model = new Model(resource);
 
-                        var animGroupPath = model.GetAnimationGroup();
-                        if (!string.IsNullOrEmpty(animGroupPath))
-                        {
-                            var animGroup = new Resource();
-                            animGroup.Read(animGroupPath);
-
-                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName);
-                        }
-
+                        // Create tab
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage);
                         model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
 
+                        // Add animations if available
+                        var animGroupPaths = model.GetAnimationGroups();
+                        foreach (var animGroupPath in animGroupPaths) { 
+                            var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);
+
+                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName);
+
+                            modelmv.AddAnimations(animGroupLoader.AnimationList);
+                        }
+
+                        //Initialise OpenGL
                         var modelglControl = modelmv.CreateGL();
                         modelmeshTab.Controls.Add(modelglControl);
                         resTabs.TabPages.Add(modelmeshTab);

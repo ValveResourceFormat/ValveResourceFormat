@@ -81,19 +81,21 @@ namespace GUI.Types
             }
         }
 
-        public string GetAnimationGroup()
+        public string[] GetAnimationGroups()
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
             var refAnimGroups = (NTROArray)data.Output["m_refAnimGroups"];
 
-            if (refAnimGroups.Count > 0)
+            var refs = refAnimGroups.ToArray<ResourceExtRefList.ResourceReferenceInfo>();
+            var paths = new string[refs.Length];
+
+            for (int i = 0; i < refs.Length; i++)
             {
-                var animGroup = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refAnimGroups[0]).Value;
-                //return FileExtensions.FindResourcePath(animGroup.Name);
+                paths[i] = refs[i].Name;
             }
 
-            return string.Empty;
+            return paths;
         }
     }
 }
