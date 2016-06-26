@@ -56,10 +56,15 @@ namespace GUI.Types.Renderer.Animation
             var frameBlockArray = pData.Get<NTROArray>("m_frameblockArray").ToArray<NTROStruct>();
 
             FrameCount = pData.Get<int>("m_nFrames");
+            Frames = new Frame[FrameCount];
 
             // Figure out each frame
             for (var frame = 0; frame < FrameCount; frame++)
             {
+                // Create new frame object
+                Frames[frame] = new Frame();
+
+                // Read all frame blocks
                 foreach (var frameBlock in frameBlockArray)
                 {
                     var startFrame = frameBlock.Get<int>("m_nStartFrame");
@@ -70,13 +75,13 @@ namespace GUI.Types.Renderer.Animation
                     foreach (var segmentIndex in segmentIndexArray)
                     {
                         var segment = segmentArray.Get<NTROStruct>(segmentIndex);
-                        CreateFrame(frame - startFrame, segment, decodeKey, decoderArray);
+                        ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
                     }
                 }
             }
         }
 
-        private void CreateFrame(int frame, NTROStruct segment, NTROStruct decodeKey, string[] decoderArray)
+        private void ReadSegment(int frame, NTROStruct segment, NTROStruct decodeKey, string[] decoderArray, ref Frame outFrame)
         {
             //Clamp the frame number to be between 0 and the maximum frame
             frame = frame < 0 ? 0 : frame;
@@ -84,6 +89,9 @@ namespace GUI.Types.Renderer.Animation
 
             var localChannel = segment.Get<int>("m_nLocalChannel");
             var dataChannel = decodeKey.Get<NTROArray>("m_dataChannelArray").Get<NTROStruct>(localChannel);
+            var boneNames = dataChannel.Get<NTROArray>("m_szElementNameArray").ToArray<string>();
+
+            var channelAttribute = dataChannel.Get<string>("m_szVariableName");
 
             // Read container
             var container = segment.Get<NTROArray>("m_container").ToArray<byte>();
@@ -114,6 +122,7 @@ namespace GUI.Types.Renderer.Animation
                 {
                     //containerReader.ReadBytes(frame * numBlocks * numElements);
                 }
+
                 for (int element = 0; element < numElements; element++)
                 {
                     //Get the bone we are reading for
@@ -122,29 +131,32 @@ namespace GUI.Types.Renderer.Animation
                     // Look at the decoder to see what to read
                     switch (decoder)
                     {
+                        case "CCompressedStaticFloat":
+                            outFrame.SetAttribute(boneNames[bone], channelAttribute, containerReader.ReadSingle());
+                            break;
                         case "CCompressedStaticFullVector3":
                         case "CCompressedFullVector3":
                         case "CCompressedDeltaVector3":
-                            Vector3 v = new Vector3(
+                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new OpenTK.Vector3(
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle(),
-                                containerReader.ReadSingle());
+                                containerReader.ReadSingle()));
                             break;
                         case "CCompressedStaticVector3":
-                            Vector3 v2 = new Vector3(
+                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new OpenTK.Vector3(
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader),
-                                ReadHalfFloat(containerReader));
+                                ReadHalfFloat(containerReader)));
                             break;
                         case "CCompressedAnimQuaternion":
-                            OpenTK.Vector4 q = ReadQuaternion(containerReader);
+                            outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
                             break;
+#if DEBUG
                         default:
                             Console.WriteLine("Unknown decoder type encountered. Type: " + decoder);
                             break;
+#endif
                     }
-
-                    //Console.WriteLine($"Frame {frame}, element {elements[bones[i]]}, type {decoder}");
                 }
             }
         }
@@ -224,6 +236,54 @@ namespace GUI.Types.Renderer.Animation
 
     internal class Frame
     {
+        public Dictionary<string, FrameBone> Bones { get; set; }
 
+        public Frame()
+        {
+            Bones = new Dictionary<string, FrameBone>();
+        }
+
+        public void SetAttribute(string bone, string attribute, object data)
+        {
+            switch (attribute)
+            {
+                case "Position":
+                    InsertIfUnknown(bone);
+                    Bones[bone].Position = (OpenTK.Vector3)data;
+                    break;
+                case "Angle":
+                    InsertIfUnknown(bone);
+                    Bones[bone].Angle = (OpenTK.Vector4)data;
+                    break;
+                case "data":
+                    //ignore
+                    break;
+#if DEBUG
+                default:
+                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered");
+                    break;
+#endif
+            }
+        }
+
+        private void InsertIfUnknown(string name)
+        {
+            if (!Bones.ContainsKey(name))
+            {
+                Bones[name] = new FrameBone(OpenTK.Vector3.Zero, OpenTK.Vector4.UnitW);
+            }
+        }
+    }
+
+    internal class FrameBone
+    {
+        public OpenTK.Vector3 Position { get; set; }
+        public OpenTK.Vector4 Angle { get; set; }
+
+        public FrameBone(OpenTK.Vector3 pos, OpenTK.Vector4 a)
+        {
+            Position = pos;
+            Angle = a;
+        }
     }
 }
