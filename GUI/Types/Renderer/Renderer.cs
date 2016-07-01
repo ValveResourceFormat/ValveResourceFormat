@@ -55,6 +55,8 @@ namespace GUI.Types.Renderer
             CurrentFileName = fileName;
             tabs = mainTabs;
 
+            Skeleton = new Skeleton(); // Default empty skeleton
+
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
@@ -464,7 +466,10 @@ namespace GUI.Types.Renderer
                         GL.Uniform3(uniformLocation, ActiveCamera.Location);
 
                         uniformLocation = call.Shader.GetUniformLocation("bAnimated");
-                        GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
+                        if (uniformLocation != -1)
+                        {
+                            GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
+                        }
 
                         uniformLocation = GL.GetUniformLocation(call.Shader.Program, "animationMatrices");
                         if (uniformLocation != -1)

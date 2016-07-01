@@ -338,7 +338,7 @@ namespace GUI
                         foreach (var animGroupPath in animGroupPaths) { 
                             var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);
 
-                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName);
+                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName, skeleton);
 
                             modelmv.AddAnimations(animGroupLoader.AnimationList);
                         }

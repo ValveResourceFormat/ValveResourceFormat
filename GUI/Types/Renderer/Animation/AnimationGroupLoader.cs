@@ -14,13 +14,13 @@ namespace GUI.Types.Renderer.Animation
         private readonly NTRO data;
         public List<Animation> AnimationList { get; private set; }
 
-        public AnimationGroupLoader(Resource resource, string filename)
+        public AnimationGroupLoader(Resource resource, string filename, Skeleton skeleton)
         {
             data = (NTRO)resource.Blocks[BlockType.DATA];
-            LoadAnimationGroup(filename);
+            LoadAnimationGroup(filename, skeleton);
         }
 
-        private void LoadAnimationGroup(string path)
+        private void LoadAnimationGroup(string path, Skeleton skeleton)
         {
             // Get the list of animation files
             var animArray = (NTROArray)data.Output["m_localHAnimArray"];
@@ -38,7 +38,7 @@ namespace GUI.Types.Renderer.Animation
 #endif
 
                 // Build animation classes
-                AnimationList.Add(new Animation(animResource, decodeKey));
+                AnimationList.Add(new Animation(animResource, decodeKey, skeleton));
             }
         }
 

@@ -23,13 +23,13 @@ namespace GUI.Types.Renderer.Animation
         private Skeleton Skeleton;
 
         // Build animation from resource
-        public Animation(Resource resource, NTROStruct decodeKey)
+        public Animation(Resource resource, NTROStruct decodeKey, Skeleton skeleton)
         {
             Name = string.Empty;
             Fps = 0;
             Frames = new Frame[0];
 
-            //Skeleton = skeleton;
+            Skeleton = skeleton;
 
             var animationData = (NTRO)resource.Blocks[BlockType.DATA];
             var animArray = (NTROArray)animationData.Output["m_animArray"];
@@ -79,14 +79,21 @@ namespace GUI.Types.Renderer.Animation
             var invBindPose = parentInvBindPose * bone.InverseBindPose;
 
             // Calculate transformation matrix
-            var transform = transforms.Bones[bone.Name];
-            var transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle * bone.Angle.Inverted()) * Matrix4.CreateTranslation(transform.Position - bone.Position);
+            var transformMatrix = Matrix4.Identity;
+            if (transforms.Bones.ContainsKey(bone.Name))
+            {
+                var transform = transforms.Bones[bone.Name];
+                transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle * bone.Angle.Inverted()) * Matrix4.CreateTranslation(transform.Position - bone.Position);
+            }
 
             // Apply tranformation
             var transformed = transformMatrix * bindPose;
 
             // Store result
-            matrices[bone.Index] = invBindPose * transformed;
+            if (bone.Index != -1)
+            {
+                matrices[bone.Index] = invBindPose * transformed;
+            }
 
             // Propagate to childen
             foreach (var child in bone.Children)
@@ -114,9 +121,8 @@ namespace GUI.Types.Renderer.Animation
             // Interpolate bone positions and angles
             foreach (var bonePair in frame1.Bones)
             {
-                var position = (t * frame2.Bones[bonePair.Key].Position) + ((1 - t) * frame1.Bones[bonePair.Key].Position);
-                var angle = (t * frame2.Bones[bonePair.Key].Angle) + ((1 - t) * frame1.Bones[bonePair.Key].Angle);
-                angle.Normalize();
+                var position = OpenTK.Vector3.Lerp(frame1.Bones[bonePair.Key].Position, frame2.Bones[bonePair.Key].Position, t);
+                var angle = Quaternion.Slerp(frame1.Bones[bonePair.Key].Angle, frame2.Bones[bonePair.Key].Angle, t);
                 frame.Bones[bonePair.Key] = new FrameBone(position, angle);
             }
 
@@ -147,14 +153,18 @@ namespace GUI.Types.Renderer.Animation
                 foreach (var frameBlock in frameBlockArray)
                 {
                     var startFrame = frameBlock.Get<int>("m_nStartFrame");
-                    var endFrame = frameBlock.Get<int>("m_nStartFrame");
+                    var endFrame = frameBlock.Get<int>("m_nEndFrame");
 
-                    var segmentIndexArray = frameBlock.Get<NTROArray>("m_segmentIndexArray").ToArray<int>();
-
-                    foreach (var segmentIndex in segmentIndexArray)
+                    // Only consider blocks that actual contain info for this frame
+                    if (frame >= startFrame && frame <= endFrame)
                     {
-                        var segment = segmentArray.Get<NTROStruct>(segmentIndex);
-                        ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
+                        var segmentIndexArray = frameBlock.Get<NTROArray>("m_segmentIndexArray").ToArray<int>();
+
+                        foreach (var segmentIndex in segmentIndexArray)
+                        {
+                            var segment = segmentArray.Get<NTROStruct>(segmentIndex);
+                            ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
+                        }
                     }
                 }
             }

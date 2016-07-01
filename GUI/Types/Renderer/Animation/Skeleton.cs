@@ -18,6 +18,11 @@ namespace GUI.Types.Renderer.Animation
         public List<Bone> Roots { get; set; }
         public Bone[] Bones { get; set; }
 
+        public Skeleton()
+        {
+            Bones = new Bone[0];
+        }
+
         // Armature constructor
         public Skeleton(Resource model)
         {
@@ -32,17 +37,28 @@ namespace GUI.Types.Renderer.Animation
                 Console.WriteLine("No skeleton data found.");
             }
 
+            // Get the remap table and invert it for our construction method
+            var remapTable = ((NTROArray)modelData.Output["m_remappingTable"]).ToArray<short>();
+            var invMapTable = new Dictionary<int, int>();
+            for (int i = 0; i < remapTable.Length; i++)
+            {
+                if (!invMapTable.ContainsKey(remapTable[i]))
+                {
+                    invMapTable.Add(remapTable[i], i);
+                }
+            }
+
             // Construct the armature from the skeleton KV
-            ConstructFromNTRO(((NTROValue<NTROStruct>)modelData.Output["m_modelSkeleton"]).Value);
+            ConstructFromNTRO(((NTROValue<NTROStruct>)modelData.Output["m_modelSkeleton"]).Value, invMapTable);
         }
 
         // Construct the Armature object from mesh skeleton KV data.
-        public void ConstructFromNTRO(NTROStruct data)
+        public void ConstructFromNTRO(NTROStruct skeletonData, Dictionary<int, int> remapTable)
         {
-            var boneNames = data.Get<NTROArray>("m_boneName").ToArray<string>();
-            var boneParents = data.Get<NTROArray>("m_nParent").ToArray<short>();
-            var bonePositions = data.Get<NTROArray>("m_bonePosParent").ToArray<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector3>();
-            var boneRotations = data.Get<NTROArray>("m_boneRotParent").ToArray<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>();
+            var boneNames = skeletonData.Get<NTROArray>("m_boneName").ToArray<string>();
+            var boneParents = skeletonData.Get<NTROArray>("m_nParent").ToArray<short>();
+            var bonePositions = skeletonData.Get<NTROArray>("m_bonePosParent").ToArray<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector3>();
+            var boneRotations = skeletonData.Get<NTROArray>("m_boneRotParent").ToArray<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>();
 
             // Initialise bone array
             Bones = new Bone[boneNames.Length];
@@ -56,7 +72,8 @@ namespace GUI.Types.Renderer.Animation
                 var rotation = new OpenTK.Quaternion(boneRotations[i].X, boneRotations[i].Y, boneRotations[i].Z, boneRotations[i].W);
 
                 // Create bone
-                var bone = new Bone(name, i, position, rotation);
+                var index = remapTable.ContainsKey(i) ? remapTable[i] : -1;
+                var bone = new Bone(name, index, position, rotation);
 
                 if (boneParents[i] != -1)
                 {
