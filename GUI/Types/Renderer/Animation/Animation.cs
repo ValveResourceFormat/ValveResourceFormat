@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTK;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,7 +18,9 @@ namespace GUI.Types.Renderer.Animation
 
         private int FrameCount;
 
-        public Frame[] Frames;
+        private Frame[] Frames;
+
+        private Skeleton Skeleton;
 
         // Build animation from resource
         public Animation(Resource resource, NTROStruct decodeKey)
@@ -25,6 +28,8 @@ namespace GUI.Types.Renderer.Animation
             Name = string.Empty;
             Fps = 0;
             Frames = new Frame[0];
+
+            //Skeleton = skeleton;
 
             var animationData = (NTRO)resource.Blocks[BlockType.DATA];
             var animArray = (NTROArray)animationData.Output["m_animArray"];
@@ -42,6 +47,80 @@ namespace GUI.Types.Renderer.Animation
             ConstructFromDesc(animArray.Get<NTROStruct>(0), decodeKey, decoderArray, segmentArray);
 
             return;
+        }
+
+        public float[] GetAnimationMatricesAsArray(float time, Skeleton skeleton)
+        {
+            var matrices = GetAnimationMatrices(time, skeleton);
+            return Flatten(matrices);
+        }
+
+        // Get the animation matrix for each bone
+        public Matrix4[] GetAnimationMatrices(float time, Skeleton skeleton)
+        {
+            // Create output array
+            var matrices = new Matrix4[skeleton.Bones.Length];
+
+            // Get bone transformations
+            var transforms = GetTransformsAtTime(time);
+
+            foreach (var root in skeleton.Roots)
+            {
+                GetAnimationMatrixRecursive(root, Matrix4.Identity, Matrix4.Identity, transforms, ref matrices);
+            }
+
+            return matrices;
+        }
+
+        private void GetAnimationMatrixRecursive(Bone bone, Matrix4 parentBindPose, Matrix4 parentInvBindPose, Frame transforms, ref Matrix4[] matrices)
+        {
+            // Calculate world space bind and inverse bind pose
+            var bindPose = bone.BindPose * parentBindPose;
+            var invBindPose = parentInvBindPose * bone.InverseBindPose;
+
+            // Calculate transformation matrix
+            var transform = transforms.Bones[bone.Name];
+            var transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle * bone.Angle.Inverted()) * Matrix4.CreateTranslation(transform.Position - bone.Position);
+
+            // Apply tranformation
+            var transformed = transformMatrix * bindPose;
+
+            // Store result
+            matrices[bone.Index] = invBindPose * transformed;
+
+            // Propagate to childen
+            foreach (var child in bone.Children)
+            {
+                GetAnimationMatrixRecursive(child, transformed, invBindPose, transforms, ref matrices);
+            }
+        }
+
+        // Get the transformation matrices at a time
+        private Frame GetTransformsAtTime(float time)
+        {
+            // Calculate the index of the current frame
+            int frameIndex = (int)(time * Fps * 0.5) % FrameCount;
+            float t = (float)((time * Fps * 0.5) - frameIndex) % 1;
+
+            // Get current and next frame
+            var frame1 = Frames[frameIndex];
+            var frame2 = Frames[(frameIndex + 1) % FrameCount];
+
+            // Create output frame
+            var frame = new Frame();
+
+            var length = FrameCount / Fps;
+
+            // Interpolate bone positions and angles
+            foreach (var bonePair in frame1.Bones)
+            {
+                var position = (t * frame2.Bones[bonePair.Key].Position) + ((1 - t) * frame1.Bones[bonePair.Key].Position);
+                var angle = (t * frame2.Bones[bonePair.Key].Angle) + ((1 - t) * frame1.Bones[bonePair.Key].Angle);
+                angle.Normalize();
+                frame.Bones[bonePair.Key] = new FrameBone(position, angle);
+            }
+
+            return frame;
         }
 
         // Construct an animation class from the animation description
@@ -118,11 +197,26 @@ namespace GUI.Types.Renderer.Animation
                 }
 
                 // Skip data??
-                if (decoder.Equals("CCompressedAnimQuaternion") || decoder.Equals("CCompressedFullVector3"))
+                var size = numBlocks;
+                var blocks = numElements;
+
+                switch (decoder)
                 {
-                    //containerReader.ReadBytes(frame * numBlocks * numElements);
+                    case "CCompressedDeltaVector3":
+                    case "CCompressedStaticFullVector3":
+                    case "CCompressedStaticVector3":
+                    case "CCompressedAnimVector3":
+                        blocks = 0;
+                        break;
+                    case "CCompressedAnimQuaternion":
+                        size = 6;
+                        break;
+                    case "CCompressedFullVector3":
+                        size = 12;
+                        break;
                 }
 
+                containerReader.BaseStream.Position += frame * size * blocks;
                 for (int element = 0; element < numElements; element++)
                 {
                     //Get the bone we are reading for
@@ -181,7 +275,7 @@ namespace GUI.Types.Renderer.Animation
         }
 
         //Read and decode encoded quaternion
-        private OpenTK.Vector4 ReadQuaternion(BinaryReader reader)
+        private OpenTK.Quaternion ReadQuaternion(BinaryReader reader)
         {
             byte[] bytes = reader.ReadBytes(6);
 
@@ -212,11 +306,11 @@ namespace GUI.Types.Renderer.Animation
             // Apply sign 1 and 2
             if (s1 == 128)
             {
-                return s2 == 128 ? new OpenTK.Vector4(y, z, w, x) : new OpenTK.Vector4(z, w, x, y);
+                return s2 == 128 ? new OpenTK.Quaternion(y, z, w, x) : new OpenTK.Quaternion(z, w, x, y);
             }
             else
             {
-                return s2 == 128 ? new OpenTK.Vector4(w, x, y, z) : new OpenTK.Vector4(x, y, z, w);
+                return s2 == 128 ? new OpenTK.Quaternion(w, x, y, z) : new OpenTK.Quaternion(x, y, z, w);
             }
         }
 
@@ -231,6 +325,38 @@ namespace GUI.Types.Renderer.Animation
             }
 
             return array;
+        }
+
+        // Flatten an array of matrices to an array of floats
+        private float[] Flatten(Matrix4[] matrices)
+        {
+            float[] returnArray = new float[matrices.Length * 16];
+
+            for (int i = 0; i < matrices.Length; i++)
+            {
+                Matrix4 mat = matrices[i];
+                returnArray[i * 16] = mat.M11;
+                returnArray[(i * 16) + 1] = mat.M12;
+                returnArray[(i * 16) + 2] = mat.M13;
+                returnArray[(i * 16) + 3] = mat.M14;
+
+                returnArray[(i * 16) + 4] = mat.M21;
+                returnArray[(i * 16) + 5] = mat.M22;
+                returnArray[(i * 16) + 6] = mat.M23;
+                returnArray[(i * 16) + 7] = mat.M24;
+
+                returnArray[(i * 16) + 8] = mat.M31;
+                returnArray[(i * 16) + 9] = mat.M32;
+                returnArray[(i * 16) + 10] = mat.M33;
+                returnArray[(i * 16) + 11] = mat.M34;
+
+                returnArray[(i * 16) + 12] = mat.M41;
+                returnArray[(i * 16) + 13] = mat.M42;
+                returnArray[(i * 16) + 14] = mat.M43;
+                returnArray[(i * 16) + 15] = mat.M44;
+            }
+
+            return returnArray;
         }
     }
 
@@ -253,7 +379,7 @@ namespace GUI.Types.Renderer.Animation
                     break;
                 case "Angle":
                     InsertIfUnknown(bone);
-                    Bones[bone].Angle = (OpenTK.Vector4)data;
+                    Bones[bone].Angle = (OpenTK.Quaternion)data;
                     break;
                 case "data":
                     //ignore
@@ -270,7 +396,7 @@ namespace GUI.Types.Renderer.Animation
         {
             if (!Bones.ContainsKey(name))
             {
-                Bones[name] = new FrameBone(OpenTK.Vector3.Zero, OpenTK.Vector4.UnitW);
+                Bones[name] = new FrameBone(OpenTK.Vector3.Zero, OpenTK.Quaternion.Identity);
             }
         }
     }
@@ -278,9 +404,9 @@ namespace GUI.Types.Renderer.Animation
     internal class FrameBone
     {
         public OpenTK.Vector3 Position { get; set; }
-        public OpenTK.Vector4 Angle { get; set; }
+        public OpenTK.Quaternion Angle { get; set; }
 
-        public FrameBone(OpenTK.Vector3 pos, OpenTK.Vector4 a)
+        public FrameBone(OpenTK.Vector3 pos, OpenTK.Quaternion a)
         {
             Position = pos;
             Angle = a;

@@ -12,7 +12,7 @@ in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 in vec4 vTANGENT;
-in ivec4 vBLENDINDICES;
+in vec4 vBLENDINDICES;
 in vec4 vBLENDWEIGHT;
 
 out vec3 vFragPosition;
@@ -20,16 +20,30 @@ out vec3 vFragPosition;
 out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
+out vec3 test;
 
 out vec2 vTexCoordOut;
 
 uniform mat4 projection;
 uniform mat4 modelview;
 uniform mat4 transform;
+uniform mat4[55] animationMatrices;
+
+mat4 getSkinMatrix() {
+    mat4 matrix;
+    matrix += vBLENDWEIGHT.x * animationMatrices[int(vBLENDINDICES.x)];
+    matrix += vBLENDWEIGHT.y * animationMatrices[int(vBLENDINDICES.y)];
+    matrix += vBLENDWEIGHT.z * animationMatrices[int(vBLENDINDICES.z)];
+    return matrix;
+}
 
 void main()
 {
-	gl_Position = projection * modelview * transform * vec4(vPOSITION, 1.0);
+    mat4 skinMatrix = getSkinMatrix();
+
+    test = vBLENDINDICES.xyz;
+
+	gl_Position = projection * modelview * transform * skinMatrix * vec4(vPOSITION, 1.0);
 	vFragPosition = vPOSITION;
 
 	//Unpack normals

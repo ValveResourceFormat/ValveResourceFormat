@@ -13,6 +13,7 @@ using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Timer = System.Timers.Timer;
+using GUI.Types.Renderer.Animation;
 
 namespace GUI.Types.Renderer
 {
@@ -26,6 +27,7 @@ namespace GUI.Types.Renderer
 
         private readonly List<MeshObject> MeshesToRender;
         private readonly List<Animation.Animation> Animations;
+        private Skeleton Skeleton;
 
         private bool Loaded;
 
@@ -64,6 +66,11 @@ namespace GUI.Types.Renderer
         public void AddAnimations(List<Animation.Animation> animations)
         {
             Animations.AddRange(animations);
+        }
+
+        public void SetSkeleton(Skeleton skeleton)
+        {
+            Skeleton = skeleton;
         }
 
         public Control CreateGL()
@@ -406,6 +413,22 @@ namespace GUI.Types.Renderer
             var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
             lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
 
+            // Get animation matrices
+            var animationMatrices = new float[Skeleton.Bones.Length * 16];
+            for (int i = 0; i < Skeleton.Bones.Length; i++)
+            {
+                // Default to identity matrices
+                animationMatrices[i * 16] = 1.0f;
+                animationMatrices[(i * 16) + 5] = 1.0f;
+                animationMatrices[(i * 16) + 10] = 1.0f;
+                animationMatrices[(i * 16) + 15] = 1.0f;
+            }
+
+            if (Animations.Count > 0)
+            {
+                animationMatrices = Animations[0].GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
+            }
+
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             var prevShader = -1;
@@ -439,6 +462,12 @@ namespace GUI.Types.Renderer
 
                         uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
                         GL.Uniform3(uniformLocation, ActiveCamera.Location);
+
+                        uniformLocation = GL.GetUniformLocation(call.Shader.Program, "animationMatrices");
+                        if (uniformLocation != -1)
+                        {
+                            GL.UniformMatrix4(uniformLocation, Skeleton.Bones.Length, false, animationMatrices);
+                        }
                     }
 
                     // Stupidly hacky
@@ -617,7 +646,7 @@ namespace GUI.Types.Renderer
                     break;
 
                 case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.UnsignedInt, stride, (IntPtr)attribute.Offset);
+                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)attribute.Offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SINT:

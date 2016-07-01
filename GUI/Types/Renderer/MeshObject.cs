@@ -13,6 +13,5 @@ namespace GUI.Types.Renderer
         public Vector4 TintColor { get; set; } = Vector4.One;
         public List<DrawCall> DrawCalls { get; set; } = new List<DrawCall>();
         public List<string> SkinMaterials { get; set; } = new List<string>();
-        public Skeleton Skeleton { get; set; }
     }
 }

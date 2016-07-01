@@ -322,10 +322,16 @@ namespace GUI
                         // Create model
                         var model = new Model(resource);
 
+                        // Create skeleton
+                        var skeleton = new Skeleton(resource);
+
                         // Create tab
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage);
                         model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
+
+                        // Add skeleton to renderer
+                        modelmv.SetSkeleton(skeleton);
 
                         // Add animations if available
                         var animGroupPaths = model.GetAnimationGroups();
@@ -351,7 +357,7 @@ namespace GUI
 
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
-                        mv.AddMeshObject(new MeshObject { Resource = resource, Skeleton = new Skeleton(resource) });
+                        mv.AddMeshObject(new MeshObject { Resource = resource });
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);

@@ -33,7 +33,9 @@ namespace GUI.Types.Renderer.Animation
                 // Load animation files
                 var refAnim = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)animArray[i]).Value;
                 var animResource = FileExtensions.LoadFileByAnyMeansNecessary(refAnim.Name + "_c", path, null);
+#if DEBUG
                 Console.WriteLine("Animation found: " + refAnim.Name);
+#endif
 
                 // Build animation classes
                 AnimationList.Add(new Animation(animResource, decodeKey));
