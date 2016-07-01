@@ -463,6 +463,9 @@ namespace GUI.Types.Renderer
                         uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
                         GL.Uniform3(uniformLocation, ActiveCamera.Location);
 
+                        uniformLocation = call.Shader.GetUniformLocation("bAnimated");
+                        GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
+
                         uniformLocation = GL.GetUniformLocation(call.Shader.Program, "animationMatrices");
                         if (uniformLocation != -1)
                         {

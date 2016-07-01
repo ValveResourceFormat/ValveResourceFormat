@@ -27,6 +27,8 @@ out vec2 vTexCoordOut;
 uniform mat4 projection;
 uniform mat4 modelview;
 uniform mat4 transform;
+
+uniform float bAnimated = 0;
 uniform mat4[55] animationMatrices;
 
 mat4 getSkinMatrix() {
@@ -34,7 +36,7 @@ mat4 getSkinMatrix() {
     matrix += vBLENDWEIGHT.x * animationMatrices[int(vBLENDINDICES.x)];
     matrix += vBLENDWEIGHT.y * animationMatrices[int(vBLENDINDICES.y)];
     matrix += vBLENDWEIGHT.z * animationMatrices[int(vBLENDINDICES.z)];
-    return matrix;
+    return bAnimated * matrix + (1 - bAnimated) * mat4(1.0);
 }
 
 void main()
