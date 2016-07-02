@@ -52,6 +52,26 @@ namespace GUI.Types.Renderer.Animation
             ConstructFromNTRO(((NTROValue<NTROStruct>)modelData.Output["m_modelSkeleton"]).Value, invMapTable);
         }
 
+        public void DebugDraw(DebugUtil debug)
+        {
+            foreach (var root in Roots)
+            {
+                DebugDrawRecursive(debug, root, Matrix4.Identity);
+            }
+        }
+
+        private void DebugDrawRecursive(DebugUtil debug, Bone bone, Matrix4 matrix)
+        {
+            var transform = bone.BindPose * matrix;
+
+            debug.AddCube(transform);
+
+            foreach (var child in bone.Children)
+            {
+                DebugDrawRecursive(debug, child, transform);
+            }
+        }
+
         // Construct the Armature object from mesh skeleton KV data.
         public void ConstructFromNTRO(NTROStruct skeletonData, Dictionary<int, int> remapTable)
         {

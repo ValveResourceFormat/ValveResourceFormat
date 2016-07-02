@@ -273,8 +273,10 @@ namespace GUI.Types.Renderer
                 obj.LoadFromResource(MaterialLoader);
             }
 
+#if DEBUG
             Debug.Setup();
             Skeleton.DebugDraw(Debug);
+#endif
 
             // TODO: poor hack
             FileExtensions.ClearCache();
@@ -466,7 +468,9 @@ namespace GUI.Types.Renderer
             }
             */
 
+#if DEBUG
             Debug.Draw(ActiveCamera, false);
+#endif
 
             meshControl.SwapBuffers();
             meshControl.Invalidate();
