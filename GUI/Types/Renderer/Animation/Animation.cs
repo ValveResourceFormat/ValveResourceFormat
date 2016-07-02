@@ -368,6 +368,11 @@ namespace GUI.Types.Renderer.Animation
 
             return returnArray;
         }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 
     internal class Frame

@@ -26,6 +26,7 @@ namespace GUI.Types.Renderer
         private readonly string CurrentFileName;
 
         private readonly List<MeshObject> MeshesToRender;
+
         private readonly List<Animation.Animation> Animations;
         private Skeleton Skeleton;
 
@@ -35,10 +36,12 @@ namespace GUI.Types.Renderer
         private Label cameraLabel;
         private Label fpsLabel;
 
+        private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
         private List<Tuple<string, Matrix4>> cameras;
 
         private Camera ActiveCamera;
+        private Animation.Animation ActiveAnimation;
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
@@ -92,12 +95,24 @@ namespace GUI.Types.Renderer
             fpsLabel.Dock = DockStyle.Top;
             panel.Controls.Add(fpsLabel);
 
+            var controlsPanel = new Panel();
+            controlsPanel.Dock = DockStyle.Left;
+
+            animationBox = new CheckedListBox();
+            animationBox.Width *= 2;
+            animationBox.Dock = DockStyle.Fill;
+            animationBox.ItemCheck += AnimationBox_ItemCheck;
+            animationBox.CheckOnClick = true;
+            controlsPanel.Controls.Add(animationBox);
+
             cameraBox = new CheckedListBox();
             cameraBox.Width *= 2;
-            cameraBox.Dock = DockStyle.Left;
+            cameraBox.Dock = DockStyle.Top;
             cameraBox.ItemCheck += CameraBox_ItemCheck;
             cameraBox.CheckOnClick = true;
-            panel.Controls.Add(cameraBox);
+            controlsPanel.Controls.Add(cameraBox);
+
+            panel.Controls.Add(controlsPanel);
 
 #if DEBUG
             meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
@@ -132,6 +147,27 @@ namespace GUI.Types.Renderer
                     }
                 }
                 ActiveCamera = cameraBox.Items[e.Index] as Camera;
+            }
+            else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
+            {
+                e.NewValue = CheckState.Checked;
+            }
+        }
+        private void AnimationBox_ItemCheck(object sender, ItemCheckEventArgs e)
+        {
+            //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
+            if (e.NewValue == CheckState.Checked)
+            {
+                for (int ix = 0; ix < animationBox.Items.Count; ++ix)
+                {
+                    if (e.Index != ix)
+                    {
+                        animationBox.ItemCheck -= AnimationBox_ItemCheck;
+                        animationBox.SetItemChecked(ix, false);
+                        animationBox.ItemCheck += AnimationBox_ItemCheck;
+                    }
+                }
+                ActiveAnimation = animationBox.Items[e.Index] as Animation.Animation;
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
             {
@@ -229,6 +265,8 @@ namespace GUI.Types.Renderer
                 var camera = new Camera(tabs.Width, tabs.Height, cameraInfo.Item2, cameraInfo.Item1);
                 cameraBox.Items.Add(camera);
             }
+            ActiveAnimation = Animations.Count > 0 ? Animations[0] : null;
+            animationBox.Items.AddRange(Animations.ToArray());
 
             foreach (var obj in MeshesToRender)
             {
@@ -428,7 +466,7 @@ namespace GUI.Types.Renderer
 
             if (Animations.Count > 0)
             {
-                animationMatrices = Animations[0].GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
+                animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
             }
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
