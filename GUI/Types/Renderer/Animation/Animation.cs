@@ -106,8 +106,8 @@ namespace GUI.Types.Renderer.Animation
         private Frame GetTransformsAtTime(float time)
         {
             // Calculate the index of the current frame
-            int frameIndex = (int)(time * Fps * 0.5) % FrameCount;
-            float t = (float)((time * Fps * 0.5) - frameIndex) % 1;
+            int frameIndex = (int)(time * Fps) % FrameCount;
+            float t = (float)((time * Fps) - frameIndex) % 1;
 
             // Get current and next frame
             var frame1 = Frames[frameIndex];

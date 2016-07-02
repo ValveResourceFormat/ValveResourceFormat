@@ -15,24 +15,27 @@ namespace GUI.Types.Renderer
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
         private int ErrorTextureID;
+        public int MaxTextureMaxAnisotropy { get; set; }
 
         public MaterialLoader(string currentFileName, Package currentPackage)
         {
             CurrentPackage = currentPackage;
             CurrentFileName = currentFileName;
+
+            MaxTextureMaxAnisotropy = 0;
         }
 
-        public Material GetMaterial(string name, int maxTextureMaxAnisotropy)
+        public Material GetMaterial(string name)
         {
             if (!Materials.ContainsKey(name))
             {
-                return LoadMaterial(name, maxTextureMaxAnisotropy);
+                return LoadMaterial(name);
             }
 
             return Materials[name];
         }
 
-        private Material LoadMaterial(string name, int maxTextureMaxAnisotropy)
+        private Material LoadMaterial(string name)
         {
             //Console.WriteLine("\n>> Loading material " + name);
 
@@ -129,7 +132,7 @@ namespace GUI.Types.Renderer
 
                 //Console.WriteLine(">>> " + textureReference.Key + " - " + textureReference.Value.Name);
 
-                mat.Textures[key] = LoadTexture(textureReference.Value.Name, maxTextureMaxAnisotropy);
+                mat.Textures[key] = LoadTexture(textureReference.Value.Name);
             }
 
             if (mat.IntParams.ContainsKey("F_SOLID_COLOR") && mat.IntParams["F_SOLID_COLOR"] == 1)
@@ -164,7 +167,7 @@ namespace GUI.Types.Renderer
             return mat;
         }
 
-        private int LoadTexture(string name, int maxTextureMaxAnisotropy)
+        private int LoadTexture(string name)
         {
             var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
 
@@ -237,9 +240,9 @@ namespace GUI.Types.Renderer
             // TODO: This might conflict when opening multiple files due to shit caching
             textureResource.Dispose();
 
-            if (maxTextureMaxAnisotropy > 0)
+            if (MaxTextureMaxAnisotropy > 0)
             {
-                GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, maxTextureMaxAnisotropy);
+                GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
             }
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
