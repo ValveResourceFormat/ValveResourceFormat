@@ -116,6 +116,7 @@
     <Compile Include="Types\Renderer\Animation\AnimationGroupLoader.cs" />
     <Compile Include="Types\Renderer\Animation\Skeleton.cs" />
     <Compile Include="Types\Renderer\Animation\Bone.cs" />
+    <Compile Include="Types\Renderer\DebugUtil.cs" />
     <Compile Include="Types\Renderer\Shader.cs" />
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
     <Compile Include="Types\Renderer\MeshObject.cs" />

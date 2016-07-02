@@ -46,6 +46,8 @@ namespace GUI.Types.Renderer
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
 
+        private DebugUtil Debug;
+
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
             MeshesToRender = new List<MeshObject>();
@@ -55,6 +57,8 @@ namespace GUI.Types.Renderer
             CurrentPackage = currentPackage;
             CurrentFileName = fileName;
             tabs = mainTabs;
+
+            Debug = new DebugUtil();
 
             Skeleton = new Skeleton(); // Default empty skeleton
 
@@ -269,6 +273,8 @@ namespace GUI.Types.Renderer
                 obj.LoadFromResource(MaterialLoader);
             }
 
+            Debug.Setup();
+
             // TODO: poor hack
             FileExtensions.ClearCache();
 
@@ -458,6 +464,8 @@ namespace GUI.Types.Renderer
                 Console.WriteLine(error);
             }
             */
+
+            Debug.Draw(ActiveCamera);
 
             meshControl.SwapBuffers();
             meshControl.Invalidate();
