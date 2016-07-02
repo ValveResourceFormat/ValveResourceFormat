@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
-#if !DEBUG_SHADERS
+#if !DEBUG_SHADERS || !DEBUG
         private static Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
 #endif
 
@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
 
             Shader shader;
 
-#if !DEBUG_SHADERS
+#if !DEBUG_SHADERS || !DEBUG
             if (CachedShaders.TryGetValue(shaderCacheHash, out shader))
             {
                 return shader;
@@ -59,7 +59,7 @@ namespace GUI.Types.Renderer
 
             var assembly = Assembly.GetExecutingAssembly();
 
-#if DEBUG_SHADERS
+#if DEBUG_SHADERS && DEBUG
             using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.vert", FileMode.Open)) //<-- reloading at runtime
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
@@ -86,7 +86,7 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-#if DEBUG_SHADERS
+#if DEBUG_SHADERS && DEBUG
             using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.frag", FileMode.Open)) //<-- reloading at runtime
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
@@ -150,7 +150,7 @@ namespace GUI.Types.Renderer
                 shader.Uniforms.Add(name, slot);
             }
 
-#if !DEBUG_SHADERS
+#if !DEBUG_SHADERS || !DEBUG
             CachedShaders[shaderCacheHash] = shader;
 
             Console.WriteLine("Shader #{0} ({1}) compiled and linked succesfully", CachedShaders.Count, shaderName);
@@ -208,7 +208,7 @@ namespace GUI.Types.Renderer
             foreach (Match define in includes)
             {
                 //Read included code
-#if DEBUG_SHADERS
+#if DEBUG_SHADERS  && DEBUG
                 using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{define.Groups[1].Value}", FileMode.Open)) //<-- reloading at runtime
 #else
                 using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups[1].Value}"))
