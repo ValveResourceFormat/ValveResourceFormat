@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
     {
         private const string vShaderSource = @"
 #version 330
-attribute vec3 aVertexPos;
+in vec3 aVertexPos;
 
 uniform mat4 uProjection;
 uniform mat4 uView;
@@ -85,6 +85,10 @@ void main(void) {
 
         public void AddCube(Matrix4 transform)
         {
+            // Create VAO
+            var vao = GL.GenVertexArray();
+            GL.BindVertexArray(vao);
+
             // Create new buffer
             int buffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, buffer);
@@ -98,48 +102,65 @@ void main(void) {
             };
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(sizeof(float) * vertices.Length), vertices, BufferUsageHint.StaticDraw);
 
-            objects.Add(new DebugObject(buffer, vertices.Length/3, transform));
-        }
-
-        public void Draw(Camera camera)
-        {
-            // Bind debug shader
-            GL.UseProgram(shaderProgram);
             var posAttribute = GL.GetAttribLocation(shaderProgram, "aVertexPos");
             GL.EnableVertexAttribArray(posAttribute);
+            GL.VertexAttribPointer(posAttribute, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, 0);
 
-            // Bind camera matrix uniforms
+            GL.BindVertexArray(0);
+
+            objects.Add(new DebugObject(vao, vertices.Length / 3, transform));
+        }
+
+        public void Draw(Camera camera, bool ztest)
+        {
+            //Disable culling
+            GL.Disable(EnableCap.CullFace);
+            // Disable z-testing if specified
+            if (!ztest)
+            {
+                GL.Disable(EnableCap.DepthTest);
+            }
+
+            // Bind debug shader
+            GL.UseProgram(shaderProgram);
+
             var uniformLocation = GL.GetUniformLocation(shaderProgram, "uProjection");
             GL.UniformMatrix4(uniformLocation, false, ref camera.ProjectionMatrix);
             uniformLocation = GL.GetUniformLocation(shaderProgram, "uView");
             GL.UniformMatrix4(uniformLocation, false, ref camera.CameraViewMatrix);
 
-            foreach (var obj in objects) {
-                GL.EnableVertexAttribArray(0);
-
+            foreach (var obj in objects)
+            {
                 uniformLocation = GL.GetUniformLocation(shaderProgram, "uTransform");
                 var transform = obj.Transform;
                 GL.UniformMatrix4(uniformLocation, false, ref transform);
 
-                GL.BindBuffer(BufferTarget.ArrayBuffer, obj.Buffer);
-                GL.VertexAttribPointer(posAttribute, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, 0);
-
+                // Bind VAO to draw
+                GL.BindVertexArray(obj.VAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, obj.Size);
+                GL.BindVertexArray(0);
             }
 
-            // Unbind debug shader
             GL.UseProgram(0);
+
+            // Re-enable depth testing
+            if (!ztest)
+            {
+                GL.Enable(EnableCap.DepthTest);
+            }
+            // Re-enable culling
+            GL.Enable(EnableCap.CullFace);
         }
 
         private struct DebugObject
         {
-            public int Buffer;
+            public int VAO;
             public int Size;
             public Matrix4 Transform;
 
-            public DebugObject(int buffer, int size, Matrix4 transform)
+            public DebugObject(int vao, int size, Matrix4 transform)
             {
-                Buffer = buffer;
+                VAO = vao;
                 Size = size;
                 Transform = transform;
             }

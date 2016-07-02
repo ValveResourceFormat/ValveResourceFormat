@@ -274,6 +274,7 @@ namespace GUI.Types.Renderer
             }
 
             Debug.Setup();
+            Skeleton.DebugDraw(Debug);
 
             // TODO: poor hack
             FileExtensions.ClearCache();
@@ -465,7 +466,7 @@ namespace GUI.Types.Renderer
             }
             */
 
-            Debug.Draw(ActiveCamera);
+            Debug.Draw(ActiveCamera, false);
 
             meshControl.SwapBuffers();
             meshControl.Invalidate();
