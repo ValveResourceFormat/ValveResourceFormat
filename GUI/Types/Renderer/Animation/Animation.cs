@@ -75,7 +75,7 @@ namespace GUI.Types.Renderer.Animation
         private void GetAnimationMatrixRecursive(Bone bone, Matrix4 parentBindPose, Matrix4 parentInvBindPose, Frame transforms, ref Matrix4[] matrices)
         {
             // Calculate world space bind and inverse bind pose
-            var bindPose = bone.BindPose * parentBindPose;
+            var bindPose = parentBindPose;
             var invBindPose = parentInvBindPose * bone.InverseBindPose;
 
             // Calculate transformation matrix
@@ -83,7 +83,7 @@ namespace GUI.Types.Renderer.Animation
             if (transforms.Bones.ContainsKey(bone.Name))
             {
                 var transform = transforms.Bones[bone.Name];
-                transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle * bone.Angle.Inverted()) * Matrix4.CreateTranslation(transform.Position - bone.Position);
+                transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle) * Matrix4.CreateTranslation(transform.Position);
             }
 
             // Apply tranformation
@@ -230,10 +230,6 @@ namespace GUI.Types.Renderer.Animation
 
                 var toRead = frame * size * blocks;
                 byte[] skipRead = containerReader.ReadBytes(toRead);
-                if (skipRead.Length != toRead)
-                {
-                    return;
-                }
                 for (int element = 0; element < numElements; element++)
                 {
                     //Get the bone we are reading for

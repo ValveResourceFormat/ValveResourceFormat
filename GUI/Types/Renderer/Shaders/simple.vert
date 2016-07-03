@@ -29,7 +29,7 @@ uniform mat4 modelview;
 uniform mat4 transform;
 
 uniform float bAnimated = 0;
-uniform mat4[80] animationMatrices;
+uniform mat4[100] animationMatrices;
 
 mat4 getSkinMatrix() {
     mat4 matrix;
