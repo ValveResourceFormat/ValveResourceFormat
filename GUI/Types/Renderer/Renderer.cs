@@ -275,7 +275,7 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
             Debug.Setup();
-            Skeleton.DebugDraw(Debug);
+            //Skeleton.DebugDraw(Debug);
 #endif
 
             // TODO: poor hack

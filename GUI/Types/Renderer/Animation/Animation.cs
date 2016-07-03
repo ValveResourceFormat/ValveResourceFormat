@@ -207,7 +207,7 @@ namespace GUI.Types.Renderer.Animation
                 }
 
                 // Skip data??
-                var size = numBlocks;
+                var size = 0;
                 var blocks = numElements;
 
                 switch (decoder)
@@ -215,8 +215,10 @@ namespace GUI.Types.Renderer.Animation
                     case "CCompressedDeltaVector3":
                     case "CCompressedStaticFullVector3":
                     case "CCompressedStaticVector3":
+                        size = 0;
+                        break;
                     case "CCompressedAnimVector3":
-                        blocks = 0;
+                        size = 6;
                         break;
                     case "CCompressedAnimQuaternion":
                         size = 6;
@@ -226,7 +228,12 @@ namespace GUI.Types.Renderer.Animation
                         break;
                 }
 
-                containerReader.BaseStream.Position += frame * size * blocks;
+                var toRead = frame * size * blocks;
+                byte[] skipRead = containerReader.ReadBytes(toRead);
+                if (skipRead.Length != toRead)
+                {
+                    return;
+                }
                 for (int element = 0; element < numElements; element++)
                 {
                     //Get the bone we are reading for
@@ -236,7 +243,7 @@ namespace GUI.Types.Renderer.Animation
                     switch (decoder)
                     {
                         case "CCompressedStaticFloat":
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, containerReader.ReadSingle());
+                            //outFrame.SetAttribute(boneNames[bone], channelAttribute, containerReader.ReadSingle());
                             break;
                         case "CCompressedStaticFullVector3":
                         case "CCompressedFullVector3":
