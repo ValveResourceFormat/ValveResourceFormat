@@ -32,7 +32,7 @@ namespace ValveResourceFormat
             using (var reader = new BinaryReader(input))
             {
                 // Magic is at the end
-                reader.BaseStream.Seek(-6, SeekOrigin.End);
+                reader.BaseStream.Seek(-MAGIC.Length, SeekOrigin.End);
 
                 if (Encoding.ASCII.GetString(reader.ReadBytes(MAGIC.Length)) != MAGIC)
                 {
