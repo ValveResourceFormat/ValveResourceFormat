@@ -1,22 +1,25 @@
 ﻿using System.Collections.Generic;
+using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
     internal class Shader
     {
         public int Program { get; set; }
-        public Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
+        private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
 
         public int GetUniformLocation(string name)
         {
             int value;
 
-            if (Uniforms.TryGetValue(name, out value))
+            if (!Uniforms.TryGetValue(name, out value))
             {
-                return value;
+                value = GL.GetUniformLocation(Program, name);
+
+                Uniforms[name] = value;
             }
 
-            return -1;
+            return value;
         }
     }
 }

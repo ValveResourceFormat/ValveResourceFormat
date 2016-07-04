@@ -2,18 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Types.Renderer.Animation;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Timer = System.Timers.Timer;
-using GUI.Types.Renderer.Animation;
 
 namespace GUI.Types.Renderer
 {
@@ -366,7 +364,7 @@ namespace GUI.Types.Renderer
                             GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
                         }
 
-                        uniformLocation = GL.GetUniformLocation(call.Shader.Program, "animationMatrices");
+                        uniformLocation = call.Shader.GetUniformLocation("animationMatrices");
                         if (uniformLocation != -1)
                         {
                             GL.UniformMatrix4(uniformLocation, Skeleton.Bones.Length, false, animationMatrices);

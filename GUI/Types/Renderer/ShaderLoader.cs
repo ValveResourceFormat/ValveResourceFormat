@@ -136,20 +136,6 @@ namespace GUI.Types.Renderer
             GL.DetachShader(shader.Program, fragmentShader);
             GL.DeleteShader(fragmentShader);
 
-            int uniformCount;
-            GL.GetProgram(shader.Program, GetProgramParameterName.ActiveUniforms, out uniformCount);
-
-            for (var i = 0; i < uniformCount; ++i)
-            {
-                int size;
-                ActiveUniformType type;
-
-                var name = GL.GetActiveUniform(shader.Program, i, out size, out type);
-                var slot = GL.GetUniformLocation(shader.Program, name);
-
-                shader.Uniforms.Add(name, slot);
-            }
-
 #if !DEBUG_SHADERS || !DEBUG
             CachedShaders[shaderCacheHash] = shader;
 
