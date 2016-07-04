@@ -403,7 +403,16 @@ namespace GUI.Types.Renderer
                         var textureUnit = 0;
                         foreach (var texture in call.Material.Textures)
                         {
-                            TryToBindTexture(call.Shader.Program, textureUnit++, texture.Key, texture.Value);
+                            uniformLocation = call.Shader.GetUniformLocation(texture.Key);
+
+                            if (uniformLocation > -1)
+                            {
+                                GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
+                                GL.BindTexture(TextureTarget.Texture2D, texture.Value);
+                                GL.Uniform1(uniformLocation, textureUnit);
+
+                                textureUnit++;
+                            }
                         }
 
                         foreach (var param in call.Material.FloatParams)
@@ -454,7 +463,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            //sw.Stop(); Console.WriteLine("{0} {1} {2}", sw.Elapsed, sw.ElapsedTicks);
+            //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
@@ -472,25 +481,6 @@ namespace GUI.Types.Renderer
 
             meshControl.SwapBuffers();
             meshControl.Invalidate();
-        }
-
-        private void TryToBindTexture(int shader, int textureUnit, string uniform, int textureID)
-        {
-            //Get uniform location from the shader
-            var uniformLocation = GL.GetUniformLocation(shader, uniform);
-
-            //Stop if the uniform loction does not exist
-            if (uniformLocation == -1)
-            {
-                return;
-            }
-
-            //Bind texture unit and texture
-            GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-            GL.BindTexture(TextureTarget.Texture2D, textureID);
-
-            //Set uniform location
-            GL.Uniform1(uniformLocation, textureUnit);
         }
 
         // TODO: we're taking boundaries of first scene
