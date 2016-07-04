@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using OpenTK;
-using ValveResourceFormat;
-using GUI.Types.Renderer.Animation;
-using ValveResourceFormat.KeyValues;
 using System.Linq;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.KeyValues;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
@@ -64,7 +63,7 @@ namespace GUI.Types.Renderer
                     {
                         var d = (KVObject)c.Properties[i.ToString()].Value;
 
-                        string materialName = d.Properties["m_material"].Value.ToString();
+                        var materialName = d.Properties["m_material"].Value.ToString();
 
                         if (SkinMaterials.Any())
                         {
@@ -127,8 +126,7 @@ namespace GUI.Types.Renderer
                 drawCall.TintColor = new Vector3(
                     Convert.ToSingle(tint.Properties["0"].Value),
                     Convert.ToSingle(tint.Properties["1"].Value),
-                    Convert.ToSingle(tint.Properties["2"].Value)
-                );
+                    Convert.ToSingle(tint.Properties["2"].Value));
             }
 
             if (bufferSize == 2)

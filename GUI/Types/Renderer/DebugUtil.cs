@@ -1,14 +1,11 @@
-﻿using OpenTK;
-using OpenTK.Graphics.OpenGL;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using OpenTK;
+using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class DebugUtil
+    internal class DebugUtil
     {
         private const string vShaderSource = @"
 #version 330
@@ -30,7 +27,7 @@ precision mediump float;
 void main(void) {
     gl_FragColor = vec4(1,0,0,1);
 }";
-        private List<DebugObject> objects;
+        private readonly List<DebugObject> objects;
         private int shaderProgram;
 
         public DebugUtil()
@@ -74,8 +71,6 @@ void main(void) {
 
             int linkStatus;
             GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
-
-            return;
         }
 
         public void AddCube(Vector3 position, float scale)
@@ -90,9 +85,10 @@ void main(void) {
             GL.BindVertexArray(vao);
 
             // Create new buffer
-            int buffer = GL.GenBuffer();
+            var buffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, buffer);
-            float[] vertices = {
+            float[] vertices =
+            {
                 -1f, -1f, -1f, 1f, -1f, -1f, -1f, -1f, 1f, -1f, -1f, 1f, 1f, -1f, -1f, 1f, -1f, 1f, //Front face
                 1f, 1f, -1f, -1f, 1f, -1f, -1f, 1f, 1f, 1f, 1f, -1f, -1f, 1f, 1f, 1f, 1f, 1f, //Back face
                 1f, -1f, -1f, 1f, 1f, -1f, 1f, -1f, 1f, 1f, -1f, 1f, 1f, 1f, -1f, 1f, 1f, 1f, //Right face
@@ -148,15 +144,16 @@ void main(void) {
             {
                 GL.Enable(EnableCap.DepthTest);
             }
+
             // Re-enable culling
             GL.Enable(EnableCap.CullFace);
         }
 
         private struct DebugObject
         {
-            public int VAO;
-            public int Size;
-            public Matrix4 Transform;
+            public readonly int VAO;
+            public readonly int Size;
+            public readonly Matrix4 Transform;
 
             public DebugObject(int vao, int size, Matrix4 transform)
             {

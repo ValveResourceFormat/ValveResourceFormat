@@ -7,6 +7,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types
 {
@@ -19,7 +20,7 @@ namespace GUI.Types
             Resource = resource;
         }
 
-        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, OpenTK.Vector4 tintColor, Package currentPackage = null, string skin = null)
+        public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, Vector4 tintColor, Package currentPackage = null, string skin = null)
         {
             var data = (NTRO)Resource.Blocks[BlockType.DATA];
 
@@ -89,7 +90,7 @@ namespace GUI.Types
             var refs = refAnimGroups.ToArray<ResourceExtRefList.ResourceReferenceInfo>();
             var paths = new string[refs.Length];
 
-            for (int i = 0; i < refs.Length; i++)
+            for (var i = 0; i < refs.Length; i++)
             {
                 paths[i] = refs[i].Name;
             }

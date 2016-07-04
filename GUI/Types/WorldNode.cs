@@ -103,7 +103,7 @@ namespace GUI.Types
                     {
                         Resource = newResource,
                         Transform = matrix,
-                        TintColor = tintColor,
+                        TintColor = tintColor
                     });
                 }
             }

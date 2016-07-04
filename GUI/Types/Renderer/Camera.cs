@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
 
         private KeyboardState KeyboardState;
 
-        private string Name;
+        private readonly string Name;
 
         public Camera(int viewportWidth, int viewportHeight, Vector3 minBounds, Vector3 maxBounds, string name = "Default")
         {
@@ -73,8 +73,8 @@ namespace GUI.Types.Renderer
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
         }
 
-        double accumulator = 0;
-        int idleCounter = 0;
+        private double accumulator;
+        private int idleCounter;
 
         public void Tick(ref string fpsString)
         {

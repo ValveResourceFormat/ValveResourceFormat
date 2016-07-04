@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ValveResourceFormat
+﻿namespace ValveResourceFormat
 {
     public enum VTexFormat
     {
@@ -20,7 +18,7 @@ namespace ValveResourceFormat
         RG3232F = 12, // TODO: Not used in dota
         RGB323232F = 13, // TODO: Not used in dota
         RGBA32323232F = 14, // TODO: Not used in dota
-        PNG = 16, // TODO: resourceinfo doesn't know about this
+        PNG = 16 // TODO: resourceinfo doesn't know about this
 #pragma warning restore 1591
     }
 }

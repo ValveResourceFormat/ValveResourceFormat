@@ -1,15 +1,11 @@
-﻿using OpenTK;
-using OpenTK.Graphics.OpenGL;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using OpenTK;
 using ValveResourceFormat;
-using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using Vector3 = ValveResourceFormat.ResourceTypes.NTROSerialization.Vector3;
+using Vector4 = ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4;
 
 namespace GUI.Types.Renderer.Animation
 {
@@ -40,7 +36,7 @@ namespace GUI.Types.Renderer.Animation
             // Get the remap table and invert it for our construction method
             var remapTable = ((NTROArray)modelData.Output["m_remappingTable"]).ToArray<short>();
             var invMapTable = new Dictionary<int, int>();
-            for (int i = 0; i < remapTable.Length; i++)
+            for (var i = 0; i < remapTable.Length; i++)
             {
                 if (!invMapTable.ContainsKey(remapTable[i]))
                 {
@@ -77,19 +73,19 @@ namespace GUI.Types.Renderer.Animation
         {
             var boneNames = skeletonData.Get<NTROArray>("m_boneName").ToArray<string>();
             var boneParents = skeletonData.Get<NTROArray>("m_nParent").ToArray<short>();
-            var bonePositions = skeletonData.Get<NTROArray>("m_bonePosParent").ToArray<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector3>();
-            var boneRotations = skeletonData.Get<NTROArray>("m_boneRotParent").ToArray<ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4>();
+            var bonePositions = skeletonData.Get<NTROArray>("m_bonePosParent").ToArray<Vector3>();
+            var boneRotations = skeletonData.Get<NTROArray>("m_boneRotParent").ToArray<Vector4>();
 
             // Initialise bone array
             Bones = new Bone[boneNames.Length];
 
             //Add all bones to the list
-            for (int i = 0; i < boneNames.Length; i++)
+            for (var i = 0; i < boneNames.Length; i++)
             {
                 var name = boneNames[i];
 
                 var position = new OpenTK.Vector3(bonePositions[i].X, bonePositions[i].Y, bonePositions[i].Z);
-                var rotation = new OpenTK.Quaternion(boneRotations[i].X, boneRotations[i].Y, boneRotations[i].Z, boneRotations[i].W);
+                var rotation = new Quaternion(boneRotations[i].X, boneRotations[i].Y, boneRotations[i].Z, boneRotations[i].W);
 
                 // Create bone
                 var index = remapTable.ContainsKey(i) ? remapTable[i] : -1;

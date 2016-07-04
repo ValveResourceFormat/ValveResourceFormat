@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
 
         private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
-        private List<Tuple<string, Matrix4>> cameras;
+        private readonly List<Tuple<string, Matrix4>> cameras;
 
         private Camera ActiveCamera;
         private Animation.Animation ActiveAnimation;
@@ -44,7 +44,7 @@ namespace GUI.Types.Renderer
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
 
-        private DebugUtil Debug;
+        private readonly DebugUtil Debug;
 
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
@@ -137,7 +137,7 @@ namespace GUI.Types.Renderer
             //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
             if (e.NewValue == CheckState.Checked)
             {
-                for (int ix = 0; ix < cameraBox.Items.Count; ++ix)
+                for (var ix = 0; ix < cameraBox.Items.Count; ++ix)
                 {
                     if (e.Index != ix)
                     {
@@ -146,6 +146,7 @@ namespace GUI.Types.Renderer
                         cameraBox.ItemCheck += CameraBox_ItemCheck;
                     }
                 }
+
                 ActiveCamera = cameraBox.Items[e.Index] as Camera;
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
@@ -153,12 +154,13 @@ namespace GUI.Types.Renderer
                 e.NewValue = CheckState.Checked;
             }
         }
+
         private void AnimationBox_ItemCheck(object sender, ItemCheckEventArgs e)
         {
             //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
             if (e.NewValue == CheckState.Checked)
             {
-                for (int ix = 0; ix < animationBox.Items.Count; ++ix)
+                for (var ix = 0; ix < animationBox.Items.Count; ++ix)
                 {
                     if (e.Index != ix)
                     {
@@ -167,6 +169,7 @@ namespace GUI.Types.Renderer
                         animationBox.ItemCheck += AnimationBox_ItemCheck;
                     }
                 }
+
                 ActiveAnimation = animationBox.Items[e.Index] as Animation.Animation;
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
@@ -218,7 +221,7 @@ namespace GUI.Types.Renderer
             ActiveCamera.HandleInput(Mouse.GetState(), Keyboard.GetState());
         }
 
-        public void CheckOpenGL()
+        private void CheckOpenGL()
         {
             var extensions = new Dictionary<string, bool>();
             var count = GL.GetInteger(GetPName.NumExtensions);
@@ -231,7 +234,9 @@ namespace GUI.Types.Renderer
             if (extensions.ContainsKey("GL_EXT_texture_filter_anisotropic"))
             {
                 MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
-            } else {
+            }
+            else
+            {
                 Console.Error.WriteLine("GL_EXT_texture_filter_anisotropic is not supported");
             }
         }
@@ -258,11 +263,13 @@ namespace GUI.Types.Renderer
 
             ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
             cameraBox.Items.Add(ActiveCamera, true);
+
             foreach (var cameraInfo in cameras)
             {
                 var camera = new Camera(tabs.Width, tabs.Height, cameraInfo.Item2, cameraInfo.Item1);
                 cameraBox.Items.Add(camera);
             }
+
             ActiveAnimation = Animations.Count > 0 ? Animations[0] : null;
             animationBox.Items.AddRange(Animations.ToArray());
 
@@ -310,7 +317,7 @@ namespace GUI.Types.Renderer
 
             // Get animation matrices
             var animationMatrices = new float[Skeleton.Bones.Length * 16];
-            for (int i = 0; i < Skeleton.Bones.Length; i++)
+            for (var i = 0; i < Skeleton.Bones.Length; i++)
             {
                 // Default to identity matrices
                 animationMatrices[i * 16] = 1.0f;

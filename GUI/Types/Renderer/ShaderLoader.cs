@@ -14,7 +14,7 @@ namespace GUI.Types.Renderer
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
 #if !DEBUG_SHADERS || !DEBUG
-        private static Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
+        private static readonly Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
 #endif
 
         //Map shader names to shader files
@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
         public static Shader LoadShader(string shaderName, ArgumentDependencies modelArguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-            var shaderCacheHash = (shaderFileName + modelArguments.ToString()).GetHashCode(); // shader collision roulette
+            var shaderCacheHash = (shaderFileName + modelArguments).GetHashCode(); // shader collision roulette
 
             Shader shader;
 

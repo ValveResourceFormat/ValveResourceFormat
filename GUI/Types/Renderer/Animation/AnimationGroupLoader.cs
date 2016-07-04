@@ -1,7 +1,6 @@
-﻿using GUI.Utils;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.IO;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -44,7 +43,7 @@ namespace GUI.Types.Renderer.Animation
 
         private void HandleDecodeKey(NTROStruct decodeKey)
         {
-
+            // TODO?
         }
     }
 }

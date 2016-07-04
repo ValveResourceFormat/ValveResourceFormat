@@ -17,6 +17,7 @@ namespace GUI.Controls
             {
                 return -1;
             }
+
             if (!folderx && foldery)
             {
                 return 1;
