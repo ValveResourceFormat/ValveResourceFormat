@@ -1,4 +1,4 @@
-version: 0.0.8.{build}-AppVeyor
+version: 0.0.9.{build}-AppVeyor
 image: Visual Studio 2015
 configuration: Release
 assembly_info:
@@ -45,12 +45,10 @@ deploy:
   draft: false
   prerelease: true
   on:
-    branch: master
     APPVEYOR_REPO_TAG: true
 - provider: NuGet
   api_key:
     secure: hqSxAQZqtX5Z5aWzulXmaIwPQmM87RvTurYOLmLnpHWHlQm1DfWmJn5fAUAuuLZH
   artifact: ValveResourceFormat
   on:
-    branch: master
     APPVEYOR_REPO_TAG: true
