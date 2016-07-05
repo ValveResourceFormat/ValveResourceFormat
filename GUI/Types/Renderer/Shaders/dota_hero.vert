@@ -29,14 +29,27 @@ uniform mat4 modelview;
 uniform mat4 transform;
 
 uniform float bAnimated = 0;
-uniform mat4[100] animationMatrices;
+uniform float fNumBones = 1;
+uniform sampler2D animationTexture;
+
+mat4 getMatrix(float id) {
+    float texelPos = id/fNumBones;
+    return mat4(texture2D(animationTexture, vec2(0.00, texelPos)),
+        texture2D(animationTexture, vec2(0.25, texelPos)),
+        texture2D(animationTexture, vec2(0.50, texelPos)),
+        texture2D(animationTexture, vec2(0.75, texelPos)));
+}
 
 mat4 getSkinMatrix() {
     mat4 matrix;
-    matrix += vBLENDWEIGHT.x * animationMatrices[int(vBLENDINDICES.x)];
-    matrix += vBLENDWEIGHT.y * animationMatrices[int(vBLENDINDICES.y)];
-    matrix += vBLENDWEIGHT.z * animationMatrices[int(vBLENDINDICES.z)];
+    matrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
+    matrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
+    matrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
     return bAnimated * matrix + (1 - bAnimated) * mat4(1.0);
+}
+
+mat3 getNormalMat(mat4 mat) {
+    return mat3(mat[0][0], mat[1][0], mat[2][0], mat[0][1], mat[1][1], mat[2][1], mat[0][2], mat[1][2], mat[2][2]);
 }
 
 void main()

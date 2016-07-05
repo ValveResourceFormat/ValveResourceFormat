@@ -7,7 +7,6 @@ in vec3 vTangentOut;
 in vec3 vBitangentOut;
 
 in vec2 vTexCoordOut;
-in vec3 test;
 
 out vec4 outputColor;
 

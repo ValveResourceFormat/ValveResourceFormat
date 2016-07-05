@@ -46,6 +46,8 @@ namespace GUI.Types.Renderer
 
         private readonly DebugUtil Debug;
 
+        private int AnimationTexture;
+
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
             MeshesToRender = new List<MeshObject>();
@@ -283,6 +285,18 @@ namespace GUI.Types.Renderer
             //Skeleton.DebugDraw(Debug);
 #endif
 
+            // Create animation texture
+            AnimationTexture = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+            // Set clamping to edges
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+            // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
+            //Unbind texture again
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+
             // TODO: poor hack
             FileExtensions.ClearCache();
 
@@ -329,6 +343,10 @@ namespace GUI.Types.Renderer
             if (Animations.Count > 0)
             {
                 animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
+                //Update animation texture
+                GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, Skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
+                GL.BindTexture(TextureTarget.Texture2D, 0);
             }
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -371,10 +389,24 @@ namespace GUI.Types.Renderer
                             GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
                         }
 
-                        uniformLocation = call.Shader.GetUniformLocation("animationMatrices");
-                        if (uniformLocation != -1)
+                        //Push animation texture to the shader (if it supports it)
+                        if (Animations.Count > 0)
                         {
-                            GL.UniformMatrix4(uniformLocation, Skeleton.Bones.Length, false, animationMatrices);
+                            uniformLocation = call.Shader.GetUniformLocation("animationTexture");
+                            if (uniformLocation != -1)
+                            {
+                                GL.ActiveTexture(TextureUnit.Texture0);
+                                GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+                                GL.Uniform1(uniformLocation, 0);
+                            }
+
+                            uniformLocation = call.Shader.GetUniformLocation("fNumBones");
+                            var uniformLocation2 = GL.GetUniformLocation(call.Shader.Program,"fNumBones");
+                            if (uniformLocation != -1)
+                            {
+                                var v = (float)Math.Max(1, Skeleton.Bones.Length - 1);
+                                GL.Uniform1(uniformLocation, v);
+                            }
                         }
                     }
 
@@ -407,7 +439,8 @@ namespace GUI.Types.Renderer
                     {
                         prevMaterial = call.Material.Name;
 
-                        var textureUnit = 0;
+                        //Start at 1, texture unit 0 is reserved for the animation texture
+                        var textureUnit = 1;
                         foreach (var texture in call.Material.Textures)
                         {
                             uniformLocation = call.Shader.GetUniformLocation(texture.Key);
