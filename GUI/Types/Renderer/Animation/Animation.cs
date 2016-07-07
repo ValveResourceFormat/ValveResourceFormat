@@ -126,7 +126,7 @@ namespace GUI.Types.Renderer.Animation
         }
 
         // Construct an animation class from the animation description
-        private void ConstructFromDesc(NTROStruct animDesc, NTROStruct decodeKey, string[] decoderArray, NTROArray segmentArray)
+        private void ConstructFromDesc(NTROStruct animDesc, NTROStruct decodeKey, AnimDecoderType[] decoderArray, NTROArray segmentArray)
         {
             // Get animation properties
             Name = animDesc.Get<string>("m_name");
@@ -166,7 +166,7 @@ namespace GUI.Types.Renderer.Animation
             }
         }
 
-        private void ReadSegment(int frame, NTROStruct segment, NTROStruct decodeKey, string[] decoderArray, ref Frame outFrame)
+        private void ReadSegment(int frame, NTROStruct segment, NTROStruct decodeKey, AnimDecoderType[] decoderArray, ref Frame outFrame)
         {
             //Clamp the frame number to be between 0 and the maximum frame
             frame = frame < 0 ? 0 : frame;
@@ -191,42 +191,23 @@ namespace GUI.Types.Renderer.Animation
 
                 // Read header
                 var decoder = decoderArray[containerReader.ReadInt16()];
-                var numBlocks = containerReader.ReadInt16();
-                var numElements = containerReader.ReadInt16();
+                var cardinality = containerReader.ReadInt16();
+                var numBones = containerReader.ReadInt16();
                 var totalLength = containerReader.ReadInt16();
 
                 // Read bone list
                 var elements = new List<int>();
-                for (var i = 0; i < numElements; i++)
+                for (var i = 0; i < numBones; i++)
                 {
                     elements.Add(containerReader.ReadInt16());
                 }
 
-                // Skip data??
-                var size = 0;
-                var blocks = numElements;
+                // Skip data to find the data for the current frame.
+                // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
+                containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
 
-                switch (decoder)
-                {
-                    case "CCompressedDeltaVector3":
-                    case "CCompressedStaticFullVector3":
-                    case "CCompressedStaticVector3":
-                        size = 0;
-                        break;
-                    case "CCompressedAnimVector3":
-                        size = 6;
-                        break;
-                    case "CCompressedAnimQuaternion":
-                        size = 6;
-                        break;
-                    case "CCompressedFullVector3":
-                        size = 12;
-                        break;
-                }
-
-                var toRead = frame * size * blocks;
-                var skipRead = containerReader.ReadBytes(toRead);
-                for (var element = 0; element < numElements; element++)
+                // Read animation data for all bones
+                for (var element = 0; element < numBones; element++)
                 {
                     //Get the bone we are reading for
                     var bone = elementBones[elements[element]];
@@ -234,31 +215,23 @@ namespace GUI.Types.Renderer.Animation
                     // Look at the decoder to see what to read
                     switch (decoder)
                     {
-                        case "CCompressedStaticFloat":
-                            //outFrame.SetAttribute(boneNames[bone], channelAttribute, containerReader.ReadSingle());
-                            break;
-                        case "CCompressedStaticFullVector3":
-                        case "CCompressedFullVector3":
-                        case "CCompressedDeltaVector3":
+                        case AnimDecoderType.CCompressedStaticFullVector3:
+                        case AnimDecoderType.CCompressedFullVector3:
+                        case AnimDecoderType.CCompressedDeltaVector3:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle()));
                             break;
-                        case "CCompressedStaticVector3":
+                        case AnimDecoderType.CCompressedStaticVector:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader)));
                             break;
-                        case "CCompressedAnimQuaternion":
+                        case AnimDecoderType.CCompressedAnimQuaternion:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
                             break;
-#if DEBUG
-                        default:
-                            Console.WriteLine("Unknown decoder type encountered. Type: " + decoder);
-                            break;
-#endif
                     }
                 }
             }
@@ -322,13 +295,13 @@ namespace GUI.Types.Renderer.Animation
         }
 
         // Transform the decoder array to a mapping of index to type ID
-        private string[] MakeDecoderArray(NTROArray decoderArray)
+        private AnimDecoderType[] MakeDecoderArray(NTROArray decoderArray)
         {
-            var array = new string[decoderArray.Count];
+            var array = new AnimDecoderType[decoderArray.Count];
             for (var i = 0; i < decoderArray.Count; i++)
             {
                 var decoder = decoderArray.Get<NTROStruct>(i);
-                array[i] = decoder.Get<string>("m_szName");
+                array[i] = AnimDecoder.FromString(decoder.Get<string>("m_szName"));
             }
 
             return array;

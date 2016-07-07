@@ -110,6 +110,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Types\Renderer\Animation\Animation.cs" />
     <Compile Include="Types\Renderer\Animation\AnimationGroupLoader.cs" />
+    <Compile Include="Types\Renderer\Animation\AnimDecoder.cs" />
     <Compile Include="Types\Renderer\Animation\Skeleton.cs" />
     <Compile Include="Types\Renderer\Animation\Bone.cs" />
     <Compile Include="Types\Renderer\DebugUtil.cs" />
