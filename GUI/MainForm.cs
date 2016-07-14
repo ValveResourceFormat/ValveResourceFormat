@@ -69,6 +69,23 @@ namespace GUI
                 findToolStripButton.PerformClick();
             }
 
+            //if the user presses CTRL + W, and there is a tab open, close the active tab
+            if (keyData == (Keys.Control | Keys.W) && mainTabs.SelectedTab != null)
+            {
+                mainTabs.TabPages.Remove(mainTabs.SelectedTab);
+
+                // enable/disable the search button as necessary
+                if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
+                {
+                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
+                    findToolStripButton.Enabled = treeView != null;
+                }
+                else
+                {
+                    findToolStripButton.Enabled = false;
+                }
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
