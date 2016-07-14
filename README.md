@@ -44,8 +44,8 @@ vwnod    | WorldNode               | :+1:
 vvis     | WorldVisibility         | No
 vents    | EntityLump              | No
 vsurf    | Surface Properties      | No
-vsndevts | Sound Event Script      | No
-vsndstck | Sound Stack Script      | No
+vsndevts | Sound Event Script      | :+1: KV1, :-1: KV3
+vsndstck | Sound Stack Script      | :+1: KV1, :-1: KV3
 vrmap    | Resource Remap Table    | No
 vcss     | Panorama Style          | :+1:
 vxml     | Panorama Layout         | :+1:
