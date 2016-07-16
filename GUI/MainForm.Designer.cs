@@ -128,8 +128,8 @@
             this.contextMenuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.closeToolStripMenuItem});
+            this.contextMenuStrip1.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.OwnerItem = this.exportToolStripButton;
             this.contextMenuStrip1.Size = new System.Drawing.Size(104, 26);
             // 
             // closeToolStripMenuItem
@@ -154,14 +154,14 @@
             this.vpkContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.extractToolStripMenuItem});
             this.vpkContextMenu.Name = "vpkContextMenu";
-            this.vpkContextMenu.Size = new System.Drawing.Size(110, 26);
+            this.vpkContextMenu.Size = new System.Drawing.Size(108, 26);
             // 
             // extractToolStripMenuItem
             // 
+            this.extractToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("extractToolStripMenuItem.Image")));
             this.extractToolStripMenuItem.Name = "extractToolStripMenuItem";
-            this.extractToolStripMenuItem.Size = new System.Drawing.Size(109, 22);
+            this.extractToolStripMenuItem.Size = new System.Drawing.Size(107, 22);
             this.extractToolStripMenuItem.Text = "Export";
-            this.extractToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("exportToolStripButton.Image")));
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.extractToolStripMenuItem_Click);
             // 
             // mainToolStrip
