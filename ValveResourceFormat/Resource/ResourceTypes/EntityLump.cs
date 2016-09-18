@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -26,7 +25,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // entity is EntityKeyValueData_t
                 var entity = ((NTROValue<NTROStruct>)entityKV).Value;
                 var dataArray = (NTROArray)entity["m_keyValuesData"];
-                List<byte> data = new List<byte>();
+                var data = new List<byte>();
                 foreach (NTROValue<byte> entry in dataArray)
                 {
                     data.Add(entry.Value);

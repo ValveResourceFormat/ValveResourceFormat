@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Decoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat
 {
@@ -114,7 +114,7 @@ namespace ValveResourceFormat
 
             Console.WriteLine("Count: {0}", count);
 
-            for (int i = 0; i < count; i++)
+            for (var i = 0; i < count; i++)
             {
                 prevPos = Reader.BaseStream.Position;
 
@@ -158,7 +158,7 @@ namespace ValveResourceFormat
 
             count = Reader.ReadUInt32();
 
-            for (int i = 0; i < count; i++)
+            for (var i = 0; i < count; i++)
             {
                 prevPos = Reader.BaseStream.Position;
 
@@ -176,7 +176,7 @@ namespace ValveResourceFormat
 
                 Console.WriteLine("Name: {0} - Desc: {1} - Count: {2} - Offset: {3}", name, desc, subcount, Reader.BaseStream.Position);
 
-                for (int j = 0; j < subcount; j++)
+                for (var j = 0; j < subcount; j++)
                 {
                     Console.WriteLine("     " + Reader.ReadNullTermString(Encoding.UTF8));
                 }
@@ -304,7 +304,7 @@ namespace ValveResourceFormat
 
             Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
-            for (int i = 0; i < count; i++)
+            for (var i = 0; i < count; i++)
             {
                 var prevPos = Reader.BaseStream.Position;
 
@@ -346,13 +346,13 @@ namespace ValveResourceFormat
                 var bufferCount = Reader.ReadUInt32();
 
                 Console.WriteLine(bufferCount + " vertex buffer descriptors");
-                for (int h = 0; h < bufferCount; h++)
+                for (var h = 0; h < bufferCount; h++)
                 {
                     count = Reader.ReadUInt32(); // number of attributes
 
                     Console.WriteLine("Buffer #{0}, {1} attributes", h, count);
 
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         var name = Reader.ReadNullTermString(Encoding.UTF8);
                         var type = Reader.ReadNullTermString(Encoding.UTF8);
@@ -369,19 +369,19 @@ namespace ValveResourceFormat
             Console.WriteLine("Offset: {0}", Reader.BaseStream.Position);
 
             var unkLongs = new long[lzmaCount];
-            for (int i = 0; i < lzmaCount; i++)
+            for (var i = 0; i < lzmaCount; i++)
             {
                 unkLongs[i] = Reader.ReadInt64();
             }
 
             var lzmaOffsets = new int[lzmaCount];
 
-            for (int i = 0; i < lzmaCount; i++)
+            for (var i = 0; i < lzmaCount; i++)
             {
                 lzmaOffsets[i] = Reader.ReadInt32();
             }
 
-            for (int i = 0; i < lzmaCount; i++)
+            for (var i = 0; i < lzmaCount; i++)
             {
                 //File.WriteAllBytes(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "shader_out_" + i + ".bin"), ReadShaderChunk(lzmaOffsets[i]));
             }
@@ -407,7 +407,7 @@ namespace ValveResourceFormat
             Console.WriteLine("Compressed size: {0}", compressedSize);
             Console.WriteLine("Uncompressed size: {0} ({1:P2} compression)", uncompressedSize, (uncompressedSize - compressedSize) / (double)uncompressedSize);
 
-            var decoder = new SevenZip.Compression.LZMA.Decoder();
+            var decoder = new Decoder();
             decoder.SetDecoderProperties(Reader.ReadBytes(5));
 
             var compressedBuffer = Reader.ReadBytes((int)compressedSize);

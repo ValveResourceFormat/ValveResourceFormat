@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using OpenTK;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using Vector3 = OpenTK.Vector3;
 
 namespace GUI.Types.Renderer.Animation
 {
@@ -17,14 +16,18 @@ namespace GUI.Types.Renderer.Animation
 
         private int FrameCount;
 
-        public Frame[] Frames;
+        private Frame[] Frames;
+
+        private Skeleton Skeleton;
 
         // Build animation from resource
-        public Animation(Resource resource, NTROStruct decodeKey)
+        public Animation(Resource resource, NTROStruct decodeKey, Skeleton skeleton)
         {
             Name = string.Empty;
             Fps = 0;
             Frames = new Frame[0];
+
+            Skeleton = skeleton;
 
             var animationData = (NTRO)resource.Blocks[BlockType.DATA];
             var animArray = (NTROArray)animationData.Output["m_animArray"];
@@ -40,12 +43,90 @@ namespace GUI.Types.Renderer.Animation
 
             // Get the first animation description
             ConstructFromDesc(animArray.Get<NTROStruct>(0), decodeKey, decoderArray, segmentArray);
+        }
 
-            return;
+        public float[] GetAnimationMatricesAsArray(float time, Skeleton skeleton)
+        {
+            var matrices = GetAnimationMatrices(time, skeleton);
+            return Flatten(matrices);
+        }
+
+        // Get the animation matrix for each bone
+        public Matrix4[] GetAnimationMatrices(float time, Skeleton skeleton)
+        {
+            // Create output array
+            var matrices = new Matrix4[skeleton.Bones.Length];
+
+            // Get bone transformations
+            var transforms = GetTransformsAtTime(time);
+
+            foreach (var root in skeleton.Roots)
+            {
+                GetAnimationMatrixRecursive(root, Matrix4.Identity, Matrix4.Identity, transforms, ref matrices);
+            }
+
+            return matrices;
+        }
+
+        private void GetAnimationMatrixRecursive(Bone bone, Matrix4 parentBindPose, Matrix4 parentInvBindPose, Frame transforms, ref Matrix4[] matrices)
+        {
+            // Calculate world space bind and inverse bind pose
+            var bindPose = parentBindPose;
+            var invBindPose = parentInvBindPose * bone.InverseBindPose;
+
+            // Calculate transformation matrix
+            var transformMatrix = Matrix4.Identity;
+            if (transforms.Bones.ContainsKey(bone.Name))
+            {
+                var transform = transforms.Bones[bone.Name];
+                transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle) * Matrix4.CreateTranslation(transform.Position);
+            }
+
+            // Apply tranformation
+            var transformed = transformMatrix * bindPose;
+
+            // Store result
+            if (bone.Index != -1)
+            {
+                matrices[bone.Index] = invBindPose * transformed;
+            }
+
+            // Propagate to childen
+            foreach (var child in bone.Children)
+            {
+                GetAnimationMatrixRecursive(child, transformed, invBindPose, transforms, ref matrices);
+            }
+        }
+
+        // Get the transformation matrices at a time
+        private Frame GetTransformsAtTime(float time)
+        {
+            // Calculate the index of the current frame
+            var frameIndex = (int)(time * Fps) % FrameCount;
+            var t = ((time * Fps) - frameIndex) % 1;
+
+            // Get current and next frame
+            var frame1 = Frames[frameIndex];
+            var frame2 = Frames[(frameIndex + 1) % FrameCount];
+
+            // Create output frame
+            var frame = new Frame();
+
+            var length = FrameCount / Fps;
+
+            // Interpolate bone positions and angles
+            foreach (var bonePair in frame1.Bones)
+            {
+                var position = Vector3.Lerp(frame1.Bones[bonePair.Key].Position, frame2.Bones[bonePair.Key].Position, t);
+                var angle = Quaternion.Slerp(frame1.Bones[bonePair.Key].Angle, frame2.Bones[bonePair.Key].Angle, t);
+                frame.Bones[bonePair.Key] = new FrameBone(position, angle);
+            }
+
+            return frame;
         }
 
         // Construct an animation class from the animation description
-        private void ConstructFromDesc(NTROStruct animDesc, NTROStruct decodeKey, string[] decoderArray, NTROArray segmentArray)
+        private void ConstructFromDesc(NTROStruct animDesc, NTROStruct decodeKey, AnimDecoderType[] decoderArray, NTROArray segmentArray)
         {
             // Get animation properties
             Name = animDesc.Get<string>("m_name");
@@ -68,20 +149,24 @@ namespace GUI.Types.Renderer.Animation
                 foreach (var frameBlock in frameBlockArray)
                 {
                     var startFrame = frameBlock.Get<int>("m_nStartFrame");
-                    var endFrame = frameBlock.Get<int>("m_nStartFrame");
+                    var endFrame = frameBlock.Get<int>("m_nEndFrame");
 
-                    var segmentIndexArray = frameBlock.Get<NTROArray>("m_segmentIndexArray").ToArray<int>();
-
-                    foreach (var segmentIndex in segmentIndexArray)
+                    // Only consider blocks that actual contain info for this frame
+                    if (frame >= startFrame && frame <= endFrame)
                     {
-                        var segment = segmentArray.Get<NTROStruct>(segmentIndex);
-                        ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
+                        var segmentIndexArray = frameBlock.Get<NTROArray>("m_segmentIndexArray").ToArray<int>();
+
+                        foreach (var segmentIndex in segmentIndexArray)
+                        {
+                            var segment = segmentArray.Get<NTROStruct>(segmentIndex);
+                            ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
+                        }
                     }
                 }
             }
         }
 
-        private void ReadSegment(int frame, NTROStruct segment, NTROStruct decodeKey, string[] decoderArray, ref Frame outFrame)
+        private void ReadSegment(int frame, NTROStruct segment, NTROStruct decodeKey, AnimDecoderType[] decoderArray, ref Frame outFrame)
         {
             //Clamp the frame number to be between 0 and the maximum frame
             frame = frame < 0 ? 0 : frame;
@@ -99,31 +184,30 @@ namespace GUI.Types.Renderer.Animation
             {
                 var elementIndexArray = dataChannel.Get<NTROArray>("m_nElementIndexArray").ToArray<int>();
                 var elementBones = new int[decodeKey.Get<int>("m_nChannelElements")];
-                for (int i = 0; i < elementIndexArray.Length; i++)
+                for (var i = 0; i < elementIndexArray.Length; i++)
                 {
                     elementBones[elementIndexArray[i]] = i;
                 }
 
                 // Read header
                 var decoder = decoderArray[containerReader.ReadInt16()];
-                var numBlocks = containerReader.ReadInt16();
-                var numElements = containerReader.ReadInt16();
+                var cardinality = containerReader.ReadInt16();
+                var numBones = containerReader.ReadInt16();
                 var totalLength = containerReader.ReadInt16();
 
                 // Read bone list
-                List<int> elements = new List<int>();
-                for (int i = 0; i < numElements; i++)
+                var elements = new List<int>();
+                for (var i = 0; i < numBones; i++)
                 {
                     elements.Add(containerReader.ReadInt16());
                 }
 
-                // Skip data??
-                if (decoder.Equals("CCompressedAnimQuaternion") || decoder.Equals("CCompressedFullVector3"))
-                {
-                    //containerReader.ReadBytes(frame * numBlocks * numElements);
-                }
+                // Skip data to find the data for the current frame.
+                // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
+                containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
 
-                for (int element = 0; element < numElements; element++)
+                // Read animation data for all bones
+                for (var element = 0; element < numBones; element++)
                 {
                     //Get the bone we are reading for
                     var bone = elementBones[elements[element]];
@@ -131,31 +215,23 @@ namespace GUI.Types.Renderer.Animation
                     // Look at the decoder to see what to read
                     switch (decoder)
                     {
-                        case "CCompressedStaticFloat":
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, containerReader.ReadSingle());
-                            break;
-                        case "CCompressedStaticFullVector3":
-                        case "CCompressedFullVector3":
-                        case "CCompressedDeltaVector3":
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new OpenTK.Vector3(
+                        case AnimDecoderType.CCompressedStaticFullVector3:
+                        case AnimDecoderType.CCompressedFullVector3:
+                        case AnimDecoderType.CCompressedDeltaVector3:
+                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle()));
                             break;
-                        case "CCompressedStaticVector3":
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new OpenTK.Vector3(
+                        case AnimDecoderType.CCompressedStaticVector:
+                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader)));
                             break;
-                        case "CCompressedAnimQuaternion":
+                        case AnimDecoderType.CCompressedAnimQuaternion:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
                             break;
-#if DEBUG
-                        default:
-                            Console.WriteLine("Unknown decoder type encountered. Type: " + decoder);
-                            break;
-#endif
                     }
                 }
             }
@@ -166,9 +242,9 @@ namespace GUI.Types.Renderer.Animation
         {
             int i = reader.ReadInt16();
 
-            int i1 = i & 0x7fff; // Non-sign bits
-            int i2 = i & 0x8000; // Sign
-            int i3 = i & 0x7c00; // Exponent
+            var i1 = i & 0x7fff; // Non-sign bits
+            var i2 = i & 0x8000; // Sign
+            var i3 = i & 0x7c00; // Exponent
 
             i1 <<= 13; // Shift significand
             i2 <<= 16; // Shift sign bit;
@@ -181,27 +257,27 @@ namespace GUI.Types.Renderer.Animation
         }
 
         //Read and decode encoded quaternion
-        private OpenTK.Vector4 ReadQuaternion(BinaryReader reader)
+        private Quaternion ReadQuaternion(BinaryReader reader)
         {
-            byte[] bytes = reader.ReadBytes(6);
+            var bytes = reader.ReadBytes(6);
 
             // Values
-            int i1 = bytes[0] + ((bytes[1] & 63) << 8);
-            int i2 = bytes[2] + ((bytes[3] & 63) << 8);
-            int i3 = bytes[4] + ((bytes[5] & 63) << 8);
+            var i1 = bytes[0] + ((bytes[1] & 63) << 8);
+            var i2 = bytes[2] + ((bytes[3] & 63) << 8);
+            var i3 = bytes[4] + ((bytes[5] & 63) << 8);
 
             // Signs
-            int s1 = bytes[1] & 128;
-            int s2 = bytes[3] & 128;
-            int s3 = bytes[5] & 128;
+            var s1 = bytes[1] & 128;
+            var s2 = bytes[3] & 128;
+            var s3 = bytes[5] & 128;
 
-            float c = (float)Math.Sin(Math.PI / 4.0f) / 16384.0f;
-            float t1 = (float)Math.Sin(Math.PI / 4.0f);
-            float x = (bytes[1] & 64) == 0 ? c * (i1 - 16384) : c * i1;
-            float y = (bytes[3] & 64) == 0 ? c * (i2 - 16384) : c * i2;
-            float z = (bytes[5] & 64) == 0 ? c * (i3 - 16384) : c * i3;
+            var c = (float)Math.Sin(Math.PI / 4.0f) / 16384.0f;
+            var t1 = (float)Math.Sin(Math.PI / 4.0f);
+            var x = (bytes[1] & 64) == 0 ? c * (i1 - 16384) : c * i1;
+            var y = (bytes[3] & 64) == 0 ? c * (i2 - 16384) : c * i2;
+            var z = (bytes[5] & 64) == 0 ? c * (i3 - 16384) : c * i3;
 
-            float w = (float)Math.Sqrt(1 - (x * x) - (y * y) - (z * z));
+            var w = (float)Math.Sqrt(1 - (x * x) - (y * y) - (z * z));
 
             // Apply sign 3
             if (s3 == 128)
@@ -212,25 +288,60 @@ namespace GUI.Types.Renderer.Animation
             // Apply sign 1 and 2
             if (s1 == 128)
             {
-                return s2 == 128 ? new OpenTK.Vector4(y, z, w, x) : new OpenTK.Vector4(z, w, x, y);
+                return s2 == 128 ? new Quaternion(y, z, w, x) : new Quaternion(z, w, x, y);
             }
-            else
-            {
-                return s2 == 128 ? new OpenTK.Vector4(w, x, y, z) : new OpenTK.Vector4(x, y, z, w);
-            }
+
+            return s2 == 128 ? new Quaternion(w, x, y, z) : new Quaternion(x, y, z, w);
         }
 
         // Transform the decoder array to a mapping of index to type ID
-        private string[] MakeDecoderArray(NTROArray decoderArray)
+        private AnimDecoderType[] MakeDecoderArray(NTROArray decoderArray)
         {
-            var array = new string[decoderArray.Count];
-            for (int i = 0; i < decoderArray.Count; i++)
+            var array = new AnimDecoderType[decoderArray.Count];
+            for (var i = 0; i < decoderArray.Count; i++)
             {
                 var decoder = decoderArray.Get<NTROStruct>(i);
-                array[i] = decoder.Get<string>("m_szName");
+                array[i] = AnimDecoder.FromString(decoder.Get<string>("m_szName"));
             }
 
             return array;
+        }
+
+        // Flatten an array of matrices to an array of floats
+        private float[] Flatten(Matrix4[] matrices)
+        {
+            var returnArray = new float[matrices.Length * 16];
+
+            for (var i = 0; i < matrices.Length; i++)
+            {
+                var mat = matrices[i];
+                returnArray[i * 16] = mat.M11;
+                returnArray[(i * 16) + 1] = mat.M12;
+                returnArray[(i * 16) + 2] = mat.M13;
+                returnArray[(i * 16) + 3] = mat.M14;
+
+                returnArray[(i * 16) + 4] = mat.M21;
+                returnArray[(i * 16) + 5] = mat.M22;
+                returnArray[(i * 16) + 6] = mat.M23;
+                returnArray[(i * 16) + 7] = mat.M24;
+
+                returnArray[(i * 16) + 8] = mat.M31;
+                returnArray[(i * 16) + 9] = mat.M32;
+                returnArray[(i * 16) + 10] = mat.M33;
+                returnArray[(i * 16) + 11] = mat.M34;
+
+                returnArray[(i * 16) + 12] = mat.M41;
+                returnArray[(i * 16) + 13] = mat.M42;
+                returnArray[(i * 16) + 14] = mat.M43;
+                returnArray[(i * 16) + 15] = mat.M44;
+            }
+
+            return returnArray;
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
     }
 
@@ -249,11 +360,11 @@ namespace GUI.Types.Renderer.Animation
             {
                 case "Position":
                     InsertIfUnknown(bone);
-                    Bones[bone].Position = (OpenTK.Vector3)data;
+                    Bones[bone].Position = (Vector3)data;
                     break;
                 case "Angle":
                     InsertIfUnknown(bone);
-                    Bones[bone].Angle = (OpenTK.Vector4)data;
+                    Bones[bone].Angle = (Quaternion)data;
                     break;
                 case "data":
                     //ignore
@@ -270,17 +381,17 @@ namespace GUI.Types.Renderer.Animation
         {
             if (!Bones.ContainsKey(name))
             {
-                Bones[name] = new FrameBone(OpenTK.Vector3.Zero, OpenTK.Vector4.UnitW);
+                Bones[name] = new FrameBone(Vector3.Zero, Quaternion.Identity);
             }
         }
     }
 
     internal class FrameBone
     {
-        public OpenTK.Vector3 Position { get; set; }
-        public OpenTK.Vector4 Angle { get; set; }
+        public Vector3 Position { get; set; }
+        public Quaternion Angle { get; set; }
 
-        public FrameBone(OpenTK.Vector3 pos, OpenTK.Vector4 a)
+        public FrameBone(Vector3 pos, Quaternion a)
         {
             Position = pos;
             Angle = a;

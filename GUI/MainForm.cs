@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -11,20 +12,18 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Types;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
+using GUI.Types.Renderer.Animation;
 using GUI.Utils;
+using OpenTK;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Model = GUI.Types.Model;
-using World = GUI.Types.World;
-using WorldNode = GUI.Types.WorldNode;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
-using System.Drawing.Imaging;
-using OpenTK;
-using GUI.Types.Renderer.Animation;
 
 namespace GUI
 {
@@ -263,8 +262,7 @@ namespace GUI
                             control.SetImage(tex.GenerateBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
-                            Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as an image", fileName, resource });
-
+                            Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as an image", fileName, resource);
                         }
                         catch (Exception e)
                         {
@@ -299,20 +297,20 @@ namespace GUI
 
                         break;
                     case ResourceType.PanoramaLayout:
-                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as XML", fileName, resource });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as XML", fileName, resource);
                         break;
                     case ResourceType.PanoramaScript:
-                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as JS", fileName, resource });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as JS", fileName, resource);
                         break;
                     case ResourceType.PanoramaStyle:
-                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as CSS", fileName, resource });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, resource);
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
                         var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-                        Invoke(new ExportDel(AddToExport), new object[] { $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, resource });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, resource);
 
                         break;
                     case ResourceType.World:
@@ -339,17 +337,24 @@ namespace GUI
                         // Create model
                         var model = new Model(resource);
 
+                        // Create skeleton
+                        var skeleton = new Skeleton(resource);
+
                         // Create tab
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage);
                         model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
 
+                        // Add skeleton to renderer
+                        modelmv.SetSkeleton(skeleton);
+
                         // Add animations if available
                         var animGroupPaths = model.GetAnimationGroups();
-                        foreach (var animGroupPath in animGroupPaths) { 
+                        foreach (var animGroupPath in animGroupPaths)
+                        {
                             var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);
 
-                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName);
+                            var animGroupLoader = new AnimationGroupLoader(animGroup, fileName, skeleton);
 
                             modelmv.AddAnimations(animGroupLoader.AnimationList);
                         }
@@ -368,7 +373,7 @@ namespace GUI
 
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
-                        mv.AddMeshObject(new MeshObject { Resource = resource, Skeleton = new Skeleton(resource) });
+                        mv.AddMeshObject(new MeshObject { Resource = resource });
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
                         resTabs.TabPages.Add(meshTab);
@@ -669,7 +674,9 @@ namespace GUI
         }
 
         private delegate void ExportDel(string name, string filename, Resource resource);
-        private void AddToExport(string name, string filename, Resource resource) {
+
+        private void AddToExport(string name, string filename, Resource resource)
+        {
             exportToolStripButton.Enabled = true;
 
             var ts = new ToolStripMenuItem();
@@ -682,6 +689,7 @@ namespace GUI
 
             exportToolStripButton.DropDownItems.Add(ts);
         }
+
         private void exportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //ToolTipText is the full filename
@@ -695,19 +703,19 @@ namespace GUI
             {
                 case ResourceType.Sound:
                     //WAV or MP3
-                    extensions = new string[] { ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString().ToLower() };
+                    extensions = new[] { ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString().ToLower() };
                     break;
                 case ResourceType.Texture:
-                    extensions = new string[] { "png", "jpg", "tiff", "bmp" };
+                    extensions = new[] { "png", "jpg", "tiff", "bmp" };
                     break;
                 case ResourceType.PanoramaLayout:
-                    extensions = new string[] { "xml", "vxml" };
+                    extensions = new[] { "xml", "vxml" };
                     break;
                 case ResourceType.PanoramaScript:
-                    extensions = new string[] { "js", "vjs" };
+                    extensions = new[] { "js", "vjs" };
                     break;
                 case ResourceType.PanoramaStyle:
-                    extensions = new string[] { "css", "vcss" };
+                    extensions = new[] { "css", "vcss" };
                     break;
             }
 
@@ -720,7 +728,7 @@ namespace GUI
                 dialog.DefaultExt = extensions[0];
 
                 var filter = string.Empty;
-                foreach (string extension in extensions)
+                foreach (var extension in extensions)
                 {
                     filter += $"{extension} files (*.{extension})|*.{extension}|";
                 }

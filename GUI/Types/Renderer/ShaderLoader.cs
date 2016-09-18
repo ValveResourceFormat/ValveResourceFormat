@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define DEBUG_SHADERS
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -12,8 +13,8 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
 
-#if !DEBUG_SHADERS
-        private static Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
+#if !DEBUG_SHADERS || !DEBUG
+        private static readonly Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
 #endif
 
         //Map shader names to shader files
@@ -42,11 +43,11 @@ namespace GUI.Types.Renderer
         public static Shader LoadShader(string shaderName, ArgumentDependencies modelArguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-            var shaderCacheHash = (shaderFileName + modelArguments.ToString()).GetHashCode(); // shader collision roulette
+            var shaderCacheHash = (shaderFileName + modelArguments).GetHashCode(); // shader collision roulette
 
             Shader shader;
 
-#if !DEBUG_SHADERS
+#if !DEBUG_SHADERS || !DEBUG
             if (CachedShaders.TryGetValue(shaderCacheHash, out shader))
             {
                 return shader;
@@ -58,7 +59,7 @@ namespace GUI.Types.Renderer
 
             var assembly = Assembly.GetExecutingAssembly();
 
-#if DEBUG_SHADERS
+#if DEBUG_SHADERS && DEBUG
             using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.vert", FileMode.Open)) //<-- reloading at runtime
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
@@ -85,7 +86,7 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-#if DEBUG_SHADERS
+#if DEBUG_SHADERS && DEBUG
             using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.frag", FileMode.Open)) //<-- reloading at runtime
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
@@ -135,21 +136,7 @@ namespace GUI.Types.Renderer
             GL.DetachShader(shader.Program, fragmentShader);
             GL.DeleteShader(fragmentShader);
 
-            int uniformCount;
-            GL.GetProgram(shader.Program, GetProgramParameterName.ActiveUniforms, out uniformCount);
-
-            for (var i = 0; i < uniformCount; ++i)
-            {
-                int size;
-                ActiveUniformType type;
-
-                var name = GL.GetActiveUniform(shader.Program, i, out size, out type);
-                var slot = GL.GetUniformLocation(shader.Program, name);
-
-                shader.Uniforms.Add(name, slot);
-            }
-
-#if !DEBUG_SHADERS
+#if !DEBUG_SHADERS || !DEBUG
             CachedShaders[shaderCacheHash] = shader;
 
             Console.WriteLine("Shader #{0} ({1}) compiled and linked succesfully", CachedShaders.Count, shaderName);
@@ -207,7 +194,7 @@ namespace GUI.Types.Renderer
             foreach (Match define in includes)
             {
                 //Read included code
-#if DEBUG_SHADERS
+#if DEBUG_SHADERS  && DEBUG
                 using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{define.Groups[1].Value}", FileMode.Open)) //<-- reloading at runtime
 #else
                 using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups[1].Value}"))

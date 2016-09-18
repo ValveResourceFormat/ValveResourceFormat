@@ -1,5 +1,5 @@
 ﻿using System;
-using GUI.Types.Renderer;
+using System.Globalization;
 using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat;
@@ -7,8 +7,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 using Vector3 = OpenTK.Vector3;
-using Vector4 = ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4;
-using System.Globalization;
+using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types
 {
@@ -16,7 +15,7 @@ namespace GUI.Types
     {
         private readonly Resource Resource;
 
-        private static int anonymousCameraCount = 0;
+        private static int anonymousCameraCount;
 
         public World(Resource resource)
         {
@@ -47,6 +46,7 @@ namespace GUI.Types
                     node.AddMeshes(renderer, path, package);
                 }
             }
+
             var entityLumps = (NTROArray)data.Output["m_entityLumps"];
             foreach (var lump in entityLumps)
             {
@@ -129,6 +129,7 @@ namespace GUI.Types
                             break;
                     }
                 }
+
                 if (scale == string.Empty || position == string.Empty || angles == string.Empty)
                 {
                     continue;
@@ -146,7 +147,7 @@ namespace GUI.Types
 
                     var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
 
-                    var objColor = OpenTK.Vector4.One;
+                    var objColor = Vector4.One;
                     // Parse colour if present
                     if (colour.Length == 4)
                     {

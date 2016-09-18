@@ -2,14 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Types.Renderer.Animation;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Timer = System.Timers.Timer;
@@ -25,7 +24,9 @@ namespace GUI.Types.Renderer
         private readonly string CurrentFileName;
 
         private readonly List<MeshObject> MeshesToRender;
+
         private readonly List<Animation.Animation> Animations;
+        private Skeleton Skeleton;
 
         private bool Loaded;
 
@@ -33,15 +34,19 @@ namespace GUI.Types.Renderer
         private Label cameraLabel;
         private Label fpsLabel;
 
+        private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
-        private List<Tuple<string, Matrix4>> cameras;
+        private readonly List<Tuple<string, Matrix4>> cameras;
 
         private Camera ActiveCamera;
+        private Animation.Animation ActiveAnimation;
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
 
-        private int MaxTextureMaxAnisotropy;
+        private readonly DebugUtil Debug;
+
+        private int AnimationTexture;
 
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
@@ -52,6 +57,10 @@ namespace GUI.Types.Renderer
             CurrentPackage = currentPackage;
             CurrentFileName = fileName;
             tabs = mainTabs;
+
+            Debug = new DebugUtil();
+
+            Skeleton = new Skeleton(); // Default empty skeleton
 
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
@@ -64,6 +73,11 @@ namespace GUI.Types.Renderer
         public void AddAnimations(List<Animation.Animation> animations)
         {
             Animations.AddRange(animations);
+        }
+
+        public void SetSkeleton(Skeleton skeleton)
+        {
+            Skeleton = skeleton;
         }
 
         public Control CreateGL()
@@ -83,12 +97,24 @@ namespace GUI.Types.Renderer
             fpsLabel.Dock = DockStyle.Top;
             panel.Controls.Add(fpsLabel);
 
+            var controlsPanel = new Panel();
+            controlsPanel.Dock = DockStyle.Left;
+
+            animationBox = new CheckedListBox();
+            animationBox.Width *= 2;
+            animationBox.Dock = DockStyle.Fill;
+            animationBox.ItemCheck += AnimationBox_ItemCheck;
+            animationBox.CheckOnClick = true;
+            controlsPanel.Controls.Add(animationBox);
+
             cameraBox = new CheckedListBox();
             cameraBox.Width *= 2;
-            cameraBox.Dock = DockStyle.Left;
+            cameraBox.Dock = DockStyle.Top;
             cameraBox.ItemCheck += CameraBox_ItemCheck;
             cameraBox.CheckOnClick = true;
-            panel.Controls.Add(cameraBox);
+            controlsPanel.Controls.Add(cameraBox);
+
+            panel.Controls.Add(controlsPanel);
 
 #if DEBUG
             meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
@@ -113,7 +139,7 @@ namespace GUI.Types.Renderer
             //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
             if (e.NewValue == CheckState.Checked)
             {
-                for (int ix = 0; ix < cameraBox.Items.Count; ++ix)
+                for (var ix = 0; ix < cameraBox.Items.Count; ++ix)
                 {
                     if (e.Index != ix)
                     {
@@ -122,7 +148,31 @@ namespace GUI.Types.Renderer
                         cameraBox.ItemCheck += CameraBox_ItemCheck;
                     }
                 }
+
                 ActiveCamera = cameraBox.Items[e.Index] as Camera;
+            }
+            else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
+            {
+                e.NewValue = CheckState.Checked;
+            }
+        }
+
+        private void AnimationBox_ItemCheck(object sender, ItemCheckEventArgs e)
+        {
+            //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
+            if (e.NewValue == CheckState.Checked)
+            {
+                for (var ix = 0; ix < animationBox.Items.Count; ++ix)
+                {
+                    if (e.Index != ix)
+                    {
+                        animationBox.ItemCheck -= AnimationBox_ItemCheck;
+                        animationBox.SetItemChecked(ix, false);
+                        animationBox.ItemCheck += AnimationBox_ItemCheck;
+                    }
+                }
+
+                ActiveAnimation = animationBox.Items[e.Index] as Animation.Animation;
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
             {
@@ -173,7 +223,7 @@ namespace GUI.Types.Renderer
             ActiveCamera.HandleInput(Mouse.GetState(), Keyboard.GetState());
         }
 
-        public void CheckOpenGL()
+        private void CheckOpenGL()
         {
             var extensions = new Dictionary<string, bool>();
             var count = GL.GetInteger(GetPName.NumExtensions);
@@ -185,7 +235,7 @@ namespace GUI.Types.Renderer
 
             if (extensions.ContainsKey("GL_EXT_texture_filter_anisotropic"))
             {
-                MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
+                MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
             }
             else
             {
@@ -215,71 +265,37 @@ namespace GUI.Types.Renderer
 
             ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
             cameraBox.Items.Add(ActiveCamera, true);
+
             foreach (var cameraInfo in cameras)
             {
                 var camera = new Camera(tabs.Width, tabs.Height, cameraInfo.Item2, cameraInfo.Item1);
                 cameraBox.Items.Add(camera);
             }
 
+            ActiveAnimation = Animations.Count > 0 ? Animations[0] : null;
+            animationBox.Items.AddRange(Animations.ToArray());
+
             foreach (var obj in MeshesToRender)
             {
-                var resource = obj.Resource;
-                var block = resource.VBIB;
-                var data = (BinaryKV3)resource.Blocks[BlockType.DATA];
-                var modelArguments = (ArgumentDependencies)((ResourceEditInfo)resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
-
-                var vertexBuffers = new uint[block.VertexBuffers.Count];
-                var indexBuffers = new uint[block.IndexBuffers.Count];
-
-                GL.GenBuffers(block.VertexBuffers.Count, vertexBuffers);
-                GL.GenBuffers(block.IndexBuffers.Count, indexBuffers);
-
-                for (var i = 0; i < block.VertexBuffers.Count; i++)
-                {
-                    GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
-                    GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(block.VertexBuffers[i].Count * block.VertexBuffers[i].Size), block.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
-
-                    var verticeBufferSize = 0;
-                    GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out verticeBufferSize);
-                }
-
-                for (var i = 0; i < block.IndexBuffers.Count; i++)
-                {
-                    GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[i]);
-                    GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(block.IndexBuffers[i].Count * block.IndexBuffers[i].Size), block.IndexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
-
-                    var indiceBufferSize = 0;
-                    GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out indiceBufferSize);
-                }
-
-                //Prepare drawcalls
-                var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
-
-                for (var b = 0; b < a.Properties.Count; b++)
-                {
-                    var c = (KVObject)((KVObject)a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
-
-                    for (var i = 0; i < c.Properties.Count; i++)
-                    {
-                        var d = (KVObject)c.Properties[i.ToString()].Value;
-
-                        string material = d.Properties["m_material"].Value.ToString();
-
-                        if (obj.SkinMaterials.Any())
-                        {
-                            material = obj.SkinMaterials[i];
-                        }
-
-                        // TODO: Don't pass around so much shit
-                        var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, resource.VBIB, material);
-                        obj.DrawCalls.Add(drawCall);
-                    }
-                }
-
-                obj.DrawCalls = obj.DrawCalls.OrderBy(x => x.Material.Name).ToList();
-
-                obj.Resource = null;
+                obj.LoadFromResource(MaterialLoader);
             }
+
+#if DEBUG
+            Debug.Setup();
+            //Skeleton.DebugDraw(Debug);
+#endif
+
+            // Create animation texture
+            AnimationTexture = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+            // Set clamping to edges
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+            // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
+            //Unbind texture again
+            GL.BindTexture(TextureTarget.Texture2D, 0);
 
             // TODO: poor hack
             FileExtensions.ClearCache();
@@ -293,99 +309,6 @@ namespace GUI.Types.Renderer
         {
             Console.WriteLine($"Adding Camera {name} with matrix {megaMatrix}");
             cameras.Add(new Tuple<string, Matrix4>(name, megaMatrix));
-        }
-
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, string material)
-        {
-            var drawCall = new DrawCall();
-
-            switch (drawProperties["m_nPrimitiveType"].Value.ToString())
-            {
-                case "RENDER_PRIM_TRIANGLES":
-                    drawCall.PrimitiveType = PrimitiveType.Triangles;
-                    break;
-                default:
-                    throw new Exception("Unknown PrimitiveType in drawCall! (" + drawProperties["m_nPrimitiveType"].Value + ")");
-            }
-
-            drawCall.Material = MaterialLoader.GetMaterial(material, MaxTextureMaxAnisotropy);
-
-            // Load shader
-            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.ShaderName, modelArguments);
-
-            //Bind and validate shader
-            GL.UseProgram(drawCall.Shader.Program);
-
-            var f = (KVObject)drawProperties["m_indexBuffer"].Value;
-
-            var indexBuffer = default(DrawBuffer);
-            indexBuffer.Id = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
-            indexBuffer.Offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
-            drawCall.IndexBuffer = indexBuffer;
-
-            var bufferSize = block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
-            drawCall.BaseVertex = Convert.ToUInt32(drawProperties["m_nBaseVertex"].Value);
-            drawCall.VertexCount = Convert.ToUInt32(drawProperties["m_nVertexCount"].Value);
-            drawCall.StartIndex = Convert.ToUInt32(drawProperties["m_nStartIndex"].Value) * bufferSize;
-            drawCall.IndexCount = Convert.ToInt32(drawProperties["m_nIndexCount"].Value);
-
-            if (drawProperties.ContainsKey("m_vTintColor"))
-            {
-                var tint = (KVObject) drawProperties["m_vTintColor"].Value;
-                drawCall.TintColor = new Vector3(
-                    Convert.ToSingle(tint.Properties["0"].Value),
-                    Convert.ToSingle(tint.Properties["1"].Value),
-                    Convert.ToSingle(tint.Properties["2"].Value)
-                );
-            }
-
-            if (bufferSize == 2)
-            {
-                //shopkeeper_vr
-                drawCall.IndiceType = DrawElementsType.UnsignedShort;
-            }
-            else if (bufferSize == 4)
-            {
-                //glados
-                drawCall.IndiceType = DrawElementsType.UnsignedInt;
-            }
-            else
-            {
-                throw new Exception("Unsupported indice type");
-            }
-
-            var g = (KVObject)drawProperties["m_vertexBuffers"].Value;
-            var h = (KVObject)g.Properties["0"].Value; // TODO: Not just 0
-
-            var vertexBuffer = default(DrawBuffer);
-            vertexBuffer.Id = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
-            vertexBuffer.Offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
-            drawCall.VertexBuffer = vertexBuffer;
-
-            GL.GenVertexArrays(1, out drawCall.VertexArrayObject);
-
-            GL.BindVertexArray(drawCall.VertexArrayObject);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.VertexBuffer.Id]);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.IndexBuffer.Id]);
-
-            var curVertexBuffer = block.VertexBuffers[(int)drawCall.VertexBuffer.Id];
-            var texCoordNum = 0;
-            foreach (var attribute in curVertexBuffer.Attributes)
-            {
-                var attributeName = "v" + attribute.Name;
-
-                // TODO: other params too?
-                if (attribute.Name == "TEXCOORD" && texCoordNum++ > 0)
-                {
-                    attributeName += texCoordNum;
-                }
-
-                BindVertexAttrib(attribute, attributeName, drawCall.Shader.Program, (int)curVertexBuffer.Size);
-            }
-
-            GL.BindVertexArray(0);
-
-            return drawCall;
         }
 
         private void MeshControl_Paint(object sender, PaintEventArgs e)
@@ -405,6 +328,26 @@ namespace GUI.Types.Renderer
             var lightPos = ActiveCamera.Location;
             var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
             lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
+
+            // Get animation matrices
+            var animationMatrices = new float[Skeleton.Bones.Length * 16];
+            for (var i = 0; i < Skeleton.Bones.Length; i++)
+            {
+                // Default to identity matrices
+                animationMatrices[i * 16] = 1.0f;
+                animationMatrices[(i * 16) + 5] = 1.0f;
+                animationMatrices[(i * 16) + 10] = 1.0f;
+                animationMatrices[(i * 16) + 15] = 1.0f;
+            }
+
+            if (Animations.Count > 0)
+            {
+                animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
+                //Update animation texture
+                GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, Skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
+                GL.BindTexture(TextureTarget.Texture2D, 0);
+            }
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
@@ -439,6 +382,32 @@ namespace GUI.Types.Renderer
 
                         uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
                         GL.Uniform3(uniformLocation, ActiveCamera.Location);
+
+                        uniformLocation = call.Shader.GetUniformLocation("bAnimated");
+                        if (uniformLocation != -1)
+                        {
+                            GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
+                        }
+
+                        //Push animation texture to the shader (if it supports it)
+                        if (Animations.Count > 0)
+                        {
+                            uniformLocation = call.Shader.GetUniformLocation("animationTexture");
+                            if (uniformLocation != -1)
+                            {
+                                GL.ActiveTexture(TextureUnit.Texture0);
+                                GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+                                GL.Uniform1(uniformLocation, 0);
+                            }
+
+                            uniformLocation = call.Shader.GetUniformLocation("fNumBones");
+                            var uniformLocation2 = GL.GetUniformLocation(call.Shader.Program,"fNumBones");
+                            if (uniformLocation != -1)
+                            {
+                                var v = (float)Math.Max(1, Skeleton.Bones.Length - 1);
+                                GL.Uniform1(uniformLocation, v);
+                            }
+                        }
                     }
 
                     // Stupidly hacky
@@ -470,10 +439,20 @@ namespace GUI.Types.Renderer
                     {
                         prevMaterial = call.Material.Name;
 
-                        var textureUnit = 0;
+                        //Start at 1, texture unit 0 is reserved for the animation texture
+                        var textureUnit = 1;
                         foreach (var texture in call.Material.Textures)
                         {
-                            TryToBindTexture(call.Shader.Program, textureUnit++, texture.Key, texture.Value);
+                            uniformLocation = call.Shader.GetUniformLocation(texture.Key);
+
+                            if (uniformLocation > -1)
+                            {
+                                GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
+                                GL.BindTexture(TextureTarget.Texture2D, texture.Value);
+                                GL.Uniform1(uniformLocation, textureUnit);
+
+                                textureUnit++;
+                            }
                         }
 
                         foreach (var param in call.Material.FloatParams)
@@ -524,7 +503,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            //sw.Stop(); Console.WriteLine("{0} {1} {2}", sw.Elapsed, sw.ElapsedTicks);
+            //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
             /*
@@ -536,27 +515,12 @@ namespace GUI.Types.Renderer
             }
             */
 
+#if DEBUG
+            Debug.Draw(ActiveCamera, false);
+#endif
+
             meshControl.SwapBuffers();
             meshControl.Invalidate();
-        }
-
-        private void TryToBindTexture(int shader, int textureUnit, string uniform, int textureID)
-        {
-            //Get uniform location from the shader
-            var uniformLocation = GL.GetUniformLocation(shader, uniform);
-
-            //Stop if the uniform loction does not exist
-            if (uniformLocation == -1)
-            {
-                return;
-            }
-
-            //Bind texture unit and texture
-            GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-            GL.BindTexture(TextureTarget.Texture2D, textureID);
-
-            //Set uniform location
-            GL.Uniform1(uniformLocation, textureUnit);
         }
 
         // TODO: we're taking boundaries of first scene
@@ -580,61 +544,6 @@ namespace GUI.Types.Renderer
             MinBounds.Y = (float)Convert.ToDouble(minBounds.Properties["1"].Value);
             MaxBounds.Z = (float)Convert.ToDouble(maxBounds.Properties["2"].Value);
             MinBounds.Z = (float)Convert.ToDouble(minBounds.Properties["2"].Value);
-        }
-
-        private void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int shaderProgram, int stride)
-        {
-            var attributeLocation = GL.GetAttribLocation(shaderProgram, attributeName);
-
-            //Ignore this attribute if it is not found in the shader
-            if (attributeLocation == -1)
-            {
-                return;
-            }
-
-            GL.EnableVertexAttribArray(attributeLocation);
-
-            switch (attribute.Type)
-            {
-                case DXGI_FORMAT.R32G32B32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 3, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.HalfFloat, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.UnsignedInt, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 2, VertexAttribIntegerType.Short, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16B16A16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.Short, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                default:
-                    throw new Exception("Unknown attribute format " + attribute.Type);
-            }
         }
     }
 }

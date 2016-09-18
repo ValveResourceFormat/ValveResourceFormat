@@ -12,7 +12,7 @@ in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 in vec4 vTANGENT;
-in ivec4 vBLENDINDICES;
+in vec4 vBLENDINDICES;
 in vec4 vBLENDWEIGHT;
 
 out vec3 vFragPosition;
@@ -27,9 +27,31 @@ uniform mat4 projection;
 uniform mat4 modelview;
 uniform mat4 transform;
 
+uniform float bAnimated = 0;
+uniform float fNumBones = 1;
+uniform sampler2D animationTexture;
+
+mat4 getMatrix(float id) {
+    float texelPos = id/fNumBones;
+    return mat4(texture2D(animationTexture, vec2(0.00, texelPos)),
+        texture2D(animationTexture, vec2(0.25, texelPos)),
+        texture2D(animationTexture, vec2(0.50, texelPos)),
+        texture2D(animationTexture, vec2(0.75, texelPos)));
+}
+
+mat4 getSkinMatrix() {
+    mat4 matrix;
+    matrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
+    matrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
+    matrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
+    return bAnimated * matrix + (1 - bAnimated) * mat4(1.0);
+}
+
 void main()
 {
-	gl_Position = projection * modelview * transform * vec4(vPOSITION, 1.0);
+    mat4 skinMatrix = getSkinMatrix();
+
+	gl_Position = projection * modelview * transform * skinMatrix * vec4(vPOSITION, 1.0);
 	vFragPosition = vPOSITION;
 
 	//Unpack normals
