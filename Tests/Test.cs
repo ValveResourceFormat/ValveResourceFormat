@@ -167,11 +167,16 @@ namespace Tests
         [Test]
         public void PackageInResourceThrows()
         {
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "VPK", "platform_misc_dir.vpk");
+            var data = new byte[] { 0x34, 0x12, 0xAA, 0x55, 0x00, 0x00 };
 
             using (var resource = new Resource())
             {
-                Assert.Throws<InvalidDataException>(() => resource.Read(path));
+                using (var ms = new MemoryStream(data))
+                {
+                    var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
+
+                    Assert.That(ex.Message, Does.Contain("Use ValvePak"));
+                }
             }
         }
 
@@ -182,7 +187,9 @@ namespace Tests
 
             using (var resource = new Resource())
             {
-                Assert.Throws<InvalidDataException>(() => resource.Read(path));
+                var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
+
+                Assert.That(ex.Message, Does.Contain("Use CompiledShader"));
             }
         }
     }
