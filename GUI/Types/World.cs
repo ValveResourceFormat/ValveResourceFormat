@@ -8,6 +8,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 using Vector3 = OpenTK.Vector3;
 using Vector4 = OpenTK.Vector4;
+using SteamDatabase.ValvePak;
 
 namespace GUI.Types
 {

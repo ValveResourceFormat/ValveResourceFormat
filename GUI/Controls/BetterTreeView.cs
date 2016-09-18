@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
-using ValveResourceFormat;
+using SteamDatabase.ValvePak;
 
 namespace GUI.Controls
 {

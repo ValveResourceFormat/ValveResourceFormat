@@ -52,6 +52,10 @@
     <Reference Include="OpenTK.GLControl, Version=1.1.0.0, Culture=neutral, PublicKeyToken=bad199fe84eb3df4">
       <HintPath>..\packages\OpenTK.GLControl.1.1.1589.5942\lib\NET40\OpenTK.GLControl.dll</HintPath>
     </Reference>
+    <Reference Include="ValvePak, Version=0.4.0.11, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ValvePak.0.4.0.11\lib\net40\ValvePak.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controls\BetterTreeView.cs">

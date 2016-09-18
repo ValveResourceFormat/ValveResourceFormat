@@ -18,6 +18,7 @@ using GUI.Types.Renderer;
 using GUI.Types.Renderer.Animation;
 using GUI.Utils;
 using OpenTK;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;

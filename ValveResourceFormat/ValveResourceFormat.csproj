@@ -46,10 +46,7 @@
     <Compile Include="KeyValues\KVFlaggedValue.cs" />
     <Compile Include="KeyValues\KVObject.cs" />
     <Compile Include="KeyValues\KVValue.cs" />
-    <Compile Include="Package\ArchiveMD5SectionEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Package\Package.cs" />
-    <Compile Include="Package\PackageEntry.cs" />
     <Compile Include="Resource\Block.cs" />
     <Compile Include="Resource\Enums\DXGIFormat.cs" />
     <Compile Include="Resource\ResourceTypes\EntityLump.cs" />
@@ -83,7 +80,6 @@
     <Compile Include="Resource\Blocks\ResourceIntrospectionManifest.cs" />
     <Compile Include="Resource\Blocks\VBIB.cs" />
     <Compile Include="Resource\ResourceTypes\SoundEventScript.cs" />
-    <Compile Include="ThirdParty\AsnKeyParser.cs" />
     <Compile Include="Utils\StreamHelpers.cs" />
     <Compile Include="Utils\Crc32.cs" />
     <Compile Include="Resource\ResourceTypes\Sound.cs" />

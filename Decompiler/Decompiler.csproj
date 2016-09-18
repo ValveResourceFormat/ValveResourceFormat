@@ -41,6 +41,10 @@
     <Reference Include="CommandLine, Version=1.9.71.2, Culture=neutral, PublicKeyToken=de6f01bd326f8c32">
       <HintPath>..\packages\CommandLineParser.1.9.71\lib\net45\CommandLine.dll</HintPath>
     </Reference>
+    <Reference Include="ValvePak, Version=0.4.0.11, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ValvePak.0.4.0.11\lib\net40\ValvePak.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />

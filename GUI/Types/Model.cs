@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;

@@ -160,9 +160,9 @@ namespace ValveResourceFormat
 
             FileSize = Reader.ReadUInt32();
 
-            if (FileSize == Package.MAGIC)
+            if (FileSize == 0x55AA1234)
             {
-                throw new InvalidDataException("Use Package() class to parse VPK files.");
+                throw new InvalidDataException("Use ValvePak library to parse VPK files.\nSee https://github.com/SteamDatabase/ValvePak");
             }
 
             if (FileSize == CompiledShader.MAGIC)

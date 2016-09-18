@@ -8,6 +8,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Blocks;
 using System.Text;
+using SteamDatabase.ValvePak;
 
 namespace Decompiler
 {
