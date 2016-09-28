@@ -136,7 +136,7 @@ namespace GUI.Types
                     continue;
                 }
 
-                if (classname == "point_camera" || model != string.Empty)
+                if (classname == "point_camera" || classname == "vr_teleport_marker" || model != string.Empty)
                 {
                     var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
                     var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
@@ -156,6 +156,12 @@ namespace GUI.Types
                         {
                             objColor[i] = colour[i] / 255.0f;
                         }
+                    }
+
+                    //This model is hardcoded into the FGD
+                    if (classname == "vr_teleport_marker")
+                    {
+                        model = "models/effects/teleport/teleport_marker.vmdl";
                     }
 
                     if (classname == "point_camera")
