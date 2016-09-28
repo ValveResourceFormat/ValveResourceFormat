@@ -644,7 +644,28 @@ namespace GUI
             else
             {
                 //We are a folder
-                MessageBox.Show("Folder Extraction coming Soon™");
+                var dialog = new FolderBrowserDialog();
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    foreach (TreeNode node in selectedNode.Nodes)
+                    {
+                        if (node.Tag.GetType() == typeof(PackageEntry))
+                        {
+                            var file = node.Tag as PackageEntry;
+                            Console.WriteLine(node.Text);
+                            using (var stream = new FileStream(dialog.SelectedPath + Path.DirectorySeparatorChar + file.FileName + "." + file.TypeName, FileMode.Create))
+                            {
+                                byte[] output;
+                                package.ReadEntry(file, out output);
+                                stream.Write(output, 0, output.Length);
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nested Folder Extract Soon (tm)");
+                        }
+                    }
+                }
             }
         }
 
