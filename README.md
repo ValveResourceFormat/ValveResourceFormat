@@ -56,7 +56,7 @@ vmap     | Map                     | :+1:
 
 Ext      | Name                    | Support
 -------- | ----------------------- | -------
-vpk      | Pak (package)           | :+1: Supported by `Package`
+vpk      | Pak (package)           | :+1: Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
 vcs      | Compiled Shader         | Partially supported by `CompiledShader`
 vfont    | Bitmap Font             | :+1: Decrypts `VFONT1`, supported in Source 1 (CS:GO) and Source 2 (Dota 2).
 
