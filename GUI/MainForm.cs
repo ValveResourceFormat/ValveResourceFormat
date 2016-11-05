@@ -372,6 +372,7 @@ namespace GUI
                             break;
                         }
 
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, resource);
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
                         mv.AddMeshObject(new MeshObject { Resource = resource });
@@ -739,6 +740,9 @@ namespace GUI
                 case ResourceType.PanoramaStyle:
                     extensions = new[] { "css", "vcss" };
                     break;
+                case ResourceType.Mesh:
+                    extensions = new[] { "obj" };
+                    break;
             }
 
             //Did we find a format we like?
@@ -794,10 +798,51 @@ namespace GUI
                                 var panoramaData = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
                                 stream.Write(panoramaData, 0, panoramaData.Length);
                                 break;
+                            case ResourceType.Mesh:
+                                var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
+                                using (var objStream = new StreamWriter(stream))
+                                {
+                                    objStream.WriteLine($"# vertex buffers {mesh.VertexBuffers.Count}");
+                                    for (var i = 0; i < mesh.VertexBuffers.Count; i++)
+                                    {
+                                        var vertexBuffer = mesh.VertexBuffers[i];
+                                        objStream.WriteLine($"# Vertex Buffer {i}. Count: {vertexBuffer.Count}, Size: {vertexBuffer.Size}");
+                                        for (uint j = 0; j < vertexBuffer.Count; j++)
+                                        {
+                                            foreach (var attribute in vertexBuffer.Attributes)
+                                            {
+                                                switch (attribute.Name)
+                                                {
+                                                    case "POSITION":
+                                                        var posArray = new float[3];
+                                                        Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, posArray, 0, 12);
+                                                        objStream.WriteLine($"v {posArray[0]} {posArray[1]} {posArray[2]}");
+                                                        break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    objStream.WriteLine($"# index buffers {mesh.IndexBuffers.Count}");
+                                    for (var i = 0; i < mesh.IndexBuffers.Count; i++)
+                                    {
+                                        var indexBuffer = mesh.IndexBuffers[i];
+                                        objStream.WriteLine($"# Index Buffer {i}. Count: {indexBuffer.Count}, Size: {indexBuffer.Size}");
+                                        var indexArray = new ushort[indexBuffer.Count];
+                                        Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+                                        for (var j = 0; j < indexBuffer.Count; j += 3)
+                                        {
+                                            objStream.WriteLine($"f {indexArray[j] + 1} {indexArray[j + 1] + 1} {indexArray[j + 2] + 1}");
+                                        }
+                                    }
+                                }
+
+                                break;
                         }
                     }
                 }
             }
+            Console.WriteLine($"Export requested for {fileName} Complete");
         }
     }
 }
