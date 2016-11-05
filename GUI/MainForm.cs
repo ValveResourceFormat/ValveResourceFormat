@@ -803,6 +803,13 @@ namespace GUI
                                 using (var objStream = new StreamWriter(stream))
                                 {
                                     objStream.WriteLine($"# vertex buffers {mesh.VertexBuffers.Count}");
+                                    objStream.WriteLine($"# index buffers {mesh.IndexBuffers.Count}");
+                                    if (mesh.VertexBuffers.Count != mesh.IndexBuffers.Count)
+                                    {
+                                        throw new InvalidDataException("What.");
+                                    }
+
+                                    uint indexCount = 1;
                                     for (var i = 0; i < mesh.VertexBuffers.Count; i++)
                                     {
                                         var vertexBuffer = mesh.VertexBuffers[i];
@@ -821,18 +828,36 @@ namespace GUI
                                                 }
                                             }
                                         }
-                                    }
 
-                                    objStream.WriteLine($"# index buffers {mesh.IndexBuffers.Count}");
-                                    for (var i = 0; i < mesh.IndexBuffers.Count; i++)
-                                    {
+                                        if (i > 0)
+                                        {
+                                            indexCount += mesh.VertexBuffers[i - 1].Count;
+                                        }
+
+                                        Console.WriteLine($"IndexCount: {indexCount}");
                                         var indexBuffer = mesh.IndexBuffers[i];
                                         objStream.WriteLine($"# Index Buffer {i}. Count: {indexBuffer.Count}, Size: {indexBuffer.Size}");
-                                        var indexArray = new ushort[indexBuffer.Count];
-                                        Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
-                                        for (var j = 0; j < indexBuffer.Count; j += 3)
+                                        if (indexBuffer.Size == 2)
                                         {
-                                            objStream.WriteLine($"f {indexArray[j] + 1} {indexArray[j + 1] + 1} {indexArray[j + 2] + 1}");
+                                            var indexArray = new ushort[indexBuffer.Count];
+                                            Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+                                            for (var j = 0; j < indexBuffer.Count; j += 3)
+                                            {
+                                                objStream.WriteLine($"f {indexArray[j] + indexCount} {indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}");
+                                            }
+                                        }
+                                        else if (indexBuffer.Size == 4)
+                                        {
+                                            var indexArray = new uint[indexBuffer.Count];
+                                            Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+                                            for (var j = 0; j < indexBuffer.Count; j += 3)
+                                            {
+                                                objStream.WriteLine($"f {indexArray[j] + indexCount} {indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            throw new InvalidDataException("Index size isn't 2 or 4, dafuq.");
                                         }
                                     }
                                 }
