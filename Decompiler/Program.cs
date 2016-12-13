@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -21,6 +22,7 @@ namespace Decompiler
 
         private static Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
         private static Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
+
 
         // This decompiler is a test bed for our library,
         // don't expect to see any quality code in here
@@ -67,6 +69,7 @@ namespace Decompiler
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
+
             if (Options.MaxParallelismThreads > 1)
             {
                 Console.WriteLine("Will use {0} threads concurrently.", Options.MaxParallelismThreads);
@@ -104,6 +107,7 @@ namespace Decompiler
                     Console.WriteLine("{0} in {1}", stat.Key, stat.Value);
                 }
             }
+
         }
 
         private static void ProcessFile(string path)
@@ -535,6 +539,7 @@ namespace Decompiler
             else
             {
                 Console.WriteLine("--- Dumping decompiled files...");
+               
 
                 DumpVPK(package, "vxml_c", "xml");
                 DumpVPK(package, "vjs_c", "js");
@@ -576,6 +581,19 @@ namespace Decompiler
 
             foreach (var file in entries)
             {
+                if (string.IsNullOrWhiteSpace(file.DirectoryName) &&
+                    !string.IsNullOrWhiteSpace(Options.FromVPKDirectory)) {
+                    continue;
+                }
+                if (!string.IsNullOrWhiteSpace(Options.FromVPKDirectory) && !file.DirectoryName.StartsWith(Options.FromVPKDirectory)) {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(Options.ExportFilter) &&
+                    !file.FileName.Contains(Options.ExportFilter)) {
+                    continue;
+                }
+
                 var filePath = string.Format("{0}.{1}", file.FileName, file.TypeName);
 
                 if (!string.IsNullOrWhiteSpace(file.DirectoryName))
