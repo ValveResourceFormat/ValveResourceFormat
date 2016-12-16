@@ -17,7 +17,7 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public byte[] Read(string filename)
         {
-            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 return Read(fs);
             }

@@ -145,7 +145,7 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
-            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
+            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             Read(FileStream);
         }

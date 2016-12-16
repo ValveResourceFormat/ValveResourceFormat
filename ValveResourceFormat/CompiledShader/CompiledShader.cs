@@ -37,7 +37,7 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
-            var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             Read(filename, fs);
         }
