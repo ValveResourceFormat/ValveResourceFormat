@@ -36,11 +36,16 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var a = dataReader.ReadUInt32(); // always 1?
                     var valuesCount = dataReader.ReadUInt32();
-                    var c = dataReader.ReadUInt32(); // always 0?
+                    var c = dataReader.ReadUInt32(); // always 0? (Its been seen to be 1, footer count?)
 
                     var values = new List<Tuple<uint, uint, object>>();
                     while (dataStream.Position != dataStream.Length)
                     {
+                        if (values.Count == valuesCount)
+                        {
+                            Console.WriteLine("We hit our values target without reading every byte?!");
+                            break;
+                        }
                         var miscType = dataReader.ReadUInt32(); //Stuff before type, some pointer?
                         var type = dataReader.ReadUInt32();
                         switch (type)
