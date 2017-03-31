@@ -250,8 +250,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            using (var output = new StringWriter())
-            using (var writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter())
             {
                 writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);
                 writer.WriteLine("{0,-12} = {1}", "Width", Width);
@@ -280,7 +279,7 @@ namespace ValveResourceFormat.ResourceTypes
                     writer.WriteLine("{0,-12}   [ Entry {1}: VTEX_EXTRA_DATA_{2} - {3} bytes ]", string.Empty, entry++, b.Key, b.Value.Length);
                 }
 
-                return output.ToString();
+                return writer.ToString();
             }
         }
     }
