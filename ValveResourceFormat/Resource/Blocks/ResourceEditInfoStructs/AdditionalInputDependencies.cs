@@ -1,4 +1,4 @@
-﻿using System.CodeDom.Compiler;
+﻿using System;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 {

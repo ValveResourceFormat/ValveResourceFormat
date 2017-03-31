@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,13 +27,12 @@ namespace ValveResourceFormat.KeyValues
 
         public override string ToString()
         {
-            using (var output = new StringWriter())
-            using (var writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter())
             {
                 writer.WriteLine(string.Format("<!-- kv3 encoding:{0} format:{1} -->", Encoding, Format));
                 Root.Serialize(writer);
 
-                return output.ToString();
+                return writer.ToString();
             }
         }
     }

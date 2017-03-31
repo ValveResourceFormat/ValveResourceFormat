@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
@@ -37,8 +36,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            using (var output = new StringWriter())
-            using (var writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter())
             {
                 foreach (var entry in SoundEventScriptValue)
                 {
@@ -52,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes
                     writer.WriteLine(string.Empty); // There is an empty line after every entry (including the last)
                 }
 
-                return output.ToString();
+                return writer.ToString();
             }
         }
     }

@@ -1,5 +1,4 @@
-﻿using System.CodeDom.Compiler;
-using System.IO;
+﻿using System.IO;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
@@ -61,12 +60,11 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 
         public override string ToString()
         {
-            using (var output = new StringWriter())
-            using (var writer = new IndentedTextWriter(output, "\t"))
+            using (var writer = new IndentedTextWriter())
             {
                 WriteText(writer);
 
-                return output.ToString();
+                return writer.ToString();
             }
         }
 

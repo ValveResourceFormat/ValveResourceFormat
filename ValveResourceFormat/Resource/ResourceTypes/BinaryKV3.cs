@@ -1,5 +1,4 @@
-﻿using System.CodeDom.Compiler;
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
