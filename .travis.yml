@@ -9,5 +9,5 @@ install:
   - nuget restore ValveResourceFormat.sln
 
 script:
-  - xbuild /p:Configuration=Release ValveResourceFormat.sln
+  - msbuild /p:Configuration=Release ValveResourceFormat.sln
   - mono ./packages/NUnit.ConsoleRunner.3.2.0/tools/nunit3-console.exe ./Tests/bin/Release/Tests.dll
