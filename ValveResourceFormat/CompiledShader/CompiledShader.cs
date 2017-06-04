@@ -71,10 +71,12 @@ namespace ValveResourceFormat
             }
 
             // This is static across all files, is it version?
-            if (Reader.ReadUInt32() != 0x0000003E)
+            if (Reader.ReadUInt32() != 0x00000040)
             {
-                throw new InvalidDataException("Not 3E.");
+                throw new InvalidDataException("Not 40.");
             }
+
+            Reader.ReadUInt32(); // always 0?
 
             var wtf = Reader.ReadUInt32();
 
@@ -188,9 +190,6 @@ namespace ValveResourceFormat
         private void ReadShader()
         {
             var fileIdentifier = Reader.ReadBytes(16);
-
-            // This appears to always be CD B1 D4 A1 82 20 D5 E2 D5 A3 78 2E C8 0F D7 7C
-            // Including aperture robot repair and dota 2
             var staticIdentifier = Reader.ReadBytes(16);
 
             Console.WriteLine("File identifier: {0}", BitConverter.ToString(fileIdentifier));
@@ -282,11 +281,11 @@ namespace ValveResourceFormat
 
                 if (b > -1 && type != 0)
                 {
-                    Reader.BaseStream.Position = previousPosition + 480 + b + 4;
+                    Reader.BaseStream.Position = previousPosition + 484 + b + 4;
                 }
                 else
                 {
-                    Reader.BaseStream.Position = previousPosition + 480;
+                    Reader.BaseStream.Position = previousPosition + 484;
                 }
 
                 Console.WriteLine($"{type} {b} {name}");
