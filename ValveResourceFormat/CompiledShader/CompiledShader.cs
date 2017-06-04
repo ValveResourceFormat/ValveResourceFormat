@@ -107,8 +107,9 @@ namespace ValveResourceFormat
             var e = Reader.ReadInt32();
             var f = Reader.ReadInt32();
             var g = Reader.ReadInt32();
+            var h = Reader.ReadInt32();
 
-            Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g}");
+            Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
 
             var count = Reader.ReadUInt32();
 
@@ -142,15 +143,16 @@ namespace ValveResourceFormat
             }
 
             // Appears to be always 112 bytes
-            for (var i = 0; i < 7; i++)
+            for (var i = 0; i < 8; i++)
             {
-                // 0 -
+                // 0 - ?
                 // 1 - vertex shader
                 // 2 - pixel shader
                 // 3 - geometry shader
                 // 4 - hull shader
                 // 5 - domain shader
-                // 6 - CD B1 D4.... hardcoded, this one might be 20 bytes because (0E 00 00 00) appears in other files too
+                // 6 - ?
+                // 7 - ?
                 var identifier = Reader.ReadBytes(16);
 
                 Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
