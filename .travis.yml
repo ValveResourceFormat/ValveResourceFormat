@@ -2,10 +2,6 @@ language: csharp
 sudo: false
 solution: ValveResourceFormat.sln
 
-os:
-- linux
-- osx
-
 notifications:
   email: false
 
