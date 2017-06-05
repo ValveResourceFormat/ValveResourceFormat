@@ -11,6 +11,7 @@ namespace ValveResourceFormat
 
         private BinaryReader Reader;
         private string ShaderType;
+        private string ShaderPlatform;
         private uint version;
 
         /// <summary>
@@ -62,6 +63,19 @@ namespace ValveResourceFormat
             else if (filename.EndsWith("features.vcs"))
             {
                 ShaderType = "features";
+            }
+
+            if (filename.Contains("vulkan"))
+            {
+                ShaderPlatform = "vulkan";
+            }
+            else if (filename.Contains("pcgl"))
+            {
+                ShaderPlatform = "opengl";
+            }
+            else if (filename.Contains("pc_"))
+            {
+                ShaderPlatform = "directx";
             }
 
             Reader = new BinaryReader(input);
@@ -413,7 +427,93 @@ namespace ValveResourceFormat
 
             for (var i = 0; i < lzmaCount; i++)
             {
-                //File.WriteAllBytes(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "shader_out_" + i + ".bin"), ReadShaderChunk(lzmaOffsets[i]));
+                Console.WriteLine("Extracting shader " + i + "..");
+                // File.WriteAllBytes(Path.Combine(@"D:\shaders\PCGL DotA Core\processed spritecard\", "shader_out_" + i + ".bin"), ReadShaderChunk(lzmaOffsets[i]));
+
+                // Skip non-PCGL shaders for now, need to figure out platform without checking filename
+                if (ShaderPlatform != "opengl")
+                {
+                    continue;
+                }
+
+                // What follows here is super experimental and barely works as is. It is a very rough implementation to read and extract shader stringblocks for PCGL shaders.
+                using (var inputStream = new MemoryStream(ReadShaderChunk(lzmaOffsets[i])))
+                using (var chunkReader = new BinaryReader(inputStream))
+                {
+                    while (chunkReader.BaseStream.Position < chunkReader.BaseStream.Length)
+                    {
+                        // Read count that also doubles as mode?
+                        var modeAndCount = chunkReader.ReadInt16();
+
+                        // Mode never seems to be 20 for anything but the FF chunk before shader stringblock
+                        if (modeAndCount != 20)
+                        {
+                            chunkReader.ReadInt16();
+                            var unk2 = chunkReader.ReadInt32();
+                            var unk3 = chunkReader.ReadInt32();
+
+                            // If the mode isn't the same as unk3, skip shader for now
+                            if (modeAndCount != unk3)
+                            {
+                                Console.WriteLine("Having issues reading shader " + i + ", skipping..");
+                                chunkReader.BaseStream.Position = chunkReader.BaseStream.Length;
+                                continue;
+                            }
+
+                            chunkReader.ReadBytes(unk3 * 4);
+
+                            var unk4 = chunkReader.ReadUInt16();
+
+                            // Seems to be 1 if there's a string there, read 26 byte stringblock, roll back if not
+                            if (unk4 == 1)
+                            {
+                                chunkReader.ReadBytes(26);
+                            }
+                            else
+                            {
+                                chunkReader.BaseStream.Position -= 2;
+                            }
+                        }
+                        else if (modeAndCount == 20)
+                        {
+                            // Read 40 byte 0xFF chunk
+                            chunkReader.ReadBytes(40);
+
+                            // Read 5 unknown bytes
+                            chunkReader.ReadBytes(5);
+
+                            // Shader stringblock count
+                            var shaderContentCount = chunkReader.ReadUInt32();
+
+                            // Read trailing byte
+                            chunkReader.ReadByte();
+
+                            // If shader stringblock count is ridiculously high stop reading this shader and bail
+                            if (shaderContentCount > 100)
+                            {
+                                Console.WriteLine("Having issues reading shader " + i + ", skipping..");
+                                chunkReader.BaseStream.Position = chunkReader.BaseStream.Length;
+                                continue;
+                            }
+
+                            // Read and dump all shader stringblocks
+                            for (int j = 0; j < shaderContentCount; j++)
+                            {
+                                var shaderLengthInclHeader = chunkReader.ReadInt32();
+                                var unk = chunkReader.ReadUInt32(); //type?
+                                Console.WriteLine(unk);
+                                var shaderContentLength = chunkReader.ReadInt32();
+                                var shaderContent = chunkReader.ReadChars(shaderContentLength);
+
+                                // File.WriteAllText(Path.Combine(@"D:\shaders\PCGL DotA Core\processed spritecard", "shader_out_" + i + "_" + j + ".txt"), new string(shaderContent));
+                                var shaderContentChecksum = chunkReader.ReadBytes(16);
+                            }
+
+                            // Reached end of shader content, skip remaining file length
+                            chunkReader.ReadBytes((int)chunkReader.BaseStream.Length - (int)chunkReader.BaseStream.Position);
+                        }
+                    }
+                }
             }
         }
 
