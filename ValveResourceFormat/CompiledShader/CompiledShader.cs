@@ -11,6 +11,7 @@ namespace ValveResourceFormat
 
         private BinaryReader Reader;
         private string ShaderType;
+        private uint version;
 
         /// <summary>
         /// Releases binary reader.
@@ -71,12 +72,21 @@ namespace ValveResourceFormat
             }
 
             // This is static across all files, is it version?
-            if (Reader.ReadUInt32() != 0x00000040)
+            // Known versions:
+            //  62 - April 2016
+            //  63 - March 2017
+            //  64 - May 2017
+            version = Reader.ReadUInt32();
+
+            if (version < 62 || version > 64)
             {
-                throw new InvalidDataException("Not 40.");
+                throw new InvalidDataException("Unsupported VCS2 version: " + version);
             }
 
-            Reader.ReadUInt32(); // always 0?
+            if (version >= 64)
+            {
+                Reader.ReadUInt32(); // always 0, new in version 64
+            }
 
             var wtf = Reader.ReadUInt32();
 
@@ -107,9 +117,16 @@ namespace ValveResourceFormat
             var e = Reader.ReadInt32();
             var f = Reader.ReadInt32();
             var g = Reader.ReadInt32();
-            var h = Reader.ReadInt32();
 
-            Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
+            if (version >= 63)
+            {
+                var h = Reader.ReadInt32();
+                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
+            }
+            else
+            {
+                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g}");
+            }
 
             var count = Reader.ReadUInt32();
 
@@ -142,8 +159,15 @@ namespace ValveResourceFormat
                 }
             }
 
-            // Appears to be always 112 bytes
-            for (var i = 0; i < 8; i++)
+            var identifierCount = 7;
+
+            if (version > 62)
+            {
+                identifierCount = 8;
+            }
+
+            // Appears to be always 128 bytes in version 63 and higher, 112 before
+            for (var i = 0; i < identifierCount; i++)
             {
                 // 0 - ?
                 // 1 - vertex shader
@@ -152,7 +176,7 @@ namespace ValveResourceFormat
                 // 4 - hull shader
                 // 5 - domain shader
                 // 6 - ?
-                // 7 - ?
+                // 7 - ?, new in version 63 
                 var identifier = Reader.ReadBytes(16);
 
                 Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
@@ -283,11 +307,16 @@ namespace ValveResourceFormat
 
                 if (b > -1 && type != 0)
                 {
-                    Reader.BaseStream.Position = previousPosition + 484 + b + 4;
+                    Reader.BaseStream.Position = previousPosition + 480 + b + 4;
                 }
                 else
                 {
-                    Reader.BaseStream.Position = previousPosition + 484;
+                    Reader.BaseStream.Position = previousPosition + 480;
+                }
+
+                if (version > 62)
+                {
+                    Reader.BaseStream.Position += 4;
                 }
 
                 Console.WriteLine($"{type} {b} {name}");
