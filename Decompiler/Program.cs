@@ -48,7 +48,7 @@ namespace Decompiler
                     return;
                 }
 
-                paths.AddRange(Directory.GetFiles(Options.InputFile, "*.*_c", Options.RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
+                paths.AddRange(Directory.EnumerateFiles(Options.InputFile, "*.*", Options.RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly).Where(s => s.EndsWith("_c") || s.EndsWith(".vcs")));
             }
             else if (File.Exists(Options.InputFile))
             {

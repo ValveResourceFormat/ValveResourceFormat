@@ -105,7 +105,7 @@ namespace ValveResourceFormat
             var wtf = Reader.ReadUInt32();
 
             // TODO: Odd assumption, features.vcs seems to have this
-            if (wtf < 100)
+            if (wtf == 0)
             {
                 Console.WriteLine("wtf: {0}", wtf);
                 ReadFeatures();
@@ -190,7 +190,7 @@ namespace ValveResourceFormat
                 // 4 - hull shader
                 // 5 - domain shader
                 // 6 - ?
-                // 7 - ?, new in version 63 
+                // 7 - ?, new in version 63
                 var identifier = Reader.ReadBytes(16);
 
                 Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
@@ -235,12 +235,12 @@ namespace ValveResourceFormat
             Console.WriteLine("File identifier: {0}", BitConverter.ToString(fileIdentifier));
             Console.WriteLine("Static identifier: {0}", BitConverter.ToString(staticIdentifier));
 
-            Console.WriteLine("wtf {0}", Reader.ReadUInt32());
+            Console.WriteLine("wtf {0}", Reader.ReadUInt32()); // Always 14?
 
-            // 2
+            // Chunk 1
             var count = Reader.ReadUInt32();
 
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+            Console.WriteLine("[CHUNK 1] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
@@ -258,22 +258,22 @@ namespace ValveResourceFormat
                 var f = Reader.ReadInt32();
 
                 Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
+            }
+
+            // Chunk 2
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("[CHUNK 2] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            for (var i = 0; i < count; i++)
+            {
+                Reader.BaseStream.Position += 118 * 4;
             }
 
             // 3
             count = Reader.ReadUInt32();
 
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
-
-            for (var i = 0; i < count; i++)
-            {
-                Reader.BaseStream.Position += 118 * 4;
-            }
-
-            // 4
-            count = Reader.ReadUInt32();
-
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+            Console.WriteLine("[CHUNK 3] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
@@ -293,20 +293,20 @@ namespace ValveResourceFormat
                 Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
             }
 
-            // 5
+            // 4
             count = Reader.ReadUInt32();
 
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+            Console.WriteLine("[CHUNK 4] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
                 Reader.BaseStream.Position += 118 * 4;
             }
 
-            // 6
+            // 5 - Globals?
             count = Reader.ReadUInt32();
 
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+            Console.WriteLine("[CHUNK 5] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
@@ -314,14 +314,31 @@ namespace ValveResourceFormat
 
                 var name = Reader.ReadNullTermString(Encoding.UTF8);
 
-                Reader.BaseStream.Position = previousPosition + 200; // ??
+                Reader.BaseStream.Position = previousPosition + 128; // ??
+
+                var hasDesc = Reader.ReadInt32();
+                var unk5_0 = Reader.ReadInt32();
+
+                var desc = string.Empty;
+
+                if (hasDesc > 0)
+                {
+                    desc = Reader.ReadNullTermString(Encoding.UTF8);
+                }
+
+                Reader.BaseStream.Position = previousPosition + 200;
 
                 var type = Reader.ReadInt32();
-                var b = Reader.ReadInt32();
+                var length = Reader.ReadInt32();
 
-                if (b > -1 && type != 0)
+                // Definitely not how it's supposed to work, but it seems to skip ahead correctly in rare cases when triggered.
+                // Maybe chunk after type is [length] bytes longer in some cases (types?) and in some cases not.
+                // It shouldn't skip ahead at all post_process_vulkan_40_ps.vcs but it should skip ahead by length + 4 in visualize_physics_vulkan_40_ps.vcs.
+                // Needs further investigation. This is where parsing a lot of shaders break right now.
+                if (length > -1 && type != 0)
                 {
-                    Reader.BaseStream.Position = previousPosition + 480 + b + 4;
+                    Console.WriteLine("Type is " + type + " and length is " + length);
+                    Reader.BaseStream.Position = previousPosition + 480 + length + 4;
                 }
                 else
                 {
@@ -333,20 +350,20 @@ namespace ValveResourceFormat
                     Reader.BaseStream.Position += 4;
                 }
 
-                Console.WriteLine($"{type} {b} {name}");
+                Console.WriteLine($"{type} {length} {name} {hasDesc} {desc}");
             }
+
+            // 6
+            count = Reader.ReadUInt32();
+
+            Console.WriteLine("[CHUNK 6] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+
+            Reader.ReadBytes(280 * (int)count); // ?
 
             // 7
             count = Reader.ReadUInt32();
 
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
-
-            Reader.ReadBytes(280 * (int)count); // ?
-
-            // 8
-            count = Reader.ReadUInt32();
-
-            Console.WriteLine("Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
+            Console.WriteLine("[CHUNK 7] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
