@@ -30,7 +30,6 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
     <DocumentationFile>bin\Release\ValveResourceFormat.xml</DocumentationFile>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     <DebugType>pdbonly</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
