@@ -9,7 +9,7 @@ namespace Tests
     public class TextureTests
     {
         [Test]
-        public void Test()
+        public void ExportTextures()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures");
             var files = Directory.GetFiles(path, "*.vtex_c");

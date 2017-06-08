@@ -7,7 +7,7 @@ namespace Tests
     public class ShaderTest
     {
         [Test]
-        public void Test()
+        public void ParseShaders()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Shaders");
             var files = Directory.GetFiles(path, "*.vcs");

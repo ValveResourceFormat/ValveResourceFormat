@@ -8,7 +8,7 @@ namespace Tests
     public class FontTest
     {
         [Test]
-        public void Test()
+        public void DecryptFonts()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Fonts");
             var files = Directory.GetFiles(path, "*.vfont");
