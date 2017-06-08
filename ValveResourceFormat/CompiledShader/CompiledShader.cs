@@ -419,7 +419,7 @@ namespace ValveResourceFormat
                 Console.WriteLine($"{unk6_b} {unk6_d} {name}");
             }
 
-            // 7
+            // 7 - Input buffer layout
             count = Reader.ReadUInt32();
 
             Console.WriteLine("[CHUNK 7] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
@@ -447,12 +447,12 @@ namespace ValveResourceFormat
 
                     Reader.BaseStream.Position = previousPosition + 64;
 
-                    var unk1 = Reader.ReadUInt32();
-                    var unk2 = Reader.ReadUInt32();
-                    var unk3 = Reader.ReadUInt32();
-                    var unk4 = Reader.ReadUInt32();
+                    var bufferOffset = Reader.ReadUInt32(); // Offset in the buffer
+                    var components = Reader.ReadUInt32(); // Number of components in this element
+                    var componentSize = Reader.ReadUInt32(); // Number of floats per component
+                    var repetitions = Reader.ReadUInt32(); // Number of repetitions?
 
-                    Console.WriteLine("     Name: {0} - unk1: {1} - unk2: {2} - unk3: {3} - unk4: {4}", subname, unk1, unk2, unk3, unk4);
+                    Console.WriteLine("     Name: {0} - offset: {1} - components: {2} - compSize: {3} - num: {4}", subname, bufferOffset, components, componentSize, repetitions);
                 }
 
                 Reader.ReadBytes(4); // ?
