@@ -250,24 +250,41 @@ namespace ValveResourceFormat
 
                 Reader.BaseStream.Position = previousPosition + 128;
 
-                var a = Reader.ReadInt32();
-                var b = Reader.ReadInt32();
-                var c = Reader.ReadInt32();
-                var d = Reader.ReadInt32();
-                var e = Reader.ReadInt32();
-                var f = Reader.ReadInt32();
+                var unk1_a = Reader.ReadInt32();
+                var unk1_b = Reader.ReadInt32();
+                var unk1_c = Reader.ReadInt32();
+                var unk1_d = Reader.ReadInt32();
+                var unk1_e = Reader.ReadInt32();
+                var unk1_f = Reader.ReadInt32();
 
-                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
+                Console.WriteLine($"{unk1_a} {unk1_b} {unk1_c} {unk1_d} {unk1_e} {unk1_f} {name}");
             }
 
-            // Chunk 2
+            // Chunk 2 - Similar structure to chunk 4, same chunk size
             count = Reader.ReadUInt32();
 
             Console.WriteLine("[CHUNK 2] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
-                Reader.BaseStream.Position += 118 * 4;
+                // Initial research based on brushsplat_pc_40_ps, might be different for other shaders
+                var unk2_a = Reader.ReadUInt32(); // always 3?
+                var unk2_b = Reader.ReadUInt32(); // always 2?
+                var unk2_c = Reader.ReadUInt16(); // always 514?
+                var unk2_d = Reader.ReadUInt16(); // always 514?
+                var unk2_e = Reader.ReadUInt32();
+                var unk2_f = Reader.ReadUInt32();
+                var unk2_g = Reader.ReadUInt32();
+                var unk2_h = Reader.ReadUInt32();
+                var unk2_i = Reader.ReadUInt32();
+                var unk2_j = Reader.ReadUInt32();
+                var unk2_k = Reader.ReadUInt32();
+
+                Reader.ReadBytes(176); // Chunk of mostly FF
+
+                Reader.ReadBytes(256); // Chunk of 0s. padding?
+
+                Console.WriteLine($"{unk2_a} {unk2_b} {unk2_c} {unk2_d} {unk2_e} {unk2_f} {unk2_g} {unk2_h} {unk2_i} {unk2_j} {unk2_k}");
             }
 
             // 3
@@ -283,24 +300,38 @@ namespace ValveResourceFormat
 
                 Reader.BaseStream.Position = previousPosition + 128;
 
-                var a = Reader.ReadInt32();
-                var b = Reader.ReadInt32();
-                var c = Reader.ReadInt32();
-                var d = Reader.ReadInt32();
-                var e = Reader.ReadInt32();
-                var f = Reader.ReadInt32();
+                var unk3_a = Reader.ReadInt32();
+                var unk3_b = Reader.ReadInt32();
+                var unk3_c = Reader.ReadInt32();
+                var unk3_d = Reader.ReadInt32();
+                var unk3_e = Reader.ReadInt32();
+                var unk3_f = Reader.ReadInt32();
 
-                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {name}");
+                Console.WriteLine($"{unk3_a} {unk3_b} {unk3_c} {unk3_d} {unk3_e} {unk3_f} {name}");
             }
 
-            // 4
+            // 4 - Similar structure to chunk 2, same chunk size
             count = Reader.ReadUInt32();
 
             Console.WriteLine("[CHUNK 4] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
             for (var i = 0; i < count; i++)
             {
-                Reader.BaseStream.Position += 118 * 4;
+                var unk4_a = Reader.ReadUInt32();
+                var unk4_b = Reader.ReadUInt32();
+                var unk4_c = Reader.ReadUInt16();
+                var unk4_d = Reader.ReadUInt16();
+                var unk4_e = Reader.ReadUInt32();
+                var unk4_f = Reader.ReadUInt32();
+                var unk4_g = Reader.ReadUInt32();
+                var unk4_h = Reader.ReadUInt32();
+                var unk4_i = Reader.ReadUInt32();
+
+                Reader.ReadBytes(184); // Chunk of mostly FF
+
+                Reader.ReadBytes(256); // Chunk of 0s. padding?
+
+                Console.WriteLine($"{unk4_a} {unk4_b} {unk4_c} {unk4_d} {unk4_e} {unk4_f} {unk4_g} {unk4_h} {unk4_i}");
             }
 
             // 5 - Globals?
@@ -317,7 +348,7 @@ namespace ValveResourceFormat
                 Reader.BaseStream.Position = previousPosition + 128; // ??
 
                 var hasDesc = Reader.ReadInt32();
-                var unk5_0 = Reader.ReadInt32();
+                var unk5_a = Reader.ReadInt32();
 
                 var desc = string.Empty;
 
@@ -354,8 +385,8 @@ namespace ValveResourceFormat
                     }
                     else
                     {
-                        var unk5_1 = Reader.ReadBytes(length);
-                        var unk5_2 = Reader.ReadUInt32();
+                        var unk5_b = Reader.ReadBytes(length);
+                        var unk5_c = Reader.ReadUInt32();
                     }
                 }
 
@@ -372,7 +403,21 @@ namespace ValveResourceFormat
 
             Console.WriteLine("[CHUNK 6] Count: {0} - Offset: {1}", count, Reader.BaseStream.Position);
 
-            Reader.ReadBytes(280 * (int)count); // ?
+            for (var i = 0; i < count; i++)
+            {
+                var unk6_a = Reader.ReadBytes(4); // unsure, maybe shorts or bytes
+                var unk6_b = Reader.ReadUInt32(); // 12, 13, 14 or 15 in brushplat_pc_40_ps.vcs
+                var unk6_c = Reader.ReadBytes(12); // FF
+                var unk6_d = Reader.ReadUInt32();
+
+                var previousPosition = Reader.BaseStream.Position;
+
+                var name = Reader.ReadNullTermString(Encoding.UTF8);
+
+                Reader.BaseStream.Position = previousPosition + 256;
+
+                Console.WriteLine($"{unk6_b} {unk6_d} {name}");
+            }
 
             // 7
             count = Reader.ReadUInt32();
