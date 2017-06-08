@@ -331,18 +331,32 @@ namespace ValveResourceFormat
                 var type = Reader.ReadInt32();
                 var length = Reader.ReadInt32();
 
-                // Definitely not how it's supposed to work, but it seems to skip ahead correctly in rare cases when triggered.
-                // Maybe chunk after type is [length] bytes longer in some cases (types?) and in some cases not.
-                // It shouldn't skip ahead at all post_process_vulkan_40_ps.vcs but it should skip ahead by length + 4 in visualize_physics_vulkan_40_ps.vcs.
+                Reader.BaseStream.Position = previousPosition + 480;
+
+                // Don't know what content of this chunk is yet, but size seems to depend on type.
+                // If we read the amount of bytes below per type the rest of the file will process as usual (and get to the LZMA stuff).
+                // CHUNK SIZES:
+                //  Type 0: 480
+                //  Type 1: 480 + LENGTH + 4!
+                //  Type 2: 480 (brushsplat_pc_40_ps.vcs)
+                //  Type 5: 480 + LENGTH + 4! (debugoverlay_wireframe_pc_40_vs.vcs)
+                //  Type 6: 480 + LENGTH + 4! (depth_only_pc_30_ps.vcs)
+                //  Type 7: 480 + LENGTH + 4! (grasstile_preview_pc_41_ps.vcs)
+                //  Type 10: 480 (brushsplat_pc_40_ps.vcs)
+                //  Type 11: 480 (post_process_pc_30_ps.vcs)
+                //  Type 13: 480 (spriteentity_pc_41_vs.vcs)
                 // Needs further investigation. This is where parsing a lot of shaders break right now.
-                if (length > -1 && type != 0)
+                if (length > -1 && type != 0 && type != 2 && type != 10 && type != 11 && type != 13)
                 {
-                    Console.WriteLine("Type is " + type + " and length is " + length);
-                    Reader.BaseStream.Position = previousPosition + 480 + length + 4;
-                }
-                else
-                {
-                    Reader.BaseStream.Position = previousPosition + 480;
+                    if (type != 1 && type != 5 && type != 6 && type != 7)
+                    {
+                        Console.WriteLine("!!! Unknown type of type " + type + " encountered at position " + (Reader.BaseStream.Position - 8) + ". Assuming normal sized chunk.");
+                    }
+                    else
+                    {
+                        var unk5_1 = Reader.ReadBytes(length);
+                        var unk5_2 = Reader.ReadUInt32();
+                    }
                 }
 
                 if (version > 62)
