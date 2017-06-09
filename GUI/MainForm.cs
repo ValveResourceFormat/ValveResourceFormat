@@ -233,6 +233,34 @@ namespace GUI
                 // since we're in a separate thread, invoke to update the UI
                 Invoke((MethodInvoker)(() => findToolStripButton.Enabled = true));
             }
+            else if (fileName.EndsWith(".vcs", StringComparison.Ordinal))
+            {
+                var shader = new CompiledShader();
+
+                var buffer = new StringWriter();
+                var oldOut = Console.Out;
+                Console.SetOut(buffer);
+
+                if (input != null)
+                {
+                    shader.Read(fileName, new MemoryStream(input));
+                }
+                else
+                {
+                    shader.Read(fileName);
+                }
+
+                Console.SetOut(oldOut);
+
+                var control = new TextBox();
+                control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                control.Text = NormalizeLineEndings(buffer.ToString());
+                control.Dock = DockStyle.Fill;
+                control.Multiline = true;
+                control.ReadOnly = true;
+                control.ScrollBars = ScrollBars.Both;
+                tab.Controls.Add(control);
+            }
             else
             {
                 var resource = new Resource();
@@ -515,7 +543,7 @@ namespace GUI
                 byte[] output;
                 package.ReadEntry(file, out output);
 
-                if (file.TypeName.EndsWith("_c", StringComparison.Ordinal) || file.TypeName == "vpk")
+                if (file.TypeName.EndsWith("_c", StringComparison.Ordinal) || file.TypeName == "vpk" || file.TypeName == "vcs")
                 {
                     OpenFile(file.FileName + "." + file.TypeName, output, package);
                 }
