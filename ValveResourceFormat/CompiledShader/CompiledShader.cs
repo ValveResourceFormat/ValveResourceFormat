@@ -12,7 +12,6 @@ namespace ValveResourceFormat
         private BinaryReader Reader;
         private string ShaderType;
         private string ShaderPlatform;
-        private uint version;
 
         /// <summary>
         /// Releases binary reader.
@@ -85,14 +84,13 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("Given file is not a vcs2.");
             }
 
-            // This is static across all files, is it version?
             // Known versions:
             //  62 - April 2016
             //  63 - March 2017
             //  64 - May 2017
-            version = Reader.ReadUInt32();
+            var version = Reader.ReadUInt32();
 
-            if (version < 62 || version > 64)
+            if (version != 64)
             {
                 throw new InvalidDataException("Unsupported VCS2 version: " + version);
             }
@@ -109,12 +107,7 @@ namespace ValveResourceFormat
 
         private void ReadFeatures()
         {
-            var anotherFileRef = 0;
-
-            if (version >= 64)
-            {
-                anotherFileRef = Reader.ReadInt32(); // new in version 64, mostly 0 but sometimes 1
-            }
+            var anotherFileRef = Reader.ReadInt32(); // new in version 64, mostly 0 but sometimes 1
 
             var wtf = Reader.ReadUInt32(); // appears to be 0 in 'features'
             Console.WriteLine("wtf: {0}", wtf);
@@ -131,23 +124,15 @@ namespace ValveResourceFormat
             var e = Reader.ReadInt32();
             var f = Reader.ReadInt32();
             var g = Reader.ReadInt32();
-
-            if (version >= 63)
+            var h = Reader.ReadInt32();
+            if (anotherFileRef == 1)
             {
-                var h = Reader.ReadInt32();
-                if (anotherFileRef == 1)
-                {
-                    var i = Reader.ReadInt32();
-                    Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h} {i}");
-                }
-                else
-                {
-                    Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
-                }
+                var i = Reader.ReadInt32();
+                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h} {i}");
             }
             else
             {
-                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g}");
+                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
             }
 
             var count = Reader.ReadUInt32();
@@ -181,12 +166,7 @@ namespace ValveResourceFormat
                 }
             }
 
-            var identifierCount = 7;
-
-            if (version > 62)
-            {
-                identifierCount++;
-            }
+            var identifierCount = 8;
 
             if (anotherFileRef == 1)
             {
@@ -245,12 +225,7 @@ namespace ValveResourceFormat
         private void ReadShader()
         {
             // This uint controls whether or not there's an additional uint and file identifier in header for features shader, might be something different in these.
-            var unk0_a = 0;
-
-            if (version >= 64)
-            {
-                unk0_a = Reader.ReadInt32(); // new in version 64, mostly 0 but sometimes 1
-            }
+            var unk0_a = Reader.ReadInt32(); // new in version 64, mostly 0 but sometimes 1
 
             var fileIdentifier = Reader.ReadBytes(16);
             var staticIdentifier = Reader.ReadBytes(16);
@@ -414,11 +389,7 @@ namespace ValveResourceFormat
                     }
                 }
 
-                if (version > 62)
-                {
-                    Reader.BaseStream.Position += 4;
-                }
-
+                var unk5_d = Reader.ReadUInt32();
                 Console.WriteLine($"{type} {length} {name} {hasDesc} {desc}");
             }
 
