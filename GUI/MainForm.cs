@@ -140,7 +140,7 @@ namespace GUI
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var openDialog = new OpenFileDialog();
-            openDialog.Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk|All files (*.*)|*.*";
+            openDialog.Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*";
             openDialog.Multiselect = true;
             var userOK = openDialog.ShowDialog();
 
@@ -148,7 +148,7 @@ namespace GUI
             {
                 foreach (var file in openDialog.FileNames)
                 {
-                    if (file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal))
+                    if (file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal))
                     {
                         OpenFile(file);
                     }
