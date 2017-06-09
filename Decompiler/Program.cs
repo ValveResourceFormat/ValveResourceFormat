@@ -545,6 +545,8 @@ namespace Decompiler
                 DumpVPK(package, "txt", "txt");
                 DumpVPK(package, "cfg", "cfg");
                 DumpVPK(package, "res", "res");
+                DumpVPK(package, "png", "png");
+                DumpVPK(package, "jpg", "jpg");
             }
 
             if (Options.OutputVPKDir)
