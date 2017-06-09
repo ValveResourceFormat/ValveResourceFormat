@@ -102,17 +102,14 @@ namespace ValveResourceFormat
                 Reader.ReadUInt32(); // always 0, new in version 64
             }
 
-            var wtf = Reader.ReadUInt32();
-
-            // TODO: Odd assumption, features.vcs seems to have this
-            if (wtf == 0)
+            if (ShaderType == "features")
             {
+                var wtf = Reader.ReadUInt32(); // appears to be 0 in 'features'
                 Console.WriteLine("wtf: {0}", wtf);
                 ReadFeatures();
             }
             else
             {
-                Reader.BaseStream.Position -= 4;
                 ReadShader();
             }
         }
