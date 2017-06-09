@@ -97,15 +97,8 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("Unsupported VCS2 version: " + version);
             }
 
-            if (version >= 64)
-            {
-                Reader.ReadUInt32(); // always 0, new in version 64
-            }
-
             if (ShaderType == "features")
             {
-                var wtf = Reader.ReadUInt32(); // appears to be 0 in 'features'
-                Console.WriteLine("wtf: {0}", wtf);
                 ReadFeatures();
             }
             else
@@ -116,6 +109,16 @@ namespace ValveResourceFormat
 
         private void ReadFeatures()
         {
+            var anotherFileRef = 0;
+
+            if (version >= 64)
+            {
+                anotherFileRef = Reader.ReadInt32(); // new in version 64, mostly 0 but sometimes 1
+            }
+
+            var wtf = Reader.ReadUInt32(); // appears to be 0 in 'features'
+            Console.WriteLine("wtf: {0}", wtf);
+
             var name = Encoding.UTF8.GetString(Reader.ReadBytes(Reader.ReadInt32()));
             Reader.ReadByte(); // null term?
 
@@ -132,7 +135,15 @@ namespace ValveResourceFormat
             if (version >= 63)
             {
                 var h = Reader.ReadInt32();
-                Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
+                if (anotherFileRef == 1)
+                {
+                    var i = Reader.ReadInt32();
+                    Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h} {i}");
+                }
+                else
+                {
+                    Console.WriteLine($"{a} {b} {c} {d} {e} {f} {g} {h}");
+                }
             }
             else
             {
@@ -174,12 +185,18 @@ namespace ValveResourceFormat
 
             if (version > 62)
             {
-                identifierCount = 8;
+                identifierCount++;
+            }
+
+            if (anotherFileRef == 1)
+            {
+                identifierCount++;
             }
 
             // Appears to be always 128 bytes in version 63 and higher, 112 before
             for (var i = 0; i < identifierCount; i++)
             {
+                // either 6 or 7 is cs (compute shader)
                 // 0 - ?
                 // 1 - vertex shader
                 // 2 - pixel shader
@@ -188,6 +205,7 @@ namespace ValveResourceFormat
                 // 5 - domain shader
                 // 6 - ?
                 // 7 - ?, new in version 63
+                // 8 - pixel shader render state (only if uint in version 64+ at pos 8 is 1)
                 var identifier = Reader.ReadBytes(16);
 
                 Console.WriteLine("#{0} identifier: {1}", i, BitConverter.ToString(identifier));
@@ -226,13 +244,22 @@ namespace ValveResourceFormat
 
         private void ReadShader()
         {
+            // This uint controls whether or not there's an additional uint and file identifier in header for features shader, might be something different in these.
+            var unk0_a = 0;
+
+            if (version >= 64)
+            {
+                unk0_a = Reader.ReadInt32(); // new in version 64, mostly 0 but sometimes 1
+            }
+
             var fileIdentifier = Reader.ReadBytes(16);
             var staticIdentifier = Reader.ReadBytes(16);
 
             Console.WriteLine("File identifier: {0}", BitConverter.ToString(fileIdentifier));
             Console.WriteLine("Static identifier: {0}", BitConverter.ToString(staticIdentifier));
 
-            Console.WriteLine("wtf {0}", Reader.ReadUInt32()); // Always 14?
+            var unk0_b = Reader.ReadUInt32();
+            Console.WriteLine("wtf {0}", unk0_b); // Always 14?
 
             // Chunk 1
             var count = Reader.ReadUInt32();
