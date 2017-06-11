@@ -1,4 +1,4 @@
-version: 0.0.9.{build}-AppVeyor
+version: 0.0.10.{build}-AppVeyor
 image: Visual Studio 2015
 configuration: Release
 assembly_info:
