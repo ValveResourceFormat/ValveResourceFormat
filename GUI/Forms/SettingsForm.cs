@@ -34,23 +34,24 @@ namespace GUI.Forms
 
         private void GamePathAdd(object sender, EventArgs e)
         {
-            using (var dlg = new FolderBrowserDialog())
+            using (var dlg = new OpenFileDialog())
             {
-                dlg.Description = "Select a folder";
+                dlg.Filter = "Valve Pak (*.vpk)|*.vpk|All files (*.*)|*.*";
+
                 if (dlg.ShowDialog() != DialogResult.OK)
                 {
                     return;
                 }
 
-                if (Settings.GameSearchPaths.Contains(dlg.SelectedPath))
+                if (Settings.GameSearchPaths.Contains(dlg.FileName))
                 {
                     return;
                 }
 
-                Settings.GameSearchPaths.Add(dlg.SelectedPath);
+                Settings.GameSearchPaths.Add(dlg.FileName);
                 Settings.Save();
 
-                gamePaths.Items.Add(dlg.SelectedPath);
+                gamePaths.Items.Add(dlg.FileName);
             }
         }
 
