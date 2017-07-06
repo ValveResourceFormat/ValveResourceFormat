@@ -621,6 +621,16 @@ namespace Decompiler
 
                 filePath = FixPathSlahes(filePath);
 
+                if (Options.OutputFile != null)
+                {
+                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
+                    {
+                        return;
+                    }
+
+                    OldPakManifest[filePath] = file.CRC32;
+                }
+
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 byte[] output;
@@ -651,13 +661,6 @@ namespace Decompiler
 
                 if (Options.OutputFile != null)
                 {
-                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
-                    {
-                        return;
-                    }
-
-                    OldPakManifest[filePath] = file.CRC32;
-
                     if (type != newType)
                     {
                         filePath = Path.ChangeExtension(filePath, newType);
