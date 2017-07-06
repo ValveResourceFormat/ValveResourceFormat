@@ -19,6 +19,7 @@ namespace Decompiler
         private static int CurrentFile = 0;
         private static int TotalFiles = 0;
 
+        private static Dictionary<string, uint> OldPakManifest = new Dictionary<string, uint>();
         private static Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
         private static Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
 
@@ -536,6 +537,26 @@ namespace Decompiler
             {
                 Console.WriteLine("--- Dumping decompiled files...");
 
+                var manifestPath = string.Concat(path, ".manifest.txt");
+
+                if (File.Exists(manifestPath))
+                {
+                    var file = new StreamReader(manifestPath);
+                    string line;
+
+                    while ((line = file.ReadLine()) != null)
+                    {
+                        var split = line.Split(new[] { ' ' }, 2);
+
+                        if (split.Length == 2)
+                        {
+                            OldPakManifest.Add(split[1], uint.Parse(split[0]));
+                        }
+                    }
+
+                    file.Close();
+                }
+
                 DumpVPK(package, "vxml_c", "xml");
                 DumpVPK(package, "vjs_c", "js");
                 DumpVPK(package, "vcss_c", "css");
@@ -547,6 +568,19 @@ namespace Decompiler
                 DumpVPK(package, "res", "res");
                 DumpVPK(package, "png", "png");
                 DumpVPK(package, "jpg", "jpg");
+
+                using (var file = new StreamWriter(manifestPath))
+                {
+                    foreach (var hash in OldPakManifest)
+                    {
+                        if (package.FindEntry(hash.Key) == null)
+                        {
+                            Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
+                        }
+
+                        file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                    }
+                }
             }
 
             if (Options.OutputVPKDir)
@@ -621,6 +655,13 @@ namespace Decompiler
                     {
                         filePath = Path.ChangeExtension(filePath, newType);
                     }
+
+                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
+                    {
+                        return;
+                    }
+
+                    OldPakManifest[filePath] = file.CRC32;
 
                     DumpFile(filePath, output);
                 }
