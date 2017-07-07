@@ -625,7 +625,7 @@ namespace Decompiler
                 {
                     if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
                     {
-                        return;
+                        continue;
                     }
 
                     OldPakManifest[filePath] = file.CRC32;
