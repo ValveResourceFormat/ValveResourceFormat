@@ -42,6 +42,12 @@ namespace Decompiler
             HelpText = "Verify checksums and signatures.")]
         public bool VerifyVPKChecksums { get; set; }
 
+        [Option("from_vpk_directory", HelpText = "Only export files from a given VPK directory path (within the vpk) ie. panorama\\layout\\battlepass")]
+        public string FromVPKDirectory { get; set; }
+
+        [Option("export_filter", HelpText = "Only export files that match a substring of the given filter")]
+        public string ExportFilter { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
