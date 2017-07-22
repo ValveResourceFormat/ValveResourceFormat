@@ -42,6 +42,26 @@ namespace Decompiler
             HelpText = "Verify checksums and signatures.")]
         public bool VerifyVPKChecksums { get; set; }
 
+        [Option("tool", DefaultValue = false,
+            HelpText = "Enable generic vpk dump tool, supporting filters.")]
+        public bool VPKTool { get; set; }
+
+        [Option('x', "extract",
+            HelpText = "Just extract, do not decompile")]
+        public bool Extract { get; set; }
+
+        [Option('f', "filter",
+            HelpText = "Dump filter - full or partial path, example: panorama\\")]
+        public string Filter { get; set; }
+
+        [Option('e', "filter_ext",
+            HelpText = "Dump filter - extension(s), example: vcss_c,vjs_c,vxml_c")]
+        public string FilterExt { get; set; }       
+
+        [Option('s', "silent",
+            HelpText = "Dump without printing file names")]
+        public bool Silent { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
