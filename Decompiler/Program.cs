@@ -23,6 +23,20 @@ namespace Decompiler
         private static Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
         private static Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
 
+        private static Dictionary<string, string> DumpExtensions = new Dictionary<string, string>()
+        {
+            { "vxml_c", "xml" },
+            { "vjs_c", "js" },
+            { "vcss_c", "css" },
+            { "vsndevts_c", "vsndevts" },
+            { "vpcf_c", "vpcf" },
+            { "txt", "txt" },
+            { "cfg", "cfg" },
+            { "res", "res" },
+            { "png", "png" },
+            { "jpg", "jpg" }
+        };
+
         // This decompiler is a test bed for our library,
         // don't expect to see any quality code in here
         public static void Main(string[] args)
@@ -114,6 +128,11 @@ namespace Decompiler
             if (extension == ".vpk")
             {
                 ParseVPK(path);
+
+                if (File.Exists(path + ".manifest.txt"))
+                {
+                    File.Delete(path + ".manifest.txt");
+                }
 
                 return;
             }
@@ -449,9 +468,12 @@ namespace Decompiler
         {
             lock (ConsoleWriterLock)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
-                Console.ResetColor();
+                if (!Options.Silent)
+                { 
+                		Console.ForegroundColor = ConsoleColor.Green;
+                		Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
+                		Console.ResetColor();
+            		}
             }
 
             var sw = Stopwatch.StartNew();
@@ -535,7 +557,7 @@ namespace Decompiler
             }
             else
             {
-                Console.WriteLine("--- Dumping decompiled files...");
+                if (!Options.Silent) Console.WriteLine("--- Dumping decompiled files...");
 
                 var manifestPath = string.Concat(path, ".manifest.txt");
 
@@ -557,17 +579,14 @@ namespace Decompiler
                     file.Close();
                 }
 
-                DumpVPK(package, "vxml_c", "xml");
-                DumpVPK(package, "vjs_c", "js");
-                DumpVPK(package, "vcss_c", "css");
-                DumpVPK(package, "vsndevts_c", "vsndevts");
-                DumpVPK(package, "vpcf_c", "vpcf");
+                foreach(KeyValuePair<string, string> dext in DumpExtensions)
+                {
+                    if (string.IsNullOrEmpty(Options.FilterExt) || dext.Key.StartsWith(Options.FilterExt, StringComparison.Ordinal))
+                    {
+                        DumpVPK(package, dext.Key, dext.Value);
+                    }
+                }
 
-                DumpVPK(package, "txt", "txt");
-                DumpVPK(package, "cfg", "cfg");
-                DumpVPK(package, "res", "res");
-                DumpVPK(package, "png", "png");
-                DumpVPK(package, "jpg", "jpg");
 
                 using (var file = new StreamWriter(manifestPath))
                 {
@@ -596,19 +615,20 @@ namespace Decompiler
 
             sw.Stop();
 
-            Console.WriteLine("Processed in {0}ms", sw.ElapsedMilliseconds);
+            if (!Options.Silent) Console.WriteLine("Processed in {0}ms", sw.ElapsedMilliseconds);
         }
 
         private static void DumpVPK(Package package, string type, string newType)
         {
             if (!package.Entries.ContainsKey(type))
             {
-                Console.WriteLine("There are no files of type \"{0}\".", type);
+                if (!Options.Silent) Console.WriteLine("There are no files of type \"{0}\".", type);
 
                 return;
             }
 
             var entries = package.Entries[type];
+            uint oldCrc32;            
 
             foreach (var file in entries)
             {
@@ -621,9 +641,14 @@ namespace Decompiler
 
                 filePath = FixPathSlahes(filePath);
 
+                if (!string.IsNullOrEmpty(Options.Filter) && !filePath.StartsWith(Options.Filter, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                
                 if (Options.OutputFile != null)
                 {
-                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
+                    if (OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
@@ -631,7 +656,7 @@ namespace Decompiler
                     OldPakManifest[filePath] = file.CRC32;
                 }
 
-                Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
+                if (!Options.Silent) Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 byte[] output;
                 package.ReadEntry(file, out output);
@@ -650,6 +675,10 @@ namespace Decompiler
                             case "vcss_c":
                             case "vjs_c":
                                 output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                break;
+                            case "vpcf_c":
+                                //Wrap it around a KV3File object to get the header.
+                                output = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
                                 break;
                             default:
                                 output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
@@ -679,7 +708,7 @@ namespace Decompiler
 
             File.WriteAllBytes(outputFile, data);
 
-            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+            if (!Options.Silent) Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
 
         private static string FixPathSlahes(string path)
