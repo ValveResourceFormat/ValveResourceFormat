@@ -13,9 +13,9 @@ namespace Decompiler
         [Option("recursive", DefaultValue = false,
             HelpText = "If specified and given input is a folder, all sub directories will be scanned too.")]
         public bool RecursiveSearch { get; set; }
-
+        
         [Option('o', "output",
-            HelpText = "Writes DATA output to file.")]
+            HelpText = "Writes DATA output to file or folder.")]
         public string OutputFile { get; set; }
 
         [Option('a', "all",
@@ -41,6 +41,26 @@ namespace Decompiler
         [Option("vpk_verify", DefaultValue = false,
             HelpText = "Verify checksums and signatures.")]
         public bool VerifyVPKChecksums { get; set; }
+
+        [Option("tool", DefaultValue = false,
+            HelpText = "Enable generic vpk dump tool for all supported resources.")]
+        public bool VPKTool { get; set; }
+
+        [Option('x', "extract",
+            HelpText = "Extract only, do not decompile")]
+        public bool Extract { get; set; }
+
+        [Option('f', "filter",
+            HelpText = "Dump filter starting with path, ex: panorama\\")]
+        public string Filter { get; set; }
+
+        [Option('e', "filter_ext",
+            HelpText = "Dump filter extension(s), example: vcss_c,vjs_c,vxml_c")]
+        public string FilterExt { get; set; }       
+
+        [Option('s', "silent",
+            HelpText = "Dump without printing file names")]
+        public bool Silent { get; set; }
 
         [HelpOption]
         public string GetUsage()
