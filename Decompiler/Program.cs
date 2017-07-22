@@ -699,7 +699,24 @@ namespace Decompiler
                                     }
                                     break;
                                 default:
-                                    output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                                    try
+                                    {
+                                        output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        if (!Options.Silent)
+                                        {
+                                            lock (ConsoleWriterLock)
+                                            {
+                                                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                                                Console.WriteLine("--- Resource type " + type + " decompiler not implemented, extracting as-is..." );
+                                                Console.ResetColor();
+                                            }
+                                        }
+                                        package.ReadEntry(file, out output);
+                                        newType = type;
+                                    }
                                     break;
                             }
                         }                       
