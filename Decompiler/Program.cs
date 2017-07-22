@@ -560,17 +560,28 @@ namespace Decompiler
                     file.Close();
                 }
 
-                DumpVPK(package, "vxml_c", "xml");
-                DumpVPK(package, "vjs_c", "js");
-                DumpVPK(package, "vcss_c", "css");
-                DumpVPK(package, "vsndevts_c", "vsndevts");
-                DumpVPK(package, "vpcf_c", "vpcf");
+                if (Options.VPKTool)
+                {
+                    if (!Options.Silent) Console.WriteLine("Generic VPK Decompiler tool");
+                    foreach (var type in package.Entries)
+                    {
+                        DumpVPK(package, type.Key, type.Key);
+                    }
+                }
+                else // default GameTracker
+                {
+                    DumpVPK(package, "vxml_c", "xml");
+                    DumpVPK(package, "vjs_c", "js");
+                    DumpVPK(package, "vcss_c", "css");
+                    DumpVPK(package, "vsndevts_c", "vsndevts");
+                    DumpVPK(package, "vpcf_c", "vpcf");
 
-                DumpVPK(package, "txt", "txt");
-                DumpVPK(package, "cfg", "cfg");
-                DumpVPK(package, "res", "res");
-                DumpVPK(package, "png", "png");
-                DumpVPK(package, "jpg", "jpg");
+                    DumpVPK(package, "txt", "txt");
+                    DumpVPK(package, "cfg", "cfg");
+                    DumpVPK(package, "res", "res");
+                    DumpVPK(package, "png", "png");
+                    DumpVPK(package, "jpg", "jpg");                 
+                }
 
                 using (var file = new StreamWriter(manifestPath))
                 {
@@ -604,7 +615,7 @@ namespace Decompiler
 
         private static void DumpVPK(Package package, string type, string newType)
         {
-            if (!string.IsNullOrEmpty(Options.FilterExt) && !type.StartsWith(Options.FilterExt, StringComparison.Ordinal))
+            if (!string.IsNullOrEmpty(Options.FilterExt) && !Options.FilterExt.Contains(type))
             {
                 return;
             }
@@ -650,30 +661,48 @@ namespace Decompiler
                 byte[] output;
                 package.ReadEntry(file, out output);
 
-                if (type.EndsWith("_c", StringComparison.Ordinal))
+                if (type.EndsWith("_c", StringComparison.Ordinal) && !Options.Extract)
                 {
                     using (var resource = new Resource())
                     {
                         using (var memory = new MemoryStream(output))
                         {
                             resource.Read(memory);
-                        }
-                        switch(type)
-                        {
-                            case "vxml_c":
-                            case "vcss_c":
-                            case "vjs_c":
-                                output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                break;
-                            case "vpcf_c":
-                                //Wrap it around a KV3File object to get the header.
-                                output = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
-                                break;
-                            default:
-                                output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
-                                break;
-                        }
-                        
+                            if (type == newType) newType = type.Substring(0, type.Length - 2); // VPKTool
+                            switch(type)
+                            {
+                                case "vxml_c":
+                                case "vcss_c":
+                                case "vjs_c":
+                                    output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                    if (newType.StartsWith("v", StringComparison.Ordinal)) newType = newType.Substring(1); // VPKTool
+                                    break;
+                                case "vpcf_c":
+                                    //Wrap it around a KV3File object to get the header.
+                                    output = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
+                                    break;
+                                case "vsnd_c":
+                                    // VPKTool
+                                    var sound = ((Sound)resource.Blocks[BlockType.DATA]);
+                                    if (sound.Type == Sound.AudioFileType.MP3) newType = "mp3";
+                                    else newType = "wav";
+                                    output = sound.GetSound();
+                                    break;
+                                case "vtex_c":
+                                    // VPKTool
+                                    newType = "png";
+                                    var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                                    using (var ms = new MemoryStream())
+                                    {
+                                        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                        output = ms.ToArray();
+                                    }
+                                    break;
+                                default:
+                                    output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                                    break;
+                            }
+                        }                       
                     }
                 }
 
@@ -713,4 +742,3 @@ namespace Decompiler
         }
     }
 }
-
