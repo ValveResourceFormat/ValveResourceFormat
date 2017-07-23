@@ -685,10 +685,10 @@ namespace Decompiler
                                         lock (ConsoleWriterLock)
                                         {
                                             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                                            Console.WriteLine("--- Resource type " + type + " decompiler not implemented, extracting as-is" );
+                                            Console.WriteLine("\tDecompiler for resource type " + type + " not implemented, extracting as-is");
                                             Console.ResetColor();
                                         }
-                                        package.ReadEntry(file, out output);
+                                        output = memory.ToArray();
                                         newType = type;
                                     }
                                     break;
