@@ -626,7 +626,8 @@ namespace Decompiler
 
                 if (Options.OutputFile != null)
                 {
-                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
+                    uint oldCrc32;
+                    if (OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
@@ -639,7 +640,7 @@ namespace Decompiler
                 byte[] output;
                 package.ReadEntry(file, out output);
 
-                if (type.EndsWith("_c", StringComparison.Ordinal) && !Options.DumpOnly)
+                if (type.EndsWith("_c", StringComparison.Ordinal) && Options.Decompile)
                 {
                     using (var resource = new Resource())
                     {
