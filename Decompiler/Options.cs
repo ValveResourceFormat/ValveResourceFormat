@@ -42,9 +42,9 @@ namespace Decompiler
             HelpText = "Verify checksums and signatures.")]
         public bool VerifyVPKChecksums { get; set; }
 
-        [Option('d', "vpk_dump",
-            HelpText = "Dump only, do not decompile")]
-        public bool DumpOnly { get; set; }
+        [Option('d', "vpk_decompile",
+            HelpText = "Decompile supported files")]
+        public bool Decompile { get; set; }
 
         [Option('e', "vpk_extensions",
             HelpText = "File extension(s) filter, example: vcss_c,vjs_c,vxml_c")]
