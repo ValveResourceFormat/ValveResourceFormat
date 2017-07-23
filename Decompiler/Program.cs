@@ -444,17 +444,14 @@ namespace Decompiler
                 }
             }
         }
-        
+
         private static void ParseVPK(string path)
         {
             lock (ConsoleWriterLock)
             {
-                if (!Options.Silent)
-                { 
-                		Console.ForegroundColor = ConsoleColor.Green;
-                		Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
-                		Console.ResetColor();
-            		}
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
+                Console.ResetColor();
             }
 
             var sw = Stopwatch.StartNew();
@@ -493,7 +490,7 @@ namespace Decompiler
                         Console.ResetColor();
                     }
                 }
-                
+
                 return;
             }
 
@@ -538,7 +535,7 @@ namespace Decompiler
             }
             else
             {
-                if (!Options.Silent) Console.WriteLine("--- Dumping decompiled files...");
+                Console.WriteLine("--- Dumping decompiled files...");
 
                 var manifestPath = string.Concat(path, ".manifest.txt");
 
@@ -560,27 +557,9 @@ namespace Decompiler
                     file.Close();
                 }
 
-                if (Options.VPKTool)
+                foreach (var type in package.Entries)
                 {
-                    if (!Options.Silent) Console.WriteLine("Generic VPK Decompiler tool");
-                    foreach (var type in package.Entries)
-                    {
-                        DumpVPK(package, type.Key, type.Key);
-                    }
-                }
-                else // default GameTracker
-                {
-                    DumpVPK(package, "vxml_c", "xml");
-                    DumpVPK(package, "vjs_c", "js");
-                    DumpVPK(package, "vcss_c", "css");
-                    DumpVPK(package, "vsndevts_c", "vsndevts");
-                    DumpVPK(package, "vpcf_c", "vpcf");
-
-                    DumpVPK(package, "txt", "txt");
-                    DumpVPK(package, "cfg", "cfg");
-                    DumpVPK(package, "res", "res");
-                    DumpVPK(package, "png", "png");
-                    DumpVPK(package, "jpg", "jpg");                 
+                    DumpVPK(package, type.Key, type.Key);
                 }
 
                 using (var file = new StreamWriter(manifestPath))
@@ -610,25 +589,24 @@ namespace Decompiler
 
             sw.Stop();
 
-            if (!Options.Silent) Console.WriteLine("Processed in {0}ms", sw.ElapsedMilliseconds);
+            Console.WriteLine("Processed in {0}ms", sw.ElapsedMilliseconds);
         }
 
         private static void DumpVPK(Package package, string type, string newType)
         {
-            if (!string.IsNullOrEmpty(Options.FilterExt) && !Options.FilterExt.Contains(type))
+            if (!string.IsNullOrEmpty(Options.ExtFilter) && !Options.ExtFilter.Contains(type))
             {
                 return;
             }
 
             if (!package.Entries.ContainsKey(type))
             {
-                if (!Options.Silent) Console.WriteLine("There are no files of type \"{0}\".", type);
+                Console.WriteLine("There are no files of type \"{0}\".", type);
 
                 return;
             }
 
             var entries = package.Entries[type];
-            uint oldCrc32;            
 
             foreach (var file in entries)
             {
@@ -641,14 +619,14 @@ namespace Decompiler
 
                 filePath = FixPathSlahes(filePath);
 
-                if (!string.IsNullOrEmpty(Options.Filter) && !filePath.StartsWith(Options.Filter, StringComparison.Ordinal))
+                if (!string.IsNullOrEmpty(Options.FileFilter) && !filePath.StartsWith(Options.FileFilter, StringComparison.Ordinal))
                 {
                     continue;
                 }
-                
+
                 if (Options.OutputFile != null)
                 {
-                    if (OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
+                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
@@ -656,40 +634,38 @@ namespace Decompiler
                     OldPakManifest[filePath] = file.CRC32;
                 }
 
-                if (!Options.Silent) Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
+                Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 byte[] output;
                 package.ReadEntry(file, out output);
 
-                if (type.EndsWith("_c", StringComparison.Ordinal) && !Options.Extract)
+                if (type.EndsWith("_c", StringComparison.Ordinal) && !Options.DumpOnly)
                 {
                     using (var resource = new Resource())
                     {
                         using (var memory = new MemoryStream(output))
                         {
                             resource.Read(memory);
-                            if (type == newType) newType = type.Substring(0, type.Length - 2); // VPKTool
+                            if (type == newType) newType = type.Substring(0, type.Length - 2);
                             switch(type)
                             {
                                 case "vxml_c":
                                 case "vcss_c":
                                 case "vjs_c":
                                     output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                    if (newType.StartsWith("v", StringComparison.Ordinal)) newType = newType.Substring(1); // VPKTool
+                                    if (newType.StartsWith("v", StringComparison.Ordinal)) newType = newType.Substring(1);
                                     break;
                                 case "vpcf_c":
                                     //Wrap it around a KV3File object to get the header.
                                     output = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
                                     break;
                                 case "vsnd_c":
-                                    // VPKTool
                                     var sound = ((Sound)resource.Blocks[BlockType.DATA]);
                                     if (sound.Type == Sound.AudioFileType.MP3) newType = "mp3";
                                     else newType = "wav";
                                     output = sound.GetSound();
                                     break;
                                 case "vtex_c":
-                                    // VPKTool
                                     newType = "png";
                                     var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
                                     using (var ms = new MemoryStream())
@@ -703,23 +679,20 @@ namespace Decompiler
                                     {
                                         output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
                                     }
-                                    catch (Exception e)
+                                    catch (Exception)
                                     {
-                                        if (!Options.Silent)
+                                        lock (ConsoleWriterLock)
                                         {
-                                            lock (ConsoleWriterLock)
-                                            {
-                                                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                                                Console.WriteLine("--- Resource type " + type + " decompiler not implemented, extracting as-is..." );
-                                                Console.ResetColor();
-                                            }
+                                            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                                            Console.WriteLine("--- Resource type " + type + " decompiler not implemented, extracting as-is" );
+                                            Console.ResetColor();
                                         }
                                         package.ReadEntry(file, out output);
                                         newType = type;
                                     }
                                     break;
                             }
-                        }                       
+                        }
                     }
                 }
 
@@ -743,7 +716,7 @@ namespace Decompiler
 
             File.WriteAllBytes(outputFile, data);
 
-            if (!Options.Silent) Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
 
         private static string FixPathSlahes(string path)
