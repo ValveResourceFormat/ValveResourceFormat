@@ -35,12 +35,12 @@ namespace Decompiler
             if (Options.OutputFile != null)
             {
                 Options.OutputFile = Path.GetFullPath(Options.OutputFile);
-                Options.OutputFile = FixPathSlahes(Options.OutputFile);
+                Options.OutputFile = FixPathSlashes(Options.OutputFile);
             }
 
             if (Options.FileFilter != null)
             {
-                Options.FileFilter = FixPathSlahes(Options.FileFilter);
+                Options.FileFilter = FixPathSlashes(Options.FileFilter);
             }
 
             var paths = new List<string>();
@@ -622,7 +622,7 @@ namespace Decompiler
                     filePath = Path.Combine(file.DirectoryName, filePath);
                 }
 
-                filePath = FixPathSlahes(filePath);
+                filePath = FixPathSlashes(filePath);
 
                 if (Options.FileFilter != null && !filePath.StartsWith(Options.FileFilter, StringComparison.Ordinal))
                 {
@@ -725,7 +725,7 @@ namespace Decompiler
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
 
-        private static string FixPathSlahes(string path)
+        private static string FixPathSlashes(string path)
         {
             path = path.Replace('\\', '/');
 
