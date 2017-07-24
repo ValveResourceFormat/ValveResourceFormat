@@ -38,6 +38,11 @@ namespace Decompiler
                 Options.OutputFile = FixPathSlahes(Options.OutputFile);
             }
 
+            if (Options.FileFilter != null)
+            {
+                Options.FileFilter = FixPathSlahes(Options.FileFilter);
+            }
+
             var paths = new List<string>();
 
             if (Directory.Exists(Options.InputFile))
@@ -594,7 +599,7 @@ namespace Decompiler
 
         private static void DumpVPK(Package package, string type, string newType)
         {
-            if (!string.IsNullOrEmpty(Options.ExtFilter) && !Options.ExtFilter.Contains(type))
+            if (Options.ExtFilter.Any() && !Options.ExtFilter.Contains(type))
             {
                 return;
             }
@@ -619,7 +624,7 @@ namespace Decompiler
 
                 filePath = FixPathSlahes(filePath);
 
-                if (!string.IsNullOrEmpty(Options.FileFilter) && !filePath.StartsWith(Options.FileFilter, StringComparison.Ordinal))
+                if (Options.FileFilter != null && !filePath.StartsWith(Options.FileFilter, StringComparison.Ordinal))
                 {
                     continue;
                 }
