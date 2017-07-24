@@ -35,12 +35,12 @@ namespace Decompiler
             if (Options.OutputFile != null)
             {
                 Options.OutputFile = Path.GetFullPath(Options.OutputFile);
-                Options.OutputFile = FixPathSlahes(Options.OutputFile);
+                Options.OutputFile = FixPathSlashes(Options.OutputFile);
             }
 
             if (Options.FileFilter != null)
             {
-                Options.FileFilter = FixPathSlahes(Options.FileFilter);
+                Options.FileFilter = FixPathSlashes(Options.FileFilter);
             }
 
             var paths = new List<string>();
@@ -302,10 +302,10 @@ namespace Decompiler
             }
             catch (Exception e)
             {
+                File.AppendAllText("exceptions.txt", string.Format("---------------\nFile: {0}\nException: {1}\n\n", path, e));
+
                 lock (ConsoleWriterLock)
                 {
-                    File.AppendAllText("exceptions.txt", string.Format("---------------\nFile: {0}\nException: {1}\n\n", path, e));
-
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(e);
                     Console.ResetColor();
@@ -599,7 +599,7 @@ namespace Decompiler
 
         private static void DumpVPK(Package package, string type, string newType)
         {
-            if (Options.ExtFilter.Any() && !Options.ExtFilter.Contains(type))
+            if (Options.ExtFilter.Count > 0 && !Options.ExtFilter.Contains(type))
             {
                 return;
             }
@@ -622,7 +622,7 @@ namespace Decompiler
                     filePath = Path.Combine(file.DirectoryName, filePath);
                 }
 
-                filePath = FixPathSlahes(filePath);
+                filePath = FixPathSlashes(filePath);
 
                 if (Options.FileFilter != null && !filePath.StartsWith(Options.FileFilter, StringComparison.Ordinal))
                 {
@@ -725,7 +725,7 @@ namespace Decompiler
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
 
-        private static string FixPathSlahes(string path)
+        private static string FixPathSlashes(string path)
         {
             path = path.Replace('\\', '/');
 
