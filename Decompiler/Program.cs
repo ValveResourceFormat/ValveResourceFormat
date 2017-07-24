@@ -38,6 +38,11 @@ namespace Decompiler
                 Options.OutputFile = FixPathSlahes(Options.OutputFile);
             }
 
+            if (Options.FileFilter != null)
+            {
+                Options.FileFilter = FixPathSlahes(Options.FileFilter);
+            }
+
             var paths = new List<string>();
 
             if (Directory.Exists(Options.InputFile))
@@ -444,7 +449,7 @@ namespace Decompiler
                 }
             }
         }
-        
+
         private static void ParseVPK(string path)
         {
             lock (ConsoleWriterLock)
@@ -490,7 +495,7 @@ namespace Decompiler
                         Console.ResetColor();
                     }
                 }
-                
+
                 return;
             }
 
@@ -557,17 +562,10 @@ namespace Decompiler
                     file.Close();
                 }
 
-                DumpVPK(package, "vxml_c", "xml");
-                DumpVPK(package, "vjs_c", "js");
-                DumpVPK(package, "vcss_c", "css");
-                DumpVPK(package, "vsndevts_c", "vsndevts");
-                DumpVPK(package, "vpcf_c", "vpcf");
-
-                DumpVPK(package, "txt", "txt");
-                DumpVPK(package, "cfg", "cfg");
-                DumpVPK(package, "res", "res");
-                DumpVPK(package, "png", "png");
-                DumpVPK(package, "jpg", "jpg");
+                foreach (var type in package.Entries)
+                {
+                    DumpVPK(package, type.Key, type.Key);
+                }
 
                 using (var file = new StreamWriter(manifestPath))
                 {
@@ -601,6 +599,11 @@ namespace Decompiler
 
         private static void DumpVPK(Package package, string type, string newType)
         {
+            if (Options.ExtFilter.Any() && !Options.ExtFilter.Contains(type))
+            {
+                return;
+            }
+
             if (!package.Entries.ContainsKey(type))
             {
                 Console.WriteLine("There are no files of type \"{0}\".", type);
@@ -621,9 +624,15 @@ namespace Decompiler
 
                 filePath = FixPathSlahes(filePath);
 
+                if (Options.FileFilter != null && !filePath.StartsWith(Options.FileFilter, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 if (Options.OutputFile != null)
                 {
-                    if (OldPakManifest.TryGetValue(filePath, out uint oldCrc32) && oldCrc32 == file.CRC32)
+                    uint oldCrc32;
+                    if (OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
@@ -636,26 +645,60 @@ namespace Decompiler
                 byte[] output;
                 package.ReadEntry(file, out output);
 
-                if (type.EndsWith("_c", StringComparison.Ordinal))
+                if (type.EndsWith("_c", StringComparison.Ordinal) && Options.Decompile)
                 {
                     using (var resource = new Resource())
                     {
                         using (var memory = new MemoryStream(output))
                         {
                             resource.Read(memory);
+                            if (type == newType) newType = type.Substring(0, type.Length - 2);
+                            switch(type)
+                            {
+                                case "vxml_c":
+                                case "vcss_c":
+                                case "vjs_c":
+                                    output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                    if (newType.StartsWith("v", StringComparison.Ordinal)) newType = newType.Substring(1);
+                                    break;
+                                case "vpcf_c":
+                                    //Wrap it around a KV3File object to get the header.
+                                    output = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
+                                    break;
+                                case "vsnd_c":
+                                    var sound = ((Sound)resource.Blocks[BlockType.DATA]);
+                                    if (sound.Type == Sound.AudioFileType.MP3) newType = "mp3";
+                                    else newType = "wav";
+                                    output = sound.GetSound();
+                                    break;
+                                case "vtex_c":
+                                    newType = "png";
+                                    var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                                    using (var ms = new MemoryStream())
+                                    {
+                                        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                        output = ms.ToArray();
+                                    }
+                                    break;
+                                default:
+                                    try
+                                    {
+                                        output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                                    }
+                                    catch (Exception)
+                                    {
+                                        lock (ConsoleWriterLock)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                                            Console.WriteLine("\tDecompiler for resource type " + type + " not implemented, extracting as-is");
+                                            Console.ResetColor();
+                                        }
+                                        output = memory.ToArray();
+                                        newType = type;
+                                    }
+                                    break;
+                            }
                         }
-                        switch(type)
-                        {
-                            case "vxml_c":
-                            case "vcss_c":
-                            case "vjs_c":
-                                output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                break;
-                            default:
-                                output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
-                                break;
-                        }
-                        
                     }
                 }
 

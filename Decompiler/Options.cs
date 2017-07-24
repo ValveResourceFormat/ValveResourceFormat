@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using CommandLine;
 using CommandLine.Text;
 
@@ -41,6 +42,18 @@ namespace Decompiler
         [Option("vpk_verify", DefaultValue = false,
             HelpText = "Verify checksums and signatures.")]
         public bool VerifyVPKChecksums { get; set; }
+
+        [Option('d', "vpk_decompile", DefaultValue = false,
+            HelpText = "Decompile supported files")]
+        public bool Decompile { get; set; }
+
+        [OptionList('e', "vpk_extensions", Separator = ',', DefaultValue = new string[] { },
+            HelpText = "File extension(s) filter, example: \"vcss_c,vjs_c,vxml_c\"")]
+        public IList<string> ExtFilter { get; set; }
+
+        [Option('f', "vpk_filepath",
+            HelpText = "File path filter, example: panorama\\ or \"panorama\\\\\"")]
+        public string FileFilter { get; set; }
 
         [HelpOption]
         public string GetUsage()
