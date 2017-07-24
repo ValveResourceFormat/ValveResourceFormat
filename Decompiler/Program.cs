@@ -302,10 +302,10 @@ namespace Decompiler
             }
             catch (Exception e)
             {
+                File.AppendAllText("exceptions.txt", string.Format("---------------\nFile: {0}\nException: {1}\n\n", path, e));
+
                 lock (ConsoleWriterLock)
                 {
-                    File.AppendAllText("exceptions.txt", string.Format("---------------\nFile: {0}\nException: {1}\n\n", path, e));
-
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(e);
                     Console.ResetColor();
