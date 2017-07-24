@@ -599,7 +599,7 @@ namespace Decompiler
 
         private static void DumpVPK(Package package, string type, string newType)
         {
-            if (Options.ExtFilter.Any() && !Options.ExtFilter.Contains(type))
+            if (Options.ExtFilter.Count > 0 && !Options.ExtFilter.Contains(type))
             {
                 return;
             }
