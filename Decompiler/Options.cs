@@ -44,7 +44,7 @@ namespace Decompiler
         public bool VerifyVPKChecksums { get; set; }
 
         [Option('c', "vpk_cache", DefaultValue = false,
-            HelpText = "Use cached VPK manifest")]
+            HelpText = "Use cached VPK manifest.")]
         public bool CachedManifest { get; set; }
 
         [Option('d', "vpk_decompile", DefaultValue = false,
