@@ -544,7 +544,7 @@ namespace Decompiler
 
                 var manifestPath = string.Concat(path, ".manifest.txt");
 
-                if (File.Exists(manifestPath))
+                if (Options.CachedManifest && File.Exists(manifestPath))
                 {
                     var file = new StreamReader(manifestPath);
                     string line;
@@ -632,7 +632,7 @@ namespace Decompiler
                 if (Options.OutputFile != null)
                 {
                     uint oldCrc32;
-                    if (OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
+                    if (Options.CachedManifest && OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
