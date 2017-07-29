@@ -55,6 +55,10 @@ namespace Decompiler
             HelpText = "File path filter, example: panorama\\ or \"panorama\\\\\"")]
         public string FileFilter { get; set; }
 
+        [Option('r', "vpk_refresh", DefaultValue = false,
+            HelpText = "Refresh vpk manifest")]
+        public bool Refresh { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
