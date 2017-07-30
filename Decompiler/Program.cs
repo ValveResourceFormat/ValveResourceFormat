@@ -567,16 +567,19 @@ namespace Decompiler
                     DumpVPK(package, type.Key, type.Key);
                 }
 
-                using (var file = new StreamWriter(manifestPath))
+                if (Options.CachedManifest)
                 {
-                    foreach (var hash in OldPakManifest)
+                    using (var file = new StreamWriter(manifestPath))
                     {
-                        if (package.FindEntry(hash.Key) == null)
+                        foreach (var hash in OldPakManifest)
                         {
-                            Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
-                        }
+                            if (package.FindEntry(hash.Key) == null)
+                            {
+                                Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
+                            }
 
-                        file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                            file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                        }
                     }
                 }
             }
