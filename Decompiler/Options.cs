@@ -43,8 +43,8 @@ namespace Decompiler
             HelpText = "Verify checksums and signatures.")]
         public bool VerifyVPKChecksums { get; set; }
 
-        [Option('c', "vpk_cache", DefaultValue = false,
-            HelpText = "Use cached VPK manifest.")]
+        [Option("vpk_cache", DefaultValue = false,
+            HelpText = "Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.")]
         public bool CachedManifest { get; set; }
 
         [Option('d', "vpk_decompile", DefaultValue = false,
