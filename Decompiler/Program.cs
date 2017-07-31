@@ -544,7 +544,7 @@ namespace Decompiler
 
                 var manifestPath = string.Concat(path, ".manifest.txt");
 
-                if (File.Exists(manifestPath))
+                if (Options.CachedManifest && File.Exists(manifestPath))
                 {
                     var file = new StreamReader(manifestPath);
                     string line;
@@ -567,16 +567,19 @@ namespace Decompiler
                     DumpVPK(package, type.Key, type.Key);
                 }
 
-                using (var file = new StreamWriter(manifestPath))
+                if (Options.CachedManifest)
                 {
-                    foreach (var hash in OldPakManifest)
+                    using (var file = new StreamWriter(manifestPath))
                     {
-                        if (package.FindEntry(hash.Key) == null)
+                        foreach (var hash in OldPakManifest)
                         {
-                            Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
-                        }
+                            if (package.FindEntry(hash.Key) == null)
+                            {
+                                Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
+                            }
 
-                        file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                            file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                        }
                     }
                 }
             }
@@ -632,7 +635,7 @@ namespace Decompiler
                 if (Options.OutputFile != null)
                 {
                     uint oldCrc32;
-                    if (OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
+                    if (Options.CachedManifest && OldPakManifest.TryGetValue(filePath, out oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
