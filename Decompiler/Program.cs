@@ -658,17 +658,18 @@ namespace Decompiler
                             {
                                 resource.Read(memory);
                             }
-                            catch (Exception)
+                            catch (Exception e)
                             {
                                 lock (ConsoleWriterLock)
                                 {
                                     Console.ForegroundColor = ConsoleColor.DarkRed;
-                                    Console.WriteLine("\tDecompiler for resource type " + type + " not implemented, extracting as-is");
+                                    Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
                                     Console.ResetColor();
                                 }
                                 DumpFile(filePath, output);
                                 break;
                             }
+
                             if (type == newType) newType = type.Substring(0, type.Length - 2);
                             switch(type)
                             {
