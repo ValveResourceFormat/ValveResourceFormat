@@ -10,6 +10,7 @@ namespace ValveResourceFormat
         NTRO,
         DATA,
         VBIB,
+        VXVS,
 #pragma warning restore 1591
     }
 }

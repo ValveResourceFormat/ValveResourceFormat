@@ -39,6 +39,7 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Resource\Blocks\VXVS.cs" />
     <Compile Include="Utils\IndentedTextWriter.cs" />
     <Compile Include="ValveFont\ValveFont.cs" />
     <Compile Include="KeyValues\KeyValues3.cs" />

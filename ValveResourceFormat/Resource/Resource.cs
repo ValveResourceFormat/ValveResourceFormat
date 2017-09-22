@@ -261,6 +261,9 @@ namespace ValveResourceFormat
 
                 case "VBIB":
                     return new VBIB();
+
+                case "VXVS":
+                    return new VXVS();
             }
 
             throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));
