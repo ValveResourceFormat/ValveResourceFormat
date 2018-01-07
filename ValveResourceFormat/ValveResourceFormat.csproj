@@ -1,116 +1,22 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{E685E563-5F49-4D8D-8342-A7354229E54F}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>ValveResourceFormat</RootNamespace>
-    <AssemblyName>ValveResourceFormat</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <Authors>Steam Database</Authors>
+    <Copyright>Steam Database</Copyright>
+    <Description>Library to decompile Valve Source 2 files</Description>
+    <PackageProjectUrl>https://opensource.steamdb.info/ValveResourceFormat/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</PackageLicenseUrl>
+    <Version Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(APPVEYOR_BUILD_VERSION)</Version>
+    <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug</OutputPath>
-    <DefineConstants>TRACE;DEBUG;</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
-    <DocumentationFile>bin\Debug\ValveResourceFormat.xml</DocumentationFile>
-    <NoWarn>1591</NoWarn>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
-    <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release</OutputPath>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
-    <DocumentationFile>bin\Release\ValveResourceFormat.xml</DocumentationFile>
-    <DebugType>pdbonly</DebugType>
     <DebugSymbols>true</DebugSymbols>
-    <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Drawing" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
+    <PackageReference Include="System.Drawing.Common" Version="4.5.0-preview1-25914-04" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Resource\Blocks\VXVS.cs" />
-    <Compile Include="Utils\IndentedTextWriter.cs" />
-    <Compile Include="ValveFont\ValveFont.cs" />
-    <Compile Include="KeyValues\KeyValues3.cs" />
-    <Compile Include="KeyValues\KV3File.cs" />
-    <Compile Include="KeyValues\KVFlaggedValue.cs" />
-    <Compile Include="KeyValues\KVObject.cs" />
-    <Compile Include="KeyValues\KVValue.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Resource\Block.cs" />
-    <Compile Include="Resource\Enums\DXGIFormat.cs" />
-    <Compile Include="Resource\ResourceTypes\EntityLump.cs" />
-    <Compile Include="Utils\ExtensionAttribute.cs" />
-    <Compile Include="Resource\Resource.cs" />
-    <Compile Include="Resource\ResourceTypes\BinaryKV3.cs" />
-    <Compile Include="Resource\ResourceTypes\Model.cs" />
-    <Compile Include="Resource\ResourceTypes\NTRO.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\CTransform.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\Matrix3x4.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\NTROArray.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\NTROStruct.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\NTROValue.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\Vector4.cs" />
-    <Compile Include="Resource\ResourceTypes\NTROSerialization\Vector3.cs" />
-    <Compile Include="Resource\ResourceTypes\Panorama.cs" />
-    <Compile Include="Resource\Blocks\ResourceData.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfo.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\AdditionalInputDependencies.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\AdditionalRelatedFiles.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ArgumentDependencies.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ChildResourceList.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\CustomDependencies.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ExtraFloatData.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ExtraIntData.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\ExtraStringData.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\InputDependencies.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\REDIBlock.cs" />
-    <Compile Include="Resource\Blocks\ResourceEditInfoStructs\SpecialDependencies.cs" />
-    <Compile Include="Resource\Blocks\ResourceExtRefList.cs" />
-    <Compile Include="Resource\Blocks\ResourceIntrospectionManifest.cs" />
-    <Compile Include="Resource\Blocks\VBIB.cs" />
-    <Compile Include="Resource\ResourceTypes\SoundEventScript.cs" />
-    <Compile Include="Utils\StreamHelpers.cs" />
-    <Compile Include="Utils\Crc32.cs" />
-    <Compile Include="Resource\ResourceTypes\Sound.cs" />
-    <Compile Include="Resource\ResourceTypes\Texture.cs" />
-    <Compile Include="Resource\Enums\VTexFormat.cs" />
-    <Compile Include="Resource\Enums\ResourceType.cs" />
-    <Compile Include="Resource\Enums\DataType.cs" />
-    <Compile Include="Resource\Enums\BlockType.cs" />
-    <Compile Include="Resource\Enums\VTexFlags.cs" />
-    <Compile Include="Resource\Enums\VTexExtraData.cs" />
-    <Compile Include="ThirdParty\DDSImage.cs" />
-    <Compile Include="Resource\ResourceTypes\Particle.cs" />
-    <Compile Include="CompiledShader\CompiledShader.cs" />
-    <Compile Include="ThirdParty\LZMA\ICoder.cs" />
-    <Compile Include="ThirdParty\LZMA\Compress\LZ\LzOutWindow.cs" />
-    <Compile Include="ThirdParty\LZMA\Compress\LZMA\LzmaBase.cs" />
-    <Compile Include="ThirdParty\LZMA\Compress\LZMA\LzmaDecoder.cs" />
-    <Compile Include="ThirdParty\LZMA\Compress\RangeCoder\RangeCoderBit.cs" />
-    <Compile Include="ThirdParty\LZMA\Compress\RangeCoder\RangeCoderBitTree.cs" />
-    <Compile Include="ThirdParty\LZMA\Compress\RangeCoder\RangeCoder.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-    <None Include="ValveResourceFormat.ruleset" />
-  </ItemGroup>
-  <ItemGroup>
-    <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\Newtonsoft.Json.dll" />
-    <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\StyleCop.Analyzers.CodeFixes.dll" />
-    <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\StyleCop.Analyzers.dll" />
-  </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup />
 </Project>
