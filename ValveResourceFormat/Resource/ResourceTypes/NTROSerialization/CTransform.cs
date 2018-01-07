@@ -41,7 +41,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         public override string ToString()
         {
             // http://stackoverflow.com/a/15085178/2200891
-            return string.Format("q={{{0:F}, {1:F}, {2:F}; w={3}}} p={{{4:F}, {5:F}, {6}}}", Values[4], Values[5], Values[6], Values[7].ToString("F"), Values[0], Values[1], Values[2].ToString("F"));
+            return string.Format("q={{{0:F2}, {1:F2}, {2:F2}; w={3}}} p={{{4:F2}, {5:F2}, {6}}}", Values[4], Values[5], Values[6], Values[7].ToString("F2"), Values[0], Values[1], Values[2].ToString("F2"));
         }
     }
 }
