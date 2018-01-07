@@ -18,7 +18,7 @@ build_script:
   - msbuild /t:Restore /t:Build /p:Configuration=Release
 
 after_build:
-  - dotnet pack ValveResourceFormat\ValveResourceFormat.csproj
+  - dotnet pack --configuration release ValveResourceFormat\ValveResourceFormat.csproj
   - dotnet publish --configuration release Decompiler\Decompiler.csproj
 
 test_script:
