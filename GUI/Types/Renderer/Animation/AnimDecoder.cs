@@ -19,7 +19,8 @@ namespace GUI.Types.Renderer.Animation
 
     internal static class AnimDecoder
     {
-        public static int Size(this AnimDecoderType t) {
+        public static int Size(this AnimDecoderType t)
+        {
             switch (t)
             {
                 case AnimDecoderType.CCompressedFullVector3:

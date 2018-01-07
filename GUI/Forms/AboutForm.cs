@@ -10,7 +10,7 @@ namespace GUI.Forms
             InitializeComponent();
         }
 
-        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        private void LinkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             var info = new ProcessStartInfo("https://github.com/SteamDatabase/ValveResourceFormat");
             Process.Start(info);

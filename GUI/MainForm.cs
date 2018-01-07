@@ -137,25 +137,29 @@ namespace GUI
             form.ShowDialog(this);
         }
 
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var openDialog = new OpenFileDialog();
-            openDialog.Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*";
-            openDialog.Multiselect = true;
+            var openDialog = new OpenFileDialog
+            {
+                Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*",
+                Multiselect = true,
+            };
             var userOK = openDialog.ShowDialog();
 
-            if (userOK == DialogResult.OK)
+            if (userOK != DialogResult.OK)
             {
-                foreach (var file in openDialog.FileNames)
+                return;
+            }
+
+            foreach (var file in openDialog.FileNames)
+            {
+                if (file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal))
                 {
-                    if (file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal))
-                    {
-                        OpenFile(file);
-                    }
-                    else
-                    {
-                        Process.Start(file);
-                    }
+                    OpenFile(file);
+                }
+                else
+                {
+                    Process.Start(file);
                 }
             }
         }
@@ -221,8 +225,10 @@ namespace GUI
                 }
 
                 // create a TreeView with search capabilities, register its events, and add it to the tab
-                var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
-                treeViewWithSearch.Dock = DockStyle.Fill;
+                var treeViewWithSearch = new TreeViewWithSearchResults(ImageList)
+                {
+                    Dock = DockStyle.Fill,
+                };
                 treeViewWithSearch.InitializeTreeViewFromPackage("treeViewVpk", package);
                 treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
                 treeViewWithSearch.TreeNodeMouseClick += VPK_OnClick;
@@ -273,21 +279,27 @@ namespace GUI
                     resource.Read(fileName);
                 }
 
-                var resTabs = new TabControl();
-                resTabs.Dock = DockStyle.Fill;
+                var resTabs = new TabControl
+                {
+                    Dock = DockStyle.Fill,
+                };
 
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Texture:
-                        var tab2 = new TabPage("TEXTURE");
-                        tab2.AutoScroll = true;
+                        var tab2 = new TabPage("TEXTURE")
+                        {
+                            AutoScroll = true,
+                        };
 
                         try
                         {
                             var tex = (Texture)resource.Blocks[BlockType.DATA];
 
-                            var control = new Forms.Texture();
-                            control.BackColor = Color.Black;
+                            var control = new Forms.Texture
+                            {
+                                BackColor = Color.Black,
+                            };
                             control.SetImage(tex.GenerateBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
@@ -301,7 +313,7 @@ namespace GUI
                                 Font = new Font(FontFamily.GenericMonospace, 8),
                                 Multiline = true,
                                 ReadOnly = true,
-                                Text = e.ToString()
+                                Text = e.ToString(),
                             };
 
                             tab2.Controls.Add(control);
@@ -313,13 +325,15 @@ namespace GUI
                         if (((Panorama)resource.Blocks[BlockType.DATA]).Names.Count > 0)
                         {
                             var nameTab = new TabPage("PANORAMA NAMES");
-                            var nameControl = new DataGridView();
-                            nameControl.Dock = DockStyle.Fill;
-                            nameControl.AutoSize = true;
-                            nameControl.ReadOnly = true;
-                            nameControl.AllowUserToAddRows = false;
-                            nameControl.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                            nameControl.DataSource = new BindingSource(new BindingList<Panorama.NameEntry>(((Panorama)resource.Blocks[BlockType.DATA]).Names), null);
+                            var nameControl = new DataGridView
+                            {
+                                Dock = DockStyle.Fill,
+                                AutoSize = true,
+                                ReadOnly = true,
+                                AllowUserToAddRows = false,
+                                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                                DataSource = new BindingSource(new BindingList<Panorama.NameEntry>(((Panorama)resource.Blocks[BlockType.DATA]).Names), null),
+                            };
                             nameTab.Controls.Add(nameControl);
                             resTabs.TabPages.Add(nameTab);
                         }
@@ -416,14 +430,16 @@ namespace GUI
                     {
                         var externalRefsTab = new TabPage("External Refs");
 
-                        var externalRefs = new DataGridView();
-                        externalRefs.Dock = DockStyle.Fill;
-                        externalRefs.AutoGenerateColumns = true;
-                        externalRefs.AutoSize = true;
-                        externalRefs.ReadOnly = true;
-                        externalRefs.AllowUserToAddRows = false;
-                        externalRefs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                        externalRefs.DataSource = new BindingSource(new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences.ResourceRefInfoList), null);
+                        var externalRefs = new DataGridView
+                        {
+                            Dock = DockStyle.Fill,
+                            AutoGenerateColumns = true,
+                            AutoSize = true,
+                            ReadOnly = true,
+                            AllowUserToAddRows = false,
+                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                            DataSource = new BindingSource(new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences.ResourceRefInfoList), null),
+                        };
 
                         externalRefsTab.Controls.Add(externalRefs);
 
@@ -438,14 +454,16 @@ namespace GUI
                         {
                             var externalRefsTab = new TabPage("Introspection Manifest: Structs");
 
-                            var externalRefs = new DataGridView();
-                            externalRefs.Dock = DockStyle.Fill;
-                            externalRefs.AutoGenerateColumns = true;
-                            externalRefs.AutoSize = true;
-                            externalRefs.ReadOnly = true;
-                            externalRefs.AllowUserToAddRows = false;
-                            externalRefs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                            externalRefs.DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(((ResourceIntrospectionManifest)block.Value).ReferencedStructs), null);
+                            var externalRefs = new DataGridView
+                            {
+                                Dock = DockStyle.Fill,
+                                AutoGenerateColumns = true,
+                                AutoSize = true,
+                                ReadOnly = true,
+                                AllowUserToAddRows = false,
+                                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                                DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(((ResourceIntrospectionManifest)block.Value).ReferencedStructs), null),
+                            };
 
                             externalRefsTab.Controls.Add(externalRefs);
                             resTabs.TabPages.Add(externalRefsTab);
@@ -454,14 +472,16 @@ namespace GUI
                         if (((ResourceIntrospectionManifest)block.Value).ReferencedEnums.Count > 0)
                         {
                             var externalRefsTab = new TabPage("Introspection Manifest: Enums");
-                            var externalRefs2 = new DataGridView();
-                            externalRefs2.Dock = DockStyle.Fill;
-                            externalRefs2.AutoGenerateColumns = true;
-                            externalRefs2.AutoSize = true;
-                            externalRefs2.ReadOnly = true;
-                            externalRefs2.AllowUserToAddRows = false;
-                            externalRefs2.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                            externalRefs2.DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(((ResourceIntrospectionManifest)block.Value).ReferencedEnums), null);
+                            var externalRefs2 = new DataGridView
+                            {
+                                Dock = DockStyle.Fill,
+                                AutoGenerateColumns = true,
+                                AutoSize = true,
+                                ReadOnly = true,
+                                AllowUserToAddRows = false,
+                                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                                DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(((ResourceIntrospectionManifest)block.Value).ReferencedEnums), null),
+                            };
 
                             externalRefsTab.Controls.Add(externalRefs2);
                             resTabs.TabPages.Add(externalRefsTab);
@@ -516,12 +536,11 @@ namespace GUI
         /// <summary>
         /// Opens a file based on a double clicked list view item. Does nothing if the double clicked item contains a non-TreeNode object.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">Object which raised event.</param>
+        /// <param name="e">Event data.</param>
         private void VPK_OpenFile(object sender, ListViewItemClickEventArgs e)
         {
-            var node = e.Tag as TreeNode;
-            if (node != null)
+            if (e.Tag is TreeNode node)
             {
                 OpenFileFromNode(node);
             }
@@ -540,8 +559,7 @@ namespace GUI
             {
                 var package = node.TreeView.Tag as Package;
                 var file = node.Tag as PackageEntry;
-                byte[] output;
-                package.ReadEntry(file, out output);
+                package.ReadEntry(file, out var output);
 
                 if (file.TypeName.EndsWith("_c", StringComparison.Ordinal) || file.TypeName == "vpk" || file.TypeName == "vcs")
                 {
@@ -572,19 +590,14 @@ namespace GUI
         /// <summary>
         /// Opens a context menu where the user right-clicked in the ListView.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">Object which raised event.</param>
+        /// <param name="e">Event data.</param>
         private void VPK_OnClick(object sender, ListViewItemClickEventArgs e)
         {
-            var listViewItem = e.Tag as ListViewItem;
-            if (listViewItem != null)
+            if (e.Tag is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
             {
-                var node = listViewItem.Tag as TreeNode;
-                if (node != null)
-                {
-                    node.TreeView.SelectedNode = node; //To stop it spassing out
-                    vpkContextMenu.Show(listViewItem.ListView, e.Location);
-                }
+                node.TreeView.SelectedNode = node; //To stop it spassing out
+                vpkContextMenu.Show(listViewItem.ListView, e.Location);
             }
         }
 
@@ -606,7 +619,7 @@ namespace GUI
             }
         }
 
-        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        private void CloseToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var contextMenu = ((ToolStripMenuItem)sender).Owner;
             var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TabControl;
@@ -628,10 +641,8 @@ namespace GUI
             }
         }
 
-        private void extractToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var contextMenu = ((ToolStripMenuItem)sender).Owner;
-
             Package package = null;
             TreeNode selectedNode = null;
 
@@ -652,20 +663,21 @@ namespace GUI
 
             if (selectedNode.Tag.GetType() == typeof(PackageEntry))
             {
-                //We are a file
+                // We are a file
                 var file = selectedNode.Tag as PackageEntry;
 
-                var dialog = new SaveFileDialog();
-                dialog.Filter = "All files (*.*)|*.*";
-                dialog.FileName = file.FileName + "." + file.TypeName;
+                var dialog = new SaveFileDialog
+                {
+                    Filter = "All files (*.*)|*.*",
+                    FileName = file.FileName + "." + file.TypeName,
+                };
                 var userOK = dialog.ShowDialog();
 
                 if (userOK == DialogResult.OK)
                 {
                     using (var stream = dialog.OpenFile())
                     {
-                        byte[] output;
-                        package.ReadEntry(file, out output);
+                        package.ReadEntry(file, out var output);
                         stream.Write(output, 0, output.Length);
                     }
                 }
@@ -684,8 +696,7 @@ namespace GUI
                             Console.WriteLine(node.Text);
                             using (var stream = new FileStream(dialog.SelectedPath + Path.DirectorySeparatorChar + file.FileName + "." + file.TypeName, FileMode.Create))
                             {
-                                byte[] output;
-                                package.ReadEntry(file, out output);
+                                package.ReadEntry(file, out var output);
                                 stream.Write(output, 0, output.Length);
                             }
                         }
@@ -702,9 +713,9 @@ namespace GUI
         /// When the user clicks to search from the toolbar, open a dialog with search options. If the user clicks OK in the dialog,
         /// perform a search in the selected tab's TreeView for the entered value and display the results in a ListView.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void findToolStripMenuItem_Click(object sender, EventArgs e)
+        /// <param name="sender">Object which raised event.</param>
+        /// <param name="e">Event data.</param>
+        private void FindToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var result = searchForm.ShowDialog();
             if (result == DialogResult.OK)
@@ -730,18 +741,21 @@ namespace GUI
         {
             exportToolStripButton.Enabled = true;
 
-            var ts = new ToolStripMenuItem();
-            ts.Size = new Size(150, 20);
-            ts.Text = name;
-            ts.ToolTipText = filename;
-                //This is required for the dialog to know the default name and path.
-            ts.Tag = resource; //This makes it trivial to dump without exploring our nested TabPages.
-            ts.Click += exportToolStripMenuItem_Click;
+            var ts = new ToolStripMenuItem
+            {
+                Size = new Size(150, 20),
+                Text = name,
+                ToolTipText = filename,
+                Tag = resource,
+            };
+            //This is required for the dialog to know the default name and path.
+            //This makes it trivial to dump without exploring our nested TabPages.
+            ts.Click += ExportToolStripMenuItem_Click;
 
             exportToolStripButton.DropDownItems.Add(ts);
         }
 
-        private void exportToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //ToolTipText is the full filename
             var fileName = ((ToolStripMenuItem)sender).ToolTipText;
@@ -776,10 +790,12 @@ namespace GUI
             //Did we find a format we like?
             if (extensions != null)
             {
-                var dialog = new SaveFileDialog();
-                dialog.FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0]));
-                dialog.InitialDirectory = Path.GetFullPath(fileName);
-                dialog.DefaultExt = extensions[0];
+                var dialog = new SaveFileDialog
+                {
+                    FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0])),
+                    InitialDirectory = Path.GetFullPath(fileName),
+                    DefaultExt = extensions[0],
+                };
 
                 var filter = string.Empty;
                 foreach (var extension in extensions)
@@ -895,6 +911,7 @@ namespace GUI
                     }
                 }
             }
+
             Console.WriteLine($"Export requested for {fileName} Complete");
         }
     }

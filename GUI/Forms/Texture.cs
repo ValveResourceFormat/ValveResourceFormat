@@ -7,7 +7,7 @@ namespace GUI.Forms
 {
     public partial class Texture : UserControl
     {
-        public string name { get; private set; }
+        private string name;
 
         public Texture()
         {
@@ -21,7 +21,7 @@ namespace GUI.Forms
             pictureBox1.MaximumSize = new Size(w, h);
         }
 
-        private void contextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        private void ContextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
             if (e.ClickedItem.Name != "saveAsToolStripMenuItem")
             {
@@ -31,10 +31,12 @@ namespace GUI.Forms
             var menuStrip = sender as ContextMenuStrip;
             menuStrip.Visible = false; //Hide it as we have pressed the button now!
 
-            var saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tiff|Bitmap Image|*.bmp";
-            saveFileDialog.Title = "Save an Image File";
-            saveFileDialog.FileName = name;
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tiff|Bitmap Image|*.bmp",
+                Title = "Save an Image File",
+                FileName = name,
+            };
             saveFileDialog.ShowDialog(this);
 
             if (saveFileDialog.FileName != string.Empty)

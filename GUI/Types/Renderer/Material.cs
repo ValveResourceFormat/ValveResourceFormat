@@ -6,21 +6,21 @@ namespace GUI.Types.Renderer
 {
     internal class Material
     {
-        public string Name;
-        public string ShaderName;
+        public string Name { get; set; }
+        public string ShaderName { get; set; }
 
-        public Dictionary<string, int> IntParams;
-        public Dictionary<string, float> FloatParams;
-        public Dictionary<string, Vector4> VectorParams;
-        public Dictionary<string, int> Textures;
-        public Dictionary<string, ResourceExtRefList.ResourceReferenceInfo> TextureParams;
+        public Dictionary<string, int> IntParams { get; }
+        public Dictionary<string, float> FloatParams { get; }
+        public Dictionary<string, Vector4> VectorParams { get; }
+        public Dictionary<string, int> Textures { get; }
+        public Dictionary<string, ResourceExtRefList.ResourceReferenceInfo> TextureParams { get; }
         //public Dictionary<string, ????> dynamicParams;
         //public Dictionary<string, ????> dynamicTextureParams;
-        public Dictionary<string, int> IntAttributes;
-        public Dictionary<string, float> FloatAttributes;
-        public Dictionary<string, Vector4> VectorAttributes;
+        public Dictionary<string, int> IntAttributes { get; }
+        public Dictionary<string, float> FloatAttributes { get; }
+        public Dictionary<string, Vector4> VectorAttributes { get; }
         //public Dictionary<string, long> textureAttributes;
-        public Dictionary<string, string> StringAttributes;
+        public Dictionary<string, string> StringAttributes { get; }
         //public string[] renderAttributesUsed; // ?
 
         public Material()

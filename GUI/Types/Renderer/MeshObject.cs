@@ -39,8 +39,7 @@ namespace GUI.Types.Renderer
                     GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
                     GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(block.VertexBuffers[i].Count * block.VertexBuffers[i].Size), block.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
 
-                    var verticeBufferSize = 0;
-                    GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out verticeBufferSize);
+                    GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out int _);
                 }
 
                 for (var i = 0; i < block.IndexBuffers.Count; i++)
@@ -48,8 +47,7 @@ namespace GUI.Types.Renderer
                     GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[i]);
                     GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(block.IndexBuffers[i].Count * block.IndexBuffers[i].Size), block.IndexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
 
-                    var indiceBufferSize = 0;
-                    GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out indiceBufferSize);
+                    GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out int _);
                 }
 
                 //Prepare drawcalls
@@ -152,7 +150,8 @@ namespace GUI.Types.Renderer
             vertexBuffer.Offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
             drawCall.VertexBuffer = vertexBuffer;
 
-            GL.GenVertexArrays(1, out drawCall.VertexArrayObject);
+            GL.GenVertexArrays(1, out uint vertexArrayObject);
+            drawCall.VertexArrayObject = vertexArrayObject;
 
             GL.BindVertexArray(drawCall.VertexArrayObject);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.VertexBuffer.Id]);

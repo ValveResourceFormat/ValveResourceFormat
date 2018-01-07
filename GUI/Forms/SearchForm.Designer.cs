@@ -44,7 +44,7 @@
             this.findButton.TabIndex = 0;
             this.findButton.Text = "Find";
             this.findButton.UseVisualStyleBackColor = true;
-            this.findButton.Click += new System.EventHandler(this.findButton_Click);
+            this.findButton.Click += new System.EventHandler(this.FindButton_Click);
             // 
             // cancelButton
             // 
@@ -55,7 +55,7 @@
             this.cancelButton.TabIndex = 1;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = true;
-            this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
+            this.cancelButton.Click += new System.EventHandler(this.CancelButton_Click);
             // 
             // findTextBox
             // 

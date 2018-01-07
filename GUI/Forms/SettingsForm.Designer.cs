@@ -80,7 +80,7 @@
             this.bgColorPickButton.TabIndex = 4;
             this.bgColorPickButton.Text = "Set model viewer background color";
             this.bgColorPickButton.UseVisualStyleBackColor = true;
-            this.bgColorPickButton.Click += new System.EventHandler(this.button1_Click);
+            this.bgColorPickButton.Click += new System.EventHandler(this.Button1_Click);
             // 
             // SettingsForm
             // 

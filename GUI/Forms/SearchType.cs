@@ -4,6 +4,6 @@
     {
         FileNameExactMatch,
         FileNamePartialMatch,
-        FullPath
+        FullPath,
     }
 }

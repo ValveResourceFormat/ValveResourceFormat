@@ -25,7 +25,7 @@ namespace GUI.Controls
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Constructor to require an image list for display on listed TreeView nodes and ListView items.
         /// </summary>
-        /// <param name="imageList"></param>
+        /// <param name="imageList">Image list.</param>
         public TreeViewWithSearchResults(ImageList imageList)
             : this()
         {
@@ -94,8 +94,8 @@ namespace GUI.Controls
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="package"></param>
+        /// <param name="name">Name of the package.</param>
+        /// <param name="package">Package object.</param>
         internal void InitializeTreeViewFromPackage(string name, Package package)
         {
             mainListView.Tag = package;
@@ -146,8 +146,8 @@ namespace GUI.Controls
         /// When the user clicks in the ListView, check if the user clicks outside of a ListViewItem. If so, de-select any previously selected ListViewItems. In addition,
         /// if the user right clicked an item in the ListView, let our subscribers know what was clicked and where in case a context menu is needed to be shown.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">Object which raised event.</param>
+        /// <param name="e">Event data.</param>
         private void MainListView_MouseDown(object sender, MouseEventArgs e)
         {
             var info = mainListView.HitTest(e.X, e.Y);
@@ -181,8 +181,8 @@ namespace GUI.Controls
         /// If the user double clicks (with left mouse button) on a ListViewItem, send up an event to subscribers that such an action has occurred. Also send up
         /// whatever object is represented by the ListViewItem.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">Object which raised event.</param>
+        /// <param name="e">Event data.</param>
         private void MainListView_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -214,8 +214,8 @@ namespace GUI.Controls
         /// <summary>
         /// When the form loads, create the columns that we want to see such as name, file size, and file type.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">Object which raised event.</param>
+        /// <param name="e">Event data.</param>
         private void TreeViewWithSearchResults_Load(object sender, EventArgs e)
         {
             mainListView.Columns.Add("Name");
@@ -226,9 +226,11 @@ namespace GUI.Controls
 
         private void AddNodeToListView(TreeNode node)
         {
-            var item = new ListViewItem(node.Text);
-            item.ImageKey = node.ImageKey;
-            item.Tag = node;
+            var item = new ListViewItem(node.Text)
+            {
+                ImageKey = node.ImageKey,
+                Tag = node,
+            };
 
             if (node.Tag.GetType() == typeof(PackageEntry))
             {

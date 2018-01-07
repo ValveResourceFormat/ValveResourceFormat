@@ -74,7 +74,7 @@ namespace GUI.Types
                     Resource = newResource,
                     Transform = transform,
                     TintColor = tintColor,
-                    SkinMaterials = skinMaterials
+                    SkinMaterials = skinMaterials,
                 });
 
                 // TODO: Only first, again.

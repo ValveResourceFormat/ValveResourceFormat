@@ -2,12 +2,12 @@
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 using Vector4 = ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4;
-using SteamDatabase.ValvePak;
 
 namespace GUI.Types
 {
@@ -24,11 +24,11 @@ namespace GUI.Types
         {
             var data = Resource.Blocks[BlockType.DATA] as NTRO;
 
-            // Output is WorldNode_t we need to iterate m_sceneObjects inside it.
-
             var sceneObjectLayerIndices = (NTROArray)data.Output["m_sceneObjectLayerIndices"];
             var sceneObjects = (NTROArray)data.Output["m_sceneObjects"];
             var i = 0;
+
+            // Output is WorldNode_t we need to iterate m_sceneObjects inside it
             foreach (var entry in sceneObjects)
             {
                 var layerIndice = ((NTROValue<byte>)sceneObjectLayerIndices[i]).Value;
@@ -104,7 +104,7 @@ namespace GUI.Types
                     {
                         Resource = newResource,
                         Transform = matrix,
-                        TintColor = tintColor
+                        TintColor = tintColor,
                     });
                 }
             }

@@ -7,7 +7,7 @@ namespace GUI.Types.Renderer
 {
     internal class DebugUtil
     {
-        private const string vShaderSource = @"
+        private const string VertexShaderSource = @"
 #version 330
 in vec3 aVertexPos;
 
@@ -20,7 +20,7 @@ void main(void)
 {
     gl_Position = uProjection * uView * uTransform * vec4(aVertexPos, 1.0);
 }";
-        private const string fShaderSource = @"
+        private const string FragmentShaderSource = @"
 #version 330
 precision mediump float;
 
@@ -39,27 +39,24 @@ void main(void) {
         {
             // Set up shaders
             var vShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vShader, vShaderSource);
+            GL.ShaderSource(vShader, VertexShaderSource);
             GL.CompileShader(vShader);
 
-            int shaderStatus;
-            GL.GetShader(vShader, ShaderParameter.CompileStatus, out shaderStatus);
+            GL.GetShader(vShader, ShaderParameter.CompileStatus, out var shaderStatus);
             if (shaderStatus != 1)
             {
-                string vsInfo;
-                GL.GetShaderInfoLog(vShader, out vsInfo);
+                GL.GetShaderInfoLog(vShader, out var vsInfo);
                 Console.WriteLine(vsInfo);
             }
 
             var fShader = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fShader, fShaderSource);
+            GL.ShaderSource(fShader, FragmentShaderSource);
             GL.CompileShader(fShader);
 
             GL.GetShader(fShader, ShaderParameter.CompileStatus, out shaderStatus);
             if (shaderStatus != 1)
             {
-                string vsInfo;
-                GL.GetShaderInfoLog(vShader, out vsInfo);
+                GL.GetShaderInfoLog(vShader, out var vsInfo);
                 Console.WriteLine(vsInfo);
             }
 
@@ -69,8 +66,7 @@ void main(void) {
             GL.LinkProgram(shaderProgram);
             GL.ValidateProgram(shaderProgram);
 
-            int linkStatus;
-            GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out linkStatus);
+            GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out _);
         }
 
         public void AddCube(Vector3 position, float scale)
@@ -94,7 +90,7 @@ void main(void) {
                 1f, -1f, -1f, 1f, 1f, -1f, 1f, -1f, 1f, 1f, -1f, 1f, 1f, 1f, -1f, 1f, 1f, 1f, //Right face
                 -1f, 1f, -1f, -1f, -1f, -1f, -1f, -1f, 1f, -1f, 1f, -1f, -1f, -1f, 1f, -1f, 1f, 1f, //Left face
                 -1f, -1f, 1f, 1f, -1f, 1f, -1f, 1f, 1f, -1f, 1f, 1f, 1f, -1f, 1f, 1f, 1f, 1f, //Top face
-                1f, -1f, -1f, -1f, -1f, -1f, -1f, 1f, -1f, 1f, -1f, -1f, -1f, 1f, -1f, 1f, 1f, -1f //Bottom face
+                1f, -1f, -1f, -1f, -1f, -1f, -1f, 1f, -1f, 1f, -1f, -1f, -1f, 1f, -1f, 1f, 1f, -1f, //Bottom face
             };
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(sizeof(float) * vertices.Length), vertices, BufferUsageHint.StaticDraw);
 

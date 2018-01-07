@@ -5,22 +5,22 @@ namespace GUI.Types.Renderer
 {
     internal class DrawCall
     {
-        public PrimitiveType PrimitiveType;
-        public Shader Shader;
-        public uint BaseVertex;
-        public uint VertexCount;
-        public uint StartIndex;
-        public int IndexCount;
-        public uint InstanceIndex;   //TODO
-        public uint InstanceCount;   //TODO
-        public float UvDensity;     //TODO
-        public string Flags;        //TODO
-        public Vector3 TintColor = Vector3.One;
-        public Material Material;
-        public uint VertexArrayObject;
-        public DrawBuffer VertexBuffer;
-        public DrawElementsType IndiceType;
-        public DrawBuffer IndexBuffer;
+        public PrimitiveType PrimitiveType { get; set; }
+        public Shader Shader { get; set; }
+        public uint BaseVertex { get; set; }
+        public uint VertexCount { get; set; }
+        public uint StartIndex { get; set; }
+        public int IndexCount { get; set; }
+        //public uint InstanceIndex { get; set; }   //TODO
+        //public uint InstanceCount { get; set; }   //TODO
+        //public float UvDensity { get; set; }     //TODO
+        //public string Flags { get; set; }        //TODO
+        public Vector3 TintColor { get; set; } = Vector3.One;
+        public Material Material { get; set; }
+        public uint VertexArrayObject { get; set; }
+        public DrawBuffer VertexBuffer { get; set; }
+        public DrawElementsType IndiceType { get; set; }
+        public DrawBuffer IndexBuffer { get; set; }
     }
 
     internal struct DrawBuffer

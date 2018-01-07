@@ -81,7 +81,7 @@
             this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
             this.openToolStripMenuItem.Size = new System.Drawing.Size(146, 22);
             this.openToolStripMenuItem.Text = "Open";
-            this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
+            this.openToolStripMenuItem.Click += new System.EventHandler(this.OpenToolStripMenuItem_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -137,7 +137,7 @@
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
             this.closeToolStripMenuItem.Size = new System.Drawing.Size(103, 22);
             this.closeToolStripMenuItem.Text = "Close";
-            this.closeToolStripMenuItem.Click += new System.EventHandler(this.closeToolStripMenuItem_Click);
+            this.closeToolStripMenuItem.Click += new System.EventHandler(this.CloseToolStripMenuItem_Click);
             // 
             // exportToolStripButton
             // 
@@ -162,7 +162,7 @@
             this.extractToolStripMenuItem.Name = "extractToolStripMenuItem";
             this.extractToolStripMenuItem.Size = new System.Drawing.Size(107, 22);
             this.extractToolStripMenuItem.Text = "Export";
-            this.extractToolStripMenuItem.Click += new System.EventHandler(this.extractToolStripMenuItem_Click);
+            this.extractToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
             // 
             // mainToolStrip
             // 
@@ -189,7 +189,7 @@
             this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.findToolStripButton.Size = new System.Drawing.Size(58, 22);
             this.findToolStripButton.Text = "Find";
-            this.findToolStripButton.Click += new System.EventHandler(this.findToolStripMenuItem_Click);
+            this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
             // MainForm
             // 

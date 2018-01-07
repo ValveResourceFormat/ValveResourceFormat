@@ -83,23 +83,31 @@ namespace GUI.Types.Renderer
 
         public Control CreateGL()
         {
-            var panel = new Panel();
-            panel.Dock = DockStyle.Fill;
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+            };
 
-            cameraLabel = new Label();
-            cameraLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            cameraLabel.AutoSize = true;
-            cameraLabel.Dock = DockStyle.Top;
+            cameraLabel = new Label
+            {
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                AutoSize = true,
+                Dock = DockStyle.Top,
+            };
             panel.Controls.Add(cameraLabel);
 
-            fpsLabel = new Label();
-            fpsLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-            fpsLabel.AutoSize = true;
-            fpsLabel.Dock = DockStyle.Top;
+            fpsLabel = new Label
+            {
+                Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                AutoSize = true,
+                Dock = DockStyle.Top,
+            };
             panel.Controls.Add(fpsLabel);
 
-            var controlsPanel = new Panel();
-            controlsPanel.Dock = DockStyle.Left;
+            var controlsPanel = new Panel
+            {
+                Dock = DockStyle.Left,
+            };
 
             animationBox = new CheckedListBox();
             animationBox.Width *= 2;
@@ -212,9 +220,11 @@ namespace GUI.Types.Renderer
 
         private void InitializeInputTick()
         {
-            var timer = new Timer();
-            timer.Enabled = true;
-            timer.Interval = 1000 / 60;
+            var timer = new Timer
+            {
+                Enabled = true,
+                Interval = 1000 / 60,
+            };
             timer.Elapsed += InputTick;
             timer.Start();
         }
@@ -354,17 +364,16 @@ namespace GUI.Types.Renderer
 
             var prevShader = -1;
             var prevMaterial = string.Empty;
-            var objChanged = false;
-            int uniformLocation;
 
             //var sw = System.Diagnostics.Stopwatch.StartNew();
 
             foreach (var obj in MeshesToRender)
             {
-                objChanged = true;
+                var objChanged = true;
 
                 foreach (var call in obj.DrawCalls)
                 {
+                    int uniformLocation;
                     if (call.Shader.Program != prevShader)
                     {
                         objChanged = true;
@@ -402,7 +411,6 @@ namespace GUI.Types.Renderer
                             }
 
                             uniformLocation = call.Shader.GetUniformLocation("fNumBones");
-                            var uniformLocation2 = GL.GetUniformLocation(call.Shader.Program,"fNumBones");
                             if (uniformLocation != -1)
                             {
                                 var v = (float)Math.Max(1, Skeleton.Bones.Length - 1);

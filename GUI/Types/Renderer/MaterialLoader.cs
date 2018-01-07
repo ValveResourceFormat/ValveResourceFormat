@@ -38,8 +38,6 @@ namespace GUI.Types.Renderer
 
         private Material LoadMaterial(string name)
         {
-            //Console.WriteLine("\n>> Loading material " + name);
-
             var mat = new Material();
             mat.Textures["g_tColor"] = GetErrorTexture();
 
@@ -61,23 +59,23 @@ namespace GUI.Types.Renderer
             mat.ShaderName = ((NTROValue<string>)matData.Output["m_shaderName"]).Value;
             //mat.renderAttributesUsed = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)matData.Output["m_renderAttributesUsed"]).Value; //TODO: string array?
             var intParams = (NTROArray)matData.Output["m_intParams"];
-            for (var i = 0; i < intParams.Count; i++)
+            foreach (var t in intParams)
             {
-                var subStruct = ((NTROValue<NTROStruct>)intParams[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 mat.IntParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
             }
 
             var floatParams = (NTROArray)matData.Output["m_floatParams"];
-            for (var i = 0; i < floatParams.Count; i++)
+            foreach (var t in floatParams)
             {
-                var subStruct = ((NTROValue<NTROStruct>)floatParams[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 mat.FloatParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
             }
 
             var vectorParams = (NTROArray)matData.Output["m_vectorParams"];
-            for (var i = 0; i < vectorParams.Count; i++)
+            foreach (var t in vectorParams)
             {
-                var subStruct = ((NTROValue<NTROStruct>)vectorParams[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
                 // Prevent error
                 if (!mat.VectorParams.ContainsKey(((NTROValue<string>)subStruct["m_name"]).Value))
@@ -97,23 +95,23 @@ namespace GUI.Types.Renderer
             var dynamicTextureParams = (NTROArray)matData.Output["m_dynamicTextureParams"];
 
             var intAttributes = (NTROArray)matData.Output["m_intAttributes"];
-            for (var i = 0; i < intAttributes.Count; i++)
+            foreach (var t in intAttributes)
             {
-                var subStruct = ((NTROValue<NTROStruct>)intAttributes[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 mat.IntAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
             }
 
             var floatAttributes = (NTROArray)matData.Output["m_floatAttributes"];
-            for (var i = 0; i < floatAttributes.Count; i++)
+            foreach (var t in floatAttributes)
             {
-                var subStruct = ((NTROValue<NTROStruct>)floatAttributes[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 mat.FloatAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
             }
 
             var vectorAttributes = (NTROArray)matData.Output["m_vectorAttributes"];
-            for (var i = 0; i < vectorAttributes.Count; i++)
+            foreach (var t in vectorAttributes)
             {
-                var subStruct = ((NTROValue<NTROStruct>)vectorAttributes[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
                 mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
             }
@@ -121,17 +119,15 @@ namespace GUI.Types.Renderer
             var textureAttributes = (NTROArray)matData.Output["m_textureAttributes"];
             //TODO
             var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
-            for (var i = 0; i < stringAttributes.Count; i++)
+            foreach (var t in stringAttributes)
             {
-                var subStruct = ((NTROValue<NTROStruct>)stringAttributes[i]).Value;
+                var subStruct = ((NTROValue<NTROStruct>)t).Value;
                 mat.StringAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<string>)subStruct["m_value"]).Value);
             }
 
             foreach (var textureReference in mat.TextureParams)
             {
                 var key = textureReference.Key;
-
-                //Console.WriteLine(">>> " + textureReference.Key + " - " + textureReference.Value.Name);
 
                 mat.Textures[key] = LoadTexture(textureReference.Value.Name);
             }
@@ -180,8 +176,6 @@ namespace GUI.Types.Renderer
             }
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
-
-            //Console.WriteLine(">>>> Loading texture " + name + " " + tex.Flags);
 
             var id = GL.GenTexture();
 
