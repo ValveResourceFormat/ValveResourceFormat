@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -27,14 +28,17 @@ namespace GUI.Types.Renderer.Animation
             var decodeKey = ((NTROValue<NTROStruct>)data.Output["m_decodeKey"]).Value;
 
             AnimationList = new List<Animation>();
-            for (var i = 0; i < animArray.Count; i++)
+
+            // Load animation files
+            foreach (var t in animArray)
             {
-                // Load animation files
-                var refAnim = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)animArray[i]).Value;
+                var refAnim = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)t).Value;
                 var animResource = FileExtensions.LoadFileByAnyMeansNecessary(refAnim.Name + "_c", path, null);
-#if DEBUG
-                Console.WriteLine("Animation found: " + refAnim.Name);
-#endif
+
+                if (animResource == null)
+                {
+                    throw new FileNotFoundException($"Failed to load {refAnim.Name}_c. Did you configure game paths correctly?");
+                }
 
                 // Build animation classes
                 AnimationList.Add(new Animation(animResource, decodeKey, skeleton));
