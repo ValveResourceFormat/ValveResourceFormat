@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ThirdParty;
@@ -60,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadSingle()
+                reader.ReadSingle(),
             };
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
@@ -108,7 +109,10 @@ namespace ValveResourceFormat.ResourceTypes
                         // TODO: Either this needs to be optimized, or allow saving each individual mipmap
                         for (var j = NumMipLevels; j > 0; j--)
                         {
-                            if (j == 1) break;
+                            if (j == 1)
+                            {
+                                break;
+                            }
 
                             for (var k = 0; k < Height / Math.Pow(2.0, j - 1); ++k)
                             {
@@ -131,7 +135,10 @@ namespace ValveResourceFormat.ResourceTypes
                         // TODO: Either this needs to be optimized, or allow saving each individual mipmap
                         for (var j = NumMipLevels; j > 0; j--)
                         {
-                            if (j == 1) break;
+                            if (j == 1)
+                            {
+                                break;
+                            }
 
                             for (var k = 0; k < Height / Math.Pow(2.0, j + 1); ++k)
                             {
@@ -154,15 +161,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
 
-                        foreach (var dependancy in specialDeps.List)
-                        {
-                            if (dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion")
-                            {
-                                yCoCg = true;
-
-                                break;
-                            }
-                        }
+                        yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
                     }
 
                     for (ushort i = 0; i < Depth && i < 0xFF; ++i)
@@ -171,7 +170,10 @@ namespace ValveResourceFormat.ResourceTypes
                         // TODO: Either this needs to be optimized, or allow saving each individual mipmap
                         for (var j = NumMipLevels; j > 0; j--)
                         {
-                            if (j == 1) break;
+                            if (j == 1)
+                            {
+                                break;
+                            }
 
                             for (var k = 0; k < Height / Math.Pow(2.0, j + 1); ++k)
                             {

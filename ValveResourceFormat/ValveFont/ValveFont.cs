@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -8,7 +7,7 @@ namespace ValveResourceFormat
     public class ValveFont
     {
         private const string MAGIC = "VFONT1";
-        private const byte MAGIC_TRICK = 167;
+        private const byte MAGICTRICK = 167;
 
         /// <summary>
         /// Opens and reads the given filename.
@@ -50,7 +49,7 @@ namespace ValveResourceFormat
             // How many magic bytes there are
             var bytes = reader.ReadByte();
             var output = new byte[reader.BaseStream.Length - MAGIC.Length - bytes];
-            int magic = MAGIC_TRICK;
+            int magic = MAGICTRICK;
 
             // Read the magic bytes
             reader.BaseStream.Seek(-bytes, SeekOrigin.Current);
@@ -59,7 +58,7 @@ namespace ValveResourceFormat
 
             for (var i = 0; i < bytes; i++)
             {
-                magic ^= (reader.ReadByte() + MAGIC_TRICK) % 256;
+                magic ^= (reader.ReadByte() + MAGICTRICK) % 256;
             }
 
             // Decode the rest
@@ -71,7 +70,7 @@ namespace ValveResourceFormat
 
                 output[i] = (byte)(currentByte ^ magic);
 
-                magic = (currentByte + MAGIC_TRICK) % 256;
+                magic = (currentByte + MAGICTRICK) % 256;
             }
 
             return output;

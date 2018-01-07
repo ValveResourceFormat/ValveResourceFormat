@@ -17,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     FieldName = "m_Signature",
                     Count = 1,
-                    Type = DataType.Int32
+                    Type = DataType.Int32,
                 };
                 block.FieldIntrospection.Add(field);
 
@@ -26,7 +26,7 @@ namespace ValveResourceFormat.ResourceTypes
                     FieldName = "m_Encoding",
                     Count = 4,
                     OnDiskOffset = 4,
-                    Type = DataType.Boolean
+                    Type = DataType.Boolean,
                 };
                 block.FieldIntrospection.Add(field);
 
@@ -35,7 +35,7 @@ namespace ValveResourceFormat.ResourceTypes
                     FieldName = "m_Format",
                     Count = 4,
                     OnDiskOffset = 20,
-                    Type = DataType.Boolean
+                    Type = DataType.Boolean,
                 };
                 block.FieldIntrospection.Add(field);
 

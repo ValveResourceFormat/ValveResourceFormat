@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Blocks
             ExtraFloatData,
             ExtraStringData,
 
-            End
+            End,
         }
 
         public Dictionary<REDIStruct, REDIBlock> Structs { get; private set; }

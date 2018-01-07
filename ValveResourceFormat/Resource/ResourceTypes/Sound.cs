@@ -61,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
                 {
                     FieldName = "m_bitpackedsoundinfo",
-                    Type = DataType.UInt32
+                    Type = DataType.UInt32,
                 };
                 block.FieldIntrospection.Add(field);
 

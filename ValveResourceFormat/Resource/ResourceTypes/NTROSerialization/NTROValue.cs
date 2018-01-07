@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
@@ -11,7 +10,9 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         public abstract void WriteText(IndentedTextWriter writer);
     }
 
+#pragma warning disable SA1402 // File may only contain a single type
     public class NTROValue<T> : NTROValue
+#pragma warning restore SA1402
     {
         public T Value { get; private set; }
 

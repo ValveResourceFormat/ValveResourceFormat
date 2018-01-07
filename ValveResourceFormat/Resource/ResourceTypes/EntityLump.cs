@@ -46,8 +46,10 @@ namespace ValveResourceFormat.ResourceTypes
                             Console.WriteLine("We hit our values target without reading every byte?!");
                             break;
                         }
-                        var miscType = dataReader.ReadUInt32(); //Stuff before type, some pointer?
+
+                        var miscType = dataReader.ReadUInt32(); // Stuff before type, some pointer?
                         var type = dataReader.ReadUInt32();
+
                         switch (type)
                         {
                             case 0x06:
