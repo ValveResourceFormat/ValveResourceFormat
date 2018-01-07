@@ -1,43 +1,48 @@
 version: 0.0.10.{build}-AppVeyor
-image: Visual Studio 2015
-configuration: Release
+image: Visual Studio 2017
+
 assembly_info:
   patch: true
   file: '**\AssemblyInfo.*'
   assembly_version: '{version}'
   assembly_file_version: '{version}'
   assembly_informational_version: '{version}'
+
 environment:
   COVERALLS_REPO_TOKEN:
     secure: WBUIkucQ46pEHPX6LbgX1WhSEKb8E7kdl7SMJjfMn+CxUvr/oij9IKuJlSLDBT0p
+
 cache: '%LocalAppData%\NuGet\Cache'
-before_build:
-- cmd: nuget restore ValveResourceFormat.sln
-build:
-  project: ValveResourceFormat.sln
-  verbosity: minimal
+
+build_script:
+  - msbuild /t:Restore /t:Build /p:Configuration=Release
+
 after_build:
-- cmd: nuget pack ValveResourceFormat\ValveResourceFormat.csproj
+  - dotnet pack ValveResourceFormat\ValveResourceFormat.csproj
+  - dotnet publish --configuration release Decompiler\Decompiler.csproj
+
 test_script:
 - ps: >-
-    $opencover = (Resolve-Path "packages/OpenCover.*/tools/OpenCover.Console.exe").ToString();
-    & $opencover -target:nunit3-console.exe "-targetargs:Tests/bin/$($env:CONFIGURATION)/Tests.dll --result=testResults.xml;format=AppVeyor" -filter:"+[ValveResourceFormat*]* -[ValveResourceFormat]SevenZip*" -output:opencoverCoverage.xml -register:user -returntargetcode
+    $opencover = (Resolve-Path "$ENV:USERPROFILE/.nuget/packages/OpenCover/*/tools/OpenCover.Console.exe").ToString();
+    & $opencover "-target:%ProgramFiles%\dotnet\dotnet.exe" "-targetargs:test -c debug Tests\Tests.csproj" -filter:"+[ValveResourceFormat*]* -[ValveResourceFormat]SevenZip*" -output:opencoverCoverage.xml -register:user -returntargetcode -oldStyle
 
     if ($LastExitCode -ne 0) {
       throw "Exec: $ErrorMessage`nExit code: $LastExitCode";
     }
 
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null) {
-      $coveralls = (Resolve-Path "packages/coveralls.net.*/tools/csmacnz.coveralls.exe").ToString();
+      $coveralls = (Resolve-Path "$ENV:USERPROFILE/.nuget/packages/coveralls.net/*/tools/csmacnz.coveralls.exe").ToString();
       & $coveralls --opencover -i opencoverCoverage.xml --repoToken $env:COVERALLS_REPO_TOKEN --commitId $env:APPVEYOR_REPO_COMMIT --commitBranch $env:APPVEYOR_REPO_BRANCH --commitAuthor $env:APPVEYOR_REPO_COMMIT_AUTHOR --commitEmail $env:APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL --commitMessage $env:APPVEYOR_REPO_COMMIT_MESSAGE --jobId $env:APPVEYOR_BUILD_NUMBER --serviceName appveyor
     }
+
 artifacts:
-- path: Decompiler\bin\$(configuration)
+- path: Decompiler\bin\Release\netcoreapp2.0\publish
   name: Decompiler
-- path: GUI\bin\$(configuration)
+- path: GUI\bin\Release
   name: GUI
-- path: '*.nupkg'
+- path: '**\*.nupkg'
   name: ValveResourceFormat
+
 deploy:
 - provider: GitHub
   auth_token:

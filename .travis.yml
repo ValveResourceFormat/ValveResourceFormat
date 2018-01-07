@@ -1,13 +1,14 @@
 language: csharp
-sudo: false
-solution: ValveResourceFormat.sln
+mono: none
+dotnet: 2.0.0
 
 notifications:
   email: false
 
-install:
-  - nuget restore ValveResourceFormat.sln
+before_install:
+  - sudo apt-get install -y libgdiplus
 
 script:
-  - msbuild /p:Configuration=Release ValveResourceFormat.sln
-  - mono ./packages/NUnit.ConsoleRunner.3.2.0/tools/nunit3-console.exe ./Tests/bin/Release/Tests.dll
+  - dotnet build -c release -f netcoreapp2.0 ./Decompiler/Decompiler.csproj
+  - dotnet build -c release -f netstandard2.0 ./ValveResourceFormat/ValveResourceFormat.csproj
+  - dotnet test ./Tests/Tests.csproj
