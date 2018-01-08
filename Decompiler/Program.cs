@@ -8,6 +8,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Blocks;
 using System.Text;
+using SkiaSharp;
 using SteamDatabase.ValvePak;
 
 namespace Decompiler
@@ -260,10 +261,14 @@ namespace Decompiler
                             extension = "png";
 
                             var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                            var image = SKImage.FromBitmap(bitmap);
 
                             using (var ms = new MemoryStream())
                             {
-                                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                using (var imageData = image.Encode(SKEncodedImageFormat.Png, 100))
+                                {
+                                    imageData.SaveTo(ms);
+                                }
 
                                 data = ms.ToArray();
                             }
@@ -692,9 +697,15 @@ namespace Decompiler
                                 case "vtex_c":
                                     newType = "png";
                                     var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                                    var image = SKImage.FromBitmap(bitmap);
+
                                     using (var ms = new MemoryStream())
                                     {
-                                        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                        {
+                                            data.SaveTo(ms);
+                                        }
+
                                         output = ms.ToArray();
                                     }
                                     break;

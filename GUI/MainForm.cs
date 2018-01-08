@@ -18,6 +18,8 @@ using GUI.Types.Renderer;
 using GUI.Types.Renderer.Animation;
 using GUI.Utils;
 using OpenTK;
+using SkiaSharp;
+using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -300,7 +302,7 @@ namespace GUI
                             {
                                 BackColor = Color.Black,
                             };
-                            control.SetImage(tex.GenerateBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
+                            control.SetImage(tex.GenerateBitmap().ToBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
                             Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as an image", fileName, resource);
@@ -771,7 +773,7 @@ namespace GUI
                     extensions = new[] { ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString().ToLower() };
                     break;
                 case ResourceType.Texture:
-                    extensions = new[] { "png", "jpg", "tiff", "bmp" };
+                    extensions = new[] { "png", "jpg", "gif", "bmp" };
                     break;
                 case ResourceType.PanoramaLayout:
                     extensions = new[] { "xml", "vxml" };
@@ -819,22 +821,28 @@ namespace GUI
                                 stream.Write(soundData, 0, soundData.Length);
                                 break;
                             case ResourceType.Texture:
-                                var format = ImageFormat.Png;
+                                var format = SKEncodedImageFormat.Png;
                                 switch (dialog.FilterIndex)
                                 {
                                     case 2:
-                                        format = ImageFormat.Jpeg;
+                                        format = SKEncodedImageFormat.Jpeg;
                                         break;
 
                                     case 3:
-                                        format = ImageFormat.Tiff;
+                                        format = SKEncodedImageFormat.Gif;
                                         break;
                                     case 4:
-                                        format = ImageFormat.Bmp;
+                                        format = SKEncodedImageFormat.Bmp;
                                         break;
                                 }
 
-                                ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap().Save(stream, format);
+                                var image = SKImage.FromBitmap(((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap());
+
+                                using (var data = image.Encode(format, 100))
+                                {
+                                    data.SaveTo(stream);
+                                }
+
                                 break;
                             case ResourceType.PanoramaLayout:
                             case ResourceType.PanoramaScript:

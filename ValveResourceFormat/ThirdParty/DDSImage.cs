@@ -12,41 +12,33 @@
  * License: MIT
  */
 
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
+using SkiaSharp;
 
 namespace ValveResourceFormat.ThirdParty
 {
     internal static class DDSImage
     {
-        public static Bitmap UncompressDXT1(BinaryReader r, int w, int h)
+        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h)
         {
-            var rect = new Rectangle(0, 0, w, h);
-            var res = new Bitmap(w, h, PixelFormat.Format32bppRgb);
+            var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
-            var lockBits = res.LockBits(rect, ImageLockMode.WriteOnly, res.PixelFormat);
-
-            var data = new byte[lockBits.Stride * lockBits.Height];
+            var data = new byte[imageInfo.RowBytes * h];
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(8);
-                    DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, ref data, lockBits.Stride);
+                    DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes);
                 }
             }
 
-            Marshal.Copy(data, 0, lockBits.Scan0, data.Length);
-
-            res.UnlockBits(lockBits);
-
-            return res;
+            return CreateBitmap(imageInfo, ref data);
         }
 
         private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride)
@@ -129,37 +121,31 @@ namespace ValveResourceFormat.ThirdParty
                         pixels[pixelIndex] = finalB;
                         pixels[pixelIndex + 1] = finalG;
                         pixels[pixelIndex + 2] = finalR;
+                        pixels[pixelIndex + 3] = byte.MaxValue;
                     }
                 }
             }
         }
 
-        public static Bitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg)
+        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg)
         {
-            var rect = new Rectangle(0, 0, w, h);
-            var res = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+            var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
-            var lockBits = res.LockBits(rect, ImageLockMode.WriteOnly, res.PixelFormat);
-
-            var data = new byte[lockBits.Stride * lockBits.Height];
+            var data = new byte[imageInfo.RowBytes * h];
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, ref data, lockBits.Stride, yCoCg);
+                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
                 }
             }
 
-            Marshal.Copy(data, 0, lockBits.Scan0, data.Length);
-
-            res.UnlockBits(lockBits);
-
-            return res;
+            return CreateBitmap(imageInfo, ref data);
         }
 
         private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride, bool yCoCg)
@@ -301,6 +287,18 @@ namespace ValveResourceFormat.ThirdParty
                     }
                 }
             }
+        }
+
+        private static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
+        {
+            // pin the managed array so that the GC doesn't move it
+            var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
+
+            // install the pixels with the color type of the pixel data
+            var bitmap = new SKBitmap();
+            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, null, delegate { gcHandle.Free(); }, null);
+
+            return bitmap;
         }
 
         private static byte ClampColor(int a)

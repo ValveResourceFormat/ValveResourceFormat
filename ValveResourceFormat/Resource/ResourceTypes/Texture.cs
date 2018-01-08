@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
+using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ThirdParty;
@@ -96,7 +96,7 @@ namespace ValveResourceFormat.ResourceTypes
             DataOffset = Offset + Size;
         }
 
-        public Bitmap GenerateBitmap()
+        public SKBitmap GenerateBitmap()
         {
             Reader.BaseStream.Position = DataOffset;
 
@@ -198,52 +198,40 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
         }
 
-        private Bitmap ReadPNG()
+        private SKBitmap ReadPNG()
         {
-            // TODO: Seems stupid to provide stream length
-            using (var ms = new MemoryStream(Reader.ReadBytes((int)Reader.BaseStream.Length)))
-            {
-                return new Bitmap(Image.FromStream(ms));
-            }
+            return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
         }
 
-        private static Bitmap ReadRGBA8888(BinaryReader r, int w, int h)
+        private static SKBitmap ReadRGBA8888(BinaryReader r, int w, int h)
         {
-            var res = new Bitmap(w, h);
+            var res = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
 
             for (var y = 0; y < h; y++)
             {
                 for (var x = 0; x < w; x++)
                 {
-                    var rawColor = r.ReadInt32();
-
-                    var color = Color.FromArgb(
-                        (rawColor >> 24) & 0x0FF,
-                        rawColor & 0x0FF,
-                        (rawColor >> 8) & 0x0FF,
-                        (rawColor >> 16) & 0x0FF);
-
-                    res.SetPixel(x, y, color);
+                    res.SetPixel(x, y, new SKColor(r.ReadUInt32()));
                 }
             }
 
             return res;
         }
 
-        private static Bitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
+        private static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
         {
-            var res = new Bitmap(w, h);
+            var res = new SKBitmap(w, h, SKColorType.RgbaF16, SKAlphaType.Unpremul);
 
             while (h-- > 0)
             {
                 while (w-- > 0)
                 {
-                    var red = (int)r.ReadDouble();
-                    var green = (int)r.ReadDouble();
-                    var blue = (int)r.ReadDouble();
-                    var alpha = (int)r.ReadDouble();
+                    var red = (byte)r.ReadDouble();
+                    var green = (byte)r.ReadDouble();
+                    var blue = (byte)r.ReadDouble();
+                    var alpha = (byte)r.ReadDouble();
 
-                    res.SetPixel(w, h, Color.FromArgb(alpha, red, green, blue));
+                    res.SetPixel(w, h, new SKColor(red, green, blue, alpha));
                 }
             }
 
