@@ -46,21 +46,8 @@ namespace ValveResourceFormat.ThirdParty
             var color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
             var color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
 
-            int temp;
-
-            temp = ((color0 >> 11) * 255) + 16;
-            var r0 = (byte)(((temp / 32) + temp) / 32);
-            temp = (((color0 & 0x07E0) >> 5) * 255) + 32;
-            var g0 = (byte)(((temp / 64) + temp) / 64);
-            temp = ((color0 & 0x001F) * 255) + 16;
-            var b0 = (byte)(((temp / 32) + temp) / 32);
-
-            temp = ((color1 >> 11) * 255) + 16;
-            var r1 = (byte)(((temp / 32) + temp) / 32);
-            temp = (((color1 & 0x07E0) >> 5) * 255) + 32;
-            var g1 = (byte)(((temp / 64) + temp) / 64);
-            temp = ((color1 & 0x001F) * 255) + 16;
-            var b1 = (byte)(((temp / 32) + temp) / 32);
+            ConvertRgb565ToRgb888(color0, out var r0, out var g0, out var b0);
+            ConvertRgb565ToRgb888(color1, out var r1, out var g1, out var b1);
 
             uint c1 = blockStorage[4];
             var c2 = (uint)blockStorage[5] << 8;
@@ -164,21 +151,8 @@ namespace ValveResourceFormat.ThirdParty
             var color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
             var color1 = (ushort)(blockStorage[10] | blockStorage[11] << 8);
 
-            int temp;
-
-            temp = ((color0 >> 11) * 255) + 16;
-            var r0 = (byte)(((temp / 32) + temp) / 32);
-            temp = (((color0 & 0x07E0) >> 5) * 255) + 32;
-            var g0 = (byte)(((temp / 64) + temp) / 64);
-            temp = ((color0 & 0x001F) * 255) + 16;
-            var b0 = (byte)(((temp / 32) + temp) / 32);
-
-            temp = ((color1 >> 11) * 255) + 16;
-            var r1 = (byte)(((temp / 32) + temp) / 32);
-            temp = (((color1 & 0x07E0) >> 5) * 255) + 32;
-            var g1 = (byte)(((temp / 64) + temp) / 64);
-            temp = ((color1 & 0x001F) * 255) + 16;
-            var b1 = (byte)(((temp / 32) + temp) / 32);
+            ConvertRgb565ToRgb888(color0, out var r0, out var g0, out var b0);
+            ConvertRgb565ToRgb888(color1, out var r1, out var g1, out var b1);
 
             uint c1 = blockStorage[12];
             var c2 = (uint)blockStorage[13] << 8;
@@ -309,6 +283,18 @@ namespace ValveResourceFormat.ThirdParty
             }
 
             return a < 0 ? (byte)0 : (byte)a;
+        }
+
+        private static void ConvertRgb565ToRgb888(ushort color, out byte r, out byte g, out byte b)
+        {
+            int temp;
+
+            temp = ((color >> 11) * 255) + 16;
+            r = (byte)(((temp / 32) + temp) / 32);
+            temp = (((color & 0x07E0) >> 5) * 255) + 32;
+            g = (byte)(((temp / 64) + temp) / 64);
+            temp = ((color & 0x001F) * 255) + 16;
+            b = (byte)(((temp / 32) + temp) / 32);
         }
     }
 }
