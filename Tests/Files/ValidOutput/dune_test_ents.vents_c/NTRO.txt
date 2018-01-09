@@ -1,0 +1,229 @@
+CResourceIntrospectionManifest
+{
+	uint32 m_nIntrospectionVersion = 0x00000004
+	Struct m_ReferencedStructs[3] =
+	[
+		CResourceDiskStruct
+		{
+			uint32 m_nIntrospectionVersion = 0x00000004
+			uint32 m_nId = 0x793CB0AE
+			CResourceString m_pName = "PermEntityLumpData_t"
+			uint32 m_nDiskCrc = 0x401FD35B
+			int32 m_nUserVersion = 0
+			uint16 m_nDiskSize = 0x001C
+			uint16 m_nAlignment = 0x0004
+			uint32 m_nBaseStructId = 0x00000000
+			Struct m_FieldIntrospection[5] =
+			[
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_name"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 0
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_flags"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 4
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0xE5B29697
+					int16 m_nType = 2
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_manifestName"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 8
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_childLumps"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 12
+					uint8[1] m_Indirection =
+					[
+						04
+					]
+					uint32 m_nTypeData = 0x746E6576
+					int16 m_nType = 3
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_entityKeyValues"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 20
+					uint8[1] m_Indirection =
+					[
+						04
+					]
+					uint32 m_nTypeData = 0x0CFEAAC5
+					int16 m_nType = 1
+				}
+			]
+			uint8 m_nStructFlags = 0x00
+		}
+		CResourceDiskStruct
+		{
+			uint32 m_nIntrospectionVersion = 0x00000004
+			uint32 m_nId = 0x0CFEAAC5
+			CResourceString m_pName = "EntityKeyValueData_t"
+			uint32 m_nDiskCrc = 0x1FC1F50A
+			int32 m_nUserVersion = 0
+			uint16 m_nDiskSize = 0x0010
+			uint16 m_nAlignment = 0x0004
+			uint32 m_nBaseStructId = 0x00000000
+			Struct m_FieldIntrospection[2] =
+			[
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_keyValuesData"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 0
+					uint8[1] m_Indirection =
+					[
+						04
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 11
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_connections"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 8
+					uint8[1] m_Indirection =
+					[
+						04
+					]
+					uint32 m_nTypeData = 0x6DAACFE0
+					int16 m_nType = 1
+				}
+			]
+			uint8 m_nStructFlags = 0x00
+		}
+		CResourceDiskStruct
+		{
+			uint32 m_nIntrospectionVersion = 0x00000004
+			uint32 m_nId = 0x6DAACFE0
+			CResourceString m_pName = "EntityIOConnectionData_t"
+			uint32 m_nDiskCrc = 0xFA66A9BC
+			int32 m_nUserVersion = 0
+			uint16 m_nDiskSize = 0x001C
+			uint16 m_nAlignment = 0x0004
+			uint32 m_nBaseStructId = 0x00000000
+			Struct m_FieldIntrospection[7] =
+			[
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_outputName"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 0
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_targetType"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 4
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 15
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_targetName"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 8
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_inputName"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 12
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_overrideParam"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 16
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_flDelay"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 20
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 18
+				}
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_nTimesToFire"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 24
+					uint8[0] m_Indirection =
+					[
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 14
+				}
+			]
+			uint8 m_nStructFlags = 0x00
+		}
+	]
+	Struct m_ReferencedEnums[1] =
+	[
+		CResourceDiskEnum
+		{
+			uint32 m_nIntrospectionVersion = 0x00000004
+			uint32 m_nId = 0xE5B29697
+			CResourceString m_pName = "EntityLumpFlags_t"
+			uint32 m_nDiskCrc = 0x06FA2080
+			int32 m_nUserVersion = 0
+			Struct m_EnumValueIntrospection[1] =
+			[
+				CResourceDiskEnumValue
+				{
+					CResourceString m_pEnumValueName = "ENTITY_LUMP_NONE"
+					int32 m_nEnumValue = 0
+				}
+			]
+		}
+	]
+}
