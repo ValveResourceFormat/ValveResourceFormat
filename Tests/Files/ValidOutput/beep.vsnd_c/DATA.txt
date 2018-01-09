@@ -1,0 +1,12 @@
+{
+	uint32 m_bitpackedsoundinfo = 0x0AC452A1
+	int32 m_loopStart = -1
+	float32 m_flDuration = 0.216508
+}
+
+Sample Rate: 11025
+Bits: 8
+Type: WAV
+SampleSize: 1
+Format: 1
+Channels: 1
