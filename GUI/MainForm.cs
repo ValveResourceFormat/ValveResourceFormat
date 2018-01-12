@@ -2,7 +2,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -852,7 +851,7 @@ namespace GUI
                                 break;
                             case ResourceType.Mesh:
                                 var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
-                                using (var objStream = new StreamWriter(stream))
+                                using (var objStream = new InvariantCultureStreamWriter(stream))
                                 {
                                     objStream.WriteLine($"# vertex buffers {mesh.VertexBuffers.Count}");
                                     objStream.WriteLine($"# index buffers {mesh.IndexBuffers.Count}");
@@ -860,11 +859,6 @@ namespace GUI
                                     {
                                         throw new InvalidDataException("What.");
                                     }
-
-                                    // Make sure we conform to OBJ format decimal separators
-                                    System.Globalization.CultureInfo customCulture = (System.Globalization.CultureInfo)Thread.CurrentThread.CurrentCulture.Clone();
-                                    customCulture.NumberFormat.NumberDecimalSeparator = ".";
-                                    Thread.CurrentThread.CurrentCulture = customCulture;
 
                                     uint indexCount = 1;
                                     for (var i = 0; i < mesh.VertexBuffers.Count; i++)
@@ -880,12 +874,12 @@ namespace GUI
                                                     case "POSITION":
                                                         var posArray = new float[3];
                                                         Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, posArray, 0, 12);
-                                                        objStream.WriteLine($"v {posArray[0].ToString("F10")} {posArray[1].ToString("F10")} {posArray[2].ToString("F10")}");
+                                                        objStream.WriteLine($"v {posArray[0] :F6} {posArray[1] :F6} {posArray[2] :F6}");
                                                         break;
                                                     case "TEXCOORD":
                                                         var texCoord0 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset).ToSingle();
                                                         var texCoord1 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset + 2).ToSingle() * -1;
-                                                        objStream.WriteLine($"vt {texCoord0.ToString("F10")} {texCoord1.ToString("F10")}");
+                                                        objStream.WriteLine($"vt {texCoord0:F6} {texCoord1:F6}");
                                                         break;
                                                 }
                                             }

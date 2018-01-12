@@ -123,6 +123,7 @@
     <Compile Include="Types\WorldNode.cs" />
     <Compile Include="Utils\FileExtensions.cs" />
     <Compile Include="Controls\TreeViewFolder.cs" />
+    <Compile Include="Utils\InvariantCultureStreamWriter.cs" />
     <Compile Include="Utils\Settings.cs" />
     <EmbeddedResource Include="Controls\BetterTreeView.resx">
       <DependentUpon>BetterTreeView.cs</DependentUpon>
