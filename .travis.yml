@@ -5,10 +5,7 @@ dotnet: 2.0.0
 notifications:
   email: false
 
-before_install:
-  - sudo apt-get install -y libgdiplus
-
 script:
-  - dotnet build -c release -f netcoreapp2.0 ./Decompiler/Decompiler.csproj
-  - dotnet build -c release -f netstandard2.0 ./ValveResourceFormat/ValveResourceFormat.csproj
+  - dotnet build -c release ./Decompiler/Decompiler.csproj
+  - dotnet build -c release ./ValveResourceFormat/ValveResourceFormat.csproj
   - dotnet test ./Tests/Tests.csproj

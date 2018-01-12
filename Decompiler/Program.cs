@@ -8,6 +8,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Blocks;
 using System.Text;
+using SkiaSharp;
 using SteamDatabase.ValvePak;
 
 namespace Decompiler
@@ -97,8 +98,8 @@ namespace Decompiler
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
-                    Console.WriteLine("{0,5} resources of version {2} and type {1}{3}", stat.Value.Count, stat.Value.Type, stat.Value.Version,
-                        stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : ""
+                    Console.WriteLine("{0,5} resources of version {2} and type {1}{3} - {4}", stat.Value.Count, stat.Value.Type, stat.Value.Version,
+                        stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : "", stat.Value.FilePath
                     );
                 }
 
@@ -212,7 +213,7 @@ namespace Decompiler
                         }
                         else
                         {
-                            stats.Add(id, new ResourceStat(resource, info));
+                            stats.Add(id, new ResourceStat(resource, info, path));
                         }
                     }
 
@@ -260,10 +261,14 @@ namespace Decompiler
                             extension = "png";
 
                             var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                            var image = SKImage.FromBitmap(bitmap);
 
                             using (var ms = new MemoryStream())
                             {
-                                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                using (var imageData = image.Encode(SKEncodedImageFormat.Png, 100))
+                                {
+                                    imageData.SaveTo(ms);
+                                }
 
                                 data = ms.ToArray();
                             }
@@ -692,9 +697,15 @@ namespace Decompiler
                                 case "vtex_c":
                                     newType = "png";
                                     var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                                    var image = SKImage.FromBitmap(bitmap);
+
                                     using (var ms = new MemoryStream())
                                     {
-                                        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                        {
+                                            data.SaveTo(ms);
+                                        }
+
                                         output = ms.ToArray();
                                     }
                                     break;

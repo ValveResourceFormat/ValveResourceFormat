@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Authors>Steam Database</Authors>
     <Copyright>Steam Database</Copyright>
     <Description>Library to decompile Valve Source 2 files</Description>
@@ -16,7 +16,8 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Avalonia.Skia.Linux.Natives" Version="1.57.1.4" />
+    <PackageReference Include="SkiaSharp" Version="1.57.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
-    <PackageReference Include="System.Drawing.Common" Version="4.5.0-preview1-25914-04" />
   </ItemGroup>
 </Project>
