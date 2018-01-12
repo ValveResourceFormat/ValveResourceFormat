@@ -861,6 +861,11 @@ namespace GUI
                                         throw new InvalidDataException("What.");
                                     }
 
+                                    // Make sure we conform to OBJ format decimal separators
+                                    System.Globalization.CultureInfo customCulture = (System.Globalization.CultureInfo)Thread.CurrentThread.CurrentCulture.Clone();
+                                    customCulture.NumberFormat.NumberDecimalSeparator = ".";
+                                    Thread.CurrentThread.CurrentCulture = customCulture;
+
                                     uint indexCount = 1;
                                     for (var i = 0; i < mesh.VertexBuffers.Count; i++)
                                     {
@@ -875,7 +880,12 @@ namespace GUI
                                                     case "POSITION":
                                                         var posArray = new float[3];
                                                         Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, posArray, 0, 12);
-                                                        objStream.WriteLine($"v {posArray[0]} {posArray[1]} {posArray[2]}");
+                                                        objStream.WriteLine($"v {posArray[0].ToString("F10")} {posArray[1].ToString("F10")} {posArray[2].ToString("F10")}");
+                                                        break;
+                                                    case "TEXCOORD":
+                                                        var texCoord0 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset).ToSingle();
+                                                        var texCoord1 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset + 2).ToSingle() * -1;
+                                                        objStream.WriteLine($"vt {texCoord0.ToString("F10")} {texCoord1.ToString("F10")}");
                                                         break;
                                                 }
                                             }
@@ -895,7 +905,7 @@ namespace GUI
                                             Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
                                             for (var j = 0; j < indexBuffer.Count; j += 3)
                                             {
-                                                objStream.WriteLine($"f {indexArray[j] + indexCount} {indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}");
+                                                objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
                                             }
                                         }
                                         else if (indexBuffer.Size == 4)
@@ -904,7 +914,7 @@ namespace GUI
                                             Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
                                             for (var j = 0; j < indexBuffer.Count; j += 3)
                                             {
-                                                objStream.WriteLine($"f {indexArray[j] + indexCount} {indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}");
+                                                objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
                                             }
                                         }
                                         else
