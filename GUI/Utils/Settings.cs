@@ -1,31 +1,50 @@
 ﻿using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using ValveKeyValue;
 
 namespace GUI.Utils
 {
     internal static class Settings
     {
-        public static List<string> GameSearchPaths { get; } = new List<string>();
+        public class AppConfig
+        {
+            public List<string> GameSearchPaths { get; set; } = new List<string>();
+            public string BackgroundColor { get; set; } = string.Empty;
+            public string OpenDirectory { get; set; } = string.Empty;
+            public string SaveDirectory { get; set; } = string.Empty;
+        }
 
-        public static Color BackgroundColor { get; set; }
+        private const string SettingsFilePath = "settings.txt";
+
+        public static AppConfig Config { get; set; } = new AppConfig();
+
+        public static Color BackgroundColor { get; set; } = Color.FromArgb(60, 60, 60);
 
         public static void Load()
         {
-            BackgroundColor = Color.FromArgb(60, 60, 60);
-
-            // TODO: Be dumb about it for now.
-            if (!File.Exists("gamepaths.txt"))
+            if (!File.Exists(SettingsFilePath))
             {
+                Save();
                 return;
             }
 
-            GameSearchPaths.AddRange(File.ReadAllLines("gamepaths.txt"));
+            using (var stream = new FileStream(SettingsFilePath, FileMode.Open, FileAccess.Read))
+            {
+                Config = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize<AppConfig>(stream, KVSerializerOptions.DefaultOptions);
+            }
+
+            BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
         }
 
         public static void Save()
         {
-            File.WriteAllLines("gamepaths.txt", GameSearchPaths);
+            Config.BackgroundColor = ColorTranslator.ToHtml(BackgroundColor);
+
+            using (var stream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
+            }
         }
     }
 }

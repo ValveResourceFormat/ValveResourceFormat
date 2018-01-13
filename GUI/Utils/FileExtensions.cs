@@ -45,10 +45,8 @@ namespace GUI.Utils
 
         public static Resource LoadFileByAnyMeansNecessary(string file, string currentFullPath, Package currentPackage)
         {
-            Resource resource;
-
             // TODO: Might conflict where same file name is available in different paths
-            if (CachedResources.TryGetValue(file, out resource) && resource.Reader != null)
+            if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
             {
                 return resource;
             }
@@ -59,23 +57,21 @@ namespace GUI.Utils
 
             if (entry != null)
             {
-                byte[] output;
-                currentPackage.ReadEntry(entry, out output);
+                currentPackage.ReadEntry(entry, out var output);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
 
                 return resource;
             }
 
-            var paths = Settings.GameSearchPaths.ToList();
+            var paths = Settings.Config.GameSearchPaths.ToList();
             var packages = new List<Package>();
 
             foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk")).ToList())
             {
                 paths.Remove(searchPath);
 
-                Package package;
-                if (!CachedPackages.TryGetValue(searchPath, out package))
+                if (!CachedPackages.TryGetValue(searchPath, out var package))
                 {
                     Console.WriteLine("Preloading vpk {0}", searchPath);
 
@@ -93,8 +89,7 @@ namespace GUI.Utils
 
                 if (entry != null)
                 {
-                    byte[] output;
-                    package.ReadEntry(entry, out output);
+                    package.ReadEntry(entry, out var output);
                     resource.Read(new MemoryStream(output));
                     CachedResources[file] = resource;
 

@@ -13,7 +13,7 @@ namespace GUI.Forms
 
         private void SettingsForm_Load(object sender, EventArgs e)
         {
-            foreach (var path in Settings.GameSearchPaths)
+            foreach (var path in Settings.Config.GameSearchPaths)
             {
                 gamePaths.Items.Add(path);
             }
@@ -26,7 +26,7 @@ namespace GUI.Forms
                 return;
             }
 
-            Settings.GameSearchPaths.Remove((string)gamePaths.SelectedItem);
+            Settings.Config.GameSearchPaths.Remove((string)gamePaths.SelectedItem);
             Settings.Save();
 
             gamePaths.Items.RemoveAt(gamePaths.SelectedIndex);
@@ -43,12 +43,12 @@ namespace GUI.Forms
                     return;
                 }
 
-                if (Settings.GameSearchPaths.Contains(dlg.FileName))
+                if (Settings.Config.GameSearchPaths.Contains(dlg.FileName))
                 {
                     return;
                 }
 
-                Settings.GameSearchPaths.Add(dlg.FileName);
+                Settings.Config.GameSearchPaths.Add(dlg.FileName);
                 Settings.Save();
 
                 gamePaths.Items.Add(dlg.FileName);
@@ -66,6 +66,7 @@ namespace GUI.Forms
             if (colorPicker.ShowDialog() == DialogResult.OK)
             {
                 Settings.BackgroundColor = colorPicker.Color;
+                Settings.Save();
             }
         }
     }

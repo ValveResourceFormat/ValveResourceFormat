@@ -35,9 +35,6 @@ namespace GUI
         private readonly Regex NewLineRegex;
         private ImageList ImageList;
 
-        private string OpenDirectory;
-        private string SaveDirectory;
-
         public MainForm()
         {
             LoadAssetTypes();
@@ -145,7 +142,7 @@ namespace GUI
         {
             var openDialog = new OpenFileDialog
             {
-                InitialDirectory = OpenDirectory,
+                InitialDirectory = Settings.Config.OpenDirectory,
                 Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*",
                 Multiselect = true,
             };
@@ -158,7 +155,8 @@ namespace GUI
 
             if (openDialog.FileNames.Length > 0)
             {
-                OpenDirectory = Path.GetDirectoryName(openDialog.FileNames[0]);
+                Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileNames[0]);
+                Settings.Save();
             }
 
             foreach (var file in openDialog.FileNames)
@@ -678,7 +676,7 @@ namespace GUI
 
                 var dialog = new SaveFileDialog
                 {
-                    InitialDirectory = SaveDirectory,
+                    InitialDirectory = Settings.Config.SaveDirectory,
                     Filter = "All files (*.*)|*.*",
                     FileName = file.FileName + "." + file.TypeName,
                 };
@@ -686,7 +684,8 @@ namespace GUI
 
                 if (userOK == DialogResult.OK)
                 {
-                    SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    Settings.Save();
 
                     using (var stream = dialog.OpenFile())
                     {
@@ -806,7 +805,7 @@ namespace GUI
                 var dialog = new SaveFileDialog
                 {
                     FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0])),
-                    InitialDirectory = SaveDirectory,
+                    InitialDirectory = Settings.Config.SaveDirectory,
                     DefaultExt = extensions[0],
                 };
 
@@ -823,7 +822,8 @@ namespace GUI
 
                 if (result == DialogResult.OK)
                 {
-                    SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    Settings.Save();
 
                     using (var stream = dialog.OpenFile())
                     {

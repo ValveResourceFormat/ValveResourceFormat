@@ -50,6 +50,7 @@
     <PackageReference Include="OpenTK.GLControl" Version="1.1.1589.5942" />
     <PackageReference Include="SkiaSharp.Views" Version="1.57.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
+    <PackageReference Include="ValveKeyValue" Version="0.2.0.105" />
     <PackageReference Include="ValvePak" Version="0.4.0.11" />
   </ItemGroup>
   <ItemGroup>
@@ -123,7 +124,6 @@
     <Compile Include="Types\WorldNode.cs" />
     <Compile Include="Utils\FileExtensions.cs" />
     <Compile Include="Controls\TreeViewFolder.cs" />
-    <Compile Include="Utils\InvariantCultureStreamWriter.cs" />
     <Compile Include="Utils\Settings.cs" />
     <EmbeddedResource Include="Controls\BetterTreeView.resx">
       <DependentUpon>BetterTreeView.cs</DependentUpon>
