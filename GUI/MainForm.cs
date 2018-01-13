@@ -890,6 +890,20 @@ namespace GUI
                                                         Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, posArray, 0, 12);
                                                         objStream.WriteLine($"v {posArray[0] :F6} {posArray[1] :F6} {posArray[2] :F6}");
                                                         break;
+                                                    case "NORMAL":
+                                                        switch (attribute.Type)
+                                                        {
+                                                            case DXGI_FORMAT.R32G32B32_FLOAT:
+                                                                var normalArray = new float[3];
+                                                                Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, normalArray, 0, 12);
+                                                                objStream.WriteLine($"vn {normalArray[0]:F6} {normalArray[1]:F6} {normalArray[2]:F6}");
+                                                                break;
+                                                            default:
+                                                                Console.WriteLine($"Unsupported {attribute.Name} DXGI_FORMAT {attribute.Type}");
+                                                                break;
+                                                        }
+
+                                                        break;
                                                     case "TEXCOORD":
                                                         switch (attribute.Type)
                                                         {
@@ -905,7 +919,7 @@ namespace GUI
                                                                 objStream.WriteLine($"vt {texCoordArray[0]:F6} {texCoordArray[1]:F6}");
                                                                 break;
                                                             default:
-                                                                Console.WriteLine($"Unsupported texcoord DXGI_FORMAT {attribute.Type}");
+                                                                Console.WriteLine($"Unsupported {attribute.Name} DXGI_FORMAT {attribute.Type}");
                                                                 break;
                                                         }
 
@@ -928,7 +942,7 @@ namespace GUI
                                             Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
                                             for (var j = 0; j < indexBuffer.Count; j += 3)
                                             {
-                                                objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
+                                                objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
                                             }
                                         }
                                         else if (indexBuffer.Size == 4)
@@ -937,7 +951,7 @@ namespace GUI
                                             Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
                                             for (var j = 0; j < indexBuffer.Count; j += 3)
                                             {
-                                                objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
+                                                objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
                                             }
                                         }
                                         else
