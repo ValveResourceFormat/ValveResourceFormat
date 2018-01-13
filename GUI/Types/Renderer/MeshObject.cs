@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
@@ -230,6 +231,121 @@ namespace GUI.Types.Renderer
                 default:
                     throw new Exception("Unknown attribute format " + attribute.Type);
             }
+        }
+
+        public static void WriteObject(StreamWriter objStream, Resource resource)
+        {
+            var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
+
+            objStream.WriteLine("# Written by VRF - https://opensource.steamdb.info/ValveResourceFormat/");
+            objStream.WriteLine($"# Vertex buffers: {mesh.VertexBuffers.Count}");
+            objStream.WriteLine($"# Index buffers: {mesh.IndexBuffers.Count}");
+
+            if (mesh.VertexBuffers.Count != mesh.IndexBuffers.Count)
+            {
+                throw new InvalidDataException("VertexBuffers.Count != IndexBuffers.Count");
+            }
+
+            for (var i = 0; i < mesh.VertexBuffers.Count; i++)
+            {
+                var vertexBuffer = mesh.VertexBuffers[i];
+                objStream.WriteLine($"# Vertex Buffer {i}. Count: {vertexBuffer.Count}, Size: {vertexBuffer.Size}");
+
+                for (var j = 0; j < vertexBuffer.Count; j++)
+                {
+                    foreach (var attribute in vertexBuffer.Attributes)
+                    {
+                        var result = ReadAttribute(j, vertexBuffer, attribute);
+
+                        switch (attribute.Name)
+                        {
+                            case "POSITION":
+                                objStream.WriteLine($"v {result[0] :F6} {result[1] :F6} {result[2] :F6}");
+                                break;
+
+                            case "NORMAL":
+                                objStream.WriteLine($"vn {result[0] :F6} {result[1] :F6} {result[2] :F6}");
+                                break;
+
+                            case "TEXCOORD":
+                                objStream.WriteLine($"vt {result[0] :F6} {result[1] :F6}");
+                                break;
+                        }
+                    }
+                }
+
+                uint indexCount = 1;
+
+                if (i > 0)
+                {
+                    indexCount += mesh.VertexBuffers[i - 1].Count;
+                }
+
+                var indexBuffer = mesh.IndexBuffers[i];
+
+                objStream.WriteLine($"# Index Buffer {i}. Count: {indexBuffer.Count}, Size: {indexBuffer.Size}");
+
+                if (indexBuffer.Size == 2)
+                {
+                    var indexArray = new ushort[indexBuffer.Count];
+                    Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+
+                    for (var j = 0; j < indexBuffer.Count; j += 3)
+                    {
+                        objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
+                    }
+                }
+                else if (indexBuffer.Size == 4)
+                {
+                    var indexArray = new uint[indexBuffer.Count];
+                    Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+
+                    for (var j = 0; j < indexBuffer.Count; j += 3)
+                    {
+                        objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
+                    }
+                }
+                else
+                {
+                    throw new InvalidDataException("Index size isn't 2 or 4, dafuq.");
+                }
+            }
+        }
+
+        private static float[] ReadAttribute(int offset, VBIB.VertexBuffer vertexBuffer, VBIB.VertexAttribute attribute)
+        {
+            float[] result;
+
+            offset = (int)(offset * vertexBuffer.Size) + (int)attribute.Offset;
+
+            switch (attribute.Type)
+            {
+                case DXGI_FORMAT.R32G32B32_FLOAT:
+                    result = new float[3];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 12);
+                    break;
+
+                case DXGI_FORMAT.R16G16_FLOAT:
+                    result = new[]
+                    {
+                        Half.FromBytes(vertexBuffer.Buffer, offset).ToSingle(),
+                        Half.FromBytes(vertexBuffer.Buffer, offset + 2).ToSingle() * -1,
+                    };
+                    break;
+
+                case DXGI_FORMAT.R32G32_FLOAT:
+                    result = new float[2];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
+                    result[1] *= -1; // Flip texcoord
+                    break;
+
+                default:
+                    result = new float[3];
+                    Console.WriteLine($"Unsupported {attribute.Name} DXGI_FORMAT.{attribute.Type}");
+                    break;
+            }
+
+            return result;
         }
     }
 }
