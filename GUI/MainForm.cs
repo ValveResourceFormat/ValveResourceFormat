@@ -891,9 +891,23 @@ namespace GUI
                                                         objStream.WriteLine($"v {posArray[0] :F6} {posArray[1] :F6} {posArray[2] :F6}");
                                                         break;
                                                     case "TEXCOORD":
-                                                        var texCoord0 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset).ToSingle();
-                                                        var texCoord1 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset + 2).ToSingle() * -1;
-                                                        objStream.WriteLine($"vt {texCoord0:F6} {texCoord1:F6}");
+                                                        switch (attribute.Type)
+                                                        {
+                                                            case DXGI_FORMAT.R16G16_FLOAT:
+                                                                var texCoord0 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset).ToSingle();
+                                                                var texCoord1 = Half.FromBytes(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset + 2).ToSingle() * -1;
+                                                                objStream.WriteLine($"vt {texCoord0:F6} {texCoord1:F6}");
+                                                                break;
+                                                            case DXGI_FORMAT.R32G32_FLOAT:
+                                                                var texCoordArray = new float[2];
+                                                                Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, texCoordArray, 0, 8);
+                                                                objStream.WriteLine($"vt {texCoordArray[0]:F6} {texCoordArray[1]:F6}");
+                                                                break;
+                                                            default:
+                                                                Console.WriteLine($"Unsupported texcoord DXGI_FORMAT {attribute.Type}");
+                                                                break;
+                                                        }
+
                                                         break;
                                                 }
                                             }
