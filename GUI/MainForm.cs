@@ -869,6 +869,11 @@ namespace GUI
                                     MeshObject.WriteObject(objStream, resource);
                                 }
 
+                                using (var objStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
+                                {
+                                    MeshObject.WriteMaterialLib(objStream, resource);
+                                }
+
                                 break;
                         }
                     }

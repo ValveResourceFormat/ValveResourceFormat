@@ -9,6 +9,8 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
+using Vector3 = OpenTK.Vector3;
+using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types.Renderer
 {
@@ -308,6 +310,25 @@ namespace GUI.Types.Renderer
                 else
                 {
                     throw new InvalidDataException("Index size isn't 2 or 4, dafuq.");
+                }
+            }
+        }
+
+        public static void WriteMaterialLib(StreamWriter objStream, Resource resource)
+        {
+            var data = (BinaryKV3)resource.Blocks[BlockType.DATA];
+            var sceneObjects = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
+
+            for (var b = 0; b < sceneObjects.Properties.Count; b++)
+            {
+                var drawCalls = (KVObject)((KVObject)sceneObjects.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
+
+                for (var i = 0; i < drawCalls.Properties.Count; i++)
+                {
+                    var d = (KVObject)drawCalls.Properties[i.ToString()].Value;
+                    var materialName = d.Properties["m_material"].Value.ToString();
+
+                    //objStream.WriteLine(materialName);
                 }
             }
         }
