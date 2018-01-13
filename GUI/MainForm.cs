@@ -865,7 +865,7 @@ namespace GUI
                                 break;
                             case ResourceType.Mesh:
                                 var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
-                                using (var objStream = new InvariantCultureStreamWriter(stream))
+                                using (var objStream = new StreamWriter(stream))
                                 {
                                     objStream.WriteLine($"# vertex buffers {mesh.VertexBuffers.Count}");
                                     objStream.WriteLine($"# index buffers {mesh.IndexBuffers.Count}");
