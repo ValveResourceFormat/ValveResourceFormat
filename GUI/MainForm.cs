@@ -901,6 +901,7 @@ namespace GUI
                                                             case DXGI_FORMAT.R32G32_FLOAT:
                                                                 var texCoordArray = new float[2];
                                                                 Buffer.BlockCopy(vertexBuffer.Buffer, (int)(j * vertexBuffer.Size) + (int)attribute.Offset, texCoordArray, 0, 8);
+                                                                texCoordArray[1] = texCoordArray[1] * -1; // Flip texcoord
                                                                 objStream.WriteLine($"vt {texCoordArray[0]:F6} {texCoordArray[1]:F6}");
                                                                 break;
                                                             default:
