@@ -35,6 +35,9 @@ namespace GUI
         private readonly Regex NewLineRegex;
         private ImageList ImageList;
 
+        private string OpenDirectory;
+        private string SaveDirectory;
+
         public MainForm()
         {
             LoadAssetTypes();
@@ -142,6 +145,7 @@ namespace GUI
         {
             var openDialog = new OpenFileDialog
             {
+                InitialDirectory = OpenDirectory,
                 Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*",
                 Multiselect = true,
             };
@@ -150,6 +154,11 @@ namespace GUI
             if (userOK != DialogResult.OK)
             {
                 return;
+            }
+
+            if (openDialog.FileNames.Length > 0)
+            {
+                OpenDirectory = Path.GetDirectoryName(openDialog.FileNames[0]);
             }
 
             foreach (var file in openDialog.FileNames)
@@ -669,6 +678,7 @@ namespace GUI
 
                 var dialog = new SaveFileDialog
                 {
+                    InitialDirectory = SaveDirectory,
                     Filter = "All files (*.*)|*.*",
                     FileName = file.FileName + "." + file.TypeName,
                 };
@@ -676,6 +686,8 @@ namespace GUI
 
                 if (userOK == DialogResult.OK)
                 {
+                    SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+
                     using (var stream = dialog.OpenFile())
                     {
                         package.ReadEntry(file, out var output);
@@ -794,7 +806,7 @@ namespace GUI
                 var dialog = new SaveFileDialog
                 {
                     FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0])),
-                    InitialDirectory = Path.GetFullPath(fileName),
+                    InitialDirectory = SaveDirectory,
                     DefaultExt = extensions[0],
                 };
 
@@ -811,6 +823,8 @@ namespace GUI
 
                 if (result == DialogResult.OK)
                 {
+                    SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+
                     using (var stream = dialog.OpenFile())
                     {
                         switch (resource.ResourceType)
