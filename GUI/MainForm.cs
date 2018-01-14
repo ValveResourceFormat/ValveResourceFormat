@@ -865,13 +865,9 @@ namespace GUI
                                 break;
                             case ResourceType.Mesh:
                                 using (var objStream = new StreamWriter(stream))
+                                using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
                                 {
-                                    MeshObject.WriteObject(objStream, resource);
-                                }
-
-                                using (var objStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
-                                {
-                                    MeshObject.WriteMaterialLib(objStream, resource);
+                                    MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
                                 }
 
                                 break;
