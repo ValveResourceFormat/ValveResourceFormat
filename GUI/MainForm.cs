@@ -31,6 +31,12 @@ namespace GUI
 {
     public partial class MainForm : Form
     {
+        private class ExportData
+        {
+            public Resource Resource { get; set; }
+            public Renderer Renderer { get; set; }
+        }
+
         private readonly SearchForm searchForm;
         private readonly Regex NewLineRegex;
         private ImageList ImageList;
@@ -311,7 +317,7 @@ namespace GUI
                             control.SetImage(tex.GenerateBitmap().ToBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
-                            Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as an image", fileName, resource);
+                            Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as an image", fileName, new ExportData { Resource = resource });
                         }
                         catch (Exception e)
                         {
@@ -348,20 +354,20 @@ namespace GUI
 
                         break;
                     case ResourceType.PanoramaLayout:
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as XML", fileName, resource);
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as XML", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.PanoramaScript:
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as JS", fileName, resource);
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as JS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.PanoramaStyle:
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, resource);
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
                         var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, resource);
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, new ExportData { Resource = resource });
 
                         break;
                     case ResourceType.World:
@@ -422,9 +428,11 @@ namespace GUI
                             break;
                         }
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, resource);
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
+
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, Renderer = mv });
+
                         mv.AddMeshObject(new MeshObject { Resource = resource });
                         var glControl = mv.CreateGL();
                         meshTab.Controls.Add(glControl);
@@ -747,9 +755,9 @@ namespace GUI
             return NewLineRegex.Replace(input, Environment.NewLine);
         }
 
-        private delegate void ExportDel(string name, string filename, Resource resource);
+        private delegate void ExportDel(string name, string filename, ExportData data);
 
-        private void AddToExport(string name, string filename, Resource resource)
+        private void AddToExport(string name, string filename, ExportData data)
         {
             exportToolStripButton.Enabled = true;
 
@@ -758,7 +766,7 @@ namespace GUI
                 Size = new Size(150, 20),
                 Text = name,
                 ToolTipText = filename,
-                Tag = resource,
+                Tag = data,
             };
             //This is required for the dialog to know the default name and path.
             //This makes it trivial to dump without exploring our nested TabPages.
@@ -771,10 +779,11 @@ namespace GUI
         {
             //ToolTipText is the full filename
             var fileName = ((ToolStripMenuItem)sender).ToolTipText;
-            //Tag is the resource object.
-            var resource = ((ToolStripMenuItem)sender).Tag as Resource;
+            var tag = ((ToolStripMenuItem)sender).Tag as ExportData;
+            var resource = tag.Resource;
 
             Console.WriteLine($"Export requested for {fileName}");
+
             string[] extensions = null;
             switch (resource.ResourceType)
             {
@@ -868,6 +877,20 @@ namespace GUI
                                 using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
                                 {
                                     MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
+                                }
+
+                                foreach (var texture in tag.Renderer.MaterialLoader.LoadedTextures)
+                                {
+                                    Console.WriteLine($"Exporting texture for mesh: {texture}");
+
+                                    var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(texture + "_c", tag.Renderer.CurrentFileName, tag.Renderer.CurrentPackage);
+                                    var textureImage = SKImage.FromBitmap(((Texture)textureResource.Blocks[BlockType.DATA]).GenerateBitmap());
+
+                                    using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
+                                    using (var data = textureImage.Encode(SKEncodedImageFormat.Png, 100))
+                                    {
+                                        data.SaveTo(texStream);
+                                    }
                                 }
 
                                 break;

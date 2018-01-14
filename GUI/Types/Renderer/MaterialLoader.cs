@@ -12,6 +12,7 @@ namespace GUI.Types.Renderer
 {
     internal class MaterialLoader
     {
+        public List<string> LoadedTextures { get; } = new List<string>();
         private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         private readonly Package CurrentPackage;
         private readonly string CurrentFileName;
@@ -174,6 +175,8 @@ namespace GUI.Types.Renderer
 
                 return GetErrorTexture();
             }
+
+            LoadedTextures.Add(name);
 
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 

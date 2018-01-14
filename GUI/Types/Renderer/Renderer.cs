@@ -18,11 +18,11 @@ namespace GUI.Types.Renderer
 {
     internal class Renderer
     {
-        private readonly MaterialLoader MaterialLoader;
-        private readonly TabControl tabs;
+        public MaterialLoader MaterialLoader { get; }
+        public Package CurrentPackage { get; }
+        public string CurrentFileName { get; }
 
-        private readonly Package CurrentPackage;
-        private readonly string CurrentFileName;
+        private readonly TabControl tabs;
 
         private readonly List<MeshObject> MeshesToRender;
 
