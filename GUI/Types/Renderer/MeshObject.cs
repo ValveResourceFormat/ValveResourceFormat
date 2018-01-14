@@ -239,7 +239,10 @@ namespace GUI.Types.Renderer
         {
             var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
 
-            objStream.WriteLine("# Written by VRF - https://opensource.steamdb.info/ValveResourceFormat/");
+            const string header = "# Written by VRF - https://opensource.steamdb.info/ValveResourceFormat/";
+
+            mtlStream.WriteLine(header);
+            objStream.WriteLine(header);
             objStream.WriteLine($"# Vertex buffers: {mesh.VertexBuffers.Count}");
             objStream.WriteLine($"# Index buffers: {mesh.IndexBuffers.Count}");
             objStream.WriteLine($"mtllib {mtlFilename}.mtl");
@@ -265,7 +268,7 @@ namespace GUI.Types.Renderer
 
                     var groupName = Path.GetFileNameWithoutExtension(materialName);
                     mtlStream.WriteLine($"newmtl {groupName}");
-                    mtlStream.WriteLine($"illum 2");
+                    mtlStream.WriteLine("illum 2");
                     mtlStream.WriteLine($"map_Ka {groupName}.png");
                     mtlStream.WriteLine($"map_Kd {groupName}.png");
 
@@ -282,7 +285,7 @@ namespace GUI.Types.Renderer
                     {
                         foreach (var attribute in vertexBuffer.Attributes)
                         {
-                            var result = ReadAttribute(j, vertexBuffer, attribute);
+                            var result = mesh.ReadVertexAttribute(j, vertexBuffer, attribute);
 
                             switch (attribute.Name)
                             {
@@ -336,42 +339,6 @@ namespace GUI.Types.Renderer
                     indexCount += (int)vertexBuffer.Count;
                 }
             }
-        }
-
-        private static float[] ReadAttribute(int offset, VBIB.VertexBuffer vertexBuffer, VBIB.VertexAttribute attribute)
-        {
-            float[] result;
-
-            offset = (int)(offset * vertexBuffer.Size) + (int)attribute.Offset;
-
-            switch (attribute.Type)
-            {
-                case DXGI_FORMAT.R32G32B32_FLOAT:
-                    result = new float[3];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 12);
-                    break;
-
-                case DXGI_FORMAT.R16G16_FLOAT:
-                    result = new[]
-                    {
-                        Half.FromBytes(vertexBuffer.Buffer, offset).ToSingle(),
-                        Half.FromBytes(vertexBuffer.Buffer, offset + 2).ToSingle() * -1,
-                    };
-                    break;
-
-                case DXGI_FORMAT.R32G32_FLOAT:
-                    result = new float[2];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
-                    result[1] *= -1; // Flip texcoord
-                    break;
-
-                default:
-                    result = new float[3];
-                    Console.WriteLine($"Unsupported {attribute.Name} DXGI_FORMAT.{attribute.Type}");
-                    break;
-            }
-
-            return result;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -131,6 +132,45 @@ namespace ValveResourceFormat.Blocks
 
                 //if(i > 0)break; // TODO: Read only first buffer
             }
+        }
+
+        public float[] ReadVertexAttribute(int offset, VertexBuffer vertexBuffer, VertexAttribute attribute)
+        {
+            float[] result;
+
+            offset = (int)(offset * vertexBuffer.Size) + (int)attribute.Offset;
+
+            switch (attribute.Type)
+            {
+                case DXGI_FORMAT.R32G32B32_FLOAT:
+                    result = new float[3];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 12);
+                    break;
+
+                case DXGI_FORMAT.R16G16_FLOAT:
+                    var shorts = new ushort[2];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
+
+                    result = new[]
+                    {
+                        HalfTypeHelper.Convert(shorts[0]),
+                        HalfTypeHelper.Convert(shorts[1]) * -1f,
+                    };
+                    break;
+
+                case DXGI_FORMAT.R32G32_FLOAT:
+                    result = new float[2];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
+                    result[1] *= -1f; // Flip texcoord
+                    break;
+
+                default:
+                    result = new float[3];
+                    Console.WriteLine($"Unsupported \"{attribute.Name}\" DXGI_FORMAT.{attribute.Type}"); // TODO: exception
+                    break;
+            }
+
+            return result;
         }
 
         public override void WriteText(IndentedTextWriter writer)
