@@ -66,20 +66,9 @@ namespace GUI.Types.Renderer
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
-        public void AddMeshObject(MeshObject obj)
-        {
-            MeshesToRender.Add(obj);
-        }
-
-        public void AddAnimations(List<Animation.Animation> animations)
-        {
-            Animations.AddRange(animations);
-        }
-
-        public void SetSkeleton(Skeleton skeleton)
-        {
-            Skeleton = skeleton;
-        }
+        public void AddMeshObject(MeshObject obj) => MeshesToRender.Add(obj);
+        public void AddAnimations(List<Animation.Animation> animations) => Animations.AddRange(animations);
+        public void SetSkeleton(Skeleton skeleton) => Skeleton = skeleton;
 
         public Control CreateGL()
         {

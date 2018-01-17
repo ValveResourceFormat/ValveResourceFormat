@@ -40,21 +40,17 @@ mat4 getMatrix(float id) {
         texture2D(animationTexture, vec2(0.75, texelPos)));
 }
 
-mat4 getSkinMatrix() {
-    mat4 matrix;
-    matrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
-    matrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
-    matrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
-    return bAnimated * matrix + (1 - bAnimated) * mat4(1.0);
-}
-
 mat3 getNormalMat(mat4 mat) {
     return mat3(mat[0][0], mat[1][0], mat[2][0], mat[0][1], mat[1][1], mat[2][1], mat[0][2], mat[1][2], mat[2][2]);
 }
 
 void main()
 {
-	mat4 skinMatrix = getSkinMatrix();
+	// Calculate animation matrix
+	mat4 skinMatrix = mat4(1.0 - bAnimated);
+    skinMatrix += bAnimated * vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
+    skinMatrix += bAnimated * vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
+    skinMatrix += bAnimated * vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
 
     gl_Position = projection * modelview * transform * skinMatrix * vec4(vPOSITION, 1.0);
 	vFragPosition = vPOSITION;
