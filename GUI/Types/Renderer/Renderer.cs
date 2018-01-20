@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Renderer.Animation;
@@ -18,6 +19,8 @@ namespace GUI.Types.Renderer
 {
     internal class Renderer
     {
+        private readonly Stopwatch PreciseTimer;
+
         public MaterialLoader MaterialLoader { get; }
         public Package CurrentPackage { get; }
         public string CurrentFileName { get; }
@@ -51,6 +54,8 @@ namespace GUI.Types.Renderer
 
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
+            PreciseTimer = new Stopwatch();
+
             MeshesToRender = new List<MeshObject>();
             Animations = new List<Animation.Animation>();
             cameras = new List<Tuple<string, Matrix4>>();
@@ -318,11 +323,14 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var fps = fpsLabel.Text;
-            ActiveCamera.Tick(ref fps);
-            fpsLabel.Text = fps;
+            var deltaTime = GetElapsedTime();
 
+            // Tick camera
+            ActiveCamera.Tick(deltaTime);
+
+            // Update labels
             cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw})";
+            fpsLabel.Text = Math.Round(1f / deltaTime).ToString();
 
             //Animate light position
             var lightPos = ActiveCamera.Location;
@@ -542,6 +550,17 @@ namespace GUI.Types.Renderer
             MinBounds.Y = (float)Convert.ToDouble(minBounds.Properties["1"].Value);
             MaxBounds.Z = (float)Convert.ToDouble(maxBounds.Properties["2"].Value);
             MinBounds.Z = (float)Convert.ToDouble(minBounds.Properties["2"].Value);
+        }
+
+        // Get Elapsed time in seconds
+        private float GetElapsedTime()
+        {
+            var timeslice = PreciseTimer.Elapsed.TotalMilliseconds;
+
+            PreciseTimer.Reset();
+            PreciseTimer.Start();
+
+            return (float)timeslice * 0.001f;
         }
     }
 }
