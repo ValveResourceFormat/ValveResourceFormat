@@ -128,7 +128,31 @@ namespace GUI.Utils
                 }
             }
 
+            var candidates = Directory.GetFiles(Path.GetDirectoryName(currentFullPath), Path.GetFileName(file), SearchOption.AllDirectories);
+            if (candidates.Length > 0)
+            {
+                return candidates.First();
+            }
+
+            var initialPath = Path.GetDirectoryName(currentFullPath);
+            var retry = file.Split('/').Length - 1;
+
+            while (retry > 0 && initialPath != null)
+            {
+                initialPath = Path.GetDirectoryName(initialPath);
+                var parentCandidates = Directory.GetFiles(initialPath, Path.GetFileName(file), SearchOption.AllDirectories);
+                if (parentCandidates.Length > 0)
+                {
+                    return parentCandidates.First();
+                }
+
+                retry--;
+            }
+
             return null;
         }
+
+
+
     }
 }
