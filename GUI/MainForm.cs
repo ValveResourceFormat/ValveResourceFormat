@@ -431,7 +431,7 @@ namespace GUI
                         var meshTab = new TabPage("MESH");
                         var mv = new Renderer(mainTabs, fileName, currentPackage);
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, Renderer = mv });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ, FBX", fileName, new ExportData { Resource = resource, Renderer = mv });
 
                         mv.AddMeshObject(new MeshObject { Resource = resource });
                         var glControl = mv.CreateGL();
@@ -804,7 +804,7 @@ namespace GUI
                     extensions = new[] { "css", "vcss" };
                     break;
                 case ResourceType.Mesh:
-                    extensions = new[] { "obj" };
+                    extensions = new[] { "obj", "fbx" };
                     break;
             }
 
@@ -834,49 +834,68 @@ namespace GUI
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
                     Settings.Save();
 
-                    using (var stream = dialog.OpenFile())
-                    {
-                        switch (resource.ResourceType)
+                    switch (resource.ResourceType)
                         {
                             case ResourceType.Sound:
-                                var soundData = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
-                                stream.Write(soundData, 0, soundData.Length);
-                                break;
+                                using (var stream = dialog.OpenFile())
+                                {
+                                    var soundData = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                                    stream.Write(soundData, 0, soundData.Length);
+                                    break;
+                                }
+
                             case ResourceType.Texture:
-                                var format = SKEncodedImageFormat.Png;
-                                switch (dialog.FilterIndex)
+                                using (var stream = dialog.OpenFile())
                                 {
-                                    case 2:
-                                        format = SKEncodedImageFormat.Jpeg;
-                                        break;
+                                    var format = SKEncodedImageFormat.Png;
+                                    switch (dialog.FilterIndex)
+                                    {
+                                        case 2:
+                                            format = SKEncodedImageFormat.Jpeg;
+                                            break;
+                                        case 3:
+                                            format = SKEncodedImageFormat.Gif;
+                                            break;
+                                        case 4:
+                                            format = SKEncodedImageFormat.Bmp;
+                                            break;
+                                    }
 
-                                    case 3:
-                                        format = SKEncodedImageFormat.Gif;
-                                        break;
-                                    case 4:
-                                        format = SKEncodedImageFormat.Bmp;
-                                        break;
+                                    var image = SKImage.FromBitmap(((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap());
+
+                                    using (var data = image.Encode(format, 100))
+                                    {
+                                        data.SaveTo(stream);
+                                    }
+
+                                    break;
                                 }
 
-                                var image = SKImage.FromBitmap(((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap());
-
-                                using (var data = image.Encode(format, 100))
-                                {
-                                    data.SaveTo(stream);
-                                }
-
-                                break;
                             case ResourceType.PanoramaLayout:
                             case ResourceType.PanoramaScript:
                             case ResourceType.PanoramaStyle:
-                                var panoramaData = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                stream.Write(panoramaData, 0, panoramaData.Length);
-                                break;
-                            case ResourceType.Mesh:
-                                using (var objStream = new StreamWriter(stream))
-                                using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
+                                using (var stream = dialog.OpenFile())
                                 {
-                                    MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
+                                    var panoramaData = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                                    stream.Write(panoramaData, 0, panoramaData.Length);
+                                    break;
+                                }
+
+                            case ResourceType.Mesh:
+                                if ( Path.GetExtension(dialog.FileName) == ".obj")
+                                {
+                                    using (var stream = dialog.OpenFile())
+                                    {
+                                        using (var objStream = new StreamWriter(stream))
+                                        using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
+                                        {
+                                            MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
+                                        }
+                                    }
+                                }
+                                else if (Path.GetExtension(dialog.FileName) == ".fbx")
+                                {
+                                    MeshObject.ExportFbx(dialog.FileName, resource);
                                 }
 
                                 foreach (var texture in tag.Renderer.MaterialLoader.LoadedTextures)
@@ -896,10 +915,9 @@ namespace GUI
                                 break;
                         }
                     }
+
+                    Console.WriteLine($"Export requested for {fileName} Complete");
                 }
             }
-
-            Console.WriteLine($"Export requested for {fileName} Complete");
-        }
     }
 }

@@ -237,7 +237,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public static void WriteObject2(StreamWriter objStream, StreamWriter mtlStream, string mtlFilename, Resource resource)
+        public static void WriteObject(StreamWriter objStream, StreamWriter mtlStream, string mtlFilename, Resource resource)
         {
             var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
 
@@ -343,17 +343,12 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public static void WriteObject(StreamWriter objStream, StreamWriter mtlStream, string mtlFilename, Resource resource)
+        public static void ExportFbx(string fileName, Resource resource)
         {
+            var mtlFilename = Path.GetFileNameWithoutExtension(fileName);
             var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
 
             const string header = "# Written by VRF - https://opensource.steamdb.info/ValveResourceFormat/";
-
-            mtlStream.WriteLine(header);
-            objStream.WriteLine(header);
-            objStream.WriteLine($"# Vertex buffers: {mesh.VertexBuffers.Count}");
-            objStream.WriteLine($"# Index buffers: {mesh.IndexBuffers.Count}");
-            objStream.WriteLine($"mtllib {mtlFilename}.mtl");
 
             if (mesh.VertexBuffers.Count != mesh.IndexBuffers.Count)
             {
@@ -385,10 +380,6 @@ namespace GUI.Types.Renderer
                     var materialName = d.Properties["m_material"].Value.ToString();
 
                     var groupName = Path.GetFileNameWithoutExtension(materialName);
-                    mtlStream.WriteLine($"newmtl {groupName}");
-                    mtlStream.WriteLine("illum 2");
-                    mtlStream.WriteLine($"map_Ka {groupName}.png");
-                    mtlStream.WriteLine($"map_Kd {groupName}.png");
 
                     var f = (KVObject)d.Properties["m_indexBuffer"].Value;
                     var indexBufferId = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
@@ -398,7 +389,6 @@ namespace GUI.Types.Renderer
                     var vertexBufferId = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
 
                     var vertexBuffer = mesh.VertexBuffers[(int)vertexBufferId];
-                    objStream.WriteLine($"# Vertex Buffer {i}. Count: {vertexBuffer.Count}, Size: {vertexBuffer.Size}");
                     fbxMesh.InitControlPoints((int)vertexBuffer.Count);
 
                     var fbxNormals = fbxMesh.CreateElementNormal();
@@ -408,7 +398,6 @@ namespace GUI.Types.Renderer
                     var fbxTextCoord = fbxMesh.CreateElementUV();
                     fbxTextCoord.SetMappingMode(ArcManagedFBX.Types.EMappingMode.eByControlPoint);
                     fbxTextCoord.SetReferenceMode(ArcManagedFBX.Types.EReferenceMode.eDirect);
-
 
                     for (var j = 0; j < vertexBuffer.Count; j++)
                     {
@@ -420,28 +409,20 @@ namespace GUI.Types.Renderer
                             {
                                 case "POSITION":
                                     fbxMesh.SetControlPointAt(new FBXVector(result[0], result[1], result[2], 1.0), j);
-                                    objStream.WriteLine($"v {result[0]:F6} {result[1]:F6} {result[2]:F6}");
                                     break;
 
                                 case "NORMAL":
                                     fbxNormals.AddDirectArrayVector(new FBXVector(result[0], result[1], result[2], 1.0));
-                                    objStream.WriteLine($"vn {result[0]:F6} {result[1]:F6} {result[2]:F6}");
                                     break;
 
                                 case "TEXCOORD":
                                     fbxTextCoord.AddDirectArrayVector2D(new FBXVector(result[0], result[1], 0, 1.0));
-                                    objStream.WriteLine($"vt {result[0]:F6} {result[1]:F6}");
                                     break;
                             }
                         }
                     }
 
                     var indexBuffer = mesh.IndexBuffers[(int)indexBufferId];
-
-                    objStream.WriteLine($"# Index Buffer {i}. Count: {indexBuffer.Count}, Size: {indexBuffer.Size}");
-
-                    objStream.WriteLine($"g {groupName}");
-                    objStream.WriteLine($"usemtl {groupName}");
 
                     if (indexBuffer.Size == 2)
                     {
@@ -455,7 +436,6 @@ namespace GUI.Types.Renderer
                             fbxMesh.AddPolygon(indexArray[j + 1], -1);
                             fbxMesh.AddPolygon(indexArray[j + 2], -1);
                             fbxMesh.EndPolygon();
-                            objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
                         }
                     }
                     else if (indexBuffer.Size == 4)
@@ -466,11 +446,10 @@ namespace GUI.Types.Renderer
                         for (var j = 0; j < indexBuffer.Count; j += 3)
                         {
                             fbxMesh.BeginPolygon(-1, -1, -1, false);
-                            fbxMesh.AddPolygon((int) indexArray[j], -1);
-                            fbxMesh.AddPolygon((int) indexArray[j + 1], -1);
-                            fbxMesh.AddPolygon((int) indexArray[j + 2], -1);
+                            fbxMesh.AddPolygon((int)indexArray[j], -1);
+                            fbxMesh.AddPolygon((int)indexArray[j + 1], -1);
+                            fbxMesh.AddPolygon((int)indexArray[j + 2], -1);
                             fbxMesh.EndPolygon();
-                            objStream.WriteLine($"f {indexArray[j] + indexCount}/{indexArray[j] + indexCount}/{indexArray[j] + indexCount} {indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount}/{indexArray[j + 1] + indexCount} {indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}/{indexArray[j + 2] + indexCount}");
                         }
                     }
                     else
@@ -480,22 +459,28 @@ namespace GUI.Types.Renderer
 
                     indexCount += (int)vertexBuffer.Count;
 
-
                     var objectNode = FBXNode.Create(scene, "DrawCall" + i);
                     objectNode.SetNodeAttribute(fbxMesh);
                     sceneObjectsNode.AddChild(objectNode);
                 }
 
+                sceneObjectsNode.SetRotation(-90, -90, 0);
                 scene.GetRootNode().AddChild(sceneObjectsNode);
             }
 
-            var fBXExporter = FBXExporter.Create(managerInstance, "");
-            if(!fBXExporter.Initialize("C:\\Temp\\export.fbx", -1, managerInstance.GetIOSettings()))
+            var fBXExporter = FBXExporter.Create(managerInstance, string.Empty);
+            if (!fBXExporter.Initialize(fileName, -1, managerInstance.GetIOSettings()))
             {
                 return;
             }
-            fBXExporter.Export(scene, false);
+
+            if (!fBXExporter.Export(scene, false))
+            {
+                return;
+            }
+
             fBXExporter.Destroy();
         }
     }
+
 }
