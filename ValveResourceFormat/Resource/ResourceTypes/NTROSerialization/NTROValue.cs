@@ -109,11 +109,15 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                     writer.WriteLine("\"{0}\"", Value);
                     break;
 
+                case DataType.Vector:
+                    var vector3 = (Value as Vector3?).Value;
+                    writer.WriteLine($"({vector3.X:F6}, {vector3.Y:F6}, {vector3.Z:F6})");
+                    break;
+
                 // Stuff we can let our generic value ToString() handle.
                 case DataType.Int16:
                 case DataType.Int32:
                 case DataType.Int64:
-                case DataType.Vector:
                 case DataType.SByte:
                 case DataType.CTransform:
                     writer.WriteLine(Value);
