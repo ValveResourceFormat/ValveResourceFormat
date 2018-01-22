@@ -152,7 +152,9 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                ActiveCamera = cameraBox.Items[e.Index] as Camera;
+                // Make a copy of the camera
+                var newCamera = cameraBox.Items[e.Index] as Camera;
+                ActiveCamera = new Camera((int)newCamera.WindowSize.X, (int)newCamera.WindowSize.Y, newCamera.CameraViewMatrix, newCamera.Name);
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
             {
