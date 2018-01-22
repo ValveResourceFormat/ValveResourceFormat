@@ -2,17 +2,6 @@
 
 namespace ValveResourceFormat.ResourceTypes.Animation
 {
-    public enum AnimDecoderType
-    {
-        Ignore,
-        CCompressedStaticFullVector3,
-        CCompressedFullVector3,
-        CCompressedDeltaVector3,
-        CCompressedAnimVector3,
-        CCompressedStaticVector,
-        CCompressedAnimQuaternion,
-    }
-
     internal static class AnimDecoder
     {
         public static int Size(this AnimDecoderType t)
