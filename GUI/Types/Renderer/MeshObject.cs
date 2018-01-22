@@ -287,6 +287,7 @@ namespace GUI.Types.Renderer
 
                             switch (attribute.Name)
                             {
+#pragma warning disable SA1011 // ClosingSquareBracketsMustBeSpacedCorrectly, rule kinda breaks in strings
                                 case "POSITION":
                                     objStream.WriteLine($"v {result[0]:F6} {result[1]:F6} {result[2]:F6}");
                                     break;
@@ -298,6 +299,7 @@ namespace GUI.Types.Renderer
                                 case "TEXCOORD":
                                     objStream.WriteLine($"vt {result[0]:F6} {result[1]:F6}");
                                     break;
+#pragma warning restore SA1011 // ClosingSquareBracketsMustBeSpacedCorrectly
                             }
                         }
                     }
