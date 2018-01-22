@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace GUI.Types.Renderer.Animation
+namespace ValveResourceFormat.ResourceTypes.Animation
 {
     public enum AnimDecoderType
     {

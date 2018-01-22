@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
-using OpenTK;
+using System.Numerics;
 
-namespace GUI.Types.Renderer.Animation
+namespace ValveResourceFormat.ResourceTypes.Animation
 {
-    internal class Bone
+    public class Bone
     {
         public Bone Parent { get; private set; }
         public List<Bone> Children { get; }
@@ -14,8 +14,8 @@ namespace GUI.Types.Renderer.Animation
         public Vector3 Position { get; }
         public Quaternion Angle { get; }
 
-        public Matrix4 BindPose { get; }
-        public Matrix4 InverseBindPose { get; }
+        public Matrix4x4 BindPose { get; }
+        public Matrix4x4 InverseBindPose { get; }
 
         public Bone(string name, int index, Vector3 position, Quaternion rotation)
         {
@@ -29,11 +29,10 @@ namespace GUI.Types.Renderer.Animation
             Angle = rotation;
 
             // Calculate matrices
-            var bindPose = Matrix4.CreateFromQuaternion(rotation) * Matrix4.CreateTranslation(position);
-            var invBindPose = bindPose.Inverted();
+            BindPose = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
 
-            BindPose = bindPose;
-            InverseBindPose = invBindPose;
+            Matrix4x4.Invert(BindPose, out var inverseBindPose);
+            InverseBindPose = inverseBindPose;
         }
 
         public void AddChild(Bone child)

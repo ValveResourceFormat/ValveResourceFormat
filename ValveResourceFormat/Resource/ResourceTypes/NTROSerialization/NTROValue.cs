@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
@@ -90,7 +91,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                 case DataType.Fltx4:
                 case DataType.Vector4D:
                 case DataType.Vector4D_44:
-                    var vector4 = Value as Vector4;
+                    var vector4 = (Value as Vector4?).Value;
 
                     if (Type == DataType.Quaternion)
                     {

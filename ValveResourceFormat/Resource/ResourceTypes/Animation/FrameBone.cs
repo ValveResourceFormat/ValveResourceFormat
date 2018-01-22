@@ -1,9 +1,9 @@
 ﻿using System;
-using OpenTK;
+using System.Numerics;
 
-namespace GUI.Types.Renderer.Animation
+namespace ValveResourceFormat.ResourceTypes.Animation
 {
-    internal class FrameBone
+    public class FrameBone
     {
         public Vector3 Position { get; set; }
         public Quaternion Angle { get; set; }

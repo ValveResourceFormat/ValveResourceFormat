@@ -24,6 +24,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Animation;
 using Model = GUI.Types.Model;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 

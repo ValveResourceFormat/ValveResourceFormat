@@ -5,6 +5,7 @@ using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Animation;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace GUI.Types.Renderer.Animation
@@ -12,7 +13,7 @@ namespace GUI.Types.Renderer.Animation
     internal class AnimationGroupLoader
     {
         private readonly NTRO data;
-        public List<Animation> AnimationList { get; private set; }
+        public List<ValveResourceFormat.ResourceTypes.Animation.Animation> AnimationList { get; private set; }
 
         public AnimationGroupLoader(Resource resource, string filename, Skeleton skeleton)
         {
@@ -27,7 +28,7 @@ namespace GUI.Types.Renderer.Animation
             // Get the key to decode the animations
             var decodeKey = ((NTROValue<NTROStruct>)data.Output["m_decodeKey"]).Value;
 
-            AnimationList = new List<Animation>();
+            AnimationList = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
 
             // Load animation files
             foreach (var t in animArray)
@@ -41,7 +42,7 @@ namespace GUI.Types.Renderer.Animation
                 }
 
                 // Build animation classes
-                AnimationList.Add(new Animation(animResource, decodeKey, skeleton));
+                AnimationList.Add(new ValveResourceFormat.ResourceTypes.Animation.Animation(animResource, decodeKey, skeleton));
             }
         }
 

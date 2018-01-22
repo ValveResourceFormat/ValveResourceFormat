@@ -9,8 +9,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
-using Vector3 = OpenTK.Vector3;
-using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types.Renderer
 {

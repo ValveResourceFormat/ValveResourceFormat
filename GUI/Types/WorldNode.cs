@@ -7,7 +7,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
-using Vector4 = ValveResourceFormat.ResourceTypes.NTROSerialization.Vector4;
 
 namespace GUI.Types
 {
@@ -54,24 +53,24 @@ namespace GUI.Types
 
                     switch (x)
                     {
-                        case 0: matrix.Column0 = new OpenTK.Vector4(a.X, a.Y, a.Z, a.W); break;
-                        case 1: matrix.Column1 = new OpenTK.Vector4(a.X, a.Y, a.Z, a.W); break;
-                        case 2: matrix.Column2 = new OpenTK.Vector4(a.X, a.Y, a.Z, a.W); break;
-                        case 3: matrix.Column3 = new OpenTK.Vector4(a.X, a.Y, a.Z, a.W); break;
+                        case 0: matrix.Column0 = new Vector4(a.X, a.Y, a.Z, a.W); break;
+                        case 1: matrix.Column1 = new Vector4(a.X, a.Y, a.Z, a.W); break;
+                        case 2: matrix.Column2 = new Vector4(a.X, a.Y, a.Z, a.W); break;
+                        case 3: matrix.Column3 = new Vector4(a.X, a.Y, a.Z, a.W); break;
                     }
                 }
 
                 var tintColorWrongVector = ((NTROValue<Vector4>)sceneObject["m_vTintColor"]).Value;
 
-                OpenTK.Vector4 tintColor;
+                Vector4 tintColor;
                 if (tintColorWrongVector.W == 0)
                 {
-                    tintColor = OpenTK.Vector4.One;
+                    tintColor = Vector4.One;
                     Console.WriteLine("Ignoring tintColor, it will fuck things up.");
                 }
                 else
                 {
-                    tintColor = new OpenTK.Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
+                    tintColor = new Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
                 }
 
                 if (renderableModel != null)

@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using OpenTK;
+using System.Numerics;
 
-namespace GUI.Types.Renderer.Animation
+namespace ValveResourceFormat.ResourceTypes.Animation
 {
-    internal class Frame
+    public class Frame
     {
         public Dictionary<string, FrameBone> Bones { get; set; }
 
@@ -40,7 +40,7 @@ namespace GUI.Types.Renderer.Animation
         {
             if (!Bones.ContainsKey(name))
             {
-                Bones[name] = new FrameBone(Vector3.Zero, Quaternion.Identity);
+                Bones[name] = new FrameBone(new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 1));
             }
         }
     }

@@ -19,5 +19,6 @@
     <PackageReference Include="Avalonia.Skia.Linux.Natives" Version="1.57.1.4" />
     <PackageReference Include="SkiaSharp" Version="1.57.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.4.0" />
   </ItemGroup>
 </Project>

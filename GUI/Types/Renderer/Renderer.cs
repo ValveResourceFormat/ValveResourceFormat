@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using GUI.Types.Renderer.Animation;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
@@ -12,7 +11,11 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Animation;
+using MathHelper = OpenTK.MathHelper;
+using Matrix4 = OpenTK.Matrix4;
 using Timer = System.Timers.Timer;
+using Vector3 = OpenTK.Vector3;
 
 namespace GUI.Types.Renderer
 {
@@ -26,7 +29,7 @@ namespace GUI.Types.Renderer
 
         private readonly List<MeshObject> MeshesToRender;
 
-        private readonly List<Animation.Animation> Animations;
+        private readonly List<ValveResourceFormat.ResourceTypes.Animation.Animation> Animations;
         private Skeleton Skeleton;
 
         private bool Loaded;
@@ -40,7 +43,7 @@ namespace GUI.Types.Renderer
         private readonly List<Tuple<string, Matrix4>> cameras;
 
         private Camera ActiveCamera;
-        private Animation.Animation ActiveAnimation;
+        private ValveResourceFormat.ResourceTypes.Animation.Animation ActiveAnimation;
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
@@ -52,7 +55,7 @@ namespace GUI.Types.Renderer
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
             MeshesToRender = new List<MeshObject>();
-            Animations = new List<Animation.Animation>();
+            Animations = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
             cameras = new List<Tuple<string, Matrix4>>();
 
             CurrentPackage = currentPackage;
@@ -67,7 +70,7 @@ namespace GUI.Types.Renderer
         }
 
         public void AddMeshObject(MeshObject obj) => MeshesToRender.Add(obj);
-        public void AddAnimations(List<Animation.Animation> animations) => Animations.AddRange(animations);
+        public void AddAnimations(List<ValveResourceFormat.ResourceTypes.Animation.Animation> animations) => Animations.AddRange(animations);
         public void SetSkeleton(Skeleton skeleton) => Skeleton = skeleton;
 
         public Control CreateGL()
@@ -170,7 +173,7 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                ActiveAnimation = animationBox.Items[e.Index] as Animation.Animation;
+                ActiveAnimation = animationBox.Items[e.Index] as ValveResourceFormat.ResourceTypes.Animation.Animation;
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
             {

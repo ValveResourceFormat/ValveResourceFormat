@@ -8,7 +8,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
-using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types
 {

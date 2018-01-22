@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using OpenTK;
-using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
+using System.Numerics;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
-using Vector3 = OpenTK.Vector3;
 
-namespace GUI.Types.Renderer.Animation
+namespace ValveResourceFormat.ResourceTypes.Animation
 {
-    internal class Animation
+    public class Animation
     {
         public string Name { get; private set; }
         public float Fps { get; private set; }
@@ -52,34 +49,34 @@ namespace GUI.Types.Renderer.Animation
         }
 
         // Get the animation matrix for each bone
-        public Matrix4[] GetAnimationMatrices(float time, Skeleton skeleton)
+        public Matrix4x4[] GetAnimationMatrices(float time, Skeleton skeleton)
         {
             // Create output array
-            var matrices = new Matrix4[skeleton.Bones.Length];
+            var matrices = new Matrix4x4[skeleton.Bones.Length];
 
             // Get bone transformations
             var transforms = GetTransformsAtTime(time);
 
             foreach (var root in skeleton.Roots)
             {
-                GetAnimationMatrixRecursive(root, Matrix4.Identity, Matrix4.Identity, transforms, ref matrices);
+                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, transforms, ref matrices);
             }
 
             return matrices;
         }
 
-        private void GetAnimationMatrixRecursive(Bone bone, Matrix4 parentBindPose, Matrix4 parentInvBindPose, Frame transforms, ref Matrix4[] matrices)
+        private void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 parentBindPose, Matrix4x4 parentInvBindPose, Frame transforms, ref Matrix4x4[] matrices)
         {
             // Calculate world space bind and inverse bind pose
             var bindPose = parentBindPose;
             var invBindPose = parentInvBindPose * bone.InverseBindPose;
 
             // Calculate transformation matrix
-            var transformMatrix = Matrix4.Identity;
+            var transformMatrix = Matrix4x4.Identity;
             if (transforms.Bones.ContainsKey(bone.Name))
             {
                 var transform = transforms.Bones[bone.Name];
-                transformMatrix = Matrix4.CreateFromQuaternion(transform.Angle) * Matrix4.CreateTranslation(transform.Position);
+                transformMatrix = Matrix4x4.CreateFromQuaternion(transform.Angle) * Matrix4x4.CreateTranslation(transform.Position);
             }
 
             // Apply tranformation
@@ -308,7 +305,7 @@ namespace GUI.Types.Renderer.Animation
         }
 
         // Flatten an array of matrices to an array of floats
-        private float[] Flatten(Matrix4[] matrices)
+        private float[] Flatten(Matrix4x4[] matrices)
         {
             var returnArray = new float[matrices.Length * 16];
 
