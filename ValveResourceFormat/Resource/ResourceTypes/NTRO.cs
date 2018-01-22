@@ -211,6 +211,14 @@ namespace ValveResourceFormat.ResourceTypes
                     return new NTROValue<Vector3>(field.Type, vector3, pointer);
 
                 case DataType.Quaternion:
+                    var quaternion = new Quaternion(
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle());
+
+                    return new NTROValue<Quaternion>(field.Type, quaternion, pointer);
+
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:

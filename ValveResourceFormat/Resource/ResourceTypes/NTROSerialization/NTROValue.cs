@@ -86,32 +86,27 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                     writer.WriteLine("ID: {0:X16}", refInfo.Id);
                     break;
 
-                case DataType.Quaternion:
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
                 case DataType.Vector4D_44:
                     var vector4 = (Value as Vector4?).Value;
-
-                    if (Type == DataType.Quaternion)
-                    {
-                        writer.WriteLine("{{x: {0:F2}, y: {1:F2}, z: {2:F2}, w: {3}}}", vector4.X, vector4.Y, vector4.Z, vector4.W.ToString("F2"));
-                    }
-                    else
-                    {
-                        writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.X, vector4.Y, vector4.Z, vector4.W);
-                    }
-
+                    writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.X, vector4.Y, vector4.Z, vector4.W);
                     break;
 
-                case DataType.String4:
-                case DataType.String:
-                    writer.WriteLine("\"{0}\"", Value);
+                case DataType.Quaternion:
+                    var quaternion = (Value as Quaternion?).Value;
+                    writer.WriteLine("{{x: {0:F2}, y: {1:F2}, z: {2:F2}, w: {3}}}", quaternion.X, quaternion.Y, quaternion.Z, quaternion.W.ToString("F2"));
                     break;
 
                 case DataType.Vector:
                     var vector3 = (Value as Vector3?).Value;
                     writer.WriteLine($"({vector3.X:F6}, {vector3.Y:F6}, {vector3.Z:F6})");
+                    break;
+
+                case DataType.String4:
+                case DataType.String:
+                    writer.WriteLine("\"{0}\"", Value);
                     break;
 
                 // Stuff we can let our generic value ToString() handle.
