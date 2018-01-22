@@ -49,7 +49,7 @@ namespace GUI.Types
                 // what is this
                 for (var x = 0; x < 4; x++)
                 {
-                    var a = ((NTROValue<Vector4>)transform[x]).Value;
+                    var a = ((NTROValue<System.Numerics.Vector4>)transform[x]).Value;
 
                     switch (x)
                     {
@@ -60,7 +60,7 @@ namespace GUI.Types
                     }
                 }
 
-                var tintColorWrongVector = ((NTROValue<Vector4>)sceneObject["m_vTintColor"]).Value;
+                var tintColorWrongVector = ((NTROValue<System.Numerics.Vector4>)sceneObject["m_vTintColor"]).Value;
 
                 Vector4 tintColor;
                 if (tintColorWrongVector.W == 0)
