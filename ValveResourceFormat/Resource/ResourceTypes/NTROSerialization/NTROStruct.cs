@@ -106,83 +106,29 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 
         public NTROValue this[string key]
         {
-            get
-            {
-                return Contents[key];
-            }
-            set
-            {
-                Contents[key] = value;
-            }
+            get => Contents[key];
+            set => Contents[key] = value;
         }
 
         public object this[object key]
         {
-            get
-            {
-                return ((IDictionary)Contents)[key];
-            }
-            set
-            {
-                ((IDictionary)Contents)[key] = value;
-            }
+            get => ((IDictionary)Contents)[key];
+            set => ((IDictionary)Contents)[key] = value;
         }
 
-        public int Count
-        {
-            get
-            {
-                return Contents.Count;
-            }
-        }
+        public int Count => Contents.Count;
 
-        public bool IsFixedSize
-        {
-            get
-            {
-                return ((IDictionary)Contents).IsFixedSize;
-            }
-        }
+        public bool IsFixedSize => ((IDictionary)Contents).IsFixedSize;
 
-        public bool IsReadOnly
-        {
-            get
-            {
-                return ((IDictionary)Contents).IsReadOnly;
-            }
-        }
+        public bool IsReadOnly => ((IDictionary)Contents).IsReadOnly;
 
-        public bool IsSynchronized
-        {
-            get
-            {
-                return ((IDictionary)Contents).IsSynchronized;
-            }
-        }
+        public bool IsSynchronized => ((IDictionary)Contents).IsSynchronized;
 
-        public ICollection Keys
-        {
-            get
-            {
-                return Contents.Keys;
-            }
-        }
+        public ICollection Keys => Contents.Keys;
 
-        public object SyncRoot
-        {
-            get
-            {
-                return ((IDictionary)Contents).SyncRoot;
-            }
-        }
+        public object SyncRoot => ((IDictionary)Contents).SyncRoot;
 
-        public ICollection Values
-        {
-            get
-            {
-                return Contents.Values;
-            }
-        }
+        public ICollection Values => Contents.Values;
 
         public void Add(object key, object value)
         {

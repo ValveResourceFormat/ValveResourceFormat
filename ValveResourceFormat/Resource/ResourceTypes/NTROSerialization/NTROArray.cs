@@ -34,31 +34,13 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 
         public NTROValue this[int index]
         {
-            get
-            {
-                return ((IList<NTROValue>)contents)[index];
-            }
-            set
-            {
-                ((IList<NTROValue>)contents)[index] = value;
-            }
+            get => ((IList<NTROValue>)contents)[index];
+            set => ((IList<NTROValue>)contents)[index] = value;
         }
 
-        public int Count
-        {
-            get
-            {
-                return ((IList<NTROValue>)contents).Count;
-            }
-        }
+        public int Count => ((IList<NTROValue>)contents).Count;
 
-        public bool IsReadOnly
-        {
-            get
-            {
-                return ((IList<NTROValue>)contents).IsReadOnly;
-            }
-        }
+        public bool IsReadOnly => ((IList<NTROValue>)contents).IsReadOnly;
 
         public void Add(NTROValue item)
         {
