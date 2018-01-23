@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             var boneNames = skeletonData.Get<NTROArray>("m_boneName").ToArray<string>();
             var boneParents = skeletonData.Get<NTROArray>("m_nParent").ToArray<short>();
             var bonePositions = skeletonData.Get<NTROArray>("m_bonePosParent").ToArray<Vector3>();
-            var boneRotations = skeletonData.Get<NTROArray>("m_boneRotParent").ToArray<Vector4>();
+            var boneRotations = skeletonData.Get<NTROArray>("m_boneRotParent").ToArray<Quaternion>();
 
             // Initialise bone array
             Bones = new Bone[boneNames.Length];
