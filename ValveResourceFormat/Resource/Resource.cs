@@ -57,8 +57,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Block block;
-                Blocks.TryGetValue(BlockType.RERL, out block);
+                Blocks.TryGetValue(BlockType.RERL, out var block);
                 return (ResourceExtRefList)block;
             }
         }
@@ -70,8 +69,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Block block;
-                Blocks.TryGetValue(BlockType.REDI, out block);
+                Blocks.TryGetValue(BlockType.REDI, out var block);
                 return (ResourceEditInfo)block;
             }
         }
@@ -83,8 +81,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Block block;
-                Blocks.TryGetValue(BlockType.NTRO, out block);
+                Blocks.TryGetValue(BlockType.NTRO, out var block);
                 return (ResourceIntrospectionManifest)block;
             }
         }
@@ -96,8 +93,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Block block;
-                Blocks.TryGetValue(BlockType.VBIB, out block);
+                Blocks.TryGetValue(BlockType.VBIB, out var block);
                 return (VBIB)block;
             }
         }
@@ -286,8 +282,12 @@ namespace ValveResourceFormat
                 case ResourceType.Texture:
                     return new Texture();
 
+                case ResourceType.Material:
+                    return new Material();
+
                 case ResourceType.SoundEventScript:
                     return new SoundEventScript();
+
                 case ResourceType.EntityLump:
                     return new EntityLump();
 
@@ -340,9 +340,7 @@ namespace ValveResourceFormat
                     return ResourceType.Panorama;
             }
 
-            ResourceType resourceType;
-
-            if (Enum.TryParse(identifier, false, out resourceType))
+            if (Enum.TryParse(identifier, false, out ResourceType resourceType))
             {
                 return resourceType;
             }
