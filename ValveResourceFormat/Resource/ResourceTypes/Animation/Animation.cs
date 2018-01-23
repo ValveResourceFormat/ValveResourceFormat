@@ -262,15 +262,22 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle()));
                             break;
-                        case AnimDecoderType.CCompressedStaticVector:
+#if false // TODO: This does not work, and most likely never did as it had a typo before
+                        case AnimDecoderType.CCompressedStaticVector3:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader)));
                             break;
+#endif
                         case AnimDecoderType.CCompressedAnimQuaternion:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
                             break;
+#if DEBUG
+                        default:
+                            Console.WriteLine($"Unhandled animation bone decoder type '{decoder}'");
+                            break;
+#endif
                     }
                 }
             }
