@@ -15,7 +15,10 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             Bones = new Bone[0];
         }
 
-        // Armature constructor
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Skeleton"/> class.
+        /// </summary>
+        /// <param name="model"></param>
         public Skeleton(Resource model)
         {
             Bones = new Bone[0];
@@ -44,7 +47,11 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             ConstructFromNTRO(((NTROValue<NTROStruct>)modelData.Output["m_modelSkeleton"]).Value, invMapTable);
         }
 
-        // Construct the Armature object from mesh skeleton KV data.
+        /// <summary>
+        /// Construct the Armature object from mesh skeleton KV data.
+        /// </summary>
+        /// <param name="skeletonData"></param>
+        /// <param name="remapTable"></param>
         public void ConstructFromNTRO(NTROStruct skeletonData, Dictionary<int, int> remapTable)
         {
             var boneNames = skeletonData.Get<NTROArray>("m_boneName").ToArray<string>();
@@ -79,7 +86,9 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             FindRoots();
         }
 
-        // Find all skeleton roots (bones without a parent)
+        /// <summary>
+        /// Find all skeleton roots (bones without a parent)
+        /// </summary>
         private void FindRoots()
         {
             // Create an empty root list

@@ -45,10 +45,5 @@ namespace GUI.Types.Renderer.Animation
                 AnimationList.Add(new ValveResourceFormat.ResourceTypes.Animation.Animation(animResource, decodeKey, skeleton));
             }
         }
-
-        private void HandleDecodeKey(NTROStruct decodeKey)
-        {
-            // TODO?
-        }
     }
 }
