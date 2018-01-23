@@ -7,26 +7,28 @@ namespace GUI.Types.Renderer
 {
     internal class Camera
     {
-        private const float CAMERASPEED = 300f;
+        private const float CAMERASPEED = 300f; // Per second
         private const float FOV = MathHelper.PiOver4;
 
-        private readonly string Name;
+        public string Name { get; protected set; }
 
-        private Vector2 WindowSize;
-        private float AspectRatio;
+        public Vector3 Location { get; private set; }
+        public float Pitch { get; private set; }
+        public float Yaw { get; private set; }
 
         public Matrix4 ProjectionMatrix;
         public Matrix4 CameraViewMatrix;
 
+        // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }
+
+        public Vector2 WindowSize { get; set; }
+        private float AspectRatio;
+
         private bool MouseDragging;
 
         private Vector2 MouseDelta;
         private Vector2 MousePreviousPosition;
-
-        public Vector3 Location;
-        private float Pitch;
-        public float Yaw;
 
         private KeyboardState KeyboardState;
 
@@ -34,15 +36,19 @@ namespace GUI.Types.Renderer
         {
             SetViewportSize(viewportWidth, viewportHeight);
 
-            Location.Y = (maxBounds.X + minBounds.X) / 2;
-            Location.X = maxBounds.Y + 30.0f;
-            Location.Z = maxBounds.Z + 30.0f;
-            var quaternion = CameraViewMatrix.ExtractRotation(true);
-            Pitch = quaternion.Y;
-            Yaw = quaternion.Z;
-            // TODO: needs fixing
-            Yaw = 3f;
-            Pitch = -0.9f;
+            // Calculate center of bounding box
+            var bboxCenter = (minBounds + maxBounds) * 0.5f;
+
+            // Set initial position based on the bounding box
+            Location = bboxCenter + new Vector3(maxBounds.X * 5, 0, maxBounds.Z);
+
+            // Calculate yaw and pitch
+            var dir = (bboxCenter - Location).Normalized();
+            Yaw = (float)Math.Atan2(dir.Y, dir.X);
+            Pitch = (float)Math.Asin(dir.Z);
+
+            // Build camera view matrix
+            CameraViewMatrix = Matrix4.LookAt(Location, bboxCenter, Vector3.UnitZ);
 
             Name = name;
         }
@@ -52,14 +58,40 @@ namespace GUI.Types.Renderer
             SetViewportSize(viewportWidth, viewportHeight);
 
             Location = cameraViewMatrix.ExtractTranslation();
-            CameraViewMatrix = cameraViewMatrix;
 
-            //TODO: Someone figure out what this section is meant to be. (tree_game is a good test)
-            var quaternion = CameraViewMatrix.ExtractRotation(false);
-            Pitch = quaternion.Y;
-            Yaw = quaternion.Z;
+            // Extract view direction from view matrix and use it to calculate pitch and yaw
+            var dir = cameraViewMatrix.Row0.Xyz;
+            Yaw = (float)Math.Atan2(dir.Y, dir.X);
+            Pitch = (float)Math.Asin(dir.Z);
+
+            // Build camera view matrix
+            CameraViewMatrix = Matrix4.LookAt(Location, Location + dir, Vector3.UnitZ);
 
             Name = name;
+        }
+
+        // Make a copy of another camera
+        public Camera(Camera original)
+        {
+            SetViewportSize((int)original.WindowSize.X, (int)original.WindowSize.Y);
+            Location = original.Location;
+            Pitch = original.Pitch;
+            Yaw = original.Yaw;
+            Name = original.Name;
+
+            // Build camera view matrix
+            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+        }
+
+        // Calculate forward vector from pitch and yaw
+        private Vector3 GetForwardVector()
+        {
+            return new Vector3((float)(Math.Cos(Yaw) * Math.Cos(Pitch)), (float)(Math.Sin(Yaw) * Math.Cos(Pitch)), (float)Math.Sin(Pitch));
+        }
+
+        private Vector3 GetRightVector()
+        {
+            return new Vector3((float)Math.Cos(Yaw - MathHelper.PiOver2), (float)Math.Sin(Yaw - MathHelper.PiOver2), 0);
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
@@ -87,13 +119,12 @@ namespace GUI.Types.Renderer
             HandleKeyboardInput(deltaTime);
 
             // Full width of the screen is a 1 * FOV rotation
-            Yaw -= FOV * AspectRatio * MouseDelta.X / WindowSize.X;
-            Pitch -= FOV * MouseDelta.Y / WindowSize.Y;
+            Yaw -= (float)Math.PI * MouseDelta.X / WindowSize.X;
+            Pitch -= (float)Math.PI * MouseDelta.Y / WindowSize.Y;
 
             ClampRotation();
 
-            var lookatPoint = new Vector3((float)Math.Cos(Yaw), (float)Math.Sin(Yaw), (float)Pitch);
-            CameraViewMatrix = Matrix4.LookAt(Location, Location + lookatPoint, Vector3.UnitZ);
+            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
         }
 
         public void HandleInput(MouseState mouseState, KeyboardState keyboardState)
@@ -126,6 +157,7 @@ namespace GUI.Types.Renderer
         private void HandleKeyboardInput(float deltaTime)
         {
             var speed = CAMERASPEED * deltaTime;
+
             // Double speed if shift is pressed
             if (KeyboardState.IsKeyDown(Key.ShiftLeft))
             {
@@ -134,53 +166,45 @@ namespace GUI.Types.Renderer
 
             if (KeyboardState.IsKeyDown(Key.W))
             {
-                Location += new Vector3((float)Math.Cos(Yaw), (float)Math.Sin(Yaw), Pitch) * speed;
+                Location += GetForwardVector() * speed;
             }
 
             if (KeyboardState.IsKeyDown(Key.S))
             {
-                Location -= new Vector3((float)Math.Cos(Yaw), (float)Math.Sin(Yaw), Pitch) * speed;
+                Location -= GetForwardVector() * speed;
             }
 
             if (KeyboardState.IsKeyDown(Key.D))
             {
-                Location -= new Vector3((float)Math.Cos(Yaw + MathHelper.PiOver2), (float)Math.Sin(Yaw + MathHelper.PiOver2), 0) * speed;
+                Location += GetRightVector() * speed;
             }
 
             if (KeyboardState.IsKeyDown(Key.A))
             {
-                Location += new Vector3((float)Math.Cos(Yaw + MathHelper.PiOver2), (float)Math.Sin(Yaw + MathHelper.PiOver2), 0) * speed;
+                Location -= GetRightVector() * speed;
             }
 
             if (KeyboardState.IsKeyDown(Key.Z))
             {
-                Location.Z -= speed;
+                Location += new Vector3(0, 0, -speed);
             }
 
             if (KeyboardState.IsKeyDown(Key.Q))
             {
-                Location.Z += speed;
+                Location += new Vector3(0, 0, speed);
             }
         }
 
+        // Prevent camera from going upside-down
         private void ClampRotation()
         {
-            if (Pitch >= Math.PI)
+            if (Pitch >= MathHelper.PiOver2)
             {
-                Pitch = (float)Math.PI;
+                Pitch = MathHelper.PiOver2 - 0.001f;
             }
-            else if (Pitch <= -Math.PI)
+            else if (Pitch <= -MathHelper.PiOver2)
             {
-                Pitch = (float)-Math.PI;
-            }
-
-            if (Yaw >= MathHelper.TwoPi)
-            {
-                Yaw -= MathHelper.TwoPi;
-            }
-            else if (Yaw <= -MathHelper.TwoPi)
-            {
-                Yaw += MathHelper.TwoPi;
+                Pitch = -MathHelper.PiOver2 + 0.001f;
             }
         }
 

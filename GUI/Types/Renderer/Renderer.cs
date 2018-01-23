@@ -20,6 +20,8 @@ namespace GUI.Types.Renderer
     internal class Renderer
     {
         private readonly Stopwatch PreciseTimer;
+        private readonly List<Tuple<string, Matrix4>> cameras;
+        private readonly DebugUtil Debug;
 
         public MaterialLoader MaterialLoader { get; }
         public Package CurrentPackage { get; }
@@ -40,15 +42,12 @@ namespace GUI.Types.Renderer
 
         private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
-        private readonly List<Tuple<string, Matrix4>> cameras;
 
         private Camera ActiveCamera;
         private Animation.Animation ActiveAnimation;
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
-
-        private readonly DebugUtil Debug;
 
         private int AnimationTexture;
 
@@ -153,8 +152,10 @@ namespace GUI.Types.Renderer
                 }
 
                 // Make a copy of the camera
-                var newCamera = cameraBox.Items[e.Index] as Camera;
-                ActiveCamera = new Camera((int)newCamera.WindowSize.X, (int)newCamera.WindowSize.Y, newCamera.CameraViewMatrix, newCamera.Name);
+                ActiveCamera = new Camera(cameraBox.Items[e.Index] as Camera);
+
+                // Repaint
+                meshControl.Update();
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
             {
@@ -331,8 +332,8 @@ namespace GUI.Types.Renderer
             ActiveCamera.Tick(deltaTime);
 
             // Update labels
-            cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw})";
-            fpsLabel.Text = Math.Round(1f / deltaTime).ToString();
+            cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw} pitch: {ActiveCamera.Pitch})";
+            fpsLabel.Text = $"FPS: {Math.Round(1f / deltaTime)}";
 
             //Animate light position
             var lightPos = ActiveCamera.Location;
