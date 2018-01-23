@@ -77,7 +77,7 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                DrawCalls = DrawCalls.OrderBy(x => x.Material.Name).ToList();
+                DrawCalls = DrawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
 
                 // No longer need the resource, we extracted all data
                 Resource = null;
@@ -101,7 +101,7 @@ namespace GUI.Types.Renderer
             drawCall.Material = material;
 
             // Load shader
-            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.ShaderName, modelArguments);
+            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Parameters.ShaderName, modelArguments);
 
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);

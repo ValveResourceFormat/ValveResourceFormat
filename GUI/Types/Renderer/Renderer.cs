@@ -436,9 +436,9 @@ namespace GUI.Types.Renderer
                         GL.Uniform3(uniformLocation, call.TintColor);
                     }
 
-                    if (call.Material.Name != prevMaterial)
+                    if (call.Material.Parameters.Name != prevMaterial)
                     {
-                        prevMaterial = call.Material.Name;
+                        prevMaterial = call.Material.Parameters.Name;
 
                         //Start at 1, texture unit 0 is reserved for the animation texture
                         var textureUnit = 1;
@@ -456,7 +456,7 @@ namespace GUI.Types.Renderer
                             }
                         }
 
-                        foreach (var param in call.Material.FloatParams)
+                        foreach (var param in call.Material.Parameters.FloatParams)
                         {
                             uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
@@ -466,22 +466,22 @@ namespace GUI.Types.Renderer
                             }
                         }
 
-                        foreach (var param in call.Material.VectorParams)
+                        foreach (var param in call.Material.Parameters.VectorParams)
                         {
                             uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
                             if (uniformLocation > -1)
                             {
-                                GL.Uniform4(uniformLocation, param.Value);
+                                GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
                             }
                         }
 
                         var alpha = 0f;
-                        if (call.Material.IntParams.ContainsKey("F_ALPHA_TEST") &&
-                            call.Material.IntParams["F_ALPHA_TEST"] == 1 &&
-                            call.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
+                        if (call.Material.Parameters.IntParams.ContainsKey("F_ALPHA_TEST") &&
+                            call.Material.Parameters.IntParams["F_ALPHA_TEST"] == 1 &&
+                            call.Material.Parameters.FloatParams.ContainsKey("g_flAlphaTestReference"))
                         {
-                            alpha = call.Material.FloatParams["g_flAlphaTestReference"];
+                            alpha = call.Material.Parameters.FloatParams["g_flAlphaTestReference"];
                         }
 
                         var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");

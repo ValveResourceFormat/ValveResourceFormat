@@ -56,87 +56,18 @@ namespace GUI.Types.Renderer
                 return mat;
             }
 
-            var matData = (NTRO)resource.Blocks[BlockType.DATA];
-            mat.Name = ((NTROValue<string>)matData.Output["m_materialName"]).Value;
-            mat.ShaderName = ((NTROValue<string>)matData.Output["m_shaderName"]).Value;
-            //mat.renderAttributesUsed = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)matData.Output["m_renderAttributesUsed"]).Value; //TODO: string array?
-            var intParams = (NTROArray)matData.Output["m_intParams"];
-            foreach (var t in intParams)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                mat.IntParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
-            }
+            mat.Parameters = (ValveResourceFormat.ResourceTypes.Material)resource.Blocks[BlockType.DATA];
 
-            var floatParams = (NTROArray)matData.Output["m_floatParams"];
-            foreach (var t in floatParams)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                mat.FloatParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
-            }
-
-            var vectorParams = (NTROArray)matData.Output["m_vectorParams"];
-            foreach (var t in vectorParams)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                // Prevent error
-                if (!mat.VectorParams.ContainsKey(((NTROValue<string>)subStruct["m_name"]).Value))
-                {
-                    mat.VectorParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
-                }
-            }
-
-            var textureParams = (NTROArray)matData.Output["m_textureParams"];
-            for (var i = 0; i < textureParams.Count; i++)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)textureParams[i]).Value;
-                mat.TextureParams.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)subStruct["m_pValue"]).Value);
-            }
-
-            var dynamicParams = (NTROArray)matData.Output["m_dynamicParams"];
-            var dynamicTextureParams = (NTROArray)matData.Output["m_dynamicTextureParams"];
-
-            var intAttributes = (NTROArray)matData.Output["m_intAttributes"];
-            foreach (var t in intAttributes)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                mat.IntAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<int>)subStruct["m_nValue"]).Value);
-            }
-
-            var floatAttributes = (NTROArray)matData.Output["m_floatAttributes"];
-            foreach (var t in floatAttributes)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                mat.FloatAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<float>)subStruct["m_flValue"]).Value);
-            }
-
-            var vectorAttributes = (NTROArray)matData.Output["m_vectorAttributes"];
-            foreach (var t in vectorAttributes)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                var ntroVector = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
-                mat.VectorAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, new OpenTK.Vector4(ntroVector.X, ntroVector.Y, ntroVector.Z, ntroVector.W));
-            }
-
-            var textureAttributes = (NTROArray)matData.Output["m_textureAttributes"];
-            //TODO
-            var stringAttributes = (NTROArray)matData.Output["m_stringAttributes"];
-            foreach (var t in stringAttributes)
-            {
-                var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                mat.StringAttributes.Add(((NTROValue<string>)subStruct["m_name"]).Value, ((NTROValue<string>)subStruct["m_value"]).Value);
-            }
-
-            foreach (var textureReference in mat.TextureParams)
+            foreach (var textureReference in mat.Parameters.TextureParams)
             {
                 var key = textureReference.Key;
 
                 mat.Textures[key] = LoadTexture(textureReference.Value.Name);
             }
 
-            if (mat.IntParams.ContainsKey("F_SOLID_COLOR") && mat.IntParams["F_SOLID_COLOR"] == 1)
+            if (mat.Parameters.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Parameters.IntParams["F_SOLID_COLOR"] == 1)
             {
-                var a = mat.VectorParams["g_vColorTint"];
+                var a = mat.Parameters.VectorParams["g_vColorTint"];
 
                 mat.Textures["g_tColor"] = GenerateSolidColorTexture(new[] { a.X, a.Y, a.Z, a.W });
             }
@@ -153,14 +84,14 @@ namespace GUI.Types.Renderer
             }
 
             // Set default values for scale and positions
-            if (!mat.VectorParams.ContainsKey("g_vTexCoordScale"))
+            if (!mat.Parameters.VectorParams.ContainsKey("g_vTexCoordScale"))
             {
-                mat.VectorParams["g_vTexCoordScale"] = OpenTK.Vector4.One;
+                mat.Parameters.VectorParams["g_vTexCoordScale"] = Vector4.One;
             }
 
-            if (!mat.VectorParams.ContainsKey("g_vTexCoordOffset"))
+            if (!mat.Parameters.VectorParams.ContainsKey("g_vTexCoordOffset"))
             {
-                mat.VectorParams["g_vTexCoordOffset"] = OpenTK.Vector4.Zero;
+                mat.Parameters.VectorParams["g_vTexCoordOffset"] = Vector4.Zero;
             }
 
             return mat;
