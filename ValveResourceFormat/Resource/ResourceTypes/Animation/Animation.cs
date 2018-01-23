@@ -283,20 +283,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <returns>float</returns>
         private float ReadHalfFloat(BinaryReader reader)
         {
-            int i = reader.ReadInt16();
-
-            var i1 = i & 0x7fff; // Non-sign bits
-            var i2 = i & 0x8000; // Sign
-            var i3 = i & 0x7c00; // Exponent
-
-            i1 <<= 13; // Shift significand
-            i2 <<= 16; // Shift sign bit;
-
-            i1 += 0x38000000; // Adjust bias
-            i1 = i3 == 0 ? 0 : i1; // Denormals as zero
-            i1 |= i2; // Add the sign bit again
-
-            return BitConverter.ToSingle(BitConverter.GetBytes(i1), 0);
+            return HalfTypeHelper.Convert(reader.ReadUInt16());
         }
 
         /// <summary>
