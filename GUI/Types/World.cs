@@ -136,52 +136,56 @@ namespace GUI.Types
                     continue;
                 }
 
-                if (classname == "point_camera" || classname == "vr_teleport_marker" || model != string.Empty)
+                var isCamera =
+                    classname == "info_player_start" ||
+                    classname == "worldspawn" ||
+                    classname == "sky_camera" ||
+                    classname == "point_devshot_camera" ||
+                    classname == "point_camera";
+
+                if (!isCamera && model == string.Empty)
                 {
-                    var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
-                    var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
+                    continue;
+                }
 
-                    var rotationVector = ParseCoordinates(angles);
-                    var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
-                    rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
-                    rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
+                var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
+                var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
 
-                    var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+                var rotationVector = ParseCoordinates(angles);
+                var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
+                rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
+                rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
 
-                    var objColor = Vector4.One;
-                    // Parse colour if present
-                    if (colour.Length == 4)
+                var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+
+                if (isCamera)
+                {
+                    renderer.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, megaMatrix);
+
+                    continue;
+                }
+
+                var objColor = Vector4.One;
+
+                // Parse colour if present
+                if (colour.Length == 4)
+                {
+                    for (var i = 0; i < 4; i++)
                     {
-                        for (var i = 0; i < 4; i++)
-                        {
-                            objColor[i] = colour[i] / 255.0f;
-                        }
-                    }
-
-                    //This model is hardcoded into the FGD
-                    if (classname == "vr_teleport_marker")
-                    {
-                        model = "models/effects/teleport/teleport_marker.vmdl";
-                    }
-
-                    if (classname == "point_camera")
-                    {
-                        renderer.AddCamera(name == string.Empty ? $"Camera {anonymousCameraCount++}" : name, megaMatrix);
-                    }
-                    else
-                    {
-                        var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
-                        if (newEntity == null)
-                        {
-                            Console.WriteLine("unable to load entity " + model + "_c");
-
-                            continue;
-                        }
-
-                        var entityModel = new Model(newEntity);
-                        entityModel.LoadMeshes(renderer, path, megaMatrix, objColor, package, skin);
+                        objColor[i] = colour[i] / 255.0f;
                     }
                 }
+
+                var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
+                if (newEntity == null)
+                {
+                    Console.WriteLine($"unable to load entity {model}_c");
+
+                    continue;
+                }
+
+                var entityModel = new Model(newEntity);
+                entityModel.LoadMeshes(renderer, path, megaMatrix, objColor, package, skin);
             }
         }
 
