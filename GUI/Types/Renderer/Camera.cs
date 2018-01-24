@@ -32,15 +32,13 @@ namespace GUI.Types.Renderer
 
         private KeyboardState KeyboardState;
 
-        public Camera(int viewportWidth, int viewportHeight, Vector3 minBounds, Vector3 maxBounds, string name = "Default")
+        public Camera(Vector3 minBounds, Vector3 maxBounds, string name = "Default")
         {
-            SetViewportSize(viewportWidth, viewportHeight);
-
             // Calculate center of bounding box
             var bboxCenter = (minBounds + maxBounds) * 0.5f;
 
             // Set initial position based on the bounding box
-            Location = bboxCenter + new Vector3(maxBounds.X * 5, 0, maxBounds.Z);
+            Location = new Vector3(maxBounds.Z, 0, maxBounds.Z) * 1.5f;
 
             // Calculate yaw and pitch
             var dir = (bboxCenter - Location).Normalized();
@@ -53,14 +51,12 @@ namespace GUI.Types.Renderer
             Name = name;
         }
 
-        public Camera(int viewportWidth, int viewportHeight, Matrix4 cameraViewMatrix, string name = "Default")
+        public Camera(Matrix4 transformationMatrix, string name = "Default")
         {
-            SetViewportSize(viewportWidth, viewportHeight);
-
-            Location = cameraViewMatrix.ExtractTranslation();
+            Location = transformationMatrix.ExtractTranslation();
 
             // Extract view direction from view matrix and use it to calculate pitch and yaw
-            var dir = cameraViewMatrix.Row0.Xyz;
+            var dir = transformationMatrix.Row0.Xyz;
             Yaw = (float)Math.Atan2(dir.Y, dir.X);
             Pitch = (float)Math.Asin(dir.Z);
 
@@ -73,7 +69,6 @@ namespace GUI.Types.Renderer
         // Make a copy of another camera
         public Camera(Camera original)
         {
-            SetViewportSize((int)original.WindowSize.X, (int)original.WindowSize.Y);
             Location = original.Location;
             Pitch = original.Pitch;
             Yaw = original.Yaw;
@@ -118,7 +113,7 @@ namespace GUI.Types.Renderer
             // Use the keyboard state to update position
             HandleKeyboardInput(deltaTime);
 
-            // Full width of the screen is a 1 * FOV rotation
+            // Full width of the screen is a 1 PI (180deg)
             Yaw -= (float)Math.PI * MouseDelta.X / WindowSize.X;
             Pitch -= (float)Math.PI * MouseDelta.Y / WindowSize.Y;
 

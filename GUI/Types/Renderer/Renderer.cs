@@ -153,6 +153,7 @@ namespace GUI.Types.Renderer
 
                 // Make a copy of the camera
                 ActiveCamera = new Camera(cameraBox.Items[e.Index] as Camera);
+                ActiveCamera.SetViewportSize(meshControl.Width, meshControl.Height);
 
                 // Repaint
                 meshControl.Update();
@@ -271,12 +272,20 @@ namespace GUI.Types.Renderer
 
             InitializeInputTick();
 
-            ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
+            // If no defaul camera was found, make one up
+            if (ActiveCamera == null)
+            {
+                ActiveCamera = new Camera(MinBounds, MaxBounds);
+            }
+
             cameraBox.Items.Add(ActiveCamera, true);
+
+            // Set camera viewport size
+            ActiveCamera.SetViewportSize(meshControl.Width, meshControl.Width);
 
             foreach (var cameraInfo in cameras)
             {
-                var camera = new Camera(tabs.Width, tabs.Height, cameraInfo.Item2, cameraInfo.Item1);
+                var camera = new Camera(cameraInfo.Item2, cameraInfo.Item1);
                 cameraBox.Items.Add(camera);
             }
 
@@ -315,8 +324,20 @@ namespace GUI.Types.Renderer
 
         public void AddCamera(string name, Matrix4 megaMatrix)
         {
-            Console.WriteLine($"Adding Camera {name} with matrix {megaMatrix}");
+            //Console.WriteLine($"Adding Camera {name} with matrix {megaMatrix}");
             cameras.Add(new Tuple<string, Matrix4>(name, megaMatrix));
+        }
+
+        public void SetDefaultWorldCamera(Vector3 target)
+        {
+            // Do a little trigonometry, we want to look at our target from a distance of 1500 units at an angle of 70deg
+            var distance = 2000;
+            var angle = MathHelper.DegreesToRadians(60);
+            var location = target + new Vector3(0, -distance * (float)Math.Cos(angle), distance * (float)Math.Sin(angle));
+            var cameraMatrix = Matrix4.CreateRotationY(angle) * Matrix4.CreateRotationZ(MathHelper.PiOver2) * Matrix4.CreateTranslation(location);
+
+            // Set camera
+            ActiveCamera = new Camera(cameraMatrix, "worldspawn");
         }
 
         private void MeshControl_Paint(object sender, PaintEventArgs e)

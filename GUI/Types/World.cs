@@ -149,18 +149,28 @@ namespace GUI.Types
                 }
 
                 var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
-                var positionMatrix = Matrix4.CreateTranslation(ParseCoordinates(position));
 
-                var rotationVector = ParseCoordinates(angles);
-                var rotationMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(rotationVector.Z));
-                rotationMatrix *= Matrix4.CreateRotationY(MathHelper.DegreesToRadians(rotationVector.X));
-                rotationMatrix *= Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(rotationVector.Y));
+                var positionVector = ParseCoordinates(position);
+                var positionMatrix = Matrix4.CreateTranslation(positionVector);
 
-                var megaMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+                var pitchYawRoll = ParseCoordinates(angles);
+                var rollMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(pitchYawRoll.Z)); // Roll
+                var pitchMatrix = Matrix4.CreateRotationY(MathHelper.DegreesToRadians(pitchYawRoll.X)); // Pitch
+                var yawMatrix = Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(pitchYawRoll.Y)); // Yaw
+
+                var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
+                var transformationMatrix = scaleMatrix * rotationMatrix * positionMatrix;
 
                 if (isCamera)
                 {
-                    renderer.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, megaMatrix);
+                    if (classname == "worldspawn")
+                    {
+                        renderer.SetDefaultWorldCamera(positionVector);
+                    }
+                    else
+                    {
+                        renderer.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, transformationMatrix);
+                    }
 
                     continue;
                 }
@@ -185,7 +195,7 @@ namespace GUI.Types
                 }
 
                 var entityModel = new Model(newEntity);
-                entityModel.LoadMeshes(renderer, path, megaMatrix, objColor, package, skin);
+                entityModel.LoadMeshes(renderer, path, transformationMatrix, objColor, package, skin);
             }
         }
 
