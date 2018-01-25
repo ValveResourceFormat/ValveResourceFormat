@@ -39,6 +39,7 @@ namespace GUI.Types.Renderer
         private GLControl meshControl;
         private Label cameraLabel;
         private Label fpsLabel;
+        private double previousFrameTime;
 
         private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
@@ -54,6 +55,7 @@ namespace GUI.Types.Renderer
         public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
         {
             PreciseTimer = new Stopwatch();
+            PreciseTimer.Start();
 
             MeshesToRender = new List<MeshObject>();
             Animations = new List<Animation.Animation>();
@@ -359,7 +361,7 @@ namespace GUI.Types.Renderer
             //Animate light position
             var lightPos = ActiveCamera.Location;
             var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
-            lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
+            lightPos += cameraLeft * 200 * (float)Math.Sin(PreciseTimer.Elapsed.TotalSeconds * 0.5);
 
             // Get animation matrices
             var animationMatrices = new float[Skeleton.Bones.Length * 16];
@@ -374,7 +376,7 @@ namespace GUI.Types.Renderer
 
             if (Animations.Count > 0)
             {
-                animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
+                animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray((float)PreciseTimer.Elapsed.TotalSeconds, Skeleton);
                 //Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
                 GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, Skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
@@ -579,10 +581,11 @@ namespace GUI.Types.Renderer
         // Get Elapsed time in seconds
         private float GetElapsedTime()
         {
-            var timeslice = PreciseTimer.Elapsed.TotalMilliseconds;
+            var timeslice = PreciseTimer.Elapsed.TotalSeconds;
 
-            PreciseTimer.Reset();
-            PreciseTimer.Start();
+            var diff = timeslice - previousFrameTime;
+
+            previousFrameTime = timeslice;
 
             return (float)timeslice * 0.001f;
         }
