@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -9,6 +10,7 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Animation;
@@ -19,8 +21,20 @@ using Vector3 = OpenTK.Vector3;
 
 namespace GUI.Types.Renderer
 {
+    public enum RenderSubject
+    {
+        Unknown,
+        Model,
+        World,
+    }
+
     internal class Renderer
     {
+        private readonly RenderSubject SubjectType;
+        private readonly Stopwatch PreciseTimer;
+        private readonly List<Tuple<string, Matrix4>> cameras;
+        private readonly DebugUtil Debug;
+
         public MaterialLoader MaterialLoader { get; }
         public Package CurrentPackage { get; }
         public string CurrentFileName { get; }
@@ -37,10 +51,11 @@ namespace GUI.Types.Renderer
         private GLControl meshControl;
         private Label cameraLabel;
         private Label fpsLabel;
+        private ComboBox renderModeComboBox;
+        private double previousFrameTime;
 
         private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
-        private readonly List<Tuple<string, Matrix4>> cameras;
 
         private Camera ActiveCamera;
         private ValveResourceFormat.ResourceTypes.Animation.Animation ActiveAnimation;
@@ -48,12 +63,15 @@ namespace GUI.Types.Renderer
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
 
-        private readonly DebugUtil Debug;
-
         private int AnimationTexture;
 
-        public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
+        public Renderer(TabControl mainTabs, string fileName, Package currentPackage, RenderSubject subjectType = RenderSubject.Unknown)
         {
+            SubjectType = subjectType;
+
+            PreciseTimer = new Stopwatch();
+            PreciseTimer.Start();
+
             MeshesToRender = new List<MeshObject>();
             Animations = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
             cameras = new List<Tuple<string, Matrix4>>();
@@ -115,6 +133,21 @@ namespace GUI.Types.Renderer
             cameraBox.CheckOnClick = true;
             controlsPanel.Controls.Add(cameraBox);
 
+            if (SubjectType == RenderSubject.Model)
+            {
+                renderModeComboBox = new ComboBox
+                {
+                    Dock = DockStyle.Top,
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                };
+                renderModeComboBox.Items.Add("Change render mode...");
+                renderModeComboBox.Items.Add("Color");
+                renderModeComboBox.Items.Add("Normals");
+                renderModeComboBox.SelectedIndex = 0;
+                renderModeComboBox.SelectedIndexChanged += OnRenderModeChange;
+                controlsPanel.Controls.Add(renderModeComboBox);
+            }
+
             panel.Controls.Add(controlsPanel);
 
 #if DEBUG
@@ -135,6 +168,33 @@ namespace GUI.Types.Renderer
             return panel;
         }
 
+        private void OnRenderModeChange(object sender, EventArgs e)
+        {
+            // Override placeholder item
+            if (renderModeComboBox.SelectedIndex > 0)
+            {
+                renderModeComboBox.Items[0] = "Default";
+            }
+
+            // Rebuild shaders with updated parameters
+            foreach (var obj in MeshesToRender)
+            {
+                foreach (var call in obj.DrawCalls)
+                {
+                    // Recycle old shader parameters that are not render modes since we are scrapping those anyway
+                    var arguments = call.Shader.Parameters.List.Where(arg => !arg.ParameterName.StartsWith("renderMode")).ToList();
+                    call.Shader.Parameters.List.Clear();
+                    call.Shader.Parameters.List.AddRange(arguments);
+                    call.Shader.Parameters.List.Add(new ArgumentDependencies.ArgumentDependency
+                    {
+                        ParameterName = $"renderMode_{renderModeComboBox.SelectedItem}",
+                        Fingerprint = 1,
+                    });
+                    call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
+                }
+            }
+        }
+
         private void CameraBox_ItemCheck(object sender, ItemCheckEventArgs e)
         {
             //https://social.msdn.microsoft.com/Forums/windows/en-US/5333cdf2-a669-467c-99ae-1530e91da43a/checkedlistbox-allow-only-one-item-to-be-selected?forum=winforms
@@ -150,7 +210,12 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                ActiveCamera = cameraBox.Items[e.Index] as Camera;
+                // Make a copy of the camera
+                ActiveCamera = new Camera(cameraBox.Items[e.Index] as Camera);
+                ActiveCamera.SetViewportSize(meshControl.Width, meshControl.Height);
+
+                // Repaint
+                meshControl.Update();
             }
             else if (e.CurrentValue == CheckState.Checked && cameraBox.CheckedItems.Count == 1)
             {
@@ -266,12 +331,20 @@ namespace GUI.Types.Renderer
 
             InitializeInputTick();
 
-            ActiveCamera = new Camera(tabs.Width, tabs.Height, MinBounds, MaxBounds);
+            // If no defaul camera was found, make one up
+            if (ActiveCamera == null)
+            {
+                ActiveCamera = new Camera(MinBounds, MaxBounds);
+            }
+
             cameraBox.Items.Add(ActiveCamera, true);
+
+            // Set camera viewport size
+            ActiveCamera.SetViewportSize(meshControl.Width, meshControl.Width);
 
             foreach (var cameraInfo in cameras)
             {
-                var camera = new Camera(tabs.Width, tabs.Height, cameraInfo.Item2, cameraInfo.Item1);
+                var camera = new Camera(cameraInfo.Item2, cameraInfo.Item1);
                 cameraBox.Items.Add(camera);
             }
 
@@ -310,8 +383,20 @@ namespace GUI.Types.Renderer
 
         public void AddCamera(string name, Matrix4 megaMatrix)
         {
-            Console.WriteLine($"Adding Camera {name} with matrix {megaMatrix}");
+            //Console.WriteLine($"Adding Camera {name} with matrix {megaMatrix}");
             cameras.Add(new Tuple<string, Matrix4>(name, megaMatrix));
+        }
+
+        public void SetDefaultWorldCamera(Vector3 target)
+        {
+            // Do a little trigonometry, we want to look at our target from a distance of 1500 units at an angle of 70deg
+            var distance = 2000;
+            var angle = MathHelper.DegreesToRadians(60);
+            var location = target + new Vector3(0, -distance * (float)Math.Cos(angle), distance * (float)Math.Sin(angle));
+            var cameraMatrix = Matrix4.CreateRotationY(angle) * Matrix4.CreateRotationZ(MathHelper.PiOver2) * Matrix4.CreateTranslation(location);
+
+            // Set camera
+            ActiveCamera = new Camera(cameraMatrix, "worldspawn");
         }
 
         private void MeshControl_Paint(object sender, PaintEventArgs e)
@@ -321,16 +406,19 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var fps = fpsLabel.Text;
-            ActiveCamera.Tick(ref fps);
-            fpsLabel.Text = fps;
+            var deltaTime = GetElapsedTime();
 
-            cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw})";
+            // Tick camera
+            ActiveCamera.Tick(deltaTime);
+
+            // Update labels
+            cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw} pitch: {ActiveCamera.Pitch})";
+            fpsLabel.Text = $"FPS: {Math.Round(1f / deltaTime)}";
 
             //Animate light position
             var lightPos = ActiveCamera.Location;
             var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
-            lightPos += cameraLeft * 200 * (float)Math.Sin(Environment.TickCount / 500.0);
+            lightPos += cameraLeft * 200 * (float)Math.Sin(PreciseTimer.Elapsed.TotalSeconds * 2);
 
             // Get animation matrices
             var animationMatrices = new float[Skeleton.Bones.Length * 16];
@@ -345,7 +433,7 @@ namespace GUI.Types.Renderer
 
             if (Animations.Count > 0)
             {
-                animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray(Environment.TickCount / 1000.0f, Skeleton);
+                animationMatrices = ActiveAnimation.GetAnimationMatricesAsArray((float)PreciseTimer.Elapsed.TotalSeconds, Skeleton);
                 //Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
                 GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, Skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
@@ -545,6 +633,18 @@ namespace GUI.Types.Renderer
             MinBounds.Y = (float)Convert.ToDouble(minBounds.Properties["1"].Value);
             MaxBounds.Z = (float)Convert.ToDouble(maxBounds.Properties["2"].Value);
             MinBounds.Z = (float)Convert.ToDouble(minBounds.Properties["2"].Value);
+        }
+
+        // Get Elapsed time in seconds
+        private float GetElapsedTime()
+        {
+            var timeslice = PreciseTimer.Elapsed.TotalSeconds;
+
+            var diff = timeslice - previousFrameTime;
+
+            previousFrameTime = timeslice;
+
+            return (float)diff;
         }
     }
 }

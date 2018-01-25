@@ -1,5 +1,9 @@
 ﻿#version 330
 
+// Render modes -- Switched on/off by code
+#define param_renderMode_Color 0
+#define param_renderMode_Normals 0
+
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -55,8 +59,18 @@ void main()
     vec4 mask1 = texture2D(g_tMasks1, vTexCoordOut);
     vec4 mask2 = texture2D(g_tMasks2, vTexCoordOut);
 
+#if param_renderMode_Color == 1
+	outputColor = vec4(color.rgb, 1.0);
+	return;
+#endif
+
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
+
+#if param_renderMode_Normals == 1
+	outputColor = vec4(worldNormal, 1.0);
+	return;
+#endif
 
     //Get shadow and light color
     vec3 shadowColor = texture2D(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;

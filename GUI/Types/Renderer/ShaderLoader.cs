@@ -93,7 +93,8 @@ namespace GUI.Types.Renderer
 #endif
             using (var reader = new StreamReader(stream))
             {
-                GL.ShaderSource(fragmentShader, reader.ReadToEnd());
+                var shaderSource = reader.ReadToEnd();
+                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, modelArguments));
             }
 
             GL.CompileShader(fragmentShader);
@@ -108,8 +109,12 @@ namespace GUI.Types.Renderer
                 throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
 
-            shader = new Shader();
-            shader.Program = GL.CreateProgram();
+            shader = new Shader
+            {
+                Name = shaderName,
+                Parameters = modelArguments,
+                Program = GL.CreateProgram(),
+            };
             GL.AttachShader(shader.Program, vertexShader);
             GL.AttachShader(shader.Program, fragmentShader);
 

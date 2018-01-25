@@ -1,10 +1,13 @@
 ﻿using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace GUI.Types.Renderer
 {
     internal class Shader
     {
+        public string Name { get; set; }
+        public ArgumentDependencies Parameters { get; set; }
         public int Program { get; set; }
         private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
 
