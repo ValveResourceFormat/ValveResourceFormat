@@ -587,7 +587,7 @@ namespace GUI.Types.Renderer
 
             previousFrameTime = timeslice;
 
-            return (float)timeslice * 0.001f;
+            return (float)diff;
         }
     }
 }
