@@ -372,7 +372,7 @@ namespace GUI
                         break;
                     case ResourceType.World:
                         var world = new World(resource);
-                        var worldmv = new Renderer(mainTabs, fileName, currentPackage);
+                        var worldmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.World);
                         world.AddObjects(worldmv, fileName, currentPackage);
 
                         var worldmeshTab = new TabPage("MAP");
@@ -399,7 +399,7 @@ namespace GUI
 
                         // Create tab
                         var modelmeshTab = new TabPage("MESH");
-                        var modelmv = new Renderer(mainTabs, fileName, currentPackage);
+                        var modelmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.Model);
                         model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
 
                         // Add skeleton to renderer

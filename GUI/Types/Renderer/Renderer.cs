@@ -11,14 +11,23 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using Timer = System.Timers.Timer;
 
 namespace GUI.Types.Renderer
 {
+    public enum RenderSubject
+    {
+        Unknown,
+        Model,
+        World,
+    }
+
     internal class Renderer
     {
+        private readonly RenderSubject SubjectType;
         private readonly Stopwatch PreciseTimer;
         private readonly List<Tuple<string, Matrix4>> cameras;
         private readonly DebugUtil Debug;
@@ -39,6 +48,7 @@ namespace GUI.Types.Renderer
         private GLControl meshControl;
         private Label cameraLabel;
         private Label fpsLabel;
+        private ComboBox renderModeComboBox;
         private double previousFrameTime;
 
         private CheckedListBox animationBox;
@@ -52,8 +62,10 @@ namespace GUI.Types.Renderer
 
         private int AnimationTexture;
 
-        public Renderer(TabControl mainTabs, string fileName, Package currentPackage)
+        public Renderer(TabControl mainTabs, string fileName, Package currentPackage, RenderSubject subjectType = RenderSubject.Unknown)
         {
+            SubjectType = subjectType;
+
             PreciseTimer = new Stopwatch();
             PreciseTimer.Start();
 
@@ -118,6 +130,21 @@ namespace GUI.Types.Renderer
             cameraBox.CheckOnClick = true;
             controlsPanel.Controls.Add(cameraBox);
 
+            if (SubjectType == RenderSubject.Model)
+            {
+                renderModeComboBox = new ComboBox
+                {
+                    Dock = DockStyle.Top,
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                };
+                renderModeComboBox.Items.Add("Change render mode...");
+                renderModeComboBox.Items.Add("Color");
+                renderModeComboBox.Items.Add("Normals");
+                renderModeComboBox.SelectedIndex = 0;
+                renderModeComboBox.SelectedIndexChanged += OnRenderModeChange;
+                controlsPanel.Controls.Add(renderModeComboBox);
+            }
+
             panel.Controls.Add(controlsPanel);
 
 #if DEBUG
@@ -136,6 +163,33 @@ namespace GUI.Types.Renderer
 
             panel.Controls.Add(meshControl);
             return panel;
+        }
+
+        private void OnRenderModeChange(object sender, EventArgs e)
+        {
+            // Override placeholder item
+            if (renderModeComboBox.SelectedIndex > 0)
+            {
+                renderModeComboBox.Items[0] = "Default";
+            }
+
+            // Rebuild shaders with updated parameters
+            foreach (var obj in MeshesToRender)
+            {
+                foreach (var call in obj.DrawCalls)
+                {
+                    // Recycle old shader parameters that are not render modes since we are scrapping those anyway
+                    var arguments = call.Shader.Parameters.List.Where(arg => !arg.ParameterName.StartsWith("renderMode")).ToList();
+                    call.Shader.Parameters.List.Clear();
+                    call.Shader.Parameters.List.AddRange(arguments);
+                    call.Shader.Parameters.List.Add(new ArgumentDependencies.ArgumentDependency
+                    {
+                        ParameterName = $"renderMode_{renderModeComboBox.SelectedItem}",
+                        Fingerprint = 1,
+                    });
+                    call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
+                }
+            }
         }
 
         private void CameraBox_ItemCheck(object sender, ItemCheckEventArgs e)
@@ -361,7 +415,7 @@ namespace GUI.Types.Renderer
             //Animate light position
             var lightPos = ActiveCamera.Location;
             var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
-            lightPos += cameraLeft * 200 * (float)Math.Sin(PreciseTimer.Elapsed.TotalSeconds * 0.5);
+            lightPos += cameraLeft * 200 * (float)Math.Sin(PreciseTimer.Elapsed.TotalSeconds * 2);
 
             // Get animation matrices
             var animationMatrices = new float[Skeleton.Bones.Length * 16];
