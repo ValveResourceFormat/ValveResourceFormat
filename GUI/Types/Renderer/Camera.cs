@@ -92,12 +92,11 @@ namespace GUI.Types.Renderer
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
             // Store window size and aspect ratio
-            AspectRatio = viewportWidth / viewportHeight;
+            AspectRatio = viewportWidth / (float)viewportHeight;
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
             // Calculate projection matrix
-            var aspectRatio = viewportWidth / (float)viewportHeight;
-            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(FOV, aspectRatio, 1.0f, 40000.0f);
+            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 40000.0f);
 
             // setup viewport
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
