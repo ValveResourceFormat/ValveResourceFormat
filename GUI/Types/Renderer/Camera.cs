@@ -115,7 +115,7 @@ namespace GUI.Types.Renderer
 
             // Full width of the screen is a 1 PI (180deg)
             Yaw -= (float)Math.PI * MouseDelta.X / WindowSize.X;
-            Pitch -= (float)Math.PI * MouseDelta.Y / WindowSize.Y;
+            Pitch -= ((float)Math.PI / AspectRatio) * MouseDelta.Y / WindowSize.Y;
 
             ClampRotation();
 
