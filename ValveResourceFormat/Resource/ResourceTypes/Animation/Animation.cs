@@ -15,21 +15,16 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 
         private Frame[] Frames;
 
-        private Skeleton Skeleton;
-
         /// <summary>
         /// Build animation from resource
         /// </summary>
         /// <param name="resource"></param>
         /// <param name="decodeKey"></param>
-        /// <param name="skeleton"></param>
-        public Animation(Resource resource, NTROStruct decodeKey, Skeleton skeleton)
+        public Animation(Resource resource, NTROStruct decodeKey)
         {
             Name = string.Empty;
             Fps = 0;
             Frames = new Frame[0];
-
-            Skeleton = skeleton;
 
             var animationData = (NTRO)resource.Blocks[BlockType.DATA];
             var animArray = (NTROArray)animationData.Output["m_animArray"];

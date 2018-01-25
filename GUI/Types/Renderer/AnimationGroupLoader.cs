@@ -5,30 +5,22 @@ using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Animation;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace GUI.Types.Renderer.Animation
 {
-    internal class AnimationGroupLoader
+    internal static class AnimationGroupLoader
     {
-        private readonly NTRO data;
-        public List<ValveResourceFormat.ResourceTypes.Animation.Animation> AnimationList { get; private set; }
-
-        public AnimationGroupLoader(Resource resource, string filename, Skeleton skeleton)
+        public static List<ValveResourceFormat.ResourceTypes.Animation.Animation> LoadAnimationGroup(Resource resource, string path)
         {
-            data = (NTRO)resource.Blocks[BlockType.DATA];
-            LoadAnimationGroup(filename, skeleton);
-        }
+            var data = (NTRO)resource.Blocks[BlockType.DATA];
 
-        private void LoadAnimationGroup(string path, Skeleton skeleton)
-        {
             // Get the list of animation files
             var animArray = (NTROArray)data.Output["m_localHAnimArray"];
             // Get the key to decode the animations
             var decodeKey = ((NTROValue<NTROStruct>)data.Output["m_decodeKey"]).Value;
 
-            AnimationList = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
+            var animationList = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
 
             // Load animation files
             foreach (var t in animArray)
@@ -42,8 +34,10 @@ namespace GUI.Types.Renderer.Animation
                 }
 
                 // Build animation classes
-                AnimationList.Add(new ValveResourceFormat.ResourceTypes.Animation.Animation(animResource, decodeKey, skeleton));
+                animationList.Add(new ValveResourceFormat.ResourceTypes.Animation.Animation(animResource, decodeKey));
             }
+
+            return animationList;
         }
     }
 }
