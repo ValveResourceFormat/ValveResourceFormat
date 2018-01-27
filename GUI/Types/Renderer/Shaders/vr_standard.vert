@@ -40,7 +40,7 @@ void main()
 #else
 	vec3 tangent = DecompressTangent(vNORMAL);
 	vNormalOut = DecompressNormal(vNORMAL);
-	vTangentOut = tangent.xyz;
+	vTangentOut = -tangent.xyz;
 	vBitangentOut = cross( vNormalOut, vTangentOut );
 #endif
 
