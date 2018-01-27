@@ -3,6 +3,13 @@
 // Render modes -- Switched on/off by code
 #define param_renderMode_Color 0
 #define param_renderMode_Normals 0
+#define param_renderMode_Tangents 0
+#define param_renderMode_BumpMap 0
+#define param_renderMode_Mask1 0
+#define param_renderMode_Mask2 0
+#define param_renderMode_Metalness 0
+#define param_renderMode_Specular 0
+#define param_renderMode_RimLight 0
 
 in vec3 vFragPosition;
 
@@ -59,20 +66,10 @@ void main()
     vec4 mask1 = texture2D(g_tMasks1, vTexCoordOut);
     vec4 mask2 = texture2D(g_tMasks2, vTexCoordOut);
 
-#if param_renderMode_Color == 1
-	outputColor = vec4(color.rgb, 1.0);
-	return;
-#endif
-
-    //Get the world normal for this fragment
+	//Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
 
-#if param_renderMode_Normals == 1
-	outputColor = vec4(worldNormal, 1.0);
-	return;
-#endif
-
-    //Get shadow and light color
+	//Get shadow and light color
     vec3 shadowColor = texture2D(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
     //Calculate half-lambert lighting
@@ -89,7 +86,7 @@ void main()
     //Get metalness for future use - mask 1 channel B
     float metalness = mask1.b;
 
-    //Calculate Blinn specular based on reflected light
+	//Calculate Blinn specular based on reflected light
     vec3 halfDir = normalize(lightDirection + viewDirection);
     float specularAngle = max(dot(halfDir, worldNormal), 0.0);
 
@@ -101,18 +98,57 @@ void main()
     //Calculate specular light color based on the specular tint map - mask 2 channel B
     vec3 specularColor = mix(vec3(1.0, 1.0, 1.0), color.rgb, mask2.b);
 
-    //Calculate rim light
-    float rimLight = 1.0 - max(dot(worldNormal, viewDirection), 0.0);
-    rimLight = smoothstep( 0.6, 1.0, rimLight );
+	//Calculate rim light
+    float rimLight = 1.0 - abs(dot(worldNormal, viewDirection));
+    rimLight = pow(rimLight, 2);
 
     //Multiply the rim light by the rim light intensity - mask 2 channel G
-    rimLight = rimLight * mask2.g * smoothstep(1.0, 0.3, metalness);
+    rimLight = rimLight * mask2.g;
 
-    //Final color
-    vec3 finalColor = ambientColor  * mix(1, 0.5, metalness) + specularColor * specular + specularColor * rimLight;
+	//Final color
+    vec3 finalColor = ambientColor  * mix(1, 0.5, metalness) + specularColor * specular + color.rgb * rimLight;
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(finalColor, color.a);
+
+	// == End of shader
+
+	// Different render mode definitions
+#if param_renderMode_Color == 1
+	outputColor = vec4(color.rgb, 1.0);
+#endif
+
+#if param_renderMode_Mask1 == 1
+	outputColor = vec4(mask1.rgb, 1.0);
+#endif
+
+#if param_renderMode_Mask2 == 1
+	outputColor = vec4(mask2.rgb, 1.0);
+#endif
+
+#if param_renderMode_BumpMap == 1
+	outputColor = texture2D(g_tNormal, vTexCoordOut);
+#endif
+
+#if param_renderMode_Tangents == 1
+	outputColor = outputColor = vec4(vTangentOut.xyz*0.5 + 0.5, 1.0);
+#endif
+
+#if param_renderMode_Normals == 1
+	outputColor = vec4(worldNormal, 1.0);
+#endif
+
+#if param_renderMode_Metalness == 1
+	outputColor = vec4(metalness, metalness, metalness, 1.0);
+#endif
+
+#if param_renderMode_Specular == 1
+	outputColor = vec4(specularColor * specular, 1.0);
+#endif
+
+#if param_renderMode_RimLight == 1
+	outputColor = vec4(color.rgb * rimLight, 1.0);
+#endif
 }
 
 

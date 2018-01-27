@@ -140,10 +140,7 @@ namespace GUI.Types.Renderer
                     Dock = DockStyle.Top,
                     DropDownStyle = ComboBoxStyle.DropDownList,
                 };
-                renderModeComboBox.Items.Add("Change render mode...");
-                renderModeComboBox.Items.Add("Color");
-                renderModeComboBox.Items.Add("Normals");
-                renderModeComboBox.SelectedIndex = 0;
+
                 renderModeComboBox.SelectedIndexChanged += OnRenderModeChange;
                 controlsPanel.Controls.Add(renderModeComboBox);
             }
@@ -355,6 +352,21 @@ namespace GUI.Types.Renderer
             {
                 obj.LoadFromResource(MaterialLoader);
             }
+
+            // Gather render modes
+            var renderModes = new string[0];
+            foreach (var mesh in MeshesToRender)
+            {
+                foreach (var call in mesh.DrawCalls)
+                {
+                    renderModes = renderModes.Union(call.Shader.RenderModes).ToArray();
+                }
+            }
+
+            renderModeComboBox.Items.Clear();
+            renderModeComboBox.Items.Add("Change render mode...");
+            renderModeComboBox.Items.AddRange(renderModes);
+            renderModeComboBox.SelectedIndex = 0;
 
 #if DEBUG
             Debug.Setup();

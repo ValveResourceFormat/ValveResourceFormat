@@ -1,5 +1,6 @@
 ﻿#define DEBUG_SHADERS
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -45,7 +46,7 @@ namespace GUI.Types.Renderer
             var shaderFileName = GetShaderFileByName(shaderName);
             var shaderCacheHash = (shaderFileName + modelArguments).GetHashCode(); // shader collision roulette
 
-            Shader shader;
+            var renderModes = new List<string>();
 
 #if !DEBUG_SHADERS || !DEBUG
             if (CachedShaders.TryGetValue(shaderCacheHash, out shader))
@@ -68,6 +69,9 @@ namespace GUI.Types.Renderer
             {
                 var shaderSource = reader.ReadToEnd();
                 GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, modelArguments));
+
+                // Find render modes supported from source
+                renderModes.AddRange(FindRenderModes(shaderSource));
             }
 
             GL.CompileShader(vertexShader);
@@ -95,6 +99,9 @@ namespace GUI.Types.Renderer
             {
                 var shaderSource = reader.ReadToEnd();
                 GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, modelArguments));
+
+                // Find render modes supported from source, take union to avoid duplicates
+                renderModes = renderModes.Union(FindRenderModes(shaderSource)).ToList();
             }
 
             GL.CompileShader(fragmentShader);
@@ -109,11 +116,12 @@ namespace GUI.Types.Renderer
                 throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
 
-            shader = new Shader
+            var shader = new Shader
             {
                 Name = shaderName,
                 Parameters = modelArguments,
                 Program = GL.CreateProgram(),
+                RenderModes = renderModes,
             };
             GL.AttachShader(shader.Program, vertexShader);
             GL.AttachShader(shader.Program, fragmentShader);
@@ -219,6 +227,12 @@ namespace GUI.Types.Renderer
             }
 
             return source;
+        }
+
+        private static List<string> FindRenderModes(string source)
+        {
+            var renderModeDefines = Regex.Matches(source, @"#define param_renderMode_(\S+)");
+            return renderModeDefines.Cast<Match>().Select(_ => _.Groups[1].Value).ToList();
         }
     }
 }

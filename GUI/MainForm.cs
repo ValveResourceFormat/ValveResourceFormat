@@ -428,7 +428,7 @@ namespace GUI
                         }
 
                         var meshTab = new TabPage("MESH");
-                        var mv = new Renderer(mainTabs, fileName, currentPackage);
+                        var mv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.Model);
 
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, Renderer = mv });
 

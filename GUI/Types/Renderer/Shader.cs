@@ -9,6 +9,8 @@ namespace GUI.Types.Renderer
         public string Name { get; set; }
         public ArgumentDependencies Parameters { get; set; }
         public int Program { get; set; }
+        public List<string> RenderModes { get; set; }
+
         private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
 
         public int GetUniformLocation(string name)
