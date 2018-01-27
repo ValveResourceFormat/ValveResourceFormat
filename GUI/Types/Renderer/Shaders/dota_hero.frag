@@ -2,6 +2,7 @@
 
 // Render modes -- Switched on/off by code
 #define param_renderMode_Color 0
+#define param_renderMode_BumpNormals 0
 #define param_renderMode_Normals 0
 #define param_renderMode_Tangents 0
 #define param_renderMode_BumpMap 0
@@ -93,7 +94,7 @@ void main()
     //Calculate final specular based on specular exponent - mask 2 channel A
     float specular = pow(specularAngle, mask2.a * 100);
     //Multiply by mapped specular intensity - mask 2 channel R
-    specular = specular * mask2.r;
+    specular = illumination * specular * mask2.r;
 
     //Calculate specular light color based on the specular tint map - mask 2 channel B
     vec3 specularColor = mix(vec3(1.0, 1.0, 1.0), color.rgb, mask2.b);
@@ -131,10 +132,14 @@ void main()
 #endif
 
 #if param_renderMode_Tangents == 1
-	outputColor = outputColor = vec4(vTangentOut.xyz*0.5 + 0.5, 1.0);
+	outputColor = outputColor = vec4(vTangentOut.xyz, 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
+	outputColor = vec4(vNormalOut, 1.0);
+#endif
+
+#if param_renderMode_BumpNormals == 1
 	outputColor = vec4(worldNormal, 1.0);
 #endif
 
