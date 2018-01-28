@@ -1,8 +1,8 @@
 ﻿#define DEBUG_SHADERS
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
@@ -76,13 +76,11 @@ namespace GUI.Types.Renderer
 
             GL.CompileShader(vertexShader);
 
-            int shaderStatus;
-            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out shaderStatus);
+            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out var shaderStatus);
 
             if (shaderStatus != 1)
             {
-                string vsInfo;
-                GL.GetShaderInfoLog(vertexShader, out vsInfo);
+                GL.GetShaderInfoLog(vertexShader, out var vsInfo);
 
                 throw new Exception($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
             }
@@ -110,8 +108,7 @@ namespace GUI.Types.Renderer
 
             if (shaderStatus != 1)
             {
-                string fsInfo;
-                GL.GetShaderInfoLog(fragmentShader, out fsInfo);
+                GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
 
                 throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
@@ -133,13 +130,11 @@ namespace GUI.Types.Renderer
 
             GL.ValidateProgram(shader.Program);
 
-            int linkStatus;
-            GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out linkStatus);
+            GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
 
             if (linkStatus != 1)
             {
-                string linkInfo;
-                GL.GetProgramInfoLog(shader.Program, out linkInfo);
+                GL.GetProgramInfoLog(shader.Program, out var linkInfo);
                 throw new Exception("Error linking shaders: " + linkInfo);
             }
 
