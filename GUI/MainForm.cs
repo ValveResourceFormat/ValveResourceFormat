@@ -242,20 +242,12 @@ namespace GUI
                         package.Read(fileName);
                     }
                 }
-                catch (InvalidDataException) when (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+                catch (InvalidDataException) when (input == null && Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
                 {
                     // TODO: Update tab name
                     fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
 
-                    if (input != null)
-                    {
-                        package.SetFileName(fileName);
-                        package.Read(new MemoryStream(input));
-                    }
-                    else
-                    {
-                        package.Read(fileName);
-                    }
+                    package.Read(fileName);
                 }
 
                 // create a TreeView with search capabilities, register its events, and add it to the tab
