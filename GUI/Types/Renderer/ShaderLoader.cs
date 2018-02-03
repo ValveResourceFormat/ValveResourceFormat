@@ -49,9 +49,9 @@ namespace GUI.Types.Renderer
             var renderModes = new List<string>();
 
 #if !DEBUG_SHADERS || !DEBUG
-            if (CachedShaders.TryGetValue(shaderCacheHash, out shader))
+            if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
             {
-                return shader;
+                return cachedShader;
             }
 #endif
 
