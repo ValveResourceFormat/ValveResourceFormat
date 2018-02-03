@@ -117,9 +117,12 @@ void main(void) {
             GL.UseProgram(shaderProgram);
 
             var uniformLocation = GL.GetUniformLocation(shaderProgram, "uProjection");
-            GL.UniformMatrix4(uniformLocation, false, ref camera.ProjectionMatrix);
+            var matrix = camera.ProjectionMatrix;
+            GL.UniformMatrix4(uniformLocation, false, ref matrix);
+
             uniformLocation = GL.GetUniformLocation(shaderProgram, "uView");
-            GL.UniformMatrix4(uniformLocation, false, ref camera.CameraViewMatrix);
+            matrix = camera.CameraViewMatrix;
+            GL.UniformMatrix4(uniformLocation, false, ref matrix);
 
             foreach (var obj in objects)
             {

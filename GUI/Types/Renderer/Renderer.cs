@@ -474,10 +474,12 @@ namespace GUI.Types.Renderer
                         GL.UseProgram(call.Shader.Program);
 
                         uniformLocation = call.Shader.GetUniformLocation("projection");
-                        GL.UniformMatrix4(uniformLocation, false, ref ActiveCamera.ProjectionMatrix);
+                        var matrix = ActiveCamera.ProjectionMatrix;
+                        GL.UniformMatrix4(uniformLocation, false, ref matrix);
 
                         uniformLocation = call.Shader.GetUniformLocation("modelview");
-                        GL.UniformMatrix4(uniformLocation, false, ref ActiveCamera.CameraViewMatrix);
+                        matrix = ActiveCamera.CameraViewMatrix;
+                        GL.UniformMatrix4(uniformLocation, false, ref matrix);
 
                         uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
                         GL.Uniform3(uniformLocation, lightPos);

@@ -16,8 +16,8 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
-        public Matrix4 ProjectionMatrix;
-        public Matrix4 CameraViewMatrix;
+        public Matrix4 ProjectionMatrix { get; private set; }
+        public Matrix4 CameraViewMatrix { get; private set; }
 
         // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }
