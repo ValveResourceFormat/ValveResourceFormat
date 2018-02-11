@@ -61,6 +61,16 @@ namespace GUI
             Settings.Load();
 
             NewLineRegex = new Regex(@"\r\n|\n\r|\n|\r", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture);
+
+            string[] args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                string file = args[i];
+                if (File.Exists(file) && IsCompatibleFile(file))
+                {
+                    OpenFile(file);
+                }
+            }
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -145,6 +155,11 @@ namespace GUI
             form.ShowDialog(this);
         }
 
+        private bool IsCompatibleFile(string file)
+        {
+            return file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal);
+        }
+
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var openDialog = new OpenFileDialog
@@ -168,7 +183,7 @@ namespace GUI
 
             foreach (var file in openDialog.FileNames)
             {
-                if (file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal))
+                if (IsCompatibleFile(file))
                 {
                     OpenFile(file);
                 }
@@ -587,7 +602,7 @@ namespace GUI
                 var file = node.Tag as PackageEntry;
                 package.ReadEntry(file, out var output);
 
-                if (file.TypeName.EndsWith("_c", StringComparison.Ordinal) || file.TypeName == "vpk" || file.TypeName == "vcs")
+                if (IsCompatibleFile(file.GetFullPath()))
                 {
                     OpenFile(file.FileName + "." + file.TypeName, output, package);
                 }
@@ -633,7 +648,10 @@ namespace GUI
 
             foreach (var fileName in files)
             {
-                OpenFile(fileName);
+                if (IsCompatibleFile(fileName))
+                {
+                    OpenFile(fileName);
+                }
             }
         }
 
