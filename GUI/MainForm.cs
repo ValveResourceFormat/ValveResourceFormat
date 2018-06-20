@@ -308,6 +308,34 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
+            else if (fileName.EndsWith(".pbin", StringComparison.Ordinal))
+            {
+                var panorama = new PackedPanorama();
+
+                var buffer = new StringWriter();
+                var oldOut = Console.Out;
+                Console.SetOut(buffer);
+
+                if (input != null)
+                {
+                    panorama.Read(new MemoryStream(input));
+                }
+                else
+                {
+                    panorama.Read(fileName);
+                }
+
+                Console.SetOut(oldOut);
+
+                var control = new TextBox();
+                control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                control.Text = NormalizeLineEndings(buffer.ToString());
+                control.Dock = DockStyle.Fill;
+                control.Multiline = true;
+                control.ReadOnly = true;
+                control.ScrollBars = ScrollBars.Both;
+                tab.Controls.Add(control);
+            }
             else
             {
                 var resource = new Resource();

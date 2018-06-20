@@ -166,6 +166,11 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("Use CompiledShader() class to parse compiled shader files.");
             }
 
+            if (FileSize == PackedPanorama.MAGIC)
+            {
+                throw new InvalidDataException("Use PackedPanorama() class to parse packed panorama files.");
+            }
+
             // TODO: Some real files seem to have different file size
             if (FileSize != Reader.BaseStream.Length)
             {
