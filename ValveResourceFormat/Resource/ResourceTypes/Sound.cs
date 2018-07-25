@@ -9,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public enum AudioFileType
         {
-            Unknown0 = 0,
+            AAC = 0,
             WAV = 1,
             MP3 = 2,
             Unknown3 = 3,
@@ -100,7 +100,7 @@ namespace ValveResourceFormat.ResourceTypes
             AudioFormat = ExtractSub(bitpackedSoundInfo, 12, 2);
             SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
 
-            if (Type != AudioFileType.MP3 && Type != AudioFileType.WAV)
+            if (Type > AudioFileType.MP3)
             {
                 throw new NotImplementedException($"Unknown audio file format '{Type}', please report this on GitHub.");
             }
@@ -202,6 +202,7 @@ namespace ValveResourceFormat.ResourceTypes
             output += "\nSampleSize: " + SampleSize;
             output += "\nFormat: " + AudioFormat;
             output += "\nChannels: " + Channels;
+            output += "\nOffset: " + (Offset + Size);
 
             return output;
         }

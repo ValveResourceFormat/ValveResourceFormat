@@ -29,6 +29,11 @@ namespace GUI.Types.Audio
                 var rawSource = new Mp3FileReader(stream);
                 waveOut.Init(rawSource);
             }
+            else if (soundData.Type == Sound.AudioFileType.AAC)
+            {
+                var rawSource = new StreamMediaFoundationReader(stream);
+                waveOut.Init(rawSource);
+            }
 
             playButton = new Button();
             playButton.Text = "Play";
