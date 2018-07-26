@@ -202,7 +202,6 @@ namespace ValveResourceFormat.ResourceTypes
             output += "\nSampleSize: " + SampleSize;
             output += "\nFormat: " + AudioFormat;
             output += "\nChannels: " + Channels;
-            output += "\nOffset: " + (Offset + Size);
 
             return output;
         }
