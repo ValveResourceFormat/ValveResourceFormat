@@ -20,7 +20,7 @@ namespace ValveResourceFormat.ThirdParty
 {
     internal static class DDSImage
     {
-        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h)
+        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h, int nw = 0, int nh = 0)
         {
             var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
 
@@ -35,6 +35,21 @@ namespace ValveResourceFormat.ThirdParty
                 {
                     var blockStorage = r.ReadBytes(8);
                     DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes);
+                }
+            }
+
+            if (nw > 0 && nh > 0 & w >= nw & h >= nh)
+            {
+                var powerOfTwoBitmap = CreateBitmap(imageInfo, ref data);
+                var sourceBitmap = new SKBitmap(nw, nh);
+                var ok = powerOfTwoBitmap.ExtractSubset(sourceBitmap, SKRectI.Create(0, 0, nw, nh));
+                if (ok)
+                {
+                    return sourceBitmap;
+                }
+                else
+                {
+                    return powerOfTwoBitmap;
                 }
             }
 
@@ -114,7 +129,7 @@ namespace ValveResourceFormat.ThirdParty
             }
         }
 
-        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg)
+        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg, int nw = 0, int nh = 0)
         {
             var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
@@ -129,6 +144,21 @@ namespace ValveResourceFormat.ThirdParty
                 {
                     var blockStorage = r.ReadBytes(16);
                     DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
+                }
+            }
+
+            if (nw > 0 && nh > 0 & w >= nw & h >= nh)
+            {
+                var powerOfTwoBitmap = CreateBitmap(imageInfo, ref data);
+                var sourceBitmap = new SKBitmap(nw, nh);
+                var ok = powerOfTwoBitmap.ExtractSubset(sourceBitmap, SKRectI.Create(0, 0, nw, nh));
+                if (ok)
+                {
+                    return sourceBitmap;
+                }
+                else
+                {
+                    return powerOfTwoBitmap;
                 }
             }
 
