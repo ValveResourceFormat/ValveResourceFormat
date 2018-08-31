@@ -266,9 +266,9 @@ namespace ValveResourceFormat.ResourceTypes
                 writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);
                 writer.WriteLine("{0,-12} = {1}", "Width", Width);
                 writer.WriteLine("{0,-12} = {1}", "Height", Height);
-                //writer.WriteLine("{0,-25} NonPowerOfTwoWidth  = {1}", string.Empty, NonPowerOfTwoWidth);
-                //writer.WriteLine("{0,-25} NonPowerOfTwoHeight = {1}", string.Empty, NonPowerOfTwoHeight);
                 writer.WriteLine("{0,-12} = {1}", "Depth", Depth);
+                writer.WriteLine("{0,-12} = {1}", "NonPow2W", NonPowerOfTwoWidth);
+                writer.WriteLine("{0,-12} = {1}", "NonPow2H", NonPowerOfTwoHeight);
                 writer.WriteLine("{0,-12} = ( {1:F6}, {2:F6}, {3:F6}, {4:F6} )", "Reflectivity", Reflectivity[0], Reflectivity[1], Reflectivity[2], Reflectivity[3]);
                 writer.WriteLine("{0,-12} = {1}", "NumMipLevels", NumMipLevels);
                 writer.WriteLine("{0,-12} = {1}", "Picmip0Res", Picmip0Res);
