@@ -8,6 +8,7 @@ namespace ValveResourceFormat
         UNKNOWN = 0,
         FALLBACK_BITS = 1,
         SHEET = 2,
+        FILL_TO_POWER_OF_TWO = 3,
 #pragma warning restore 1591
     }
 }

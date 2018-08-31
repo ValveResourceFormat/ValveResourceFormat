@@ -35,9 +35,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         public Dictionary<VTexExtraData, byte[]> ExtraData { get; private set; }
 
-        public ushort NonPowerOfTwoWidth { get; private set; }
+        public ushort NonPow2Width { get; private set; }
 
-        public ushort NonPowerOfTwoHeight { get; private set; }
+        public ushort NonPow2Height { get; private set; }
 
         public Texture()
         {
@@ -70,12 +70,11 @@ namespace ValveResourceFormat.ResourceTypes
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
             Depth = reader.ReadUInt16();
+            NonPow2Width = 0;
+            NonPow2Height = 0;
             Format = (VTexFormat)reader.ReadByte();
             NumMipLevels = reader.ReadByte();
             Picmip0Res = reader.ReadUInt32();
-
-            NonPowerOfTwoWidth = 0;
-            NonPowerOfTwoHeight = 0;
 
             var extraDataOffset = reader.ReadUInt32();
             var extraDataCount = reader.ReadUInt32();
@@ -94,15 +93,15 @@ namespace ValveResourceFormat.ResourceTypes
 
                     reader.BaseStream.Position += offset;
 
-                    if (type == 3)
+                    if ((VTexExtraData)type == VTexExtraData.FILL_TO_POWER_OF_TWO)
                     {
                         reader.ReadUInt16();
                         var nw = reader.ReadUInt16();
                         var nh = reader.ReadUInt16();
                         if (nw > 0 && nh > 0 && Width >= nw && Height >= nh)
                         {
-                            NonPowerOfTwoWidth = nw;
-                            NonPowerOfTwoHeight = nh;
+                            NonPow2Width = nw;
+                            NonPow2Height = nh;
                         }
 
                         reader.BaseStream.Position -= 6;
@@ -170,7 +169,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
 
-                        return DDSImage.UncompressDXT1(Reader, Width, Height, NonPowerOfTwoWidth, NonPowerOfTwoHeight);
+                        return DDSImage.UncompressDXT1(Reader, Width, Height, NonPow2Width, NonPow2Height);
                     }
 
                     break;
@@ -205,7 +204,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
 
-                        return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg, NonPowerOfTwoWidth, NonPowerOfTwoHeight);
+                        return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
                     }
 
                     break;
@@ -267,8 +266,8 @@ namespace ValveResourceFormat.ResourceTypes
                 writer.WriteLine("{0,-12} = {1}", "Width", Width);
                 writer.WriteLine("{0,-12} = {1}", "Height", Height);
                 writer.WriteLine("{0,-12} = {1}", "Depth", Depth);
-                writer.WriteLine("{0,-12} = {1}", "NonPow2W", NonPowerOfTwoWidth);
-                writer.WriteLine("{0,-12} = {1}", "NonPow2H", NonPowerOfTwoHeight);
+                writer.WriteLine("{0,-12} = {1}", "NonPow2W", NonPow2Width);
+                writer.WriteLine("{0,-12} = {1}", "NonPow2H", NonPow2Height);
                 writer.WriteLine("{0,-12} = ( {1:F6}, {2:F6}, {3:F6}, {4:F6} )", "Reflectivity", Reflectivity[0], Reflectivity[1], Reflectivity[2], Reflectivity[3]);
                 writer.WriteLine("{0,-12} = {1}", "NumMipLevels", NumMipLevels);
                 writer.WriteLine("{0,-12} = {1}", "Picmip0Res", Picmip0Res);
