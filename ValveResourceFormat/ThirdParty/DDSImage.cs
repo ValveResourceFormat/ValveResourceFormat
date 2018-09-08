@@ -22,7 +22,10 @@ namespace ValveResourceFormat.ThirdParty
     {
         public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h, int nw = 0, int nh = 0)
         {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
+            var nwidth = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nw : w;
+            var nheight = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nh : h;
+
+            var imageInfo = new SKImageInfo(nwidth, nheight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -34,22 +37,7 @@ namespace ValveResourceFormat.ThirdParty
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(8);
-                    DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes);
-                }
-            }
-
-            if (nw > 0 && nh > 0 & w >= nw & h >= nh)
-            {
-                var powerOfTwoBitmap = CreateBitmap(imageInfo, ref data);
-                var sourceBitmap = new SKBitmap(nw, nh);
-                var ok = powerOfTwoBitmap.ExtractSubset(sourceBitmap, SKRectI.Create(0, 0, nw, nh));
-                if (ok)
-                {
-                    return sourceBitmap;
-                }
-                else
-                {
-                    return powerOfTwoBitmap;
+                    DecompressBlockDXT1(i * 4, j * 4, nwidth, blockStorage, ref data, imageInfo.RowBytes);
                 }
             }
 
@@ -131,7 +119,10 @@ namespace ValveResourceFormat.ThirdParty
 
         public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg, int nw = 0, int nh = 0)
         {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var nwidth = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nw : w;
+            var nheight = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nh : h;
+
+            var imageInfo = new SKImageInfo(nwidth, nheight, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -143,22 +134,7 @@ namespace ValveResourceFormat.ThirdParty
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
-                }
-            }
-
-            if (nw > 0 && nh > 0 & w >= nw & h >= nh)
-            {
-                var powerOfTwoBitmap = CreateBitmap(imageInfo, ref data);
-                var sourceBitmap = new SKBitmap(nw, nh);
-                var ok = powerOfTwoBitmap.ExtractSubset(sourceBitmap, SKRectI.Create(0, 0, nw, nh));
-                if (ok)
-                {
-                    return sourceBitmap;
-                }
-                else
-                {
-                    return powerOfTwoBitmap;
+                    DecompressBlockDXT5(i * 4, j * 4, nwidth, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
                 }
             }
 
