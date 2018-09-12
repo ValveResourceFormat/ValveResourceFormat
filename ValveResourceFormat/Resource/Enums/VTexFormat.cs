@@ -21,6 +21,8 @@ namespace ValveResourceFormat
         RGB323232F = 13, // TODO: Not used in dota
         RGBA32323232F = 14, // TODO: Not used in dota
         PNG = 16, // TODO: resourceinfo doesn't know about this
+        JPG = 17,
+        PNG2 = 18, // TODO: Why is there PNG twice?
 #pragma warning restore 1591
     }
 }

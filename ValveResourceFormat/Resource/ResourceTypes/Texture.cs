@@ -209,16 +209,16 @@ namespace ValveResourceFormat.ResourceTypes
 
                     break;
 
-                case (VTexFormat)17:
-                case (VTexFormat)18:
+                case VTexFormat.JPG:
+                case VTexFormat.PNG2:
                 case VTexFormat.PNG:
-                    return ReadPNG();
+                    return ReadBuffer();
             }
 
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
         }
 
-        private SKBitmap ReadPNG()
+        private SKBitmap ReadBuffer()
         {
             return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
         }
