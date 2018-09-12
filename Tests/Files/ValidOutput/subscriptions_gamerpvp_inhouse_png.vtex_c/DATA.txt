@@ -2,6 +2,8 @@
 	Width        = 256
 	Height       = 170
 	Depth        = 1
+	NonPow2W     = 0
+	NonPow2H     = 0
 	Reflectivity = ( 0.638331, 0.649835, 0.602109, 0.999334 )
 	NumMipLevels = 1
 	Picmip0Res   = 0
