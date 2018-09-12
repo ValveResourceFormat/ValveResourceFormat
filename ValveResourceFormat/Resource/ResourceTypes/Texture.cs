@@ -123,56 +123,17 @@ namespace ValveResourceFormat.ResourceTypes
             switch (Format)
             {
                 case VTexFormat.RGBA8888:
-                    for (ushort i = 0; i < Depth && i < 0xFF; ++i)
-                    {
-                        // Horribly skip all mipmaps
-                        // TODO: Either this needs to be optimized, or allow saving each individual mipmap
-                        for (var j = NumMipLevels; j > 0; j--)
-                        {
-                            if (j == 1)
-                            {
-                                break;
-                            }
+                    SkipMipmaps(4);
 
-                            for (var k = 0; k < Height / Math.Pow(2.0, j - 1); ++k)
-                            {
-                                Reader.BaseStream.Position += (int)((4 * Width) / Math.Pow(2.0f, j - 1));
-                            }
-                        }
-
-                        return ReadRGBA8888(Reader, Width, Height);
-                    }
-
-                    break;
+                    return ReadRGBA8888(Reader, Width, Height);
 
                 case VTexFormat.RGBA16161616F:
                     return ReadRGBA16161616F(Reader, Width, Height);
 
                 case VTexFormat.DXT1:
-                    for (ushort i = 0; i < Depth && i < 0xFF; ++i)
-                    {
-                        // Horribly skip all mipmaps
-                        // TODO: Either this needs to be optimized, or allow saving each individual mipmap
-                        for (var j = NumMipLevels; j > 0; j--)
-                        {
-                            if (j == 1)
-                            {
-                                break;
-                            }
+                    SkipMipmaps(8);
 
-                            for (var k = 0; k < Height / Math.Pow(2.0, j + 1); ++k)
-                            {
-                                for (var l = 0; l < Width / Math.Pow(2.0, j + 1); ++l)
-                                {
-                                    Reader.BaseStream.Position += 8;
-                                }
-                            }
-                        }
-
-                        return DDSImage.UncompressDXT1(Reader, Width, Height, NonPow2Width, NonPow2Height);
-                    }
-
-                    break;
+                    return DDSImage.UncompressDXT1(Reader, Width, Height, NonPow2Width, NonPow2Height);
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -184,30 +145,9 @@ namespace ValveResourceFormat.ResourceTypes
                         yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
                     }
 
-                    for (ushort i = 0; i < Depth && i < 0xFF; ++i)
-                    {
-                        // Horribly skip all mipmaps
-                        // TODO: Either this needs to be optimized, or allow saving each individual mipmap
-                        for (var j = NumMipLevels; j > 0; j--)
-                        {
-                            if (j == 1)
-                            {
-                                break;
-                            }
+                    SkipMipmaps(16);
 
-                            for (var k = 0; k < Height / Math.Pow(2.0, j + 1); ++k)
-                            {
-                                for (var l = 0; l < Width / Math.Pow(2.0, j + 1); ++l)
-                                {
-                                    Reader.BaseStream.Position += 16;
-                                }
-                            }
-                        }
-
-                        return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
-                    }
-
-                    break;
+                    return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
 
                 case VTexFormat.JPG:
                 case VTexFormat.PNG2:
@@ -216,6 +156,21 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
+        }
+
+        private void SkipMipmaps(int bytesPerPixel)
+        {
+            for (var j = NumMipLevels; j > 0; j--)
+            {
+                if (j == 1)
+                {
+                    break;
+                }
+
+                var size = Math.Pow(2.0f, j + 1);
+
+                Reader.BaseStream.Position += (int)((bytesPerPixel * Width) / size * (Height / size));
+            }
         }
 
         private SKBitmap ReadBuffer()
