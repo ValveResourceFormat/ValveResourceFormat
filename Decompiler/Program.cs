@@ -138,13 +138,6 @@ namespace Decompiler
                 return;
             }
 
-            if (extension == ".pbin")
-            {
-                ParsePBin(path);
-
-                return;
-            }
-
             lock (ConsoleWriterLock)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -426,32 +419,6 @@ namespace Decompiler
             }
 
             shader.Dispose();
-        }
-
-        private static void ParsePBin(string path)
-        {
-            lock (ConsoleWriterLock)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("--- Loading packed panorama file \"{0}\" ---", path);
-                Console.ResetColor();
-            }
-
-            var font = new PackedPanorama();
-
-            try
-            {
-                font.Read(path);
-            }
-            catch (Exception e)
-            {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
-            }
         }
 
         private static void ParseVFont(string path)
