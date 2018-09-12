@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <ApplicationIcon>..\Icons\Programs\1444493468_exploring-bugs.ico</ApplicationIcon>
+    <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
     <TargetFrameworkProfile />
     <StartupObject>GUI.Program</StartupObject>
   </PropertyGroup>
