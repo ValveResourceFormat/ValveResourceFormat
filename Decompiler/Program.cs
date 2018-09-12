@@ -98,9 +98,14 @@ namespace Decompiler
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
-                    Console.WriteLine("{0,5} resources of version {2} and type {1}{3} - {4}", stat.Value.Count, stat.Value.Type, stat.Value.Version,
-                        stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : "", stat.Value.FilePath
+                    Console.WriteLine("{0,5} resources of version {2} and type {1}{3}", stat.Value.Count, stat.Value.Type, stat.Value.Version,
+                        stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : ""
                     );
+
+                    foreach(var file in stat.Value.FilePaths)
+                    {
+                        Console.WriteLine($"\t\t{file}");
+                    }
                 }
 
                 Console.WriteLine();
@@ -209,7 +214,10 @@ namespace Decompiler
                     {
                         if (stats.ContainsKey(id))
                         {
-                            stats[id].Count++;
+                            if (stats[id].Count++ < 10)
+                            {
+                                stats[id].FilePaths.Add(path);
+                            }
                         }
                         else
                         {

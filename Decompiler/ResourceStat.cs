@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using ValveResourceFormat;
 
 namespace Decompiler
@@ -9,7 +10,7 @@ namespace Decompiler
         public ushort Version;
         public uint Count;
         public string Info;
-        public string FilePath;
+        public List<string> FilePaths;
 
         public ResourceStat(Resource resource, string info = "", string filePath = "")
         {
@@ -17,7 +18,7 @@ namespace Decompiler
             Version = resource.Version;
             Count = 1;
             Info = info;
-            FilePath = filePath;
+            FilePaths = new List<string>() { filePath };
         }
     }
 }
