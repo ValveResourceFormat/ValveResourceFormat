@@ -159,7 +159,9 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.R16F:
-                    break;
+                    SkipMipmaps(2);
+
+                    return ReadR16F(Reader, Width, Height);
 
                 case VTexFormat.RG1616F:
                     break;
@@ -214,6 +216,23 @@ namespace ValveResourceFormat.ResourceTypes
                 for (var x = 0; x < w; x++)
                 {
                     res.SetPixel(x, y, new SKColor(r.ReadUInt32()));
+                }
+            }
+
+            return res;
+        }
+
+        private static SKBitmap ReadR16F(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+
+                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
                 }
             }
 
