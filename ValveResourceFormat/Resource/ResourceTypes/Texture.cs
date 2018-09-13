@@ -122,14 +122,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             switch (Format)
             {
-                case VTexFormat.RGBA8888:
-                    SkipMipmaps(4);
-
-                    return ReadRGBA8888(Reader, Width, Height);
-
-                case VTexFormat.RGBA16161616F:
-                    return ReadRGBA16161616F(Reader, Width, Height);
-
                 case VTexFormat.DXT1:
                     SkipMipmaps(8);
 
@@ -149,6 +141,44 @@ namespace ValveResourceFormat.ResourceTypes
 
                     return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
 
+                case VTexFormat.I8:
+                    break;
+
+                case VTexFormat.RGBA8888:
+                    SkipMipmaps(4);
+
+                    return ReadRGBA8888(Reader, Width, Height);
+
+                case VTexFormat.R16:
+                    break;
+
+                case VTexFormat.RG1616:
+                    break;
+
+                case VTexFormat.RGBA16161616:
+                    break;
+
+                case VTexFormat.R16F:
+                    break;
+
+                case VTexFormat.RG1616F:
+                    break;
+
+                case VTexFormat.RGBA16161616F:
+                    return ReadRGBA16161616F(Reader, Width, Height);
+
+                case VTexFormat.R32F:
+                    break;
+
+                case VTexFormat.RG3232F:
+                    break;
+
+                case VTexFormat.RGB323232F:
+                    break;
+
+                case VTexFormat.RGBA32323232F:
+                    break;
+
                 case VTexFormat.JPG:
                 case VTexFormat.PNG2:
                 case VTexFormat.PNG:
@@ -160,13 +190,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void SkipMipmaps(int bytesPerPixel)
         {
-            for (var j = NumMipLevels; j > 0; j--)
+            for (var j = NumMipLevels; j > 1; j--)
             {
-                if (j == 1)
-                {
-                    break;
-                }
-
                 var size = Math.Pow(2.0f, j + 1);
 
                 Reader.BaseStream.Position += (int)((bytesPerPixel * Width) / size * (Height / size));
