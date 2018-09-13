@@ -269,7 +269,7 @@ namespace ValveResourceFormat.ThirdParty
             }
         }
 
-        private static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
+        public static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
         {
             // pin the managed array so that the GC doesn't move it
             var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
