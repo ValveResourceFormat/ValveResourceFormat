@@ -222,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
         {
-            var res = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             for (var y = 0; y < h; y++)
             {
