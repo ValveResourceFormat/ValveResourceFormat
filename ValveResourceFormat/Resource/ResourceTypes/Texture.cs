@@ -165,6 +165,8 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.RGBA16161616F:
+                    SkipMipmaps(8);
+
                     return ReadRGBA16161616F(Reader, Width, Height);
 
                 case VTexFormat.R32F:
@@ -220,18 +222,18 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
         {
-            var res = new SKBitmap(w, h, SKColorType.RgbaF16, SKAlphaType.Unpremul);
+            var res = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
 
-            while (h-- > 0)
+            for (var y = 0; y < h; y++)
             {
-                while (w-- > 0)
+                for (var x = 0; x < w; x++)
                 {
-                    var red = (byte)r.ReadDouble();
-                    var green = (byte)r.ReadDouble();
-                    var blue = (byte)r.ReadDouble();
-                    var alpha = (byte)r.ReadDouble();
+                    var red = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                    var green = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                    var blue = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                    var alpha = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
 
-                    res.SetPixel(w, h, new SKColor(red, green, blue, alpha));
+                    res.SetPixel(x, y, new SKColor(red, green, blue, alpha));
                 }
             }
 
