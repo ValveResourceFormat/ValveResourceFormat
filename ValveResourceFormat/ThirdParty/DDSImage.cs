@@ -263,7 +263,7 @@ namespace ValveResourceFormat.ThirdParty
                         pixels[pixelIndex] = finalB;
                         pixels[pixelIndex + 1] = finalG;
                         pixels[pixelIndex + 2] = finalR;
-                        pixels[pixelIndex + 3] = byte.MaxValue; // TODO: Where's my alpha at?
+                        pixels[pixelIndex + 3] = finalAlpha;
                     }
                 }
             }
