@@ -152,10 +152,14 @@ namespace ValveResourceFormat.ResourceTypes
                     return ReadRGBA8888(Reader, Width, Height);
 
                 case VTexFormat.R16:
-                    break;
+                    SkipMipmaps(2);
+
+                    return ReadR16(Reader, Width, Height);
 
                 case VTexFormat.RG1616:
-                    break;
+                    SkipMipmaps(4);
+
+                    return ReadRG1616(Reader, Width, Height);
 
                 case VTexFormat.RGBA16161616:
                     SkipMipmaps(8);
@@ -240,6 +244,41 @@ namespace ValveResourceFormat.ResourceTypes
                 for (var x = 0; x < w; x++)
                 {
                     res.SetPixel(x, y, new SKColor(r.ReadUInt32()));
+                }
+            }
+
+            return res;
+        }
+
+        private static SKBitmap ReadR16(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(r.ReadUInt16() / 256);
+
+                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
+                }
+            }
+
+            return res;
+        }
+
+        private static SKBitmap ReadRG1616(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(r.ReadUInt16() / 256);
+                    var hg = (byte)(r.ReadUInt16() / 256);
+
+                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
                 }
             }
 
