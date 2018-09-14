@@ -33,7 +33,7 @@ vpcf     | Particle System         | :+1: NTRO, KV3
 vmat     | Material                | :+1: NTRO
 vmks     | Sheet                   | No
 vmesh    | Mesh                    | Vertex and index buffers, vertex attributes
-vtex     | Compiled Texture        | :+1: RGBA8888, RGBA16161616F, DXT1, DXT5, PNG
+vtex     | Compiled Texture        | :+1: DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, IA88, PNG, JPG
 vmdl     | Model                   | Started
 vphys    | Physics Collision Mesh  | No
 vsnd     | Sound                   | :+1: wav, mp3
