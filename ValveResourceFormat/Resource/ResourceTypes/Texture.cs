@@ -236,7 +236,9 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var x = 0; x < w; x++)
                 {
-                    res.SetPixel(x, y, new SKColor(r.ReadByte(), 0, 0, 255));
+                    var color = r.ReadByte();
+
+                    res.SetPixel(x, y, new SKColor(color, color, color, 255));
                 }
             }
 
