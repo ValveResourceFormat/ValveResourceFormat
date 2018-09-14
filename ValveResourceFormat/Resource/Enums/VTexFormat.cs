@@ -20,6 +20,7 @@ namespace ValveResourceFormat
         RG3232F = 12,
         RGB323232F = 13,
         RGBA32323232F = 14,
+        IA88 = 15,
         PNG = 16, // TODO: resourceinfo doesn't know about this
         JPG = 17,
         PNG2 = 18, // TODO: Why is there PNG twice?
