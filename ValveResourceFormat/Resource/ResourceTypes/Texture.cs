@@ -182,16 +182,24 @@ namespace ValveResourceFormat.ResourceTypes
                     return ReadRGBA16161616F(Reader, Width, Height);
 
                 case VTexFormat.R32F:
-                    break;
+                    SkipMipmaps(4);
+
+                    return ReadR32F(Reader, Width, Height);
 
                 case VTexFormat.RG3232F:
-                    break;
+                    SkipMipmaps(8);
+
+                    return ReadRG3232F(Reader, Width, Height);
 
                 case VTexFormat.RGB323232F:
-                    break;
+                    SkipMipmaps(12);
+
+                    return ReadRGB323232F(Reader, Width, Height);
 
                 case VTexFormat.RGBA32323232F:
-                    break;
+                    SkipMipmaps(16);
+
+                    return ReadRGBA32323232F(Reader, Width, Height);
 
                 case VTexFormat.IA88:
                     break;
@@ -430,6 +438,80 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return DDSImage.CreateBitmap(imageInfo, ref data);
+        }
+
+        private static SKBitmap ReadR32F(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(r.ReadSingle() * 255);
+
+                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
+                }
+            }
+
+            return res;
+        }
+
+        private static SKBitmap ReadRG3232F(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(r.ReadSingle() * 255);
+                    var hg = (byte)(r.ReadSingle() * 255);
+
+                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
+                }
+            }
+
+            return res;
+        }
+
+        private static SKBitmap ReadRGB323232F(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(r.ReadSingle() * 255);
+                    var hg = (byte)(r.ReadSingle() * 255);
+                    var hb = (byte)(r.ReadSingle() * 255);
+
+                    res.SetPixel(x, y, new SKColor(hr, hg, hb, 255));
+                }
+            }
+
+            return res;
+        }
+
+        private static SKBitmap ReadRGBA32323232F(BinaryReader r, int w, int h)
+        {
+            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = 0; x < w; x++)
+                {
+                    var hr = (byte)(r.ReadSingle() * 255);
+                    var hg = (byte)(r.ReadSingle() * 255);
+                    var hb = (byte)(r.ReadSingle() * 255);
+                    var ha = (byte)(r.ReadSingle() * 255);
+
+                    res.SetPixel(x, y, new SKColor(hr, hg, hb, ha));
+                }
+            }
+
+            return res;
         }
 
         public override string ToString()
