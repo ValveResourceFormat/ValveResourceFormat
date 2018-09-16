@@ -1,4 +1,5 @@
-﻿#version 330
+#version 330
+precision mediump float;
 
 // Render modes -- Switched on/off by code
 #define param_renderMode_Color 0
@@ -11,6 +12,7 @@
 #define param_renderMode_Metalness 0
 #define param_renderMode_Specular 0
 #define param_renderMode_RimLight 0
+#define param_renderMode_Illumination 0
 
 in vec3 vFragPosition;
 
@@ -40,7 +42,7 @@ vec3 calculateWorldNormal()
 
     //Reconstruct the tangent vector from the map
     vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
-    vec3 tangentNormal = vec3(temp, 1 - dot(temp,temp));
+    vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
 
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
@@ -113,10 +115,14 @@ void main()
     outputColor = vec4(finalColor, color.a);
 
 	// == End of shader
-
+    
 	// Different render mode definitions
 #if param_renderMode_Color == 1
 	outputColor = vec4(color.rgb, 1.0);
+#endif
+
+#if param_renderMode_Illumination == 1
+	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
 #endif
 
 #if param_renderMode_Mask1 == 1

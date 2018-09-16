@@ -473,21 +473,29 @@ namespace GUI.Types.Renderer
                         objChanged = true;
                         prevShader = call.Shader.Program;
 
+                        var serror = GL.GetError();
                         GL.UseProgram(call.Shader.Program);
+                        serror = GL.GetError();
+
+                        uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
+                        GL.Uniform3(uniformLocation, lightPos);
+
+                        serror = GL.GetError();
+
+                        uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
+                        GL.Uniform3(uniformLocation, ActiveCamera.Location);
+
+                        serror = GL.GetError();
 
                         uniformLocation = call.Shader.GetUniformLocation("projection");
                         var matrix = ActiveCamera.ProjectionMatrix;
                         GL.UniformMatrix4(uniformLocation, false, ref matrix);
 
+                        serror = GL.GetError();
+
                         uniformLocation = call.Shader.GetUniformLocation("modelview");
                         matrix = ActiveCamera.CameraViewMatrix;
                         GL.UniformMatrix4(uniformLocation, false, ref matrix);
-
-                        uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
-                        GL.Uniform3(uniformLocation, lightPos);
-
-                        uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
-                        GL.Uniform3(uniformLocation, ActiveCamera.Location);
 
                         uniformLocation = call.Shader.GetUniformLocation("bAnimated");
                         if (uniformLocation != -1)
@@ -611,14 +619,14 @@ namespace GUI.Types.Renderer
             //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
-            /*
+            
             var error = GL.GetError();
 
             if (error != ErrorCode.NoError)
             {
                 Console.WriteLine(error);
             }
-            */
+            
 
 #if DEBUG
             Debug.Reset();

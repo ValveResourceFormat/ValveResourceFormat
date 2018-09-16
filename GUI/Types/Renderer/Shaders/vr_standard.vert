@@ -38,9 +38,12 @@ void main()
 	vTangentOut = vTANGENT.xyz;
 	vBitangentOut = cross( vNormalOut, vTangentOut );
 #else
-	vec3 tangent = DecompressTangent(vNORMAL);
-	vNormalOut = DecompressNormal(vNORMAL);
-	vTangentOut = -tangent.xyz;
+	mat4 normalTransform = skinTransformMatrix;
+    normalTransform[3][0] = 0.0;
+    normalTransform[3][1] = 0.0;
+    normalTransform[3][2] = 0.0;
+	vNormalOut = normalize((normalTransform * vec4(DecompressNormal(vNORMAL), 0.0)).xyz);
+    vTangentOut = normalize((normalTransform * vec4(DecompressTangent(vNORMAL), 0.0)).xyz);
 	vBitangentOut = cross( vNormalOut, vTangentOut );
 #endif
 

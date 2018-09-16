@@ -197,7 +197,7 @@ namespace GUI.Types.Renderer
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            var includes = Regex.Matches(source, @"#include ""(\S*?)"";?\s*\n");
+            var includes = Regex.Matches(source, @"#include ""([^""]*?)"";?\s*\n");
 
             foreach (Match define in includes)
             {
