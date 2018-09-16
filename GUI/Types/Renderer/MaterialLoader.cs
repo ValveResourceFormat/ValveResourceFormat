@@ -137,16 +137,10 @@ namespace GUI.Types.Renderer
                 blockSize = 16;
                 format = PixelInternalFormat.CompressedRgbaS3tcDxt5Ext;
             }
-            else if (tex.Format.HasFlag(VTexFormat.RGBA8888))
-            {
-                //blockSize = 4;
-                //format = PixelInternalFormat.Rgba8i;
-                Console.Error.WriteLine("Don't support RGBA8888 but don't want to crash either. Using error texture!");
-                return GetErrorTexture();
-            }
             else
             {
-                throw new Exception("Unsupported texture format: " + tex.Format);
+                Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
+                return GetErrorTexture();
             }
 
             for (var i = tex.NumMipLevels - 1; i >= 0; i--)

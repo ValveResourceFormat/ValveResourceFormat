@@ -20,9 +20,12 @@ namespace ValveResourceFormat.ThirdParty
 {
     internal static class DDSImage
     {
-        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h)
+        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h, int nw = 0, int nh = 0)
         {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
+            var nwidth = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nw : w;
+            var nheight = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nh : h;
+
+            var imageInfo = new SKImageInfo(nwidth, nheight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -34,7 +37,7 @@ namespace ValveResourceFormat.ThirdParty
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(8);
-                    DecompressBlockDXT1(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes);
+                    DecompressBlockDXT1(i * 4, j * 4, nwidth, blockStorage, ref data, imageInfo.RowBytes);
                 }
             }
 
@@ -114,9 +117,12 @@ namespace ValveResourceFormat.ThirdParty
             }
         }
 
-        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg)
+        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg, int nw = 0, int nh = 0)
         {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var nwidth = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nw : w;
+            var nheight = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nh : h;
+
+            var imageInfo = new SKImageInfo(nwidth, nheight, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -128,7 +134,7 @@ namespace ValveResourceFormat.ThirdParty
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, w, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
+                    DecompressBlockDXT5(i * 4, j * 4, nwidth, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
                 }
             }
 
@@ -257,13 +263,13 @@ namespace ValveResourceFormat.ThirdParty
                         pixels[pixelIndex] = finalB;
                         pixels[pixelIndex + 1] = finalG;
                         pixels[pixelIndex + 2] = finalR;
-                        pixels[pixelIndex + 3] = byte.MaxValue; // TODO: Where's my alpha at?
+                        pixels[pixelIndex + 3] = finalAlpha;
                     }
                 }
             }
         }
 
-        private static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
+        public static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
         {
             // pin the managed array so that the GC doesn't move it
             var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);

@@ -15,7 +15,7 @@ namespace GUI.Utils
             public string SaveDirectory { get; set; } = string.Empty;
         }
 
-        private const string SettingsFilePath = "settings.txt";
+        private static string SettingsFilePath;
 
         public static AppConfig Config { get; set; } = new AppConfig();
 
@@ -23,6 +23,8 @@ namespace GUI.Utils
 
         public static void Load()
         {
+            SettingsFilePath = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "settings.txt");
+
             if (!File.Exists(SettingsFilePath))
             {
                 Save();

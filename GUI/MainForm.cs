@@ -308,34 +308,6 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
-            else if (fileName.EndsWith(".pbin", StringComparison.Ordinal))
-            {
-                var panorama = new PackedPanorama();
-
-                var buffer = new StringWriter();
-                var oldOut = Console.Out;
-                Console.SetOut(buffer);
-
-                if (input != null)
-                {
-                    panorama.Read(new MemoryStream(input));
-                }
-                else
-                {
-                    panorama.Read(fileName);
-                }
-
-                Console.SetOut(oldOut);
-
-                var control = new TextBox();
-                control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                control.Text = NormalizeLineEndings(buffer.ToString());
-                control.Dock = DockStyle.Fill;
-                control.Multiline = true;
-                control.ReadOnly = true;
-                control.ScrollBars = ScrollBars.Both;
-                tab.Controls.Add(control);
-            }
             else
             {
                 var resource = new Resource();
@@ -764,23 +736,31 @@ namespace GUI
                 var dialog = new FolderBrowserDialog();
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    foreach (TreeNode node in selectedNode.Nodes)
+                    ExtractFolderFromTree(package, selectedNode, dialog.SelectedPath);
+                }
+            }
+        }
+
+        private void ExtractFolderFromTree(Package package, TreeNode root, string path)
+        {
+            foreach (TreeNode node in root.Nodes)
+            {
+                if (node.Tag.GetType() == typeof(PackageEntry))
+                {
+                    var file = node.Tag as PackageEntry;
+                    var filePath = Path.Combine(path, file.DirectoryName, file.FileName + "." + file.TypeName);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
                     {
-                        if (node.Tag.GetType() == typeof(PackageEntry))
-                        {
-                            var file = node.Tag as PackageEntry;
-                            Console.WriteLine(node.Text);
-                            using (var stream = new FileStream(dialog.SelectedPath + Path.DirectorySeparatorChar + file.FileName + "." + file.TypeName, FileMode.Create))
-                            {
-                                package.ReadEntry(file, out var output);
-                                stream.Write(output, 0, output.Length);
-                            }
-                        }
-                        else
-                        {
-                            MessageBox.Show("Nested Folder Extract Soon (tm)");
-                        }
+                        package.ReadEntry(file, out var output);
+                        stream.Write(output, 0, output.Length);
                     }
+                }
+                else
+                {
+                    ExtractFolderFromTree(package, node, path);
                 }
             }
         }

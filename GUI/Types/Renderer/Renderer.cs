@@ -363,10 +363,13 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            renderModeComboBox.Items.Clear();
-            renderModeComboBox.Items.Add("Change render mode...");
-            renderModeComboBox.Items.AddRange(renderModes);
-            renderModeComboBox.SelectedIndex = 0;
+            if (SubjectType == RenderSubject.Model)
+            {
+                renderModeComboBox.Items.Clear();
+                renderModeComboBox.Items.Add("Change render mode...");
+                renderModeComboBox.Items.AddRange(renderModes);
+                renderModeComboBox.SelectedIndex = 0;
+            }
 
 #if DEBUG
             Debug.Setup();
