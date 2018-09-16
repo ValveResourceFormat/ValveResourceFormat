@@ -238,7 +238,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 
                 // Skip data to find the data for the current frame.
                 // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
-                if (containerReader.BaseStream.Position + decoder.Size() * frame * numBones < containerReader.BaseStream.Length)
+                if (containerReader.BaseStream.Position + (decoder.Size() * frame * numBones) < containerReader.BaseStream.Length)
                 {
                     containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
                 }
@@ -260,6 +260,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle()));
                             break;
+                        case AnimDecoderType.CCompressedAnimVector3:
                         case AnimDecoderType.CCompressedStaticVector3:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 ReadHalfFloat(containerReader),
@@ -271,7 +272,11 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                             break;
 #if DEBUG
                         default:
-                            Console.WriteLine($"Unhandled animation bone decoder type '{decoder}'");
+                            if (channelAttribute != "data")
+                            {
+                                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}'");
+                            }
+
                             break;
 #endif
                     }

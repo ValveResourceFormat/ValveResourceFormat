@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat.ResourceTypes.Animation
 {
@@ -9,9 +9,9 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             switch (t)
             {
                 case AnimDecoderType.CCompressedFullVector3:
-                case AnimDecoderType.CCompressedAnimVector3:
                     return 12;
                 case AnimDecoderType.CCompressedStaticVector3:
+                case AnimDecoderType.CCompressedAnimVector3:
                 case AnimDecoderType.CCompressedAnimQuaternion:
                     return 6;
             }
