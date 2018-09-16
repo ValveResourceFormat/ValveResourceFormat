@@ -88,7 +88,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             FindRoots();
 
             // Figure out the index of the last bone so we dont have to do that every draw call
-            LastBone = Bones.Max(b => b.Index);
+            LastBone = Bones.Length > 0 ? Bones.Max(b => b.Index) : -1;
         }
 
         /// <summary>

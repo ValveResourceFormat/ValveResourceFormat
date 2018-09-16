@@ -171,6 +171,7 @@
     <Compile Include="Types\Model.cs" />
     <Compile Include="Types\Renderer\Material.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
+    <None Include="Types\Renderer\Shaders\animation.incl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

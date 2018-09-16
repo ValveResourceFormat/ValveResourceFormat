@@ -1,7 +1,8 @@
-﻿#version 330
+#version 330
 
 //Includes - resolved by VRF
-#include "compression.incl"
+#include "compression.incl";
+#include "animation.incl";
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -12,8 +13,6 @@ in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 in vec4 vTANGENT;
-in vec4 vBLENDINDICES;
-in vec4 vBLENDWEIGHT;
 
 out vec3 vFragPosition;
 
@@ -27,29 +26,11 @@ uniform mat4 projection;
 uniform mat4 modelview;
 uniform mat4 transform;
 
-uniform float bAnimated = 0;
-uniform float fNumBones = 1;
-uniform sampler2D animationTexture;
-
-mat4 getMatrix(float id) {
-    float texelPos = id/fNumBones;
-    return mat4(texture2D(animationTexture, vec2(0.00, texelPos)),
-        texture2D(animationTexture, vec2(0.25, texelPos)),
-        texture2D(animationTexture, vec2(0.50, texelPos)),
-        texture2D(animationTexture, vec2(0.75, texelPos)));
-}
-
 void main()
 {
-    // Calculate animation matrix
-	mat4 skinMatrix = mat4(1.0 - bAnimated);
-    skinMatrix += bAnimated * vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
-    skinMatrix += bAnimated * vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
-    skinMatrix += bAnimated * vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
-    skinMatrix += bAnimated * vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w);
-
-	gl_Position = projection * modelview * transform * skinMatrix * vec4(vPOSITION, 1.0);
-	vFragPosition = vPOSITION;
+    vec4 fragPosition = transform * getSkinMatrix() * vec4(vPOSITION, 1.0);
+	gl_Position = projection * modelview * fragPosition;
+	vFragPosition = fragPosition.xyz;
 
 	//Unpack normals
 #if param_fulltangent == 1

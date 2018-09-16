@@ -1,4 +1,4 @@
-﻿//#define DEBUG_SHADERS
+//#define DEBUG_SHADERS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -197,7 +197,7 @@ namespace GUI.Types.Renderer
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            var includes = Regex.Matches(source, @"#include ""(\S*?)""\s*?\n");
+            var includes = Regex.Matches(source, @"#include ""(\S*?)"";?\s*\n");
 
             foreach (Match define in includes)
             {
@@ -213,11 +213,13 @@ namespace GUI.Types.Renderer
 
                     //Recursively resolve includes in the included code. (Watch out for cyclic dependencies!)
                     includedCode = ResolveIncludes(includedCode);
+                    if (!includedCode.EndsWith("\n"))
+                    {
+                        includedCode = includedCode + "\n";
+                    }
 
                     //Replace the include with the code
-                    var index = define.Index;
-                    var length = define.Length;
-                    source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, includedCode);
+                    source = source.Replace(define.Value, includedCode);
                 }
             }
 
