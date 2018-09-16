@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
@@ -7,8 +8,9 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 {
     public class Skeleton
     {
-        public List<Bone> Roots { get; set; }
-        public Bone[] Bones { get; set; }
+        public List<Bone> Roots { get; private set; }
+        public Bone[] Bones { get; private set; }
+        public int LastBone { get; private set; }
 
         public Skeleton()
         {
@@ -84,6 +86,9 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             }
 
             FindRoots();
+
+            // Figure out the index of the last bone so we dont have to do that every draw call
+            LastBone = Bones.Max(b => b.Index);
         }
 
         /// <summary>

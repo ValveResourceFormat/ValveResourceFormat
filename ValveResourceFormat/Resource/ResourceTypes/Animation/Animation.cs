@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         public Matrix4x4[] GetAnimationMatrices(float time, Skeleton skeleton)
         {
             // Create output array
-            var matrices = new Matrix4x4[skeleton.Bones.Length];
+            var matrices = new Matrix4x4[skeleton.LastBone + 1];
 
             // Get bone transformations
             var transforms = GetTransformsAtTime(time);
@@ -102,7 +102,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             var transformed = transformMatrix * bindPose;
 
             // Store result
-            if (bone.Index != -1)
+            if (bone.Index > -1)
             {
                 matrices[bone.Index] = invBindPose * transformed;
             }
@@ -238,7 +238,10 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 
                 // Skip data to find the data for the current frame.
                 // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
-                containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
+                if (containerReader.BaseStream.Position + decoder.Size() * frame * numBones < containerReader.BaseStream.Length)
+                {
+                    containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
+                }
 
                 // Read animation data for all bones
                 for (var element = 0; element < numBones; element++)
@@ -257,14 +260,12 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                                 containerReader.ReadSingle(),
                                 containerReader.ReadSingle()));
                             break;
-#if false // TODO: This does not work, and most likely never did as it had a typo before
                         case AnimDecoderType.CCompressedStaticVector3:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader),
                                 ReadHalfFloat(containerReader)));
                             break;
-#endif
                         case AnimDecoderType.CCompressedAnimQuaternion:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
                             break;

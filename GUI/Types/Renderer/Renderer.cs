@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -373,7 +373,6 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
             Debug.Setup();
-            //Skeleton.DebugDraw(Debug);
 #endif
 
             // Create animation texture
@@ -624,7 +623,7 @@ namespace GUI.Types.Renderer
 #if DEBUG
             Debug.Reset();
 
-            DebugDrawSkeleton();
+            //DebugDrawSkeleton();
 
             Debug.Draw(ActiveCamera, false);
 #endif
