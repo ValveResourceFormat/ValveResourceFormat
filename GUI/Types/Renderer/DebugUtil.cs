@@ -22,10 +22,11 @@ void main(void)
 }";
         private const string FragmentShaderSource = @"
 #version 330
-precision mediump float;
+
+out vec4 outColor;
 
 void main(void) {
-    gl_FragColor = vec4(1,0,0,1);
+    outColor = vec4(1,0,0,1);
 }";
         private readonly List<DebugObject> objects;
         private int shaderProgram;
@@ -69,6 +70,11 @@ void main(void) {
             GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out _);
         }
 
+        public void Reset()
+        {
+            objects.Clear();
+        }
+
         public void AddCube(Vector3 position, float scale)
         {
             AddCube(Matrix4.CreateScale(scale) * Matrix4.CreateTranslation(position));
@@ -101,6 +107,16 @@ void main(void) {
             GL.BindVertexArray(0);
 
             objects.Add(new DebugObject(vao, vertices.Length / 3, transform));
+        }
+
+        public void AddCube(System.Numerics.Matrix4x4 transform)
+        {
+            AddCube(new Matrix4(
+                transform.M11, transform.M12, transform.M13, transform.M14,
+                transform.M21, transform.M22, transform.M23, transform.M24,
+                transform.M31, transform.M32, transform.M33, transform.M34,
+                transform.M41, transform.M42, transform.M43, transform.M44
+            ));
         }
 
         public void Draw(Camera camera, bool ztest)

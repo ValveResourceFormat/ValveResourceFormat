@@ -622,11 +622,49 @@ namespace GUI.Types.Renderer
             */
 
 #if DEBUG
+            Debug.Reset();
+
+            DebugDrawSkeleton();
+
             Debug.Draw(ActiveCamera, false);
 #endif
 
             meshControl.SwapBuffers();
             meshControl.Invalidate();
+        }
+
+        private void DebugDrawSkeleton()
+        {
+            if (ActiveAnimation != null)
+            {
+                var anim = ActiveAnimation.GetAnimationMatrices((float)PreciseTimer.Elapsed.TotalSeconds, Skeleton);
+
+                void DebugDrawRecursive(Bone bone, System.Numerics.Matrix4x4 matrix)
+                {
+                    if (bone.Index >= 0)
+                    {
+                        var transform = bone.BindPose * matrix;
+                        Debug.AddCube(transform * anim[bone.Index]);
+
+                        foreach (var child in bone.Children)
+                        {
+                            DebugDrawRecursive(child, transform);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var child in bone.Children)
+                        {
+                            DebugDrawRecursive(child, matrix);
+                        }
+                    }
+                }
+
+                foreach (var root in Skeleton.Roots)
+                {
+                    DebugDrawRecursive(root, System.Numerics.Matrix4x4.Identity);
+                }
+            }
         }
 
         // TODO: we're taking boundaries of first scene

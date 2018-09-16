@@ -51,6 +51,7 @@ void main()
     skinMatrix += bAnimated * vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
     skinMatrix += bAnimated * vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
     skinMatrix += bAnimated * vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
+    skinMatrix += bAnimated * vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w);
 
     gl_Position = projection * modelview * transform * skinMatrix * vec4(vPOSITION, 1.0);
 	vFragPosition = vPOSITION;
