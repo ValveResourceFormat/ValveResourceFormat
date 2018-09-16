@@ -619,14 +619,14 @@ namespace GUI.Types.Renderer
             //sw.Stop(); Console.WriteLine("{0} {1}", sw.Elapsed, sw.ElapsedTicks);
 
             // Only needed when debugging if something doesnt work, causes high CPU
-            
+            /*
             var error = GL.GetError();
 
             if (error != ErrorCode.NoError)
             {
                 Console.WriteLine(error);
             }
-            
+            */
 
 #if DEBUG
             Debug.Reset();

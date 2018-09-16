@@ -1,5 +1,4 @@
 #version 330
-precision mediump float;
 
 // Render modes -- Switched on/off by code
 #define param_renderMode_Color 0

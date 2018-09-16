@@ -1,5 +1,4 @@
 #version 330
-precision mediump float;
 
 //Includes - resolved by VRF
 #include "compression.incl";
