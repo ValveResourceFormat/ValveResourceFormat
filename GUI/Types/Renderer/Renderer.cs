@@ -473,25 +473,17 @@ namespace GUI.Types.Renderer
                         objChanged = true;
                         prevShader = call.Shader.Program;
 
-                        var serror = GL.GetError();
                         GL.UseProgram(call.Shader.Program);
-                        serror = GL.GetError();
 
                         uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
                         GL.Uniform3(uniformLocation, lightPos);
 
-                        serror = GL.GetError();
-
                         uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
                         GL.Uniform3(uniformLocation, ActiveCamera.Location);
-
-                        serror = GL.GetError();
 
                         uniformLocation = call.Shader.GetUniformLocation("projection");
                         var matrix = ActiveCamera.ProjectionMatrix;
                         GL.UniformMatrix4(uniformLocation, false, ref matrix);
-
-                        serror = GL.GetError();
 
                         uniformLocation = call.Shader.GetUniformLocation("modelview");
                         matrix = ActiveCamera.CameraViewMatrix;
