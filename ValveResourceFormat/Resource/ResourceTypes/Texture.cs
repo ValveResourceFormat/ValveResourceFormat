@@ -182,8 +182,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case VTexFormat.RGBA16161616:
                     SkipMipmaps(8);
-
-                    return TextureDecompressors.ReadRGBA16161616(Reader, Width, Height);
+                    TextureDecompressors.ReadRGBA16161616(imageInfo, Reader, data);
+                    break;
 
                 case VTexFormat.R16F:
                     SkipMipmaps(2);
@@ -197,8 +197,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case VTexFormat.RGBA16161616F:
                     SkipMipmaps(8);
-
-                    return TextureDecompressors.ReadRGBA16161616F(Reader, Width, Height);
+                    TextureDecompressors.ReadRGBA16161616F(imageInfo, Reader, data);
+                    break;
 
                 case VTexFormat.R32F:
                     SkipMipmaps(4);
@@ -258,18 +258,6 @@ namespace ValveResourceFormat.ResourceTypes
         private SKBitmap ReadBuffer()
         {
             return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
-        }
-
-        public static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
-        {
-            // pin the managed array so that the GC doesn't move it
-            var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
-
-            // install the pixels with the color type of the pixel data
-            var bitmap = new SKBitmap();
-            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, null, delegate { gcHandle.Free(); }, null);
-
-            return bitmap;
         }
 
         public override string ToString()

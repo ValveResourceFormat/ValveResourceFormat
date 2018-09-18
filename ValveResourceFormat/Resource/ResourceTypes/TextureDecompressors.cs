@@ -126,12 +126,9 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap ReadRGBA16161616(BinaryReader r, int w, int h)
+        public static void ReadRGBA16161616(SKImageInfo imageInfo, BinaryReader r, Span<byte> data)
         {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var data = new byte[imageInfo.RowBytes * h];
-
-            var bytes = r.ReadBytes(w * h * 8);
+            var bytes = r.ReadBytes(imageInfo.Width * imageInfo.Height * 8);
             var log = 0d;
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
@@ -143,7 +140,7 @@ namespace ValveResourceFormat.ResourceTypes
                 log += Math.Log(0.0000000001d + lum);
             }
 
-            log = Math.Exp(log / (w * h));
+            log = Math.Exp(log / (imageInfo.Width * imageInfo.Height));
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
@@ -178,16 +175,11 @@ namespace ValveResourceFormat.ResourceTypes
                 data[j + 2] = (byte)(hb * 255); // b
                 data[j + 3] = (byte)(ha * 255); // a
             }
-
-            return Texture.CreateBitmap(imageInfo, ref data);
         }
 
-        public static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
+        public static void ReadRGBA16161616F(SKImageInfo imageInfo, BinaryReader r, Span<byte> data)
         {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var data = new byte[imageInfo.RowBytes * h];
-
-            var bytes = r.ReadBytes(w * h * 8);
+            var bytes = r.ReadBytes(imageInfo.Width * imageInfo.Height * 8);
             var log = 0d;
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
@@ -199,7 +191,7 @@ namespace ValveResourceFormat.ResourceTypes
                 log += Math.Log(0.0000000001d + lum);
             }
 
-            log = Math.Exp(log / (w * h));
+            log = Math.Exp(log / (imageInfo.Width * imageInfo.Height));
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
@@ -234,8 +226,6 @@ namespace ValveResourceFormat.ResourceTypes
                 data[j + 2] = (byte)(hb * 255); // b
                 data[j + 3] = (byte)(ha * 255); // a
             }
-
-            return Texture.CreateBitmap(imageInfo, ref data);
         }
 
         public static SKBitmap ReadR32F(BinaryReader r, int w, int h)
