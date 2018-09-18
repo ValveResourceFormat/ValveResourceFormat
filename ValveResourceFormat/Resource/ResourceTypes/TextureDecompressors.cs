@@ -312,31 +312,22 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h, int nw = 0, int nh = 0)
+        public static void UncompressDXT1(SKImageInfo imageInfo, BinaryReader r, Span<byte> data)
         {
-            var nwidth = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nw : w;
-            var nheight = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nh : h;
-
-            var imageInfo = new SKImageInfo(nwidth, nheight, SKColorType.Bgra8888, SKAlphaType.Premul);
-
-            var blockCountX = (w + 3) / 4;
-            var blockCountY = (h + 3) / 4;
-
-            var data = new byte[imageInfo.RowBytes * h];
+            var blockCountX = (imageInfo.Width + 3) / 4;
+            var blockCountY = (imageInfo.Height + 3) / 4;
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(8);
-                    DecompressBlockDXT1(i * 4, j * 4, nwidth, blockStorage, ref data, imageInfo.RowBytes);
+                    DecompressBlockDXT1(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes);
                 }
             }
-
-            return Texture.CreateBitmap(imageInfo, ref data);
         }
 
-        private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride)
+        private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride)
         {
             var color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
             var color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
@@ -409,31 +400,22 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg, int nw = 0, int nh = 0)
+        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, bool yCoCg)
         {
-            var nwidth = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nw : w;
-            var nheight = (nw > 0 && nh > 0 && w >= nw && h >= nh) ? nh : h;
-
-            var imageInfo = new SKImageInfo(nwidth, nheight, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            var blockCountX = (w + 3) / 4;
-            var blockCountY = (h + 3) / 4;
-
-            var data = new byte[imageInfo.RowBytes * h];
+            var blockCountX = (imageInfo.Width + 3) / 4;
+            var blockCountY = (imageInfo.Height + 3) / 4;
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, nwidth, blockStorage, ref data, imageInfo.RowBytes, yCoCg);
+                    DecompressBlockDXT5(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes, yCoCg);
                 }
             }
-
-            return Texture.CreateBitmap(imageInfo, ref data);
         }
 
-        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, ref byte[] pixels, int stride, bool yCoCg)
+        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride, bool yCoCg)
         {
             var alpha0 = blockStorage[0];
             var alpha1 = blockStorage[1];

@@ -120,12 +120,31 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = DataOffset;
 
+            var width = Width;
+            var height = Height;
+
+            if (NonPow2Width > 0 && NonPow2Height > 0)
+            {
+                if (NonPow2Width > width)
+                {
+                    width = NonPow2Width;
+                }
+
+                if (NonPow2Height > height)
+                {
+                    height = NonPow2Height;
+                }
+            }
+
+            var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            Span<byte> data = new byte[imageInfo.RowBytes * imageInfo.Height];
+
             switch (Format)
             {
                 case VTexFormat.DXT1:
                     SkipMipmaps(8);
-
-                    return TextureDecompressors.UncompressDXT1(Reader, Width, Height, NonPow2Width, NonPow2Height);
+                    TextureDecompressors.UncompressDXT1(imageInfo, Reader, data);
+                    break;
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -138,8 +157,8 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     SkipMipmaps(16);
-
-                    return TextureDecompressors.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
+                    TextureDecompressors.UncompressDXT5(imageInfo, Reader, data, yCoCg);
+                    break;
 
                 case VTexFormat.I8:
                     SkipMipmaps(1);
@@ -210,9 +229,20 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.PNG2:
                 case VTexFormat.PNG:
                     return ReadBuffer();
+
+                default:
+                    throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
             }
 
-            throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
+            // pin the managed array so that the GC doesn't move it
+            // TODO: There's probably a better way of handling this with Span<byte>
+            var gcHandle = GCHandle.Alloc(data.ToArray(), GCHandleType.Pinned);
+
+            // install the pixels with the color type of the pixel data
+            var bitmap = new SKBitmap();
+            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, null, delegate { gcHandle.Free(); }, null);
+
+            return bitmap;
         }
 
         private void SkipMipmaps(int bytesPerPixel)
