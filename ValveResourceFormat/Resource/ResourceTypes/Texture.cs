@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.DXT1:
                     SkipMipmaps(8);
 
-                    return DDSImage.UncompressDXT1(Reader, Width, Height, NonPow2Width, NonPow2Height);
+                    return TextureDecompressors.UncompressDXT1(Reader, Width, Height, NonPow2Width, NonPow2Height);
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -139,72 +139,72 @@ namespace ValveResourceFormat.ResourceTypes
 
                     SkipMipmaps(16);
 
-                    return DDSImage.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
+                    return TextureDecompressors.UncompressDXT5(Reader, Width, Height, yCoCg, NonPow2Width, NonPow2Height);
 
                 case VTexFormat.I8:
                     SkipMipmaps(1);
 
-                    return ReadI8(Reader, Width, Height);
+                    return TextureDecompressors.ReadI8(Reader, Width, Height);
 
                 case VTexFormat.RGBA8888:
                     SkipMipmaps(4);
 
-                    return ReadRGBA8888(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGBA8888(Reader, Width, Height);
 
                 case VTexFormat.R16:
                     SkipMipmaps(2);
 
-                    return ReadR16(Reader, Width, Height);
+                    return TextureDecompressors.ReadR16(Reader, Width, Height);
 
                 case VTexFormat.RG1616:
                     SkipMipmaps(4);
 
-                    return ReadRG1616(Reader, Width, Height);
+                    return TextureDecompressors.ReadRG1616(Reader, Width, Height);
 
                 case VTexFormat.RGBA16161616:
                     SkipMipmaps(8);
 
-                    return ReadRGBA16161616(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGBA16161616(Reader, Width, Height);
 
                 case VTexFormat.R16F:
                     SkipMipmaps(2);
 
-                    return ReadR16F(Reader, Width, Height);
+                    return TextureDecompressors.ReadR16F(Reader, Width, Height);
 
                 case VTexFormat.RG1616F:
                     SkipMipmaps(4);
 
-                    return ReadRG1616F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRG1616F(Reader, Width, Height);
 
                 case VTexFormat.RGBA16161616F:
                     SkipMipmaps(8);
 
-                    return ReadRGBA16161616F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGBA16161616F(Reader, Width, Height);
 
                 case VTexFormat.R32F:
                     SkipMipmaps(4);
 
-                    return ReadR32F(Reader, Width, Height);
+                    return TextureDecompressors.ReadR32F(Reader, Width, Height);
 
                 case VTexFormat.RG3232F:
                     SkipMipmaps(8);
 
-                    return ReadRG3232F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRG3232F(Reader, Width, Height);
 
                 case VTexFormat.RGB323232F:
                     SkipMipmaps(12);
 
-                    return ReadRGB323232F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGB323232F(Reader, Width, Height);
 
                 case VTexFormat.RGBA32323232F:
                     SkipMipmaps(16);
 
-                    return ReadRGBA32323232F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGBA32323232F(Reader, Width, Height);
 
                 case VTexFormat.IA88:
                     SkipMipmaps(2);
 
-                    return ReadIA88(Reader, Width, Height);
+                    return TextureDecompressors.ReadIA88(Reader, Width, Height);
 
                 case VTexFormat.JPG:
                 case VTexFormat.PNG2:
@@ -230,310 +230,16 @@ namespace ValveResourceFormat.ResourceTypes
             return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
         }
 
-        private static SKBitmap ReadI8(BinaryReader r, int w, int h)
+        public static SKBitmap CreateBitmap(SKImageInfo imageInfo, ref byte[] data)
         {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            // pin the managed array so that the GC doesn't move it
+            var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
 
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var color = r.ReadByte();
+            // install the pixels with the color type of the pixel data
+            var bitmap = new SKBitmap();
+            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, null, delegate { gcHandle.Free(); }, null);
 
-                    res.SetPixel(x, y, new SKColor(color, color, color, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadIA88(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var color = r.ReadByte();
-                    var alpha = r.ReadByte();
-
-                    res.SetPixel(x, y, new SKColor(color, color, color, alpha));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRGBA8888(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    res.SetPixel(x, y, new SKColor(r.ReadUInt32()));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadR16(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadUInt16() / 256);
-
-                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRG1616(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadUInt16() / 256);
-                    var hg = (byte)(r.ReadUInt16() / 256);
-
-                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadR16F(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
-
-                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRG1616F(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
-                    var hg = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
-
-                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRGBA16161616(BinaryReader r, int w, int h)
-        {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var data = new byte[imageInfo.RowBytes * h];
-
-            var bytes = r.ReadBytes(w * h * 8);
-            var log = 0d;
-
-            for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
-            {
-                var hr = BitConverter.ToUInt16(bytes, i + 0) / 256f;
-                var hg = BitConverter.ToUInt16(bytes, i + 2) / 256f;
-                var hb = BitConverter.ToUInt16(bytes, i + 4) / 256f;
-                var lum = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
-                log += Math.Log(0.0000000001d + lum);
-            }
-
-            log = Math.Exp(log / (w * h));
-
-            for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
-            {
-                var hr = BitConverter.ToUInt16(bytes, i + 0) / 256f;
-                var hg = BitConverter.ToUInt16(bytes, i + 2) / 256f;
-                var hb = BitConverter.ToUInt16(bytes, i + 4) / 256f;
-                var ha = BitConverter.ToUInt16(bytes, i + 6) / 256f;
-
-                var y = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
-                var u = (hb - y) * 0.565f;
-                var v = (hr - y) * 0.713f;
-
-                var mul = 4.0f * y / log;
-                mul = mul / (1.0f + mul);
-                mul /= y;
-
-                hr = (float)Math.Pow((y + (1.403f * v)) * mul, 2.25f);
-                hg = (float)Math.Pow((y - (0.344f * u) - (0.714f * v)) * mul, 2.25f);
-                hb = (float)Math.Pow((y + (1.770f * u)) * mul, 2.25f);
-
-#pragma warning disable SA1503
-                if (hr < 0) hr = 0;
-                if (hr > 1) hr = 1;
-                if (hg < 0) hg = 0;
-                if (hg > 1) hg = 1;
-                if (hb < 0) hb = 0;
-                if (hb > 1) hb = 1;
-#pragma warning restore SA1503
-
-                data[j + 0] = (byte)(hr * 255); // r
-                data[j + 1] = (byte)(hg * 255); // g
-                data[j + 2] = (byte)(hb * 255); // b
-                data[j + 3] = (byte)(ha * 255); // a
-            }
-
-            return DDSImage.CreateBitmap(imageInfo, ref data);
-        }
-
-        private static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
-        {
-            var imageInfo = new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var data = new byte[imageInfo.RowBytes * h];
-
-            var bytes = r.ReadBytes(w * h * 8);
-            var log = 0d;
-
-            for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
-            {
-                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 0));
-                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 2));
-                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 4));
-                var lum = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
-                log += Math.Log(0.0000000001d + lum);
-            }
-
-            log = Math.Exp(log / (w * h));
-
-            for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
-            {
-                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 0));
-                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 2));
-                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 4));
-                var ha = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 6));
-
-                var y = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
-                var u = (hb - y) * 0.565f;
-                var v = (hr - y) * 0.713f;
-
-                var mul = 4.0f * y / log;
-                mul = mul / (1.0f + mul);
-                mul /= y;
-
-                hr = (float)Math.Pow((y + (1.403f * v)) * mul, 2.25f);
-                hg = (float)Math.Pow((y - (0.344f * u) - (0.714f * v)) * mul, 2.25f);
-                hb = (float)Math.Pow((y + (1.770f * u)) * mul, 2.25f);
-
-#pragma warning disable SA1503
-                if (hr < 0) hr = 0;
-                if (hr > 1) hr = 1;
-                if (hg < 0) hg = 0;
-                if (hg > 1) hg = 1;
-                if (hb < 0) hb = 0;
-                if (hb > 1) hb = 1;
-#pragma warning restore SA1503
-
-                data[j + 0] = (byte)(hr * 255); // r
-                data[j + 1] = (byte)(hg * 255); // g
-                data[j + 2] = (byte)(hb * 255); // b
-                data[j + 3] = (byte)(ha * 255); // a
-            }
-
-            return DDSImage.CreateBitmap(imageInfo, ref data);
-        }
-
-        private static SKBitmap ReadR32F(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-
-                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRG3232F(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-                    var hg = (byte)(r.ReadSingle() * 255);
-
-                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRGB323232F(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-                    var hg = (byte)(r.ReadSingle() * 255);
-                    var hb = (byte)(r.ReadSingle() * 255);
-
-                    res.SetPixel(x, y, new SKColor(hr, hg, hb, 255));
-                }
-            }
-
-            return res;
-        }
-
-        private static SKBitmap ReadRGBA32323232F(BinaryReader r, int w, int h)
-        {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            for (var y = 0; y < h; y++)
-            {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-                    var hg = (byte)(r.ReadSingle() * 255);
-                    var hb = (byte)(r.ReadSingle() * 255);
-                    var ha = (byte)(r.ReadSingle() * 255);
-
-                    res.SetPixel(x, y, new SKColor(hr, hg, hb, ha));
-                }
-            }
-
-            return res;
+            return bitmap;
         }
 
         public override string ToString()
