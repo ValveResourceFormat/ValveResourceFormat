@@ -302,10 +302,10 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static void UncompressDXT1(SKImageInfo imageInfo, BinaryReader r, Span<byte> data)
+        public static void UncompressDXT1(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h)
         {
-            var blockCountX = (imageInfo.Width + 3) / 4;
-            var blockCountY = (imageInfo.Height + 3) / 4;
+            var blockCountX = (w + 3) / 4;
+            var blockCountY = (h + 3) / 4;
 
             for (var j = 0; j < blockCountY; j++)
             {
@@ -378,9 +378,10 @@ namespace ValveResourceFormat.ResourceTypes
                             break;
                     }
 
-                    if (x + i < width)
+                    var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
+
+                    if (x + i < width && pixels.Length > pixelIndex + 3)
                     {
-                        var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
                         pixels[pixelIndex] = finalB;
                         pixels[pixelIndex + 1] = finalG;
                         pixels[pixelIndex + 2] = finalR;
@@ -390,10 +391,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, bool yCoCg)
+        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, bool yCoCg, int w, int h)
         {
-            var blockCountX = (imageInfo.Width + 3) / 4;
-            var blockCountY = (imageInfo.Height + 3) / 4;
+            var blockCountX = (w + 3) / 4;
+            var blockCountY = (h + 3) / 4;
 
             for (var j = 0; j < blockCountY; j++)
             {
@@ -434,6 +435,14 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < 4; i++)
                 {
+                    var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
+
+                    // TODO: Why are we skipping so poorly
+                    if (x + i >= width || pixels.Length < pixelIndex + 3)
+                    {
+                        continue;
+                    }
+
                     var alphaCodeIndex = 3 * ((4 * j) + i);
                     int alphaCode;
 
@@ -510,25 +519,22 @@ namespace ValveResourceFormat.ResourceTypes
                             break;
                     }
 
-                    if (x + i < width)
+                    if (yCoCg)
                     {
-                        if (yCoCg)
-                        {
-                            var s = (finalB >> 3) + 1;
-                            var co = (finalR - 128) / s;
-                            var cg = (finalG - 128) / s;
+                        var s = (finalB >> 3) + 1;
+                        var co = (finalR - 128) / s;
+                        var cg = (finalG - 128) / s;
 
-                            finalR = ClampColor(finalAlpha + co - cg);
-                            finalG = ClampColor(finalAlpha + cg);
-                            finalB = ClampColor(finalAlpha - co - cg);
-                        }
-
-                        var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
-                        pixels[pixelIndex] = finalB;
-                        pixels[pixelIndex + 1] = finalG;
-                        pixels[pixelIndex + 2] = finalR;
-                        pixels[pixelIndex + 3] = finalAlpha;
+                        finalR = ClampColor(finalAlpha + co - cg);
+                        finalG = ClampColor(finalAlpha + cg);
+                        finalB = ClampColor(finalAlpha - co - cg);
+                        finalAlpha = 255; // TODO: yCoCg should have an alpha too?
                     }
+
+                    pixels[pixelIndex] = finalB;
+                    pixels[pixelIndex + 1] = finalG;
+                    pixels[pixelIndex + 2] = finalR;
+                    pixels[pixelIndex + 3] = finalAlpha;
                 }
             }
         }

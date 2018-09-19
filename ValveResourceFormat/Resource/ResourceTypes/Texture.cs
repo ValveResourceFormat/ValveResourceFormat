@@ -120,21 +120,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = DataOffset;
 
-            var width = Width;
-            var height = Height;
-
-            if (NonPow2Width > 0 && NonPow2Height > 0)
-            {
-                if (NonPow2Width > width)
-                {
-                    width = NonPow2Width;
-                }
-
-                if (NonPow2Height > height)
-                {
-                    height = NonPow2Height;
-                }
-            }
+            var width = NonPow2Width > 0 ? NonPow2Width : Width;
+            var height = NonPow2Height > 0 ? NonPow2Height : Height;
 
             var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             Span<byte> data = new byte[imageInfo.RowBytes * imageInfo.Height];
@@ -143,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case VTexFormat.DXT1:
                     SkipMipmaps(8);
-                    TextureDecompressors.UncompressDXT1(imageInfo, Reader, data);
+                    TextureDecompressors.UncompressDXT1(imageInfo, Reader, data, Width, Height);
                     break;
 
                 case VTexFormat.DXT5:
@@ -157,7 +144,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     SkipMipmaps(16);
-                    TextureDecompressors.UncompressDXT5(imageInfo, Reader, data, yCoCg);
+                    TextureDecompressors.UncompressDXT5(imageInfo, Reader, data, yCoCg, Width, Height);
                     break;
 
                 case VTexFormat.I8:
