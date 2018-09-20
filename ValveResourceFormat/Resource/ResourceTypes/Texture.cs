@@ -135,16 +135,20 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
+                    var normalize = false;
+                    var invert = false;
 
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {
                         var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
 
                         yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
+                        normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
+                        invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
                     }
 
                     SkipMipmaps(16);
-                    TextureDecompressors.UncompressDXT5(imageInfo, Reader, data, yCoCg, Width, Height);
+                    TextureDecompressors.UncompressDXT5(imageInfo, Reader, data, Width, Height, yCoCg, normalize, invert);
                     break;
 
                 case VTexFormat.I8:
