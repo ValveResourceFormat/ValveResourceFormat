@@ -391,7 +391,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, bool yCoCg, int w, int h)
+        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool yCoCg, bool normalize, bool invert)
         {
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -401,12 +401,12 @@ namespace ValveResourceFormat.ResourceTypes
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes, yCoCg);
+                    DecompressBlockDXT5(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes, yCoCg, normalize, invert);
                 }
             }
         }
 
-        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride, bool yCoCg)
+        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride, bool yCoCg, bool normalize, bool invert)
         {
             var alpha0 = blockStorage[0];
             var alpha1 = blockStorage[1];
@@ -529,6 +529,22 @@ namespace ValveResourceFormat.ResourceTypes
                         finalG = ClampColor(finalAlpha + cg);
                         finalB = ClampColor(finalAlpha - co - cg);
                         finalAlpha = 255; // TODO: yCoCg should have an alpha too?
+                    }
+
+                    if (normalize)
+                    {
+                        var swizzleA = (finalAlpha * 2) - 255;     // premul A
+                        var swizzleG = (finalG * 2) - 255;         // premul G
+                        var deriveB = (int)System.Math.Sqrt((255 * 255) - (swizzleA * swizzleA) - (swizzleG * swizzleG));
+                        finalR = ClampColor((swizzleA / 2) + 128); // unpremul A and normalize (128 = forward, or facing viewer)
+                        finalG = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
+                        finalB = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                        finalAlpha = 255;
+                    }
+
+                    if (invert)
+                    {
+                        finalG = (byte)(~finalG);  // LegacySource1InvertNormals
                     }
 
                     pixels[pixelIndex] = finalB;
