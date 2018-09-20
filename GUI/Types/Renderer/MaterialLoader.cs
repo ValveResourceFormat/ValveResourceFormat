@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using GUI.Utils;
@@ -125,17 +125,17 @@ namespace GUI.Types.Renderer
             var height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
 
             int blockSize;
-            PixelInternalFormat format;
+            InternalFormat format;
 
             if (tex.Format.HasFlag(VTexFormat.DXT1))
             {
                 blockSize = 8;
-                format = PixelInternalFormat.CompressedRgbaS3tcDxt1Ext;
+                format = InternalFormat.CompressedRgbaS3tcDxt1Ext;
             }
             else if (tex.Format.HasFlag(VTexFormat.DXT5))
             {
                 blockSize = 16;
-                format = PixelInternalFormat.CompressedRgbaS3tcDxt5Ext;
+                format = InternalFormat.CompressedRgbaS3tcDxt5Ext;
             }
             else
             {

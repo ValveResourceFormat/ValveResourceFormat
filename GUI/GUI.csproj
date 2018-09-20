@@ -46,9 +46,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="1.8.4" />
-    <PackageReference Include="OpenTK" Version="3.0.0-pre" />
-    <PackageReference Include="OpenTK.GLControl" Version="3.0.0-pre" />
-    <PackageReference Include="SkiaSharp.Views" Version="1.57.1" />
+    <PackageReference Include="OpenTK" Version="3.0.1" />
+    <PackageReference Include="OpenTK.GLControl" Version="3.0.1" />
+    <PackageReference Include="SkiaSharp.Views" Version="1.60.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
     <PackageReference Include="ValveKeyValue" Version="0.2.1.107" />
     <PackageReference Include="ValvePak" Version="0.4.0.11" />

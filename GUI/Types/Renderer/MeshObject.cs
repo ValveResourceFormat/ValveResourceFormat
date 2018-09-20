@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -314,7 +314,7 @@ namespace GUI.Types.Renderer
                     if (indexBuffer.Size == 2)
                     {
                         var indexArray = new ushort[indexBuffer.Count];
-                        Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+                        System.Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
 
                         for (var j = 0; j < indexBuffer.Count; j += 3)
                         {
@@ -324,7 +324,7 @@ namespace GUI.Types.Renderer
                     else if (indexBuffer.Size == 4)
                     {
                         var indexArray = new uint[indexBuffer.Count];
-                        Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
+                        System.Buffer.BlockCopy(indexBuffer.Buffer, 0, indexArray, 0, indexBuffer.Buffer.Length);
 
                         for (var j = 0; j < indexBuffer.Count; j += 3)
                         {
