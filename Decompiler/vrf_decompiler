@@ -5,5 +5,5 @@ if ! type dotnet > /dev/null; then
     exit 1
 fi
 
-dotnet DepotDownloader.dll "$@"
+dotnet Decompiler.dll "$@"
 exit $?
