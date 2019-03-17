@@ -9,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private static readonly byte[] ENCODING = { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 };
         private static readonly byte[] FORMAT = { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 };
-        private static readonly byte[] SIG = { 0x56, 0x4B, 0x56, 0x03 }; // VKV3 (3 isn't ascii, its 0x03)
+        public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
 
         public KVObject Data { get; private set; }
         private string[] stringArray;
@@ -21,8 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
             var outWrite = new BinaryWriter(outStream);
             var outRead = new BinaryReader(outStream); // Why why why why why why why
 
-            var sig = reader.ReadBytes(4);
-            if (Encoding.ASCII.GetString(sig) != Encoding.ASCII.GetString(SIG))
+            if (reader.ReadUInt32() != MAGIC)
             {
                 throw new InvalidDataException("Invalid KV Signature");
             }

@@ -189,14 +189,32 @@ namespace ValveResourceFormat
             for (var i = 0; i < blockCount; i++)
             {
                 var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
-                var block = ConstructFromType(blockType);
 
                 var position = Reader.BaseStream.Position;
+                var offset = (uint)position + Reader.ReadUInt32();
+                var size = Reader.ReadUInt32();
+                Block block = null;
 
-                // Offset is relative to current position
-                block.Offset = (uint)position + Reader.ReadUInt32();
-                block.Size = Reader.ReadUInt32();
+                // Peek data to detect VKV3
+                if (ResourceType == ResourceType.Unknown && blockType == "DATA")
+                {
+                    Reader.BaseStream.Position = offset;
 
+                    if (Reader.ReadUInt32() == BinaryKV3.MAGIC)
+                    {
+                        block = new BinaryKV3();
+                    }
+
+                    Reader.BaseStream.Position = position;
+                }
+
+                if (block == null)
+                {
+                    block = ConstructFromType(blockType);
+                }
+
+                block.Offset = offset;
+                block.Size = size;
                 block.Read(Reader, this);
 
                 Blocks.Add(block.GetChar(), block);
