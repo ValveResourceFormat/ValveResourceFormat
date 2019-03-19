@@ -6,6 +6,7 @@
 		<title>$title$</title>
 		<authors>$author$</authors>
 		<owners>$author$</owners>
+        <license type="expression">MIT</license>
 		<licenseUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/LICENSE</licenseUrl>
 		<projectUrl>https://github.com/SteamDatabase/ValveResourceFormat</projectUrl>
 		<iconUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/Icons/Programs/1455069708_api-code-window.png</iconUrl>
