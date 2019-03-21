@@ -43,7 +43,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// 
+        /// Get animation matrices as an array
         /// </summary>
         /// <param name="time"></param>
         /// <param name="skeleton"></param>
@@ -77,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// 
+        /// Get animation matrix recursively
         /// </summary>
         /// <param name="bone"></param>
         /// <param name="parentBindPose"></param>
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// 
+        /// Read segment
         /// </summary>
         /// <param name="frame"></param>
         /// <param name="segment"></param>
