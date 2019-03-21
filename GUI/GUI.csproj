@@ -51,7 +51,7 @@
     <PackageReference Include="SkiaSharp.Views" Version="1.60.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
     <PackageReference Include="ValveKeyValue" Version="0.2.1.107" />
-    <PackageReference Include="ValvePak" Version="0.4.0.11" />
+    <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controls\BetterTreeView.cs">
