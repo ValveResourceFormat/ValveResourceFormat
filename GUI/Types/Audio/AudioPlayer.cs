@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using NAudio.Wave;
@@ -19,29 +19,44 @@ namespace GUI.Types.Audio
             var stream = soundData.GetSoundStream();
             waveOut = new WaveOutEvent();
 
-            if (soundData.Type == Sound.AudioFileType.WAV)
+            try
             {
-                var rawSource = new WaveFileReader(stream);
-                waveOut.Init(rawSource);
-            }
-            else if (soundData.Type == Sound.AudioFileType.MP3)
-            {
-                var rawSource = new Mp3FileReader(stream);
-                waveOut.Init(rawSource);
-            }
-            else if (soundData.Type == Sound.AudioFileType.AAC)
-            {
-                var rawSource = new StreamMediaFoundationReader(stream);
-                waveOut.Init(rawSource);
-            }
+                if (soundData.Type == Sound.AudioFileType.WAV)
+                {
+                    var rawSource = new WaveFileReader(stream);
+                    waveOut.Init(rawSource);
+                }
+                else if (soundData.Type == Sound.AudioFileType.MP3)
+                {
+                    var rawSource = new Mp3FileReader(stream);
+                    waveOut.Init(rawSource);
+                }
+                else if (soundData.Type == Sound.AudioFileType.AAC)
+                {
+                    var rawSource = new StreamMediaFoundationReader(stream);
+                    waveOut.Init(rawSource);
+                }
 
-            playButton = new Button();
-            playButton.Text = "Play";
-            playButton.TabIndex = 1;
-            playButton.Size = new Size(100, 25);
-            playButton.Click += PlayButton_Click;
+                playButton = new Button();
+                playButton.Text = "Play";
+                playButton.TabIndex = 1;
+                playButton.Size = new Size(100, 25);
+                playButton.Click += PlayButton_Click;
 
-            tab.Controls.Add(playButton);
+                tab.Controls.Add(playButton);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+
+                var msg = new Label
+                {
+                    Text = $"NAudio Exception: {e.Message}",
+                    Dock = DockStyle.Fill,
+                };
+
+                tab.Controls.Add(msg);
+            }
         }
 
         private void PlayButton_Click(object sender, EventArgs e)
