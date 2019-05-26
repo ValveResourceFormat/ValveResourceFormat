@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -206,6 +206,12 @@ namespace ValveResourceFormat
                     }
 
                     Reader.BaseStream.Position = position;
+                }
+
+                // TODO: Valve has deprecated NTRO as reported by resourceinfo.exe
+                if (ResourceType == ResourceType.Model && Version == 1 && blockType == "DATA")
+                {
+                    block = new BinaryKV3();
                 }
 
                 if (block == null)
