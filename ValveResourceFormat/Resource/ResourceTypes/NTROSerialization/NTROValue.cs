@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Numerics;
 using ValveResourceFormat.Blocks;
 
@@ -116,6 +116,10 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
                 case DataType.SByte:
                 case DataType.CTransform:
                     writer.WriteLine(Value);
+                    break;
+
+                case DataType.Matrix2x4:
+                    (Value as Matrix2x4).WriteText(writer);
                     break;
 
                 case DataType.Matrix3x4:

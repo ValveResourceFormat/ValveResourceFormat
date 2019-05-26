@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -234,6 +234,19 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.String4:
                 case DataType.String:
                     return new NTROValue<string>(field.Type, Reader.ReadOffsetString(Encoding.UTF8), pointer);
+
+                case DataType.Matrix2x4:
+                    var matrix2x4a = new Matrix2x4(
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle(),
+                        Reader.ReadSingle());
+
+                    return new NTROValue<Matrix2x4>(field.Type, matrix2x4a, pointer);
 
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:

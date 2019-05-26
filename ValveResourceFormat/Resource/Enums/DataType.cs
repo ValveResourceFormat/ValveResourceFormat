@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat
 {
@@ -18,6 +18,7 @@ namespace ValveResourceFormat
         Int64 = 16, // TODO: not verified with resourceinfo
         UInt64 = 17,
         Float = 18,
+        Matrix2x4 = 21, // TODO: FourVectors2D
         Vector = 22,
         Vector4D = 23,
         Quaternion = 25,
