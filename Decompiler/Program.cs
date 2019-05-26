@@ -684,14 +684,7 @@ namespace Decompiler
 
             foreach (var file in entries)
             {
-                var filePath = string.Format("{0}.{1}", file.FileName, file.TypeName);
-
-                if (!string.IsNullOrWhiteSpace(file.DirectoryName))
-                {
-                    filePath = Path.Combine(file.DirectoryName, filePath);
-                }
-
-                filePath = FixPathSlashes(filePath);
+                var filePath = FixPathSlashes(file.GetFullPath());
 
                 if (FileFilter != null && !filePath.StartsWith(FileFilter, StringComparison.Ordinal))
                 {

@@ -141,7 +141,7 @@ namespace GUI.Controls
         {
             TreeNode currentNode = null;
 
-            if (file.DirectoryName != null)
+            if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
                 var subPaths = file.DirectoryName.Split(Package.DirectorySeparatorChar);
 

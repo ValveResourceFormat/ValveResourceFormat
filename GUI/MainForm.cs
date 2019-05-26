@@ -604,11 +604,11 @@ namespace GUI
 
                 if (IsCompatibleFile(file.GetFullPath()))
                 {
-                    OpenFile(file.FileName + "." + file.TypeName, output, package);
+                    OpenFile(file.GetFileName(), output, package);
                 }
                 else
                 {
-                    var tempPath = Path.GetTempPath() + Path.GetFileName(package.FileName) + " - " + file.FileName + "." + file.TypeName; // ew
+                    var tempPath = Path.GetTempPath() + Path.GetFileName(package.FileName) + " - " + file.GetFileName(); // ew
                     using (var stream = new FileStream(tempPath, FileMode.Create))
                     {
                         stream.Write(output, 0, output.Length);
@@ -714,7 +714,7 @@ namespace GUI
                 {
                     InitialDirectory = Settings.Config.SaveDirectory,
                     Filter = "All files (*.*)|*.*",
-                    FileName = file.FileName + "." + file.TypeName,
+                    FileName = file.GetFileName(),
                 };
                 var userOK = dialog.ShowDialog();
 
@@ -748,7 +748,7 @@ namespace GUI
                 if (node.Tag.GetType() == typeof(PackageEntry))
                 {
                     var file = node.Tag as PackageEntry;
-                    var filePath = Path.Combine(path, file.DirectoryName, file.FileName + "." + file.TypeName);
+                    var filePath = Path.Combine(path, file.GetFullPath());
 
                     Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
