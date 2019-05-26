@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
             var assembly = Assembly.GetExecutingAssembly();
 
 #if DEBUG_SHADERS && DEBUG
-            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.vert", FileMode.Open)) //<-- reloading at runtime
+            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.vert"), FileMode.Open))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
 #endif
@@ -89,7 +89,7 @@ namespace GUI.Types.Renderer
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
 #if DEBUG_SHADERS && DEBUG
-            using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{shaderFileName}.frag", FileMode.Open)) //<-- reloading at runtime
+            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.frag"), FileMode.Open))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
 #endif
@@ -203,7 +203,7 @@ namespace GUI.Types.Renderer
             {
                 //Read included code
 #if DEBUG_SHADERS  && DEBUG
-                using (var stream = File.Open($"../../../{ShaderDirectory.Replace('.', '/')}{define.Groups[1].Value}", FileMode.Open)) //<-- reloading at runtime
+                using (var stream = File.Open(GetShaderDiskPath(define.Groups[1].Value), FileMode.Open))
 #else
                 using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups[1].Value}"))
 #endif
@@ -231,5 +231,13 @@ namespace GUI.Types.Renderer
             var renderModeDefines = Regex.Matches(source, @"#define param_renderMode_(\S+)");
             return renderModeDefines.Cast<Match>().Select(_ => _.Groups[1].Value).ToList();
         }
+
+#if DEBUG_SHADERS && DEBUG
+        // Reload shaders at runtime
+        private static string GetShaderDiskPath(string name)
+        {
+            return Path.Combine(Path.GetDirectoryName(typeof(MainForm).Assembly.Location), "../../../", ShaderDirectory.Replace('.', '/'), name);
+        }
+#endif
     }
 }
