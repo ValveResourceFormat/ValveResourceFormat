@@ -1,16 +1,22 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
+using Decoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
     public class BinaryKV3 : ResourceData
     {
-        private static readonly byte[] ENCODING = { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 };
-        private static readonly byte[] FORMAT = { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 };
+#pragma warning disable SA1310 // Field names should not contain underscore
+        private static readonly byte[] KV3_ENCODING_BINARY_BLOCK_COMPRESSED = { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 };
+        private static readonly byte[] KV3_ENCODING_BINARY_UNCOMPRESSED = { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 };
+        private static readonly byte[] KV3_ENCODING_BINARY_POSSIBLY_LZ4 = { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 };
+        private static readonly byte[] KV3_FORMAT_GENERIC = { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 };
         public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
+#pragma warning restore SA1310
 
         public KVObject Data { get; private set; }
         private string[] stringArray;
@@ -27,26 +33,41 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new InvalidDataException("Invalid KV Signature");
             }
 
-            // outWrite.Write(sig);
             var encoding = reader.ReadBytes(16);
-            if (!ByteArrayCompare(encoding, ENCODING))
+            var format = reader.ReadBytes(16);
+
+            // Valve's implementation lives in LoadKV3Binary()
+            // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
+            // and then it proceeds to call LoadKV3BinaryUncompressed, which should be the same routine for KV3_ENCODING_BINARY_UNCOMPRESSED
+            // Old binary with debug symbols for ref: https://users.alliedmods.net/~asherkin/public/bins/dota_symbols/bin/osx64/libmeshsystem.dylib
+
+            if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_BLOCK_COMPRESSED))
             {
-                throw new InvalidDataException("Unrecognized KV3 Encoding");
+                BlockDecompress(reader, outWrite, outRead);
+            }
+            else if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_POSSIBLY_LZ4))
+            {
+                DecompressLZ4(reader, outWrite);
+            }
+            else if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_UNCOMPRESSED))
+            {
+                // Nothing to do here
+            }
+            else
+            {
+                throw new InvalidDataException("Unrecognised KV3 Encoding");
             }
 
-            // new encoding in dota: 8A 34 47 68 A1 63 5C 4F A1 97 53 80 6F D9 B1 19
-
-            // outWrite.Write(encoding);
-            var format = reader.ReadBytes(16);
-            if (!ByteArrayCompare(format, FORMAT))
+            if (!StructuralComparisons.StructuralEqualityComparer.Equals(format, KV3_FORMAT_GENERIC))
             {
                 throw new InvalidDataException("Unrecognised KV3 Format");
             }
 
-            // outWrite.Write(format);
+            Data = ParseBinaryKV3(outRead, null, true);
+        }
 
-            // Ok we are 100% sure its now KV, good
-
+        private void BlockDecompress(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
+        {
             // It is flags, right?
             var flags = reader.ReadBytes(4); // TODO: Figure out what this is
 
@@ -114,8 +135,13 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 stringArray[i] = outRead.ReadNullTermString(Encoding.UTF8);
             }
+        }
 
-            Data = ParseBinaryKV3(outRead, null, true);
+        private void DecompressLZ4(BinaryReader reader, BinaryWriter outWrite)
+        {
+            // TODO
+            var decoder = new Decoder();
+            decoder.Code(reader.BaseStream, outWrite.BaseStream, Size, reader.ReadUInt32(), null);
         }
 
         private KVObject ParseBinaryKV3(BinaryReader reader, KVObject parent, bool inArray = false)
@@ -201,11 +227,6 @@ namespace ValveResourceFormat.ResourceTypes
         public override void WriteText(IndentedTextWriter writer)
         {
             Data.Serialize(writer);
-        }
-
-        private static bool ByteArrayCompare(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
-        {
-            return a1.SequenceEqual(a2);
         }
     }
 }
