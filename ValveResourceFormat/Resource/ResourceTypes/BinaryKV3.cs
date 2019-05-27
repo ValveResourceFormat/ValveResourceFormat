@@ -1,4 +1,5 @@
-﻿using System.IO;
+using System;
+using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
@@ -28,14 +29,16 @@ namespace ValveResourceFormat.ResourceTypes
 
             // outWrite.Write(sig);
             var encoding = reader.ReadBytes(16);
-            if (Encoding.ASCII.GetString(encoding) != Encoding.ASCII.GetString(ENCODING))
+            if (!ByteArrayCompare(encoding, ENCODING))
             {
                 throw new InvalidDataException("Unrecognized KV3 Encoding");
             }
 
+            // new encoding in dota: 8A 34 47 68 A1 63 5C 4F A1 97 53 80 6F D9 B1 19
+
             // outWrite.Write(encoding);
             var format = reader.ReadBytes(16);
-            if (Encoding.ASCII.GetString(format) != Encoding.ASCII.GetString(FORMAT))
+            if (!ByteArrayCompare(format, FORMAT))
             {
                 throw new InvalidDataException("Unrecognised KV3 Format");
             }
@@ -198,6 +201,11 @@ namespace ValveResourceFormat.ResourceTypes
         public override void WriteText(IndentedTextWriter writer)
         {
             Data.Serialize(writer);
+        }
+
+        private static bool ByteArrayCompare(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
+        {
+            return a1.SequenceEqual(a2);
         }
     }
 }
