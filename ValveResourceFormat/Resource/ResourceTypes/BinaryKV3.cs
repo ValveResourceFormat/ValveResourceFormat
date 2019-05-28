@@ -215,7 +215,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 default:
-                    throw new InvalidDataException($"Unknown KVType {datatype} on byte {reader.BaseStream.Position - 1}");
+                    throw new InvalidDataException($"Unknown KVType {datatype} for field '{name}' on byte {reader.BaseStream.Position - 1}");
             }
 
             return parent;
