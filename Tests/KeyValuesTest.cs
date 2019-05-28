@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat.KeyValues;
 
@@ -41,7 +41,7 @@ namespace Tests
 
             Assert.AreEqual(KVType.BOOLEAN, properties["boolValue"].Type);
             Assert.AreEqual(false, properties["boolValue"].Value);
-            Assert.AreEqual(KVType.INTEGER, properties["intValue"].Type);
+            Assert.AreEqual(KVType.INT64, properties["intValue"].Type);
             Assert.AreEqual((long)128, properties["intValue"].Value);
             Assert.AreEqual(KVType.DOUBLE, properties["doubleValue"].Type);
             Assert.AreEqual(64.000000, properties["doubleValue"].Value);
