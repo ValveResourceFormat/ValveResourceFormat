@@ -13,22 +13,22 @@ namespace ValveResourceFormat.KeyValues
         STRING_MULTI = 0, // STRING_MULTI doesn't have an ID
         NULL = 1,
         BOOLEAN = 2,
-        INTEGER = 3, // TODO: int64?
-        FLAGGED_STRING = 4, // TODO: this is uint64?
+        INT64 = 3,
+        UINT64 = 4,
         DOUBLE = 5,
         STRING = 6,
         BINARY_BLOB = 7,
         ARRAY = 8,
         OBJECT = 9,
-        UNKNOWN_10 = 10, // TODO: possibly recursive kv3
-        UNKNOWN_11 = 11, // TODO
-        UNKNOWN_12 = 12, // TODO
-        UNKNOWN_13 = 13, // TODO
-        UNKNOWN_14 = 14, // TODO
-        UNKNOWN_15 = 15, // TODO
-        UNKNOWN_16 = 16, // TODO
-        UNKNOWN_17 = 17, // TODO
-        UNKNOWN_18 = 18, // TODO
+        UNKNOWN_10 = 10, // TODO: ARRAY of some sort
+        INT32 = 11,
+        UINT32 = 12,
+        BOOLEAN_TRUE = 13,
+        BOOLEAN_FALSE = 14,
+        INT64_ZERO = 15,
+        INT64_ONE = 16,
+        DOUBLE_ZERO = 17,
+        DOUBLE_MAX = 18,
     }
 
     //Datastructure for a KV Object
@@ -181,9 +181,6 @@ namespace ValveResourceFormat.KeyValues
                 case KVType.ARRAY:
                     ((KVObject)value).Serialize(writer);
                     break;
-                case KVType.FLAGGED_STRING:
-                    writer.Write((string)value);
-                    break;
                 case KVType.STRING:
                     writer.Write("\"");
                     writer.Write(EscapeUnescaped((string)value, '"'));
@@ -200,7 +197,7 @@ namespace ValveResourceFormat.KeyValues
                 case KVType.DOUBLE:
                     writer.Write(((double)value).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
-                case KVType.INTEGER:
+                case KVType.INT64:
                     writer.Write((long)value);
                     break;
                 case KVType.NULL:

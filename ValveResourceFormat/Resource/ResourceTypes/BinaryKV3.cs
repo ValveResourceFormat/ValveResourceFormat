@@ -175,18 +175,48 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.BOOLEAN:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadBoolean(), flagInfo));
                     break;
-                case KVType.INTEGER:
+                case KVType.BOOLEAN_TRUE:
+                    parent.AddProperty(name, MakeValue(datatype, true, flagInfo));
+                    break;
+                case KVType.BOOLEAN_FALSE:
+                    parent.AddProperty(name, MakeValue(datatype, false, flagInfo));
+                    break;
+                case KVType.INT64_ZERO:
+                    parent.AddProperty(name, MakeValue(datatype, 0, flagInfo));
+                    break;
+                case KVType.INT64_ONE:
+                    parent.AddProperty(name, MakeValue(datatype, 1, flagInfo));
+                    break;
+                case KVType.INT64:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
+                    break;
+                case KVType.UINT64:
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
+                    break;
+                case KVType.INT32:
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
+                    break;
+                case KVType.UINT32:
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
                     break;
                 case KVType.DOUBLE:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
+                    break;
+                case KVType.DOUBLE_ZERO:
+                    parent.AddProperty(name, MakeValue(datatype, 0D, flagInfo));
+                    break;
+                case KVType.DOUBLE_MAX:
+                    parent.AddProperty(name, MakeValue(datatype, (double)0x3FF0000000000000, flagInfo)); // TODO: double.MaxValue?
                     break;
                 case KVType.STRING:
                     var id = reader.ReadInt32();
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
+                case KVType.BINARY_BLOB:
+                    var length = reader.ReadInt32();
+                    throw new NotImplementedException("Implement BINARY_BLOB");
                 case KVType.ARRAY:
-                    var arrayLength = reader.ReadInt32(); //UInt or Int?
+                    var arrayLength = reader.ReadInt32();
                     var array = new KVObject(name, true);
                     for (var i = 0; i < arrayLength; i++)
                     {
@@ -195,8 +225,11 @@ namespace ValveResourceFormat.ResourceTypes
 
                     parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     break;
+                case KVType.UNKNOWN_10: // ARRAY_EXTENDED or something?
+                    var count = reader.ReadInt32();
+                    throw new NotImplementedException();
                 case KVType.OBJECT:
-                    var objectLength = reader.ReadInt32(); //UInt or Int?
+                    var objectLength = reader.ReadInt32();
                     var newObject = new KVObject(name, false);
                     for (var i = 0; i < objectLength; i++)
                     {
@@ -213,7 +246,6 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     break;
-
                 default:
                     throw new InvalidDataException($"Unknown KVType {datatype} for field '{name}' on byte {reader.BaseStream.Position - 1}");
             }
@@ -221,14 +253,43 @@ namespace ValveResourceFormat.ResourceTypes
             return parent;
         }
 
-        private KVValue MakeValue(KVType type, object data, KVFlag flag)
+        private static KVType ConvertBinaryOnlyKVType(KVType type)
         {
-            if (flag != KVFlag.None)
+            switch (type)
             {
-                return new KVFlaggedValue(type, flag, data);
+                case KVType.BOOLEAN:
+                case KVType.BOOLEAN_TRUE:
+                case KVType.BOOLEAN_FALSE:
+                    return KVType.BOOLEAN;
+                case KVType.INT64:
+                case KVType.INT32:
+                case KVType.INT64_ZERO:
+                case KVType.INT64_ONE:
+                    return KVType.INT64;
+                case KVType.UINT64:
+                case KVType.UINT32:
+                    return KVType.UINT64;
+                case KVType.DOUBLE:
+                case KVType.DOUBLE_ZERO:
+                case KVType.DOUBLE_MAX:
+                    return KVType.DOUBLE;
+                case KVType.UNKNOWN_10:
+                    return KVType.ARRAY;
             }
 
-            return new KVValue(type, data);
+            return type;
+        }
+
+        private KVValue MakeValue(KVType type, object data, KVFlag flag)
+        {
+            var realType = ConvertBinaryOnlyKVType(type);
+
+            if (flag != KVFlag.None)
+            {
+                return new KVFlaggedValue(realType, flag, data);
+            }
+
+            return new KVValue(realType, data);
         }
 
         public KV3File GetKV3File()
