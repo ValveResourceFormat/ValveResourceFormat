@@ -205,7 +205,7 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
                     break;
                 case KVType.INT32:
-                    parent.AddProperty(name, MakeValue(datatype, (ulong)reader.ReadInt32(), flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, (long)reader.ReadInt32(), flagInfo));
                     break;
                 case KVType.UINT32:
                     parent.AddProperty(name, MakeValue(datatype, (ulong)reader.ReadUInt32(), flagInfo));
