@@ -20,7 +20,7 @@ namespace ValveResourceFormat.KeyValues
         BINARY_BLOB = 7,
         ARRAY = 8,
         OBJECT = 9,
-        UNKNOWN_10 = 10, // TODO: ARRAY of some sort
+        ARRAY_TYPED = 10,
         INT32 = 11,
         UINT32 = 12,
         BOOLEAN_TRUE = 13,
@@ -198,7 +198,10 @@ namespace ValveResourceFormat.KeyValues
                     writer.Write(((double)value).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
                 case KVType.INT64:
-                    writer.Write((long)value);
+                    writer.Write(Convert.ToInt64(value));
+                    break;
+                case KVType.UINT64:
+                    writer.Write(Convert.ToUInt64(value));
                     break;
                 case KVType.NULL:
                     writer.Write("null");

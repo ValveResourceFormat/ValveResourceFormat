@@ -148,6 +148,20 @@ namespace ValveResourceFormat.ResourceTypes
             outWrite.BaseStream.Position = 0;
         }
 
+        private static (KVType, KVFlag) ReadType(BinaryReader reader)
+        {
+            var databyte = reader.ReadByte();
+            var flagInfo = KVFlag.None;
+
+            if ((databyte & 0x80) > 0)
+            {
+                databyte &= 0x7F; // Remove the flag bit
+                flagInfo = (KVFlag)reader.ReadByte();
+            }
+
+            return ((KVType)databyte, flagInfo);
+        }
+
         private KVObject ParseBinaryKV3(BinaryReader reader, KVObject parent, bool inArray = false)
         {
             string name = null;
@@ -157,16 +171,13 @@ namespace ValveResourceFormat.ResourceTypes
                 name = (stringID == -1) ? string.Empty : stringArray[stringID];
             }
 
-            var databyte = reader.ReadByte();
-            var flagInfo = KVFlag.None;
-            if ((databyte & 0x80) > 0)
-            {
-                databyte &= 0x7F; // Remove the flag bit
-                flagInfo = (KVFlag)reader.ReadByte();
-            }
+            var (datatype, flagInfo) = ReadType(reader);
 
-            var datatype = (KVType)databyte;
+            return ReadBinaryValue(name, datatype, flagInfo, reader, parent);
+        }
 
+        private KVObject ReadBinaryValue(string name, KVType datatype, KVFlag flagInfo, BinaryReader reader, KVObject parent)
+        {
             switch (datatype)
             {
                 case KVType.NULL:
@@ -182,10 +193,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, false, flagInfo));
                     break;
                 case KVType.INT64_ZERO:
-                    parent.AddProperty(name, MakeValue(datatype, 0, flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, 0UL, flagInfo));
                     break;
                 case KVType.INT64_ONE:
-                    parent.AddProperty(name, MakeValue(datatype, 1, flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, 1UL, flagInfo));
                     break;
                 case KVType.INT64:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
@@ -194,10 +205,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
                     break;
                 case KVType.INT32:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, (ulong)reader.ReadInt32(), flagInfo));
                     break;
                 case KVType.UINT32:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, (ulong)reader.ReadUInt32(), flagInfo));
                     break;
                 case KVType.DOUBLE:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
@@ -225,9 +236,18 @@ namespace ValveResourceFormat.ResourceTypes
 
                     parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     break;
-                case KVType.UNKNOWN_10: // ARRAY_EXTENDED or something?
-                    var count = reader.ReadInt32();
-                    throw new NotImplementedException();
+                case KVType.ARRAY_TYPED:
+                    var typeArrayLength = reader.ReadInt32();
+                    var (subType, subFlagInfo) = ReadType(reader);
+                    var typedArray = new KVObject(name, true);
+
+                    for (var i = 0; i < typeArrayLength; i++)
+                    {
+                        ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
+                    }
+
+                    parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                    break;
                 case KVType.OBJECT:
                     var objectLength = reader.ReadInt32();
                     var newObject = new KVObject(name, false);
@@ -273,14 +293,14 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.DOUBLE_ZERO:
                 case KVType.DOUBLE_MAX:
                     return KVType.DOUBLE;
-                case KVType.UNKNOWN_10:
+                case KVType.ARRAY_TYPED:
                     return KVType.ARRAY;
             }
 
             return type;
         }
 
-        private KVValue MakeValue(KVType type, object data, KVFlag flag)
+        private static KVValue MakeValue(KVType type, object data, KVFlag flag)
         {
             var realType = ConvertBinaryOnlyKVType(type);
 
