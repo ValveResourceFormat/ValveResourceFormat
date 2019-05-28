@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Skia.Linux.Natives" Version="1.60.0.1" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.1.9" />
     <PackageReference Include="SkiaSharp" Version="1.60.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
     <PackageReference Include="System.Memory" Version="4.5.1" />

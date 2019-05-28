@@ -2,9 +2,9 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Text;
+using K4os.Compression.LZ4;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
-using Decoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
 #pragma warning disable SA1310 // Field names should not contain underscore
         private static readonly byte[] KV3_ENCODING_BINARY_BLOCK_COMPRESSED = { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 };
         private static readonly byte[] KV3_ENCODING_BINARY_UNCOMPRESSED = { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 };
-        private static readonly byte[] KV3_ENCODING_BINARY_POSSIBLY_LZ4 = { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 };
+        private static readonly byte[] KV3_ENCODING_BINARY_BLOCK_LZ4 = { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 };
         private static readonly byte[] KV3_FORMAT_GENERIC = { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 };
         public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
 #pragma warning restore SA1310
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 BlockDecompress(reader, outWrite, outRead);
             }
-            else if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_POSSIBLY_LZ4))
+            else if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_BLOCK_LZ4))
             {
                 DecompressLZ4(reader, outWrite);
             }
@@ -61,6 +61,13 @@ namespace ValveResourceFormat.ResourceTypes
             if (!StructuralComparisons.StructuralEqualityComparer.Equals(format, KV3_FORMAT_GENERIC))
             {
                 throw new InvalidDataException("Unrecognised KV3 Format");
+            }
+
+            var stringCount = outRead.ReadUInt32();
+            stringArray = new string[stringCount];
+            for (var i = 0; i < stringCount; i++)
+            {
+                stringArray[i] = outRead.ReadNullTermString(Encoding.UTF8);
             }
 
             Data = ParseBinaryKV3(outRead, null, true);
@@ -129,19 +136,20 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             outRead.BaseStream.Position = 0;
-            var stringCount = outRead.ReadUInt32(); //Assuming UInt
-            stringArray = new string[stringCount];
-            for (var i = 0; i < stringCount; i++)
-            {
-                stringArray[i] = outRead.ReadNullTermString(Encoding.UTF8);
-            }
         }
 
         private void DecompressLZ4(BinaryReader reader, BinaryWriter outWrite)
         {
-            // TODO
-            var decoder = new Decoder();
-            decoder.Code(reader.BaseStream, outWrite.BaseStream, Size, reader.ReadUInt32(), null);
+            var uncompressedSize = reader.ReadUInt32();
+            var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
+
+            var input = reader.ReadBytes(compressedSize);
+            var output = new Span<byte>(new byte[uncompressedSize]);
+
+            LZ4Codec.Decode(input, output);
+
+            outWrite.Write(output.ToArray()); // TODO: Write as span
+            outWrite.BaseStream.Position = 0;
         }
 
         private KVObject ParseBinaryKV3(BinaryReader reader, KVObject parent, bool inArray = false)
@@ -208,7 +216,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     break;
                 default:
-                    throw new InvalidDataException(string.Format("Unknown KVType {0}", datatype));
+                    throw new InvalidDataException($"Unknown KVType {datatype} on byte {reader.BaseStream.Position - 1}");
             }
 
             return parent;
