@@ -339,7 +339,7 @@ namespace Decompiler
                         case ResourceType.Particle:
                         case ResourceType.Mesh:
                             //Wrap it around a KV3File object to get the header.
-                            data = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
+                            data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.Blocks[BlockType.DATA]).GetKV3File().ToString());
                             break;
 
                         //These all just use ToString() and WriteText() to do the job
@@ -738,7 +738,7 @@ namespace Decompiler
                                     break;
                                 case "vpcf_c":
                                     //Wrap it around a KV3File object to get the header.
-                                    output = Encoding.UTF8.GetBytes(new ValveResourceFormat.KeyValues.KV3File(((BinaryKV3)resource.Blocks[BlockType.DATA]).Data).ToString());
+                                    output = Encoding.UTF8.GetBytes(((BinaryKV3)resource.Blocks[BlockType.DATA]).GetKV3File().ToString());
                                     break;
                                 case "vsnd_c":
                                     var sound = ((Sound)resource.Blocks[BlockType.DATA]);

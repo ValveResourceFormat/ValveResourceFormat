@@ -1,7 +1,5 @@
 using System;
-using System.Collections;
 using System.IO;
-using System.Text;
 using K4os.Compression.LZ4;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.KeyValues;
@@ -11,14 +9,17 @@ namespace ValveResourceFormat.ResourceTypes
     public class BinaryKV3 : ResourceData
     {
 #pragma warning disable SA1310 // Field names should not contain underscore
-        private static readonly byte[] KV3_ENCODING_BINARY_BLOCK_COMPRESSED = { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 };
-        private static readonly byte[] KV3_ENCODING_BINARY_UNCOMPRESSED = { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 };
-        private static readonly byte[] KV3_ENCODING_BINARY_BLOCK_LZ4 = { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 };
-        private static readonly byte[] KV3_FORMAT_GENERIC = { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 };
+        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new Guid(new byte[] { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 });
+        private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new Guid(new byte[] { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 });
+        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_LZ4 = new Guid(new byte[] { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 });
+        private static readonly Guid KV3_FORMAT_GENERIC = new Guid(new byte[] { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 });
         public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
 #pragma warning restore SA1310
 
         public KVObject Data { get; private set; }
+        public Guid Encoding { get; private set; }
+        public Guid Format { get; private set; }
+
         private string[] stringArray;
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -33,41 +34,36 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new InvalidDataException("Invalid KV Signature");
             }
 
-            var encoding = reader.ReadBytes(16);
-            var format = reader.ReadBytes(16);
+            Encoding = new Guid(reader.ReadBytes(16));
+            Format = new Guid(reader.ReadBytes(16));
 
             // Valve's implementation lives in LoadKV3Binary()
             // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
             // and then it proceeds to call LoadKV3BinaryUncompressed, which should be the same routine for KV3_ENCODING_BINARY_UNCOMPRESSED
             // Old binary with debug symbols for ref: https://users.alliedmods.net/~asherkin/public/bins/dota_symbols/bin/osx64/libmeshsystem.dylib
 
-            if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_BLOCK_COMPRESSED))
+            if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_COMPRESSED) == 0)
             {
                 BlockDecompress(reader, outWrite, outRead);
             }
-            else if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_BLOCK_LZ4))
+            else if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_LZ4) == 0)
             {
                 DecompressLZ4(reader, outWrite);
             }
-            else if (StructuralComparisons.StructuralEqualityComparer.Equals(encoding, KV3_ENCODING_BINARY_UNCOMPRESSED))
+            else if (Encoding.CompareTo(KV3_ENCODING_BINARY_UNCOMPRESSED) == 0)
             {
                 // Nothing to do here
             }
             else
             {
-                throw new InvalidDataException($"Unrecognised KV3 Encoding: {BitConverter.ToString(encoding)}");
-            }
-
-            if (!StructuralComparisons.StructuralEqualityComparer.Equals(format, KV3_FORMAT_GENERIC))
-            {
-                throw new InvalidDataException($"Unrecognised KV3 Format: {BitConverter.ToString(format)}");
+                throw new InvalidDataException($"Unrecognised KV3 Encoding: {Encoding.ToString()}");
             }
 
             var stringCount = outRead.ReadUInt32();
             stringArray = new string[stringCount];
             for (var i = 0; i < stringCount; i++)
             {
-                stringArray[i] = outRead.ReadNullTermString(Encoding.UTF8);
+                stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
             }
 
             Data = ParseBinaryKV3(outRead, null, true);
@@ -233,6 +229,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return new KVValue(type, data);
+        }
+
+        public KV3File GetKV3File()
+        {
+            // TODO: Other format guids are not "generic" but strings like "vpc19"
+            return new KV3File(Data, format: $"generic:version{{{Format.ToString()}}}");
         }
 
         public override void WriteText(IndentedTextWriter writer)
