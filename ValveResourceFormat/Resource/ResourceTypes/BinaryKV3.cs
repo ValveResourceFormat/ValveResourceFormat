@@ -161,33 +161,35 @@ namespace ValveResourceFormat.ResourceTypes
                 name = (stringID == -1) ? string.Empty : stringArray[stringID];
             }
 
-            var datatype = reader.ReadByte();
+            var databyte = reader.ReadByte();
             var flagInfo = KVFlag.None;
-            if ((datatype & 0x80) > 0)
+            if ((databyte & 0x80) > 0)
             {
-                datatype &= 0x7F; //Remove the flag bit.
+                databyte &= 0x7F; // Remove the flag bit
                 flagInfo = (KVFlag)reader.ReadByte();
             }
 
+            var datatype = (KVType)databyte;
+
             switch (datatype)
             {
-                case (byte)KVType.NULL:
+                case KVType.NULL:
                     parent.AddProperty(name, MakeValue(datatype, null, flagInfo));
                     break;
-                case (byte)KVType.BOOLEAN:
+                case KVType.BOOLEAN:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadBoolean(), flagInfo));
                     break;
-                case (byte)KVType.INTEGER:
+                case KVType.INTEGER:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
                     break;
-                case (byte)KVType.DOUBLE:
+                case KVType.DOUBLE:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
                     break;
-                case (byte)KVType.STRING:
+                case KVType.STRING:
                     var id = reader.ReadInt32();
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
-                case (byte)KVType.ARRAY:
+                case KVType.ARRAY:
                     var arrayLength = reader.ReadInt32(); //UInt or Int?
                     var array = new KVObject(name, true);
                     for (var i = 0; i < arrayLength; i++)
@@ -197,7 +199,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     break;
-                case (byte)KVType.OBJECT:
+                case KVType.OBJECT:
                     var objectLength = reader.ReadInt32(); //UInt or Int?
                     var newObject = new KVObject(name, false);
                     for (var i = 0; i < objectLength; i++)
@@ -215,6 +217,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     break;
+
                 default:
                     throw new InvalidDataException($"Unknown KVType {datatype} on byte {reader.BaseStream.Position - 1}");
             }
@@ -222,14 +225,14 @@ namespace ValveResourceFormat.ResourceTypes
             return parent;
         }
 
-        private KVValue MakeValue(byte type, object data, KVFlag flag)
+        private KVValue MakeValue(KVType type, object data, KVFlag flag)
         {
             if (flag != KVFlag.None)
             {
-                return new KVFlaggedValue((KVType)type, flag, data);
+                return new KVFlaggedValue(type, flag, data);
             }
 
-            return new KVValue((KVType)type, data);
+            return new KVValue(type, data);
         }
 
         public override void WriteText(IndentedTextWriter writer)
