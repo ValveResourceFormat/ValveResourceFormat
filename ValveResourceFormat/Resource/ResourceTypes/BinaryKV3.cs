@@ -55,12 +55,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                throw new InvalidDataException("Unrecognised KV3 Encoding");
+                throw new InvalidDataException($"Unrecognised KV3 Encoding: {BitConverter.ToString(encoding)}");
             }
 
             if (!StructuralComparisons.StructuralEqualityComparer.Equals(format, KV3_FORMAT_GENERIC))
             {
-                throw new InvalidDataException("Unrecognised KV3 Format");
+                throw new InvalidDataException($"Unrecognised KV3 Format: {BitConverter.ToString(format)}");
             }
 
             var stringCount = outRead.ReadUInt32();
