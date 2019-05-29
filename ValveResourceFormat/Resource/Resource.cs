@@ -197,7 +197,7 @@ namespace ValveResourceFormat
 
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
-                if (blockType == "DATA")
+                if (size >= 4 && blockType == "DATA")
                 {
                     Reader.BaseStream.Position = offset;
 
