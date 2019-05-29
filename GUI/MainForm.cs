@@ -420,9 +420,10 @@ namespace GUI
                     case ResourceType.Model:
                         // Create model
                         var model = new Model(resource);
+                        var modelData = new ValveResourceFormat.ResourceTypes.Model(resource);
 
                         // Create skeleton
-                        var skeleton = new Skeleton(resource);
+                        var skeleton = modelData.GetSkeleton();
 
                         // Create tab
                         var modelmeshTab = new TabPage("MESH");

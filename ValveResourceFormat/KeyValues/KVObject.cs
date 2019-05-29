@@ -2,37 +2,12 @@
 // Make stylecop ignore this file because we're rewriting KV3 in separate project.
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 
 namespace ValveResourceFormat.KeyValues
 {
-    //Different type of value blocks for KeyValues (All in use for KV3)
-    public enum KVType : byte
-    {
-        STRING_MULTI = 0, // STRING_MULTI doesn't have an ID
-        NULL = 1,
-        BOOLEAN = 2,
-        INT64 = 3,
-        UINT64 = 4,
-        DOUBLE = 5,
-        STRING = 6,
-        BINARY_BLOB = 7,
-        ARRAY = 8,
-        OBJECT = 9,
-        ARRAY_TYPED = 10,
-        INT32 = 11,
-        UINT32 = 12,
-        BOOLEAN_TRUE = 13,
-        BOOLEAN_FALSE = 14,
-        INT64_ZERO = 15,
-        INT64_ONE = 16,
-        DOUBLE_ZERO = 17,
-        DOUBLE_ONE = 18,
-    }
-
     //Datastructure for a KV Object
-    public class KVObject
+    public class KVObject : IKeyValueCollection
     {
         public string Key { get; private set; }
         public Dictionary<string, KVValue> Properties { get; private set; }
@@ -98,7 +73,7 @@ namespace ValveResourceFormat.KeyValues
                 writer.Write(pair.Key);
                 writer.Write(" = ");
 
-                PrintValue(writer, pair.Value);
+                pair.Value.PrintValue(writer);
 
                 writer.WriteLine();
             }
@@ -115,7 +90,7 @@ namespace ValveResourceFormat.KeyValues
             writer.Indent++;
             for (var i = 0; i < Count; i++)
             {
-                PrintValue(writer, Properties[i.ToString()]);
+                Properties[i.ToString()].PrintValue(writer);
 
                 writer.WriteLine(",");
             }
@@ -124,120 +99,36 @@ namespace ValveResourceFormat.KeyValues
             writer.Write("]");
         }
 
-        private string EscapeUnescaped(string input, char toEscape)
+        public IEnumerable<string> Keys => Properties.Keys;
+
+        public bool ContainsKey(string name) => Properties.ContainsKey(name);
+
+        public T GetProperty<T>(string name)
         {
-            if (input.Length == 0)
+            if (Properties.TryGetValue(name, out var value))
             {
-                return input;
+                return (T)value.Value;
             }
-
-            int index = 1;
-            while (true)
+            else
             {
-                index = input.IndexOf(toEscape, index);
-
-                //Break out of the loop if no more occurrences were found
-                if (index == -1)
-                {
-                    break;
-                }
-
-                if (input.ElementAt(index - 1) != '\\')
-                {
-                    input = input.Insert(index, "\\");
-                }
-
-                //Don't read this one again
-                index++;
+                return default(T);
             }
-
-            return input;
         }
 
-        //Print a value in the correct representation
-        private void PrintValue(IndentedTextWriter writer, KVValue kvValue)
+        public T[] GetArray<T>(string name)
         {
-            KVType type = kvValue.Type;
-            object value = kvValue.Value;
-            var flagValue = kvValue as KVFlaggedValue;
-            if (flagValue != null)
+            if (Properties.TryGetValue(name, out var value))
             {
-                switch (flagValue.Flag)
+                if (value.Type != KVType.ARRAY && value.Type != KVType.ARRAY_TYPED)
                 {
-                    case KVFlag.Resource:
-                        writer.Write("resource:");
-                        break;
-                    case KVFlag.DeferredResource:
-                        writer.Write("deferred_resource:");
-                        break;
-                    default:
-                        throw new InvalidOperationException("Trying to print unknown flag");
+                    throw new InvalidOperationException($"Tried to cast non-array property {name} to array. Actual type: {value.Type}");
                 }
+
+                return ((KVObject)value.Value).Properties.Values.Select(v => (T)v.Value).ToArray();
             }
-
-            switch (type)
+            else
             {
-                case KVType.OBJECT:
-                case KVType.ARRAY:
-                    ((KVObject)value).Serialize(writer);
-                    break;
-                case KVType.STRING:
-                    writer.Write("\"");
-                    writer.Write(EscapeUnescaped((string)value, '"'));
-                    writer.Write("\"");
-                    break;
-                case KVType.STRING_MULTI:
-                    writer.Write("\"\"\"\n");
-                    writer.Write((string)value);
-                    writer.Write("\n\"\"\"");
-                    break;
-                case KVType.BOOLEAN:
-                    writer.Write((bool)value ? "true" : "false");
-                    break;
-                case KVType.DOUBLE:
-                    writer.Write(((double)value).ToString("#0.000000", CultureInfo.InvariantCulture));
-                    break;
-                case KVType.INT64:
-                    writer.Write(Convert.ToInt64(value));
-                    break;
-                case KVType.UINT64:
-                    writer.Write(Convert.ToUInt64(value));
-                    break;
-                case KVType.NULL:
-                    writer.Write("null");
-                    break;
-                case KVType.BINARY_BLOB:
-                    var byteArray = (byte[])value;
-                    var count = 0;
-
-                    writer.WriteLine("#[");
-                    writer.Indent++;
-
-                    foreach (var oneByte in byteArray)
-                    {
-                        writer.Write(oneByte.ToString("X2"));
-
-                        if (++count % 32 == 0)
-                        {
-                            writer.WriteLine();
-                        }
-                        else
-                        {
-                            writer.Write(" ");
-                        }
-                    }
-
-                    writer.Indent--;
-
-                    if (count % 32 != 0)
-                    {
-                        writer.WriteLine();
-                    }
-
-                    writer.Write("]");
-                    break;
-                default:
-                    throw new InvalidOperationException($"Trying to print unknown type '{type}'");
+                return default(T[]);
             }
         }
     }

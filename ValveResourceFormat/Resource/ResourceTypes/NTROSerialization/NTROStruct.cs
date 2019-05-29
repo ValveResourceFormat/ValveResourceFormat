@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 {
-    public class NTROStruct : IDictionary
+    public class NTROStruct : IDictionary, IKeyValueCollection
     {
         private readonly Dictionary<string, NTROValue> Contents;
         public string Name { get; private set; }
@@ -173,6 +174,34 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             }
 
             return ((NTROValue<T>)this[key]).Value;
+        }
+
+        IEnumerable<string> IKeyValueCollection.Keys => Contents.Keys;
+
+        public bool ContainsKey(string name) => Contents.ContainsKey(name);
+
+        public T[] GetArray<T>(string name)
+        {
+            if (Contents.TryGetValue(name, out var value))
+            {
+                return ((NTROArray)value).Select(v => ((NTROValue<T>)v).Value).ToArray();
+            }
+            else
+            {
+                return default(T[]);
+            }
+        }
+
+        public T GetProperty<T>(string name)
+        {
+            if (Contents.TryGetValue(name, out var value))
+            {
+                return ((NTROValue<T>)value).Value;
+            }
+            else
+            {
+                return default(T);
+            }
         }
     }
 }
