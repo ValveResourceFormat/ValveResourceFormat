@@ -206,9 +206,38 @@ namespace ValveResourceFormat.KeyValues
                 case KVType.NULL:
                     writer.Write("null");
                     break;
+                case KVType.BINARY_BLOB:
+                    var byteArray = (byte[])value;
+                    var count = 0;
+
+                    writer.WriteLine("#[");
+                    writer.Indent++;
+
+                    foreach (var oneByte in byteArray)
+                    {
+                        writer.Write(oneByte.ToString("X2"));
+
+                        if (++count % 32 == 0)
+                        {
+                            writer.WriteLine();
+                        }
+                        else
+                        {
+                            writer.Write(" ");
+                        }
+                    }
+
+                    writer.Indent--;
+
+                    if (count % 32 != 0)
+                    {
+                        writer.WriteLine();
+                    }
+
+                    writer.Write("]");
+                    break;
                 default:
-                    // Unknown type encountered
-                    throw new InvalidOperationException("Trying to print unknown type.");
+                    throw new InvalidOperationException($"Trying to print unknown type '{type}'");
             }
         }
     }

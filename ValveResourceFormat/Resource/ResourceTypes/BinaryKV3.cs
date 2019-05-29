@@ -225,7 +225,8 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.BINARY_BLOB:
                     var length = reader.ReadInt32();
-                    throw new NotImplementedException("Implement BINARY_BLOB");
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
+                    break;
                 case KVType.ARRAY:
                     var arrayLength = reader.ReadInt32();
                     var array = new KVObject(name, true);
