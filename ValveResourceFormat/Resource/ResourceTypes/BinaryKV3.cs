@@ -214,10 +214,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
                     break;
                 case KVType.DOUBLE_ZERO:
-                    parent.AddProperty(name, MakeValue(datatype, 0D, flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, 0.0D, flagInfo));
                     break;
-                case KVType.DOUBLE_MAX:
-                    parent.AddProperty(name, MakeValue(datatype, (double)0x3FF0000000000000, flagInfo)); // TODO: double.MaxValue?
+                case KVType.DOUBLE_ONE:
+                    parent.AddProperty(name, MakeValue(datatype, 1.0D, flagInfo));
                     break;
                 case KVType.STRING:
                     var id = reader.ReadInt32();
@@ -292,7 +292,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return KVType.UINT64;
                 case KVType.DOUBLE:
                 case KVType.DOUBLE_ZERO:
-                case KVType.DOUBLE_MAX:
+                case KVType.DOUBLE_ONE:
                     return KVType.DOUBLE;
                 case KVType.ARRAY_TYPED:
                     return KVType.ARRAY;

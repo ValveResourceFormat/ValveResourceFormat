@@ -28,7 +28,7 @@ namespace ValveResourceFormat.KeyValues
         INT64_ZERO = 15,
         INT64_ONE = 16,
         DOUBLE_ZERO = 17,
-        DOUBLE_MAX = 18,
+        DOUBLE_ONE = 18,
     }
 
     //Datastructure for a KV Object
