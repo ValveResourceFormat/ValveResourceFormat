@@ -279,6 +279,9 @@ namespace ValveResourceFormat
 
                 case "VXVS":
                     return new VXVS();
+
+                case "SNAP":
+                    return new SNAP();
             }
 
             throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));

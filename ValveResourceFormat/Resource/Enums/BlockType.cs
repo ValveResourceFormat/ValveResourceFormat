@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat
 {
@@ -11,6 +11,7 @@ namespace ValveResourceFormat
         DATA,
         VBIB,
         VXVS,
+        SNAP,
 #pragma warning restore 1591
     }
 }
