@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -216,13 +215,7 @@ namespace Decompiler
 
             try
             {
-                var sw = Stopwatch.StartNew();
-
                 resource.Read(stream);
-
-                sw.Stop();
-
-                Console.WriteLine("Parsed in {0}ms", sw.ElapsedMilliseconds);
 
                 string extension = Path.GetExtension(path);
 
@@ -288,6 +281,11 @@ namespace Decompiler
                                 uniqueSpecialDependancies[string.Format("{0} \"{1}\"", dep.CompilerIdentifier, dep.String)] = path;
                             }
                         }
+                    }
+
+                    foreach (var block in resource.Blocks)
+                    {
+                        block.Value.ToString();
                     }
                 }
 
@@ -526,8 +524,6 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            var sw = Stopwatch.StartNew();
-
             var package = new Package();
 
             try
@@ -660,10 +656,6 @@ namespace Decompiler
                     }
                 }
             }
-
-            sw.Stop();
-
-            Console.WriteLine("Processed in {0}ms", sw.ElapsedMilliseconds);
         }
 
         private void DumpVPK(Package package, string type, string newType)
