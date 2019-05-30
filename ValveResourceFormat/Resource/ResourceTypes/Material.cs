@@ -1,9 +1,7 @@
-﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -15,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, int> IntParams { get; } = new Dictionary<string, int>();
         public Dictionary<string, float> FloatParams { get; } = new Dictionary<string, float>();
         public Dictionary<string, Vector4> VectorParams { get; } = new Dictionary<string, Vector4>();
-        public Dictionary<string, ResourceExtRefList.ResourceReferenceInfo> TextureParams { get; } = new Dictionary<string, ResourceExtRefList.ResourceReferenceInfo>();
+        public Dictionary<string, string> TextureParams { get; } = new Dictionary<string, string>();
         public Dictionary<string, int> IntAttributes { get; } = new Dictionary<string, int>();
         public Dictionary<string, float> FloatAttributes { get; } = new Dictionary<string, float>();
         public Dictionary<string, Vector4> VectorAttributes { get; } = new Dictionary<string, Vector4>();
@@ -49,14 +47,14 @@ namespace ValveResourceFormat.ResourceTypes
             foreach (var t in vectorParams)
             {
                 var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                VectorParams[((NTROValue<string>)subStruct["m_name"]).Value] = ((NTROValue<Vector4>)subStruct["m_value"]).Value;
+                VectorParams[subStruct.GetProperty<string>("m_name")] = subStruct.GetSubCollection("m_value").ToVector4();
             }
 
             var textureParams = (NTROArray)Output["m_textureParams"];
             foreach (var t in textureParams)
             {
                 var subStruct = ((NTROValue<NTROStruct>)t).Value;
-                TextureParams[((NTROValue<string>)subStruct["m_name"]).Value] = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)subStruct["m_pValue"]).Value;
+                TextureParams[subStruct.GetProperty<string>("m_name")] = subStruct.GetProperty<string>("m_pValue");
             }
 
             // TODO: These 3 parameters

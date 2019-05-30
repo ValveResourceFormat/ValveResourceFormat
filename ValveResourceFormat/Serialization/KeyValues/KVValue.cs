@@ -4,7 +4,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 
-namespace ValveResourceFormat.KeyValues
+namespace ValveResourceFormat.Serialization.KeyValues
 {
     //Different type of value blocks for KeyValues (All in use for KV3)
     public enum KVType : byte

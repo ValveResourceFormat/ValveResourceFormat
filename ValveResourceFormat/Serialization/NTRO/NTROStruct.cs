@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+namespace ValveResourceFormat.Serialization.NTRO
 {
     public class NTROStruct : IDictionary, IKeyValueCollection
     {
@@ -14,6 +14,15 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             Name = name;
             Contents = new Dictionary<string, NTROValue>();
+        }
+
+        public NTROStruct(params NTROValue[] values)
+        {
+            Contents = new Dictionary<string, NTROValue>();
+            for (var i = 0; i < values.Length; i++)
+            {
+                Contents.Add(i.ToString(), values[i]);
+            }
         }
 
         public void WriteText(IndentedTextWriter writer)
@@ -166,25 +175,13 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             return ((IDictionary)Contents).GetEnumerator();
         }
 
-        public T Get<T>(object key)
-        {
-            if (typeof(T) == typeof(NTROArray))
-            {
-                return (T)this[key];
-            }
-
-            return ((NTROValue<T>)this[key]).Value;
-        }
-
-        IEnumerable<string> IKeyValueCollection.Keys => Contents.Keys;
-
         public bool ContainsKey(string name) => Contents.ContainsKey(name);
 
         public T[] GetArray<T>(string name)
         {
             if (Contents.TryGetValue(name, out var value))
             {
-                return ((NTROArray)value).Select(v => ((NTROValue<T>)v).Value).ToArray();
+                return ((NTROArray)value).Select(v => (T)v.ValueObject).ToArray();
             }
             else
             {
@@ -196,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             if (Contents.TryGetValue(name, out var value))
             {
-                return ((NTROValue<T>)value).Value;
+                return (T)value.ValueObject;
             }
             else
             {

@@ -1,13 +1,15 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+namespace ValveResourceFormat.Serialization.NTRO
 {
     public class NTROArray : NTROValue, IList<NTROValue>
     {
         private readonly NTROValue[] contents;
         public bool IsIndirection { get; private set; }
+
+        public override object ValueObject => contents;
 
         public NTROArray(DataType type, int count, bool pointer = false, bool isIndirection = false)
         {

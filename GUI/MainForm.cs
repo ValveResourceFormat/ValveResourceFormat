@@ -1,14 +1,3 @@
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types;
@@ -20,12 +9,21 @@ using OpenTK;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Animation;
-using Model = GUI.Types.Model;
+using RenderModel = GUI.Types.RenderModel;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI
@@ -420,21 +418,21 @@ namespace GUI
                     case ResourceType.Model:
                         // Create model
                         var model = new Model(resource);
-                        var modelData = new ValveResourceFormat.ResourceTypes.Model(resource);
+                        var renderModel = new RenderModel(model);
 
                         // Create skeleton
-                        var skeleton = modelData.GetSkeleton();
+                        var skeleton = model.GetSkeleton();
 
                         // Create tab
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.Model);
-                        model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
+                        renderModel.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
 
                         // Add skeleton to renderer
                         modelmv.SetSkeleton(skeleton);
 
                         // Add animations if available
-                        var animGroupPaths = model.GetAnimationGroups();
+                        var animGroupPaths = renderModel.GetAnimationGroups();
                         foreach (var animGroupPath in animGroupPaths)
                         {
                             var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);

@@ -2,13 +2,15 @@ using System;
 using System.Numerics;
 using ValveResourceFormat.Blocks;
 
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+namespace ValveResourceFormat.Serialization.NTRO
 {
     public abstract class NTROValue
     {
         public DataType Type { get; protected set; }
         public bool Pointer { get; protected set; }
         public abstract void WriteText(IndentedTextWriter writer);
+
+        public abstract object ValueObject { get; }
     }
 
 #pragma warning disable SA1402 // File may only contain a single type
@@ -16,6 +18,8 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
 #pragma warning restore SA1402
     {
         public T Value { get; private set; }
+
+        public override object ValueObject => Value as object;
 
         public NTROValue(DataType type, T value, bool pointer = false)
         {

@@ -1,12 +1,12 @@
-﻿using System;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
+using System;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace GUI.Types
 {
@@ -83,7 +83,8 @@ namespace GUI.Types
                         continue;
                     }
 
-                    var modelEntry = new Model(newResource);
+                    var model = new Model(newResource);
+                    var modelEntry = new RenderModel(model);
                     modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
                 }
 

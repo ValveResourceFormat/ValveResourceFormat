@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ValveResourceFormat.KeyValues
+namespace ValveResourceFormat.Serialization.KeyValues
 {
     //Datastructure for a KV Object
     public class KVObject : IKeyValueCollection
@@ -99,8 +99,6 @@ namespace ValveResourceFormat.KeyValues
             writer.Write("]");
         }
 
-        public IEnumerable<string> Keys => Properties.Keys;
-
         public bool ContainsKey(string name) => Properties.ContainsKey(name);
 
         public T GetProperty<T>(string name)
@@ -119,6 +117,25 @@ namespace ValveResourceFormat.KeyValues
         {
             if (Properties.TryGetValue(name, out var value))
             {
+                if (value.Type == KVType.OBJECT && value.Value is KVObject kvObject && kvObject.IsArray)
+                {
+                    var properties = new List<T>();
+                    var index = 0;
+                    var property = kvObject.GetProperty<T>(index.ToString());
+                    while (!property.Equals(default(T)))
+                    {
+                        properties.Add(property);
+                        ++index;
+                    }
+
+                    return properties.ToArray();
+                }
+
+                if (value.Type == KVType.BINARY_BLOB && typeof(T) == typeof(byte))
+                {
+                    return (T[])value.Value;
+                }
+
                 if (value.Type != KVType.ARRAY && value.Type != KVType.ARRAY_TYPED)
                 {
                     throw new InvalidOperationException($"Tried to cast non-array property {name} to array. Actual type: {value.Type}");

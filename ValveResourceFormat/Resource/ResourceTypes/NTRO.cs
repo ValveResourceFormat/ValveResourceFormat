@@ -1,10 +1,9 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -194,90 +193,96 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.ExternalReference:
                     var id = Reader.ReadUInt64();
                     var value = id > 0
-                        ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)
+                        ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
                         : null;
 
-                    return new NTROValue<ResourceExtRefList.ResourceReferenceInfo>(field.Type, value, pointer);
+                    return new NTROValue<string>(field.Type, value, pointer);
 
                 case DataType.UInt64:
                     return new NTROValue<ulong>(field.Type, Reader.ReadUInt64(), pointer);
 
                 case DataType.Vector:
-                    var vector3 = new Vector3(
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle());
-
-                    return new NTROValue<Vector3>(field.Type, vector3, pointer);
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                        pointer);
 
                 case DataType.Quaternion:
-                    var quaternion = new Quaternion(
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle());
-
-                    return new NTROValue<Quaternion>(field.Type, quaternion, pointer);
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                        pointer);
 
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
                 case DataType.Vector4D_44:
-                    var vector4 = new Vector4(
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle());
-
-                    return new NTROValue<Vector4>(field.Type, vector4, pointer);
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                        pointer);
 
                 case DataType.String4:
                 case DataType.String:
                     return new NTROValue<string>(field.Type, Reader.ReadOffsetString(Encoding.UTF8), pointer);
 
                 case DataType.Matrix2x4:
-                    var matrix2x4a = new Matrix2x4(
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle());
-
-                    return new NTROValue<Matrix2x4>(field.Type, matrix2x4a, pointer);
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                        pointer);
 
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:
-                    var matrix3x4a = new Matrix3x4(
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle());
-
-                    return new NTROValue<Matrix3x4>(field.Type, matrix3x4a, pointer);
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                        pointer);
 
                 case DataType.CTransform:
-                    var transform = new CTransform(
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle(),
-                        Reader.ReadSingle());
-
-                    return new NTROValue<CTransform>(field.Type, transform, pointer);
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                        pointer);
 
                 default:
                     throw new NotImplementedException($"Unknown data type: {field.Type} (name: {field.FieldName})");

@@ -1,17 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Windows.Forms;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using SteamDatabase.ValvePak;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Windows.Forms;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Animation;
 using MathHelper = OpenTK.MathHelper;
@@ -676,17 +675,12 @@ namespace GUI.Types.Renderer
             }
 
             var data = (BinaryKV3)yo.Resource.Blocks[BlockType.DATA];
-            var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
-            var b = (KVObject)a.Properties["0"].Value;
-            var minBounds = (KVObject)b.Properties["m_vMinBounds"].Value;
-            var maxBounds = (KVObject)b.Properties["m_vMaxBounds"].Value;
+            var boundingBox = data.Data.GetArray("m_sceneObjects")[0];
+            var minBounds = boundingBox.GetSubCollection("m_vMinBounds").ToVector3();
+            var maxBounds = boundingBox.GetSubCollection("m_vMaxBounds").ToVector3();
 
-            MaxBounds.X = (float)Convert.ToDouble(maxBounds.Properties["0"].Value);
-            MinBounds.X = (float)Convert.ToDouble(minBounds.Properties["0"].Value);
-            MaxBounds.Y = (float)Convert.ToDouble(maxBounds.Properties["1"].Value);
-            MinBounds.Y = (float)Convert.ToDouble(minBounds.Properties["1"].Value);
-            MaxBounds.Z = (float)Convert.ToDouble(maxBounds.Properties["2"].Value);
-            MinBounds.Z = (float)Convert.ToDouble(minBounds.Properties["2"].Value);
+            MinBounds = new Vector3(minBounds.X, minBounds.Y, minBounds.Z);
+            MaxBounds = new Vector3(maxBounds.X, maxBounds.Y, maxBounds.Z);
         }
 
         // Get Elapsed time in seconds

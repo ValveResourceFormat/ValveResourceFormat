@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.Animation
 {
@@ -32,7 +31,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             }
 
             // Get the remap table and invert it for our construction method
-            var remapTable = modelData.GetArray<long>("m_remappingTable");
+            var remapTable = modelData.GetIntegerArray("m_remappingTable");
             var invMapTable = new Dictionary<long, int>();
             for (var i = 0; i < remapTable.Length; i++)
             {
@@ -53,21 +52,10 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <param name="remapTable"></param>
         public void ConstructFromNTRO(IKeyValueCollection skeletonData, Dictionary<long, int> remapTable)
         {
-            Vector3 MapToVector3(IKeyValueCollection collection) => new Vector3(
-                (float)collection.GetProperty<double>("0"),
-                (float)collection.GetProperty<double>("1"),
-                (float)collection.GetProperty<double>("2"));
-
-            Quaternion MapToQuaternion(IKeyValueCollection collection) => new Quaternion(
-                (float)collection.GetProperty<double>("0"),
-                (float)collection.GetProperty<double>("1"),
-                (float)collection.GetProperty<double>("2"),
-                (float)collection.GetProperty<double>("3"));
-
             var boneNames = skeletonData.GetArray<string>("m_boneName");
-            var boneParents = skeletonData.GetArray<long>("m_nParent");
-            var bonePositions = skeletonData.GetArray("m_bonePosParent", MapToVector3);
-            var boneRotations = skeletonData.GetArray("m_boneRotParent", MapToQuaternion);
+            var boneParents = skeletonData.GetIntegerArray("m_nParent");
+            var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
+            var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
 
             // Initialise bone array
             Bones = new Bone[boneNames.Length];
@@ -77,8 +65,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             {
                 var name = boneNames[i];
 
-                var position = new Vector3(bonePositions[i].X, bonePositions[i].Y, bonePositions[i].Z);
-                var rotation = new Quaternion(boneRotations[i].X, boneRotations[i].Y, boneRotations[i].Z, boneRotations[i].W);
+                var position = bonePositions[i];
+                var rotation = boneRotations[i];
 
                 // Create bone
                 var index = remapTable.ContainsKey(i) ? remapTable[i] : -1;

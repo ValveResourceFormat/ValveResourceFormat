@@ -168,7 +168,7 @@
     <Compile Include="Types\Audio\AudioPlayer.cs" />
     <Compile Include="Types\Renderer\Camera.cs" />
     <Compile Include="Types\Renderer\Renderer.cs" />
-    <Compile Include="Types\Model.cs" />
+    <Compile Include="Types\RenderModel.cs" />
     <Compile Include="Types\Renderer\Material.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
   </ItemGroup>

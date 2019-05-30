@@ -1,40 +1,41 @@
-using System;
-using System.Collections.Generic;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace GUI.Types
 {
-    internal class Model
+    internal class RenderModel
     {
-        private readonly Resource Resource;
+        private readonly Model model;
 
-        public Model(Resource resource)
+        public RenderModel(Model model)
         {
-            Resource = resource;
+            this.model = model;
         }
 
         public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, Vector4 tintColor, Package currentPackage = null, string skin = null)
         {
-            var data = (NTRO)Resource.Blocks[BlockType.DATA];
+            var data = model.GetModelData();
 
-            var refMeshes = (NTROArray)data.Output["m_refMeshes"];
-            var materialGroups = (NTROArray)data.Output["m_materialGroups"];
+            var refMeshes = data.GetArray<string>("m_refMeshes");
+            var materialGroups = data.GetArray<IKeyValueCollection>("m_materialGroups");
 
-            for (var i = 0; i < refMeshes.Count; i++)
+            for (var i = 0; i < refMeshes.Length; i++)
             {
-                var refMesh = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)refMeshes[i]).Value;
+                var refMesh = refMeshes[i];
 
-                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(refMesh.Name + "_c", path, currentPackage);
+                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(refMesh + "_c", path, currentPackage);
                 if (newResource == null)
                 {
-                    Console.WriteLine("unable to load mesh " + refMesh.Name);
+                    Console.WriteLine("unable to load mesh " + refMesh);
 
                     continue;
                 }
@@ -82,20 +83,8 @@ namespace GUI.Types
         }
 
         public string[] GetAnimationGroups()
-        {
-            var data = (NTRO)Resource.Blocks[BlockType.DATA];
-
-            var refAnimGroups = (NTROArray)data.Output["m_refAnimGroups"];
-
-            var refs = refAnimGroups.ToArray<ResourceExtRefList.ResourceReferenceInfo>();
-            var paths = new string[refs.Length];
-
-            for (var i = 0; i < refs.Length; i++)
-            {
-                paths[i] = refs[i].Name;
-            }
-
-            return paths;
-        }
+            => model.GetModelData()
+                .GetArray<string>("m_refAnimGroups")
+                .ToArray();
     }
 }

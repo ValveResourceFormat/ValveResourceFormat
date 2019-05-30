@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes.Animation
 {
@@ -10,6 +10,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
     {
         public string Name { get; private set; }
         public float Fps { get; private set; }
+
+        private readonly Resource resource;
 
         private int FrameCount;
 
@@ -20,26 +22,46 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// </summary>
         /// <param name="resource"></param>
         /// <param name="decodeKey"></param>
-        public Animation(Resource resource, NTROStruct decodeKey)
+        public Animation(Resource resource, IKeyValueCollection decodeKey)
         {
             Name = string.Empty;
             Fps = 0;
             Frames = new Frame[0];
 
-            var animationData = (NTRO)resource.Blocks[BlockType.DATA];
-            var animArray = (NTROArray)animationData.Output["m_animArray"];
+            this.resource = resource;
+            ConstructAnimation(GetAnimationData(), decodeKey);
+        }
 
-            if (animArray.Count == 0)
+        public IKeyValueCollection GetAnimationData()
+        {
+            var dataBlock = resource.Blocks[BlockType.DATA];
+            if (dataBlock is NTRO ntro)
+            {
+                return ntro.Output;
+            }
+            else if (dataBlock is BinaryKV3 kv)
+            {
+                return kv.Data;
+            }
+
+            return default;
+        }
+
+        private void ConstructAnimation(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
+        {
+            var animArray = animationData.GetArray<IKeyValueCollection>("m_animArray");
+
+            if (animArray.Length == 0)
             {
                 Console.WriteLine("Empty animation file found.");
                 return;
             }
 
-            var decoderArray = MakeDecoderArray((NTROArray)animationData.Output["m_decoderArray"]);
-            var segmentArray = (NTROArray)animationData.Output["m_segmentArray"];
+            var decoderArray = MakeDecoderArray(animationData.GetArray("m_decoderArray"));
+            var segmentArray = animationData.GetArray("m_segmentArray");
 
             // Get the first animation description
-            ConstructFromDesc(animArray.Get<NTROStruct>(0), decodeKey, decoderArray, segmentArray);
+            ConstructFromDesc(animArray[0], decodeKey, decoderArray, segmentArray);
         }
 
         /// <summary>
@@ -152,17 +174,24 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <param name="decodeKey"></param>
         /// <param name="decoderArray"></param>
         /// <param name="segmentArray"></param>
-        private void ConstructFromDesc(NTROStruct animDesc, NTROStruct decodeKey, AnimDecoderType[] decoderArray, NTROArray segmentArray)
+        private void ConstructFromDesc(
+            IKeyValueCollection animDesc,
+            IKeyValueCollection decodeKey,
+            AnimDecoderType[] decoderArray,
+            IKeyValueCollection[] segmentArray
+        )
         {
             // Get animation properties
-            Name = animDesc.Get<string>("m_name");
-            Fps = animDesc.Get<float>("fps");
+            Name = animDesc.GetProperty<string>("m_name");
+            Fps = animDesc.GetFloatProperty("fps");
 
-            // Only consider first frame block for now
-            var pData = animDesc.Get<NTROArray>("m_pData").Get<NTROStruct>(0);
-            var frameBlockArray = pData.Get<NTROArray>("m_frameblockArray").ToArray<NTROStruct>();
+            var pDataObject = animDesc.GetProperty<object>("m_pData");
+            var pData = pDataObject is NTROValue[] ntroArray
+                ? ntroArray[0].ValueObject as IKeyValueCollection
+                : pDataObject as IKeyValueCollection;
+            var frameBlockArray = pData.GetArray("m_frameblockArray");
 
-            FrameCount = pData.Get<int>("m_nFrames");
+            FrameCount = pData.GetProperty<int>("m_nFrames");
             Frames = new Frame[FrameCount];
 
             // Figure out each frame
@@ -174,17 +203,17 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                 // Read all frame blocks
                 foreach (var frameBlock in frameBlockArray)
                 {
-                    var startFrame = frameBlock.Get<int>("m_nStartFrame");
-                    var endFrame = frameBlock.Get<int>("m_nEndFrame");
+                    var startFrame = frameBlock.GetIntegerProperty("m_nStartFrame");
+                    var endFrame = frameBlock.GetIntegerProperty("m_nEndFrame");
 
                     // Only consider blocks that actual contain info for this frame
                     if (frame >= startFrame && frame <= endFrame)
                     {
-                        var segmentIndexArray = frameBlock.Get<NTROArray>("m_segmentIndexArray").ToArray<int>();
+                        var segmentIndexArray = frameBlock.GetIntegerArray("m_segmentIndexArray");
 
                         foreach (var segmentIndex in segmentIndexArray)
                         {
-                            var segment = segmentArray.Get<NTROStruct>(segmentIndex);
+                            var segment = segmentArray[segmentIndex];
                             ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
                         }
                     }
@@ -200,24 +229,24 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <param name="decodeKey"></param>
         /// <param name="decoderArray"></param>
         /// <param name="outFrame"></param>
-        private void ReadSegment(int frame, NTROStruct segment, NTROStruct decodeKey, AnimDecoderType[] decoderArray, ref Frame outFrame)
+        private void ReadSegment(long frame, IKeyValueCollection segment, IKeyValueCollection decodeKey, AnimDecoderType[] decoderArray, ref Frame outFrame)
         {
             // Clamp the frame number to be between 0 and the maximum frame
             frame = frame < 0 ? 0 : frame;
             frame = frame >= FrameCount ? FrameCount - 1 : frame;
 
-            var localChannel = segment.Get<int>("m_nLocalChannel");
-            var dataChannel = decodeKey.Get<NTROArray>("m_dataChannelArray").Get<NTROStruct>(localChannel);
-            var boneNames = dataChannel.Get<NTROArray>("m_szElementNameArray").ToArray<string>();
+            var localChannel = segment.GetIntegerProperty("m_nLocalChannel");
+            var dataChannel = decodeKey.GetArray("m_dataChannelArray")[localChannel];
+            var boneNames = dataChannel.GetArray<string>("m_szElementNameArray");
 
-            var channelAttribute = dataChannel.Get<string>("m_szVariableName");
+            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
 
             // Read container
-            var container = segment.Get<NTROArray>("m_container").ToArray<byte>();
+            var container = segment.GetArray<byte>("m_container");
             using (var containerReader = new BinaryReader(new MemoryStream(container)))
             {
-                var elementIndexArray = dataChannel.Get<NTROArray>("m_nElementIndexArray").ToArray<int>();
-                var elementBones = new int[decodeKey.Get<int>("m_nChannelElements")];
+                var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
+                var elementBones = new int[decodeKey.GetProperty<int>("m_nChannelElements")];
                 for (var i = 0; i < elementIndexArray.Length; i++)
                 {
                     elementBones[elementIndexArray[i]] = i;
@@ -341,13 +370,13 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// </summary>
         /// <param name="decoderArray"></param>
         /// <returns></returns>
-        private AnimDecoderType[] MakeDecoderArray(NTROArray decoderArray)
+        private AnimDecoderType[] MakeDecoderArray(IKeyValueCollection[] decoderArray)
         {
-            var array = new AnimDecoderType[decoderArray.Count];
-            for (var i = 0; i < decoderArray.Count; i++)
+            var array = new AnimDecoderType[decoderArray.Length];
+            for (var i = 0; i < decoderArray.Length; i++)
             {
-                var decoder = decoderArray.Get<NTROStruct>(i);
-                array[i] = AnimDecoder.FromString(decoder.Get<string>("m_szName"));
+                var decoder = decoderArray[i];
+                array[i] = AnimDecoder.FromString(decoder.GetProperty<string>("m_szName"));
             }
 
             return array;

@@ -22,7 +22,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace ValveResourceFormat.KeyValues
+namespace ValveResourceFormat.Serialization.KeyValues
 {
     public static class KeyValues3
     {
@@ -60,8 +60,6 @@ namespace ValveResourceFormat.KeyValues
             {
                 //Initialise datastructures
                 ObjStack = new Stack<KVObject>();
-                StateStack = new Stack<State>();
-                StateStack.Push(State.HEADER);
 
                 Root = new KVObject("root");
                 ObjStack.Push(Root);

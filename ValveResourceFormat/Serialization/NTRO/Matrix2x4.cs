@@ -1,6 +1,4 @@
-using System.IO;
-
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+namespace ValveResourceFormat.Serialization.NTRO
 {
     /// <summary>
     /// Represents a 2x4 matrix.
