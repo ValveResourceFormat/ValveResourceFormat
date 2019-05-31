@@ -179,8 +179,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             IKeyValueCollection animDesc,
             IKeyValueCollection decodeKey,
             AnimDecoderType[] decoderArray,
-            IKeyValueCollection[] segmentArray
-        )
+            IKeyValueCollection[] segmentArray)
         {
             // Get animation properties
             Name = animDesc.GetProperty<string>("m_name");

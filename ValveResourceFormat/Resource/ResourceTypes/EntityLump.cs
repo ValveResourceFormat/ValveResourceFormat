@@ -170,40 +170,40 @@ namespace ValveResourceFormat.ResourceTypes
                     switch (property.MiscType)
                     {
                         case 2433605045:
-                            builder.AppendLine($"   {"Ambient Effect",-20} | {value}\n");
+                            builder.AppendLine($"   {"Ambient Effect", -20} | {value}\n");
                             break;
                         case 2777094460:
-                            builder.AppendLine($"   {"Start Disabled",-20} | {value}\n");
+                            builder.AppendLine($"   {"Start Disabled", -20} | {value}\n");
                             break;
                         case 3323665506:
-                            builder.AppendLine($"   {"Class Name",-20} | {value}\n");
+                            builder.AppendLine($"   {"Class Name", -20} | {value}\n");
                             break;
                         case 3827302934:
-                            builder.AppendLine($"   {"Position",-20} | {value}\n");
+                            builder.AppendLine($"   {"Position", -20} | {value}\n");
                             break;
                         case 3130579663:
-                            builder.AppendLine($"   {"Angles",-20} | {value}\n");
+                            builder.AppendLine($"   {"Angles", -20} | {value}\n");
                             break;
                         case 432137260:
-                            builder.AppendLine($"   {"Scale",-20} | {value}\n");
+                            builder.AppendLine($"   {"Scale", -20} | {value}\n");
                             break;
                         case 1226772763:
-                            builder.AppendLine($"   {"Disable Shadows",-20} | {value}\n");
+                            builder.AppendLine($"   {"Disable Shadows", -20} | {value}\n");
                             break;
                         case 3368008710:
-                            builder.AppendLine($"   {"World Model",-20} | {value}\n");
+                            builder.AppendLine($"   {"World Model", -20} | {value}\n");
                             break;
                         case 1677246174:
-                            builder.AppendLine($"   {"FX Colour",-20} | {value}\n");
+                            builder.AppendLine($"   {"FX Colour", -20} | {value}\n");
                             break;
                         case 588463423:
-                            builder.AppendLine($"   {"Colour",-20} | {value}\n");
+                            builder.AppendLine($"   {"Colour", -20} | {value}\n");
                             break;
                         case 1094168427:
-                            builder.AppendLine($"   {"Name",-20} | {value}\n");
+                            builder.AppendLine($"   {"Name", -20} | {value}\n");
                             break;
                         default:
-                            builder.AppendLine($"   {i,3}: {value} (type={property.Type}, meta={property.MiscType})\n");
+                            builder.AppendLine($"   {i, 3}: {value} (type={property.Type}, meta={property.MiscType})\n");
                             break;
                     }
 
