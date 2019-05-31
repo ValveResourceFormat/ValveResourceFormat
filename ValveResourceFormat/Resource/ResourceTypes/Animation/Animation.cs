@@ -19,6 +19,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         private Frame[] Frames;
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="Animation"/> class.
         /// Build animation from resource
         /// </summary>
         /// <param name="resource"></param>
@@ -45,7 +46,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                 return kv.Data;
             }
 
-            return default(IKeyValueCollection);
+            return default;
         }
 
         private void ConstructAnimation(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
@@ -140,8 +141,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <summary>
         /// Get the transformation matrices at a time
         /// </summary>
-        /// <param name="time"></param>
-        /// <returns></returns>
+        /// <param name="time">The time to get the transformation for.</param>
         private Frame GetTransformsAtTime(float time)
         {
             // Calculate the index of the current frame
