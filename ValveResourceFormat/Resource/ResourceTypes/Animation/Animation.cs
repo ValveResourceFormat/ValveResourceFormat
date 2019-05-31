@@ -45,7 +45,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                 return kv.Data;
             }
 
-            return default;
+            return default(IKeyValueCollection);
         }
 
         private void ConstructAnimation(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
