@@ -60,6 +60,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 //Initialise datastructures
                 ObjStack = new Stack<KVObject>();
+                StateStack = new Stack<State>();
+                StateStack.Push(State.HEADER);
 
                 Root = new KVObject("root");
                 ObjStack.Push(Root);

@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
         }
 
         //Set up a draw call
-        private DrawCall CreateDrawCall(IDictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, Material material)
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, Material material)
         {
             var drawCall = new DrawCall();
 

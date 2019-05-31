@@ -283,9 +283,13 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.BOOLEAN_FALSE:
                     return KVType.BOOLEAN;
                 case KVType.INT64:
+                case KVType.INT32:
                 case KVType.INT64_ZERO:
                 case KVType.INT64_ONE:
                     return KVType.INT64;
+                case KVType.UINT64:
+                case KVType.UINT32:
+                    return KVType.UINT64;
                 case KVType.DOUBLE:
                 case KVType.DOUBLE_ZERO:
                 case KVType.DOUBLE_ONE:
