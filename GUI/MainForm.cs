@@ -1,14 +1,3 @@
-using GUI.Controls;
-using GUI.Forms;
-using GUI.Types;
-using GUI.Types.Audio;
-using GUI.Types.Renderer;
-using GUI.Types.Renderer.Animation;
-using GUI.Utils;
-using OpenTK;
-using SkiaSharp;
-using SkiaSharp.Views.Desktop;
-using SteamDatabase.ValvePak;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -20,6 +9,17 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
+using GUI.Forms;
+using GUI.Types;
+using GUI.Types.Audio;
+using GUI.Types.Renderer;
+using GUI.Types.Renderer.Animation;
+using GUI.Utils;
+using OpenTK;
+using SkiaSharp;
+using SkiaSharp.Views.Desktop;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -397,8 +397,9 @@ namespace GUI
                         break;
                     case ResourceType.World:
                         var world = new World(resource);
+                        var renderWorld = new RenderWorld(world);
                         var worldmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.World);
-                        world.AddObjects(worldmv, fileName, currentPackage);
+                        renderWorld.AddObjects(worldmv, fileName, currentPackage);
 
                         var worldmeshTab = new TabPage("MAP");
                         var worldglControl = worldmv.CreateGL();
@@ -406,7 +407,7 @@ namespace GUI
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
                     case ResourceType.WorldNode:
-                        var node = new WorldNode(resource);
+                        var node = new RenderWorldNode(resource);
                         var nodemv = new Renderer(mainTabs, fileName, currentPackage);
                         node.AddMeshes(nodemv, fileName, currentPackage);
 

@@ -1,9 +1,9 @@
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using OpenTK;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;

@@ -114,8 +114,8 @@
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
     <Compile Include="Types\Renderer\MeshObject.cs" />
     <Compile Include="Types\Renderer\ShaderLoader.cs" />
-    <Compile Include="Types\World.cs" />
-    <Compile Include="Types\WorldNode.cs" />
+    <Compile Include="Types\RenderWorld.cs" />
+    <Compile Include="Types\RenderWorldNode.cs" />
     <Compile Include="Utils\FileExtensions.cs" />
     <Compile Include="Controls\TreeViewFolder.cs" />
     <Compile Include="Utils\Settings.cs" />

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes

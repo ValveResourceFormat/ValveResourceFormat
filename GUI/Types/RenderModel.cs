@@ -1,14 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.NTRO;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types
 {
@@ -26,7 +25,7 @@ namespace GUI.Types
             var data = model.GetModelData();
 
             var refMeshes = data.GetArray<string>("m_refMeshes");
-            var materialGroups = data.GetArray<IKeyValueCollection>("m_materialGroups");
+            var materialGroups = data.GetArray("m_materialGroups");
 
             for (var i = 0; i < refMeshes.Length; i++)
             {
@@ -51,19 +50,12 @@ namespace GUI.Types
 
                 if (!string.IsNullOrEmpty(skin))
                 {
-                    foreach (var materialGroup2 in materialGroups)
+                    foreach (var materialGroup in materialGroups)
                     {
-                        var materialGroup = ((NTROValue<NTROStruct>)materialGroup2).Value;
-
-                        if (((NTROValue<string>)materialGroup["m_name"]).Value == skin)
+                        if (materialGroup.GetProperty<string>("m_name") == skin)
                         {
-                            var materials = (NTROArray)materialGroup["m_materials"];
-
-                            foreach (var material in materials)
-                            {
-                                skinMaterials.Add(((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)material).Value.Name);
-                            }
-
+                            var materials = materialGroup.GetArray<string>("m_materials");
+                            skinMaterials.AddRange(materials);
                             break;
                         }
                     }

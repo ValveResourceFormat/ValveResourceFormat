@@ -1,6 +1,6 @@
-using K4os.Compression.LZ4;
 using System;
 using System.IO;
+using K4os.Compression.LZ4;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 

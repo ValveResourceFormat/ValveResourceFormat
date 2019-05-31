@@ -3,147 +3,215 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using ValveResourceFormat.Serialization.NTRO;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class EntityLump : NTRO
+    public class Entity
     {
-        public List<List<Tuple<uint, uint, object>>> Datas { get; private set; }
+        public IEnumerable<EntityEntityProperty> Properties { get; set; }
+    }
 
-        public override void Read(BinaryReader reader, Resource resource)
+    public class EntityEntityProperty
+    {
+        public uint Type { get; set; }
+
+        public uint MiscType { get; set; }
+
+        public object Data { get; set; }
+    }
+
+    public class EntityLump
+    {
+        private readonly Resource resource;
+
+        public EntityLump(Resource resource)
         {
-            base.Read(reader, resource);
+            this.resource = resource;
+        }
 
-            // Output is PermEntityLumpData_t we need to iterate m_entityKeyValues inside it.
-            var entityKeyValues = (NTROArray)Output["m_entityKeyValues"];
-
-            Datas = new List<List<Tuple<uint, uint, object>>>();
-
-            foreach (var entityKV in entityKeyValues)
+        public IKeyValueCollection GetRawData()
+        {
+            var data = resource.Blocks[BlockType.DATA];
+            if (data is NTRO ntro)
             {
-                // entity is EntityKeyValueData_t
-                var entity = ((NTROValue<NTROStruct>)entityKV).Value;
-                var dataArray = (NTROArray)entity["m_keyValuesData"];
-                var data = new List<byte>();
-                foreach (NTROValue<byte> entry in dataArray)
-                {
-                    data.Add(entry.Value);
-                }
+                return ntro.Output;
+            }
+            else if (data is BinaryKV3 kv)
+            {
+                return kv.Data;
+            }
 
-                using (var dataStream = new MemoryStream(data.ToArray()))
-                using (var dataReader = new BinaryReader(dataStream))
-                {
-                    var a = dataReader.ReadUInt32(); // always 1?
-                    var valuesCount = dataReader.ReadUInt32();
-                    var c = dataReader.ReadUInt32(); // always 0? (Its been seen to be 1, footer count?)
+            throw new InvalidOperationException($"Unknown world entity lump type {data.GetType().Name}");
+        }
 
-                    var values = new List<Tuple<uint, uint, object>>();
-                    while (dataStream.Position != dataStream.Length)
+        public IEnumerable<string> GetChildEntityNames()
+        {
+            return GetRawData().GetArray<string>("m_childLumps");
+        }
+
+        public IEnumerable<Entity> GetEntities()
+            => GetRawData().GetArray("m_entityKeyValues")
+                .Select(entity => ParseEntityProperties(entity.GetArray<byte>("m_keyValuesData")))
+                .ToList();
+
+        private static Entity ParseEntityProperties(byte[] bytes)
+        {
+            using (var dataStream = new MemoryStream(bytes))
+            using (var dataReader = new BinaryReader(dataStream))
+            {
+                var a = dataReader.ReadUInt32(); // always 1?
+                var valuesCount = dataReader.ReadUInt32();
+                var c = dataReader.ReadUInt32(); // always 0? (Its been seen to be 1, footer count?)
+
+                var properties = new List<EntityEntityProperty>();
+                while (dataStream.Position != dataStream.Length)
+                {
+                    if (properties.Count == valuesCount)
                     {
-                        if (values.Count == valuesCount)
-                        {
-                            Console.WriteLine("We hit our values target without reading every byte?!");
-                            break;
-                        }
-
-                        var miscType = dataReader.ReadUInt32(); // Stuff before type, some pointer?
-                        var type = dataReader.ReadUInt32();
-
-                        switch (type)
-                        {
-                            case 0x06:
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, dataReader.ReadByte())); //1
-                                break;
-                            case 0x01:
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, dataReader.ReadSingle())); //4
-                                break;
-                            case 0x05:
-                            case 0x09:
-                            case 0x25: //TODO: figure out the difference
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, dataReader.ReadBytes(4))); //4
-                                break;
-                            case 0x1a:
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, dataReader.ReadUInt64())); //8
-                                break;
-                            case 0x03:
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, $"{{{dataReader.ReadSingle()}, {dataReader.ReadSingle()}, {dataReader.ReadSingle()}}}")); //12
-                                break;
-                            case 0x27:
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, dataReader.ReadBytes(12))); //12
-                                break;
-                            case 0x1e:
-                                values.Add(new Tuple<uint, uint, object>(type, miscType, dataReader.ReadNullTermString(Encoding.UTF8)));
-                                break;
-                            default:
-                                throw new NotImplementedException($"Unknown type {type}");
-                        }
+                        Console.WriteLine("We hit our values target without reading every byte?!");
+                        break;
                     }
 
-                    Datas.Add(values);
+                    var miscType = dataReader.ReadUInt32(); // Stuff before type, some pointer?
+                    var type = dataReader.ReadUInt32();
+
+                    switch (type)
+                    {
+                        case 0x06:
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = dataReader.ReadByte(),
+                            }); //1
+                            break;
+                        case 0x01:
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = dataReader.ReadSingle(),
+                            }); //4
+                            break;
+                        case 0x05:
+                        case 0x09:
+                        case 0x25: //TODO: figure out the difference
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = dataReader.ReadBytes(4),
+                            }); //4
+                            break;
+                        case 0x1a:
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = dataReader.ReadUInt64(),
+                            }); //8
+                            break;
+                        case 0x03:
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = $"{{{dataReader.ReadSingle()}, {dataReader.ReadSingle()}, {dataReader.ReadSingle()}}}",
+                            }); //12
+                            break;
+                        case 0x27:
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = dataReader.ReadBytes(12),
+                            }); //12
+                            break;
+                        case 0x1e:
+                            properties.Add(new EntityEntityProperty
+                            {
+                                Type = type,
+                                MiscType = miscType,
+                                Data = dataReader.ReadNullTermString(Encoding.UTF8),
+                            });
+                            break;
+                        default:
+                            throw new NotImplementedException($"Unknown type {type}");
+                    }
                 }
+
+                return new Entity
+                {
+                    Properties = properties,
+                };
             }
         }
 
         public override string ToString()
         {
             var builder = new StringBuilder();
-            for (var index = 0; index < Datas.Count; index++)
+
+            var index = 0;
+            foreach (var entity in GetEntities())
             {
                 builder.AppendLine($"===={index}====\r\n");
-                var entry = Datas[index];
-                for (var i = 0; i < entry.Count; i++)
+
+                var i = 0;
+                foreach (var property in entity.Properties)
                 {
-                    var tuple = entry[i];
-                    var value = tuple.Item3;
+                    var value = property.Data;
                     if (value.GetType() == typeof(byte[]))
                     {
                         var tmp = value as byte[];
                         value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString()).ToArray())}]";
                     }
 
-                    switch (tuple.Item2)
+                    switch (property.MiscType)
                     {
                         case 2433605045:
-                            builder.AppendLine($"   {"Ambient Effect", -20} | {value}\n");
+                            builder.AppendLine($"   {"Ambient Effect",-20} | {value}\n");
                             break;
                         case 2777094460:
-                            builder.AppendLine($"   {"Start Disabled", -20} | {value}\n");
+                            builder.AppendLine($"   {"Start Disabled",-20} | {value}\n");
                             break;
                         case 3323665506:
-                            builder.AppendLine($"   {"Class Name", -20} | {value}\n");
+                            builder.AppendLine($"   {"Class Name",-20} | {value}\n");
                             break;
                         case 3827302934:
-                            builder.AppendLine($"   {"Position", -20} | {value}\n");
+                            builder.AppendLine($"   {"Position",-20} | {value}\n");
                             break;
                         case 3130579663:
-                            builder.AppendLine($"   {"Angles", -20} | {value}\n");
+                            builder.AppendLine($"   {"Angles",-20} | {value}\n");
                             break;
                         case 432137260:
-                            builder.AppendLine($"   {"Scale", -20} | {value}\n");
+                            builder.AppendLine($"   {"Scale",-20} | {value}\n");
                             break;
                         case 1226772763:
-                            builder.AppendLine($"   {"Disable Shadows", -20} | {value}\n");
+                            builder.AppendLine($"   {"Disable Shadows",-20} | {value}\n");
                             break;
                         case 3368008710:
-                            builder.AppendLine($"   {"World Model", -20} | {value}\n");
+                            builder.AppendLine($"   {"World Model",-20} | {value}\n");
                             break;
                         case 1677246174:
-                            builder.AppendLine($"   {"FX Colour", -20} | {value}\n");
+                            builder.AppendLine($"   {"FX Colour",-20} | {value}\n");
                             break;
                         case 588463423:
-                            builder.AppendLine($"   {"Colour", -20} | {value}\n");
+                            builder.AppendLine($"   {"Colour",-20} | {value}\n");
                             break;
                         case 1094168427:
-                            builder.AppendLine($"   {"Name", -20} | {value}\n");
+                            builder.AppendLine($"   {"Name",-20} | {value}\n");
                             break;
                         default:
-                            builder.AppendLine($"   {i, 3}: {value} (type={tuple.Item1}, meta={tuple.Item2})\n");
+                            builder.AppendLine($"   {i,3}: {value} (type={property.Type}, meta={property.MiscType})\n");
                             break;
                     }
+
+                    ++i;
                 }
 
                 builder.AppendLine($"----{index}----\r\n");
+                ++index;
             }
 
             return builder.ToString();

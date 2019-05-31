@@ -1,8 +1,9 @@
-using GUI.Utils;
 using System.Collections.Generic;
 using System.IO;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer.Animation
 {

@@ -1,5 +1,6 @@
 using System;
 using ValveResourceFormat.ResourceTypes.Animation;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {

@@ -1,55 +1,58 @@
+using System;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
-using System;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.NTRO;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types
 {
-    internal class WorldNode
+    internal class RenderWorldNode
     {
-        private readonly Resource Resource;
+        private readonly WorldNode worldNode;
 
-        public WorldNode(Resource resource)
+        public RenderWorldNode(WorldNode worldNode)
         {
-            Resource = resource;
+            this.worldNode = worldNode;
+        }
+
+        public RenderWorldNode(Resource resource)
+        {
+            worldNode = new WorldNode(resource);
         }
 
         internal void AddMeshes(Renderer.Renderer renderer, string path, Package package)
         {
-            var data = Resource.Blocks[BlockType.DATA] as NTRO;
+            var data = worldNode.GetData();
 
-            var sceneObjectLayerIndices = (NTROArray)data.Output["m_sceneObjectLayerIndices"];
-            var sceneObjects = (NTROArray)data.Output["m_sceneObjects"];
+            var sceneObjectLayerIndices = data.GetIntegerArray("m_sceneObjectLayerIndices");
+            var sceneObjects = data.GetArray("m_sceneObjects");
             var i = 0;
 
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
-            foreach (var entry in sceneObjects)
+            foreach (var sceneObject in sceneObjects)
             {
-                var layerIndice = ((NTROValue<byte>)sceneObjectLayerIndices[i]).Value;
+                var layerIndex = sceneObjectLayerIndices[i];
                 i++;
 
                 // TODO: We want UI for this
-                if (layerIndice == 2 || layerIndice == 4)
+                if (layerIndex == 2 || layerIndex == 4)
                 {
                     continue;
                 }
 
                 // sceneObject is SceneObject_t
-                var sceneObject = ((NTROValue<NTROStruct>)entry).Value;
-                var renderableModel = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderableModel"]).Value;
-                var transform = (NTROArray)sceneObject["m_vTransform"];
+                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+                var transform = sceneObject.GetArray("m_vTransform");
 
-                var matrix = default(Matrix4);
+                var matrix = Matrix4.Identity;
 
                 // what is this
-                for (var x = 0; x < 4; x++)
+                for (var x = 0; x < transform.Length; x++)
                 {
-                    var a = ((NTROValue<System.Numerics.Vector4>)transform[x]).Value;
+                    var a = transform[x].ToVector4();
 
                     switch (x)
                     {
@@ -60,7 +63,7 @@ namespace GUI.Types
                     }
                 }
 
-                var tintColorWrongVector = ((NTROValue<System.Numerics.Vector4>)sceneObject["m_vTintColor"]).Value;
+                var tintColorWrongVector = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
 
                 Vector4 tintColor;
                 if (tintColorWrongVector.W == 0)
@@ -75,10 +78,10 @@ namespace GUI.Types
 
                 if (renderableModel != null)
                 {
-                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderableModel.Name + "_c", path, package);
+                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderableModel + "_c", path, package);
                     if (newResource == null)
                     {
-                        Console.WriteLine("unable to load model " + renderableModel.Name + "_c");
+                        Console.WriteLine("unable to load model " + renderableModel + "_c");
 
                         continue;
                     }
@@ -88,14 +91,14 @@ namespace GUI.Types
                     modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
                 }
 
-                var renderable = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)sceneObject["m_renderable"]).Value;
+                var renderable = sceneObject.GetProperty<string>("m_renderable");
 
                 if (renderable != null)
                 {
-                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderable.Name + "_c", path, package);
+                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderable + "_c", path, package);
                     if (newResource == null)
                     {
-                        Console.WriteLine("unable to load renderable " + renderable.Name + "_c");
+                        Console.WriteLine("unable to load renderable " + renderable + "_c");
 
                         continue;
                     }
