@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Numerics;
 
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+namespace ValveResourceFormat.Serialization.NTRO
 {
     /// <summary>
     /// Represents a transformation matrix.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
@@ -115,8 +115,7 @@ void main(void) {
                 transform.M11, transform.M12, transform.M13, transform.M14,
                 transform.M21, transform.M22, transform.M23, transform.M24,
                 transform.M31, transform.M32, transform.M33, transform.M34,
-                transform.M41, transform.M42, transform.M43, transform.M44
-            ));
+                transform.M41, transform.M42, transform.M43, transform.M44));
         }
 
         public void Draw(Camera camera, bool ztest)

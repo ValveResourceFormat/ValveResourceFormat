@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.IO;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {

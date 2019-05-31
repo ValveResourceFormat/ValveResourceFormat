@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
-namespace ValveResourceFormat.ResourceTypes.NTROSerialization
+namespace ValveResourceFormat.Serialization.NTRO
 {
-    public class NTROStruct : IDictionary
+    public class NTROStruct : IDictionary, IKeyValueCollection
     {
         private readonly Dictionary<string, NTROValue> Contents;
         public string Name { get; private set; }
@@ -13,6 +14,15 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
         {
             Name = name;
             Contents = new Dictionary<string, NTROValue>();
+        }
+
+        public NTROStruct(params NTROValue[] values)
+        {
+            Contents = new Dictionary<string, NTROValue>();
+            for (var i = 0; i < values.Length; i++)
+            {
+                Contents.Add(i.ToString(), values[i]);
+            }
         }
 
         public void WriteText(IndentedTextWriter writer)
@@ -165,14 +175,30 @@ namespace ValveResourceFormat.ResourceTypes.NTROSerialization
             return ((IDictionary)Contents).GetEnumerator();
         }
 
-        public T Get<T>(object key)
-        {
-            if (typeof(T) == typeof(NTROArray))
-            {
-                return (T)this[key];
-            }
+        public bool ContainsKey(string name) => Contents.ContainsKey(name);
 
-            return ((NTROValue<T>)this[key]).Value;
+        public T[] GetArray<T>(string name)
+        {
+            if (Contents.TryGetValue(name, out var value))
+            {
+                return ((NTROArray)value).Select(v => (T)v.ValueObject).ToArray();
+            }
+            else
+            {
+                return default(T[]);
+            }
+        }
+
+        public T GetProperty<T>(string name)
+        {
+            if (Contents.TryGetValue(name, out var value))
+            {
+                return (T)value.ValueObject;
+            }
+            else
+            {
+                return default(T);
+            }
         }
     }
 }

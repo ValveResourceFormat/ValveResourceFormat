@@ -5,9 +5,7 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
 
 namespace GUI.Types.Renderer
 {
@@ -62,7 +60,7 @@ namespace GUI.Types.Renderer
             {
                 var key = textureReference.Key;
 
-                mat.Textures[key] = LoadTexture(textureReference.Value.Name);
+                mat.Textures[key] = LoadTexture(textureReference.Value);
             }
 
             if (mat.Parameters.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Parameters.IntParams["F_SOLID_COLOR"] == 1)

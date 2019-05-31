@@ -1,16 +1,35 @@
-﻿using System.IO;
-using System.Text;
-using ValveResourceFormat.Blocks;
+using System;
+using ValveResourceFormat.ResourceTypes.Animation;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Model : ResourceData
+    public class Model
     {
-        public override void Read(BinaryReader reader, Resource resource)
-        {
-            reader.BaseStream.Position = Offset;
+        private readonly Resource resource;
 
-            var modelName = reader.ReadOffsetString(Encoding.UTF8);
+        public Model(Resource modelResource)
+        {
+            resource = modelResource;
+        }
+
+        public Skeleton GetSkeleton()
+        {
+            return new Skeleton(GetModelData());
+        }
+
+        public IKeyValueCollection GetModelData()
+        {
+            if (resource.Blocks[BlockType.DATA] is BinaryKV3 binaryKv)
+            {
+                return binaryKv.Data;
+            }
+            else if (resource.Blocks[BlockType.DATA] is NTRO ntro)
+            {
+                return ntro.Output;
+            }
+
+            throw new InvalidOperationException();
         }
     }
 }

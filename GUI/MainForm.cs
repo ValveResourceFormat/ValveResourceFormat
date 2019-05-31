@@ -22,10 +22,8 @@ using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.KeyValues;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Animation;
-using Model = GUI.Types.Model;
+using RenderModel = GUI.Types.RenderModel;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI
@@ -399,8 +397,9 @@ namespace GUI
                         break;
                     case ResourceType.World:
                         var world = new World(resource);
+                        var renderWorld = new RenderWorld(world);
                         var worldmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.World);
-                        world.AddObjects(worldmv, fileName, currentPackage);
+                        renderWorld.AddObjects(worldmv, fileName, currentPackage);
 
                         var worldmeshTab = new TabPage("MAP");
                         var worldglControl = worldmv.CreateGL();
@@ -408,7 +407,7 @@ namespace GUI
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
                     case ResourceType.WorldNode:
-                        var node = new WorldNode(resource);
+                        var node = new RenderWorldNode(resource);
                         var nodemv = new Renderer(mainTabs, fileName, currentPackage);
                         node.AddMeshes(nodemv, fileName, currentPackage);
 
@@ -420,20 +419,21 @@ namespace GUI
                     case ResourceType.Model:
                         // Create model
                         var model = new Model(resource);
+                        var renderModel = new RenderModel(model);
 
                         // Create skeleton
-                        var skeleton = new Skeleton(resource);
+                        var skeleton = model.GetSkeleton();
 
                         // Create tab
                         var modelmeshTab = new TabPage("MESH");
                         var modelmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.Model);
-                        model.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
+                        renderModel.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
 
                         // Add skeleton to renderer
                         modelmv.SetSkeleton(skeleton);
 
                         // Add animations if available
-                        var animGroupPaths = model.GetAnimationGroups();
+                        var animGroupPaths = renderModel.GetAnimationGroups();
                         foreach (var animGroupPath in animGroupPaths)
                         {
                             var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);

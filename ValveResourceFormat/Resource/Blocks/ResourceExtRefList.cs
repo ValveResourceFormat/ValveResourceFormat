@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -10,7 +11,7 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceExtRefList : Block
     {
-        public class ResourceReferenceInfo
+        public class ResourceReferenceInfo : IKeyValueCollection
         {
             /// <summary>
             /// Gets or sets the resource id.
@@ -31,6 +32,28 @@ namespace ValveResourceFormat.Blocks
                 writer.WriteLine("CResourceString m_pResourceName = \"{0}\"", Name);
                 writer.Indent--;
                 writer.WriteLine("}");
+            }
+
+            public bool ContainsKey(string name)
+                => name == "id" || name == "name";
+
+            public T[] GetArray<T>(string name)
+            {
+                throw new System.NotImplementedException();
+            }
+
+            public T GetProperty<T>(string name)
+            {
+                if (name == "id" && Id is T tid)
+                {
+                    return tid;
+                }
+                else if (name == "name" && Name is T tname)
+                {
+                    return tname;
+                }
+
+                throw new KeyNotFoundException($"ResourceReferenceInfo_t does not contain key {name}");
             }
         }
 

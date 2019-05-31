@@ -1,39 +1,33 @@
-﻿using System;
+using System;
 using System.Globalization;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization;
 using Vector3 = OpenTK.Vector3;
 using Vector4 = OpenTK.Vector4;
 
 namespace GUI.Types
 {
-    internal class World
+    internal class RenderWorld
     {
-        private readonly Resource Resource;
+        private readonly World world;
 
         private static int anonymousCameraCount;
 
-        public World(Resource resource)
+        public RenderWorld(World world)
         {
-            Resource = resource;
+            this.world = world;
         }
 
         internal void AddObjects(Renderer.Renderer renderer, string path, Package package)
         {
-            var data = Resource.Blocks[BlockType.DATA] as NTRO;
-
             // Output is World_t we need to iterate m_worldNodes inside it.
-            var worldNodes = (NTROArray)data.Output["m_worldNodes"];
-            if (worldNodes.Count > 0)
+            var worldNodes = world.GetWorldNodeNames();
+            foreach (var worldNode in worldNodes)
             {
-                var nodeData = ((NTROValue<NTROStruct>)worldNodes[0]).Value; //TODO: Not be 0.
-
-                var worldNode = ((NTROValue<string>)nodeData["m_worldNodePrefix"]).Value;
                 if (worldNode != null)
                 {
                     var newResource = FileExtensions.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c", path, package);
@@ -43,52 +37,49 @@ namespace GUI.Types
                         throw new Exception("WTF");
                     }
 
-                    var node = new WorldNode(newResource);
-                    node.AddMeshes(renderer, path, package);
+                    var renderWorldNode = new RenderWorldNode(newResource);
+                    renderWorldNode.AddMeshes(renderer, path, package);
                 }
             }
 
-            var entityLumps = (NTROArray)data.Output["m_entityLumps"];
-            foreach (var lump in entityLumps)
+            foreach (var lump in world.GetEntityLumpNames())
             {
                 LoadEntities(lump, renderer, path, package);
             }
         }
 
-        private static void LoadEntities(NTROValue lump, Renderer.Renderer renderer, string path, Package package)
+        private void LoadEntities(string entityName, Renderer.Renderer renderer, string path, Package package)
         {
-            var reference = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)lump).Value;
-            if (reference == null)
+            if (entityName == null)
             {
                 return;
             }
 
-            var newResource = FileExtensions.LoadFileByAnyMeansNecessary(reference.Name + "_c", path, package);
+            var newResource = FileExtensions.LoadFileByAnyMeansNecessary(entityName + "_c", path, package);
             if (newResource == null)
             {
-                Console.WriteLine("unable to load entity lump " + reference.Name + "_c");
+                Console.WriteLine("unable to load entity lump " + entityName + "_c");
 
                 return;
             }
 
-            var entityLump = newResource.Blocks[BlockType.DATA] as EntityLump;
+            var entityLump = new EntityLump(newResource);
+            var childEntities = entityLump.GetChildEntityNames();
 
-            var childLumps = (NTROArray)entityLump.Output["m_childLumps"];
-
-            foreach (var lump2 in childLumps)
+            foreach (var childEntityName in childEntities)
             {
-                var lol = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)lump).Value;
-
                 // TODO: Should be controlled in UI with world layers
-                if (lol.Name.Contains("_destruction"))
+                if (childEntityName.Contains("_destruction"))
                 {
                     continue;
                 }
 
-                LoadEntities(lump2, renderer, path, package);
+                LoadEntities(childEntityName, renderer, path, package);
             }
 
-            foreach (var entity in entityLump.Datas)
+            var worldEntities = entityLump.GetEntities();
+
+            foreach (var entity in worldEntities)
             {
                 var scale = string.Empty;
                 var position = string.Empty;
@@ -99,34 +90,34 @@ namespace GUI.Types
                 var classname = string.Empty;
                 var name = string.Empty;
 
-                foreach (var property in entity)
+                foreach (var property in entity.Properties)
                 {
                     //metadata
-                    switch (property.Item2)
+                    switch (property.MiscType)
                     {
                         case 3368008710: //World Model
-                            model = property.Item3 as string;
+                            model = property.Data as string;
                             break;
                         case 3827302934: //Position
-                            position = property.Item3 as string;
+                            position = property.Data as string;
                             break;
                         case 3130579663: //Angles
-                            angles = property.Item3 as string;
+                            angles = property.Data as string;
                             break;
                         case 432137260: //Scale
-                            scale = property.Item3 as string;
+                            scale = property.Data as string;
                             break;
                         case 2020856412: //Skin
-                            skin = property.Item3 as string;
+                            skin = property.Data as string;
                             break;
                         case 588463423: //Colour
-                            colour = property.Item3 as byte[];
+                            colour = property.Data as byte[];
                             break;
                         case 3323665506: //Classname
-                            classname = property.Item3 as string;
+                            classname = property.Data as string;
                             break;
                         case 1094168427:
-                            name = property.Item3 as string;
+                            name = property.Data as string;
                             break;
                     }
                 }
@@ -194,7 +185,8 @@ namespace GUI.Types
                     continue;
                 }
 
-                var entityModel = new Model(newEntity);
+                var newModel = new Model(newEntity);
+                var entityModel = new RenderModel(newModel);
                 entityModel.LoadMeshes(renderer, path, transformationMatrix, objColor, package, skin);
             }
         }

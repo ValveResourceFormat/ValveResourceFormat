@@ -10,6 +10,7 @@
     <PackageLicenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</PackageLicenseUrl>
     <Version Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(APPVEYOR_BUILD_VERSION)</Version>
     <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
     <DebugType>full</DebugType>

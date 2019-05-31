@@ -1,6 +1,6 @@
 using System.IO;
 using NUnit.Framework;
-using ValveResourceFormat.KeyValues;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {

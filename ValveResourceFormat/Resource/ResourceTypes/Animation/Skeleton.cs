@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.Animation
 {
@@ -21,22 +20,20 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
         /// <param name="model"></param>
-        public Skeleton(Resource model)
+        public Skeleton(IKeyValueCollection modelData)
         {
             Bones = new Bone[0];
             Roots = new List<Bone>();
 
-            var modelData = (NTRO)model.Blocks[BlockType.DATA];
-
             // Check if there is any skeleton data present at all
-            if (!modelData.Output.Contains("m_modelSkeleton"))
+            if (!modelData.ContainsKey("m_modelSkeleton"))
             {
                 Console.WriteLine("No skeleton data found.");
             }
 
             // Get the remap table and invert it for our construction method
-            var remapTable = ((NTROArray)modelData.Output["m_remappingTable"]).ToArray<short>();
-            var invMapTable = new Dictionary<int, int>();
+            var remapTable = modelData.GetIntegerArray("m_remappingTable");
+            var invMapTable = new Dictionary<long, int>();
             for (var i = 0; i < remapTable.Length; i++)
             {
                 if (!invMapTable.ContainsKey(remapTable[i]))
@@ -46,7 +43,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             }
 
             // Construct the armature from the skeleton KV
-            ConstructFromNTRO(((NTROValue<NTROStruct>)modelData.Output["m_modelSkeleton"]).Value, invMapTable);
+            ConstructFromNTRO(modelData.GetSubCollection("m_modelSkeleton"), invMapTable);
         }
 
         /// <summary>
@@ -54,12 +51,12 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// </summary>
         /// <param name="skeletonData"></param>
         /// <param name="remapTable"></param>
-        public void ConstructFromNTRO(NTROStruct skeletonData, Dictionary<int, int> remapTable)
+        public void ConstructFromNTRO(IKeyValueCollection skeletonData, Dictionary<long, int> remapTable)
         {
-            var boneNames = skeletonData.Get<NTROArray>("m_boneName").ToArray<string>();
-            var boneParents = skeletonData.Get<NTROArray>("m_nParent").ToArray<short>();
-            var bonePositions = skeletonData.Get<NTROArray>("m_bonePosParent").ToArray<Vector3>();
-            var boneRotations = skeletonData.Get<NTROArray>("m_boneRotParent").ToArray<Quaternion>();
+            var boneNames = skeletonData.GetArray<string>("m_boneName");
+            var boneParents = skeletonData.GetIntegerArray("m_nParent");
+            var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
+            var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
 
             // Initialise bone array
             Bones = new Bone[boneNames.Length];
@@ -69,8 +66,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
             {
                 var name = boneNames[i];
 
-                var position = new Vector3(bonePositions[i].X, bonePositions[i].Y, bonePositions[i].Z);
-                var rotation = new Quaternion(boneRotations[i].X, boneRotations[i].Y, boneRotations[i].Z, boneRotations[i].W);
+                var position = bonePositions[i];
+                var rotation = boneRotations[i];
 
                 // Create bone
                 var index = remapTable.ContainsKey(i) ? remapTable[i] : -1;

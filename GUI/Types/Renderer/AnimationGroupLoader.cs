@@ -1,11 +1,9 @@
-﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.NTROSerialization;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer.Animation
 {
@@ -13,24 +11,26 @@ namespace GUI.Types.Renderer.Animation
     {
         public static List<ValveResourceFormat.ResourceTypes.Animation.Animation> LoadAnimationGroup(Resource resource, string path)
         {
-            var data = (NTRO)resource.Blocks[BlockType.DATA];
+            var dataBlock = resource.Blocks[BlockType.DATA];
+            var data = dataBlock is NTRO ntro
+                ? ntro.Output as IKeyValueCollection
+                : ((BinaryKV3)dataBlock).Data;
 
             // Get the list of animation files
-            var animArray = (NTROArray)data.Output["m_localHAnimArray"];
+            var animArray = data.GetArray<string>("m_localHAnimArray");
             // Get the key to decode the animations
-            var decodeKey = ((NTROValue<NTROStruct>)data.Output["m_decodeKey"]).Value;
+            var decodeKey = data.GetSubCollection("m_decodeKey");
 
             var animationList = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
 
             // Load animation files
-            foreach (var t in animArray)
+            foreach (var animationFile in animArray)
             {
-                var refAnim = ((NTROValue<ResourceExtRefList.ResourceReferenceInfo>)t).Value;
-                var animResource = FileExtensions.LoadFileByAnyMeansNecessary(refAnim.Name + "_c", path, null);
+                var animResource = FileExtensions.LoadFileByAnyMeansNecessary(animationFile + "_c", path, null);
 
                 if (animResource == null)
                 {
-                    throw new FileNotFoundException($"Failed to load {refAnim.Name}_c. Did you configure game paths correctly?");
+                    throw new FileNotFoundException($"Failed to load {animationFile}_c. Did you configure game paths correctly?");
                 }
 
                 // Build animation classes

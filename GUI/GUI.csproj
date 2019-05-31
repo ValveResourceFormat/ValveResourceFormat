@@ -114,8 +114,8 @@
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
     <Compile Include="Types\Renderer\MeshObject.cs" />
     <Compile Include="Types\Renderer\ShaderLoader.cs" />
-    <Compile Include="Types\World.cs" />
-    <Compile Include="Types\WorldNode.cs" />
+    <Compile Include="Types\RenderWorld.cs" />
+    <Compile Include="Types\RenderWorldNode.cs" />
     <Compile Include="Utils\FileExtensions.cs" />
     <Compile Include="Controls\TreeViewFolder.cs" />
     <Compile Include="Utils\Settings.cs" />
@@ -168,7 +168,7 @@
     <Compile Include="Types\Audio\AudioPlayer.cs" />
     <Compile Include="Types\Renderer\Camera.cs" />
     <Compile Include="Types\Renderer\Renderer.cs" />
-    <Compile Include="Types\Model.cs" />
+    <Compile Include="Types\RenderModel.cs" />
     <Compile Include="Types\Renderer\Material.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
   </ItemGroup>

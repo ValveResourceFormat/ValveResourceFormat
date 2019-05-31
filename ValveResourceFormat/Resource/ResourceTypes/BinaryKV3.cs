@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using K4os.Compression.LZ4;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.KeyValues;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -193,10 +193,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, false, flagInfo));
                     break;
                 case KVType.INT64_ZERO:
-                    parent.AddProperty(name, MakeValue(datatype, 0UL, flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, 0L, flagInfo));
                     break;
                 case KVType.INT64_ONE:
-                    parent.AddProperty(name, MakeValue(datatype, 1UL, flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, 1L, flagInfo));
                     break;
                 case KVType.INT64:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
@@ -205,10 +205,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
                     break;
                 case KVType.INT32:
-                    parent.AddProperty(name, MakeValue(datatype, (long)reader.ReadInt32(), flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
                     break;
                 case KVType.UINT32:
-                    parent.AddProperty(name, MakeValue(datatype, (ulong)reader.ReadUInt32(), flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
                     break;
                 case KVType.DOUBLE:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
