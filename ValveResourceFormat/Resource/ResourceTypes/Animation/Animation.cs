@@ -14,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 
         private readonly Resource resource;
 
-        private int FrameCount;
+        private long FrameCount;
 
         private Frame[] Frames;
 
@@ -192,7 +192,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
                 : pDataObject as IKeyValueCollection;
             var frameBlockArray = pData.GetArray("m_frameblockArray");
 
-            FrameCount = pData.GetProperty<int>("m_nFrames");
+            FrameCount = pData.GetIntegerProperty("m_nFrames");
             Frames = new Frame[FrameCount];
 
             // Figure out each frame
