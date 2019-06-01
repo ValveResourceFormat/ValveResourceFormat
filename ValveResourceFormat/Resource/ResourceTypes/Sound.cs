@@ -93,16 +93,46 @@ namespace ValveResourceFormat.ResourceTypes
 
             var bitpackedSoundInfo = ((NTROValue<uint>)Output["m_bitpackedsoundinfo"]).Value;
 
-            Type = (AudioFileType)ExtractSub(bitpackedSoundInfo, 0, 2);
-            Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
-            Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
-            SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
-            AudioFormat = ExtractSub(bitpackedSoundInfo, 12, 2);
-            SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
+            // If these 5 bits are 0, it is the new format instead of the old
+            if (ExtractSub(bitpackedSoundInfo, 27, 5) == 0)
+            {
+                // New format
+                SampleRate = ExtractSub(bitpackedSoundInfo, 0, 16);
+                Type = GetTypeFromNewFormat(ExtractSub(bitpackedSoundInfo, 16, 2));
+                // unknown = ExtractSub(bitpackedSoundInfo, 18, 2);
+                Bits = ExtractSub(bitpackedSoundInfo, 20, 7);
+
+                SampleSize = Bits / 8;
+                Channels = 1;
+                AudioFormat = 1;
+            }
+            else
+            {
+                // Old format
+                Type = (AudioFileType)ExtractSub(bitpackedSoundInfo, 0, 2);
+                Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
+                Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
+                SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
+                AudioFormat = ExtractSub(bitpackedSoundInfo, 12, 2);
+                SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
+            }
 
             if (Type > AudioFileType.MP3)
             {
                 throw new NotImplementedException($"Unknown audio file format '{Type}', please report this on GitHub.");
+            }
+        }
+
+        public static AudioFileType GetTypeFromNewFormat(uint type)
+        {
+            switch (type)
+            {
+                case 0:
+                    return AudioFileType.WAV;
+                case 2:
+                    return AudioFileType.MP3;
+                default:
+                    return AudioFileType.Unknown3;
             }
         }
 
