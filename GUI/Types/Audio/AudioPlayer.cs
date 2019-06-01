@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using NAudio.Wave;
+using NLayer.NAudioSupport;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
@@ -28,7 +29,8 @@ namespace GUI.Types.Audio
                 }
                 else if (soundData.Type == Sound.AudioFileType.MP3)
                 {
-                    var rawSource = new Mp3FileReader(stream);
+                    var builder = new Mp3FileReader.FrameDecompressorBuilder(wf => new Mp3FrameDecompressor(wf));
+                    var rawSource = new Mp3FileReader(stream, builder);
                     waveOut.Init(rawSource);
                 }
                 else if (soundData.Type == Sound.AudioFileType.AAC)
