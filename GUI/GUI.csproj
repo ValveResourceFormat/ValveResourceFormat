@@ -50,8 +50,8 @@
     </PackageReference>
     <PackageReference Include="OpenTK" Version="3.0.1" />
     <PackageReference Include="OpenTK.GLControl" Version="3.0.1" />
-    <PackageReference Include="SkiaSharp.Views" Version="1.60.0" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004" PrivateAssets="All" />
+    <PackageReference Include="SkiaSharp.Views" Version="1.68.0" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
     <PackageReference Include="ValveKeyValue" Version="0.2.1.107" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>

@@ -14,9 +14,11 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <StartupObject>Decompiler.Decompiler</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.3" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
   <ItemGroup>

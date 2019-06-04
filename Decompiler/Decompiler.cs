@@ -2,27 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Blocks;
 using System.Text;
+using System.Threading.Tasks;
+using McMaster.Extensions.CommandLineUtils;
 using SkiaSharp;
 using SteamDatabase.ValvePak;
-using McMaster.Extensions.CommandLineUtils;
+using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 
 namespace Decompiler
 {
     [Command(Name = "vrf_decompiler", Description = "A test bed command line interface for the VRF library")]
-    class Decompiler
+    public class Decompiler
     {
-        private readonly object ConsoleWriterLock = new object();
-        private int CurrentFile = 0;
-        private int TotalFiles = 0;
-
         private readonly Dictionary<string, uint> OldPakManifest = new Dictionary<string, uint>();
         private readonly Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
+
+        private readonly object ConsoleWriterLock = new object();
+        private int CurrentFile = 0;
+        private int TotalFiles = 0;
 
         [Option("-i|--input", "Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.", CommandOptionType.SingleValue)]
         public string InputFile { get; private set; }
@@ -149,11 +149,11 @@ namespace Decompiler
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
-                    Console.WriteLine("{0,5} resources of version {2} and type {1}{3}", stat.Value.Count, stat.Value.Type, stat.Value.Version,
-                        stat.Value.Info != "" ? string.Format(" ({0})", stat.Value.Info) : ""
-                    );
+                    var info = stat.Value.Info != string.Empty ? string.Format(" ({0})", stat.Value.Info) : string.Empty;
 
-                    foreach(var file in stat.Value.FilePaths)
+                    Console.WriteLine($"{stat.Value.Count,5} resources of version {stat.Value.Version} and type {stat.Value.Type}{info}");
+
+                    foreach (var file in stat.Value.FilePaths)
                     {
                         Console.WriteLine($"\t\t{file}");
                     }
@@ -241,7 +241,7 @@ namespace Decompiler
                     string id = string.Format("{0}_{1}", resource.ResourceType, resource.Version);
                     string info = string.Empty;
 
-                    switch(resource.ResourceType)
+                    switch (resource.ResourceType)
                     {
                         case ResourceType.Texture:
                             info = ((Texture)resource.Blocks[BlockType.DATA]).Format.ToString();
@@ -300,9 +300,9 @@ namespace Decompiler
                             break;
 
                         case ResourceType.Sound:
-                            var sound = ((Sound)resource.Blocks[BlockType.DATA]);
+                            var sound = (Sound)resource.Blocks[BlockType.DATA];
 
-                            switch(sound.Type)
+                            switch (sound.Type)
                             {
                                 case Sound.AudioFileType.MP3:
                                     extension = "mp3";
@@ -442,7 +442,7 @@ namespace Decompiler
 
                 foreach (var block in resource.Blocks)
                 {
-                    if(!PrintAllBlocks && BlockToPrint != block.Key.ToString())
+                    if (!PrintAllBlocks && BlockToPrint != block.Key.ToString())
                     {
                         continue;
                     }
@@ -715,27 +715,43 @@ namespace Decompiler
                                     Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
                                     Console.ResetColor();
                                 }
+
                                 DumpFile(filePath, output);
                                 break;
                             }
 
-                            if (type == newType) newType = type.Substring(0, type.Length - 2);
-                            switch(type)
+                            if (type == newType)
+                            {
+                                newType = type.Substring(0, type.Length - 2);
+                            }
+
+                            switch (type)
                             {
                                 case "vxml_c":
                                 case "vcss_c":
                                 case "vjs_c":
                                     output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                    if (newType.StartsWith("v", StringComparison.Ordinal)) newType = newType.Substring(1);
+                                    if (newType.StartsWith("v", StringComparison.Ordinal))
+                                    {
+                                        newType = newType.Substring(1);
+                                    }
+
                                     break;
                                 case "vpcf_c":
                                     //Wrap it around a KV3File object to get the header.
                                     output = Encoding.UTF8.GetBytes(((BinaryKV3)resource.Blocks[BlockType.DATA]).GetKV3File().ToString());
                                     break;
                                 case "vsnd_c":
-                                    var sound = ((Sound)resource.Blocks[BlockType.DATA]);
-                                    if (sound.Type == Sound.AudioFileType.MP3) newType = "mp3";
-                                    else newType = "wav";
+                                    var sound = (Sound)resource.Blocks[BlockType.DATA];
+                                    if (sound.Type == Sound.AudioFileType.MP3)
+                                    {
+                                        newType = "mp3";
+                                    }
+                                    else
+                                    {
+                                        newType = "wav";
+                                    }
+
                                     output = sound.GetSound();
                                     break;
                                 case "vtex_c":
@@ -752,6 +768,7 @@ namespace Decompiler
 
                                         output = ms.ToArray();
                                     }
+
                                     break;
                                 default:
                                     try
@@ -766,9 +783,11 @@ namespace Decompiler
                                             Console.WriteLine("\tDecompiler for resource type " + type + " not implemented, extracting as-is");
                                             Console.ResetColor();
                                         }
+
                                         output = memory.ToArray();
                                         newType = type;
                                     }
+
                                     break;
                             }
                         }
