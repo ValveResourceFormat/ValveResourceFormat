@@ -12,6 +12,8 @@
     <Version Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(APPVEYOR_BUILD_VERSION)</Version>
     <ApplicationIcon>..\Icons\Programs\1444493670_window-api-coding-configuration.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.3" />
