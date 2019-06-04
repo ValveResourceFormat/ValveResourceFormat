@@ -7,22 +7,22 @@ using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Entity
-    {
-        public IEnumerable<EntityEntityProperty> Properties { get; set; }
-    }
-
-    public class EntityEntityProperty
-    {
-        public uint Type { get; set; }
-
-        public uint MiscType { get; set; }
-
-        public object Data { get; set; }
-    }
-
     public class EntityLump
     {
+        public class Entity
+        {
+            public IEnumerable<EntityProperty> Properties { get; set; }
+        }
+
+        public class EntityProperty
+        {
+            public uint Type { get; set; }
+
+            public uint MiscType { get; set; }
+
+            public object Data { get; set; }
+        }
+
         private readonly Resource resource;
 
         public EntityLump(Resource resource)
@@ -64,7 +64,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var valuesCount = dataReader.ReadUInt32();
                 var c = dataReader.ReadUInt32(); // always 0? (Its been seen to be 1, footer count?)
 
-                var properties = new List<EntityEntityProperty>();
+                var properties = new List<EntityProperty>();
                 while (dataStream.Position != dataStream.Length)
                 {
                     if (properties.Count == valuesCount)
@@ -79,7 +79,7 @@ namespace ValveResourceFormat.ResourceTypes
                     switch (type)
                     {
                         case 0x06:
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
@@ -87,7 +87,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }); //1
                             break;
                         case 0x01:
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
                         case 0x05:
                         case 0x09:
                         case 0x25: //TODO: figure out the difference
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
@@ -105,7 +105,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }); //4
                             break;
                         case 0x1a:
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
@@ -113,7 +113,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }); //8
                             break;
                         case 0x03:
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
@@ -121,7 +121,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }); //12
                             break;
                         case 0x27:
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
@@ -129,7 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }); //12
                             break;
                         case 0x1e:
-                            properties.Add(new EntityEntityProperty
+                            properties.Add(new EntityProperty
                             {
                                 Type = type,
                                 MiscType = miscType,
