@@ -13,6 +13,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Types;
 using GUI.Types.Audio;
+using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer;
 using GUI.Types.Renderer.Animation;
 using GUI.Utils;
@@ -411,6 +412,15 @@ namespace GUI
                         break;
                     case ResourceType.PanoramaStyle:
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
+                        break;
+                    case ResourceType.Particle:
+                        var openGLControl = new GLRenderControl();
+                        var particleSystem = new ParticleSystem(resource);
+                        var particleRenderer = new ParticleRenderer(particleSystem);
+
+                        var particleRendererTab = new TabPage("PARTICLE");
+                        particleRendererTab.Controls.Add(openGLControl.Control);
+                        resTabs.TabPages.Add(particleRendererTab);
                         break;
                     case ResourceType.Sound:
                         var soundTab = new TabPage("SOUND");
