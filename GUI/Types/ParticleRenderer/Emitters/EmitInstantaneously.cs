@@ -24,8 +24,12 @@ namespace GUI.Types.ParticleRenderer.Emitters
             }
         }
 
-        public void Stop() { }
+        public void Stop()
+        {
+        }
 
-        public void Update(float frameTime) { }
+        public void Update(float frameTime)
+        {
+        }
     }
 }

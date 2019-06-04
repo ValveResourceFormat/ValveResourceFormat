@@ -3,6 +3,8 @@ using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
+using GUI.Types.Renderer;
+using OpenTK;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.ParticleRenderer
@@ -19,12 +21,15 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly ParticleSystem particleSystem;
 
-        private List<Particle> particles;
+        private readonly Camera camera;
+
+        private readonly List<Particle> particles;
 
         public ParticleRenderer(ParticleSystem particleSystem)
         {
             this.particleSystem = particleSystem;
 
+            camera = new Camera(new Vector3(-20, -20, -20), new Vector3(20, 20, 20));
             particles = new List<Particle>();
         }
 
@@ -57,7 +62,7 @@ namespace GUI.Types.ParticleRenderer
         public void Restart()
         {
             Stop();
-            particles = new List<Particle>();
+            particles.Clear();
             Start();
         }
 
@@ -78,7 +83,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var renderer in Renderers)
             {
-                renderer.Render(particles);
+                renderer.Render(particles, camera.ProjectionMatrix, camera.CameraViewMatrix);
             }
         }
     }

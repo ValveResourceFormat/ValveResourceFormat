@@ -110,6 +110,17 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Types\ParticleRenderer\Emitters\EmitInstantaneously.cs" />
+    <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
+    <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\PositionInSphereRandom.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\IParticleOperator.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\MovementBasic.cs" />
+    <Compile Include="Types\ParticleRenderer\Particle.cs" />
+    <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />
+    <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
+    <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
     <Compile Include="Types\Renderer\DebugUtil.cs" />
     <Compile Include="Types\Renderer\Shader.cs" />
