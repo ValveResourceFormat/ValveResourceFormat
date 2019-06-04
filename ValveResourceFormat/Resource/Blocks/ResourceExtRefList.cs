@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization;
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
-    /// "RERL" block. ResourceExtRefList_t
+    /// "RERL" block. ResourceExtRefList_t.
     /// </summary>
     public class ResourceExtRefList : Block
     {

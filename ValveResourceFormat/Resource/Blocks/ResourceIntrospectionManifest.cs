@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
-    /// "NTRO" block. CResourceIntrospectionManifest
+    /// "NTRO" block. CResourceIntrospectionManifest.
     /// </summary>
     public class ResourceIntrospectionManifest : Block
     {

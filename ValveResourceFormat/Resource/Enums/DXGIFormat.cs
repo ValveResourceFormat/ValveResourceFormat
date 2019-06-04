@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat
 {
     /// <summary>
     /// Microsoft DirectX Graphics Infrastructure formats.
-    /// See https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx
+    /// See <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx">this link</a> for more information.
     /// </summary>
     public enum DXGI_FORMAT
     {

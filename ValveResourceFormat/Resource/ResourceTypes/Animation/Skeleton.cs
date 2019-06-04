@@ -19,7 +19,6 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
-        /// <param name="model"></param>
         public Skeleton(IKeyValueCollection modelData)
         {
             Bones = new Bone[0];
@@ -49,8 +48,6 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        /// <param name="skeletonData"></param>
-        /// <param name="remapTable"></param>
         public void ConstructFromNTRO(IKeyValueCollection skeletonData, Dictionary<long, int> remapTable)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
@@ -89,7 +86,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Find all skeleton roots (bones without a parent)
+        /// Find all skeleton roots (bones without a parent).
         /// </summary>
         private void FindRoots()
         {

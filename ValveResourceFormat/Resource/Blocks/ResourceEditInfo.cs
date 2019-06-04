@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
-    /// "REDI" block. ResourceEditInfoBlock_t
+    /// "REDI" block. ResourceEditInfoBlock_t.
     /// </summary>
     public class ResourceEditInfo : Block
     {

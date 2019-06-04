@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -7,7 +7,7 @@ namespace ValveResourceFormat
 {
     /// <summary>
     /// The same as <see cref="System.CodeDom.Compiler.IndentedTextWriter" /> but works in partial trust.
-    /// Taken from System.Data.Entity.Migrations.Utilities.IndentedTextWriter
+    /// Taken from System.Data.Entity.Migrations.Utilities.IndentedTextWriter.
     /// </summary>
     public class IndentedTextWriter : TextWriter
     {

@@ -231,7 +231,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             // install the pixels with the color type of the pixel data
             var bitmap = new SKBitmap();
-            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, null, delegate { gcHandle.Free(); }, null);
+            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, (address, context) => { gcHandle.Free(); }, null);
 
             return bitmap;
         }

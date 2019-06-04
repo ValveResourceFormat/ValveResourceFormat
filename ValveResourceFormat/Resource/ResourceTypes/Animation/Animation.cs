@@ -20,10 +20,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Animation"/> class.
-        /// Build animation from resource
+        /// Build animation from resource.
         /// </summary>
-        /// <param name="resource"></param>
-        /// <param name="decodeKey"></param>
         public Animation(Resource resource, IKeyValueCollection decodeKey)
         {
             Name = string.Empty;
@@ -67,11 +65,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Get animation matrices as an array
+        /// Get animation matrices as an array.
         /// </summary>
-        /// <param name="time"></param>
-        /// <param name="skeleton"></param>
-        /// <returns></returns>
         public float[] GetAnimationMatricesAsArray(float time, Skeleton skeleton)
         {
             var matrices = GetAnimationMatrices(time, skeleton);
@@ -79,11 +74,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Get the animation matrix for each bone
+        /// Get the animation matrix for each bone.
         /// </summary>
-        /// <param name="time"></param>
-        /// <param name="skeleton"></param>
-        /// <returns></returns>
         public Matrix4x4[] GetAnimationMatrices(float time, Skeleton skeleton)
         {
             // Create output array
@@ -101,13 +93,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Get animation matrix recursively
+        /// Get animation matrix recursively.
         /// </summary>
-        /// <param name="bone"></param>
-        /// <param name="parentBindPose"></param>
-        /// <param name="parentInvBindPose"></param>
-        /// <param name="transforms"></param>
-        /// <param name="matrices"></param>
         private void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 parentBindPose, Matrix4x4 parentInvBindPose, Frame transforms, ref Matrix4x4[] matrices)
         {
             // Calculate world space bind and inverse bind pose
@@ -139,7 +126,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Get the transformation matrices at a time
+        /// Get the transformation matrices at a time.
         /// </summary>
         /// <param name="time">The time to get the transformation for.</param>
         private Frame GetTransformsAtTime(float time)
@@ -169,12 +156,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Construct an animation class from the animation description
+        /// Construct an animation class from the animation description.
         /// </summary>
-        /// <param name="animDesc"></param>
-        /// <param name="decodeKey"></param>
-        /// <param name="decoderArray"></param>
-        /// <param name="segmentArray"></param>
         private void ConstructFromDesc(
             IKeyValueCollection animDesc,
             IKeyValueCollection decodeKey,
@@ -222,13 +205,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Read segment
+        /// Read segment.
         /// </summary>
-        /// <param name="frame"></param>
-        /// <param name="segment"></param>
-        /// <param name="decodeKey"></param>
-        /// <param name="decoderArray"></param>
-        /// <param name="outFrame"></param>
         private void ReadSegment(long frame, IKeyValueCollection segment, IKeyValueCollection decodeKey, AnimDecoderType[] decoderArray, ref Frame outFrame)
         {
             // Clamp the frame number to be between 0 and the maximum frame
@@ -314,20 +292,20 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Read a half-precision float from a binary reader
+        /// Read a half-precision float from a binary reader.
         /// </summary>
-        /// <param name="reader">Binary ready</param>
-        /// <returns>float</returns>
+        /// <param name="reader">Binary ready.</param>
+        /// <returns>float.</returns>
         private float ReadHalfFloat(BinaryReader reader)
         {
             return HalfTypeHelper.Convert(reader.ReadUInt16());
         }
 
         /// <summary>
-        /// Read and decode encoded quaternion
+        /// Read and decode encoded quaternion.
         /// </summary>
-        /// <param name="reader">Binary reader</param>
-        /// <returns>Quaternion</returns>
+        /// <param name="reader">Binary reader.</param>
+        /// <returns>Quaternion.</returns>
         private static Quaternion ReadQuaternion(BinaryReader reader)
         {
             var bytes = reader.ReadBytes(6);
@@ -366,10 +344,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Transform the decoder array to a mapping of index to type ID
+        /// Transform the decoder array to a mapping of index to type ID.
         /// </summary>
-        /// <param name="decoderArray"></param>
-        /// <returns></returns>
         private AnimDecoderType[] MakeDecoderArray(IKeyValueCollection[] decoderArray)
         {
             var array = new AnimDecoderType[decoderArray.Length];
@@ -383,10 +359,8 @@ namespace ValveResourceFormat.ResourceTypes.Animation
         }
 
         /// <summary>
-        /// Flatten an array of matrices to an array of floats
+        /// Flatten an array of matrices to an array of floats.
         /// </summary>
-        /// <param name="matrices"></param>
-        /// <returns></returns>
         private float[] Flatten(Matrix4x4[] matrices)
         {
             var returnArray = new float[matrices.Length * 16];
