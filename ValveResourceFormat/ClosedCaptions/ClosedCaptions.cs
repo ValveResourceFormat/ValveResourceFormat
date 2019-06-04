@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ClosedCaptions
             get
             {
                 var hash = Crc32.Compute(Encoding.UTF8.GetBytes(key));
-                return Captions.Find(caption => caption.hash == hash);
+                return Captions.Find(caption => caption.Hash == hash);
             }
         }
 
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.ClosedCaptions
 
             if (reader.ReadUInt32() != MAGIC)
             {
-                throw new InvalidDataException("Given file is not a vcs2.");
+                throw new InvalidDataException("Given file is not a VCCD.");
             }
 
             var version = reader.ReadUInt32();
@@ -76,19 +76,19 @@ namespace ValveResourceFormat.ClosedCaptions
             {
                 Captions.Add(new ClosedCaption
                 {
-                    hash = reader.ReadUInt32(),
-                    blocknum = reader.ReadInt32(),
-                    offset = reader.ReadUInt16(),
-                    length = reader.ReadUInt16(),
+                    Hash = reader.ReadUInt32(),
+                    Blocknum = reader.ReadInt32(),
+                    Offset = reader.ReadUInt16(),
+                    Length = reader.ReadUInt16(),
                 });
             }
 
             // Probably could be inside the for loop above, but I'm unsure what the performance costs are of moving the position head manually a bunch compared to reading sequentually
             foreach (var caption in Captions)
             {
-                reader.BaseStream.Position = dataoffset + (caption.blocknum * blocksize) + caption.offset;
-                var bytes = reader.ReadBytes(caption.length);
-                caption.text = Encoding.Unicode.GetString(bytes);
+                reader.BaseStream.Position = dataoffset + (caption.Blocknum * blocksize) + caption.Offset;
+                var bytes = reader.ReadBytes(caption.Length);
+                caption.Text = Encoding.Unicode.GetString(bytes);
             }
         }
 
