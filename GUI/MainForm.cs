@@ -414,12 +414,15 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.Particle:
-                        var openGLControl = new GLRenderControl();
-                        var particleSystem = new ParticleSystem(resource);
-                        var particleRenderer = new ParticleRenderer(particleSystem);
+                        var particleGLControl = new GLRenderControl();
+                        particleGLControl.Load += (_, __) =>
+                        {
+                            var particleSystem = new ParticleSystem(resource);
+                            var particleRenderer = new ParticleRenderer(particleSystem, particleGLControl);
+                        };
 
                         var particleRendererTab = new TabPage("PARTICLE");
-                        particleRendererTab.Controls.Add(openGLControl.Control);
+                        particleRendererTab.Controls.Add(particleGLControl.Control);
                         resTabs.TabPages.Add(particleRendererTab);
                         break;
                     case ResourceType.Sound:

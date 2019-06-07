@@ -9,6 +9,11 @@ namespace GUI.Types.ParticleRenderer
 {
     internal class GLRenderControl
     {
+        public class RenderEventArgs
+        {
+            public float FrameTime { get; set; }
+        }
+
         public Camera Camera { get; set; }
 
         public Control Control { get; }
@@ -16,9 +21,12 @@ namespace GUI.Types.ParticleRenderer
         private Label fpsLabel;
         private GLControl glControl;
 
+        public event EventHandler<RenderEventArgs> Paint;
+        public event EventHandler Load;
+
         public GLRenderControl()
         {
-            Camera = new Camera(-Vector3.One, Vector3.One);
+            Camera = new Camera();
             Control = InitializeControl();
         }
 
@@ -47,8 +55,8 @@ namespace GUI.Types.ParticleRenderer
             glControl.Load += OnLoad;
             glControl.Paint += OnPaint;
             glControl.Resize += OnResize;
-            //glControl.MouseEnter += MeshControl_MouseEnter;
-            //glControl.MouseLeave += MeshControl_MouseLeave;
+            glControl.MouseEnter += (_, __) => Camera.MouseOverRenderArea = true;
+            glControl.MouseLeave += (_, __) => Camera.MouseOverRenderArea = false;
             glControl.GotFocus += OnGotFocus;
 
             panel.Controls.Add(glControl);
@@ -57,6 +65,10 @@ namespace GUI.Types.ParticleRenderer
 
         private void OnLoad(object sender, EventArgs e)
         {
+            glControl.MakeCurrent();
+
+            Load?.Invoke(this, e);
+
             HandleResize();
             Draw();
         }
@@ -68,7 +80,10 @@ namespace GUI.Types.ParticleRenderer
 
         private void Draw()
         {
+            Camera.Tick(0.01f);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            Paint?.Invoke(this, new RenderEventArgs { FrameTime = 1f });
 
             glControl.SwapBuffers();
             glControl.Invalidate();

@@ -147,7 +147,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, -1);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.UseProgram(-1);
         }
     }

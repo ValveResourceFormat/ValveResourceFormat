@@ -118,6 +118,7 @@
     <Compile Include="Types\ParticleRenderer\Operators\IParticleOperator.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\MovementBasic.cs" />
     <Compile Include="Types\ParticleRenderer\Particle.cs" />
+    <Compile Include="Types\ParticleRenderer\ParticleGrid.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
