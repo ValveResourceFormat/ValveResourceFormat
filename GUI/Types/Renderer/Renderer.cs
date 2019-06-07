@@ -331,7 +331,7 @@ namespace GUI.Types.Renderer
             // If no defaul camera was found, make one up
             if (ActiveCamera == null)
             {
-                ActiveCamera = new Camera(MinBounds, MaxBounds);
+                ActiveCamera = Camera.FromBoundingBox(MinBounds, MaxBounds);
             }
 
             cameraBox.Items.Add(ActiveCamera, true);

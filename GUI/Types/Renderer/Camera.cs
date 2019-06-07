@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
@@ -32,23 +32,26 @@ namespace GUI.Types.Renderer
 
         private KeyboardState KeyboardState;
 
-        public Camera(Vector3 minBounds, Vector3 maxBounds, string name = "Default")
+        public static Camera FromBoundingBox(Vector3 minBounds, Vector3 maxBounds, string name = "Default")
         {
             // Calculate center of bounding box
             var bboxCenter = (minBounds + maxBounds) * 0.5f;
 
             // Set initial position based on the bounding box
-            Location = new Vector3(maxBounds.Z, 0, maxBounds.Z) * 1.5f;
+            var location = new Vector3(maxBounds.Z, 0, maxBounds.Z) * 1.5f;
 
-            // Calculate yaw and pitch
-            var dir = (bboxCenter - Location).Normalized();
-            Yaw = (float)Math.Atan2(dir.Y, dir.X);
-            Pitch = (float)Math.Asin(dir.Z);
+            var camera = new Camera();
+            camera.SetLocation(location);
+            camera.LookAt(bboxCenter);
 
-            // Build camera view matrix
-            CameraViewMatrix = Matrix4.LookAt(Location, bboxCenter, Vector3.UnitZ);
+            return camera;
+        }
 
+        public Camera(string name = "Default")
+        {
             Name = name;
+            Location = new Vector3(1);
+            LookAt(new Vector3(0));
         }
 
         public Camera(Matrix4 transformationMatrix, string name = "Default")
@@ -100,6 +103,24 @@ namespace GUI.Types.Renderer
 
             // setup viewport
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
+        }
+
+        public void SetLocation(Vector3 location)
+        {
+            Location = location;
+
+            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+        }
+
+        public void LookAt(Vector3 target)
+        {
+            var dir = (target - Location).Normalized();
+            Yaw = (float)Math.Atan2(dir.Y, dir.X);
+            Pitch = (float)Math.Asin(dir.Z);
+
+            ClampRotation();
+
+            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
         }
 
         public void Tick(float deltaTime)
