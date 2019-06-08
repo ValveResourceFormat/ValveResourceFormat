@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
             this.resource = resource;
         }
 
-        private IKeyValueCollection GetData()
+        public IKeyValueCollection GetBaseProperties()
         {
             var data = resource.Blocks[BlockType.DATA];
             if (data is NTRO ntro)
@@ -29,15 +29,15 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         public IEnumerable<IKeyValueCollection> GetRenderers()
-            => GetData().GetArray("m_Renderers");
+            => GetBaseProperties().GetArray("m_Renderers");
 
         public IEnumerable<IKeyValueCollection> GetOperators()
-            => GetData().GetArray("m_Operators");
+            => GetBaseProperties().GetArray("m_Operators");
 
         public IEnumerable<IKeyValueCollection> GetInitializers()
-            => GetData().GetArray("m_Initializers");
+            => GetBaseProperties().GetArray("m_Initializers");
 
         public IEnumerable<IKeyValueCollection> GetEmitters()
-            => GetData().GetArray("m_Emitters");
+            => GetBaseProperties().GetArray("m_Emitters");
     }
 }

@@ -415,11 +415,8 @@ namespace GUI
                         break;
                     case ResourceType.Particle:
                         var particleGLControl = new GLRenderControl();
-                        particleGLControl.Load += (_, __) =>
-                        {
-                            var particleSystem = new ParticleSystem(resource);
-                            var particleRenderer = new ParticleRenderer(particleSystem, particleGLControl);
-                        };
+                        var particleSystem = new ParticleSystem(resource);
+                        var particleRenderer = new ParticleRenderer(particleSystem, particleGLControl);
 
                         var particleRendererTab = new TabPage("PARTICLE");
                         particleRendererTab.Controls.Add(particleGLControl.Control);

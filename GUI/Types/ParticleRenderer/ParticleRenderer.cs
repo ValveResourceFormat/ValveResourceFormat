@@ -13,13 +13,13 @@ namespace GUI.Types.ParticleRenderer
 {
     internal class ParticleRenderer
     {
-        public IEnumerable<IParticleEmitter> Emitters { get; private set; }
+        public IEnumerable<IParticleEmitter> Emitters { get; private set; } = new List<IParticleEmitter>();
 
-        public IEnumerable<IParticleInitializer> Initializers { get; private set; }
+        public IEnumerable<IParticleInitializer> Initializers { get; private set; } = new List<IParticleInitializer>();
 
-        public IEnumerable<IParticleOperator> Operators { get; private set; }
+        public IEnumerable<IParticleOperator> Operators { get; private set; } = new List<IParticleOperator>();
 
-        public IEnumerable<IParticleRenderer> Renderers { get; private set; }
+        public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
 
         private readonly ParticleSystem particleSystem;
 
@@ -27,33 +27,38 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly List<Particle> particles;
 
-        private readonly ParticleGrid particleGrid;
+        private ParticleGrid particleGrid;
 
         public ParticleRenderer(ParticleSystem particleSystem, GLRenderControl glControl)
         {
             this.particleSystem = particleSystem;
 
-            particleGrid = new ParticleGrid(20, 5);
-
             camera = glControl.Camera;
-            camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
-            camera.SetLocation(new Vector3(200));
-            camera.LookAt(new Vector3(0));
 
             particles = new List<Particle>();
 
-            glControl.Paint += (sender, args) =>
+            // Initialize after GL loaded
+            glControl.Load += (_, __) =>
+            {
+                camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
+                camera.SetLocation(new Vector3(200));
+                camera.LookAt(new Vector3(0));
+
+                particleGrid = new ParticleGrid(20, 5);
+
+                SetupEmitters(particleSystem.GetBaseProperties(), particleSystem.GetEmitters());
+                SetupInitializers(particleSystem.GetInitializers());
+                SetupOperators(particleSystem.GetOperators());
+                SetupRenderers(particleSystem.GetRenderers());
+
+                Start();
+            };
+
+            glControl.Paint += (_, args) =>
             {
                 Update(args.FrameTime); // Couple update to painting for now
                 Render();
             };
-
-            SetupEmitters(particleSystem.GetEmitters());
-            SetupInitializers(particleSystem.GetInitializers());
-            SetupOperators(particleSystem.GetOperators());
-            SetupRenderers(particleSystem.GetRenderers());
-
-            Start();
         }
 
         public void Start()
@@ -104,7 +109,7 @@ namespace GUI.Types.ParticleRenderer
 
         public void Render()
         {
-            particleGrid.Render(camera.ProjectionMatrix, camera.CameraViewMatrix);
+            particleGrid?.Render(camera.ProjectionMatrix, camera.CameraViewMatrix);
 
             foreach (var renderer in Renderers)
             {
@@ -112,7 +117,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        private void SetupEmitters(IEnumerable<IKeyValueCollection> emitterData)
+        private void SetupEmitters(IKeyValueCollection baseProperties, IEnumerable<IKeyValueCollection> emitterData)
         {
             var emitters = new List<IParticleEmitter>();
 
@@ -122,7 +127,7 @@ namespace GUI.Types.ParticleRenderer
                 switch (emitterClass)
                 {
                     case "C_OP_InstantaneousEmitter":
-                        emitters.Add(new EmitInstantaneously(emitterInfo));
+                        emitters.Add(new EmitInstantaneously(baseProperties, emitterInfo));
                         break;
                     default:
                         Console.WriteLine($"Unsupported emitter class '{emitterClass}'.");
@@ -145,7 +150,23 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupRenderers(IEnumerable<IKeyValueCollection> rendererData)
         {
-            Renderers = new List<IParticleRenderer>();
+            var renderers = new List<IParticleRenderer>();
+
+            foreach (var rendererInfo in rendererData)
+            {
+                var rendererClass = rendererInfo.GetProperty<string>("_class");
+                switch (rendererClass)
+                {
+                    case "C_OP_RenderSprites":
+                        renderers.Add(new RenderSprites(rendererInfo));
+                        break;
+                    default:
+                        Console.WriteLine($"Unsupported renderer class '{rendererClass}'.");
+                        break;
+                }
+            }
+
+            Renderers = renderers;
         }
     }
 }

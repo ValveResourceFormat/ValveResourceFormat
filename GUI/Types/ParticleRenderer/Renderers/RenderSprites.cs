@@ -9,40 +9,47 @@ namespace GUI.Types.ParticleRenderer.Renderers
     public class RenderSprites : IParticleRenderer
     {
         private const string VertextShaderSource = @"
-            attribute vec3 aVertexPosition;
+            #version 400
+            in vec3 aVertexPosition;
 
             uniform mat4 uProjectionMatrix;
-            uniform mat4 uModelviewMatrix;
+            uniform mat4 uModelViewMatrix;
 
             uniform mat4 uModelMatrix;
 
-            varying vec3 fragPos;
+            out vec2 uv;
 
             void main(void) {
-                fragPos = aVertexPosition;
-                gl_Position = projectionMatrix * modelviewMatrix * modelMatrix * vec4(aVertexPosition, 1.0);
+                uv = aVertexPosition.xy * 0.5 + 0.5;
+                gl_Position = uProjectionMatrix * uModelViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
             }";
 
         private const string FragmentShaderSource = @"
-            precision mediump float;
+            #version 400
 
             uniform vec3 uColor;
+            uniform sampler2D uTexture;
 
-            varying vec3 fragPos;
+            in vec2 uv;
+
+            out vec4 fragColor;
 
             void main(void) {
-                gl_FragColor = vec4(color, 1.0);
+                fragColor = texture(uTexture, uv);
             }";
 
         private readonly int shaderProgram;
-        private readonly int quadBuffer;
+        private readonly int quadVao;
+        private readonly int texture;
 
         public RenderSprites(IKeyValueCollection keyValues)
         {
             shaderProgram = SetupShaderProgram();
 
             // The same quad is reused for all particles
-            quadBuffer = SetupQuadBuffer();
+            quadVao = SetupQuadBuffer();
+
+            texture = LoadTexture(keyValues.GetProperty<string>("m_hTexture"));
         }
 
         private int SetupShaderProgram()
@@ -87,8 +94,14 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private int SetupQuadBuffer()
         {
-            var buffer = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, buffer);
+            GL.UseProgram(shaderProgram);
+
+            // Create and bind VAO
+            var vao = GL.GenVertexArray();
+            GL.BindVertexArray(vao);
+
+            var vbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
 
             var vertices = new float[]
             {
@@ -99,23 +112,50 @@ namespace GUI.Types.ParticleRenderer.Renderers
             };
 
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, -1); // Unbind buffer
 
-            return buffer;
+            GL.EnableVertexAttribArray(0);
+
+            var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
+
+            GL.BindVertexArray(0); // Unbind VAO
+
+            return vao;
+        }
+
+        private int LoadTexture(string textureName)
+        {
+            var texture = GL.GenTexture();
+
+            GL.BindTexture(TextureTarget.Texture2D, texture);
+
+            var data = new byte[]
+            {
+                255, 0, 0, 255,
+                0, 255, 0, 255,
+            };
+
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, 2, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+
+            return texture;
         }
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
         {
             GL.UseProgram(shaderProgram);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
+            GL.BindVertexArray(quadVao);
+            GL.EnableVertexAttribArray(0);
 
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, texture);
+
+            GL.Uniform1(GL.GetUniformLocation(shaderProgram, "uTexture"), 0); // set texture unit 0 as uTexture uniform
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uProjectionMatrix"), false, ref projectionMatrix);
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uModelViewMatrix"), false, ref modelViewMatrix);
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, quadBuffer);
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
 
             var modelMatrixLocation = GL.GetUniformLocation(shaderProgram, "uModelMatrix");
             var colorLocation = GL.GetUniformLocation(shaderProgram, "uColor");
@@ -128,27 +168,19 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var scaleMatrix = Matrix4.CreateScale(particle.Radius);
                 var translationMatrix = Matrix4.CreateTranslation(particle.Position.X, particle.Position.Y, particle.Position.Z);
 
-                var modelMatrix = scaleMatrix * rotationMatrix * translationMatrix;
-
-                //let modelMatrix = mat4.fromScaling(mat4.create(), vec3.fromValues(particle.radius, particle.radius, particle.radius));
-
-                //let rotation = mat4.getRotation(quat.create(), modelViewMatrix);
-                //quat.invert(rotation, rotation);
-
-                //let rotationTransMatrix = mat4.fromRotationTranslation(mat4.create(), rotation, particle.position);
-                //mat4.multiply(modelMatrix, rotationTransMatrix, modelMatrix);
+                var modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);
 
                 // Color uniform
-                GL.Uniform3(colorLocation, particle.Position.X, particle.Color.Y, particle.Color.Z);
+                GL.Uniform3(colorLocation, particle.Color.X, particle.Color.Y, particle.Color.Z);
 
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-            GL.UseProgram(-1);
+            GL.BindVertexArray(0);
+            GL.UseProgram(0);
         }
     }
 }

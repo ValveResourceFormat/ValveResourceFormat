@@ -7,10 +7,14 @@ namespace GUI.Types.ParticleRenderer.Emitters
     {
         public long NumToEmit { get; private set; }
 
+        private readonly IKeyValueCollection baseProperties;
+
         private Action<Particle> particleEmitCallback;
 
-        public EmitInstantaneously(IKeyValueCollection keyValues)
+        public EmitInstantaneously(IKeyValueCollection baseProperties, IKeyValueCollection keyValues)
         {
+            this.baseProperties = baseProperties;
+
             NumToEmit = keyValues.GetIntegerProperty("m_nParticlesToEmit");
         }
 
@@ -20,7 +24,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             for (var i = 0; i < NumToEmit; i++)
             {
-                particleEmitCallback(new Particle());
+                particleEmitCallback(new Particle(baseProperties));
             }
         }
 
