@@ -156,7 +156,23 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupInitializers(IEnumerable<IKeyValueCollection> initializerData)
         {
-            Initializers = new List<IParticleInitializer>();
+            var initializers = new List<IParticleInitializer>();
+
+            foreach (var initializerInfo in initializerData)
+            {
+                var initializerClass = initializerInfo.GetProperty<string>("_class");
+                switch (initializerClass)
+                {
+                    case "C_INIT_RandomLifeTime":
+                        initializers.Add(new LifetimeRandom(initializerInfo));
+                        break;
+                    default:
+                        Console.WriteLine($"Unsupported initializer class '{initializerClass}'.");
+                        break;
+                }
+            }
+
+            Initializers = initializers;
         }
 
         private void SetupOperators(IEnumerable<IKeyValueCollection> operatorData)

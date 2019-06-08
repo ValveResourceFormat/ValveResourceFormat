@@ -114,6 +114,7 @@
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\LifetimeRandom.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\PositionInSphereRandom.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\IParticleOperator.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\LifespanDecay.cs" />
