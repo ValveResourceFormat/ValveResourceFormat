@@ -14,6 +14,7 @@ namespace GUI.Types.ParticleRenderer
         public Vector3 Color { get; set; }
 
         public float Lifetime { get; set; }
+        public float TotalLifetime { get; set; }
 
         public Vector3 Position { get; set; }
 
@@ -45,6 +46,7 @@ namespace GUI.Types.ParticleRenderer
         {
             Color = ConstantColor;
             Lifetime = ConstantLifetime;
+            TotalLifetime = ConstantLifetime;
             Radius = ConstantRadius;
         }
     }

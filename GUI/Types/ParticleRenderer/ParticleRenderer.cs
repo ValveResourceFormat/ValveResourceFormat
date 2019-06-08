@@ -174,6 +174,9 @@ namespace GUI.Types.ParticleRenderer
                     case "C_OP_BasicMovement":
                         operators.Add(new MovementBasic(emitterInfo));
                         break;
+                    case "C_OP_InterpolateRadius":
+                        operators.Add(new RadiusScale(emitterInfo));
+                        break;
                     default:
                         Console.WriteLine($"Unsupported operator class '{operatorClass}'.");
                         break;

@@ -33,10 +33,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             in vec2 uv;
 
+            uniform float uOverbrightFactor;
+
             out vec4 fragColor;
 
             void main(void) {
-                fragColor = texture(uTexture, uv);
+                vec4 color = texture(uTexture, uv);
+                fragColor = uOverbrightFactor * color;
             }";
 
         private readonly int shaderProgram;
@@ -44,6 +47,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly int texture;
 
         private readonly bool additive;
+        private readonly float overbrightFactor = 1;
 
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
@@ -55,6 +59,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             texture = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
 
             additive = keyValues.GetProperty<bool>("m_bAdditive");
+            if (keyValues.ContainsKey("m_flOverbrightFactor"))
+            {
+                overbrightFactor = keyValues.GetFloatProperty("m_flOverbrightFactor");
+            }
         }
 
         private int SetupShaderProgram()
@@ -132,22 +140,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
         {
             var materialLoader = new MaterialLoader(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
             return materialLoader.LoadTexture(textureName);
-            //var texture = GL.GenTexture();
-
-            //GL.BindTexture(TextureTarget.Texture2D, texture);
-
-            //var data = new byte[]
-            //{
-            //    255, 0, 0, 255,
-            //    0, 255, 0, 255,
-            //};
-
-            //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, 2, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
-
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-
-            //return texture;
         }
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
@@ -172,6 +164,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.Uniform1(GL.GetUniformLocation(shaderProgram, "uTexture"), 0); // set texture unit 0 as uTexture uniform
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uProjectionMatrix"), false, ref projectionMatrix);
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uModelViewMatrix"), false, ref modelViewMatrix);
+
+            // TODO: Log(overbrightFactor) is a guess but still seems too bright compared to valve particles
+            GL.Uniform1(GL.GetUniformLocation(shaderProgram, "uOverbrightFactor"), (float)Math.Log(overbrightFactor, 5));
 
             var modelMatrixLocation = GL.GetUniformLocation(shaderProgram, "uModelMatrix");
             var colorLocation = GL.GetUniformLocation(shaderProgram, "uColor");
