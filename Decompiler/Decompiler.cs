@@ -19,6 +19,7 @@ namespace Decompiler
         private readonly Dictionary<string, uint> OldPakManifest = new Dictionary<string, uint>();
         private readonly Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
+        private readonly Dictionary<string, uint> uniqueParticleClasses = new Dictionary<string, uint>();
 
         private readonly object ConsoleWriterLock = new object();
         private int CurrentFile = 0;
@@ -166,6 +167,14 @@ namespace Decompiler
                 {
                     Console.WriteLine("{0} in {1}", stat.Key, stat.Value);
                 }
+
+                Console.WriteLine();
+                Console.WriteLine("Particle classes:");
+
+                foreach (var stat in uniqueParticleClasses.OrderByDescending(x => x.Value))
+                {
+                    Console.WriteLine("{0} in {1}", stat.Key, stat.Value);
+                }
             }
 
             return 0;
@@ -249,6 +258,23 @@ namespace Decompiler
 
                         case ResourceType.Sound:
                             info = ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString();
+                            break;
+
+                        case ResourceType.Particle:
+                            var particle = new ParticleSystem(resource);
+                            var particleClasses =
+                                particle.GetEmitters()
+                                .Concat(particle.GetRenderers())
+                                .Concat(particle.GetOperators())
+                                .Concat(particle.GetInitializers())
+                                .Select(r => r.GetProperty<string>("_class"));
+
+                            foreach (var particleClass in particleClasses)
+                            {
+                                uniqueParticleClasses.TryGetValue(particleClass, out var currentCount);
+                                uniqueParticleClasses[particleClass] = currentCount + 1;
+                            }
+
                             break;
                     }
 
