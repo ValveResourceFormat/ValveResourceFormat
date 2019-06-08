@@ -97,7 +97,7 @@ namespace GUI.Types.Renderer
             return mat;
         }
 
-        private int LoadTexture(string name)
+        public int LoadTexture(string name)
         {
             var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
 

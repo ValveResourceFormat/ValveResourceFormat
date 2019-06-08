@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using GUI.Types.Renderer;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Renderers
 {
-    public class RenderSprites : IParticleRenderer
+    internal class RenderSprites : IParticleRenderer
     {
         private const string VertextShaderSource = @"
             #version 400
@@ -42,14 +43,18 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly int quadVao;
         private readonly int texture;
 
-        public RenderSprites(IKeyValueCollection keyValues)
+        private readonly bool additive;
+
+        public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
             shaderProgram = SetupShaderProgram();
 
             // The same quad is reused for all particles
             quadVao = SetupQuadBuffer();
 
-            texture = LoadTexture(keyValues.GetProperty<string>("m_hTexture"));
+            texture = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
+
+            additive = keyValues.GetProperty<bool>("m_bAdditive");
         }
 
         private int SetupShaderProgram()
@@ -123,29 +128,40 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        private int LoadTexture(string textureName)
+        private int LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
         {
-            var texture = GL.GenTexture();
+            var materialLoader = new MaterialLoader(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+            return materialLoader.LoadTexture(textureName);
+            //var texture = GL.GenTexture();
 
-            GL.BindTexture(TextureTarget.Texture2D, texture);
+            //GL.BindTexture(TextureTarget.Texture2D, texture);
 
-            var data = new byte[]
-            {
-                255, 0, 0, 255,
-                0, 255, 0, 255,
-            };
+            //var data = new byte[]
+            //{
+            //    255, 0, 0, 255,
+            //    0, 255, 0, 255,
+            //};
 
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, 2, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
+            //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, 2, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 
-            return texture;
+            //return texture;
         }
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
         {
             GL.UseProgram(shaderProgram);
+
+            if (additive)
+            {
+                GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+            }
+            else
+            {
+                GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.One);
+            }
 
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
@@ -168,7 +184,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var scaleMatrix = Matrix4.CreateScale(particle.Radius);
                 var translationMatrix = Matrix4.CreateTranslation(particle.Position.X, particle.Position.Y, particle.Position.Z);
 
-                var modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+                var modelMatrix = scaleMatrix * rotationMatrix * translationMatrix;
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);

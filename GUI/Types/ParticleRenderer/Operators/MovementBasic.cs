@@ -11,8 +11,8 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public MovementBasic(IKeyValueCollection keyValues)
         {
-            var vectorValues = keyValues.GetArray<float>("m_Gravity");
-            Gravity = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]);
+            var vectorValues = keyValues.GetArray<double>("m_Gravity");
+            Gravity = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
         }
 
         public void Update(IEnumerable<Particle> particles, float frameTime)
@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 particle.Velocity += acceleration;
 
-                particle.Position += particle.Velocity;
+                particle.Position += particle.Velocity * frameTime;
             }
         }
     }

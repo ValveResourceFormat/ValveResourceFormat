@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using OpenTK;
@@ -24,10 +25,14 @@ namespace GUI.Types.ParticleRenderer
         public event EventHandler<RenderEventArgs> Paint;
         public event EventHandler Load;
 
+        private readonly Stopwatch stopwatch;
+
         public GLRenderControl()
         {
             Camera = new Camera();
             Control = InitializeControl();
+
+            stopwatch = new Stopwatch();
         }
 
         protected virtual Control InitializeControl()
@@ -67,6 +72,8 @@ namespace GUI.Types.ParticleRenderer
         {
             glControl.MakeCurrent();
 
+            stopwatch.Start();
+
             Load?.Invoke(this, e);
 
             HandleResize();
@@ -80,10 +87,13 @@ namespace GUI.Types.ParticleRenderer
 
         private void Draw()
         {
-            Camera.Tick(0.01f);
+            var frameTime = stopwatch.ElapsedMilliseconds / 1000f;
+            stopwatch.Restart();
+
+            Camera.Tick(frameTime);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Paint?.Invoke(this, new RenderEventArgs { FrameTime = 1f });
+            Paint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
 
             glControl.SwapBuffers();
             glControl.Invalidate();

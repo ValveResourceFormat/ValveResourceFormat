@@ -240,6 +240,11 @@ namespace GUI
         private TabPage ProcessFile(string fileName, byte[] input, Package currentPackage)
         {
             var tab = new TabPage();
+            var vrfGuiContext = new VrfGuiContext
+            {
+                FileName = fileName,
+                CurrentPackage = currentPackage,
+            };
 
             if (fileName.EndsWith(".vpk", StringComparison.Ordinal))
             {
@@ -416,7 +421,7 @@ namespace GUI
                     case ResourceType.Particle:
                         var particleGLControl = new GLRenderControl();
                         var particleSystem = new ParticleSystem(resource);
-                        var particleRenderer = new ParticleRenderer(particleSystem, particleGLControl);
+                        var particleRenderer = new ParticleRenderer(particleSystem, particleGLControl, vrfGuiContext);
 
                         var particleRendererTab = new TabPage("PARTICLE");
                         particleRendererTab.Controls.Add(particleGLControl.Control);

@@ -9,5 +9,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         void Stop();
 
         void Update(float frameTime);
+
+        bool IsFinished { get; }
     }
 }

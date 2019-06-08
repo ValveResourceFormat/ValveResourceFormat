@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
 using OpenTK;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -25,13 +27,16 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly Camera camera;
 
-        private readonly List<Particle> particles;
+        private readonly VrfGuiContext vrfGuiContext;
+
+        private List<Particle> particles;
 
         private ParticleGrid particleGrid;
 
-        public ParticleRenderer(ParticleSystem particleSystem, GLRenderControl glControl)
+        public ParticleRenderer(ParticleSystem particleSystem, GLRenderControl glControl, VrfGuiContext vrfGuiContext)
         {
             this.particleSystem = particleSystem;
+            this.vrfGuiContext = vrfGuiContext;
 
             camera = glControl.Camera;
 
@@ -40,6 +45,8 @@ namespace GUI.Types.ParticleRenderer
             // Initialize after GL loaded
             glControl.Load += (_, __) =>
             {
+                GL.Enable(EnableCap.Blend);
+
                 camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
                 camera.SetLocation(new Vector3(200));
                 camera.LookAt(new Vector3(0));
@@ -101,9 +108,18 @@ namespace GUI.Types.ParticleRenderer
                 particleOperator.Update(particles, frameTime);
             }
 
+            // Remove all dead particles
+            particles = particles.Where(p => p.Lifetime > 0).ToList();
+
             foreach (var emitter in Emitters)
             {
                 emitter.Update(frameTime);
+            }
+
+            // Restart if all emitters are done and all particles expired
+            if (Emitters.All(e => e.IsFinished) && particles.Count == 0)
+            {
+                Restart();
             }
         }
 
@@ -145,7 +161,26 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupOperators(IEnumerable<IKeyValueCollection> operatorData)
         {
-            Operators = new List<IParticleOperator>();
+            var operators = new List<IParticleOperator>();
+
+            foreach (var emitterInfo in operatorData)
+            {
+                var operatorClass = emitterInfo.GetProperty<string>("_class");
+                switch (operatorClass)
+                {
+                    case "C_OP_Decay":
+                        operators.Add(new LifespanDecay(emitterInfo));
+                        break;
+                    case "C_OP_BasicMovement":
+                        operators.Add(new MovementBasic(emitterInfo));
+                        break;
+                    default:
+                        Console.WriteLine($"Unsupported operator class '{operatorClass}'.");
+                        break;
+                }
+            }
+
+            Operators = operators;
         }
 
         private void SetupRenderers(IEnumerable<IKeyValueCollection> rendererData)
@@ -158,7 +193,7 @@ namespace GUI.Types.ParticleRenderer
                 switch (rendererClass)
                 {
                     case "C_OP_RenderSprites":
-                        renderers.Add(new RenderSprites(rendererInfo));
+                        renderers.Add(new RenderSprites(rendererInfo, vrfGuiContext));
                         break;
                     default:
                         Console.WriteLine($"Unsupported renderer class '{rendererClass}'.");
