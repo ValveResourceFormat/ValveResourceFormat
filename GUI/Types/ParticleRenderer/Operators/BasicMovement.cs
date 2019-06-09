@@ -6,24 +6,34 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class BasicMovement : IParticleOperator
     {
-        public Vector3 Gravity { get; }
+        private readonly Vector3 gravity;
+        private readonly float drag;
 
         public BasicMovement(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_Gravity"))
             {
                 var vectorValues = keyValues.GetArray<double>("m_Gravity");
-                Gravity = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                gravity = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+            }
+
+            if (keyValues.ContainsKey("m_fDrag"))
+            {
+                drag = keyValues.GetFloatProperty("m_fDrag");
             }
         }
 
         public void Update(IEnumerable<Particle> particles, float frameTime)
         {
-            var acceleration = Gravity * frameTime;
+            var acceleration = gravity * frameTime;
 
             foreach (var particle in particles)
             {
+                // Apply acceleration
                 particle.Velocity += acceleration;
+
+                // Apply drag
+                particle.Velocity *= 1 - drag;
 
                 particle.Position += particle.Velocity * frameTime;
             }

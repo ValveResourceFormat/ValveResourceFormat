@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 // If fading out
                 if (time >= startFadeOutTime && time <= endFadeOutTime)
                 {
-                    var t = (time - startFadeOutTime) / (endFadeInTime - startFadeOutTime);
+                    var t = (time - startFadeOutTime) / (endFadeOutTime - startFadeOutTime);
 
                     // Interpolate from 1 to end alpha
                     particle.Alpha = (1 - t) + (t * endAlpha);

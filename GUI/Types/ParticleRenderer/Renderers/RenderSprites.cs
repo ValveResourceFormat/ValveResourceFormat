@@ -33,13 +33,14 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             in vec2 uv;
 
+            uniform float uAlpha;
             uniform float uOverbrightFactor;
 
             out vec4 fragColor;
 
             void main(void) {
                 vec4 color = texture(uTexture, uv);
-                fragColor = uOverbrightFactor * color;
+                fragColor = vec4(uOverbrightFactor * (uColor * color.xyz), uAlpha);
             }";
 
         private readonly int shaderProgram;
@@ -148,7 +149,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (additive)
             {
-                GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             }
             else
             {
@@ -170,6 +171,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             var modelMatrixLocation = GL.GetUniformLocation(shaderProgram, "uModelMatrix");
             var colorLocation = GL.GetUniformLocation(shaderProgram, "uColor");
+            var alphaLocation = GL.GetUniformLocation(shaderProgram, "uAlpha");
 
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
             var rotationMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
@@ -186,6 +188,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 // Color uniform
                 GL.Uniform3(colorLocation, particle.Color.X, particle.Color.Y, particle.Color.Z);
+
+                GL.Uniform1(alphaLocation, particle.Alpha);
 
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }
