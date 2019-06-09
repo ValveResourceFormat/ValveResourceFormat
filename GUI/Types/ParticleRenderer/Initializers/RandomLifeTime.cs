@@ -3,14 +3,14 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class LifetimeRandom : IParticleInitializer
+    public class RandomLifeTime : IParticleInitializer
     {
         private readonly Random random;
 
         private readonly float lifetimeMin = 0f;
         private readonly float lifetimeMax = 0f;
 
-        public LifetimeRandom(IKeyValueCollection keyValues)
+        public RandomLifeTime(IKeyValueCollection keyValues)
         {
             random = new Random();
 

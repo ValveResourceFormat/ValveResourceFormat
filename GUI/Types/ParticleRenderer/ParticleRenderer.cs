@@ -143,7 +143,7 @@ namespace GUI.Types.ParticleRenderer
                 switch (emitterClass)
                 {
                     case "C_OP_InstantaneousEmitter":
-                        emitters.Add(new EmitInstantaneously(baseProperties, emitterInfo));
+                        emitters.Add(new InstantaneousEmitter(baseProperties, emitterInfo));
                         break;
                     default:
                         Console.WriteLine($"Unsupported emitter class '{emitterClass}'.");
@@ -164,7 +164,7 @@ namespace GUI.Types.ParticleRenderer
                 switch (initializerClass)
                 {
                     case "C_INIT_RandomLifeTime":
-                        initializers.Add(new LifetimeRandom(initializerInfo));
+                        initializers.Add(new RandomLifeTime(initializerInfo));
                         break;
                     default:
                         Console.WriteLine($"Unsupported initializer class '{initializerClass}'.");
@@ -185,13 +185,16 @@ namespace GUI.Types.ParticleRenderer
                 switch (operatorClass)
                 {
                     case "C_OP_Decay":
-                        operators.Add(new LifespanDecay(emitterInfo));
+                        operators.Add(new Decay(emitterInfo));
                         break;
                     case "C_OP_BasicMovement":
-                        operators.Add(new MovementBasic(emitterInfo));
+                        operators.Add(new BasicMovement(emitterInfo));
                         break;
                     case "C_OP_InterpolateRadius":
-                        operators.Add(new RadiusScale(emitterInfo));
+                        operators.Add(new InterpolateRadius(emitterInfo));
+                        break;
+                    case "C_OP_FadeAndKill":
+                        operators.Add(new FadeAndKill(emitterInfo));
                         break;
                     default:
                         Console.WriteLine($"Unsupported operator class '{operatorClass}'.");

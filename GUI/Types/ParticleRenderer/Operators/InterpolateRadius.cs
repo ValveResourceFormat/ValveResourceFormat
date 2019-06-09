@@ -3,14 +3,14 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class RadiusScale : IParticleOperator
+    public class InterpolateRadius : IParticleOperator
     {
         private readonly float startTime = 0;
         private readonly float endTime = 1;
         private readonly float startScale = 1;
         private readonly float endScale = 1;
 
-        public RadiusScale(IKeyValueCollection keyValues)
+        public InterpolateRadius(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_flStartTime"))
             {

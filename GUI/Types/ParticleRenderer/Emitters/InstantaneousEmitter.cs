@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    public class EmitInstantaneously : IParticleEmitter
+    public class InstantaneousEmitter : IParticleEmitter
     {
         public bool IsFinished { get; private set; }
 
@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private float time;
 
-        public EmitInstantaneously(IKeyValueCollection baseProperties, IKeyValueCollection keyValues)
+        public InstantaneousEmitter(IKeyValueCollection baseProperties, IKeyValueCollection keyValues)
         {
             this.baseProperties = baseProperties;
 

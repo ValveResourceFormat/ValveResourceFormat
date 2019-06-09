@@ -11,6 +11,8 @@ namespace GUI.Types.ParticleRenderer
         public float ConstantRadius { get; } = 5;
 
         // Variable fields
+        public float Alpha { get; set; } = 1;
+
         public Vector3 Color { get; set; }
 
         public float Lifetime { get; set; }

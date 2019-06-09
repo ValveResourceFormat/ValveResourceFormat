@@ -110,16 +110,17 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Types\ParticleRenderer\Emitters\EmitInstantaneously.cs" />
+    <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\LifetimeRandom.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\PositionInSphereRandom.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\FadeAndKill.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\IParticleOperator.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\LifespanDecay.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\MovementBasic.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\RadiusScale.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\Decay.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\BasicMovement.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\InterpolateRadius.cs" />
     <Compile Include="Types\ParticleRenderer\Particle.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleGrid.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />

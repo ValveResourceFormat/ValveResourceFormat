@@ -4,9 +4,9 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class LifespanDecay : IParticleOperator
+    public class Decay : IParticleOperator
     {
-        public LifespanDecay(IKeyValueCollection keyValues)
+        public Decay(IKeyValueCollection keyValues)
         {
         }
 
