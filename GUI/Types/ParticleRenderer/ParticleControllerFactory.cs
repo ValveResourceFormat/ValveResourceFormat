@@ -23,6 +23,7 @@ namespace GUI.Types.ParticleRenderer
             {
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
+                ["C_INIT_RandomRadius"] = initializerInfo => new RandomRadius(initializerInfo),
                 ["C_INIT_CreateWithinSphere"] = initializerInfo => new CreateWithinSphere(initializerInfo),
             };
 
