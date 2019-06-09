@@ -140,14 +140,13 @@ namespace GUI.Types.ParticleRenderer
             foreach (var emitterInfo in emitterData)
             {
                 var emitterClass = emitterInfo.GetProperty<string>("_class");
-                switch (emitterClass)
+                if (ParticleControllerFactory.TryCreateEmitter(emitterClass, baseProperties, emitterInfo, out var emitter))
                 {
-                    case "C_OP_InstantaneousEmitter":
-                        emitters.Add(new InstantaneousEmitter(baseProperties, emitterInfo));
-                        break;
-                    default:
-                        Console.WriteLine($"Unsupported emitter class '{emitterClass}'.");
-                        break;
+                    emitters.Add(emitter);
+                }
+                else
+                {
+                    Console.WriteLine($"Unsupported emitter class '{emitterClass}'.");
                 }
             }
 
@@ -161,14 +160,13 @@ namespace GUI.Types.ParticleRenderer
             foreach (var initializerInfo in initializerData)
             {
                 var initializerClass = initializerInfo.GetProperty<string>("_class");
-                switch (initializerClass)
+                if (ParticleControllerFactory.TryCreateInitializer(initializerClass, initializerInfo, out var initializer))
                 {
-                    case "C_INIT_RandomLifeTime":
-                        initializers.Add(new RandomLifeTime(initializerInfo));
-                        break;
-                    default:
-                        Console.WriteLine($"Unsupported initializer class '{initializerClass}'.");
-                        break;
+                    initializers.Add(initializer);
+                }
+                else
+                {
+                    Console.WriteLine($"Unsupported initializer class '{initializerClass}'.");
                 }
             }
 
@@ -179,26 +177,16 @@ namespace GUI.Types.ParticleRenderer
         {
             var operators = new List<IParticleOperator>();
 
-            foreach (var emitterInfo in operatorData)
+            foreach (var operatorInfo in operatorData)
             {
-                var operatorClass = emitterInfo.GetProperty<string>("_class");
-                switch (operatorClass)
+                var operatorClass = operatorInfo.GetProperty<string>("_class");
+                if (ParticleControllerFactory.TryCreateOperator(operatorClass, operatorInfo, out var @operator))
                 {
-                    case "C_OP_Decay":
-                        operators.Add(new Decay(emitterInfo));
-                        break;
-                    case "C_OP_BasicMovement":
-                        operators.Add(new BasicMovement(emitterInfo));
-                        break;
-                    case "C_OP_InterpolateRadius":
-                        operators.Add(new InterpolateRadius(emitterInfo));
-                        break;
-                    case "C_OP_FadeAndKill":
-                        operators.Add(new FadeAndKill(emitterInfo));
-                        break;
-                    default:
-                        Console.WriteLine($"Unsupported operator class '{operatorClass}'.");
-                        break;
+                    operators.Add(@operator);
+                }
+                else
+                {
+                    Console.WriteLine($"Unsupported operator class '{operatorClass}'.");
                 }
             }
 
@@ -212,14 +200,13 @@ namespace GUI.Types.ParticleRenderer
             foreach (var rendererInfo in rendererData)
             {
                 var rendererClass = rendererInfo.GetProperty<string>("_class");
-                switch (rendererClass)
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext, out var renderer))
                 {
-                    case "C_OP_RenderSprites":
-                        renderers.Add(new RenderSprites(rendererInfo, vrfGuiContext));
-                        break;
-                    default:
-                        Console.WriteLine($"Unsupported renderer class '{rendererClass}'.");
-                        break;
+                    renderers.Add(renderer);
+                }
+                else
+                {
+                    Console.WriteLine($"Unsupported renderer class '{rendererClass}'.");
                 }
             }
 

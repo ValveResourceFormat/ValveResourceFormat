@@ -122,6 +122,7 @@
     <Compile Include="Types\ParticleRenderer\Operators\BasicMovement.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\InterpolateRadius.cs" />
     <Compile Include="Types\ParticleRenderer\Particle.cs" />
+    <Compile Include="Types\ParticleRenderer\ParticleControllerFactory.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleGrid.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
