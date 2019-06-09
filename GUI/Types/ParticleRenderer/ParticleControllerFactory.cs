@@ -22,6 +22,7 @@ namespace GUI.Types.ParticleRenderer
             = new Dictionary<string, Func<IKeyValueCollection, IParticleInitializer>>
             {
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
+                ["C_INIT_CreateWithinSphere"] = initializerInfo => new CreateWithinSphere(initializerInfo),
             };
 
         // Register particle operators

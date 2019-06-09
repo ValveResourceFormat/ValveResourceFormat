@@ -113,6 +113,7 @@
     <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\PositionInSphereRandom.cs" />
