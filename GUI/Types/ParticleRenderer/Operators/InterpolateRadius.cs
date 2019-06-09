@@ -37,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (var particle in particles)
             {
-                var time = 1 - (particle.Lifetime / particle.TotalLifetime);
+                var time = 1 - (particle.Lifetime / particle.ConstantLifetime);
 
                 if (time >= startTime && time <= endTime)
                 {

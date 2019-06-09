@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var lifetime = lifetimeMin + ((lifetimeMax - lifetimeMin) * (float)random.NextDouble());
 
-            particle.TotalLifetime = lifetime;
+            particle.ConstantLifetime = lifetime;
             particle.Lifetime = lifetime;
 
             return particle;

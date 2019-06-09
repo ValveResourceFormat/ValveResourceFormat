@@ -31,7 +31,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public Particle Initialize(Particle particle)
         {
             var t = (float)random.NextDouble();
-            particle.Color = colorMin + (t * (colorMax - colorMin));
+            particle.ConstantColor = colorMin + (t * (colorMax - colorMin));
+            particle.Color = particle.ConstantColor;
 
             return particle;
         }

@@ -30,10 +30,11 @@ namespace GUI.Types.ParticleRenderer
         private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleOperator>> OperatorDictionary
             = new Dictionary<string, Func<IKeyValueCollection, IParticleOperator>>
             {
-                ["C_OP_Decay"] = emitterInfo => new Decay(emitterInfo),
-                ["C_OP_BasicMovement"] = emitterInfo => new BasicMovement(emitterInfo),
-                ["C_OP_InterpolateRadius"] = emitterInfo => new InterpolateRadius(emitterInfo),
-                ["C_OP_FadeAndKill"] = emitterInfo => new FadeAndKill(emitterInfo),
+                ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
+                ["C_OP_BasicMovement"] = operatorInfo => new BasicMovement(operatorInfo),
+                ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
+                ["C_OP_InterpolateRadius"] = operatorInfo => new InterpolateRadius(operatorInfo),
+                ["C_OP_FadeAndKill"] = operatorInfo => new FadeAndKill(operatorInfo),
             };
 
         // Register particle renderers

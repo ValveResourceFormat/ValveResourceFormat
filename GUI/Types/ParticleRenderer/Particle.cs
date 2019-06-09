@@ -6,9 +6,9 @@ namespace GUI.Types.ParticleRenderer
     public class Particle
     {
         // Base properties
-        public Vector3 ConstantColor { get; } = Vector3.One;
-        public float ConstantLifetime { get; } = 1;
-        public float ConstantRadius { get; } = 5;
+        public Vector3 ConstantColor { get; set; } = Vector3.One;
+        public float ConstantLifetime { get; set; } = 1;
+        public float ConstantRadius { get; set; } = 5;
 
         // Variable fields
         public float Alpha { get; set; } = 1;
@@ -16,7 +16,6 @@ namespace GUI.Types.ParticleRenderer
         public Vector3 Color { get; set; }
 
         public float Lifetime { get; set; }
-        public float TotalLifetime { get; set; }
 
         public Vector3 Position { get; set; }
 
@@ -48,7 +47,6 @@ namespace GUI.Types.ParticleRenderer
         {
             Color = ConstantColor;
             Lifetime = ConstantLifetime;
-            TotalLifetime = ConstantLifetime;
             Radius = ConstantRadius;
         }
     }
