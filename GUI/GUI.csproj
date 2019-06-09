@@ -115,6 +115,7 @@
     <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RandomColor.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\PositionInSphereRandom.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\FadeAndKill.cs" />

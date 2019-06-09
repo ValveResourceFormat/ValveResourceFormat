@@ -33,7 +33,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 particle.Velocity += acceleration;
 
                 // Apply drag
-                particle.Velocity *= 1 - drag;
+                particle.Velocity *= 1 - (drag * frameTime);
 
                 particle.Position += particle.Velocity * frameTime;
             }
