@@ -19,11 +19,11 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (var particle in particles)
             {
-                var time = particle.Lifetime / particle.ConstantLifetime;
-                if (time >= 1 - fadeOutTime)
+                var timeLeft = particle.Lifetime / particle.ConstantLifetime;
+                if (timeLeft <= fadeOutTime)
                 {
-                    var t = (time - (1 - fadeOutTime)) / fadeOutTime;
-                    particle.Alpha = (1 - t) * particle.ConstantAlpha;
+                    var t = timeLeft / fadeOutTime;
+                    particle.Alpha = t * particle.ConstantAlpha;
                 }
             }
         }

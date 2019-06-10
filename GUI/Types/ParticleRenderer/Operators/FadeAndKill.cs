@@ -19,6 +19,31 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 startFadeInTime = keyValues.GetFloatProperty("m_flStartFadeInTime");
             }
+
+            if (keyValues.ContainsKey("m_flEndFadeInTime"))
+            {
+                endFadeInTime = keyValues.GetFloatProperty("m_flEndFadeInTime");
+            }
+
+            if (keyValues.ContainsKey("m_flStartFadeOutTime"))
+            {
+                startFadeOutTime = keyValues.GetFloatProperty("m_flStartFadeOutTime");
+            }
+
+            if (keyValues.ContainsKey("m_flEndFadeOutTime"))
+            {
+                endFadeOutTime = keyValues.GetFloatProperty("m_flEndFadeOutTime");
+            }
+
+            if (keyValues.ContainsKey("m_flStartAlpha"))
+            {
+                startAlpha = keyValues.GetFloatProperty("m_flStartAlpha");
+            }
+
+            if (keyValues.ContainsKey("m_flEndAlpha"))
+            {
+                endAlpha = keyValues.GetFloatProperty("m_flEndAlpha");
+            }
         }
 
         public void Update(IEnumerable<Particle> particles, float frameTime)
@@ -32,8 +57,8 @@ namespace GUI.Types.ParticleRenderer.Operators
                 {
                     var t = (time - startFadeInTime) / (endFadeInTime - startFadeInTime);
 
-                    // Interpolate from startAlpha to 1
-                    particle.Alpha = ((1 - t) * startAlpha) + t;
+                    // Interpolate from startAlpha to constantAlpha
+                    particle.Alpha = ((1 - t) * startAlpha) + (t * particle.ConstantAlpha);
                 }
 
                 // If fading out
@@ -41,8 +66,8 @@ namespace GUI.Types.ParticleRenderer.Operators
                 {
                     var t = (time - startFadeOutTime) / (endFadeOutTime - startFadeOutTime);
 
-                    // Interpolate from 1 to end alpha
-                    particle.Alpha = (1 - t) + (t * endAlpha);
+                    // Interpolate from constantAlpha to end alpha
+                    particle.Alpha = ((1 - t) * particle.ConstantAlpha) + (t * endAlpha);
                 }
 
                 particle.Lifetime -= frameTime;

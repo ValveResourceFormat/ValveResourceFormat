@@ -40,7 +40,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             void main(void) {
                 vec4 color = texture(uTexture, uv);
-                fragColor = vec4(uOverbrightFactor * (uColor * color.xyz), uAlpha);
+                fragColor = vec4(uOverbrightFactor * (uColor * color.xyz), uAlpha * color.w);
             }";
 
         private readonly int shaderProgram;
@@ -49,6 +49,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private readonly bool additive;
         private readonly float overbrightFactor = 1;
+        private readonly long orientationType = 0;
 
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
@@ -63,6 +64,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             if (keyValues.ContainsKey("m_flOverbrightFactor"))
             {
                 overbrightFactor = keyValues.GetFloatProperty("m_flOverbrightFactor");
+            }
+
+            if (keyValues.ContainsKey("m_nOrientationType"))
+            {
+                orientationType = keyValues.GetIntegerProperty("m_nOrientationType");
             }
         }
 
@@ -178,7 +184,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             foreach (var particle in particles)
             {
-                var modelMatrix = particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix();
+                var modelMatrix = orientationType == 0
+                    ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix()
+                    : particle.GetRotationMatrix() * particle.GetTransformationMatrix();
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);
