@@ -22,6 +22,7 @@ namespace GUI.Types.ParticleRenderer
         private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleInitializer>> InitializerDictionary
             = new Dictionary<string, Func<IKeyValueCollection, IParticleInitializer>>
             {
+                ["C_INIT_RandomAlpha"] = initializerInfo => new RandomAlpha(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
                 ["C_INIT_RandomRadius"] = initializerInfo => new RandomRadius(initializerInfo),
@@ -39,6 +40,8 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
                 ["C_OP_InterpolateRadius"] = operatorInfo => new InterpolateRadius(operatorInfo),
                 ["C_OP_FadeAndKill"] = operatorInfo => new FadeAndKill(operatorInfo),
+                ["C_OP_FadeInSimple"] = operatorInfo => new FadeInSimple(operatorInfo),
+                ["C_OP_FadeOutSimple"] = operatorInfo => new FadeOutSimple(operatorInfo),
             };
 
         // Register particle renderers

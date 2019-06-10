@@ -114,6 +114,7 @@
     <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RandomAlpha.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRotation.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RemapParticleCountToScalar.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
@@ -123,6 +124,8 @@
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRadius.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\ColorInterpolate.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\FadeAndKill.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\FadeOutSimple.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\FadeInSimple.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\IParticleOperator.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\Decay.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\BasicMovement.cs" />

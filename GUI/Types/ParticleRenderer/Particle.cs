@@ -8,9 +8,10 @@ namespace GUI.Types.ParticleRenderer
         public long ParticleCount { get; set; }
 
         // Base properties
+        public float ConstantAlpha { get; set; } = 1f;
         public Vector3 ConstantColor { get; set; } = Vector3.One;
-        public float ConstantLifetime { get; set; } = 1;
-        public float ConstantRadius { get; set; } = 5;
+        public float ConstantLifetime { get; set; } = 1f;
+        public float ConstantRadius { get; set; } = 5f;
 
         // Variable fields
         public float Alpha { get; set; } = 1;
