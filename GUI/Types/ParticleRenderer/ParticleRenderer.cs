@@ -6,6 +6,7 @@ using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
+using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -22,7 +23,7 @@ namespace GUI.Types.ParticleRenderer
         public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
 
         private readonly ParticleSystem particleSystem;
-
+        private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
 
         private List<Particle> particles;
@@ -30,6 +31,7 @@ namespace GUI.Types.ParticleRenderer
         public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
         {
             this.particleSystem = particleSystem;
+            childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
             particles = new List<Particle>();
@@ -39,6 +41,8 @@ namespace GUI.Types.ParticleRenderer
             SetupOperators(particleSystem.GetOperators());
             SetupRenderers(particleSystem.GetRenderers());
 
+            SetupChildParticles(particleSystem.GetChildParticleNames(true));
+
             Start();
         }
 
@@ -47,6 +51,11 @@ namespace GUI.Types.ParticleRenderer
             foreach (var emitter in Emitters)
             {
                 emitter.Start(OnParticleSpawn);
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Start();
             }
         }
 
@@ -66,6 +75,11 @@ namespace GUI.Types.ParticleRenderer
             {
                 emitter.Stop();
             }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Stop();
+            }
         }
 
         public void Restart()
@@ -73,6 +87,11 @@ namespace GUI.Types.ParticleRenderer
             Stop();
             particles.Clear();
             Start();
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Restart();
+            }
         }
 
         public void Update(float frameTime)
@@ -90,6 +109,11 @@ namespace GUI.Types.ParticleRenderer
             // Remove all dead particles
             particles = particles.Where(p => p.Lifetime > 0).ToList();
 
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Update(frameTime);
+            }
+
             // Restart if all emitters are done and all particles expired
             if (Emitters.All(e => e.IsFinished) && particles.Count == 0)
             {
@@ -102,6 +126,11 @@ namespace GUI.Types.ParticleRenderer
             foreach (var renderer in Renderers)
             {
                 renderer.Render(particles, camera.ProjectionMatrix, camera.CameraViewMatrix);
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Render(camera);
             }
         }
 
@@ -183,6 +212,17 @@ namespace GUI.Types.ParticleRenderer
             }
 
             Renderers = renderers;
+        }
+
+        private void SetupChildParticles(IEnumerable<string> childNames)
+        {
+            foreach (var childName in childNames)
+            {
+                var childResource = FileExtensions.LoadFileByAnyMeansNecessary(childName + "_c", vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+                var childSystem = new ParticleSystem(childResource);
+
+                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext));
+            }
         }
     }
 }

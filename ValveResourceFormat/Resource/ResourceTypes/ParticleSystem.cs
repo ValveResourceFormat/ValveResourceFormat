@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -39,5 +40,22 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<IKeyValueCollection> GetEmitters()
             => GetBaseProperties().GetArray("m_Emitters");
+
+        public IEnumerable<string> GetChildParticleNames(bool enabledOnly = false)
+        {
+            IEnumerable<IKeyValueCollection> children = GetBaseProperties().GetArray("m_Children");
+
+            if (children == null)
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            if (enabledOnly)
+            {
+                children = children.Where(c => !c.ContainsKey("m_bDisableChild") || !c.GetProperty<bool>("m_bDisableChild"));
+            }
+
+            return children.Select(c => c.GetProperty<string>("m_ChildRef")).ToList();
+        }
     }
 }
