@@ -58,6 +58,8 @@ namespace GUI.Types.ParticleRenderer
 
         public void Render(Matrix4 projectionMatrix, Matrix4 viewMatrix)
         {
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
             GL.UseProgram(shaderProgram);
 
             var projectionViewMatrix = viewMatrix * projectionMatrix;
