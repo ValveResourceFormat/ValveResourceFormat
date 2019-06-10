@@ -9,14 +9,36 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private readonly IKeyValueCollection baseProperties;
 
+        private readonly float emissionDuration = 0f;
+        private readonly float startTime = 0f;
+        private readonly float emitRate = 100f;
+        private readonly float emitInterval = 0.01f;
+
         private Action<Particle> particleEmitCallback;
 
         private long particleCount;
         private float time;
+        private float lastEmissionTime;
 
         public ContinuousEmitter(IKeyValueCollection baseProperties, IKeyValueCollection keyValues)
         {
             this.baseProperties = baseProperties;
+
+            if (keyValues.ContainsKey("m_flEmissionDuration"))
+            {
+                emissionDuration = keyValues.GetFloatProperty("m_flEmissionDuration");
+            }
+
+            if (keyValues.ContainsKey("m_flStartTime"))
+            {
+                startTime = keyValues.GetFloatProperty("m_flStartTime");
+            }
+
+            if (keyValues.ContainsKey("m_flEmitRate"))
+            {
+                emitRate = keyValues.GetFloatProperty("m_flEmitRate");
+                emitInterval = 1 / emitRate;
+            }
         }
 
         public void Start(Action<Particle> particleEmitCallback)
@@ -25,6 +47,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             particleCount = 0;
             time = 0f;
+            lastEmissionTime = 0;
 
             IsFinished = false;
         }
@@ -43,9 +66,17 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             time += frameTime;
 
-            var particle = new Particle(baseProperties);
-            particle.ParticleCount = ++particleCount;
-            particleEmitCallback(particle);
+            if (time >= startTime && (emissionDuration == 0f || time <= startTime + emissionDuration))
+            {
+                var numToEmit = Math.Floor((time - lastEmissionTime) / emitInterval);
+                for (var i = 0; i < numToEmit; i++)
+                {
+                    var particle = new Particle(baseProperties);
+                    particle.ParticleCount = ++particleCount;
+                    lastEmissionTime += emitInterval;
+                    particleEmitCallback(particle);
+                }
+            }
         }
     }
 }
