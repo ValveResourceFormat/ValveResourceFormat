@@ -420,8 +420,25 @@ namespace GUI
                         break;
                     case ResourceType.Particle:
                         var particleGLControl = new GLRenderControl();
-                        var particleSystem = new ParticleSystem(resource);
-                        var particleRenderer = new ParticleRenderer(particleSystem, particleGLControl, vrfGuiContext);
+                        particleGLControl.Load += (_, __) =>
+                        {
+                            particleGLControl.Camera.SetViewportSize(particleGLControl.Control.Width, particleGLControl.Control.Height);
+                            particleGLControl.Camera.SetLocation(new Vector3(200));
+                            particleGLControl.Camera.LookAt(new Vector3(0));
+
+                            var particleSystem = new ParticleSystem(resource);
+                            var particleGrid = new ParticleGrid(20, 5);
+                            var particleRenderer = new ParticleRenderer(particleSystem, vrfGuiContext);
+
+                            particleGLControl.Paint += (sender, args) =>
+                            {
+                                particleGrid.Render(args.Camera.ProjectionMatrix, args.Camera.CameraViewMatrix);
+
+                                // Updating FPS-coupled dynamic step
+                                particleRenderer.Update(args.FrameTime);
+                                particleRenderer.Render(args.Camera);
+                            };
+                        };
 
                         var particleRendererTab = new TabPage("PARTICLE");
                         particleRendererTab.Controls.Add(particleGLControl.Control);

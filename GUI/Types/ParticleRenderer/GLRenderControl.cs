@@ -13,6 +13,7 @@ namespace GUI.Types.ParticleRenderer
         public class RenderEventArgs
         {
             public float FrameTime { get; set; }
+            public Camera Camera { get; set; }
         }
 
         public Camera Camera { get; set; }
@@ -72,6 +73,8 @@ namespace GUI.Types.ParticleRenderer
         {
             glControl.MakeCurrent();
 
+            GL.Enable(EnableCap.Blend);
+
             stopwatch.Start();
 
             Load?.Invoke(this, e);
@@ -93,7 +96,7 @@ namespace GUI.Types.ParticleRenderer
             Camera.Tick(frameTime);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Paint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
+            Paint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
 
             glControl.SwapBuffers();
             glControl.Invalidate();

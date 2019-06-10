@@ -6,8 +6,6 @@ using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -25,47 +23,23 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly ParticleSystem particleSystem;
 
-        private readonly Camera camera;
-
         private readonly VrfGuiContext vrfGuiContext;
 
         private List<Particle> particles;
 
-        private ParticleGrid particleGrid;
-
-        public ParticleRenderer(ParticleSystem particleSystem, GLRenderControl glControl, VrfGuiContext vrfGuiContext)
+        public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
         {
             this.particleSystem = particleSystem;
             this.vrfGuiContext = vrfGuiContext;
 
-            camera = glControl.Camera;
-
             particles = new List<Particle>();
 
-            // Initialize after GL loaded
-            glControl.Load += (_, __) =>
-            {
-                GL.Enable(EnableCap.Blend);
+            SetupEmitters(particleSystem.GetBaseProperties(), particleSystem.GetEmitters());
+            SetupInitializers(particleSystem.GetInitializers());
+            SetupOperators(particleSystem.GetOperators());
+            SetupRenderers(particleSystem.GetRenderers());
 
-                camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
-                camera.SetLocation(new Vector3(200));
-                camera.LookAt(new Vector3(0));
-
-                particleGrid = new ParticleGrid(20, 5);
-
-                SetupEmitters(particleSystem.GetBaseProperties(), particleSystem.GetEmitters());
-                SetupInitializers(particleSystem.GetInitializers());
-                SetupOperators(particleSystem.GetOperators());
-                SetupRenderers(particleSystem.GetRenderers());
-
-                Start();
-            };
-
-            glControl.Paint += (_, args) =>
-            {
-                Update(args.FrameTime); // Couple update to painting for now
-                Render();
-            };
+            Start();
         }
 
         public void Start()
@@ -103,6 +77,11 @@ namespace GUI.Types.ParticleRenderer
 
         public void Update(float frameTime)
         {
+            foreach (var emitter in Emitters)
+            {
+                emitter.Update(frameTime);
+            }
+
             foreach (var particleOperator in Operators)
             {
                 particleOperator.Update(particles, frameTime);
@@ -111,11 +90,6 @@ namespace GUI.Types.ParticleRenderer
             // Remove all dead particles
             particles = particles.Where(p => p.Lifetime > 0).ToList();
 
-            foreach (var emitter in Emitters)
-            {
-                emitter.Update(frameTime);
-            }
-
             // Restart if all emitters are done and all particles expired
             if (Emitters.All(e => e.IsFinished) && particles.Count == 0)
             {
@@ -123,10 +97,8 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public void Render()
+        public void Render(Camera camera)
         {
-            particleGrid?.Render(camera.ProjectionMatrix, camera.CameraViewMatrix);
-
             foreach (var renderer in Renderers)
             {
                 renderer.Render(particles, camera.ProjectionMatrix, camera.CameraViewMatrix);
