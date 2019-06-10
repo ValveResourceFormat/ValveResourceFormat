@@ -45,7 +45,9 @@ namespace GUI.Types.ParticleRenderer.Emitters
             {
                 for (var i = 0; i < emitCount; i++)
                 {
-                    particleEmitCallback(new Particle(baseProperties));
+                    var particle = new Particle(baseProperties);
+                    particle.ParticleCount = i;
+                    particleEmitCallback(particle);
                 }
 
                 IsFinished = true;

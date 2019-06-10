@@ -153,7 +153,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
             else
             {
-                GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.One);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
 
             GL.BindVertexArray(quadVao);
@@ -174,14 +174,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var alphaLocation = GL.GetUniformLocation(shaderProgram, "uAlpha");
 
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
-            var rotationMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
+            var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
 
             foreach (var particle in particles)
             {
-                var scaleMatrix = Matrix4.CreateScale(particle.Radius);
-                var translationMatrix = Matrix4.CreateTranslation(particle.Position.X, particle.Position.Y, particle.Position.Z);
-
-                var modelMatrix = scaleMatrix * rotationMatrix * translationMatrix;
+                var modelMatrix = particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix();
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);

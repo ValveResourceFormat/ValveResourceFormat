@@ -110,9 +110,12 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Types\ParticleRenderer\Emitters\ContinuousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RandomRotation.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RemapParticleCountToScalar.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomColor.cs" />

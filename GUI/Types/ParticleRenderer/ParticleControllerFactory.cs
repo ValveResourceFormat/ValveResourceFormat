@@ -15,6 +15,7 @@ namespace GUI.Types.ParticleRenderer
             = new Dictionary<string, Func<IKeyValueCollection, IKeyValueCollection, IParticleEmitter>>
             {
                 ["C_OP_InstantaneousEmitter"] = (baseProperties, emitterInfo) => new InstantaneousEmitter(baseProperties, emitterInfo),
+                ["C_OP_ContinuousEmitter"] = (baseProperties, emitterInfo) => new ContinuousEmitter(baseProperties, emitterInfo),
             };
 
         // Register particle initializers
@@ -24,6 +25,8 @@ namespace GUI.Types.ParticleRenderer
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
                 ["C_INIT_RandomRadius"] = initializerInfo => new RandomRadius(initializerInfo),
+                ["C_INIT_RandomRotation"] = initializerInfo => new RandomRotation(initializerInfo),
+                ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new RemapParticleCountToScalar(initializerInfo),
                 ["C_INIT_CreateWithinSphere"] = initializerInfo => new CreateWithinSphere(initializerInfo),
             };
 

@@ -5,6 +5,8 @@ namespace GUI.Types.ParticleRenderer
 {
     public class Particle
     {
+        public long ParticleCount { get; set; }
+
         // Base properties
         public Vector3 ConstantColor { get; set; } = Vector3.One;
         public float ConstantLifetime { get; set; } = 1;
@@ -20,6 +22,11 @@ namespace GUI.Types.ParticleRenderer
         public Vector3 Position { get; set; }
 
         public float Radius { get; set; }
+
+        /// <summary>
+        /// Gets or sets (Yaw, Pitch, Roll) Euler angles.
+        /// </summary>
+        public Vector3 Rotation { get; set; }
 
         public Vector3 Velocity { get; set; }
 
@@ -54,6 +61,20 @@ namespace GUI.Types.ParticleRenderer
             Color = ConstantColor;
             Lifetime = ConstantLifetime;
             Radius = ConstantRadius;
+        }
+
+        public OpenTK.Matrix4 GetTransformationMatrix()
+        {
+            var scaleMatrix = OpenTK.Matrix4.CreateScale(Radius);
+            var translationMatrix = OpenTK.Matrix4.CreateTranslation(Position.X, Position.Y, Position.Z);
+
+            return scaleMatrix * translationMatrix;
+        }
+
+        public OpenTK.Matrix4 GetRotationMatrix()
+        {
+            var rotationMatrix = OpenTK.Matrix4.CreateRotationZ(Rotation.Z) * OpenTK.Matrix4.CreateRotationY(Rotation.Y);
+            return rotationMatrix;
         }
     }
 }
