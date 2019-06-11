@@ -14,6 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
         private static readonly Guid KV3_ENCODING_BINARY_BLOCK_LZ4 = new Guid(new byte[] { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 });
         private static readonly Guid KV3_FORMAT_GENERIC = new Guid(new byte[] { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 });
         public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
+        public const int MAGIC2 = 0x4B563301; // KV3\x01
 #pragma warning restore SA1310
 
         public KVObject Data { get; private set; }
@@ -29,9 +30,18 @@ namespace ValveResourceFormat.ResourceTypes
             var outWrite = new BinaryWriter(outStream);
             var outRead = new BinaryReader(outStream); // Why why why why why why why
 
-            if (reader.ReadUInt32() != MAGIC)
+            var magic = reader.ReadUInt32();
+
+            if (magic == MAGIC2)
             {
-                throw new InvalidDataException("Invalid KV Signature");
+                ReadVersion2(reader, outWrite);
+
+                return;
+            }
+
+            if (magic != MAGIC)
+            {
+                throw new InvalidDataException($"Invalid KV3 signature {magic}");
             }
 
             Encoding = new Guid(reader.ReadBytes(16));
@@ -52,7 +62,8 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_UNCOMPRESSED) == 0)
             {
-                // Nothing to do here
+                reader.BaseStream.CopyTo(outStream);
+                outStream.Position = 0;
             }
             else
             {
@@ -67,6 +78,20 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Data = ParseBinaryKV3(outRead, null, true);
+        }
+
+        private void ReadVersion2(BinaryReader reader, BinaryWriter outWrite)
+        {
+            Format = new Guid(reader.ReadBytes(16));
+
+            reader.ReadInt32(); // appears to always be 1
+            reader.ReadInt32(); // appears to always be 0
+            reader.ReadInt32(); // ?
+            reader.ReadInt32(); // ?
+
+            DecompressLZ4(reader, outWrite);
+
+            // First int in decompressed data appears to be count of strings
         }
 
         private void BlockDecompress(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
