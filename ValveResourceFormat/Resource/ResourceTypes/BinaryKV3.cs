@@ -34,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (magic == MAGIC2)
             {
-                ReadVersion2(reader, outWrite);
+                ReadVersion2(reader, outWrite, outRead);
 
                 return;
             }
@@ -80,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes
             Data = ParseBinaryKV3(outRead, null, true);
         }
 
-        private void ReadVersion2(BinaryReader reader, BinaryWriter outWrite)
+        private void ReadVersion2(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
         {
             Format = new Guid(reader.ReadBytes(16));
 
@@ -91,7 +91,27 @@ namespace ValveResourceFormat.ResourceTypes
 
             DecompressLZ4(reader, outWrite);
 
-            // First int in decompressed data appears to be count of strings
+            // this appears to the number of strings
+            var count = outRead.ReadInt32();
+
+            // values?
+
+            stringArray = new string[count];
+
+            for (var i = 0; i < count; i++)
+            {
+                stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
+            }
+
+            // data is now kvtype bytes
+
+            // end is  00 DD EE FF
+
+            // 1. First int in decompressed data appears to be count of strings
+            // 2. probably list of values
+            // 3. null terminated strings (as many as the first int specifies)
+            // 4. the remaining data after last null byte is a list of KVType bytes
+            // 00 DD EE FF ???
         }
 
         private void BlockDecompress(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
