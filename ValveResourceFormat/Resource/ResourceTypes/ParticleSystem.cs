@@ -30,16 +30,16 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         public IEnumerable<IKeyValueCollection> GetRenderers()
-            => GetBaseProperties().GetArray("m_Renderers");
+            => GetBaseProperties().GetArray("m_Renderers") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetOperators()
-            => GetBaseProperties().GetArray("m_Operators");
+            => GetBaseProperties().GetArray("m_Operators") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetInitializers()
-            => GetBaseProperties().GetArray("m_Initializers");
+            => GetBaseProperties().GetArray("m_Initializers") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetEmitters()
-            => GetBaseProperties().GetArray("m_Emitters");
+            => GetBaseProperties().GetArray("m_Emitters") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<string> GetChildParticleNames(bool enabledOnly = false)
         {
