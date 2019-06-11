@@ -155,6 +155,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (additive)
             {
+                GL.BlendEquation(BlendEquationMode.Max);
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             }
             else
@@ -201,6 +202,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.BindVertexArray(0);
             GL.UseProgram(0);
+
+            if (additive)
+            {
+                GL.BlendEquation(BlendEquationMode.FuncAdd);
+            }
         }
     }
 }
