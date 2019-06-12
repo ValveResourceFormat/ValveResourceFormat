@@ -40,7 +40,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             void main(void) {
                 vec4 color = texture(uTexture, uv);
-                fragColor = vec4(uOverbrightFactor * (uColor * color.xyz), uAlpha * color.w);
+                vec3 finalColor = uColor * uAlpha * color.w * color.xyz;
+                fragColor = vec4(uColor * uAlpha * color.w * color.xyz, finalColor.x + finalColor.y + finalColor.z);
             }";
 
         private readonly int shaderProgram;
@@ -155,8 +156,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (additive)
             {
-                GL.BlendEquation(BlendEquationMode.Max);
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+                GL.BlendFunc(BlendingFactor.OneMinusDstAlpha, BlendingFactor.One);
             }
             else
             {
