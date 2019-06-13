@@ -22,6 +22,8 @@ namespace ValveResourceFormat.ResourceTypes
         public Guid Format { get; private set; }
 
         private string[] stringArray;
+        private byte[] typesArray;
+        private long currentTypeIndex;
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -86,15 +88,16 @@ namespace ValveResourceFormat.ResourceTypes
 
             reader.ReadInt32(); // appears to always be 1
             reader.ReadInt32(); // appears to always be 0
-            reader.ReadInt32(); // ?
-            reader.ReadInt32(); // ?
+            var int3 = reader.ReadInt32();
+            var int4 = reader.ReadInt32();
 
             DecompressLZ4(reader, outWrite);
 
             // this appears to the number of strings
             var count = outRead.ReadInt32();
 
-            // values?
+            // jump to string table
+            outRead.BaseStream.Position = (int3 * 4) + (int4 * 8);
 
             stringArray = new string[count];
 
@@ -103,15 +106,18 @@ namespace ValveResourceFormat.ResourceTypes
                 stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
             }
 
-            // data is now kvtype bytes
+            // bytes after the string table is kv types, minus 4 static bytes at the end
+            var typesLength = outRead.BaseStream.Length - 4 - outRead.BaseStream.Position;
+            typesArray = new byte[typesLength];
 
-            // end is  00 DD EE FF
+            for (var i = 0; i < typesLength; i++)
+            {
+                typesArray[i] = outRead.ReadByte();
+            }
 
-            // 1. First int in decompressed data appears to be count of strings
-            // 2. probably list of values
-            // 3. null terminated strings (as many as the first int specifies)
-            // 4. the remaining data after last null byte is a list of KVType bytes
-            // 00 DD EE FF ???
+            outRead.BaseStream.Position = 4;
+
+            Data = ParseBinaryKV3(outRead, null, true);
         }
 
         private void BlockDecompress(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
@@ -193,9 +199,19 @@ namespace ValveResourceFormat.ResourceTypes
             outWrite.BaseStream.Position = 0;
         }
 
-        private static (KVType, KVFlag) ReadType(BinaryReader reader)
+        private (KVType, KVFlag) ReadType(BinaryReader reader)
         {
-            var databyte = reader.ReadByte();
+            byte databyte;
+
+            if (typesArray != null)
+            {
+                databyte = typesArray[currentTypeIndex++];
+            }
+            else
+            {
+                databyte = reader.ReadByte();
+            }
+
             var flagInfo = KVFlag.None;
 
             if ((databyte & 0x80) > 0)
