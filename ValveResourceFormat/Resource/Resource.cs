@@ -201,7 +201,9 @@ namespace ValveResourceFormat
                 {
                     Reader.BaseStream.Position = offset;
 
-                    if (Reader.ReadUInt32() == BinaryKV3.MAGIC)
+                    var magic = Reader.ReadUInt32();
+
+                    if (magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2)
                     {
                         block = new BinaryKV3();
                     }
