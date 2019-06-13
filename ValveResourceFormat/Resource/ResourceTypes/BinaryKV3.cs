@@ -217,7 +217,15 @@ namespace ValveResourceFormat.ResourceTypes
             if ((databyte & 0x80) > 0)
             {
                 databyte &= 0x7F; // Remove the flag bit
-                flagInfo = (KVFlag)reader.ReadByte();
+
+                if (typesArray != null)
+                {
+                    flagInfo = (KVFlag)typesArray[currentTypeIndex++];
+                }
+                else
+                {
+                    flagInfo = (KVFlag)reader.ReadByte();
+                }
             }
 
             return ((KVType)databyte, flagInfo);
