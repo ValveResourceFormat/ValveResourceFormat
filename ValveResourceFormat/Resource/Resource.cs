@@ -306,8 +306,8 @@ namespace ValveResourceFormat
                 case ResourceType.Texture:
                     return new Texture();
 
-                case ResourceType.Material:
-                    return new Material();
+                //case ResourceType.Material:
+                //    return new Material();
 
                 case ResourceType.SoundEventScript:
                     return new SoundEventScript();

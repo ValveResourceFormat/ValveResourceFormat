@@ -6,6 +6,7 @@ using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
 {
@@ -50,11 +51,12 @@ namespace GUI.Types.Renderer
                 Console.Error.WriteLine("File " + name + " not found");
 
                 mat.Textures["g_tNormal"] = GetErrorTexture();
+                mat.Parameters = new VrfMaterial();
 
                 return mat;
             }
 
-            mat.Parameters = (ValveResourceFormat.ResourceTypes.Material)resource.Blocks[BlockType.DATA];
+            mat.Parameters = new VrfMaterial(resource);
 
             foreach (var textureReference in mat.Parameters.TextureParams)
             {
