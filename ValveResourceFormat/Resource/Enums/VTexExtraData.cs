@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat
 {
@@ -9,6 +9,7 @@ namespace ValveResourceFormat
         FALLBACK_BITS = 1,
         SHEET = 2,
         FILL_TO_POWER_OF_TWO = 3,
+        COMPRESSED_MIP_SIZE = 4,
 #pragma warning restore 1591
     }
 }
