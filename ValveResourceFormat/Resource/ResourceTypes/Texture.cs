@@ -39,6 +39,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public ushort NonPow2Height { get; private set; }
 
+        public uint[] CompressedMips { get; private set; }
+
         public Texture()
         {
             ExtraData = new Dictionary<VTexExtraData, byte[]>();
@@ -85,7 +87,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 for (var i = 0; i < extraDataCount; i++)
                 {
-                    var type = reader.ReadUInt32();
+                    var type = (VTexExtraData)reader.ReadUInt32();
                     var offset = reader.ReadUInt32() - 8;
                     var size = reader.ReadUInt32();
 
@@ -93,7 +95,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     reader.BaseStream.Position += offset;
 
-                    if ((VTexExtraData)type == VTexExtraData.FILL_TO_POWER_OF_TWO)
+                    if (type == VTexExtraData.FILL_TO_POWER_OF_TWO)
                     {
                         reader.ReadUInt16();
                         var nw = reader.ReadUInt16();
@@ -107,7 +109,23 @@ namespace ValveResourceFormat.ResourceTypes
                         reader.BaseStream.Position -= 6;
                     }
 
-                    ExtraData.Add((VTexExtraData)type, reader.ReadBytes((int)size));
+                    ExtraData.Add(type, reader.ReadBytes((int)size));
+
+                    if (type == VTexExtraData.COMPRESSED_MIP_SIZE)
+                    {
+                        reader.BaseStream.Position -= size;
+
+                        var int1 = reader.ReadUInt32(); // 1?
+                        var int2 = reader.ReadUInt32(); // 8?
+                        var mips = reader.ReadUInt32();
+
+                        CompressedMips = new uint[mips];
+
+                        for (var mip = 0; mip < mips; mip++)
+                        {
+                            CompressedMips[mip] = reader.ReadUInt32();
+                        }
+                    }
 
                     reader.BaseStream.Position = prevOffset;
                 }
@@ -238,6 +256,16 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void SkipMipmaps(int bytesPerPixel)
         {
+            if (CompressedMips != null && NumMipLevels > 1)
+            {
+                for (var j = NumMipLevels; j > 1; j--)
+                {
+                    Reader.BaseStream.Position += CompressedMips[j];
+                }
+
+                return;
+            }
+
             for (var j = NumMipLevels; j > 1; j--)
             {
                 var size = Math.Pow(2.0f, j + 1);
