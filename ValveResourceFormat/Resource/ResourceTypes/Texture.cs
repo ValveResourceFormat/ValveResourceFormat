@@ -256,9 +256,14 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void SkipMipmaps(int bytesPerPixel)
         {
-            if (CompressedMips != null && NumMipLevels > 1)
+            if (NumMipLevels < 2)
             {
-                for (var j = NumMipLevels; j > 1; j--)
+                return;
+            }
+
+            if (CompressedMips != null)
+            {
+                for (var j = NumMipLevels - 1; j > 0; j--)
                 {
                     Reader.BaseStream.Position += CompressedMips[j];
                 }
