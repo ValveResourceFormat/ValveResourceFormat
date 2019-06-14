@@ -22,7 +22,7 @@ namespace GUI.Types
 
         public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, Vector4 tintColor, Package currentPackage = null, string skin = null)
         {
-            var data = model.GetModelData();
+            var data = model.GetData();
 
             var refMeshes = data.GetArray<string>("m_refMeshes");
             var materialGroups = data.GetArray("m_materialGroups");
@@ -75,7 +75,7 @@ namespace GUI.Types
         }
 
         public string[] GetAnimationGroups()
-            => model.GetModelData()
+            => model.GetData()
                 .GetArray<string>("m_refAnimGroups")
                 .ToArray();
     }

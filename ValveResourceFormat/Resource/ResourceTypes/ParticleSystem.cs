@@ -14,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
             this.resource = resource;
         }
 
-        public IKeyValueCollection GetBaseProperties()
+        public IKeyValueCollection GetData()
         {
             var data = resource.Blocks[BlockType.DATA];
             if (data is NTRO ntro)
@@ -26,24 +26,24 @@ namespace ValveResourceFormat.ResourceTypes
                 return kv.Data;
             }
 
-            throw new InvalidOperationException($"Unknown world data type {data.GetType().Name}");
+            throw new InvalidOperationException($"Unknown particle data type {data.GetType().Name}");
         }
 
         public IEnumerable<IKeyValueCollection> GetRenderers()
-            => GetBaseProperties().GetArray("m_Renderers") ?? Enumerable.Empty<IKeyValueCollection>();
+            => GetData().GetArray("m_Renderers") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetOperators()
-            => GetBaseProperties().GetArray("m_Operators") ?? Enumerable.Empty<IKeyValueCollection>();
+            => GetData().GetArray("m_Operators") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetInitializers()
-            => GetBaseProperties().GetArray("m_Initializers") ?? Enumerable.Empty<IKeyValueCollection>();
+            => GetData().GetArray("m_Initializers") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetEmitters()
-            => GetBaseProperties().GetArray("m_Emitters") ?? Enumerable.Empty<IKeyValueCollection>();
+            => GetData().GetArray("m_Emitters") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<string> GetChildParticleNames(bool enabledOnly = false)
         {
-            IEnumerable<IKeyValueCollection> children = GetBaseProperties().GetArray("m_Children");
+            IEnumerable<IKeyValueCollection> children = GetData().GetArray("m_Children");
 
             if (children == null)
             {

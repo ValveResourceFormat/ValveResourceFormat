@@ -15,21 +15,22 @@ namespace ValveResourceFormat.ResourceTypes
 
         public Skeleton GetSkeleton()
         {
-            return new Skeleton(GetModelData());
+            return new Skeleton(GetData());
         }
 
-        public IKeyValueCollection GetModelData()
+        public IKeyValueCollection GetData()
         {
-            if (resource.Blocks[BlockType.DATA] is BinaryKV3 binaryKv)
+            var data = resource.Blocks[BlockType.DATA];
+            if (data is BinaryKV3 binaryKv)
             {
                 return binaryKv.Data;
             }
-            else if (resource.Blocks[BlockType.DATA] is NTRO ntro)
+            else if (data is NTRO ntro)
             {
                 return ntro.Output;
             }
 
-            throw new InvalidOperationException();
+            throw new InvalidOperationException($"Unknown model data type {data.GetType().Name}");
         }
     }
 }

@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
             this.resource = resource;
         }
 
-        public IKeyValueCollection GetRawData()
+        public IKeyValueCollection GetData()
         {
             var data = resource.Blocks[BlockType.DATA];
             if (data is NTRO ntro)
@@ -42,16 +42,16 @@ namespace ValveResourceFormat.ResourceTypes
                 return kv.Data;
             }
 
-            throw new InvalidOperationException($"Unknown world entity lump type {data.GetType().Name}");
+            throw new InvalidOperationException($"Unknown entity lump data type {data.GetType().Name}");
         }
 
         public IEnumerable<string> GetChildEntityNames()
         {
-            return GetRawData().GetArray<string>("m_childLumps");
+            return GetData().GetArray<string>("m_childLumps");
         }
 
         public IEnumerable<Entity> GetEntities()
-            => GetRawData().GetArray("m_entityKeyValues")
+            => GetData().GetArray("m_entityKeyValues")
                 .Select(entity => ParseEntityProperties(entity.GetArray<byte>("m_keyValuesData")))
                 .ToList();
 

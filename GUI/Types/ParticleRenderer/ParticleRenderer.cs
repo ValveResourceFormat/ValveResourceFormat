@@ -36,7 +36,7 @@ namespace GUI.Types.ParticleRenderer
 
             particles = new List<Particle>();
 
-            SetupEmitters(particleSystem.GetBaseProperties(), particleSystem.GetEmitters());
+            SetupEmitters(particleSystem.GetData(), particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
             SetupOperators(particleSystem.GetOperators());
             SetupRenderers(particleSystem.GetRenderers());
