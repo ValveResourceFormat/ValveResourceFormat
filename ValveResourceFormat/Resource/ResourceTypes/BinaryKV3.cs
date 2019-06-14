@@ -24,6 +24,7 @@ namespace ValveResourceFormat.ResourceTypes
         private string[] stringArray;
         private byte[] typesArray;
         private long currentTypeIndex;
+        private long currentEightBytesOffset;
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -86,18 +87,31 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Format = new Guid(reader.ReadBytes(16));
 
-            reader.ReadInt32(); // appears to always be 1
-            reader.ReadInt32(); // appears to always be 0
-            var int3 = reader.ReadInt32();
-            var int4 = reader.ReadInt32();
+            var int1 = reader.ReadInt32(); // appears to always be 1
+            var int2 = reader.ReadInt32(); // how many bytes (binary blobs)
+            var int3 = reader.ReadInt32(); // how many 4 byte values (ints)
+            var int4 = reader.ReadInt32(); // how many 8 byte values (doubles)
 
             DecompressLZ4(reader, outWrite);
+
+            if (int1 != 1)
+            {
+                throw new Exception("int1 is not 1");
+            }
+
+            if (int2 != 0)
+            {
+                throw new Exception("int2 is not 0");
+            }
 
             // this appears to the number of strings
             var count = outRead.ReadInt32();
 
-            // jump to string table
-            outRead.BaseStream.Position = (int3 * 4) + (int4 * 8);
+            outRead.BaseStream.Position += int3 * 4;
+
+            currentEightBytesOffset = outRead.BaseStream.Position;
+
+            outRead.BaseStream.Position += int4 * 8;
 
             stringArray = new string[count];
 
@@ -247,6 +261,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KVObject ReadBinaryValue(string name, KVType datatype, KVFlag flagInfo, BinaryReader reader, KVObject parent)
         {
+            var currentOffset = reader.BaseStream.Position;
+
             switch (datatype)
             {
                 case KVType.NULL:
@@ -268,10 +284,34 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, 1L, flagInfo));
                     break;
                 case KVType.INT64:
+                    if (currentEightBytesOffset > 0)
+                    {
+                        reader.BaseStream.Position = currentEightBytesOffset;
+                    }
+
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
+
+                    if (currentEightBytesOffset > 0)
+                    {
+                        currentEightBytesOffset = reader.BaseStream.Position;
+                        reader.BaseStream.Position = currentOffset;
+                    }
+
                     break;
                 case KVType.UINT64:
+                    if (currentEightBytesOffset > 0)
+                    {
+                        reader.BaseStream.Position = currentEightBytesOffset;
+                    }
+
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
+
+                    if (currentEightBytesOffset > 0)
+                    {
+                        currentEightBytesOffset = reader.BaseStream.Position;
+                        reader.BaseStream.Position = currentOffset;
+                    }
+
                     break;
                 case KVType.INT32:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
@@ -280,7 +320,19 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
                     break;
                 case KVType.DOUBLE:
+                    if (currentEightBytesOffset > 0)
+                    {
+                        reader.BaseStream.Position = currentEightBytesOffset;
+                    }
+
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
+
+                    if (currentEightBytesOffset > 0)
+                    {
+                        currentEightBytesOffset = reader.BaseStream.Position;
+                        reader.BaseStream.Position = currentOffset;
+                    }
+
                     break;
                 case KVType.DOUBLE_ZERO:
                     parent.AddProperty(name, MakeValue(datatype, 0.0D, flagInfo));
