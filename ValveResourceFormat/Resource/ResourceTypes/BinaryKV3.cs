@@ -25,6 +25,7 @@ namespace ValveResourceFormat.ResourceTypes
         private byte[] typesArray;
         private long currentTypeIndex;
         private long currentEightBytesOffset;
+        private long currentBinaryBytesOffset = -1;
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -88,9 +89,9 @@ namespace ValveResourceFormat.ResourceTypes
             Format = new Guid(reader.ReadBytes(16));
 
             var int1 = reader.ReadInt32(); // appears to always be 1
-            var int2 = reader.ReadInt32(); // how many bytes (binary blobs)
-            var int3 = reader.ReadInt32(); // how many 4 byte values (ints)
-            var int4 = reader.ReadInt32(); // how many 8 byte values (doubles)
+            var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
+            var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
+            var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
 
             DecompressLZ4(reader, outWrite);
 
@@ -99,23 +100,20 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new Exception("int1 is not 1");
             }
 
-            if (int2 != 0)
-            {
-                throw new Exception("int2 is not 0");
-            }
+            currentBinaryBytesOffset = 0;
+            outRead.BaseStream.Position = countOfBinaryBytes;
 
-            // this appears to the number of strings
-            var count = outRead.ReadInt32();
+            var countOfStrings = outRead.ReadInt32();
 
-            outRead.BaseStream.Position += int3 * 4;
+            outRead.BaseStream.Position += countOfIntegers * 4;
 
             currentEightBytesOffset = outRead.BaseStream.Position;
 
-            outRead.BaseStream.Position += int4 * 8;
+            outRead.BaseStream.Position += countOfEightByteValues * 8;
 
-            stringArray = new string[count];
+            stringArray = new string[countOfStrings];
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < countOfStrings; i++)
             {
                 stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
             }
@@ -129,7 +127,7 @@ namespace ValveResourceFormat.ResourceTypes
                 typesArray[i] = outRead.ReadByte();
             }
 
-            outRead.BaseStream.Position = 4;
+            outRead.BaseStream.Position = countOfBinaryBytes + 4;
 
             Data = ParseBinaryKV3(outRead, null, true);
         }
@@ -346,7 +344,20 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.BINARY_BLOB:
                     var length = reader.ReadInt32();
+
+                    if (currentBinaryBytesOffset > -1)
+                    {
+                        reader.BaseStream.Position = currentBinaryBytesOffset;
+                    }
+
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
+
+                    if (currentBinaryBytesOffset > -1)
+                    {
+                        currentBinaryBytesOffset = reader.BaseStream.Position;
+                        reader.BaseStream.Position = currentOffset + 4;
+                    }
+
                     break;
                 case KVType.ARRAY:
                     var arrayLength = reader.ReadInt32();
