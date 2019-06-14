@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -52,6 +52,8 @@ namespace ValveResourceFormat.Blocks
 
             var vertexOffset = reader.ReadUInt32();
             var vertexCount = reader.ReadUInt32();
+            var indexOffset = reader.ReadUInt32();
+            var indexCount = reader.ReadUInt32();
 
             reader.BaseStream.Position = Offset + vertexOffset;
             for (var i = 0; i < vertexCount; i++)
@@ -99,14 +101,7 @@ namespace ValveResourceFormat.Blocks
                 VertexBuffers.Add(vertexBuffer);
 
                 reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
-
-                //if(i > 0)break; // TODO: Read only first buffer
             }
-
-            reader.BaseStream.Position = Offset + 4 + 4; //We are back at the header.
-
-            var indexOffset = reader.ReadUInt32();
-            var indexCount = reader.ReadUInt32();
 
             reader.BaseStream.Position = Offset + 8 + indexOffset; //8 to take into account vertexOffset / count
             for (var i = 0; i < indexCount; i++)
@@ -129,8 +124,6 @@ namespace ValveResourceFormat.Blocks
                 IndexBuffers.Add(indexBuffer);
 
                 reader.BaseStream.Position = refC + 4 + 4; //Go back to the index array to read the next iteration.
-
-                //if(i > 0)break; // TODO: Read only first buffer
             }
         }
 
@@ -165,9 +158,7 @@ namespace ValveResourceFormat.Blocks
                     break;
 
                 default:
-                    result = new float[3];
-                    Console.WriteLine($"Unsupported \"{attribute.Name}\" DXGI_FORMAT.{attribute.Type}"); // TODO: exception
-                    break;
+                    throw new NotImplementedException($"Unsupported \"{attribute.Name}\" DXGI_FORMAT.{attribute.Type}");
             }
 
             return result;
