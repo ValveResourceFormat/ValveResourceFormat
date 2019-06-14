@@ -88,24 +88,39 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Format = new Guid(reader.ReadBytes(16));
 
-            var int1 = reader.ReadInt32(); // appears to always be 1
+            var unknownInt1 = reader.ReadInt32(); // appears to always be 1
+
             var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
             var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
             var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
 
             DecompressLZ4(reader, outWrite);
 
-            if (int1 != 1)
+            if (unknownInt1 != 1)
             {
-                throw new Exception("int1 is not 1");
+                throw new Exception($"UnknownInt1 expected 1 but got: {unknownInt1}");
             }
 
             currentBinaryBytesOffset = 0;
             outRead.BaseStream.Position = countOfBinaryBytes;
 
-            var countOfStrings = outRead.ReadInt32();
+            if (outRead.BaseStream.Position % 4 != 0)
+            {
+                // Align to % 4 after binary blobs
+                outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
+            }
 
-            outRead.BaseStream.Position += countOfIntegers * 4;
+            var countOfStrings = outRead.ReadInt32();
+            var kvDataOffset = outRead.BaseStream.Position;
+
+            // Subtract one integer since we already read it (countOfStrings)
+            outRead.BaseStream.Position += (countOfIntegers - 1) * 4;
+
+            if (outRead.BaseStream.Position % 8 != 0)
+            {
+                // Align to % 8 for the start of doubles
+                outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
+            }
 
             currentEightBytesOffset = outRead.BaseStream.Position;
 
@@ -127,7 +142,8 @@ namespace ValveResourceFormat.ResourceTypes
                 typesArray[i] = outRead.ReadByte();
             }
 
-            outRead.BaseStream.Position = countOfBinaryBytes + 4;
+            // Move back to the start of the KV data for reading.
+            outRead.BaseStream.Position = kvDataOffset;
 
             Data = ParseBinaryKV3(outRead, null, true);
         }
