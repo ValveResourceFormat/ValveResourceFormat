@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private Action<Particle> particleEmitCallback;
 
-        private long emitCount;
+        private INumberProvider emitCount;
         private float startTime;
 
         private float time;
@@ -20,7 +20,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         {
             this.baseProperties = baseProperties;
 
-            emitCount = keyValues.GetIntegerProperty("m_nParticlesToEmit");
+            emitCount = keyValues.GetNumberProvider("m_nParticlesToEmit");
             startTime = keyValues.GetFloatProperty("m_flStartTime");
         }
 
@@ -43,7 +43,8 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             if (!IsFinished && time >= startTime)
             {
-                for (var i = 0; i < emitCount; i++)
+                var numToEmit = emitCount.NextInt(); // Get value from number provider
+                for (var i = 0; i < numToEmit; i++)
                 {
                     var particle = new Particle(baseProperties);
                     particle.ParticleCount = i;
