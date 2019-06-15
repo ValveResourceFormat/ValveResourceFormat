@@ -124,17 +124,14 @@ namespace GUI.Types.Renderer
             var width = tex.Width / (int)Math.Pow(2.0, tex.NumMipLevels);
             var height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
 
-            int blockSize;
             InternalFormat format;
 
-            if (tex.Format.HasFlag(VTexFormat.DXT1))
+            if (tex.Format == VTexFormat.DXT1)
             {
-                blockSize = 8;
                 format = InternalFormat.CompressedRgbaS3tcDxt1Ext;
             }
-            else if (tex.Format.HasFlag(VTexFormat.DXT5))
+            else if (tex.Format == VTexFormat.DXT5)
             {
-                blockSize = 16;
                 format = InternalFormat.CompressedRgbaS3tcDxt5Ext;
             }
             else
@@ -155,7 +152,7 @@ namespace GUI.Types.Renderer
                     height = 1;
                 }
 
-                var bytes = tex.GetDecompressedTextureAtMipLevel(blockSize, i);
+                var bytes = tex.GetDecompressedTextureAtMipLevel(i);
 
                 GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, bytes.Length, bytes);
             }

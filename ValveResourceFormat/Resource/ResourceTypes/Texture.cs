@@ -158,11 +158,12 @@ namespace ValveResourceFormat.ResourceTypes
             var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             Span<byte> data = new byte[imageInfo.RowBytes * imageInfo.Height];
 
+            SkipMipmaps();
+
             switch (Format)
             {
                 case VTexFormat.DXT1:
-                    SkipMipmaps(8);
-                    TextureDecompressors.UncompressDXT1(imageInfo, GetDecompressedBuffer(8), data, Width, Height);
+                    TextureDecompressors.UncompressDXT1(imageInfo, GetDecompressedBuffer(), data, Width, Height);
                     break;
 
                 case VTexFormat.DXT5:
@@ -179,74 +180,49 @@ namespace ValveResourceFormat.ResourceTypes
                         invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
                     }
 
-                    SkipMipmaps(16);
-                    TextureDecompressors.UncompressDXT5(imageInfo, GetDecompressedBuffer(16), data, Width, Height, yCoCg, normalize, invert);
+                    TextureDecompressors.UncompressDXT5(imageInfo, GetDecompressedBuffer(), data, Width, Height, yCoCg, normalize, invert);
                     break;
 
                 case VTexFormat.I8:
-                    SkipMipmaps(1);
-
-                    return TextureDecompressors.ReadI8(GetDecompressedBuffer(1), Width, Height);
+                    return TextureDecompressors.ReadI8(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA8888:
-                    SkipMipmaps(4);
-
-                    return TextureDecompressors.ReadRGBA8888(GetDecompressedBuffer(4), Width, Height);
+                    return TextureDecompressors.ReadRGBA8888(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.R16:
-                    SkipMipmaps(2);
-
-                    return TextureDecompressors.ReadR16(GetDecompressedBuffer(2), Width, Height);
+                    return TextureDecompressors.ReadR16(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RG1616:
-                    SkipMipmaps(4);
-
-                    return TextureDecompressors.ReadRG1616(GetDecompressedBuffer(4), Width, Height);
+                    return TextureDecompressors.ReadRG1616(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA16161616:
-                    SkipMipmaps(8);
-                    TextureDecompressors.ReadRGBA16161616(imageInfo, GetDecompressedBuffer(8), data);
+                    TextureDecompressors.ReadRGBA16161616(imageInfo, GetDecompressedBuffer(), data);
                     break;
 
                 case VTexFormat.R16F:
-                    SkipMipmaps(2);
-
-                    return TextureDecompressors.ReadR16F(GetDecompressedBuffer(2), Width, Height);
+                    return TextureDecompressors.ReadR16F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RG1616F:
-                    SkipMipmaps(4);
-
-                    return TextureDecompressors.ReadRG1616F(GetDecompressedBuffer(4), Width, Height);
+                    return TextureDecompressors.ReadRG1616F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA16161616F:
-                    SkipMipmaps(8);
-                    TextureDecompressors.ReadRGBA16161616F(imageInfo, GetDecompressedBuffer(8), data);
+                    TextureDecompressors.ReadRGBA16161616F(imageInfo, GetDecompressedBuffer(), data);
                     break;
 
                 case VTexFormat.R32F:
-                    SkipMipmaps(4);
-
-                    return TextureDecompressors.ReadR32F(GetDecompressedBuffer(4), Width, Height);
+                    return TextureDecompressors.ReadR32F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RG3232F:
-                    SkipMipmaps(8);
-
-                    return TextureDecompressors.ReadRG3232F(GetDecompressedBuffer(8), Width, Height);
+                    return TextureDecompressors.ReadRG3232F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGB323232F:
-                    SkipMipmaps(12);
-
-                    return TextureDecompressors.ReadRGB323232F(GetDecompressedBuffer(12), Width, Height);
+                    return TextureDecompressors.ReadRGB323232F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA32323232F:
-                    SkipMipmaps(16);
-
-                    return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(16), Width, Height);
+                    return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.IA88:
-                    SkipMipmaps(2);
-
-                    return TextureDecompressors.ReadIA88(GetDecompressedBuffer(2), Width, Height);
+                    return TextureDecompressors.ReadIA88(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.JPG:
                 case VTexFormat.PNG2:
@@ -268,8 +244,10 @@ namespace ValveResourceFormat.ResourceTypes
             return bitmap;
         }
 
-        private int CalculateBufferSizeForMipLevel(int bytesPerPixel, int mipLevel)
+        private int CalculateBufferSizeForMipLevel(int mipLevel)
         {
+            var bytesPerPixel = GetBlockSize();
+
             if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5)
             {
                 var sizeDxt = (int)Math.Pow(2.0f, mipLevel + 1);
@@ -280,7 +258,7 @@ namespace ValveResourceFormat.ResourceTypes
             return bytesPerPixel * Width * bytesPerPixel * Height / size;
         }
 
-        private void SkipMipmaps(int bytesPerPixel)
+        private void SkipMipmaps()
         {
             if (NumMipLevels < 2)
             {
@@ -299,13 +277,13 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var j = NumMipLevels; j > 1; j--)
             {
-                Reader.BaseStream.Position += CalculateBufferSizeForMipLevel(bytesPerPixel, j);
+                Reader.BaseStream.Position += CalculateBufferSizeForMipLevel(j);
             }
         }
 
-        public byte[] GetDecompressedTextureAtMipLevel(int bytesPerPixel, int mipLevel)
+        public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
         {
-            var uncompressedSize = CalculateBufferSizeForMipLevel(bytesPerPixel, mipLevel);
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
 
             if (!IsActuallyCompressedMips)
             {
@@ -322,14 +300,14 @@ namespace ValveResourceFormat.ResourceTypes
             return output.ToArray();
         }
 
-        private BinaryReader GetDecompressedBuffer(int bytesPerPixel)
+        private BinaryReader GetDecompressedBuffer()
         {
             if (!IsActuallyCompressedMips)
             {
                 return Reader;
             }
 
-            var outStream = new MemoryStream(GetDecompressedTextureAtMipLevel(bytesPerPixel, 0), false);
+            var outStream = new MemoryStream(GetDecompressedTextureAtMipLevel(0), false);
 
             return new BinaryReader(outStream); // TODO: dispose
         }
@@ -337,6 +315,29 @@ namespace ValveResourceFormat.ResourceTypes
         private SKBitmap ReadBuffer()
         {
             return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
+        }
+
+        public int GetBlockSize()
+        {
+            switch (Format)
+            {
+                case VTexFormat.DXT1: return 8;
+                case VTexFormat.DXT5: return 16;
+                case VTexFormat.RGBA8888: return 4;
+                case VTexFormat.R16: return 2;
+                case VTexFormat.RG1616: return 4;
+                case VTexFormat.RGBA16161616: return 8;
+                case VTexFormat.R16F: return 2;
+                case VTexFormat.RG1616F: return 4;
+                case VTexFormat.RGBA16161616F: return 8;
+                case VTexFormat.R32F: return 4;
+                case VTexFormat.RG3232F: return 8;
+                case VTexFormat.RGB323232F: return 12;
+                case VTexFormat.RGBA32323232F: return 16;
+                case VTexFormat.IA88: return 2;
+            }
+
+            return 1;
         }
 
         public override string ToString()
