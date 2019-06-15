@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
@@ -148,7 +149,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case VTexFormat.DXT1:
                     SkipMipmaps(8);
-                    TextureDecompressors.UncompressDXT1(imageInfo, Reader, data, Width, Height);
+                    TextureDecompressors.UncompressDXT1(imageInfo, GetDecompressedBuffer(8), data, Width, Height);
                     break;
 
                 case VTexFormat.DXT5:
@@ -166,73 +167,73 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     SkipMipmaps(16);
-                    TextureDecompressors.UncompressDXT5(imageInfo, Reader, data, Width, Height, yCoCg, normalize, invert);
+                    TextureDecompressors.UncompressDXT5(imageInfo, GetDecompressedBuffer(16), data, Width, Height, yCoCg, normalize, invert);
                     break;
 
                 case VTexFormat.I8:
                     SkipMipmaps(1);
 
-                    return TextureDecompressors.ReadI8(Reader, Width, Height);
+                    return TextureDecompressors.ReadI8(GetDecompressedBuffer(1), Width, Height);
 
                 case VTexFormat.RGBA8888:
                     SkipMipmaps(4);
 
-                    return TextureDecompressors.ReadRGBA8888(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGBA8888(GetDecompressedBuffer(4), Width, Height);
 
                 case VTexFormat.R16:
                     SkipMipmaps(2);
 
-                    return TextureDecompressors.ReadR16(Reader, Width, Height);
+                    return TextureDecompressors.ReadR16(GetDecompressedBuffer(2), Width, Height);
 
                 case VTexFormat.RG1616:
                     SkipMipmaps(4);
 
-                    return TextureDecompressors.ReadRG1616(Reader, Width, Height);
+                    return TextureDecompressors.ReadRG1616(GetDecompressedBuffer(4), Width, Height);
 
                 case VTexFormat.RGBA16161616:
                     SkipMipmaps(8);
-                    TextureDecompressors.ReadRGBA16161616(imageInfo, Reader, data);
+                    TextureDecompressors.ReadRGBA16161616(imageInfo, GetDecompressedBuffer(8), data);
                     break;
 
                 case VTexFormat.R16F:
                     SkipMipmaps(2);
 
-                    return TextureDecompressors.ReadR16F(Reader, Width, Height);
+                    return TextureDecompressors.ReadR16F(GetDecompressedBuffer(2), Width, Height);
 
                 case VTexFormat.RG1616F:
                     SkipMipmaps(4);
 
-                    return TextureDecompressors.ReadRG1616F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRG1616F(GetDecompressedBuffer(4), Width, Height);
 
                 case VTexFormat.RGBA16161616F:
                     SkipMipmaps(8);
-                    TextureDecompressors.ReadRGBA16161616F(imageInfo, Reader, data);
+                    TextureDecompressors.ReadRGBA16161616F(imageInfo, GetDecompressedBuffer(8), data);
                     break;
 
                 case VTexFormat.R32F:
                     SkipMipmaps(4);
 
-                    return TextureDecompressors.ReadR32F(Reader, Width, Height);
+                    return TextureDecompressors.ReadR32F(GetDecompressedBuffer(4), Width, Height);
 
                 case VTexFormat.RG3232F:
                     SkipMipmaps(8);
 
-                    return TextureDecompressors.ReadRG3232F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRG3232F(GetDecompressedBuffer(8), Width, Height);
 
                 case VTexFormat.RGB323232F:
                     SkipMipmaps(12);
 
-                    return TextureDecompressors.ReadRGB323232F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGB323232F(GetDecompressedBuffer(12), Width, Height);
 
                 case VTexFormat.RGBA32323232F:
                     SkipMipmaps(16);
 
-                    return TextureDecompressors.ReadRGBA32323232F(Reader, Width, Height);
+                    return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(16), Width, Height);
 
                 case VTexFormat.IA88:
                     SkipMipmaps(2);
 
-                    return TextureDecompressors.ReadIA88(Reader, Width, Height);
+                    return TextureDecompressors.ReadIA88(GetDecompressedBuffer(2), Width, Height);
 
                 case VTexFormat.JPG:
                 case VTexFormat.PNG2:
@@ -254,6 +255,19 @@ namespace ValveResourceFormat.ResourceTypes
             return bitmap;
         }
 
+        private long CalculateBufferSizeForMipLevel(int bytesPerPixel, int mipLevel)
+        {
+            long size = bytesPerPixel * Width * bytesPerPixel * Height;
+
+            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5)
+            {
+                var test = Math.Pow(2.0f, mipLevel + 1);
+                size = (long)(size / test);
+            }
+
+            return size;
+        }
+
         private void SkipMipmaps(int bytesPerPixel)
         {
             if (NumMipLevels < 2)
@@ -273,10 +287,28 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var j = NumMipLevels; j > 1; j--)
             {
-                var size = Math.Pow(2.0f, j + 1);
-
-                Reader.BaseStream.Position += (int)((bytesPerPixel * Width) / size * (Height / size));
+                Reader.BaseStream.Position += CalculateBufferSizeForMipLevel(bytesPerPixel, j);
             }
+        }
+
+        private BinaryReader GetDecompressedBuffer(int bytesPerPixel)
+        {
+            if (CompressedMips == null)
+            {
+                return Reader;
+            }
+
+            var compressedSize = (int)CompressedMips[0];
+            var uncompressedSize = CalculateBufferSizeForMipLevel(bytesPerPixel, 0);
+
+            var input = Reader.ReadBytes(compressedSize);
+            var output = new Span<byte>(new byte[uncompressedSize]);
+
+            LZ4Codec.Decode(input, output);
+
+            var outStream = new MemoryStream(output.ToArray(), false);
+
+            return new BinaryReader(outStream); // TODO: dispose
         }
 
         private SKBitmap ReadBuffer()
