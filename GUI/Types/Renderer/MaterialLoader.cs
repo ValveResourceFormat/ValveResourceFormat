@@ -155,9 +155,9 @@ namespace GUI.Types.Renderer
                     height = 1;
                 }
 
-                var size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+                var bytes = tex.GetDecompressedTextureAtMipLevel(blockSize, i);
 
-                GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, size, textureReader.ReadBytes(size));
+                GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, bytes.Length, bytes);
             }
 
             // Dispose texture otherwise we run out of memory

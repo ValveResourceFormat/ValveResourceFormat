@@ -268,15 +268,16 @@ namespace ValveResourceFormat.ResourceTypes
             return bitmap;
         }
 
-        private long CalculateBufferSizeForMipLevel(int bytesPerPixel, int mipLevel)
+        private int CalculateBufferSizeForMipLevel(int bytesPerPixel, int mipLevel)
         {
             if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5)
             {
-                var size = Math.Pow(2.0f, mipLevel + 1);
-                return (long)((bytesPerPixel * Width) / size * (Height / size));
+                var sizeDxt = (int)Math.Pow(2.0f, mipLevel + 1);
+                return ((bytesPerPixel * Width) / sizeDxt) * (Height / sizeDxt);
             }
 
-            return bytesPerPixel * Width * bytesPerPixel * Height;
+            var size = (int)Math.Pow(2.0f, mipLevel);
+            return bytesPerPixel * Width * bytesPerPixel * Height / size;
         }
 
         private void SkipMipmaps(int bytesPerPixel)
@@ -302,6 +303,25 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public byte[] GetDecompressedTextureAtMipLevel(int bytesPerPixel, int mipLevel)
+        {
+            var uncompressedSize = CalculateBufferSizeForMipLevel(bytesPerPixel, mipLevel);
+
+            if (!IsActuallyCompressedMips)
+            {
+                return Reader.ReadBytes(uncompressedSize);
+            }
+
+            var compressedSize = (int)CompressedMips[mipLevel];
+
+            var input = Reader.ReadBytes(compressedSize);
+            var output = new Span<byte>(new byte[uncompressedSize]);
+
+            LZ4Codec.Decode(input, output);
+
+            return output.ToArray();
+        }
+
         private BinaryReader GetDecompressedBuffer(int bytesPerPixel)
         {
             if (!IsActuallyCompressedMips)
@@ -309,15 +329,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return Reader;
             }
 
-            var compressedSize = (int)CompressedMips[0];
-            var uncompressedSize = CalculateBufferSizeForMipLevel(bytesPerPixel, 0);
-
-            var input = Reader.ReadBytes(compressedSize);
-            var output = new Span<byte>(new byte[uncompressedSize]);
-
-            LZ4Codec.Decode(input, output);
-
-            var outStream = new MemoryStream(output.ToArray(), false);
+            var outStream = new MemoryStream(GetDecompressedTextureAtMipLevel(bytesPerPixel, 0), false);
 
             return new BinaryReader(outStream); // TODO: dispose
         }
