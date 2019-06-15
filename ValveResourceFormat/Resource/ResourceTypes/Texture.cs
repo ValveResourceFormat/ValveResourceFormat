@@ -347,6 +347,11 @@ namespace ValveResourceFormat.ResourceTypes
                 foreach (var b in ExtraData)
                 {
                     writer.WriteLine("{0,-12}   [ Entry {1}: VTEX_EXTRA_DATA_{2} - {3} bytes ]", string.Empty, entry++, b.Key, b.Value.Length);
+
+                    if (b.Key == VTexExtraData.COMPRESSED_MIP_SIZE)
+                    {
+                        writer.WriteLine("{0,-16}   [ {1} mips, sized: {2} ]", string.Empty, CompressedMips.Length, string.Join(", ", CompressedMips));
+                    }
                 }
 
                 return writer.ToString();
