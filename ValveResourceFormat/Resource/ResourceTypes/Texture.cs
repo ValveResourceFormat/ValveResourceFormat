@@ -120,6 +120,16 @@ namespace ValveResourceFormat.ResourceTypes
                         var int2 = reader.ReadUInt32(); // 8?
                         var mips = reader.ReadUInt32();
 
+                        if (int1 != 1)
+                        {
+                            throw new Exception($"int1 expected 1 but got: {int1}");
+                        }
+
+                        if (int2 != 8)
+                        {
+                            throw new Exception($"int2 expected 8 but got: {int2}");
+                        }
+
                         CompressedMips = new uint[mips];
 
                         for (var mip = 0; mip < mips; mip++)
@@ -257,15 +267,13 @@ namespace ValveResourceFormat.ResourceTypes
 
         private long CalculateBufferSizeForMipLevel(int bytesPerPixel, int mipLevel)
         {
-            long size = bytesPerPixel * Width * bytesPerPixel * Height;
-
             if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5)
             {
-                var test = Math.Pow(2.0f, mipLevel + 1);
-                size = (long)(size / test);
+                var size = Math.Pow(2.0f, mipLevel + 1);
+                return (long)((bytesPerPixel * Width) / size * (Height / size));
             }
 
-            return size;
+            return bytesPerPixel * Width * bytesPerPixel * Height;
         }
 
         private void SkipMipmaps(int bytesPerPixel)
