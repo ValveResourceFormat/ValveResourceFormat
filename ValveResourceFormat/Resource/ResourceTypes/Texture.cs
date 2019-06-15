@@ -40,7 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public ushort NonPow2Height { get; private set; }
 
-        private uint[] CompressedMips;
+        private int[] CompressedMips;
         private bool IsActuallyCompressedMips;
 
         public Texture()
@@ -133,11 +133,11 @@ namespace ValveResourceFormat.ResourceTypes
 
                         IsActuallyCompressedMips = int1 == 1; // TODO: Verify whether this int is the one that actually controls compression
 
-                        CompressedMips = new uint[mips];
+                        CompressedMips = new int[mips];
 
                         for (var mip = 0; mip < mips; mip++)
                         {
-                            CompressedMips[mip] = reader.ReadUInt32();
+                            CompressedMips[mip] = reader.ReadInt32();
                         }
                     }
 
@@ -265,32 +265,33 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            if (CompressedMips != null)
+            for (var j = NumMipLevels - 1; j > 0; j--)
             {
-                for (var j = NumMipLevels - 1; j > 0; j--)
+                int offset;
+
+                if (CompressedMips != null)
                 {
-                    Reader.BaseStream.Position += CompressedMips[j];
+                    offset = CompressedMips[j];
+                }
+                else
+                {
+                    offset = CalculateBufferSizeForMipLevel(j + 1);
                 }
 
-                return;
-            }
-
-            for (var j = NumMipLevels; j > 1; j--)
-            {
-                Reader.BaseStream.Position += CalculateBufferSizeForMipLevel(j);
+                Reader.BaseStream.Position += offset;
             }
         }
 
         public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
         {
-            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel + 1);
 
             if (!IsActuallyCompressedMips)
             {
                 return Reader.ReadBytes(uncompressedSize);
             }
 
-            var compressedSize = (int)CompressedMips[mipLevel];
+            var compressedSize = CompressedMips[mipLevel];
 
             var input = Reader.ReadBytes(compressedSize);
             var output = new Span<byte>(new byte[uncompressedSize]);
