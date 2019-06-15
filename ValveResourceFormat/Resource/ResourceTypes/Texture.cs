@@ -40,7 +40,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public ushort NonPow2Height { get; private set; }
 
-        public uint[] CompressedMips { get; private set; }
+        private uint[] CompressedMips;
+        private bool IsActuallyCompressedMips;
 
         public Texture()
         {
@@ -120,15 +121,17 @@ namespace ValveResourceFormat.ResourceTypes
                         var int2 = reader.ReadUInt32(); // 8?
                         var mips = reader.ReadUInt32();
 
-                        if (int1 != 1)
+                        if (int1 != 1 && int1 != 0)
                         {
-                            throw new Exception($"int1 expected 1 but got: {int1}");
+                            throw new Exception($"int1 got: {int1}");
                         }
 
                         if (int2 != 8)
                         {
                             throw new Exception($"int2 expected 8 but got: {int2}");
                         }
+
+                        IsActuallyCompressedMips = int1 == 1; // TODO: Verify whether this int is the one that actually controls compression
 
                         CompressedMips = new uint[mips];
 
@@ -301,7 +304,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private BinaryReader GetDecompressedBuffer(int bytesPerPixel)
         {
-            if (CompressedMips == null)
+            if (!IsActuallyCompressedMips)
             {
                 return Reader;
             }
