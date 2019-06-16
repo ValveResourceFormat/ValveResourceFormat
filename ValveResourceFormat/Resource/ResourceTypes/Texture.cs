@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
@@ -12,6 +14,25 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Texture : ResourceData
     {
+        public class SpritesheetData
+        {
+            public class Sequence
+            {
+                public class Frame
+                {
+                    public Vector2 StartMins { get; set; }
+                    public Vector2 StartMaxs { get; set; }
+
+                    public Vector2 EndMins { get; set; }
+                    public Vector2 EndMaxs { get; set; }
+                }
+
+                public Frame[] Frames { get; set; }
+            }
+
+            public Sequence[] Sequences { get; set; }
+        }
+
         private BinaryReader Reader;
         private long DataOffset;
         private Resource Resource;
@@ -146,6 +167,76 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             DataOffset = Offset + Size;
+        }
+
+        public SpritesheetData GetSpriteSheetData()
+        {
+            if (ExtraData.TryGetValue(VTexExtraData.SHEET, out var bytes))
+            {
+                using (var memoryStream = new MemoryStream(bytes))
+                using (var reader = new BinaryReader(memoryStream))
+                {
+                    var version = reader.ReadUInt32();
+                    var numSequences = reader.ReadUInt32();
+
+                    var sequences = new SpritesheetData.Sequence[numSequences];
+
+                    for (var i = 0; i < numSequences; i++)
+                    {
+                        var sequenceNumber = reader.ReadUInt32();
+                        var unknown1 = reader.ReadUInt32(); // 1?
+                        var unknown2 = reader.ReadUInt32();
+                        var numFrames = reader.ReadUInt32();
+                        var unknown3 = reader.ReadSingle(); // Speed factor?
+                        var dataOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                        var unknown4 = reader.ReadUInt32(); // 0?
+                        var unknown5 = reader.ReadUInt32(); // 0?
+
+                        var endOfHeaderOffset = reader.BaseStream.Position; // Store end of header to return to later
+
+                        // Seek to start of the sequence data
+                        reader.BaseStream.Position = dataOffset;
+
+                        var sequenceName = reader.ReadNullTermString(Encoding.UTF8);
+
+                        var frameUnknown = reader.ReadUInt16();
+
+                        var frames = new SpritesheetData.Sequence.Frame[numFrames];
+
+                        for (var j = 0; j < numFrames; j++)
+                        {
+                            var frameUnknown1 = reader.ReadSingle();
+                            var frameUnknown2 = reader.ReadUInt32();
+                            var frameUnknown3 = reader.ReadSingle();
+
+                            frames[j] = new SpritesheetData.Sequence.Frame();
+                        }
+
+                        for (var j = 0; j < numFrames; j++)
+                        {
+                            frames[j].StartMins = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+                            frames[j].StartMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+
+                            frames[j].EndMins = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+                            frames[j].EndMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+                        }
+
+                        reader.BaseStream.Position = endOfHeaderOffset;
+
+                        sequences[i] = new SpritesheetData.Sequence
+                        {
+                            Frames = frames,
+                        };
+                    }
+
+                    return new SpritesheetData
+                    {
+                        Sequences = sequences,
+                    };
+                }
+            }
+
+            return null;
         }
 
         public SKBitmap GenerateBitmap()

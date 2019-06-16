@@ -110,6 +110,11 @@ namespace GUI.Types.Renderer
 
             LoadedTextures.Add(name);
 
+            return LoadTexture(textureResource);
+        }
+
+        public int LoadTexture(Resource textureResource)
+        {
             var tex = (Texture)textureResource.Blocks[BlockType.DATA];
 
             var id = GL.GenTexture();

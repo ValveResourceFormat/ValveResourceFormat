@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using GUI.Types.Renderer;
+using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Renderers
@@ -41,12 +45,16 @@ namespace GUI.Types.ParticleRenderer.Renderers
             void main(void) {
                 vec4 color = texture(uTexture, uv);
                 vec3 finalColor = uColor * uAlpha * color.w * color.xyz;
-                fragColor = vec4(uColor * uAlpha * color.w * color.xyz, finalColor.x + finalColor.y + finalColor.z);
+                float luminance = max(finalColor.x, max(finalColor.y, finalColor.z));
+
+                fragColor = vec4(uColor * uAlpha * color.w * color.xyz, luminance);
             }";
 
         private readonly int shaderProgram;
         private readonly int quadVao;
-        private readonly int texture;
+        private readonly int glTexture;
+
+        private readonly Texture.SpritesheetData spriteSheetData;
 
         private readonly bool additive;
         private readonly float overbrightFactor = 1;
@@ -59,7 +67,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
             // The same quad is reused for all particles
             quadVao = SetupQuadBuffer();
 
-            texture = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
+            var textureSetup = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
+            glTexture = textureSetup.TextureIndex;
+            spriteSheetData = textureSetup.TextureData.GetSpriteSheetData();
 
             additive = keyValues.GetProperty<bool>("m_bAdditive");
             if (keyValues.ContainsKey("m_flOverbrightFactor"))
@@ -144,10 +154,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        private int LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
+        private (int TextureIndex, Texture TextureData) LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
         {
             var materialLoader = new MaterialLoader(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
-            return materialLoader.LoadTexture(textureName);
+
+            var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(textureName + "_c", vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+
+            return (materialLoader.LoadTexture(textureName), (Texture)textureResource.Blocks[BlockType.DATA]);
         }
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
@@ -156,7 +169,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (additive)
             {
-                GL.BlendFunc(BlendingFactor.OneMinusDstAlpha, BlendingFactor.One);
+                GL.BlendFunc(BlendingFactor.OneMinusDstColor, BlendingFactor.One);
             }
             else
             {
@@ -167,7 +180,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.EnableVertexAttribArray(0);
 
             GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, texture);
+            GL.BindTexture(TextureTarget.Texture2D, glTexture);
 
             GL.Uniform1(GL.GetUniformLocation(shaderProgram, "uTexture"), 0); // set texture unit 0 as uTexture uniform
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uProjectionMatrix"), false, ref projectionMatrix);
@@ -183,7 +196,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
             var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
 
-            foreach (var particle in particles)
+            foreach (var particle in particles.Reverse())
             {
                 var modelMatrix = orientationType == 0
                     ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix()
