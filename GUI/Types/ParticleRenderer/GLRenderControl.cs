@@ -54,7 +54,7 @@ namespace GUI.Types.ParticleRenderer
 #if DEBUG
             glControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
 #else
-            meshControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Default);
+            glControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Default);
 #endif
             glControl.Dock = DockStyle.Fill;
             glControl.AutoSize = true;

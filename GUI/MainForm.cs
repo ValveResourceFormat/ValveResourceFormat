@@ -334,7 +334,7 @@ namespace GUI
                     AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                     DataSource = new BindingSource(new BindingList<ClosedCaption>(captions.Captions), null),
                     ScrollBars = ScrollBars.Both,
-            };
+                };
                 tab.Controls.Add(control);
             }
             else
