@@ -62,6 +62,7 @@ namespace ValveResourceFormat.Blocks
 
                 vertexBuffer.Count = reader.ReadUInt32();            //0
                 vertexBuffer.Size = reader.ReadUInt32();             //4
+                var decompressedSize = vertexBuffer.Count * vertexBuffer.Size;
 
                 var refA = reader.BaseStream.Position;
                 var attributeOffset = reader.ReadUInt32();  //8
@@ -71,6 +72,12 @@ namespace ValveResourceFormat.Blocks
                 var refB = reader.BaseStream.Position;
                 var dataOffset = reader.ReadUInt32();       //16
                 var totalSize = reader.ReadUInt32();        //20
+
+                // TODO: underlords has compressed buffers
+                if (totalSize != decompressedSize)
+                {
+                    throw new NotImplementedException($"Vertex buffer totalSize ({totalSize}) != decompressedSize ({decompressedSize})");
+                }
 
                 vertexBuffer.Attributes = new List<VertexAttribute>();
 
@@ -97,7 +104,7 @@ namespace ValveResourceFormat.Blocks
 
                 reader.BaseStream.Position = refB + dataOffset;
 
-                vertexBuffer.Buffer = reader.ReadBytes((int)vertexBuffer.Count * (int)vertexBuffer.Size);
+                vertexBuffer.Buffer = reader.ReadBytes((int)totalSize);
                 VertexBuffers.Add(vertexBuffer);
 
                 reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
@@ -110,6 +117,7 @@ namespace ValveResourceFormat.Blocks
 
                 indexBuffer.Count = reader.ReadUInt32();        //0
                 indexBuffer.Size = reader.ReadUInt32();         //4
+                var decompressedSize = indexBuffer.Count * indexBuffer.Size;
 
                 var unknown1 = reader.ReadUInt32();     //8
                 var unknown2 = reader.ReadUInt32();     //12
@@ -118,9 +126,14 @@ namespace ValveResourceFormat.Blocks
                 var dataOffset = reader.ReadUInt32();   //16
                 var dataSize = reader.ReadUInt32();     //20
 
+                if (dataSize != decompressedSize)
+                {
+                    throw new NotImplementedException($"Index buffer dataSize ({dataSize}) != decompressedSize ({decompressedSize})");
+                }
+
                 reader.BaseStream.Position = refC + dataOffset;
 
-                indexBuffer.Buffer = reader.ReadBytes((int)indexBuffer.Count * (int)indexBuffer.Size);
+                indexBuffer.Buffer = reader.ReadBytes((int)dataSize);
                 IndexBuffers.Add(indexBuffer);
 
                 reader.BaseStream.Position = refC + 4 + 4; //Go back to the index array to read the next iteration.
