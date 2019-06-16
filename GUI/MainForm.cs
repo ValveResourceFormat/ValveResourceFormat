@@ -22,6 +22,7 @@ using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ClosedCaptions;
 using ValveResourceFormat.ResourceTypes;
 using RenderModel = GUI.Types.RenderModel;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
@@ -155,7 +156,7 @@ namespace GUI
 
         private bool IsCompatibleFile(string file)
         {
-            return file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal);
+            return file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal) || file.EndsWith(".dat", StringComparison.Ordinal);
         }
 
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
@@ -304,6 +305,30 @@ namespace GUI
                 control.Multiline = true;
                 control.ReadOnly = true;
                 control.ScrollBars = ScrollBars.Both;
+                tab.Controls.Add(control);
+            }
+            else if (fileName.EndsWith(".dat", StringComparison.Ordinal))
+            {
+                var captions = new ClosedCaptions();
+                if (input != null)
+                {
+                    captions.Read(fileName, new MemoryStream(input));
+                }
+                else
+                {
+                    captions.Read(fileName);
+                }
+
+                var control = new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = true,
+                    ReadOnly = true,
+                    AllowUserToAddRows = false,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                    DataSource = new BindingSource(new BindingList<ClosedCaption>(captions.Captions), null),
+                    ScrollBars = ScrollBars.Both,
+            };
                 tab.Controls.Add(control);
             }
             else
