@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
@@ -37,13 +36,16 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             in vec2 uv;
 
+            uniform vec2 uUvOffset;
+            uniform vec2 uUvScale;
+
             uniform float uAlpha;
             uniform float uOverbrightFactor;
 
             out vec4 fragColor;
 
             void main(void) {
-                vec4 color = texture(uTexture, uv);
+                vec4 color = texture(uTexture, uUvOffset + uv * uUvScale);
                 vec3 finalColor = uColor * uAlpha * color.w * color.xyz;
                 float luminance = max(finalColor.x, max(finalColor.y, finalColor.z));
 
@@ -55,6 +57,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly int glTexture;
 
         private readonly Texture.SpritesheetData spriteSheetData;
+        private readonly float animationRate = 0.1f;
 
         private readonly bool additive;
         private readonly float overbrightFactor = 1;
@@ -80,6 +83,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
                 orientationType = keyValues.GetIntegerProperty("m_nOrientationType");
+            }
+
+            if (keyValues.ContainsKey("m_flAnimationRate"))
+            {
+                animationRate = keyValues.GetFloatProperty("m_flAnimationRate");
             }
         }
 
@@ -192,11 +200,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var modelMatrixLocation = GL.GetUniformLocation(shaderProgram, "uModelMatrix");
             var colorLocation = GL.GetUniformLocation(shaderProgram, "uColor");
             var alphaLocation = GL.GetUniformLocation(shaderProgram, "uAlpha");
+            var uvOffsetLocation = GL.GetUniformLocation(shaderProgram, "uUvOffset");
+            var uvScaleLocation = GL.GetUniformLocation(shaderProgram, "uUvScale");
 
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
             var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
 
-            foreach (var particle in particles.Reverse())
+            foreach (var particle in particles)
             {
                 var modelMatrix = orientationType == 0
                     ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix()
@@ -204,6 +214,30 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);
+
+                if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
+                {
+                    var sequence = spriteSheetData.Sequences[0];
+
+                    var particleTime = particle.ConstantLifetime - particle.Lifetime;
+                    var frame = particleTime * sequence.FramesPerSecond * animationRate;
+
+                    var currentFrame = sequence.Frames[(int)Math.Floor(frame) % sequence.Frames.Length];
+
+                    // Lerp frame coords and size
+                    var subFrameTime = frame % 1.0f;
+                    var offset = (currentFrame.StartMins * (1 - subFrameTime)) + (currentFrame.EndMins * subFrameTime);
+                    var scale = ((currentFrame.StartMaxs - currentFrame.StartMins) * (1 - subFrameTime))
+                            + ((currentFrame.EndMaxs - currentFrame.EndMins) * subFrameTime);
+
+                    GL.Uniform2(uvOffsetLocation, offset.X, offset.Y);
+                    GL.Uniform2(uvScaleLocation, scale.X, scale.Y);
+                }
+                else
+                {
+                    GL.Uniform2(uvOffsetLocation, 1f, 1f);
+                    GL.Uniform2(uvScaleLocation, 1f, 1f);
+                }
 
                 // Color uniform
                 GL.Uniform3(colorLocation, particle.Color.X, particle.Color.Y, particle.Color.Z);

@@ -28,6 +28,8 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 public Frame[] Frames { get; set; }
+
+                public float FramesPerSecond { get; set; }
             }
 
             public Sequence[] Sequences { get; set; }
@@ -187,7 +189,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var unknown1 = reader.ReadUInt32(); // 1?
                         var unknown2 = reader.ReadUInt32();
                         var numFrames = reader.ReadUInt32();
-                        var unknown3 = reader.ReadSingle(); // Speed factor?
+                        var framesPerSecond = reader.ReadSingle(); // Not too sure about this one
                         var dataOffset = reader.BaseStream.Position + reader.ReadUInt32();
                         var unknown4 = reader.ReadUInt32(); // 0?
                         var unknown5 = reader.ReadUInt32(); // 0?
@@ -226,6 +228,7 @@ namespace ValveResourceFormat.ResourceTypes
                         sequences[i] = new SpritesheetData.Sequence
                         {
                             Frames = frames,
+                            FramesPerSecond = framesPerSecond,
                         };
                     }
 
