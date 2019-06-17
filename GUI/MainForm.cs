@@ -599,10 +599,11 @@ namespace GUI
                     }
 
                     var tab2 = new TabPage(block.Key.ToString());
-                    var control = new TextBox();
-                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
                     try
                     {
+                        var control = new TextBox();
+                        control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+
                         if (block.Key == BlockType.DATA)
                         {
                             switch (resource.ResourceType)
@@ -621,17 +622,28 @@ namespace GUI
                         {
                             control.Text = NormalizeLineEndings(block.Value.ToString());
                         }
+
+                        control.Dock = DockStyle.Fill;
+                        control.Multiline = true;
+                        control.ReadOnly = true;
+                        control.ScrollBars = ScrollBars.Both;
+                        tab2.Controls.Add(control);
                     }
                     catch (Exception e)
                     {
-                        control.Text = e.ToString();
+                        Console.WriteLine(e);
+
+                        var bv = new ByteViewer();
+                        bv.Dock = DockStyle.Fill;
+                        tab2.Controls.Add(bv);
+
+                        Invoke((MethodInvoker)(() =>
+                        {
+                            resource.Reader.BaseStream.Position = block.Value.Offset;
+                            bv.SetBytes(resource.Reader.ReadBytes((int)block.Value.Size));
+                        }));
                     }
 
-                    control.Dock = DockStyle.Fill;
-                    control.Multiline = true;
-                    control.ReadOnly = true;
-                    control.ScrollBars = ScrollBars.Both;
-                    tab2.Controls.Add(control);
                     resTabs.TabPages.Add(tab2);
                 }
 
