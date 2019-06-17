@@ -53,7 +53,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(133, 13);
             this.label2.TabIndex = 1;
-            this.label2.Text = "Created by SinZ and xPaw";
+            this.label2.Text = "MIT License";
             // 
             // linkLabel1
             // 
