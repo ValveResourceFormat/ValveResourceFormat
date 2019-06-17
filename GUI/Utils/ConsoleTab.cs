@@ -21,6 +21,12 @@ namespace GUI.Utils
 
             public override void WriteLine(string value)
             {
+                if (control.InvokeRequired)
+                {
+                    control.Invoke(new MethodInvoker(delegate { WriteLine(value); }));
+                    return;
+                }
+
                 var logLine = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] {value}{Environment.NewLine}";
                 control.AppendText(logLine);
             }
