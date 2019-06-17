@@ -56,6 +56,8 @@ namespace GUI
                 }
             };
 
+            mainTabs.TabPages.Add(new ConsoleTab().CreateTab());
+
             searchForm = new SearchForm();
 
             Settings.Load();
@@ -196,6 +198,8 @@ namespace GUI
 
         private void OpenFile(string fileName, byte[] input = null, Package currentPackage = null)
         {
+            Console.WriteLine($"Opening {fileName}");
+
             var tab = new TabPage(Path.GetFileName(fileName));
             tab.Controls.Add(new LoadingFile());
 

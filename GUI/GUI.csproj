@@ -147,6 +147,7 @@
     <Compile Include="Types\Renderer\ShaderLoader.cs" />
     <Compile Include="Types\RenderWorld.cs" />
     <Compile Include="Types\RenderWorldNode.cs" />
+    <Compile Include="Utils\ConsoleTab.cs" />
     <Compile Include="Utils\FileExtensions.cs" />
     <Compile Include="Controls\TreeViewFolder.cs" />
     <Compile Include="Utils\Settings.cs" />
