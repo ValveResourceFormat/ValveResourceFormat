@@ -21,7 +21,7 @@ namespace GUI.Utils
 
             public override void WriteLine(string value)
             {
-                var logLine = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] {value}\n";
+                var logLine = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] {value}{Environment.NewLine}";
                 control.AppendText(logLine);
             }
         }
