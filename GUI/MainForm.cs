@@ -651,10 +651,35 @@ namespace GUI
             }
             else
             {
-                // TODO: Try detecting text (utf8 bom markers, etc) and display as text
-                var bv = new ByteViewer();
-                bv.Dock = DockStyle.Fill;
-                tab.Controls.Add(bv);
+                var resTabs = new TabControl
+                {
+                    Dock = DockStyle.Fill,
+                };
+                tab.Controls.Add(resTabs);
+
+                var bvTab = new TabPage("Hex");
+                var bv = new ByteViewer
+                {
+                    Dock = DockStyle.Fill,
+                };
+                bvTab.Controls.Add(bv);
+                resTabs.TabPages.Add(bvTab);
+
+                if (input != null && !input.Contains<byte>(0x00))
+                {
+                    var textTab = new TabPage("Text");
+                    var text = new TextBox
+                    {
+                        Dock = DockStyle.Fill,
+                        ScrollBars = ScrollBars.Vertical,
+                        Multiline = true,
+                        ReadOnly = true,
+                        Text = System.Text.Encoding.UTF8.GetString(input),
+                    };
+                    textTab.Controls.Add(text);
+                    resTabs.TabPages.Add(textTab);
+                    resTabs.SelectedTab = textTab;
+                }
 
                 Invoke((MethodInvoker)(() =>
                 {
