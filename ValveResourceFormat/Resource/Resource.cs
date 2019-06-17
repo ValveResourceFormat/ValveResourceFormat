@@ -13,7 +13,7 @@ namespace ValveResourceFormat
     /// </summary>
     public class Resource : IDisposable
     {
-        private const ushort KnownHeaderVersion = 12;
+        public const ushort KnownHeaderVersion = 12;
 
         private FileStream FileStream;
 

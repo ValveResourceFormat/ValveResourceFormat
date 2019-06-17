@@ -1,6 +1,6 @@
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
+using System.ComponentModel.Design;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -65,10 +65,10 @@ namespace GUI
             NewLineRegex = new Regex(@"\r\n|\n\r|\n|\r", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture);
 
             string[] args = Environment.GetCommandLineArgs();
-            for (int i = 0; i < args.Length; i++)
+            for (int i = 1; i < args.Length; i++)
             {
                 string file = args[i];
-                if (File.Exists(file) && IsCompatibleFile(file))
+                if (File.Exists(file))
                 {
                     OpenFile(file);
                 }
@@ -157,11 +157,6 @@ namespace GUI
             form.ShowDialog(this);
         }
 
-        private bool IsCompatibleFile(string file)
-        {
-            return file.EndsWith("_c", StringComparison.Ordinal) || file.EndsWith(".vpk", StringComparison.Ordinal) || file.EndsWith(".vcs", StringComparison.Ordinal) || file.EndsWith(".dat", StringComparison.Ordinal);
-        }
-
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var openDialog = new OpenFileDialog
@@ -185,14 +180,7 @@ namespace GUI
 
             foreach (var file in openDialog.FileNames)
             {
-                if (IsCompatibleFile(file))
-                {
-                    OpenFile(file);
-                }
-                else
-                {
-                    Process.Start(file);
-                }
+                OpenFile(file);
             }
         }
 
@@ -250,27 +238,45 @@ namespace GUI
                 CurrentPackage = currentPackage,
             };
 
-            if (fileName.EndsWith(".vpk", StringComparison.Ordinal))
+            uint magic = 0;
+            ushort magicResourceVersion = 0;
+
+            if (input != null)
+            {
+                magic = BitConverter.ToUInt32(input, 0);
+                magicResourceVersion = BitConverter.ToUInt16(input, 4);
+            }
+            else
+            {
+                var magicData = new byte[6];
+
+                using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    fs.Read(magicData, 0, 6);
+                }
+
+                magic = BitConverter.ToUInt32(magicData, 0);
+                magicResourceVersion = BitConverter.ToUInt16(magicData, 4);
+            }
+
+            if (magic != Package.MAGIC && input == null && Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+            {
+                // TODO: Update tab name
+                fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
+                magic = Package.MAGIC;
+            }
+
+            if (magic == Package.MAGIC || fileName.EndsWith(".vpk", StringComparison.Ordinal))
             {
                 var package = new Package();
 
-                try
+                if (input != null)
                 {
-                    if (input != null)
-                    {
-                        package.SetFileName(fileName);
-                        package.Read(new MemoryStream(input));
-                    }
-                    else
-                    {
-                        package.Read(fileName);
-                    }
+                    package.SetFileName(fileName);
+                    package.Read(new MemoryStream(input));
                 }
-                catch (InvalidDataException) when (input == null && Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+                else
                 {
-                    // TODO: Update tab name
-                    fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
-
                     package.Read(fileName);
                 }
 
@@ -289,7 +295,7 @@ namespace GUI
                 // since we're in a separate thread, invoke to update the UI
                 Invoke((MethodInvoker)(() => findToolStripButton.Enabled = true));
             }
-            else if (fileName.EndsWith(".vcs", StringComparison.Ordinal))
+            else if (magic == CompiledShader.MAGIC || fileName.EndsWith(".vcs", StringComparison.Ordinal))
             {
                 var shader = new CompiledShader();
 
@@ -317,7 +323,7 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
-            else if (fileName.EndsWith(".dat", StringComparison.Ordinal))
+            else if (magic == ClosedCaptions.MAGIC || fileName.EndsWith(".dat", StringComparison.Ordinal))
             {
                 var captions = new ClosedCaptions();
                 if (input != null)
@@ -341,7 +347,7 @@ namespace GUI
                 };
                 tab.Controls.Add(control);
             }
-            else
+            else if (magicResourceVersion == Resource.KnownHeaderVersion || fileName.EndsWith("_c", StringComparison.Ordinal))
             {
                 var resource = new Resource();
                 if (input != null)
@@ -631,6 +637,25 @@ namespace GUI
 
                 tab.Controls.Add(resTabs);
             }
+            else
+            {
+                // TODO: Try detecting text (utf8 bom markers, etc) and display as text
+                var bv = new ByteViewer();
+                bv.Dock = DockStyle.Fill;
+                tab.Controls.Add(bv);
+
+                Invoke((MethodInvoker)(() =>
+                {
+                    if (input != null)
+                    {
+                        bv.SetBytes(input);
+                    }
+                    else
+                    {
+                        bv.SetFile(fileName);
+                    }
+                }));
+            }
 
             return tab;
         }
@@ -663,20 +688,7 @@ namespace GUI
                 var file = node.Tag as PackageEntry;
                 package.ReadEntry(file, out var output);
 
-                if (IsCompatibleFile(file.GetFullPath()))
-                {
-                    OpenFile(file.GetFileName(), output, package);
-                }
-                else
-                {
-                    var tempPath = Path.GetTempPath() + Path.GetFileName(package.FileName) + " - " + file.GetFileName(); // ew
-                    using (var stream = new FileStream(tempPath, FileMode.Create))
-                    {
-                        stream.Write(output, 0, output.Length);
-                    }
-
-                    Process.Start(tempPath);
-                }
+                OpenFile(file.GetFileName(), output, package);
             }
         }
 
@@ -709,10 +721,7 @@ namespace GUI
 
             foreach (var fileName in files)
             {
-                if (IsCompatibleFile(fileName))
-                {
-                    OpenFile(fileName);
-                }
+                OpenFile(fileName);
             }
         }
 
