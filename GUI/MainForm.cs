@@ -746,6 +746,23 @@ namespace GUI
             }
         }
 
+        private void CopyFileNameToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            TreeNode selectedNode = null;
+            var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+
+            if (control is TreeView)
+            {
+                selectedNode = (control as TreeView).SelectedNode;
+            }
+            else if (control is ListView)
+            {
+                selectedNode = (control as ListView).SelectedItems[0].Tag as TreeNode;
+            }
+
+            Clipboard.SetText(selectedNode.Name);
+        }
+
         private void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Package package = null;
