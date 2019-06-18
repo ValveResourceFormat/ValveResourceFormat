@@ -89,24 +89,122 @@ namespace GUI
                 findToolStripButton.PerformClick();
             }
 
-            //if the user presses CTRL + W, and there is a tab open, close the active tab
-            if (keyData == (Keys.Control | Keys.W) && mainTabs.SelectedTab != null)
+            //if the user presses CTRL + Q, and there is a tab open, close the active tab
+            if (keyData == (Keys.Control | Keys.Q) && mainTabs.SelectedTab != null)
             {
-                mainTabs.TabPages.Remove(mainTabs.SelectedTab);
+                CloseTab(mainTabs.SelectedTab);
+            }
 
-                // enable/disable the search button as necessary
-                if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
-                {
-                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                    findToolStripButton.Enabled = treeView != null;
-                }
-                else
-                {
-                    findToolStripButton.Enabled = false;
-                }
+            //if the user presses CTRL + W, close all open tabs
+            if (keyData == (Keys.Control | Keys.W))
+            {
+                CloseAllTabs();
+            }
+
+            //if the user presses CTRL + E, close all tabs to the right of the active tab
+            if (keyData == (Keys.Control | Keys.E))
+            {
+                CloseTabsToRight(mainTabs.SelectedTab);
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private void ShowHideSearch()
+        {
+            // enable/disable the search button as necessary
+            if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
+            {
+                var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
+                findToolStripButton.Enabled = treeView != null;
+            }
+            else
+            {
+                findToolStripButton.Enabled = false;
+            }
+        }
+
+        private void CloseTab(TabPage tab)
+        {
+            //Close the requested tab
+            Console.WriteLine($"Closing {tab.Text}");
+            mainTabs.TabPages.Remove(tab);
+
+            ShowHideSearch();
+        }
+
+        private void CloseAllTabs()
+        {
+            //Close all tabs currently open (excluding console)
+            int tabCount = mainTabs.TabPages.Count;
+            for (int i = 1; i < tabCount; i++)
+            {
+                Console.WriteLine($"Closing {mainTabs.TabPages[tabCount - i].Text}");
+                mainTabs.TabPages.RemoveAt(tabCount - i);
+            }
+
+            ShowHideSearch();
+        }
+
+        private void CloseTabsToLeft(TabPage basePage)
+        {
+            if (mainTabs.SelectedTab == null)
+            {
+                return;
+            }
+
+            int tabCount = mainTabs.TabPages.Count;
+            int tabIndex = -1;
+
+            //Work out the index of the base tab
+            for (int i = tabCount - 1; i > 0; i--)
+            {
+                if (mainTabs.TabPages[i] == basePage)
+                {
+                    tabIndex = i;
+                    break;
+                }
+            }
+
+            //Close all tabs to the left of the base
+            if (tabIndex != -1)
+            {
+                for (int i = tabCount; i > 0; i--)
+                {
+                    if (i >= tabIndex)
+                    {
+                        continue;
+                    }
+
+                    Console.WriteLine($"Closing {mainTabs.TabPages[i].Text}");
+                    mainTabs.TabPages.RemoveAt(i);
+                }
+            }
+
+            ShowHideSearch();
+        }
+
+        private void CloseTabsToRight(TabPage basePage)
+        {
+            if (mainTabs.SelectedTab == null)
+            {
+                return;
+            }
+
+            //Close all tabs to the right of the base one
+            int tabCount = mainTabs.TabPages.Count;
+            for (int i = 1; i < tabCount; i++)
+            {
+                if (mainTabs.TabPages[tabCount - i] == basePage)
+                {
+                    break;
+                }
+
+                Console.WriteLine($"Closing {mainTabs.TabPages[tabCount - i].Text}");
+                mainTabs.TabPages.RemoveAt(tabCount - i);
+            }
+
+            ShowHideSearch();
         }
 
         private void LoadAssetTypes()
@@ -770,26 +868,33 @@ namespace GUI
             }
         }
 
-        private void CloseToolStripMenuItem_Click(object sender, EventArgs e)
+        private TabPage FetchToolstripTabContext(object sender)
         {
             var contextMenu = ((ToolStripMenuItem)sender).Owner;
             var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TabControl;
             var tabs = tabControl.TabPages;
 
-            tabs.Remove(tabs.Cast<TabPage>()
-                .Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag))
-                .First());
+            return tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag)).First();
+        }
 
-            // enable/disable the search button as necessary
-            if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
-            {
-                var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                findToolStripButton.Enabled = treeView != null;
-            }
-            else
-            {
-                findToolStripButton.Enabled = false;
-            }
+        private void CloseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            CloseTab(FetchToolstripTabContext(sender));
+        }
+
+        private void CloseToolStripMenuItemsToLeft_Click(object sender, EventArgs e)
+        {
+            CloseTabsToLeft(FetchToolstripTabContext(sender));
+        }
+
+        private void CloseToolStripMenuItemsToRight_Click(object sender, EventArgs e)
+        {
+            CloseTabsToRight(FetchToolstripTabContext(sender));
+        }
+
+        private void CloseToolStripMenuItems_Click(object sender, EventArgs e)
+        {
+            CloseAllTabs();
         }
 
         private void CopyFileNameToolStripMenuItem_Click(object sender, EventArgs e)
