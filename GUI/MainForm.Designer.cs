@@ -33,6 +33,8 @@ namespace GUI
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.findToolStripButton = new System.Windows.Forms.ToolStripButton();
+            this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -45,8 +47,6 @@ namespace GUI
             this.vpkContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.extractToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copyFileNameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.findToolStripButton = new System.Windows.Forms.ToolStripButton();
-            this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
             this.menuStrip1.SuspendLayout();
             this.contextMenuStrip1.SuspendLayout();
             this.vpkContextMenu.SuspendLayout();
@@ -74,7 +74,7 @@ namespace GUI
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 31);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 23);
             this.fileToolStripMenuItem.Text = "File";
             // 
             // openToolStripMenuItem
@@ -83,9 +83,31 @@ namespace GUI
             this.openToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
             this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(146, 22);
             this.openToolStripMenuItem.Text = "Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.OpenToolStripMenuItem_Click);
+            // 
+            // findToolStripButton
+            // 
+            this.findToolStripButton.Enabled = false;
+            this.findToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("findToolStripButton.Image")));
+            this.findToolStripButton.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
+            this.findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.findToolStripButton.Name = "findToolStripButton";
+            this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.findToolStripButton.Size = new System.Drawing.Size(58, 20);
+            this.findToolStripButton.Text = "Find";
+            // 
+            // exportToolStripButton
+            // 
+            this.exportToolStripButton.Enabled = false;
+            this.exportToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("exportToolStripButton.Image")));
+            this.exportToolStripButton.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
+            this.exportToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.exportToolStripButton.Name = "exportToolStripButton";
+            this.exportToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.exportToolStripButton.Size = new System.Drawing.Size(78, 20);
+            this.exportToolStripButton.Text = "Export";
             // 
             // helpToolStripMenuItem
             // 
@@ -93,7 +115,7 @@ namespace GUI
             this.settingsToolStripMenuItem,
             this.aboutToolStripMenuItem});
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 31);
+            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 23);
             this.helpToolStripMenuItem.Text = "Help";
             // 
             // settingsToolStripMenuItem
@@ -101,7 +123,7 @@ namespace GUI
             this.settingsToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("settingsToolStripMenuItem.Image")));
             this.settingsToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(116, 22);
             this.settingsToolStripMenuItem.Text = "Settings";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.OnSettingsItemClick);
             // 
@@ -110,7 +132,7 @@ namespace GUI
             this.aboutToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("aboutToolStripMenuItem.Image")));
             this.aboutToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(116, 22);
             this.aboutToolStripMenuItem.Text = "About";
             this.aboutToolStripMenuItem.Click += new System.EventHandler(this.OnAboutItemClick);
             // 
@@ -192,28 +214,6 @@ namespace GUI
             this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
             this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(154, 22);
             this.copyFileNameToolStripMenuItem.Text = "Copy file name";
-            // 
-            // findToolStripButton
-            // 
-            this.findToolStripButton.Enabled = false;
-            this.findToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("findToolStripButton.Image")));
-            this.findToolStripButton.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
-            this.findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.findToolStripButton.Name = "findToolStripButton";
-            this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.findToolStripButton.Size = new System.Drawing.Size(58, 28);
-            this.findToolStripButton.Text = "Find";
-            // 
-            // exportToolStripButton
-            // 
-            this.exportToolStripButton.Enabled = false;
-            this.exportToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("exportToolStripButton.Image")));
-            this.exportToolStripButton.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
-            this.exportToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.exportToolStripButton.Name = "exportToolStripButton";
-            this.exportToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.exportToolStripButton.Size = new System.Drawing.Size(78, 20);
-            this.exportToolStripButton.Text = "Export";
             // 
             // MainForm
             // 
