@@ -234,12 +234,14 @@ namespace GUI
             }
             else if (e.Button == MouseButtons.Right)
             {
+                var tabIndex = GetTabIndex(thisTab);
+
                 //Can't close tabs to the left/right if there aren't any!
-                closeToolStripMenuItemsToLeft.Visible = GetTabIndex(thisTab) > 1;
-                closeToolStripMenuItemsToRight.Visible = GetTabIndex(thisTab) != mainTabs.TabPages.Count - 1;
+                closeToolStripMenuItemsToLeft.Visible = tabIndex > 1;
+                closeToolStripMenuItemsToRight.Visible = tabIndex != mainTabs.TabPages.Count - 1;
 
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
-                closeToolStripMenuItem.Visible = GetTabIndex(thisTab) != 0;
+                closeToolStripMenuItem.Visible = tabIndex != 0;
 
                 //Show context menu at the mouse position
                 contextMenuStrip1.Tag = e.Location;
