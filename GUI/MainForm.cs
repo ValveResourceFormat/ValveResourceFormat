@@ -151,6 +151,18 @@ namespace GUI
             mainTabs.TabPages.Remove(tab);
 
             ShowHideSearch();
+
+            DisposeControlsRecursively(tab);
+        }
+
+        private void DisposeControlsRecursively(Control parent)
+        {
+            foreach (Control control in parent.Controls)
+            {
+                DisposeControlsRecursively(control);
+            }
+
+            parent.Dispose();
         }
 
         private void CloseAllTabs()

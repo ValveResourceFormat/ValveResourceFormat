@@ -10,8 +10,8 @@ namespace GUI.Types.Audio
 {
     internal class AudioPlayer
     {
-        private readonly WaveOutEvent waveOut;
         private readonly Button playButton;
+        private WaveOutEvent waveOut;
 
         public AudioPlayer(Resource resource, TabPage tab)
         {
@@ -44,6 +44,7 @@ namespace GUI.Types.Audio
                 playButton.TabIndex = 1;
                 playButton.Size = new Size(100, 25);
                 playButton.Click += PlayButton_Click;
+                playButton.Disposed += PlayButton_Disposed;
 
                 tab.Controls.Add(playButton);
             }
@@ -58,6 +59,16 @@ namespace GUI.Types.Audio
                 };
 
                 tab.Controls.Add(msg);
+            }
+        }
+
+        private void PlayButton_Disposed(object sender, EventArgs e)
+        {
+            if (waveOut != null)
+            {
+                Console.WriteLine("Disposed sound");
+                waveOut.Dispose();
+                waveOut = null;
             }
         }
 
