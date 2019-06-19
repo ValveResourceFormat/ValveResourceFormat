@@ -124,8 +124,28 @@ namespace GUI
             }
         }
 
+        private int GetTabIndex(TabPage tab)
+        {
+            //Work out the index of the requested tab
+            for (int i = 0; i < mainTabs.TabPages.Count; i++)
+            {
+                if (mainTabs.TabPages[i] == tab)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         private void CloseTab(TabPage tab)
         {
+            //The console cannot be closed!
+            if (GetTabIndex(tab) == 0)
+            {
+                return;
+            }
+
             //Close the requested tab
             Console.WriteLine($"Closing {tab.Text}");
             mainTabs.TabPages.Remove(tab);
@@ -153,32 +173,16 @@ namespace GUI
                 return;
             }
 
-            int tabCount = mainTabs.TabPages.Count;
-            int tabIndex = -1;
-
-            //Work out the index of the base tab
-            for (int i = tabCount - 1; i > 0; i--)
+            //Close all tabs to the left of the base (excluding console)
+            for (int i = mainTabs.TabPages.Count; i > 0; i--)
             {
-                if (mainTabs.TabPages[i] == basePage)
+                if (i >= GetTabIndex(basePage))
                 {
-                    tabIndex = i;
-                    break;
+                    continue;
                 }
-            }
 
-            //Close all tabs to the left of the base
-            if (tabIndex != -1)
-            {
-                for (int i = tabCount; i > 0; i--)
-                {
-                    if (i >= tabIndex)
-                    {
-                        continue;
-                    }
-
-                    Console.WriteLine($"Closing {mainTabs.TabPages[i].Text}");
-                    mainTabs.TabPages.RemoveAt(i);
-                }
+                Console.WriteLine($"Closing {mainTabs.TabPages[i].Text}");
+                mainTabs.TabPages.RemoveAt(i);
             }
 
             ShowHideSearch();
