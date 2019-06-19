@@ -42,9 +42,12 @@ namespace GUI
             this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
             this.vpkContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.extractToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.copyFileNameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainToolStrip = new System.Windows.Forms.ToolStrip();
             this.findToolStripButton = new System.Windows.Forms.ToolStripButton();
-            this.copyFileNameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.closeToolStripMenuItemsToRight = new System.Windows.Forms.ToolStripMenuItem();
+            this.closeToolStripMenuItemsToLeft = new System.Windows.Forms.ToolStripMenuItem();
+            this.closeToolStripMenuItems = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.contextMenuStrip1.SuspendLayout();
             this.vpkContextMenu.SuspendLayout();
@@ -128,16 +131,19 @@ namespace GUI
             // 
             this.contextMenuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.closeToolStripMenuItem});
+            this.closeToolStripMenuItem,
+            this.closeToolStripMenuItemsToLeft,
+            this.closeToolStripMenuItemsToRight,
+            this.closeToolStripMenuItems});
             this.contextMenuStrip1.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(104, 26);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(193, 114);
             // 
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(103, 22);
-            this.closeToolStripMenuItem.Text = "Close";
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            this.closeToolStripMenuItem.Text = "Close This Tab";
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.CloseToolStripMenuItem_Click);
             // 
             // exportToolStripButton
@@ -166,6 +172,12 @@ namespace GUI
             this.extractToolStripMenuItem.Text = "Export";
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
             // 
+            // copyFileNameToolStripMenuItem
+            // 
+            this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
+            this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(154, 22);
+            this.copyFileNameToolStripMenuItem.Text = "Copy file name";
+            // 
             // mainToolStrip
             // 
             this.mainToolStrip.BackColor = System.Drawing.SystemColors.Window;
@@ -193,12 +205,26 @@ namespace GUI
             this.findToolStripButton.Text = "Find";
             this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
-            // copyFileNameToolStripMenuItem
+            // closeToolStripMenuItemsToRight
             // 
-            this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
-            this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(154, 22);
-            this.copyFileNameToolStripMenuItem.Text = "Copy file name";
-            this.copyFileNameToolStripMenuItem.Click += CopyFileNameToolStripMenuItem_Click;
+            this.closeToolStripMenuItemsToRight.Name = "closeToolStripMenuItemsToRight";
+            this.closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(192, 22);
+            this.closeToolStripMenuItemsToRight.Text = "Close All Tabs To Right";
+            this.closeToolStripMenuItemsToRight.Click += new System.EventHandler(this.CloseToolStripMenuItemsToRight_Click);
+            // 
+            // closeToolStripMenuItemsToLeft
+            // 
+            this.closeToolStripMenuItemsToLeft.Name = "closeToolStripMenuItemsToLeft";
+            this.closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(192, 22);
+            this.closeToolStripMenuItemsToLeft.Text = "Close All Tabs To Left";
+            this.closeToolStripMenuItemsToLeft.Click += new System.EventHandler(this.CloseToolStripMenuItemsToLeft_Click);
+            // 
+            // closeToolStripMenuItems
+            // 
+            this.closeToolStripMenuItems.Name = "closeToolStripMenuItems";
+            this.closeToolStripMenuItems.Size = new System.Drawing.Size(192, 22);
+            this.closeToolStripMenuItems.Text = "Close All Tabs";
+            this.closeToolStripMenuItems.Click += new System.EventHandler(this.CloseToolStripMenuItems_Click);
             // 
             // MainForm
             // 
@@ -247,6 +273,9 @@ namespace GUI
         private System.Windows.Forms.ToolStripDropDownButton exportToolStripButton;
         private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem copyFileNameToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToLeft;
+        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToRight;
+        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItems;
     }
 }
 
