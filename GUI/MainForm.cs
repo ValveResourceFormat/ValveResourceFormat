@@ -159,8 +159,7 @@ namespace GUI
             int tabCount = mainTabs.TabPages.Count;
             for (int i = 1; i < tabCount; i++)
             {
-                Console.WriteLine($"Closing {mainTabs.TabPages[tabCount - i].Text}");
-                mainTabs.TabPages.RemoveAt(tabCount - i);
+                CloseTab(mainTabs.TabPages[tabCount - i]);
             }
 
             ShowHideSearch();
@@ -174,15 +173,9 @@ namespace GUI
             }
 
             //Close all tabs to the left of the base (excluding console)
-            for (int i = mainTabs.TabPages.Count; i > 0; i--)
+            for (int i = GetTabIndex(basePage); i > 0; i--)
             {
-                if (i >= GetTabIndex(basePage))
-                {
-                    continue;
-                }
-
-                Console.WriteLine($"Closing {mainTabs.TabPages[i].Text}");
-                mainTabs.TabPages.RemoveAt(i);
+                CloseTab(mainTabs.TabPages[i]);
             }
 
             ShowHideSearch();
@@ -204,8 +197,7 @@ namespace GUI
                     break;
                 }
 
-                Console.WriteLine($"Closing {mainTabs.TabPages[tabCount - i].Text}");
-                mainTabs.TabPages.RemoveAt(tabCount - i);
+                CloseTab(mainTabs.TabPages[tabCount - i]);
             }
 
             ShowHideSearch();
