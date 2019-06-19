@@ -231,17 +231,25 @@ namespace GUI
 
         private void OnTabClick(object sender, MouseEventArgs e)
         {
+            //Work out what tab we're interacting with
+            var tabControl = sender as TabControl;
+            var tabs = tabControl.TabPages;
+            TabPage thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
+
             if (e.Button == MouseButtons.Middle)
             {
-                var tabControl = sender as TabControl;
-                var tabs = tabControl.TabPages;
-
-                tabs.Remove(tabs.Cast<TabPage>()
-                    .Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location))
-                    .First());
+                CloseTab(thisTab);
             }
             else if (e.Button == MouseButtons.Right)
             {
+                //Can't close tabs to the left/right if there aren't any!
+                closeToolStripMenuItemsToLeft.Visible = GetTabIndex(thisTab) > 1;
+                closeToolStripMenuItemsToRight.Visible = GetTabIndex(thisTab) != mainTabs.TabPages.Count - 1;
+
+                //For UX purposes, hide the option to close the console also (this is disabled later in code too)
+                closeToolStripMenuItem.Visible = GetTabIndex(thisTab) != 0;
+
+                //Show context menu at the mouse position
                 contextMenuStrip1.Tag = e.Location;
                 contextMenuStrip1.Show((Control)sender, e.Location);
             }
