@@ -200,21 +200,22 @@ namespace GUI
             this.extractToolStripMenuItem,
             this.copyFileNameToolStripMenuItem});
             this.vpkContextMenu.Name = "vpkContextMenu";
-            this.vpkContextMenu.Size = new System.Drawing.Size(155, 48);
+            this.vpkContextMenu.Size = new System.Drawing.Size(181, 70);
             // 
             // extractToolStripMenuItem
             // 
             this.extractToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("extractToolStripMenuItem.Image")));
             this.extractToolStripMenuItem.Name = "extractToolStripMenuItem";
-            this.extractToolStripMenuItem.Size = new System.Drawing.Size(154, 22);
+            this.extractToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.extractToolStripMenuItem.Text = "Export";
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
             // 
             // copyFileNameToolStripMenuItem
             // 
             this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
-            this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(154, 22);
+            this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.copyFileNameToolStripMenuItem.Text = "Copy file name";
+            this.copyFileNameToolStripMenuItem.Click += new System.EventHandler(this.CopyFileNameToolStripMenuItem_Click);
             // 
             // MainForm
             // 
