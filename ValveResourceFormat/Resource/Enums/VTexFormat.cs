@@ -20,10 +20,19 @@ namespace ValveResourceFormat
         RG3232F = 12,
         RGB323232F = 13,
         RGBA32323232F = 14,
-        PNG = 16, // TODO: resourceinfo doesn't know about this
-        JPG = 17,
-        PNG2 = 18, // TODO: Why is there PNG twice?
+        JPEG_RGBA8888 = 15,
+        PNG_RGBA8888 = 16,
+        JPEG_DXT5 = 17,
+        PNG_DXT5 = 18,
+        BC6H = 19,
+        BC7 = 20,
+        ATI2N = 21,
         IA88 = 22,
+        ETC2 = 23,
+        ETC2_EAC = 24,
+        R11_EAC = 25,
+        RG11_EAC = 26,
+        ATI1N = 27,
 #pragma warning restore 1591
     }
 }
