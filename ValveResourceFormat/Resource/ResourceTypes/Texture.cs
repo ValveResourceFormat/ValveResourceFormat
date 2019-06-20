@@ -325,6 +325,13 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.PNG_RGBA8888:
                     return ReadBuffer();
 
+                case VTexFormat.ETC2:
+                    var etc = new Etc.EtcDecoder();
+                    var rewriteMeProperlyPlease = new byte[data.Length]; // TODO
+                    etc.DecompressETC2(GetDecompressedTextureAtMipLevel(0), Width, Height, rewriteMeProperlyPlease);
+                    data = rewriteMeProperlyPlease;
+                    break;
+
                 default:
                     throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
             }
@@ -344,7 +351,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var bytesPerPixel = GetBlockSize();
 
-            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5)
+            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2)
             {
                 var sizeDxt = (int)Math.Pow(2.0f, mipLevel + 1);
                 return ((bytesPerPixel * Width) / sizeDxt) * (Height / sizeDxt);
@@ -432,6 +439,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.RGB323232F: return 12;
                 case VTexFormat.RGBA32323232F: return 16;
                 case VTexFormat.IA88: return 2;
+                case VTexFormat.ETC2: return 8;
             }
 
             return 1;
