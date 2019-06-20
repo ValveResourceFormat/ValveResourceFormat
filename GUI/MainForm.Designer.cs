@@ -97,6 +97,7 @@ namespace GUI
             this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.findToolStripButton.Size = new System.Drawing.Size(58, 20);
             this.findToolStripButton.Text = "Find";
+            this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
             // exportToolStripButton
             // 
