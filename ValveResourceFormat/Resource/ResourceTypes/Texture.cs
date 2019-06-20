@@ -318,9 +318,11 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.IA88:
                     return TextureDecompressors.ReadIA88(GetDecompressedBuffer(), Width, Height);
 
-                case VTexFormat.JPG:
-                case VTexFormat.PNG2:
-                case VTexFormat.PNG:
+                // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
+                case VTexFormat.JPEG_DXT5:
+                case VTexFormat.JPEG_RGBA8888:
+                case VTexFormat.PNG_DXT5:
+                case VTexFormat.PNG_RGBA8888:
                     return ReadBuffer();
 
                 default:
