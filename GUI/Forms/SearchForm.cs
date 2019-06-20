@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 namespace GUI.Forms
@@ -13,14 +13,7 @@ namespace GUI.Forms
         /// <summary>
         /// Gets whatever options was selected by the user in the search type combobox.
         /// </summary>
-        public SearchType SelectedSearchType
-        {
-            get
-            {
-                var selectedItem = (SearchTypeItem)searchTypeComboBox.SelectedItem;
-                return (SearchType)selectedItem.Id;
-            }
-        }
+        public SearchType SelectedSearchType => ((SearchTypeItem)searchTypeComboBox.SelectedItem).Type;
 
         public SearchForm()
         {
@@ -28,9 +21,10 @@ namespace GUI.Forms
 
             searchTypeComboBox.ValueMember = "Id";
             searchTypeComboBox.DisplayMember = "Name";
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Partial Match)", (int)SearchType.FileNamePartialMatch));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Exact Match)", (int)SearchType.FileNameExactMatch));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Full Path", (int)SearchType.FullPath));
+            searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Partial Match)", SearchType.FileNamePartialMatch));
+            searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Exact Match)", SearchType.FileNameExactMatch));
+            searchTypeComboBox.Items.Add(new SearchTypeItem("File Full Path", SearchType.FullPath));
+            searchTypeComboBox.Items.Add(new SearchTypeItem("Regex", SearchType.Regex));
             searchTypeComboBox.SelectedIndex = 0;
         }
 

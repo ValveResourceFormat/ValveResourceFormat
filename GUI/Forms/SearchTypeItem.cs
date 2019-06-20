@@ -1,14 +1,14 @@
-﻿namespace GUI.Forms
+namespace GUI.Forms
 {
     public class SearchTypeItem
     {
         public string Name { get; private set; }
-        public int Id { get; private set; }
+        public SearchType Type { get; private set; }
 
-        public SearchTypeItem(string name, int id)
+        public SearchTypeItem(string name, SearchType type)
         {
             Name = name;
-            Id = id;
+            Type = type;
         }
     }
 }

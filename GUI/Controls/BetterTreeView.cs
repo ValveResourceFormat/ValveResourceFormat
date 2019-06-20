@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using GUI.Forms;
 using SteamDatabase.ValvePak;
@@ -42,14 +43,22 @@ namespace GUI.Controls
             }
             else if (searchType == SearchType.FileNamePartialMatch)
             {
-                Func<TreeNode, string, bool> matchFunction = (node, searchText) => node.Text.Contains(searchText);
-                results = Search(value, matchFunction);
+                bool MatchFunction(TreeNode node) => node.Text.Contains(value);
+                results = Search(MatchFunction);
             }
             else if (searchType == SearchType.FullPath)
             {
-                Func<TreeNode, string, bool> matchFunction = (node, searchText) => node.FullPath.Contains(searchText);
                 value = value.Replace('\\', Package.DirectorySeparatorChar);
-                results = Search(value, matchFunction);
+
+                bool MatchFunction(TreeNode node) => node.FullPath.Contains(value);
+                results = Search(MatchFunction);
+            }
+            else if (searchType == SearchType.Regex)
+            {
+                var regex = new Regex(value, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+                bool MatchFunction(TreeNode node) => regex.IsMatch(node.Text);
+                results = Search(MatchFunction);
             }
 
             return results;
@@ -58,10 +67,9 @@ namespace GUI.Controls
         /// <summary>
         /// Performs a breadth-first-search on the TreeView's nodes in search of the passed value. The matching conditions are based the passed function.
         /// </summary>
-        /// <param name="value">Value to search for in the TreeView. Matching on this value is based on the function.</param>
-        /// <param name="matchFunction">Function which performs matching on the TreeNode and the passed value. Returns true if there's a match.</param>
+        /// <param name="matchFunction">Function which performs matching on the TreeNode. Returns true if there's a match.</param>
         /// <returns>Returns matched nodes.</returns>
-        private IReadOnlyCollection<TreeNode> Search(string value, Func<TreeNode, string, bool> matchFunction)
+        private IReadOnlyCollection<TreeNode> Search(Func<TreeNode, bool> matchFunction)
         {
             var searchQueue = new Queue<TreeNode>();
 
@@ -79,7 +87,7 @@ namespace GUI.Controls
                 var currentNode = searchQueue.Dequeue();
 
                 // if our match function is true, add the node to our matches
-                if (matchFunction(currentNode, value))
+                if (matchFunction(currentNode))
                 {
                     matchedNodes.Add(currentNode);
                 }
