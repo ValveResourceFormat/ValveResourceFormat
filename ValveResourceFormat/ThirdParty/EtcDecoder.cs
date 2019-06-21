@@ -27,26 +27,6 @@ namespace Etc
 			}
 		}
 
-		public void DecompressETC2A1(byte[] input, int width, int height, byte[] output)
-		{
-			int bcw = (width + 3) / 4;
-			int bch = (height + 3) / 4;
-			int clen_last = (width + 3) % 4 + 1;
-			int d = 0;
-			for (int t = 0; t < bch; t++)
-			{
-				for (int s = 0; s < bcw; s++, d += 8)
-				{
-					DecodeEtc2a1Block(input, d);
-					int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-					for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
-					{
-						Buffer.BlockCopy(m_buf, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
-					}
-				}
-			}
-		}
-
 		public void DecompressETC2A8(byte[] input, int width, int height, byte[] output)
 		{
 			int bcw = (width + 3) / 4;
@@ -214,20 +194,6 @@ namespace Etc
 					int m = Etc1ModifierTable[code[s], index];
 					m_buf[WriteOrderTable[i]] = ApplicateColor(m_c, s, m);
 				}
-			}
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void DecodeEtc2a1Block(byte[] data, int offset)
-		{
-			if ((data[offset + 3] & 2) != 0)
-			{
-				// Opaque
-				DecodeEtc2Block(data, offset);
-			}
-			else
-			{
-				DecodeEtc2PunchThrowBlock(data, offset);
 			}
 		}
 

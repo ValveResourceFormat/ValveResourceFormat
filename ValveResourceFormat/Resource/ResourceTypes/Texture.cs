@@ -332,6 +332,13 @@ namespace ValveResourceFormat.ResourceTypes
                     data = rewriteMeProperlyPlease;
                     break;
 
+                case VTexFormat.ETC2_EAC:
+                    var etc2 = new Etc.EtcDecoder();
+                    var rewriteMeProperlyPlease2 = new byte[data.Length]; // TODO
+                    etc2.DecompressETC2A8(GetDecompressedTextureAtMipLevel(0), width, height, rewriteMeProperlyPlease2);
+                    data = rewriteMeProperlyPlease2;
+                    break;
+
                 default:
                     throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
             }
@@ -351,7 +358,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var bytesPerPixel = GetBlockSize();
 
-            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2)
+            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2 || Format == VTexFormat.ETC2_EAC)
             {
                 var sizeDxt = (int)Math.Pow(2.0f, mipLevel + 1);
                 return ((bytesPerPixel * Width) / sizeDxt) * (Height / sizeDxt);
@@ -440,6 +447,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.RGBA32323232F: return 16;
                 case VTexFormat.IA88: return 2;
                 case VTexFormat.ETC2: return 8;
+                case VTexFormat.ETC2_EAC: return 16;
             }
 
             return 1;
@@ -481,6 +489,11 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         writer.WriteLine("{0,-16}   [ {1} mips, sized: {2} ]", string.Empty, CompressedMips.Length, string.Join(", ", CompressedMips));
                     }
+                }
+
+                for (var j = 0; j < NumMipLevels; j++)
+                {
+                    writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j + 1)}");
                 }
 
                 return writer.ToString();

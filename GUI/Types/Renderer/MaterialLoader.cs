@@ -139,6 +139,14 @@ namespace GUI.Types.Renderer
             {
                 format = InternalFormat.CompressedRgbaS3tcDxt5Ext;
             }
+            else if (tex.Format == VTexFormat.ETC2)
+            {
+                format = InternalFormat.CompressedRgb8Etc2;
+            }
+            else if (tex.Format == VTexFormat.ETC2_EAC)
+            {
+                format = InternalFormat.CompressedRgba8Etc2Eac;
+            }
             else
             {
                 Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
