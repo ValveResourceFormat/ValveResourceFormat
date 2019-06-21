@@ -328,7 +328,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.ETC2:
                     var etc = new Etc.EtcDecoder();
                     var rewriteMeProperlyPlease = new byte[data.Length]; // TODO
-                    etc.DecompressETC2(GetDecompressedTextureAtMipLevel(0), Width, Height, rewriteMeProperlyPlease);
+                    etc.DecompressETC2(GetDecompressedTextureAtMipLevel(0), width, height, rewriteMeProperlyPlease);
                     data = rewriteMeProperlyPlease;
                     break;
 
