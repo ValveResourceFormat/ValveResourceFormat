@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -37,7 +37,7 @@ namespace GUI
         {
             Console.WriteLine(e);
 
-            MessageBox.Show(e.Message + Environment.NewLine + Environment.NewLine + e.StackTrace, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(e.GetType().ToString() + Environment.NewLine + e.Message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

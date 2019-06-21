@@ -307,11 +307,17 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        mainTabs.TabPages.Remove(tab);
+                        var control = new TextBox
+                        {
+                            Dock = DockStyle.Fill,
+                            Font = new Font(FontFamily.GenericMonospace, 8),
+                            Multiline = true,
+                            ReadOnly = true,
+                            Text = ex.ToString(),
+                        };
 
-                        Console.WriteLine(ex);
-
-                        Invoke(new Action(() => MessageBox.Show(ex.Message + Environment.NewLine + Environment.NewLine + ex.StackTrace, "Failed to read package", MessageBoxButtons.OK, MessageBoxIcon.Error)));
+                        tab.Controls.Clear();
+                        tab.Controls.Add(control);
 
                         return false;
                     });
