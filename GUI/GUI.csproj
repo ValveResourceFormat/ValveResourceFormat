@@ -38,9 +38,11 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
     <Reference Include="System.Design" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="1.9.0" />
@@ -77,6 +79,12 @@
     </Compile>
     <Compile Include="Forms\AboutForm.Designer.cs">
       <DependentUpon>AboutForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\ExtractProgressForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ExtractProgressForm.Designer.cs">
+      <DependentUpon>ExtractProgressForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\LoadingFile.cs">
       <SubType>UserControl</SubType>
@@ -161,6 +169,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\AboutForm.resx">
       <DependentUpon>AboutForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\ExtractProgressForm.resx">
+      <DependentUpon>ExtractProgressForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\LoadingFile.resx">
       <DependentUpon>LoadingFile.cs</DependentUpon>
