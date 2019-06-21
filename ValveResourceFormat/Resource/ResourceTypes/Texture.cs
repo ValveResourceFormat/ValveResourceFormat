@@ -357,15 +357,9 @@ namespace ValveResourceFormat.ResourceTypes
         private int CalculateBufferSizeForMipLevel(int mipLevel)
         {
             var bytesPerPixel = GetBlockSize();
+            var size = (int)Math.Pow(2.0f, mipLevel + 1);
 
-            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2 || Format == VTexFormat.ETC2_EAC)
-            {
-                var sizeDxt = (int)Math.Pow(2.0f, mipLevel + 1);
-                return ((bytesPerPixel * Width) / sizeDxt) * (Height / sizeDxt);
-            }
-
-            var size = (int)Math.Pow(2.0f, mipLevel);
-            return bytesPerPixel * Width * bytesPerPixel * Height / size;
+            return ((bytesPerPixel * Width) / size) * (Height / size);
         }
 
         private void SkipMipmaps()
