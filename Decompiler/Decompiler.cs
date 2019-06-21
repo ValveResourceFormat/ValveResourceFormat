@@ -253,7 +253,9 @@ namespace Decompiler
                     switch (resource.ResourceType)
                     {
                         case ResourceType.Texture:
-                            info = ((Texture)resource.Blocks[BlockType.DATA]).Format.ToString();
+                            var texture = (Texture)resource.Blocks[BlockType.DATA];
+                            info = texture.Format.ToString();
+                            texture.GenerateBitmap();
                             break;
 
                         case ResourceType.Sound:
