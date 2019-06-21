@@ -152,17 +152,7 @@ namespace GUI
 
             ShowHideSearch();
 
-            DisposeControlsRecursively(tab);
-        }
-
-        private void DisposeControlsRecursively(Control parent)
-        {
-            foreach (Control control in parent.Controls)
-            {
-                DisposeControlsRecursively(control);
-            }
-
-            parent.Dispose();
+            tab.Dispose();
         }
 
         private void CloseAllTabs()
