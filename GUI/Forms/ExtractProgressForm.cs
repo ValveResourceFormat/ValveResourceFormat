@@ -34,7 +34,8 @@ namespace GUI.Forms
         protected override void OnShown(EventArgs e)
         {
             Task
-                .Run(async () =>
+                .Run(
+                async () =>
                 {
                     Invoke((Action)(() =>
                     {
@@ -42,7 +43,7 @@ namespace GUI.Forms
                         extractProgressBar.Style = ProgressBarStyle.Marquee;
                     }));
 
-                    await CalculateFilesToExtractAsync(root);
+                    CalculateFilesToExtract(root);
                     initialFileCount = filesToExtract.Count;
 
                     Invoke((Action)(() =>
@@ -51,6 +52,14 @@ namespace GUI.Forms
                     }));
 
                     await ExtractFilesAsync();
+                },
+                cancellationTokenSource.Token)
+                .ContinueWith((t) =>
+                {
+                    if (!t.IsCanceled)
+                    {
+                        Invoke((Action)(() => Close()));
+                    }
                 });
         }
 
@@ -59,12 +68,9 @@ namespace GUI.Forms
             cancellationTokenSource.Cancel();
         }
 
-        private async Task CalculateFilesToExtractAsync(TreeNode root)
+        private void CalculateFilesToExtract(TreeNode root)
         {
-            if (cancellationTokenSource.IsCancellationRequested)
-            {
-                return;
-            }
+            cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             foreach (TreeNode node in root.Nodes)
             {
@@ -75,7 +81,7 @@ namespace GUI.Forms
                 }
                 else
                 {
-                    await CalculateFilesToExtractAsync(node);
+                    CalculateFilesToExtract(node);
                 }
             }
         }
@@ -84,10 +90,7 @@ namespace GUI.Forms
         {
             while (filesToExtract.Count > 0)
             {
-                if (cancellationTokenSource.IsCancellationRequested)
-                {
-                    return;
-                }
+                cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                 var packageFile = filesToExtract.Dequeue();
 
