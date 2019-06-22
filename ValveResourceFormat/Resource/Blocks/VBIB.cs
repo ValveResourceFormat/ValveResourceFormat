@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -73,12 +74,6 @@ namespace ValveResourceFormat.Blocks
                 var dataOffset = reader.ReadUInt32();       //16
                 var totalSize = reader.ReadUInt32();        //20
 
-                // TODO: underlords has compressed buffers
-                if (totalSize != decompressedSize)
-                {
-                    throw new NotImplementedException($"Vertex buffer totalSize ({totalSize}) != decompressedSize ({decompressedSize})");
-                }
-
                 vertexBuffer.Attributes = new List<VertexAttribute>();
 
                 reader.BaseStream.Position = refA + attributeOffset;
@@ -104,7 +99,16 @@ namespace ValveResourceFormat.Blocks
 
                 reader.BaseStream.Position = refB + dataOffset;
 
-                vertexBuffer.Buffer = reader.ReadBytes((int)totalSize);
+                var vertexBufferBytes = reader.ReadBytes((int)totalSize);
+                if (totalSize == decompressedSize)
+                {
+                    vertexBuffer.Buffer = vertexBufferBytes;
+                }
+                else
+                {
+                    vertexBuffer.Buffer = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.Count, (int)vertexBuffer.Size, vertexBufferBytes);
+                }
+
                 VertexBuffers.Add(vertexBuffer);
 
                 reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
