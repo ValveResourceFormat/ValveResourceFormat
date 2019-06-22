@@ -134,7 +134,7 @@ namespace ValveResourceFormat.ThirdParty
             }
 
             var headerSize = ((destination.Length / ByteGroupSize) + 3) / 4;
-            var header = data.Slice(0, headerSize);
+            var header = data.Slice(0);
 
             data = data.Slice(headerSize);
 
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.ThirdParty
             return data;
         }
 
-        private static Span<byte> DecodeVertexBlock(Span<byte> vertexData, Span<byte> destination, int vertexCount, int vertexSize, Span<byte> lastVertex)
+        private static Span<byte> DecodeVertexBlock(Span<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex)
         {
             if (vertexCount <= 0 || vertexCount > VertexBlockMaxSize)
             {
@@ -169,7 +169,7 @@ namespace ValveResourceFormat.ThirdParty
 
             for (var k = 0; k < vertexSize; ++k)
             {
-                vertexData = DecodeBytes(vertexData, buffer.Slice(0, vertexCountAligned));
+                data = DecodeBytes(data, buffer.Slice(0, vertexCountAligned));
 
                 var vertexOffset = k;
 
@@ -186,11 +186,11 @@ namespace ValveResourceFormat.ThirdParty
                 }
             }
 
-            transposed.Slice(0, vertexCount * vertexSize).CopyTo(destination);
+            transposed.Slice(0, vertexCount * vertexSize).CopyTo(vertexData);
 
             transposed.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
 
-            return vertexData;
+            return data;
         }
 
         public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, byte[] vertexBuffer)
@@ -213,12 +213,14 @@ namespace ValveResourceFormat.ThirdParty
             var vertexSpan = new Span<byte>(vertexBuffer);
 
             var header = vertexSpan[0];
+            vertexSpan = vertexSpan.Slice(1);
             if (header != VertexHeader)
             {
                 throw new ArgumentException($"Invalid vertex buffer header, expected {VertexHeader} but got {header}.");
             }
 
-            var lastVertex = vertexSpan.Slice(vertexBuffer.Length - vertexSize, vertexSize);
+            var lastVertex = new byte[vertexSize];
+            vertexSpan.Slice(vertexBuffer.Length - 1 - vertexSize, vertexSize).CopyTo(lastVertex);
 
             var vertexBlockSize = GetVertexBlockSize(vertexSize);
 
