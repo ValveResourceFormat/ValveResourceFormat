@@ -72,13 +72,13 @@ namespace ValveResourceFormat.ThirdParty
             }
             else
             {
-                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 0), (ushort)a);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 4), (ushort)b);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 8), (ushort)c);
+                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 0), a);
+                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 4), b);
+                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 8), c);
             }
         }
 
-        public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, byte[] buffer)
+        public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, Span<byte> buffer)
         {
             if (indexCount % 3 != 0)
             {
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.ThirdParty
             var next = 0u;
             var last = 0u;
 
-            var code = new Span<byte>(buffer).Slice(1);
+            var code = buffer.Slice(1);
             var data = code.Slice(indexCount / 3);
 
             var codeauxTable = code.Slice(buffer.Length - 17);
@@ -206,19 +206,19 @@ namespace ValveResourceFormat.ThirdParty
 
                             if (feb == 15)
                             {
-                                last = a = DecodeIndex(dataReader, next, last);
+                                last = b = DecodeIndex(dataReader, next, last);
                             }
 
                             if (fec == 15)
                             {
-                                last = a = DecodeIndex(dataReader, next, last);
+                                last = c = DecodeIndex(dataReader, next, last);
                             }
 
                             WriteTriangle(destination, i, indexSize, a, b, c);
 
                             PushVertexFifo(vertexFifo, a);
                             PushVertexFifo(vertexFifo, b, (feb == 0) || (feb == 15));
-                            PushVertexFifo(vertexFifo, b, (fec == 0) || (fec == 15));
+                            PushVertexFifo(vertexFifo, c, (fec == 0) || (fec == 15));
 
                             PushEdgeFifo(edgeFifo, b, a);
                             PushEdgeFifo(edgeFifo, c, b);
