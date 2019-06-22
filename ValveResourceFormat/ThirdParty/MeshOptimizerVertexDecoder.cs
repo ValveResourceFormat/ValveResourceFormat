@@ -30,18 +30,18 @@ namespace ValveResourceFormat.ThirdParty
         private static Span<byte> DecodeBytesGroup(Span<byte> data, Span<byte> destination, int bitslog2)
         {
             var dataOffset = 0;
-            var dataVar = 0;
-
-            byte b, lencv;
+            int dataVar;
+            byte b;
 
             byte Next(int bits, byte encv)
             {
-                var enc = (byte)(b >> (8 - bits));
+                var enc = b >> (8 - bits);
                 b <<= bits;
-                dataVar += (enc == (1 << bits) - 1) ? 1 : 0;
-                return (enc == (1 << bits) - 1)
-                    ? encv
-                    : enc;
+
+                var isSame = enc == (1 << bits) - 1;
+
+                dataVar += isSame ? 1 : 0;
+                return isSame ? encv : (byte)enc;
             }
 
             switch (bitslog2)
@@ -54,74 +54,71 @@ namespace ValveResourceFormat.ThirdParty
 
                     return data;
                 case 1:
-                    lencv = data[4];
+                    dataVar = 4;
 
                     b = data[dataOffset++];
-                    destination[0] = Next(2, lencv);
-                    destination[1] = Next(2, lencv);
-                    destination[2] = Next(2, lencv);
-                    destination[3] = Next(2, lencv);
+                    destination[0] = Next(2, data[dataVar]);
+                    destination[1] = Next(2, data[dataVar]);
+                    destination[2] = Next(2, data[dataVar]);
+                    destination[3] = Next(2, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[4] = Next(2, lencv);
-                    destination[5] = Next(2, lencv);
-                    destination[6] = Next(2, lencv);
-                    destination[7] = Next(2, lencv);
+                    destination[4] = Next(2, data[dataVar]);
+                    destination[5] = Next(2, data[dataVar]);
+                    destination[6] = Next(2, data[dataVar]);
+                    destination[7] = Next(2, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[8] = Next(2, lencv);
-                    destination[9] = Next(2, lencv);
-                    destination[10] = Next(2, lencv);
-                    destination[11] = Next(2, lencv);
+                    destination[8] = Next(2, data[dataVar]);
+                    destination[9] = Next(2, data[dataVar]);
+                    destination[10] = Next(2, data[dataVar]);
+                    destination[11] = Next(2, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[12] = Next(2, lencv);
-                    destination[13] = Next(2, lencv);
-                    destination[14] = Next(2, lencv);
-                    destination[15] = Next(2, lencv);
+                    destination[12] = Next(2, data[dataVar]);
+                    destination[13] = Next(2, data[dataVar]);
+                    destination[14] = Next(2, data[dataVar]);
+                    destination[15] = Next(2, data[dataVar]);
 
-                    return data.Slice(4);
+                    return data.Slice(dataVar);
                 case 2:
-                    lencv = data[4];
+                    dataVar = 8;
 
                     b = data[dataOffset++];
-                    destination[0] = Next(4, lencv);
-                    destination[1] = Next(4, lencv);
+                    destination[0] = Next(4, data[dataVar]);
+                    destination[1] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[2] = Next(4, lencv);
-                    destination[3] = Next(4, lencv);
+                    destination[2] = Next(4, data[dataVar]);
+                    destination[3] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[4] = Next(4, lencv);
-                    destination[5] = Next(4, lencv);
+                    destination[4] = Next(4, data[dataVar]);
+                    destination[5] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[6] = Next(4, lencv);
-                    destination[7] = Next(4, lencv);
+                    destination[6] = Next(4, data[dataVar]);
+                    destination[7] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[8] = Next(4, lencv);
-                    destination[9] = Next(4, lencv);
+                    destination[8] = Next(4, data[dataVar]);
+                    destination[9] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[10] = Next(4, lencv);
-                    destination[11] = Next(4, lencv);
+                    destination[10] = Next(4, data[dataVar]);
+                    destination[11] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[12] = Next(4, lencv);
-                    destination[13] = Next(4, lencv);
+                    destination[12] = Next(4, data[dataVar]);
+                    destination[13] = Next(4, data[dataVar]);
 
                     b = data[dataOffset++];
-                    destination[14] = Next(4, lencv);
-                    destination[15] = Next(4, lencv);
+                    destination[14] = Next(4, data[dataVar]);
+                    destination[15] = Next(4, data[dataVar]);
 
-                    return data.Slice(8);
+                    return data.Slice(dataVar);
                 case 3:
-                    for (var k = 0; k < ByteGroupSize; k++)
-                    {
-                        destination[k] = data[k];
-                    }
+                    data.Slice(0, ByteGroupSize).CopyTo(destination);
 
                     return data.Slice(ByteGroupSize);
                 default:
