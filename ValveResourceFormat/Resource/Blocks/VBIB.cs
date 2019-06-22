@@ -51,13 +51,13 @@ namespace ValveResourceFormat.Blocks
         {
             reader.BaseStream.Position = Offset;
 
-            var vertexOffset = reader.ReadUInt32();
-            var vertexCount = reader.ReadUInt32();
-            var indexOffset = reader.ReadUInt32();
-            var indexCount = reader.ReadUInt32();
+            var vertexBufferOffset = reader.ReadUInt32();
+            var vertexBufferCount = reader.ReadUInt32();
+            var indexBufferOffset = reader.ReadUInt32();
+            var indexBufferCount = reader.ReadUInt32();
 
-            reader.BaseStream.Position = Offset + vertexOffset;
-            for (var i = 0; i < vertexCount; i++)
+            reader.BaseStream.Position = Offset + vertexBufferOffset;
+            for (var i = 0; i < vertexBufferCount; i++)
             {
                 var vertexBuffer = default(VertexBuffer);
 
@@ -114,8 +114,8 @@ namespace ValveResourceFormat.Blocks
                 reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
             }
 
-            reader.BaseStream.Position = Offset + 8 + indexOffset; //8 to take into account vertexOffset / count
-            for (var i = 0; i < indexCount; i++)
+            reader.BaseStream.Position = Offset + 8 + indexBufferOffset; //8 to take into account vertexOffset / count
+            for (var i = 0; i < indexBufferCount; i++)
             {
                 var indexBuffer = default(IndexBuffer);
 
@@ -130,14 +130,17 @@ namespace ValveResourceFormat.Blocks
                 var dataOffset = reader.ReadUInt32();   //16
                 var dataSize = reader.ReadUInt32();     //20
 
-                if (dataSize != decompressedSize)
-                {
-                    throw new NotImplementedException($"Index buffer dataSize ({dataSize}) != decompressedSize ({decompressedSize})");
-                }
-
                 reader.BaseStream.Position = refC + dataOffset;
 
-                indexBuffer.Buffer = reader.ReadBytes((int)dataSize);
+                if (dataSize == decompressedSize)
+                {
+                    indexBuffer.Buffer = reader.ReadBytes((int)dataSize);
+                }
+                else
+                {
+                    indexBuffer.Buffer = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.Count, (int)indexBuffer.Size, reader.ReadBytes((int)dataSize));
+                }
+
                 IndexBuffers.Add(indexBuffer);
 
                 reader.BaseStream.Position = refC + 4 + 4; //Go back to the index array to read the next iteration.
