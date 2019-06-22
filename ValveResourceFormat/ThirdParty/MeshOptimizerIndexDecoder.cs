@@ -60,6 +60,8 @@ namespace ValveResourceFormat.ThirdParty
 
         private static void WriteTriangle(Span<byte> destination, int offset, int indexSize, uint a, uint b, uint c)
         {
+            offset *= indexSize;
+
             if (indexSize == 2)
             {
                 BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(offset + 0), (ushort)a);
