@@ -1,4 +1,4 @@
-version: 0.0.15.{build}
+version: 0.0.16.{build}
 image: Visual Studio 2017
 
 assembly_info:
