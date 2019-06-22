@@ -3,7 +3,6 @@
  */
 using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.IO;
 
 namespace ValveResourceFormat.ThirdParty
@@ -12,19 +11,16 @@ namespace ValveResourceFormat.ThirdParty
     {
         private const byte IndexHeader = 0xe0;
 
-        private static void PushEdgeFifo(Queue<(uint, uint)> fifo, uint a, uint b)
+        private static void PushEdgeFifo(ValueTuple<uint, uint>[] fifo, ref int offset, uint a, uint b)
         {
-            fifo.Enqueue((a, b));
+            fifo[offset] = (a, b);
+            offset = (offset + 1) & 15;
         }
 
-        private static void PushVertexFifo(Queue<uint> fifo, uint v, bool cond = true)
+        private static void PushVertexFifo(uint[] fifo, ref int offset, uint v, bool cond = true)
         {
-            if (!cond)
-            {
-                fifo.Dequeue();
-            }
-
-            fifo.Enqueue(v);
+            fifo[offset] = v;
+            offset = (offset + (cond ? 1 : 0)) & 15;
         }
 
         private static uint DecodeVByte(BinaryReader data)
@@ -90,8 +86,10 @@ namespace ValveResourceFormat.ThirdParty
                 throw new ArgumentException("Expected indexSize to be either 2 or 4");
             }
 
+            var dataOffset = 1 + (indexCount / 3);
+
             // the minimum valid encoding is header, 1 byte per triangle and a 16-byte codeaux table
-            if (buffer.Length < 1 + (indexCount / 3) + 16)
+            if (buffer.Length < dataOffset + 16)
             {
                 throw new ArgumentException("Index buffer is too short.");
             }
@@ -101,16 +99,18 @@ namespace ValveResourceFormat.ThirdParty
                 throw new ArgumentException("Incorrect index buffer header.");
             }
 
-            var vertexFifo = new Queue<uint>(16);
-            var edgeFifo = new Queue<(uint, uint)>(16);
+            var vertexFifo = new uint[16];
+            var edgeFifo = new ValueTuple<uint, uint>[16];
+            var edgeFifoOffset = 0;
+            var vertexFifoOffset = 0;
 
             var next = 0u;
             var last = 0u;
 
-            var code = buffer.Slice(1);
-            var data = code.Slice(indexCount / 3);
+            var bufferIndex = 1;
+            var data = buffer.Slice(dataOffset, buffer.Length - 16 - dataOffset);
 
-            var codeauxTable = code.Slice(buffer.Length - 17);
+            var codeauxTable = buffer.Slice(buffer.Length - 16);
 
             var destination = new Span<byte>(new byte[indexCount * indexSize]);
 
@@ -119,30 +119,29 @@ namespace ValveResourceFormat.ThirdParty
             {
                 for (var i = 0; i < indexCount; i += 3)
                 {
-                    var codetri = code[0];
-                    code = code.Slice(1);
+                    var codetri = buffer[bufferIndex++];
 
                     if (codetri < 0xf0)
                     {
                         var fe = codetri >> 4;
 
-                        var (a, b) = edgeFifo.Dequeue();
+                        var (a, b) = edgeFifo[(edgeFifoOffset - 1 - fe) & 15];
 
                         var fec = codetri & 15;
 
                         if (fec != 15)
                         {
-                            var c = fec == 0 ? next : vertexFifo.Dequeue();
+                            var c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
 
                             var fec0 = fec == 0;
                             next += fec0 ? 1u : 0u;
 
                             WriteTriangle(destination, i, indexSize, a, b, c);
 
-                            PushVertexFifo(vertexFifo, c, fec0);
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0);
 
-                            PushEdgeFifo(edgeFifo, c, b);
-                            PushEdgeFifo(edgeFifo, a, c);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                         }
                         else
                         {
@@ -150,10 +149,10 @@ namespace ValveResourceFormat.ThirdParty
 
                             WriteTriangle(destination, i, indexSize, a, b, c);
 
-                            PushVertexFifo(vertexFifo, c);
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c);
 
-                            PushEdgeFifo(edgeFifo, c, b);
-                            PushEdgeFifo(edgeFifo, a, c);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                         }
                     }
                     else
@@ -167,25 +166,25 @@ namespace ValveResourceFormat.ThirdParty
 
                             var a = next++;
 
-                            var b = (feb == 0) ? next : vertexFifo.Dequeue();
+                            var b = (feb == 0) ? next : vertexFifo[(vertexFifoOffset - feb) & 15];
 
                             var feb0 = feb == 0 ? 1u : 0u;
                             next += feb0;
 
-                            var c = (fec == 0) ? next : vertexFifo.Dequeue();
+                            var c = (fec == 0) ? next : vertexFifo[(vertexFifoOffset - fec) & 15];
 
                             var fec0 = fec == 0 ? 1u : 0u;
                             next += fec0;
 
                             WriteTriangle(destination, i, indexSize, a, b, c);
 
-                            PushVertexFifo(vertexFifo, a);
-                            PushVertexFifo(vertexFifo, b, feb0 == 1u);
-                            PushVertexFifo(vertexFifo, c, fec0 == 1u);
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, feb0 == 1u);
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0 == 1u);
 
-                            PushEdgeFifo(edgeFifo, b, a);
-                            PushEdgeFifo(edgeFifo, c, b);
-                            PushEdgeFifo(edgeFifo, a, c);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                         }
                         else
                         {
@@ -196,8 +195,8 @@ namespace ValveResourceFormat.ThirdParty
                             var fec = codeaux & 15;
 
                             var a = (fea == 0) ? next++ : 0;
-                            var b = (feb == 0) ? next++ : vertexFifo.Dequeue();
-                            var c = (fec == 0) ? next++ : vertexFifo.Dequeue();
+                            var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
+                            var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
 
                             if (fea == 15)
                             {
@@ -216,15 +215,20 @@ namespace ValveResourceFormat.ThirdParty
 
                             WriteTriangle(destination, i, indexSize, a, b, c);
 
-                            PushVertexFifo(vertexFifo, a);
-                            PushVertexFifo(vertexFifo, b, (feb == 0) || (feb == 15));
-                            PushVertexFifo(vertexFifo, c, (fec == 0) || (fec == 15));
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, (feb == 0) || (feb == 15));
+                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, (fec == 0) || (fec == 15));
 
-                            PushEdgeFifo(edgeFifo, b, a);
-                            PushEdgeFifo(edgeFifo, c, b);
-                            PushEdgeFifo(edgeFifo, a, c);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                         }
                     }
+                }
+
+                if (stream.Position != stream.Length)
+                {
+                    throw new InvalidDataException("we didn't read all data bytes and stopped before the boundary between data and codeaux table");
                 }
             }
 
