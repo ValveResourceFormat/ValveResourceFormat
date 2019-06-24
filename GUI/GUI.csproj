@@ -146,6 +146,7 @@
     <Compile Include="Types\ParticleRenderer\ParticleControllerFactory.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleGrid.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />
+    <Compile Include="Types\ParticleRenderer\ParticleSystemRenderState.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
     <Compile Include="Types\ParticleRenderer\VrfGuiContext.cs" />

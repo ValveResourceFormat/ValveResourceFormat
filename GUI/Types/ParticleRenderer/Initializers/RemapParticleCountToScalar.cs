@@ -45,7 +45,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle)
+        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             var particleCount = Math.Min(inputMax, Math.Max(inputMin, particle.ParticleCount));
             var t = (particleCount - inputMin) / (float)(inputMax - inputMin);

@@ -27,6 +27,7 @@ namespace GUI.Types.ParticleRenderer
         private readonly VrfGuiContext vrfGuiContext;
 
         private List<Particle> particles;
+        private ParticleSystemRenderState systemRenderState;
 
         public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
         {
@@ -35,6 +36,7 @@ namespace GUI.Types.ParticleRenderer
             this.vrfGuiContext = vrfGuiContext;
 
             particles = new List<Particle>();
+            systemRenderState = new ParticleSystemRenderState();
 
             SetupEmitters(particleSystem.GetData(), particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -63,7 +65,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var initializer in Initializers)
             {
-                initializer.Initialize(particle);
+                initializer.Initialize(particle, systemRenderState);
             }
 
             particles.Add(particle);
@@ -85,6 +87,7 @@ namespace GUI.Types.ParticleRenderer
         public void Restart()
         {
             Stop();
+            systemRenderState.Lifetime = 0;
             particles.Clear();
             Start();
 
@@ -96,6 +99,8 @@ namespace GUI.Types.ParticleRenderer
 
         public void Update(float frameTime)
         {
+            systemRenderState.Lifetime += frameTime;
+
             foreach (var emitter in Emitters)
             {
                 emitter.Update(frameTime);
@@ -103,7 +108,7 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var particleOperator in Operators)
             {
-                particleOperator.Update(particles, frameTime);
+                particleOperator.Update(particles, frameTime, systemRenderState);
             }
 
             // Remove all dead particles

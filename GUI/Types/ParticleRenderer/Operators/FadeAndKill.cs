@@ -46,7 +46,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime)
+        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (var particle in particles)
             {

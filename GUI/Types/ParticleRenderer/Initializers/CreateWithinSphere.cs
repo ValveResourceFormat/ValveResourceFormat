@@ -52,7 +52,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle)
+        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             var randomVector = new Vector3(
                 ((float)random.NextDouble() * 2) - 1,

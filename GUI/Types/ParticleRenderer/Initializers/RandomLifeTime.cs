@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle)
+        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             var lifetime = lifetimeMin + ((lifetimeMax - lifetimeMin) * (float)random.NextDouble());
 

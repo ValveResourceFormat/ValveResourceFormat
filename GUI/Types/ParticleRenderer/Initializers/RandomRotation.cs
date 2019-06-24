@@ -46,7 +46,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle)
+        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             var degrees = degreesOffset + degreesMin + ((float)random.NextDouble() * (degreesMax - degreesMin));
             if (randomlyFlipDirection && random.NextDouble() > 0.5)
