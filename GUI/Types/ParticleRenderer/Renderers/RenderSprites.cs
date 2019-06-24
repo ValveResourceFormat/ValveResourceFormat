@@ -49,8 +49,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 vec3 finalColor = uColor * uAlpha * color.w * color.xyz;
                 float luminance = 0.2126 * finalColor.x + 0.7152 * finalColor.y + 0.0722 * finalColor.z;
 
-                //fragColor = vec4(uColor * uAlpha * color.w * color.xyz, luminance);
-                fragColor = vec4(uColor * uAlpha * color.w * color.xyz, (finalColor.x + finalColor.y + finalColor.z) / 3.0);
+                // TODO: Figure out what the proper function is
+                //fragColor = vec4(uColor * uAlpha * color.w * color.xyz, luminance); 
+                fragColor = vec4(uColor * uAlpha * color.w * color.xyz, uOverbrightFactor * (finalColor.x + finalColor.y + finalColor.z) / 3.0);
             }";
 
         private readonly int shaderProgram;

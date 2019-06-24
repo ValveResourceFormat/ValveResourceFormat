@@ -22,6 +22,7 @@ namespace GUI.Types.ParticleRenderer
         private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleInitializer>> InitializerDictionary
             = new Dictionary<string, Func<IKeyValueCollection, IParticleInitializer>>
             {
+                ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
                 ["C_INIT_PositionOffset"] = initializerInfo => new PositionOffset(initializerInfo),
                 ["C_INIT_RandomAlpha"] = initializerInfo => new RandomAlpha(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
