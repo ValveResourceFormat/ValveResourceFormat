@@ -1,4 +1,6 @@
-﻿namespace GUI.Forms
+using System.Windows.Forms;
+
+namespace GUI.Forms
 {
     partial class AboutForm
     {
@@ -53,7 +55,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(133, 13);
             this.label2.TabIndex = 1;
-            this.label2.Text = "MIT License";
+            this.label2.Text = $"Version: {Application.ProductVersion}";
             // 
             // linkLabel1
             // 
