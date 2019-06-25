@@ -357,9 +357,16 @@ namespace ValveResourceFormat.ResourceTypes
         private int CalculateBufferSizeForMipLevel(int mipLevel)
         {
             var bytesPerPixel = GetBlockSize();
-            var size = (int)Math.Pow(2.0f, mipLevel + 1);
 
-            return ((bytesPerPixel * Width) / size) * (Height / size);
+            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2 || Format == VTexFormat.ETC2_EAC)
+            {
+                var sizePlusOne = (int)Math.Pow(2.0f, mipLevel + 2);
+
+                return ((bytesPerPixel * Width) / sizePlusOne) * (Height / sizePlusOne);
+            }
+
+            var size = (int)Math.Pow(2.0f, mipLevel);
+            return Width * Height * bytesPerPixel / size;
         }
 
         private void SkipMipmaps()
@@ -379,7 +386,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    offset = CalculateBufferSizeForMipLevel(j + 1);
+                    offset = CalculateBufferSizeForMipLevel(j);
                 }
 
                 Reader.BaseStream.Position += offset;
@@ -388,7 +395,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
         {
-            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel + 1);
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
 
             if (!IsActuallyCompressedMips)
             {
@@ -487,7 +494,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 for (var j = 0; j < NumMipLevels; j++)
                 {
-                    writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j + 1)}");
+                    writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
                 }
 
                 return writer.ToString();
