@@ -366,7 +366,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var size = (int)Math.Pow(2.0f, mipLevel);
-            return Width * Height * bytesPerPixel / size;
+            return (Width / size) * (Height / size) * bytesPerPixel;
         }
 
         private void SkipMipmaps()
