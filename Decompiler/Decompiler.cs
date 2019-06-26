@@ -327,6 +327,14 @@ namespace Decompiler
                             data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
                             break;
 
+                        case ResourceType.PanoramaLayout:
+                        case ResourceType.PanoramaScript:
+                        case ResourceType.PanoramaStyle:
+                            // .vcss -> .css, .vjs -> .js, .vxml -> .xml
+                            extension = "." + extension.Substring(2, extension.Length - 2);
+                            data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                            break;
+
                         case ResourceType.Sound:
                             var sound = (Sound)resource.Blocks[BlockType.DATA];
 
