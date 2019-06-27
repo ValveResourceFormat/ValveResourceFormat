@@ -226,23 +226,18 @@ namespace Decompiler
             {
                 resource.Read(stream);
 
-                string extension = Path.GetExtension(path);
+                var extension = FileExtract.GetExtension(resource);
+                var originalExtension = Path.GetExtension(path);
 
-                if (extension.EndsWith("_c", StringComparison.Ordinal))
+                if (originalExtension.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    extension = extension.Substring(0, extension.Length - 2);
+                    originalExtension = originalExtension.Substring(0, originalExtension.Length - 2);
                 }
 
                 // Verify that extension matches resource type
-                if (resource.ResourceType != ResourceType.Unknown)
+                if (resource.ResourceType != ResourceType.Unknown && "." + extension != originalExtension)
                 {
-                    var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString()).First();
-                    var attribute = "." + ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false).First()).Extension;
-
-                    if (attribute != extension)
-                    {
-                        throw new Exception(string.Format("Mismatched resource type and file extension. ({0} != expected {1})", attribute, extension));
-                    }
+                    throw new Exception(string.Format("Mismatched resource type and file extension. ({0} != expected {1})", extension, originalExtension));
                 }
 
                 if (CollectStats)
@@ -319,66 +314,9 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    byte[] data;
+                    var data = FileExtract.Extract(resource);
 
-                    switch (resource.ResourceType)
-                    {
-                        case ResourceType.Panorama:
-                            data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                            break;
-
-                        case ResourceType.Sound:
-                            var sound = (Sound)resource.Blocks[BlockType.DATA];
-
-                            switch (sound.Type)
-                            {
-                                case Sound.AudioFileType.MP3:
-                                    extension = "mp3";
-                                    break;
-
-                                case Sound.AudioFileType.WAV:
-                                    extension = "wav";
-                                    break;
-                            }
-
-                            data = sound.GetSound();
-
-                            break;
-
-                        case ResourceType.Texture:
-                            extension = "png";
-
-                            var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
-                            var image = SKImage.FromBitmap(bitmap);
-
-                            using (var ms = new MemoryStream())
-                            {
-                                using (var imageData = image.Encode(SKEncodedImageFormat.Png, 100))
-                                {
-                                    imageData.SaveTo(ms);
-                                }
-
-                                data = ms.ToArray();
-                            }
-
-                            break;
-                        case ResourceType.Particle:
-                        case ResourceType.Mesh:
-                            //Wrap it around a KV3File object to get the header.
-                            data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.Blocks[BlockType.DATA]).GetKV3File().ToString());
-                            break;
-
-                        //These all just use ToString() and WriteText() to do the job
-                        case ResourceType.SoundEventScript:
-                            data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
-                            break;
-
-                        default:
-                            Console.WriteLine("-- (I don't know how to dump this resource type)");
-                            return;
-                    }
-
-                    var filePath = Path.ChangeExtension(path, extension);
+                    var filePath = Path.ChangeExtension(path, originalExtension);
 
                     if (RecursiveSearch)
                     {
@@ -654,7 +592,7 @@ namespace Decompiler
 
                 foreach (var type in package.Entries)
                 {
-                    DumpVPK(package, type.Key, type.Key);
+                    DumpVPK(package, type.Key);
                 }
 
                 if (CachedManifest)
@@ -686,7 +624,7 @@ namespace Decompiler
             }
         }
 
-        private void DumpVPK(Package package, string type, string newType)
+        private void DumpVPK(Package package, string type)
         {
             if (ExtFilterList != null && !ExtFilterList.Contains(type))
             {
@@ -704,6 +642,7 @@ namespace Decompiler
 
             foreach (var file in entries)
             {
+                var extension = type;
                 var filePath = FixPathSlashes(file.GetFullPath());
 
                 if (FileFilter != null && !filePath.StartsWith(FileFilter, StringComparison.Ordinal))
@@ -748,75 +687,11 @@ namespace Decompiler
                                 break;
                             }
 
-                            if (type == newType)
+                            extension = FileExtract.GetExtension(resource);
+
+                            if (extension == null)
                             {
-                                newType = type.Substring(0, type.Length - 2);
-                            }
-
-                            switch (type)
-                            {
-                                case "vxml_c":
-                                case "vcss_c":
-                                case "vjs_c":
-                                    output = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                    if (newType.StartsWith("v", StringComparison.Ordinal))
-                                    {
-                                        newType = newType.Substring(1);
-                                    }
-
-                                    break;
-                                case "vpcf_c":
-                                    //Wrap it around a KV3File object to get the header.
-                                    output = Encoding.UTF8.GetBytes(((BinaryKV3)resource.Blocks[BlockType.DATA]).GetKV3File().ToString());
-                                    break;
-                                case "vsnd_c":
-                                    var sound = (Sound)resource.Blocks[BlockType.DATA];
-                                    if (sound.Type == Sound.AudioFileType.MP3)
-                                    {
-                                        newType = "mp3";
-                                    }
-                                    else
-                                    {
-                                        newType = "wav";
-                                    }
-
-                                    output = sound.GetSound();
-                                    break;
-                                case "vtex_c":
-                                    newType = "png";
-                                    var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
-                                    var image = SKImage.FromBitmap(bitmap);
-
-                                    using (var ms = new MemoryStream())
-                                    {
-                                        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                        {
-                                            data.SaveTo(ms);
-                                        }
-
-                                        output = ms.ToArray();
-                                    }
-
-                                    break;
-                                default:
-                                    try
-                                    {
-                                        output = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
-                                    }
-                                    catch (Exception)
-                                    {
-                                        lock (ConsoleWriterLock)
-                                        {
-                                            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                                            Console.WriteLine("\tDecompiler for resource type " + type + " not implemented, extracting as-is");
-                                            Console.ResetColor();
-                                        }
-
-                                        output = memory.ToArray();
-                                        newType = type;
-                                    }
-
-                                    break;
+                                extension = type.Substring(0, type.Length - 2);
                             }
                         }
                     }
@@ -824,9 +699,9 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    if (type != newType)
+                    if (type != extension)
                     {
-                        filePath = Path.ChangeExtension(filePath, newType);
+                        filePath = Path.ChangeExtension(filePath, extension);
                     }
 
                     DumpFile(filePath, output);
@@ -834,13 +709,13 @@ namespace Decompiler
             }
         }
 
-        private void DumpFile(string path, byte[] data)
+        private void DumpFile(string path, Span<byte> data)
         {
             var outputFile = Path.Combine(OutputFile, path);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
-            File.WriteAllBytes(outputFile, data);
+            File.WriteAllBytes(outputFile, data.ToArray());
 
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
