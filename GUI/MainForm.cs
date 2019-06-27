@@ -459,6 +459,17 @@ namespace GUI
                 };
                 tab.Controls.Add(control);
             }
+            else if (magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2)
+            {
+                var kv3 = new BinaryKV3();
+
+                using (var file = File.OpenRead(fileName))
+                using (var binaryReader = new BinaryReader(file))
+                {
+                    kv3.Size = (uint)file.Length;
+                    kv3.Read(binaryReader, null);
+                }
+            }
             else if (magicResourceVersion == Resource.KnownHeaderVersion || fileName.EndsWith("_c", StringComparison.Ordinal))
             {
                 var resource = new Resource();
