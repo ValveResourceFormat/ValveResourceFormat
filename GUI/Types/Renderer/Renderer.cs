@@ -354,14 +354,10 @@ namespace GUI.Types.Renderer
             }
 
             // Gather render modes
-            var renderModes = new string[0];
-            foreach (var mesh in MeshesToRender)
-            {
-                foreach (var call in mesh.DrawCalls)
-                {
-                    renderModes = renderModes.Union(call.Shader.RenderModes).ToArray();
-                }
-            }
+            var renderModes = MeshesToRender
+                .SelectMany(mesh => mesh.DrawCalls.SelectMany(drawCall => drawCall.Shader.RenderModes))
+                .Distinct()
+                .ToArray();
 
             if (SubjectType == RenderSubject.Model)
             {

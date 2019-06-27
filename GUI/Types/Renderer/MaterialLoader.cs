@@ -220,6 +220,9 @@ namespace GUI.Types.Renderer
             return ErrorTextureID;
         }
 
+        public static int CreateSolidTexture(float r, float g, float b)
+            => GenerateColorTexture(1, 1, new float[4] { r, g, b, 1f });
+
         private static int GenerateColorTexture(int width, int height, float[] color)
         {
             var texture = GL.GenTexture();

@@ -126,6 +126,11 @@ namespace GUI.Types.Renderer
                     Convert.ToSingle(tint.Properties["0"].Value),
                     Convert.ToSingle(tint.Properties["1"].Value),
                     Convert.ToSingle(tint.Properties["2"].Value));
+
+                if (!drawCall.Material.Textures.ContainsKey("g_tTintMask"))
+                {
+                    drawCall.Material.Textures.Add("g_tTintMask", MaterialLoader.CreateSolidTexture(1f, 1f, 1f));
+                }
             }
 
             if (bufferSize == 2)
