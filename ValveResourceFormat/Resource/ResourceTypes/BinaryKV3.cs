@@ -283,7 +283,19 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, null, flagInfo));
                     break;
                 case KVType.BOOLEAN:
+                    if (currentBinaryBytesOffset > -1)
+                    {
+                        reader.BaseStream.Position = currentBinaryBytesOffset;
+                    }
+
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadBoolean(), flagInfo));
+
+                    if (currentBinaryBytesOffset > -1)
+                    {
+                        currentBinaryBytesOffset++;
+                        reader.BaseStream.Position = currentOffset;
+                    }
+
                     break;
                 case KVType.BOOLEAN_TRUE:
                     parent.AddProperty(name, MakeValue(datatype, true, flagInfo));
