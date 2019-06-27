@@ -469,6 +469,15 @@ namespace GUI
                     kv3.Size = (uint)file.Length;
                     kv3.Read(binaryReader, null);
                 }
+
+                var control = new TextBox();
+                control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                control.Text = kv3.ToString();
+                control.Dock = DockStyle.Fill;
+                control.Multiline = true;
+                control.ReadOnly = true;
+                control.ScrollBars = ScrollBars.Both;
+                tab.Controls.Add(control);
             }
             else if (magicResourceVersion == Resource.KnownHeaderVersion || fileName.EndsWith("_c", StringComparison.Ordinal))
             {
