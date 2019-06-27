@@ -5,7 +5,7 @@ using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
-namespace Decompiler
+namespace ValveResourceFormat.IO
 {
     public static class FileExtract
     {
@@ -55,7 +55,7 @@ namespace Decompiler
                     break;
 
                 default:
-                    Console.WriteLine("-- (I don't know how to dump this resource type)");
+                    Console.WriteLine("-- (I don't know how to dump this resource type)"); // TODO: What do we do with this
                     data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
                     break;
             }
