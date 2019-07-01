@@ -226,11 +226,15 @@ namespace Decompiler
                 resource.Read(stream);
 
                 var extension = FileExtract.GetExtension(resource);
-                var originalExtension = Path.GetExtension(path);
 
-                if (originalExtension.EndsWith("_c", StringComparison.Ordinal))
+                if (extension == null)
                 {
-                    originalExtension = originalExtension.Substring(0, originalExtension.Length - 2);
+                    extension = Path.GetExtension(path);
+
+                    if (extension.EndsWith("_c", StringComparison.Ordinal))
+                    {
+                        extension = extension.Substring(0, extension.Length - 2);
+                    }
                 }
 
                 if (CollectStats)
