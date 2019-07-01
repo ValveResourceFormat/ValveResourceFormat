@@ -233,12 +233,6 @@ namespace Decompiler
                     originalExtension = originalExtension.Substring(0, originalExtension.Length - 2);
                 }
 
-                // Verify that extension matches resource type
-                if (resource.ResourceType != ResourceType.Unknown && "." + extension != originalExtension)
-                {
-                    throw new Exception(string.Format("Mismatched resource type and file extension. ({0} != expected {1})", extension, originalExtension));
-                }
-
                 if (CollectStats)
                 {
                     string id = string.Format("{0}_{1}", resource.ResourceType, resource.Version);
@@ -315,7 +309,7 @@ namespace Decompiler
                 {
                     var data = FileExtract.Extract(resource);
 
-                    var filePath = Path.ChangeExtension(path, originalExtension);
+                    var filePath = Path.ChangeExtension(path, extension);
 
                     if (RecursiveSearch)
                     {
@@ -327,7 +321,7 @@ namespace Decompiler
                         filePath = Path.GetFileName(filePath);
                     }
 
-                    DumpFile(filePath, data);
+                    DumpFile(filePath, data, !RecursiveSearch);
                 }
             }
             catch (Exception e)
@@ -466,7 +460,7 @@ namespace Decompiler
                     var fileName = Path.GetFileName(path);
                     fileName = Path.ChangeExtension(fileName, "ttf");
 
-                    DumpFile(fileName, output);
+                    DumpFile(fileName, output, true);
                 }
             }
             catch (Exception e)
@@ -672,6 +666,15 @@ namespace Decompiler
                             try
                             {
                                 resource.Read(memory);
+
+                                extension = FileExtract.GetExtension(resource);
+
+                                if (extension == null)
+                                {
+                                    extension = type.Substring(0, type.Length - 2);
+                                }
+
+                                output = FileExtract.Extract(resource).ToArray();
                             }
                             catch (Exception e)
                             {
@@ -681,16 +684,6 @@ namespace Decompiler
                                     Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
                                     Console.ResetColor();
                                 }
-
-                                DumpFile(filePath, output);
-                                break;
-                            }
-
-                            extension = FileExtract.GetExtension(resource);
-
-                            if (extension == null)
-                            {
-                                extension = type.Substring(0, type.Length - 2);
                             }
                         }
                     }
@@ -708,9 +701,9 @@ namespace Decompiler
             }
         }
 
-        private void DumpFile(string path, Span<byte> data)
+        private void DumpFile(string path, Span<byte> data, bool useOutputAsFullPath = false)
         {
-            var outputFile = Path.Combine(OutputFile, path);
+            var outputFile = useOutputAsFullPath ? Path.GetFullPath(OutputFile) : Path.Combine(OutputFile, path);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
