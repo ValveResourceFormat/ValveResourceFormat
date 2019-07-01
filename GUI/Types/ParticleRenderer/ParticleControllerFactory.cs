@@ -44,6 +44,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_FadeAndKill"] = operatorInfo => new FadeAndKill(operatorInfo),
                 ["C_OP_FadeInSimple"] = operatorInfo => new FadeInSimple(operatorInfo),
                 ["C_OP_FadeOutSimple"] = operatorInfo => new FadeOutSimple(operatorInfo),
+                ["C_OP_OscillateScalar"] = operatorInfo => new OscillateScalar(operatorInfo),
             };
 
         // Register particle renderers

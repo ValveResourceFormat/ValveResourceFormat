@@ -243,7 +243,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 // Color uniform
                 GL.Uniform3(colorLocation, particle.Color.X, particle.Color.Y, particle.Color.Z);
 
-                GL.Uniform1(alphaLocation, particle.Alpha);
+                GL.Uniform1(alphaLocation, particle.Alpha * particle.AlphaAlternate);
 
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }

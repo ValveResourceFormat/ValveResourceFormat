@@ -135,6 +135,7 @@
     <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRadius.cs" />
     <Compile Include="Types\ParticleRenderer\INumberProvider.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\OscillateScalar.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\ColorInterpolate.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\FadeAndKill.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\FadeOutSimple.cs" />

@@ -15,6 +15,7 @@ namespace GUI.Types.ParticleRenderer
 
         // Variable fields
         public float Alpha { get; set; } = 1;
+        public float AlphaAlternate { get; set; } = 1;
 
         public Vector3 Color { get; set; }
 
