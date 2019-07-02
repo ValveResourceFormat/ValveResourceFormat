@@ -368,6 +368,20 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2 || Format == VTexFormat.ETC2_EAC)
             {
+                var misalign = width % 4;
+
+                if (misalign > 0)
+                {
+                    width += 4 - misalign;
+                }
+
+                misalign = height % 4;
+
+                if (misalign > 0)
+                {
+                    height += 4 - misalign;
+                }
+
                 if (width < 4 && width > 0)
                 {
                     width = 4;
