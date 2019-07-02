@@ -28,7 +28,8 @@ uniform mat4 transform;
 
 void main()
 {
-    vec4 fragPosition = transform * getSkinMatrix() * vec4(vPOSITION, 1.0);
+    mat4 skinTransformMatrix = transform * getSkinMatrix();
+    vec4 fragPosition = skinTransformMatrix * vec4(vPOSITION, 1.0);
 	gl_Position = projection * modelview * fragPosition;
 	vFragPosition = fragPosition.xyz;
 
@@ -42,8 +43,9 @@ void main()
     normalTransform[3][0] = 0.0;
     normalTransform[3][1] = 0.0;
     normalTransform[3][2] = 0.0;
+    vec4 tangent = DecompressTangent(vNORMAL);
 	vNormalOut = normalize((normalTransform * vec4(DecompressNormal(vNORMAL), 0.0)).xyz);
-    vTangentOut = normalize((normalTransform * vec4(DecompressTangent(vNORMAL), 0.0)).xyz);
+    vTangentOut = normalize((normalTransform * vec4(tangent.xyz, 0.0)).xyz);
 	vBitangentOut = cross( vNormalOut, vTangentOut );
 #endif
 
