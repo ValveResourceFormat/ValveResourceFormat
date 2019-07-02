@@ -126,9 +126,6 @@ namespace GUI.Types.Renderer
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
 
-            var width = tex.Width / (int)Math.Pow(2.0, tex.NumMipLevels);
-            var height = tex.Height / (int)Math.Pow(2.0, tex.NumMipLevels);
-
             InternalFormat format;
 
             if (tex.Format == VTexFormat.DXT1)
@@ -155,16 +152,8 @@ namespace GUI.Types.Renderer
 
             for (var i = tex.NumMipLevels - 1; i >= 0; i--)
             {
-                if ((width *= 2) == 0)
-                {
-                    width = 1;
-                }
-
-                if ((height *= 2) == 0)
-                {
-                    height = 1;
-                }
-
+                var width = tex.Width >> i;
+                var height = tex.Height >> i;
                 var bytes = tex.GetDecompressedTextureAtMipLevel(i);
 
                 GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, bytes.Length, bytes);
