@@ -196,141 +196,6 @@ namespace Etc
 				}
 			}
 		}
-
-		private void DecodeEtc2PunchThrowBlock(byte[] data, int offset)
-		{
-			ushort j = (ushort)(data[offset + 6] << 8 | data[offset + 7]);
-			ushort k = (ushort)(data[offset + 4] << 8 | data[offset + 5]);
-
-			byte r = (byte)(data[offset + 0] & 0xf8);
-			short dr = (short)((data[offset + 0] << 3 & 0x18) - (data[offset + 0] << 3 & 0x20));
-			byte g = (byte)(data[offset + 1] & 0xf8);
-			short dg = (short)((data[offset + 1] << 3 & 0x18) - (data[offset + 1] << 3 & 0x20));
-			byte b = (byte)(data[offset + 2] & 0xf8);
-			short db = (short)((data[offset + 2] << 3 & 0x18) - (data[offset + 2] << 3 & 0x20));
-			if (r + dr < 0 || r + dr > 255)
-			{
-				// T (Etc2Block + mask for color)
-				unchecked
-				{
-					m_c[0, 0] = (byte)(data[offset + 0] << 3 & 0xc0 | data[offset + 0] << 4 & 0x30 | data[offset + 0] >> 1 & 0xc | data[offset + 0] & 3);
-					m_c[0, 1] = (byte)(data[offset + 1] & 0xf0 | data[offset + 1] >> 4);
-					m_c[0, 2] = (byte)(data[offset + 1] & 0x0f | data[offset + 1] << 4);
-					m_c[1, 0] = (byte)(data[offset + 2] & 0xf0 | data[offset + 2] >> 4);
-					m_c[1, 1] = (byte)(data[offset + 2] & 0x0f | data[offset + 2] << 4);
-					m_c[1, 2] = (byte)(data[offset + 3] & 0xf0 | data[offset + 3] >> 4);
-				}
-				byte d = Etc2DistanceTable[data[offset + 3] >> 1 & 6 | data[offset + 3] & 1];
-				uint[] color_set =
-				{
-						ApplicateColorRaw(m_c, 0),
-						ApplicateColor(m_c, 1, d),
-						ApplicateColorRaw(m_c, 1),
-						ApplicateColor(m_c, 1, (short)-d)
-					};
-				for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
-				{
-					int index = k << 1 & 2 | j & 1;
-					uint mask = PunchthroughMaskTable[index];
-					m_buf[WriteOrderTable[i]] = color_set[index] & mask;
-				}
-			}
-			else if (g + dg < 0 || g + dg > 255)
-			{
-				// H (Etc2Block + mask for color)
-				unchecked
-				{
-					m_c[0, 0] = (byte)(data[offset + 0] << 1 & 0xf0 | data[offset + 0] >> 3 & 0xf);
-					m_c[0, 1] = (byte)(data[offset + 0] << 5 & 0xe0 | data[offset + 1] & 0x10);
-					m_c[0, 1] |= (byte)(m_c[0, 1] >> 4);
-					m_c[0, 2] = (byte)(data[offset + 1] & 8 | data[offset + 1] << 1 & 6 | data[offset + 2] >> 7);
-					m_c[0, 2] |= (byte)(m_c[0, 2] << 4);
-					m_c[1, 0] = (byte)(data[offset + 2] << 1 & 0xf0 | data[offset + 2] >> 3 & 0xf);
-					m_c[1, 1] = (byte)(data[offset + 2] << 5 & 0xe0 | data[offset + 3] >> 3 & 0x10);
-					m_c[1, 1] |= (byte)(m_c[1, 1] >> 4);
-					m_c[1, 2] = (byte)(data[offset + 3] << 1 & 0xf0 | data[offset + 3] >> 3 & 0xf);
-				}
-				int di = data[offset + 3] & 4 | data[offset + 3] << 1 & 2;
-				if (m_c[0, 0] > m_c[1, 0] || (m_c[0, 0] == m_c[1, 0] && (m_c[0, 1] > m_c[1, 1] || (m_c[0, 1] == m_c[1, 1] && m_c[0, 2] >= m_c[1, 2]))))
-				{
-					++di;
-				}
-				byte d = Etc2DistanceTable[di];
-				uint[] color_set =
-				{
-						ApplicateColor(m_c, 0, d),
-						ApplicateColor(m_c, 0, (short)-d),
-						ApplicateColor(m_c, 1, d),
-						ApplicateColor(m_c, 1, (short)-d)
-					};
-				for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
-				{
-					int index = k << 1 & 2 | j & 1;
-					uint mask = PunchthroughMaskTable[index];
-					m_buf[WriteOrderTable[i]] = color_set[index] & mask;
-				}
-			}
-			else if (b + db < 0 || b + db > 255)
-			{
-				// planar (same as Etc2Block)
-				unchecked
-				{
-					m_c[0, 0] = (byte)(data[offset + 0] << 1 & 0xfc | data[offset + 0] >> 5 & 3);
-					m_c[0, 1] = (byte)(data[offset + 0] << 7 & 0x80 | data[offset + 1] & 0x7e | data[offset + 0] & 1);
-					m_c[0, 2] = (byte)(data[offset + 1] << 7 & 0x80 | data[offset + 2] << 2 & 0x60 | data[offset + 2] << 3 & 0x18 | data[offset + 3] >> 5 & 4);
-					m_c[0, 2] |= (byte)(m_c[0, 2] >> 6);
-					m_c[1, 0] = (byte)(data[offset + 3] << 1 & 0xf8 | data[offset + 3] << 2 & 4 | data[offset + 3] >> 5 & 3);
-					m_c[1, 1] = (byte)(data[offset + 4] & 0xfe | data[offset + 4] >> 7);
-					m_c[1, 2] = (byte)(data[offset + 4] << 7 & 0x80 | data[offset + 5] >> 1 & 0x7c);
-					m_c[1, 2] |= (byte)(m_c[1, 2] >> 6);
-					m_c[2, 0] = (byte)(data[offset + 5] << 5 & 0xe0 | data[offset + 6] >> 3 & 0x1c | data[offset + 5] >> 1 & 3);
-					m_c[2, 1] = (byte)(data[offset + 6] << 3 & 0xf8 | data[offset + 7] >> 5 & 0x6 | data[offset + 6] >> 4 & 1);
-					m_c[2, 2] = (byte)(data[offset + 7] << 2 | data[offset + 7] >> 4 & 3);
-				}
-				for (int y = 0, i = 0; y < 4; y++)
-				{
-					for (int x = 0; x < 4; x++, i++)
-					{
-						int ri = Clamp((x * (m_c[1, 0] - m_c[0, 0]) + y * (m_c[2, 0] - m_c[0, 0]) + 4 * m_c[0, 0] + 2) >> 2);
-						int gi = Clamp((x * (m_c[1, 1] - m_c[0, 1]) + y * (m_c[2, 1] - m_c[0, 1]) + 4 * m_c[0, 1] + 2) >> 2);
-						int bi = Clamp((x * (m_c[1, 2] - m_c[0, 2]) + y * (m_c[2, 2] - m_c[0, 2]) + 4 * m_c[0, 2] + 2) >> 2);
-						m_buf[i] = Color(ri, gi, bi, 255);
-					}
-				}
-			}
-			else
-			{
-				// differential (Etc1Block + mask + specific mod table)
-
-				m_code[0] = (byte)(data[offset + 3] >> 5);
-				m_code[1] = (byte)(data[offset + 3] >> 2 & 7);
-				int ti = data[offset + 3] & 1;
-				unchecked
-				{
-					m_c[0, 0] = (byte)(data[offset + 0] & 0xf8);
-					m_c[0, 1] = (byte)(data[offset + 1] & 0xf8);
-					m_c[0, 2] = (byte)(data[offset + 2] & 0xf8);
-					m_c[1, 0] = (byte)(m_c[0, 0] + (data[offset + 0] << 3 & 0x18) - (data[offset + 0] << 3 & 0x20));
-					m_c[1, 1] = (byte)(m_c[0, 1] + (data[offset + 1] << 3 & 0x18) - (data[offset + 1] << 3 & 0x20));
-					m_c[1, 2] = (byte)(m_c[0, 2] + (data[offset + 2] << 3 & 0x18) - (data[offset + 2] << 3 & 0x20));
-					m_c[0, 0] |= (byte)(m_c[0, 0] >> 5);
-					m_c[0, 1] |= (byte)(m_c[0, 1] >> 5);
-					m_c[0, 2] |= (byte)(m_c[0, 2] >> 5);
-					m_c[1, 0] |= (byte)(m_c[1, 0] >> 5);
-					m_c[1, 1] |= (byte)(m_c[1, 1] >> 5);
-					m_c[1, 2] |= (byte)(m_c[1, 2] >> 5);
-				}
-
-				for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
-				{
-					byte s = Etc1SubblockTable[ti, i];
-					int index = k << 1 & 2 | j & 1;
-					int m = PunchthroughModifierTable[m_code[s], index];
-					uint mask = PunchthroughMaskTable[index];
-					m_buf[WriteOrderTable[i]] = ApplicateColor(m_c, s, m) & mask;
-				}
-			}
-		}
 		
 		private void DecodeEtc2a8Block(byte[] data, int offset)
 		{
@@ -399,17 +264,6 @@ namespace Etc
 			{ 33, 106, -33, -106, },
 			{ 47, 183, -47, -183, }
 		};
-		private static readonly int[,] PunchthroughModifierTable =
-		{
-			{ 0, 8, 0, -8, },
-			{ 0, 17, 0, -17, },
-			{ 0, 29, 0, -29, },
-			{ 0, 42, 0, -42, },
-			{ 0, 60, 0, -60, },
-			{ 0, 80, 0, -80, },
-			{ 0, 106, 0, -106, },
-			{ 0, 183, 0, -183, }
-		};
 		private static readonly byte[,] Etc1SubblockTable =
 		{
 			{0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -435,10 +289,8 @@ namespace Etc
 			{-4, -6,  -8,  -9, 3, 5, 7,  8},
 			{-3, -5,  -7,  -9, 2, 4, 6,  8}
 		};
-		private static readonly uint[] PunchthroughMaskTable = { 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF };
 
 		private readonly uint[] m_buf = new uint[16];
-		private byte[] m_code = new byte[2];
 		byte[,] m_c = new byte[3, 3];
 	}
 }
