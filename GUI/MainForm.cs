@@ -1068,7 +1068,7 @@ namespace GUI
                     extensions = new[] { ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString().ToLower() };
                     break;
                 case ResourceType.Texture:
-                    extensions = new[] { "png", "jpg", "gif", "bmp" };
+                    extensions = new[] { "png" };
                     break;
                 case ResourceType.PanoramaLayout:
                     extensions = new[] { "xml", "vxml" };
@@ -1112,64 +1112,33 @@ namespace GUI
 
                     using (var stream = dialog.OpenFile())
                     {
-                        switch (resource.ResourceType)
+                        // TODO: move this to FileExtract/VRF too
+                        if (resource.ResourceType == ResourceType.Mesh)
                         {
-                            case ResourceType.Sound:
-                                var soundData = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
-                                stream.Write(soundData, 0, soundData.Length);
-                                break;
-                            case ResourceType.Texture:
-                                var format = SKEncodedImageFormat.Png;
-                                switch (dialog.FilterIndex)
+                            using (var objStream = new StreamWriter(stream))
+                            using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
+                            {
+                                MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
+                            }
+
+                            foreach (var texture in tag.Renderer.MaterialLoader.LoadedTextures)
+                            {
+                                Console.WriteLine($"Exporting texture for mesh: {texture}");
+
+                                var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(texture + "_c", tag.Renderer.CurrentFileName, tag.Renderer.CurrentPackage);
+                                var textureImage = SKImage.FromBitmap(((Texture)textureResource.Blocks[BlockType.DATA]).GenerateBitmap());
+
+                                using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
+                                using (var data = textureImage.Encode(SKEncodedImageFormat.Png, 100))
                                 {
-                                    case 2:
-                                        format = SKEncodedImageFormat.Jpeg;
-                                        break;
-
-                                    case 3:
-                                        format = SKEncodedImageFormat.Gif;
-                                        break;
-                                    case 4:
-                                        format = SKEncodedImageFormat.Bmp;
-                                        break;
+                                    data.SaveTo(texStream);
                                 }
-
-                                var image = SKImage.FromBitmap(((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap());
-
-                                using (var data = image.Encode(format, 100))
-                                {
-                                    data.SaveTo(stream);
-                                }
-
-                                break;
-                            case ResourceType.PanoramaLayout:
-                            case ResourceType.PanoramaScript:
-                            case ResourceType.PanoramaStyle:
-                                var panoramaData = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
-                                stream.Write(panoramaData, 0, panoramaData.Length);
-                                break;
-                            case ResourceType.Mesh:
-                                using (var objStream = new StreamWriter(stream))
-                                using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
-                                {
-                                    MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
-                                }
-
-                                foreach (var texture in tag.Renderer.MaterialLoader.LoadedTextures)
-                                {
-                                    Console.WriteLine($"Exporting texture for mesh: {texture}");
-
-                                    var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(texture + "_c", tag.Renderer.CurrentFileName, tag.Renderer.CurrentPackage);
-                                    var textureImage = SKImage.FromBitmap(((Texture)textureResource.Blocks[BlockType.DATA]).GenerateBitmap());
-
-                                    using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
-                                    using (var data = textureImage.Encode(SKEncodedImageFormat.Png, 100))
-                                    {
-                                        data.SaveTo(texStream);
-                                    }
-                                }
-
-                                break;
+                            }
+                        }
+                        else
+                        {
+                            var data = ValveResourceFormat.IO.FileExtract.Extract(resource).ToArray();
+                            stream.Write(data, 0, data.Length);
                         }
                     }
                 }
