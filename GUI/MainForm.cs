@@ -140,8 +140,11 @@ namespace GUI
 
         private void CloseTab(TabPage tab)
         {
+            var tabIndex = GetTabIndex(tab);
+            var isClosingCurrentTab = tabIndex == mainTabs.SelectedIndex;
+
             //The console cannot be closed!
-            if (GetTabIndex(tab) == 0)
+            if (tabIndex == 0)
             {
                 return;
             }
@@ -149,6 +152,11 @@ namespace GUI
             //Close the requested tab
             Console.WriteLine($"Closing {tab.Text}");
             mainTabs.TabPages.Remove(tab);
+
+            if (isClosingCurrentTab && tabIndex > 0)
+            {
+                mainTabs.SelectedIndex = tabIndex - 1;
+            }
 
             ShowHideSearch();
 
