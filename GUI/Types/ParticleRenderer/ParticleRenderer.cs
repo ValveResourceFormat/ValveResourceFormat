@@ -120,11 +120,16 @@ namespace GUI.Types.ParticleRenderer
             }
 
             // Restart if all emitters are done and all particles expired
-            if (Emitters.All(e => e.IsFinished) && particles.Count == 0)
+            if (IsFinished())
             {
                 Restart();
             }
         }
+
+        public bool IsFinished()
+            => Emitters.All(e => e.IsFinished)
+            && particles.Count == 0
+            && childParticleRenderers.All(r => r.IsFinished());
 
         public void Render(Camera camera)
         {

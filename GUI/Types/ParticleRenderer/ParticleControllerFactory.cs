@@ -33,6 +33,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_INIT_RandomRotation"] = initializerInfo => new RandomRotation(initializerInfo),
                 ["C_INIT_RandomTrailLength"] = initializerInfo => new RandomTrailLength(initializerInfo),
                 ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new RemapParticleCountToScalar(initializerInfo),
+                ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
             };
 
         // Register particle operators

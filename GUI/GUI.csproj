@@ -135,6 +135,7 @@
     <Compile Include="Types\ParticleRenderer\Initializers\RandomColor.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRadius.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RingWave.cs" />
     <Compile Include="Types\ParticleRenderer\INumberProvider.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\OffsetVectorToVector.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\OscillateScalar.cs" />

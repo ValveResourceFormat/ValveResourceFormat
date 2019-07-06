@@ -48,9 +48,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 vec4 color = texture(uTexture, uUvOffset + uv * uUvScale);
 
                 vec3 finalColor = uColor * color.xyz;
-                float blendingFactor = uOverbrightFactor * (finalColor.x + finalColor.y + finalColor.z) / 3.0;
+                float blendingFactor = uOverbrightFactor * (0.212 * finalColor.x + 0.715 * finalColor.y + 0.0722 * finalColor.z);
 
-                fragColor = vec4(finalColor, uAlpha * color.w * blendingFactor);
+                fragColor = vec4(uAlpha * finalColor, color.w * blendingFactor);
             }";
 
         private readonly int shaderProgram;

@@ -6,15 +6,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class PositionOffset : IParticleInitializer
     {
-        private readonly Vector3 offsetMin;
-        private readonly Vector3 offsetMax;
+        private readonly Vector3 offsetMin = Vector3.Zero;
+        private readonly Vector3 offsetMax = Vector3.Zero;
 
-        private readonly Random random;
+        private readonly Random random = new Random();
 
         public PositionOffset(IKeyValueCollection keyValues)
         {
-            random = new Random();
-
             if (keyValues.ContainsKey("m_OffsetMin"))
             {
                 var vectorValues = keyValues.GetArray<double>("m_OffsetMin");
@@ -33,7 +31,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var distance = offsetMax - offsetMin;
             var offset = offsetMin + (distance * new Vector3((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble()));
 
-            particle.Position = offset;
+            particle.Position += offset;
 
             return particle;
         }
