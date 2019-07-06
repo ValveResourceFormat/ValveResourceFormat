@@ -7,11 +7,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class OscillateScalar : IParticleOperator
     {
-        private const int ParticleFieldRadius = 3;
-        private const int ParticleFieldAlpha = 7;
-        private const int ParticleFieldAlphaAlternate = 16;
-
-        private int outputField = ParticleFieldAlpha;
+        private ParticleField outputField = ParticleField.Alpha;
         private float rateMin = 0f;
         private float rateMax = 0f;
         private float frequencyMin = 1f;
@@ -26,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             if (keyValues.ContainsKey("m_nField"))
             {
-                outputField = (int)keyValues.GetIntegerProperty("m_nField");
+                outputField = (ParticleField)keyValues.GetIntegerProperty("m_nField");
             }
 
             if (keyValues.ContainsKey("m_RateMin"))
@@ -89,15 +85,15 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var delta = (float)Math.Sin(((t * frequency * oscillationMultiplier) + oscillationOffset) * Math.PI);
 
-                if (outputField == ParticleFieldRadius)
+                if (outputField == ParticleField.Radius)
                 {
                     particle.Radius += delta * rate * frameTime;
                 }
-                else if (outputField == ParticleFieldAlpha)
+                else if (outputField == ParticleField.Alpha)
                 {
                     particle.Alpha += delta * rate * frameTime;
                 }
-                else if (outputField == ParticleFieldAlphaAlternate)
+                else if (outputField == ParticleField.AlphaAlternate)
                 {
                     particle.AlphaAlternate += delta * rate * frameTime;
                 }

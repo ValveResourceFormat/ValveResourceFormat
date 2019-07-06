@@ -128,6 +128,7 @@
     <Compile Include="Types\ParticleRenderer\Initializers\PositionOffset.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomAlpha.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRotation.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RandomTrailLength.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RemapParticleCountToScalar.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
@@ -135,6 +136,7 @@
     <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRadius.cs" />
     <Compile Include="Types\ParticleRenderer\INumberProvider.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\OffsetVectorToVector.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\OscillateScalar.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\ColorInterpolate.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\FadeAndKill.cs" />
@@ -146,10 +148,12 @@
     <Compile Include="Types\ParticleRenderer\Operators\InterpolateRadius.cs" />
     <Compile Include="Types\ParticleRenderer\Particle.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleControllerFactory.cs" />
+    <Compile Include="Types\ParticleRenderer\ParticleFieldExtensions.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleGrid.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleSystemRenderState.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
+    <Compile Include="Types\ParticleRenderer\Renderers\RenderTrails.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
     <Compile Include="Types\ParticleRenderer\VrfGuiContext.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />

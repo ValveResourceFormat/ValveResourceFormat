@@ -17,13 +17,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (keyValues.ContainsKey("m_ColorMin"))
             {
-                var vectorValues = keyValues.GetArray<long>("m_ColorMin");
+                var vectorValues = keyValues.GetIntegerArray("m_ColorMin");
                 colorMin = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
 
             if (keyValues.ContainsKey("m_ColorMax"))
             {
-                var vectorValues = keyValues.GetArray<long>("m_ColorMax");
+                var vectorValues = keyValues.GetIntegerArray("m_ColorMax");
                 colorMax = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
         }

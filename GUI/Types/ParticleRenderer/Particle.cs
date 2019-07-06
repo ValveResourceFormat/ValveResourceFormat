@@ -23,7 +23,11 @@ namespace GUI.Types.ParticleRenderer
 
         public Vector3 Position { get; set; }
 
+        public Vector3 PositionPrevious { get; set; }
+
         public float Radius { get; set; }
+
+        public float TrailLength { get; set; } = 1f;
 
         /// <summary>
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles.

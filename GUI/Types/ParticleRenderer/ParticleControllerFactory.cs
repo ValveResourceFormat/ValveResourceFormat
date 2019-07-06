@@ -22,15 +22,17 @@ namespace GUI.Types.ParticleRenderer
         private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleInitializer>> InitializerDictionary
             = new Dictionary<string, Func<IKeyValueCollection, IParticleInitializer>>
             {
+                ["C_INIT_CreateWithinSphere"] = initializerInfo => new CreateWithinSphere(initializerInfo),
                 ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
+                ["C_INIT_OffsetVectorToVector"] = initializerInfo => new OffsetVectorToVector(initializerInfo),
                 ["C_INIT_PositionOffset"] = initializerInfo => new PositionOffset(initializerInfo),
                 ["C_INIT_RandomAlpha"] = initializerInfo => new RandomAlpha(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
                 ["C_INIT_RandomRadius"] = initializerInfo => new RandomRadius(initializerInfo),
                 ["C_INIT_RandomRotation"] = initializerInfo => new RandomRotation(initializerInfo),
+                ["C_INIT_RandomTrailLength"] = initializerInfo => new RandomTrailLength(initializerInfo),
                 ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new RemapParticleCountToScalar(initializerInfo),
-                ["C_INIT_CreateWithinSphere"] = initializerInfo => new CreateWithinSphere(initializerInfo),
             };
 
         // Register particle operators
@@ -52,6 +54,7 @@ namespace GUI.Types.ParticleRenderer
             = new Dictionary<string, Func<IKeyValueCollection, VrfGuiContext, IParticleRenderer>>
             {
                 ["C_OP_RenderSprites"] = (rendererInfo, vrfGuiContext) => new RenderSprites(rendererInfo, vrfGuiContext),
+                ["C_OP_RenderTrails"] = (rendererInfo, vrfGuiContext) => new RenderTrails(rendererInfo, vrfGuiContext),
             };
 
         public static bool TryCreateEmitter(string name, IKeyValueCollection baseProperties, IKeyValueCollection emitterInfo, out IParticleEmitter emitter)
