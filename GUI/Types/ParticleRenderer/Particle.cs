@@ -34,6 +34,11 @@ namespace GUI.Types.ParticleRenderer
         /// </summary>
         public Vector3 Rotation { get; set; }
 
+        /// <summary>
+        /// Gets or sets (Yaw, Pitch, Roll) Euler angles rotation speed.
+        /// </summary>
+        public Vector3 RotationSpeed { get; set; }
+
         public Vector3 Velocity { get; set; }
 
         public Particle()

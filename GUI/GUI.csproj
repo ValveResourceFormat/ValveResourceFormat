@@ -128,6 +128,7 @@
     <Compile Include="Types\ParticleRenderer\Initializers\PositionOffset.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomAlpha.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomRotation.cs" />
+    <Compile Include="Types\ParticleRenderer\Initializers\RandomRotationSpeed.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomTrailLength.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RemapParticleCountToScalar.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
@@ -147,6 +148,7 @@
     <Compile Include="Types\ParticleRenderer\Operators\Decay.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\BasicMovement.cs" />
     <Compile Include="Types\ParticleRenderer\Operators\InterpolateRadius.cs" />
+    <Compile Include="Types\ParticleRenderer\Operators\SpinUpdate.cs" />
     <Compile Include="Types\ParticleRenderer\Particle.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleControllerFactory.cs" />
     <Compile Include="Types\ParticleRenderer\ParticleFieldExtensions.cs" />

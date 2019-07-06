@@ -31,6 +31,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
                 ["C_INIT_RandomRadius"] = initializerInfo => new RandomRadius(initializerInfo),
                 ["C_INIT_RandomRotation"] = initializerInfo => new RandomRotation(initializerInfo),
+                ["C_INIT_RandomRotationSpeed"] = initializerInfo => new RandomRotationSpeed(initializerInfo),
                 ["C_INIT_RandomTrailLength"] = initializerInfo => new RandomTrailLength(initializerInfo),
                 ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new RemapParticleCountToScalar(initializerInfo),
                 ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
@@ -48,6 +49,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_FadeInSimple"] = operatorInfo => new FadeInSimple(operatorInfo),
                 ["C_OP_FadeOutSimple"] = operatorInfo => new FadeOutSimple(operatorInfo),
                 ["C_OP_OscillateScalar"] = operatorInfo => new OscillateScalar(operatorInfo),
+                ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(operatorInfo),
             };
 
         // Register particle renderers

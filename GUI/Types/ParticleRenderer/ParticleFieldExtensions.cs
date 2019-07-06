@@ -7,7 +7,9 @@ namespace GUI.Types.ParticleRenderer
         Position = 0,
         PositionPrevious = 2,
         Radius = 3,
+        Roll = 4,
         Alpha = 7,
+        Yaw = 12,
         AlphaAlternate = 16,
     }
 
