@@ -25,6 +25,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             void main(void) {
                 uv = aVertexPosition.xy * 0.5 + 0.5;
+                uv.y = 1 - uv.y;
                 gl_Position = uProjectionMatrix * uModelViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
             }";
 
@@ -218,7 +219,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {
-                    var sequence = spriteSheetData.Sequences[particle.Sequence];
+                    var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
 
                     var particleTime = particle.ConstantLifetime - particle.Lifetime;
                     var frame = particleTime * sequence.FramesPerSecond * animationRate;
