@@ -39,6 +39,8 @@ namespace GUI.Types.ParticleRenderer
         /// </summary>
         public Vector3 RotationSpeed { get; set; }
 
+        public int Sequence { get; set; }
+
         public Vector3 Velocity { get; set; }
 
         public Particle()

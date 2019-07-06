@@ -218,7 +218,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {
-                    var sequence = spriteSheetData.Sequences[0];
+                    var sequence = spriteSheetData.Sequences[particle.Sequence];
 
                     var particleTime = particle.ConstantLifetime - particle.Lifetime;
                     var frame = particleTime * sequence.FramesPerSecond * animationRate;
