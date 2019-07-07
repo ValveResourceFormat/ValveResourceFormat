@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
 using SteamDatabase.ValvePak;
@@ -13,8 +15,11 @@ using ValveResourceFormat.ResourceTypes;
 namespace Decompiler
 {
     [Command(Name = "vrf_decompiler", Description = "A test bed command line interface for the VRF library")]
+    [VersionOptionFromMember(MemberName = nameof(GetVersion))]
     public class Decompiler
     {
+        private static string GetVersion() => typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+
         private readonly Dictionary<string, uint> OldPakManifest = new Dictionary<string, uint>();
         private readonly Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
@@ -24,6 +29,7 @@ namespace Decompiler
         private int CurrentFile = 0;
         private int TotalFiles = 0;
 
+        [Required]
         [Option("-i|--input", "Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.", CommandOptionType.SingleValue)]
         public string InputFile { get; private set; }
 
@@ -71,12 +77,6 @@ namespace Decompiler
 
         private int OnExecute()
         {
-            if (InputFile == null)
-            {
-                Console.Error.WriteLine("Input file is required. See --help for all available arguments.");
-                return 1;
-            }
-
             InputFile = Path.GetFullPath(InputFile);
 
             if (OutputFile != null)
