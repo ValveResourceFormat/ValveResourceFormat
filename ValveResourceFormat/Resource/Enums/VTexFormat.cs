@@ -33,6 +33,7 @@ namespace ValveResourceFormat
         R11_EAC = 25,
         RG11_EAC = 26,
         ATI1N = 27,
+        BGRA8888 = 28,
 #pragma warning restore 1591
     }
 }

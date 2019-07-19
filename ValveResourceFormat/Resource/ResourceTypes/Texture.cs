@@ -281,7 +281,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadI8(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA8888:
-                    return TextureDecompressors.ReadRGBA8888(GetDecompressedBuffer(), Width, Height);
+                    return TextureDecompressors.ReadUIntPixels(GetDecompressedBuffer(), Width, Height, SKColorType.Rgba8888);
 
                 case VTexFormat.R16:
                     return TextureDecompressors.ReadR16(GetDecompressedBuffer(), Width, Height);
@@ -338,6 +338,9 @@ namespace ValveResourceFormat.ResourceTypes
                     etc2.DecompressETC2A8(GetDecompressedTextureAtMipLevel(0), width, height, rewriteMeProperlyPlease2);
                     data = rewriteMeProperlyPlease2;
                     break;
+
+                case VTexFormat.BGRA8888:
+                    return TextureDecompressors.ReadUIntPixels(GetDecompressedBuffer(), Width, Height, SKColorType.Bgra8888);
 
                 default:
                     throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));

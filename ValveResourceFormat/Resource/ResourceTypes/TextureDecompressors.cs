@@ -41,9 +41,9 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap ReadRGBA8888(BinaryReader r, int w, int h)
+        public static SKBitmap ReadUIntPixels(BinaryReader r, int w, int h, SKColorType colorType)
         {
-            var res = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            var res = new SKBitmap(w, h, colorType, SKAlphaType.Unpremul);
 
             for (var y = 0; y < h; y++)
             {
