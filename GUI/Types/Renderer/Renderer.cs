@@ -160,6 +160,7 @@ namespace GUI.Types.Renderer
             meshControl.MouseEnter += MeshControl_MouseEnter;
             meshControl.MouseLeave += MeshControl_MouseLeave;
             meshControl.GotFocus += MeshControl_GotFocus;
+            meshControl.VisibleChanged += MeshControl_GotFocus;
 
             panel.Controls.Add(meshControl);
             return panel;
@@ -246,6 +247,7 @@ namespace GUI.Types.Renderer
         private void MeshControl_GotFocus(object sender, EventArgs e)
         {
             meshControl.MakeCurrent();
+            GL.Flush();
             meshControl.SwapBuffers();
             meshControl.VSync = true;
         }
