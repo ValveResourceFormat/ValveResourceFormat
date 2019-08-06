@@ -298,6 +298,7 @@ namespace ValveResourceFormat
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaLayout:
                 case ResourceType.PanoramaDynamicImages:
+                case ResourceType.PanoramaVectorGraphic:
                     return new Panorama();
 
                 case ResourceType.Sound:
@@ -359,6 +360,7 @@ namespace ValveResourceFormat
                     }
 
                     return ResourceType.Panorama;
+                case "VectorGraphic": return ResourceType.PanoramaVectorGraphic;
             }
 
             if (Enum.TryParse(identifier, false, out ResourceType resourceType))

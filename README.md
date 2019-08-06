@@ -35,7 +35,7 @@ vpcf     | Particle System         | :+1: NTRO, KV3
 vmat     | Material                | :+1: NTRO
 vmks     | Sheet                   | No
 vmesh    | Mesh                    | Vertex and index buffers, vertex attributes
-vtex     | Compiled Texture        | :+1: DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, IA88, PNG, JPG
+vtex     | Compiled Texture        | :+1: DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, IA88, PNG, JPG, ETC2, ETC2_EAC, BGRA8888
 vmdl     | Model                   | Started
 vphys    | Physics Collision Mesh  | No
 vsnd     | Sound                   | :+1: wav, mp3
@@ -53,6 +53,7 @@ vcss     | Panorama Style          | :+1:
 vxml     | Panorama Layout         | :+1:
 vpdi     | Panorama Dynamic Images | No
 vjs      | Panorama Script         | :+1:
+vsvg     | Panorama Vector Graphic | :+1:
 vpsf     | Particle Snapshot       | No
 vmap     | Map                     | :+1:
 

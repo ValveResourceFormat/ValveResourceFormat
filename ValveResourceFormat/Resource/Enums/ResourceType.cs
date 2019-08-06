@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat
 {
@@ -93,6 +93,9 @@ namespace ValveResourceFormat
 
         [Extension("vjs")]
         PanoramaScript,
+
+        [Extension("vsvg")]
+        PanoramaVectorGraphic,
 
         [Extension("vpsf")]
         ParticleSnapshot,

@@ -19,6 +19,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaStyle:
+                case ResourceType.PanoramaVectorGraphic:
                     data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
                     break;
 
@@ -70,6 +71,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout: return "xml";
                 case ResourceType.PanoramaScript: return "js";
                 case ResourceType.PanoramaStyle: return "css";
+                case ResourceType.PanoramaVectorGraphic: return "svg";
                 case ResourceType.Texture: return "png";
 
                 case ResourceType.Sound:
