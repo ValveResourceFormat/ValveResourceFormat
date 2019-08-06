@@ -489,6 +489,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.IA88: return 2;
                 case VTexFormat.ETC2: return 8;
                 case VTexFormat.ETC2_EAC: return 16;
+                case VTexFormat.BGRA8888: return 4;
             }
 
             return 1;
