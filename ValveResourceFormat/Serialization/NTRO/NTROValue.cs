@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 case DataType.Matrix2x4:
-                    (Value as Matrix2x4).WriteText(writer);
+                    (Value as NTROStruct).WriteText(writer);
                     break;
 
                 case DataType.Matrix3x4:
