@@ -88,17 +88,26 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Format = new Guid(reader.ReadBytes(16));
 
-            var unknownInt1 = reader.ReadInt32(); // appears to always be 1
-
+            var compressionMethod = reader.ReadInt32();
             var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
             var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
             var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
 
-            DecompressLZ4(reader, outWrite);
-
-            if (unknownInt1 != 1)
+            if (compressionMethod == 0)
             {
-                throw new Exception($"UnknownInt1 expected 1 but got: {unknownInt1}");
+                var length = reader.ReadInt32();
+
+                var buffer = new byte[length];
+                reader.Read(buffer, 0, length);
+                outWrite.Write(buffer);
+            }
+            else if (compressionMethod == 1)
+            {
+                DecompressLZ4(reader, outWrite);
+            }
+            else
+            {
+                throw new Exception($"Unknown KV3 compression method: {compressionMethod}");
             }
 
             currentBinaryBytesOffset = 0;
