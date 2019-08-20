@@ -1,0 +1,31 @@
+name: .NET Core CI
+
+on: [push]
+
+jobs:
+  build:
+    name: .NET on ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build CLI
+      run: dotnet build -c release ./Decompiler/Decompiler.csproj
+
+    - name: Build Library
+      run: dotnet build -c release ./ValveResourceFormat/ValveResourceFormat.csproj
+
+    - name: Run tests
+      run: dotnet test ./Tests/Tests.csproj
