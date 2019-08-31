@@ -12,6 +12,7 @@ namespace GUI.Types.Audio
     {
         private readonly Button playButton;
         private WaveOutEvent waveOut;
+        private WaveStream waveStream;
 
         public AudioPlayer(Resource resource, TabPage tab)
         {
@@ -19,25 +20,19 @@ namespace GUI.Types.Audio
 
             var stream = soundData.GetSoundStream();
             waveOut = new WaveOutEvent();
+            waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
 
             try
             {
-                if (soundData.Type == Sound.AudioFileType.WAV)
+                switch (soundData.Type)
                 {
-                    var rawSource = new WaveFileReader(stream);
-                    waveOut.Init(rawSource);
+                    case Sound.AudioFileType.WAV: waveStream = new WaveFileReader(stream); break;
+                    case Sound.AudioFileType.MP3: waveStream = new Mp3FileReader(stream, new Mp3FileReader.FrameDecompressorBuilder(wf => new Mp3FrameDecompressor(wf))); break;
+                    case Sound.AudioFileType.AAC: waveStream = new StreamMediaFoundationReader(stream); break;
+                    default: throw new Exception($"Dont know how to play {soundData.Type}");
                 }
-                else if (soundData.Type == Sound.AudioFileType.MP3)
-                {
-                    var builder = new Mp3FileReader.FrameDecompressorBuilder(wf => new Mp3FrameDecompressor(wf));
-                    var rawSource = new Mp3FileReader(stream, builder);
-                    waveOut.Init(rawSource);
-                }
-                else if (soundData.Type == Sound.AudioFileType.AAC)
-                {
-                    var rawSource = new StreamMediaFoundationReader(stream);
-                    waveOut.Init(rawSource);
-                }
+
+                waveOut.Init(waveStream);
 
                 playButton = new Button();
                 playButton.Text = "Play";
@@ -62,6 +57,11 @@ namespace GUI.Types.Audio
             }
         }
 
+        private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
+        {
+            playButton.Text = "Play";
+        }
+
         private void PlayButton_Disposed(object sender, EventArgs e)
         {
             if (waveOut != null)
@@ -70,10 +70,21 @@ namespace GUI.Types.Audio
                 waveOut.Dispose();
                 waveOut = null;
             }
+
+            if (waveStream != null)
+            {
+                waveStream.Dispose();
+                waveStream = null;
+            }
         }
 
         private void PlayButton_Click(object sender, EventArgs e)
         {
+            if (waveOut.PlaybackState == PlaybackState.Stopped)
+            {
+                waveStream.Position = 0;
+            }
+
             if (waveOut.PlaybackState == PlaybackState.Playing)
             {
                 waveOut.Pause();

@@ -21,6 +21,11 @@ namespace GUI.Utils
 
             public override void WriteLine(string value)
             {
+                if (control.IsDisposed)
+                {
+                    return;
+                }
+
                 if (control.InvokeRequired)
                 {
                     control.Invoke(new MethodInvoker(delegate { WriteLine(value); }));
