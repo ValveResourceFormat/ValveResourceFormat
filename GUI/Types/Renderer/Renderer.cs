@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
         World,
     }
 
-    internal class Renderer
+    internal class Renderer : IDisposable
     {
         private readonly RenderSubject SubjectType;
         private readonly Stopwatch PreciseTimer;
@@ -53,6 +53,7 @@ namespace GUI.Types.Renderer
         private Label fpsLabel;
         private ComboBox renderModeComboBox;
         private double previousFrameTime;
+        private Timer InputTimer;
 
         private CheckedListBox animationBox;
         private CheckedListBox cameraBox;
@@ -85,6 +86,19 @@ namespace GUI.Types.Renderer
             Skeleton = new Skeleton(); // Default empty skeleton
 
             MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
+        }
+
+        public void Dispose()
+        {
+            Console.WriteLine("Disposing renderer");
+
+            InputTimer.Dispose();
+            meshControl.Dispose();
+            cameraLabel.Dispose();
+            fpsLabel.Dispose();
+            renderModeComboBox.Dispose();
+            animationBox.Dispose();
+            cameraBox.Dispose();
         }
 
         public void AddMeshObject(MeshObject obj) => MeshesToRender.Add(obj);
@@ -161,9 +175,15 @@ namespace GUI.Types.Renderer
             meshControl.MouseLeave += MeshControl_MouseLeave;
             meshControl.GotFocus += MeshControl_GotFocus;
             meshControl.VisibleChanged += MeshControl_GotFocus;
+            meshControl.Disposed += MeshControl_Disposed;
 
             panel.Controls.Add(meshControl);
             return panel;
+        }
+
+        private void MeshControl_Disposed(object sender, EventArgs e)
+        {
+            Dispose();
         }
 
         private void OnRenderModeChange(object sender, EventArgs e)
@@ -276,13 +296,13 @@ namespace GUI.Types.Renderer
 
         private void InitializeInputTick()
         {
-            var timer = new Timer
+            InputTimer = new Timer
             {
                 Enabled = true,
                 Interval = 1000 / 60,
             };
-            timer.Elapsed += InputTick;
-            timer.Start();
+            InputTimer.Elapsed += InputTick;
+            InputTimer.Start();
         }
 
         private void InputTick(object sender, EventArgs e)
