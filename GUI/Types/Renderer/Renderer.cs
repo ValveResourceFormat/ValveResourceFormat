@@ -96,9 +96,13 @@ namespace GUI.Types.Renderer
             meshControl.Dispose();
             cameraLabel.Dispose();
             fpsLabel.Dispose();
-            renderModeComboBox.Dispose();
             animationBox.Dispose();
             cameraBox.Dispose();
+
+            if (renderModeComboBox != null)
+            {
+                renderModeComboBox.Dispose();
+            }
         }
 
         public void AddMeshObject(MeshObject obj) => MeshesToRender.Add(obj);
