@@ -92,6 +92,8 @@ namespace GUI.Types.Renderer
         {
             Console.WriteLine("Disposing renderer");
 
+            Loaded = false;
+
             InputTimer.Dispose();
             meshControl.Dispose();
             cameraLabel.Dispose();

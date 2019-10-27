@@ -64,7 +64,19 @@ namespace GUI.Types.Renderer
 #if !DEBUG_SHADERS || !DEBUG
             if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
             {
-                return cachedShader;
+                GL.GetError();
+                GL.ValidateProgram(cachedShader.Program);
+
+                if (GL.GetError() == 0)
+                {
+                    return cachedShader;
+                }
+
+                // If you close all existing opengl tabs and open a new one, it trashes all opengl caches
+                // and thus breaks the shaders.
+                // TODO: We need a global singletone renderer object which handles the opengl state,
+                // for now we just recompile the shader if it dies.
+                Console.WriteLine($"Shader {shaderCacheHash} ({shaderName}) failed to validate, recompiling...");
             }
 #endif
 
@@ -162,7 +174,7 @@ namespace GUI.Types.Renderer
 #if !DEBUG_SHADERS || !DEBUG
             CachedShaders[shaderCacheHash] = shader;
 
-            Console.WriteLine("Shader #{0} ({1}) compiled and linked succesfully", CachedShaders.Count, shaderName);
+            Console.WriteLine($"Shader {shaderCacheHash} ({shaderName}) compiled and linked succesfully");
 #endif
 
             return shader;
