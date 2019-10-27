@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
@@ -41,12 +42,24 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private static int CalculateShaderCacheHash(string shaderFileName, ArgumentDependencies modelArguments)
+        {
+            var shaderCacheHashString = new StringBuilder();
+            shaderCacheHashString.AppendLine(shaderFileName);
+
+            foreach (var argument in modelArguments.List)
+            {
+                shaderCacheHashString.AppendLine(argument.ParameterName);
+                shaderCacheHashString.AppendLine(argument.Fingerprint.ToString());
+            }
+
+            return shaderCacheHashString.ToString().GetHashCode();
+        }
+
         public static Shader LoadShader(string shaderName, ArgumentDependencies modelArguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-            var shaderCacheHash = (shaderFileName + modelArguments).GetHashCode(); // shader collision roulette
-
-            var renderModes = new List<string>();
+            var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, modelArguments); // shader collision roulette
 
 #if !DEBUG_SHADERS || !DEBUG
             if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
@@ -54,6 +67,8 @@ namespace GUI.Types.Renderer
                 return cachedShader;
             }
 #endif
+
+            var renderModes = new List<string>();
 
             /* Vertex shader */
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
