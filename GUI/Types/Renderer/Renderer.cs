@@ -63,6 +63,7 @@ namespace GUI.Types.Renderer
 
         private Vector3 MinBounds;
         private Vector3 MaxBounds;
+        private Vector3 GlobalLight = Vector3.Zero;
 
         private int AnimationTexture;
 
@@ -443,6 +444,11 @@ namespace GUI.Types.Renderer
             ActiveCamera = new Camera(cameraMatrix, "worldspawn");
         }
 
+        public void SetWorldGlobalLight(Vector3 position)
+        {
+            GlobalLight = position;
+        }
+
         private void MeshControl_Paint(object sender, PaintEventArgs e)
         {
             if (!Loaded)
@@ -460,9 +466,18 @@ namespace GUI.Types.Renderer
             fpsLabel.Text = $"FPS: {Math.Round(1f / deltaTime)}";
 
             // Set light position
-            var lightPos = ActiveCamera.Location;
-            var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
-            lightPos += cameraLeft;
+            Vector3 lightPos;
+
+            if (GlobalLight == Vector3.Zero)
+            {
+                lightPos = ActiveCamera.Location;
+                var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
+                lightPos += cameraLeft;
+            }
+            else
+            {
+                lightPos = GlobalLight;
+            }
 
             // Get animation matrices
             var animationMatrices = new float[Skeleton.Bones.Length * 16];

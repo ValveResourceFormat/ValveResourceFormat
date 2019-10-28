@@ -1,11 +1,9 @@
 using System;
 using System.Globalization;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 using Vector3 = OpenTK.Vector3;
 using Vector4 = OpenTK.Vector4;
 
@@ -127,6 +125,7 @@ namespace GUI.Types
                     continue;
                 }
 
+                var isGlobalLight = classname == "env_global_light";
                 var isCamera =
                     classname == "info_player_start" ||
                     classname == "worldspawn" ||
@@ -134,7 +133,7 @@ namespace GUI.Types
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
 
-                if (!isCamera && model == string.Empty)
+                if (!isGlobalLight && !isCamera && model == string.Empty)
                 {
                     continue;
                 }
@@ -162,6 +161,12 @@ namespace GUI.Types
                     {
                         renderer.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, transformationMatrix);
                     }
+
+                    continue;
+                }
+                else if (isGlobalLight)
+                {
+                    renderer.SetWorldGlobalLight(positionVector); // TODO: set light angle
 
                     continue;
                 }

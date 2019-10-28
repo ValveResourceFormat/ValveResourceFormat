@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
 
                         var materialName = d.Properties["m_material"].Value.ToString();
 
-                        if (SkinMaterials.Any())
+                        if (i < SkinMaterials.Count)
                         {
                             materialName = SkinMaterials[i];
                         }
