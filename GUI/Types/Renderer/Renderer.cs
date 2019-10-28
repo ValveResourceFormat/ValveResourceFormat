@@ -459,10 +459,10 @@ namespace GUI.Types.Renderer
             cameraLabel.Text = $"{ActiveCamera.Location.X}, {ActiveCamera.Location.Y}, {ActiveCamera.Location.Z}\n(yaw: {ActiveCamera.Yaw} pitch: {ActiveCamera.Pitch})";
             fpsLabel.Text = $"FPS: {Math.Round(1f / deltaTime)}";
 
-            //Animate light position
+            // Set light position
             var lightPos = ActiveCamera.Location;
             var cameraLeft = new Vector3((float)Math.Cos(ActiveCamera.Yaw + MathHelper.PiOver2), (float)Math.Sin(ActiveCamera.Yaw + MathHelper.PiOver2), 0);
-            lightPos += cameraLeft * 200 * (float)Math.Sin(PreciseTimer.Elapsed.TotalSeconds * 2);
+            lightPos += cameraLeft;
 
             // Get animation matrices
             var animationMatrices = new float[Skeleton.Bones.Length * 16];
