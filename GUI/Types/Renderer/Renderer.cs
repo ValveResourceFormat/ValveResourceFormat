@@ -209,11 +209,17 @@ namespace GUI.Types.Renderer
                     var arguments = call.Shader.Parameters.List.Where(arg => !arg.ParameterName.StartsWith("renderMode")).ToList();
                     call.Shader.Parameters.List.Clear();
                     call.Shader.Parameters.List.AddRange(arguments);
-                    call.Shader.Parameters.List.Add(new ArgumentDependencies.ArgumentDependency
+
+                    // First item is default (or change render mode...) so don't add it
+                    if (renderModeComboBox.SelectedIndex > 0)
                     {
-                        ParameterName = $"renderMode_{renderModeComboBox.SelectedItem}",
-                        Fingerprint = 1,
-                    });
+                        call.Shader.Parameters.List.Add(new ArgumentDependencies.ArgumentDependency
+                        {
+                            ParameterName = $"renderMode_{renderModeComboBox.SelectedItem}",
+                            Fingerprint = 1,
+                        });
+                    }
+
                     call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
                 }
             }
