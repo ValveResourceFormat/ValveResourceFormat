@@ -700,7 +700,14 @@ namespace GUI.Types.Renderer
             }
 
             var data = (BinaryKV3)yo.Resource.Blocks[BlockType.DATA];
-            var boundingBox = data.Data.GetArray("m_sceneObjects")[0];
+            var sceneObjects = data.Data.GetArray("m_sceneObjects");
+
+            if (sceneObjects.Length == 0)
+            {
+                return;
+            }
+
+            var boundingBox = sceneObjects[0];
             var minBounds = boundingBox.GetSubCollection("m_vMinBounds").ToVector3();
             var maxBounds = boundingBox.GetSubCollection("m_vMaxBounds").ToVector3();
 
