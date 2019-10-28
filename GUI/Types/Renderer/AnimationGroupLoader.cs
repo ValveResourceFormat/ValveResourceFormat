@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using GUI.Utils;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -9,7 +10,7 @@ namespace GUI.Types.Renderer.Animation
 {
     internal static class AnimationGroupLoader
     {
-        public static List<ValveResourceFormat.ResourceTypes.Animation.Animation> LoadAnimationGroup(Resource resource, string path)
+        public static List<ValveResourceFormat.ResourceTypes.Animation.Animation> LoadAnimationGroup(Resource resource, string path, Package currentPackage)
         {
             var dataBlock = resource.Blocks[BlockType.DATA];
             var data = dataBlock is NTRO ntro
@@ -26,7 +27,7 @@ namespace GUI.Types.Renderer.Animation
             // Load animation files
             foreach (var animationFile in animArray)
             {
-                var animResource = FileExtensions.LoadFileByAnyMeansNecessary(animationFile + "_c", path, null);
+                var animResource = FileExtensions.LoadFileByAnyMeansNecessary(animationFile + "_c", path, currentPackage);
 
                 if (animResource == null)
                 {

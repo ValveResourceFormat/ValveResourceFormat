@@ -645,7 +645,7 @@ namespace GUI
                         {
                             var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);
 
-                            modelmv.AddAnimations(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileName));
+                            modelmv.AddAnimations(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileName, currentPackage));
                         }
 
                         //Initialise OpenGL
