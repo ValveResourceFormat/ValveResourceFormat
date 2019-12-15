@@ -31,13 +31,13 @@ jobs:
       run: dotnet test ./Tests/Tests.csproj
 
     - name: Upload CLI artifact
-    - uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v1
       with:
         name: CLI
         path: Decompiler/bin/Release
 
     - name: Upload GUI artifact
-    - uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v1
       with:
         name: GUI
         path: GUI/bin/Release
