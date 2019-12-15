@@ -22,10 +22,10 @@ jobs:
       run: dotnet restore
 
     - name: Build CLI
-      run: dotnet build -c release ./Decompiler/Decompiler.csproj
+      run: dotnet build -c Release ./Decompiler/Decompiler.csproj
 
     - name: Build Library
-      run: dotnet build -c release ./ValveResourceFormat/ValveResourceFormat.csproj
+      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Run tests
       run: dotnet test ./Tests/Tests.csproj
