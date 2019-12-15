@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <Authors>Steam Database</Authors>
     <Copyright>Steam Database</Copyright>
