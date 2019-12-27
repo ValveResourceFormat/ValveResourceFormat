@@ -109,7 +109,21 @@ namespace Decompiler
 
                 IsInputFolder = true;
 
-                paths.AddRange(Directory.EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly).Where(s => s.EndsWith("_c") || s.EndsWith(".vcs")));
+                var dirs = Directory
+                    .EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                    .Where(s => s.EndsWith("_c") || s.EndsWith(".vcs"));
+
+                if (!dirs.Any())
+                {
+                    Console.Error.WriteLine(
+                        "Unable to find any \"_c\" compiled files in \"{0}\" folder.{1}",
+                        InputFile,
+                        RecursiveSearch ? " Did you mean to include --recursive parameter?" : string.Empty);
+
+                    return 1;
+                }
+
+                paths.AddRange(dirs);
             }
             else if (File.Exists(InputFile))
             {
@@ -122,10 +136,9 @@ namespace Decompiler
 
                 paths.Add(InputFile);
             }
-
-            if (paths.Count == 0)
+            else
             {
-                Console.Error.WriteLine("No such file \"{0}\" or directory is empty. Did you mean to include --recursive parameter?", InputFile);
+                Console.Error.WriteLine("Input \"{0}\" is not a file or a folder.", InputFile);
 
                 return 1;
             }
