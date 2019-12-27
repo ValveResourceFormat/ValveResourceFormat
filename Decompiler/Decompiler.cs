@@ -110,7 +110,12 @@ namespace Decompiler
             }
             else if (File.Exists(InputFile))
             {
-                RecursiveSearch = false;
+                if (RecursiveSearch)
+                {
+                    Console.Error.WriteLine("File passed in with --recursive option. Either pass in a folder or remove --recursive.");
+
+                    return 1;
+                }
 
                 paths.Add(InputFile);
             }
