@@ -70,6 +70,7 @@ namespace Decompiler
         public string FileFilter { get; private set; }
 
         private string[] ExtFilterList;
+        private bool IsInputFolder;
 
         // This decompiler is a test bed for our library,
         // don't expect to see any quality code in here
@@ -105,6 +106,8 @@ namespace Decompiler
 
                     return 1;
                 }
+
+                IsInputFolder = true;
 
                 paths.AddRange(Directory.EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly).Where(s => s.EndsWith("_c") || s.EndsWith(".vcs")));
             }
@@ -320,7 +323,7 @@ namespace Decompiler
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    if (RecursiveSearch)
+                    if (IsInputFolder)
                     {
                         // I bet this is prone to breaking, is there a better way?
                         filePath = filePath.Remove(0, InputFile.TrimEnd(Path.DirectorySeparatorChar).Length + 1);
@@ -330,7 +333,7 @@ namespace Decompiler
                         filePath = Path.GetFileName(filePath);
                     }
 
-                    DumpFile(filePath, data, !RecursiveSearch);
+                    DumpFile(filePath, data, !IsInputFolder);
                 }
             }
             catch (Exception e)
