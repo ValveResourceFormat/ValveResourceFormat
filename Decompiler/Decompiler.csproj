@@ -17,7 +17,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <StartupObject>Decompiler.Decompiler</StartupObject>
     <TrimUnusedDependencies>true</TrimUnusedDependencies>
-    <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>

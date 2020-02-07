@@ -19,8 +19,8 @@ build_script:
 
 after_build:
   - dotnet pack --configuration release ValveResourceFormat\ValveResourceFormat.csproj
-  - dotnet publish --configuration Release --runtime win-x64 Decompiler\Decompiler.csproj
-  - dotnet publish --configuration Release --runtime linux-x64 Decompiler\Decompiler.csproj
+  - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler\Decompiler.csproj
+  - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler\Decompiler.csproj
 
 test_script:
 - ps: >-
