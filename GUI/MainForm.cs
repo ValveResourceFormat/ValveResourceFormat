@@ -89,14 +89,14 @@ namespace GUI
                 findToolStripButton.PerformClick();
             }
 
-            //if the user presses CTRL + Q, and there is a tab open, close the active tab
-            if (keyData == (Keys.Control | Keys.Q) && mainTabs.SelectedTab != null)
+            //if the user presses CTRL + W, and there is a tab open, close the active tab
+            if (keyData == (Keys.Control | Keys.W) && mainTabs.SelectedTab != null)
             {
                 CloseTab(mainTabs.SelectedTab);
             }
 
-            //if the user presses CTRL + W, close all open tabs
-            if (keyData == (Keys.Control | Keys.W))
+            //if the user presses CTRL + Q, close all open tabs
+            if (keyData == (Keys.Control | Keys.Q))
             {
                 CloseAllTabs();
             }
