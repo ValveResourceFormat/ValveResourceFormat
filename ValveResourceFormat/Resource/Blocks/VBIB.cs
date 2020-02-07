@@ -176,15 +176,17 @@ namespace ValveResourceFormat.Blocks
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
                     result[1] *= -1f; // Flip texcoord
                     break;
-                case DXGI_FORMAT.R8G8B8A8_UNORM:
                 case DXGI_FORMAT.R8G8B8A8_UINT:
+                case DXGI_FORMAT.R8G8B8A8_UNORM:
                     var bytes = new byte[4];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, bytes, 0, 4);
 
                     result = new float[4];
                     for (var i = 0; i < 4; i++)
                     {
-                        result[i] = bytes[i] / 255f;
+                        result[i] = attribute.Type == DXGI_FORMAT.R8G8B8A8_UNORM
+                            ? bytes[i] / 255f
+                            : bytes[i];
                     }
 
                     break;
