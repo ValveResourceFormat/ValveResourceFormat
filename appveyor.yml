@@ -19,7 +19,8 @@ build_script:
 
 after_build:
   - dotnet pack --configuration release ValveResourceFormat\ValveResourceFormat.csproj
-  - dotnet publish --configuration release Decompiler\Decompiler.csproj
+  - dotnet publish --configuration Release --runtime win-x64 Decompiler\Decompiler.csproj
+  - dotnet publish --configuration Release --runtime linux-x64 Decompiler\Decompiler.csproj
 
 test_script:
 - ps: >-
@@ -36,8 +37,10 @@ test_script:
     }
 
 artifacts:
-- path: Decompiler\bin\Release\netcoreapp2.0\publish
-  name: Decompiler
+- path: Decompiler\bin\Release\netcoreapp3.0\win-x64\publish
+  name: Decompiler-win-x64
+- path: Decompiler\bin\Release\netcoreapp3.0\linux-x64\publish
+  name: Decompiler-linux-x64
 - path: GUI\bin\Release
   name: GUI
 - path: '**\*.nupkg'
