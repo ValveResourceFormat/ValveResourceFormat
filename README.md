@@ -5,7 +5,7 @@
 [![Coverage Status](https://img.shields.io/coveralls/SteamDatabase/ValveResourceFormat.svg?label=Test%20Coverage)](https://coveralls.io/github/SteamDatabase/ValveResourceFormat)
 [![NuGet](https://img.shields.io/nuget/v/ValveResourceFormat.svg?label=NuGet)](https://www.nuget.org/packages/ValveResourceFormat/)
 
-Valve's Source 2 resource file format *(also known as Stupid Valve Format)* parser and decompiler. Contents of this repository are available under [MIT](LICENSE) license.
+Valve's Source 2 resource file format *(files that usually end with `_c` like `.vmdl_c`)* parser and decompiler. Contents of this repository are available under [MIT](LICENSE) license.
 
 **Interested in helping? Jump in `#steamdb` on [freenode](https://freenode.net/) and ask away!**
 
