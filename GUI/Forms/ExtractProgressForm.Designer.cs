@@ -17,6 +17,13 @@ namespace GUI.Forms
             {
                 components.Dispose();
             }
+
+            if (disposing && cancellationTokenSource != null)
+            {
+                cancellationTokenSource.Dispose();
+                cancellationTokenSource = null;
+            }
+
             base.Dispose(disposing);
         }
 

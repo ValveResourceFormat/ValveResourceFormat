@@ -17,6 +17,19 @@ namespace GUI
             {
                 components.Dispose();
             }
+
+            if (disposing && searchForm != null)
+            {
+                searchForm.Dispose();
+                searchForm = null;
+            }
+
+            if (disposing && ImageList != null)
+            {
+                ImageList.Dispose();
+                ImageList = null;
+            }
+
             base.Dispose(disposing);
         }
 

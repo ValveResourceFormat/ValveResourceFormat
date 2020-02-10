@@ -38,8 +38,8 @@ namespace GUI
             public Renderer Renderer { get; set; }
         }
 
-        private readonly SearchForm searchForm;
         private readonly Regex NewLineRegex;
+        private SearchForm searchForm;
         private ImageList ImageList;
 
         public MainForm()
