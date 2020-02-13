@@ -13,6 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
             WAV = 1,
             MP3 = 2,
             Unknown3 = 3,
+            Unknown_This_Is_Actually_One_In_New_Format = -1,
         }
 
         /// <summary>
@@ -129,10 +130,12 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case 0:
                     return AudioFileType.WAV;
+                case 1:
+                    return AudioFileType.Unknown_This_Is_Actually_One_In_New_Format;
                 case 2:
                     return AudioFileType.MP3;
                 default:
-                    return AudioFileType.Unknown3;
+                    return (AudioFileType)type;
             }
         }
 
