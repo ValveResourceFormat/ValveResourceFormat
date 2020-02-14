@@ -39,7 +39,7 @@ namespace GUI.Types
                     continue;
                 }
 
-                if (!newResource.Blocks.ContainsKey(BlockType.VBIB))
+                if (!newResource.ContainsBlockType(BlockType.VBIB))
                 {
                     Console.WriteLine("Old style model, no VBIB!");
 

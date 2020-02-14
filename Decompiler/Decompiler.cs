@@ -385,7 +385,7 @@ namespace Decompiler
             Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
             Console.WriteLine(Environment.NewLine);
 
-            if (resource.Blocks.ContainsKey(BlockType.RERL))
+            if (resource.ContainsBlockType(BlockType.RERL))
             {
                 Console.WriteLine("--- Resource External Refs: ---");
                 Console.WriteLine("\t{0,-16}  {1,-48}", "Id:", "Resource Name:");

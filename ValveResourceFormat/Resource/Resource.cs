@@ -57,8 +57,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Blocks.TryGetValue(BlockType.RERL, out var block);
-                return (ResourceExtRefList)block;
+                return (ResourceExtRefList)GetBlockByType(BlockType.RERL);
             }
         }
 
@@ -69,8 +68,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Blocks.TryGetValue(BlockType.REDI, out var block);
-                return (ResourceEditInfo)block;
+                return (ResourceEditInfo)GetBlockByType(BlockType.REDI);
             }
         }
 
@@ -81,8 +79,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Blocks.TryGetValue(BlockType.NTRO, out var block);
-                return (ResourceIntrospectionManifest)block;
+                return (ResourceIntrospectionManifest)GetBlockByType(BlockType.NTRO);
             }
         }
 
@@ -93,8 +90,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Blocks.TryGetValue(BlockType.VBIB, out var block);
-                return (VBIB)block;
+                return (VBIB)GetBlockByType(BlockType.VBIB);
             }
         }
 
@@ -105,8 +101,7 @@ namespace ValveResourceFormat
         {
             get
             {
-                Blocks.TryGetValue(BlockType.DATA, out var block);
-                return (ResourceData)block;
+                return (ResourceData)GetBlockByType(BlockType.DATA);
             }
         }
 
@@ -270,6 +265,17 @@ namespace ValveResourceFormat
 
                 Reader.BaseStream.Position = position + 8;
             }
+        }
+
+        public Block GetBlockByType(BlockType type)
+        {
+            Blocks.TryGetValue(type, out var block);
+            return block;
+        }
+
+        public bool ContainsBlockType(BlockType type)
+        {
+            return Blocks.ContainsKey(type);
         }
 
         private Block ConstructFromType(string input)

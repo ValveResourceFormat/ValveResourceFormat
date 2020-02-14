@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using NUnit.Framework;
 using SkiaSharp;
 using ValveResourceFormat;
@@ -19,7 +19,7 @@ namespace Tests
                 var resource = new Resource();
                 resource.Read(file);
 
-                var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                 var image = SKImage.FromBitmap(bitmap);
 
                 using (var ms = new MemoryStream())

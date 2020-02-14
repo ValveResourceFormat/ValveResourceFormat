@@ -108,14 +108,14 @@ namespace Tests
                 BlockType blockType;
                 Enum.TryParse(blockName, false, out blockType);
 
-                if (!resource.Blocks.ContainsKey(blockType))
+                if (!resource.ContainsBlockType(blockType))
                 {
                     Assert.Fail("{0}: no such block: {1}", name, blockType);
 
                     continue;
                 }
 
-                var actualOutput = resource.Blocks[blockType].ToString();
+                var actualOutput = resource.GetBlockByType(blockType).ToString();
                 var expectedOutput = File.ReadAllText(file);
 
                 // We don't care about Valve's messy whitespace, so just strip it.

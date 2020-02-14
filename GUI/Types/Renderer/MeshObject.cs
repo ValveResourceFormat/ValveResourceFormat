@@ -240,7 +240,7 @@ namespace GUI.Types.Renderer
 
         public static void WriteObject(StreamWriter objStream, StreamWriter mtlStream, string mtlFilename, Resource resource)
         {
-            var mesh = (VBIB)resource.Blocks[BlockType.VBIB];
+            var mesh = resource.VBIB;
 
             const string header = "# Written by VRF - https://opensource.steamdb.info/ValveResourceFormat/";
 

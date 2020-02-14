@@ -654,7 +654,7 @@ namespace GUI
                         resTabs.TabPages.Add(modelmeshTab);
                         break;
                     case ResourceType.Mesh:
-                        if (!resource.Blocks.ContainsKey(BlockType.VBIB))
+                        if (!resource.ContainsBlockType(BlockType.VBIB))
                         {
                             Console.WriteLine("Old style model, no VBIB!");
                             break;

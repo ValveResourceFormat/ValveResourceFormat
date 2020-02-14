@@ -115,7 +115,7 @@ namespace GUI.Types.Renderer
 
         public int LoadTexture(Resource textureResource)
         {
-            var tex = (Texture)textureResource.Blocks[BlockType.DATA];
+            var tex = (Texture)textureResource.DataBlock;
 
             var id = GL.GenTexture();
 
