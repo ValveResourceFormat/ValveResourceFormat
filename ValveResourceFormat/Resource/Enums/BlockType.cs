@@ -12,6 +12,13 @@ namespace ValveResourceFormat
         VBIB,
         VXVS,
         SNAP,
+        CTRL,
+        MDAT,
+        MBUF,
+        ANIM,
+        ASEQ,
+        AGRP,
+        PHYS,
 #pragma warning restore 1591
     }
 }
