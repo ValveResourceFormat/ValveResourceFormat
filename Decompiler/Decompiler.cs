@@ -326,7 +326,7 @@ namespace Decompiler
 
                     foreach (var block in resource.Blocks)
                     {
-                        block.Value.ToString();
+                        block.ToString();
                     }
                 }
 
@@ -417,7 +417,7 @@ namespace Decompiler
 
             foreach (var block in resource.Blocks)
             {
-                Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", block.Key, block.Value.Size, block.Value.Offset);
+                Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", block.GetChar(), block.Size, block.Offset);
             }
 
             if (PrintAllBlocks || !string.IsNullOrEmpty(BlockToPrint))
@@ -426,13 +426,13 @@ namespace Decompiler
 
                 foreach (var block in resource.Blocks)
                 {
-                    if (!PrintAllBlocks && BlockToPrint != block.Key.ToString())
+                    if (!PrintAllBlocks && BlockToPrint != block.GetChar().ToString())
                     {
                         continue;
                     }
 
-                    Console.WriteLine("--- Data for block \"{0}\" ---", block.Key);
-                    Console.WriteLine(block.Value);
+                    Console.WriteLine("--- Data for block \"{0}\" ---", block.GetChar());
+                    Console.WriteLine(block.ToString());
                 }
             }
         }

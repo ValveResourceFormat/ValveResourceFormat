@@ -674,7 +674,7 @@ namespace GUI
 
                 foreach (var block in resource.Blocks)
                 {
-                    if (block.Key == BlockType.RERL)
+                    if (block.GetChar() == BlockType.RERL)
                     {
                         var externalRefsTab = new TabPage("External Refs");
 
@@ -696,9 +696,9 @@ namespace GUI
                         continue;
                     }
 
-                    if (block.Key == BlockType.NTRO)
+                    if (block.GetChar() == BlockType.NTRO)
                     {
-                        if (((ResourceIntrospectionManifest)block.Value).ReferencedStructs.Count > 0)
+                        if (((ResourceIntrospectionManifest)block).ReferencedStructs.Count > 0)
                         {
                             var externalRefsTab = new TabPage("Introspection Manifest: Structs");
 
@@ -710,14 +710,14 @@ namespace GUI
                                 ReadOnly = true,
                                 AllowUserToAddRows = false,
                                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                                DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(((ResourceIntrospectionManifest)block.Value).ReferencedStructs), null),
+                                DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(((ResourceIntrospectionManifest)block).ReferencedStructs), null),
                             };
 
                             externalRefsTab.Controls.Add(externalRefs);
                             resTabs.TabPages.Add(externalRefsTab);
                         }
 
-                        if (((ResourceIntrospectionManifest)block.Value).ReferencedEnums.Count > 0)
+                        if (((ResourceIntrospectionManifest)block).ReferencedEnums.Count > 0)
                         {
                             var externalRefsTab = new TabPage("Introspection Manifest: Enums");
                             var externalRefs2 = new DataGridView
@@ -728,7 +728,7 @@ namespace GUI
                                 ReadOnly = true,
                                 AllowUserToAddRows = false,
                                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                                DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(((ResourceIntrospectionManifest)block.Value).ReferencedEnums), null),
+                                DataSource = new BindingSource(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(((ResourceIntrospectionManifest)block).ReferencedEnums), null),
                             };
 
                             externalRefsTab.Controls.Add(externalRefs2);
@@ -738,29 +738,29 @@ namespace GUI
                         //continue;
                     }
 
-                    var tab2 = new TabPage(block.Key.ToString());
+                    var tab2 = new TabPage(block.GetChar().ToString());
                     try
                     {
                         var control = new TextBox();
                         control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
 
-                        if (block.Key == BlockType.DATA)
+                        if (block.GetChar() == BlockType.DATA)
                         {
                             switch (resource.ResourceType)
                             {
                                 case ResourceType.Particle:
                                 case ResourceType.Mesh:
                                     //Wrap it around a KV3File object to get the header.
-                                    control.Text = NormalizeLineEndings(((BinaryKV3)block.Value).GetKV3File().ToString());
+                                    control.Text = NormalizeLineEndings(((BinaryKV3)block).GetKV3File().ToString());
                                     break;
                                 default:
-                                    control.Text = NormalizeLineEndings(block.Value.ToString());
+                                    control.Text = NormalizeLineEndings(block.ToString());
                                     break;
                             }
                         }
                         else
                         {
-                            control.Text = NormalizeLineEndings(block.Value.ToString());
+                            control.Text = NormalizeLineEndings(block.ToString());
                         }
 
                         control.Dock = DockStyle.Fill;
@@ -779,8 +779,8 @@ namespace GUI
 
                         Invoke((MethodInvoker)(() =>
                         {
-                            resource.Reader.BaseStream.Position = block.Value.Offset;
-                            bv.SetBytes(resource.Reader.ReadBytes((int)block.Value.Size));
+                            resource.Reader.BaseStream.Position = block.Offset;
+                            bv.SetBytes(resource.Reader.ReadBytes((int)block.Size));
                         }));
                     }
 

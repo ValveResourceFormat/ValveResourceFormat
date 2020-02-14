@@ -42,7 +42,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the list of blocks this resource contains.
         /// </summary>
-        public Dictionary<BlockType, Block> Blocks { get; }
+        public List<Block> Blocks { get; }
 
         /// <summary>
         /// Gets or sets the type of the resource.
@@ -111,7 +111,7 @@ namespace ValveResourceFormat
         public Resource()
         {
             ResourceType = ResourceType.Unknown;
-            Blocks = new Dictionary<BlockType, Block>();
+            Blocks = new List<Block>();
         }
 
         /// <summary>
@@ -227,7 +227,7 @@ namespace ValveResourceFormat
                 block.Size = size;
                 block.Read(Reader, this);
 
-                Blocks.Add(block.GetChar(), block);
+                Blocks.Add(block);
 
                 switch (block.GetChar())
                 {
@@ -269,13 +269,13 @@ namespace ValveResourceFormat
 
         public Block GetBlockByType(BlockType type)
         {
-            Blocks.TryGetValue(type, out var block);
-            return block;
+            // TODO: Return null or default(Block) if not found? I think .Find() throws
+            return Blocks.Find(b => b.GetChar() == type);
         }
 
         public bool ContainsBlockType(BlockType type)
         {
-            return Blocks.ContainsKey(type);
+            return Blocks.Exists(b => b.GetChar() == type);
         }
 
         private Block ConstructFromType(string input)
@@ -343,7 +343,7 @@ namespace ValveResourceFormat
                     return new BinaryKV3();
             }
 
-            if (Blocks.ContainsKey(BlockType.NTRO))
+            if (ContainsBlockType(BlockType.NTRO))
             {
                 return new NTRO();
             }
