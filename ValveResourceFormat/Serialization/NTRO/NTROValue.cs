@@ -85,24 +85,27 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 case DataType.ExternalReference:
-                    var refInfo = Value;
+                    var refInfo = Value as ResourceExtRefList.ResourceReferenceInfo;
 
-                    writer.WriteLine("Name: {0:X16}", refInfo);
+                    writer.WriteLine("ID: {0:X16}", refInfo.Id);
                     break;
 
                 case DataType.Color:
                 case DataType.Fltx4:
                 case DataType.Vector4D:
                 case DataType.Vector4D_44:
-                    (Value as NTROStruct).WriteText(writer);
+                    var vector4 = (Value as NTROStruct).ToVector4();
+                    writer.WriteLine("({0:F6}, {1:F6}, {2:F6}, {3:F6})", vector4.X, vector4.Y, vector4.Z, vector4.W);
                     break;
 
                 case DataType.Quaternion:
-                    (Value as NTROStruct).WriteText(writer);
+                    var quaternion = (Value as NTROStruct).ToQuaternion();
+                    writer.WriteLine("{{x: {0:F2}, y: {1:F2}, z: {2:F2}, w: {3}}}", quaternion.X, quaternion.Y, quaternion.Z, quaternion.W.ToString("F2"));
                     break;
 
                 case DataType.Vector:
-                    (Value as NTROStruct).WriteText(writer);
+                    var vector3 = (Value as NTROStruct).ToVector3();
+                    writer.WriteLine($"({vector3.X:F6}, {vector3.Y:F6}, {vector3.Z:F6})");
                     break;
 
                 case DataType.String4:
@@ -120,12 +123,19 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 case DataType.Matrix2x4:
-                    (Value as NTROStruct).WriteText(writer);
+                    var matrix2x4 = Value as NTROStruct;
+                    writer.WriteLine();
+                    writer.WriteLine($"{matrix2x4.GetFloatProperty("0"):F4} {matrix2x4.GetFloatProperty("1"):F4} {matrix2x4.GetFloatProperty("2"):F4} {matrix2x4.GetFloatProperty("3"):F4}");
+                    writer.WriteLine($"{matrix2x4.GetFloatProperty("4"):F4} {matrix2x4.GetFloatProperty("5"):F4} {matrix2x4.GetFloatProperty("6"):F4} {matrix2x4.GetFloatProperty("7"):F4}");
                     break;
 
                 case DataType.Matrix3x4:
                 case DataType.Matrix3x4a:
-                    (Value as NTROStruct).WriteText(writer);
+                    var matrix3x4 = Value as NTROStruct;
+                    writer.WriteLine();
+                    writer.WriteLine($"{matrix3x4.GetFloatProperty("0"):F4} {matrix3x4.GetFloatProperty("1"):F4} {matrix3x4.GetFloatProperty("2"):F4} {matrix3x4.GetFloatProperty("3"):F4}");
+                    writer.WriteLine($"{matrix3x4.GetFloatProperty("4"):F4} {matrix3x4.GetFloatProperty("5"):F4} {matrix3x4.GetFloatProperty("6"):F4} {matrix3x4.GetFloatProperty("7"):F4}");
+                    writer.WriteLine($"{matrix3x4.GetFloatProperty("8"):F4} {matrix3x4.GetFloatProperty("9"):F4} {matrix3x4.GetFloatProperty("10"):F4} {matrix3x4.GetFloatProperty("11"):F4}");
                     break;
 
                 case DataType.Struct:

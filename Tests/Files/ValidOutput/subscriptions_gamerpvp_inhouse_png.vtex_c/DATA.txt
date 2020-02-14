@@ -15,3 +15,4 @@
 	             | 0x00000008 = VTEX_FLAG_NO_LOD
 	Extra Data   = 1 entries:
 	               [ Entry 0: VTEX_EXTRA_DATA_FALLBACK_BITS - 1024 bytes ]
+Mip level 0 - buffer size: 174080
