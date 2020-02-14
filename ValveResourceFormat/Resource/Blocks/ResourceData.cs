@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 
 namespace ValveResourceFormat.Blocks
@@ -8,10 +8,7 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceData : Block
     {
-        public override BlockType GetChar()
-        {
-            return BlockType.DATA;
-        }
+        public override BlockType Type => BlockType.DATA;
 
         public override void Read(BinaryReader reader, Resource resource)
         {

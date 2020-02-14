@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
-using System.Text;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -10,10 +8,7 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class VXVS : Block
     {
-        public override BlockType GetChar()
-        {
-            return BlockType.VXVS;
-        }
+        public override BlockType Type => BlockType.VXVS;
 
         public override void Read(BinaryReader reader, Resource resource)
         {

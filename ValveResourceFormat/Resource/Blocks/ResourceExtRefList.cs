@@ -11,6 +11,8 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceExtRefList : Block
     {
+        public override BlockType Type => BlockType.RERL;
+
         public class ResourceReferenceInfo : IKeyValueCollection
         {
             /// <summary>
@@ -72,11 +74,6 @@ namespace ValveResourceFormat.Blocks
         public ResourceExtRefList()
         {
             ResourceRefInfoList = new List<ResourceReferenceInfo>();
-        }
-
-        public override BlockType GetChar()
-        {
-            return BlockType.RERL;
         }
 
         public override void Read(BinaryReader reader, Resource resource)

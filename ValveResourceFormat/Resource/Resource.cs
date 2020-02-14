@@ -229,7 +229,7 @@ namespace ValveResourceFormat
 
                 Blocks.Add(block);
 
-                switch (block.GetChar())
+                switch (block.Type)
                 {
                     case BlockType.REDI:
                         // Try to determine resource type by looking at first compiler indentifier
@@ -270,12 +270,12 @@ namespace ValveResourceFormat
         public Block GetBlockByType(BlockType type)
         {
             // TODO: Return null or default(Block) if not found? I think .Find() throws
-            return Blocks.Find(b => b.GetChar() == type);
+            return Blocks.Find(b => b.Type == type);
         }
 
         public bool ContainsBlockType(BlockType type)
         {
-            return Blocks.Exists(b => b.GetChar() == type);
+            return Blocks.Exists(b => b.Type == type);
         }
 
         private Block ConstructFromType(string input)

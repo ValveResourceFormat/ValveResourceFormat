@@ -417,7 +417,7 @@ namespace Decompiler
 
             foreach (var block in resource.Blocks)
             {
-                Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", block.GetChar(), block.Size, block.Offset);
+                Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", block.Type, block.Size, block.Offset);
             }
 
             if (PrintAllBlocks || !string.IsNullOrEmpty(BlockToPrint))
@@ -426,12 +426,12 @@ namespace Decompiler
 
                 foreach (var block in resource.Blocks)
                 {
-                    if (!PrintAllBlocks && BlockToPrint != block.GetChar().ToString())
+                    if (!PrintAllBlocks && BlockToPrint != block.Type.ToString())
                     {
                         continue;
                     }
 
-                    Console.WriteLine("--- Data for block \"{0}\" ---", block.GetChar());
+                    Console.WriteLine("--- Data for block \"{0}\" ---", block.Type);
                     Console.WriteLine(block.ToString());
                 }
             }

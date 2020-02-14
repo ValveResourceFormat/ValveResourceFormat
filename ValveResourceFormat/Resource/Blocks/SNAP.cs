@@ -10,10 +10,7 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class SNAP : Block
     {
-        public override BlockType GetChar()
-        {
-            return BlockType.SNAP;
-        }
+        public override BlockType Type => BlockType.SNAP;
 
         public override void Read(BinaryReader reader, Resource resource)
         {

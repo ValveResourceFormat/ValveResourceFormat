@@ -9,6 +9,8 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceIntrospectionManifest : Block
     {
+        public override BlockType Type => BlockType.NTRO;
+
         public class ResourceDiskStruct
         {
             public class Field
@@ -167,11 +169,6 @@ namespace ValveResourceFormat.Blocks
         {
             ReferencedStructs = new List<ResourceDiskStruct>();
             ReferencedEnums = new List<ResourceDiskEnum>();
-        }
-
-        public override BlockType GetChar()
-        {
-            return BlockType.NTRO;
         }
 
         public override void Read(BinaryReader reader, Resource resource)

@@ -674,7 +674,7 @@ namespace GUI
 
                 foreach (var block in resource.Blocks)
                 {
-                    if (block.GetChar() == BlockType.RERL)
+                    if (block.Type == BlockType.RERL)
                     {
                         var externalRefsTab = new TabPage("External Refs");
 
@@ -696,7 +696,7 @@ namespace GUI
                         continue;
                     }
 
-                    if (block.GetChar() == BlockType.NTRO)
+                    if (block.Type == BlockType.NTRO)
                     {
                         if (((ResourceIntrospectionManifest)block).ReferencedStructs.Count > 0)
                         {
@@ -738,13 +738,13 @@ namespace GUI
                         //continue;
                     }
 
-                    var tab2 = new TabPage(block.GetChar().ToString());
+                    var tab2 = new TabPage(block.Type.ToString());
                     try
                     {
                         var control = new TextBox();
                         control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
 
-                        if (block.GetChar() == BlockType.DATA)
+                        if (block.Type == BlockType.DATA)
                         {
                             switch (resource.ResourceType)
                             {

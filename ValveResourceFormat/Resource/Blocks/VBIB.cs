@@ -11,6 +11,8 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class VBIB : Block
     {
+        public override BlockType Type => BlockType.VBIB;
+
         public List<VertexBuffer> VertexBuffers { get; }
         public List<IndexBuffer> IndexBuffers { get; }
 
@@ -40,11 +42,6 @@ namespace ValveResourceFormat.Blocks
         {
             VertexBuffers = new List<VertexBuffer>();
             IndexBuffers = new List<IndexBuffer>();
-        }
-
-        public override BlockType GetChar()
-        {
-            return BlockType.VBIB;
         }
 
         public override void Read(BinaryReader reader, Resource resource)

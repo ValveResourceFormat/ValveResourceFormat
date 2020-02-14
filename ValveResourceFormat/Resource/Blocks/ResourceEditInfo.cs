@@ -9,6 +9,8 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceEditInfo : Block
     {
+        public override BlockType Type => BlockType.REDI;
+
         /// <summary>
         /// This is not a real Valve enum, it's just the order they appear in.
         /// </summary>
@@ -33,11 +35,6 @@ namespace ValveResourceFormat.Blocks
         public ResourceEditInfo()
         {
             Structs = new Dictionary<REDIStruct, REDIBlock>();
-        }
-
-        public override BlockType GetChar()
-        {
-            return BlockType.REDI;
         }
 
         public override void Read(BinaryReader reader, Resource resource)
