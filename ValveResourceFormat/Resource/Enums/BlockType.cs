@@ -14,6 +14,7 @@ namespace ValveResourceFormat
         SNAP,
         CTRL,
         MDAT,
+        MRPH,
         MBUF,
         ANIM,
         ASEQ,

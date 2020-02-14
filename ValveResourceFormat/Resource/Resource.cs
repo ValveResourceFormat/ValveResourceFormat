@@ -302,6 +302,30 @@ namespace ValveResourceFormat
 
                 case "SNAP":
                     return new SNAP();
+
+                case "MBUF":
+                    return new MBUF();
+
+                case "CTRL":
+                    return new BinaryKV3();
+
+                case "MDAT":
+                    return new BinaryKV3();
+
+                case "MRPH":
+                    return new BinaryKV3();
+
+                case "ANIM":
+                    return new BinaryKV3();
+
+                case "ASEQ":
+                    return new BinaryKV3();
+
+                case "AGRP":
+                    return new BinaryKV3();
+
+                case "PHYS":
+                    return new BinaryKV3();
             }
 
             throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));
