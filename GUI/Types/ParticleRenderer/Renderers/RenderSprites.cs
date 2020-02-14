@@ -170,7 +170,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(textureName + "_c", vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 
-            return (materialLoader.LoadTexture(textureName), (Texture)textureResource.Blocks[BlockType.DATA]);
+            return (materialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
         }
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)

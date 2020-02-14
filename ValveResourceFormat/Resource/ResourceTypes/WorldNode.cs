@@ -1,3 +1,4 @@
+using System;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -13,9 +14,17 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IKeyValueCollection GetData()
         {
-            return resource.Blocks[BlockType.DATA] is NTRO ntro
-                ? ntro.Output as IKeyValueCollection
-                : ((BinaryKV3)resource.Blocks[BlockType.DATA]).Data;
+            var data = resource.DataBlock;
+            if (data is NTRO ntro)
+            {
+                return ntro.Output;
+            }
+            else if (data is BinaryKV3 kv)
+            {
+                return kv.Data;
+            }
+
+            throw new InvalidOperationException($"Unknown world node data type {data.GetType().Name}");
         }
     }
 }

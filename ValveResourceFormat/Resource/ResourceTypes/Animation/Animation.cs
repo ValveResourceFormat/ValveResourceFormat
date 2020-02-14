@@ -34,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.Animation
 
         public IKeyValueCollection GetAnimationData()
         {
-            var dataBlock = resource.Blocks[BlockType.DATA];
+            var dataBlock = resource.DataBlock;
             if (dataBlock is NTRO ntro)
             {
                 return ntro.Output;

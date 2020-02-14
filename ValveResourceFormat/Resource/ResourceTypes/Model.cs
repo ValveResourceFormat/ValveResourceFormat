@@ -20,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IKeyValueCollection GetData()
         {
-            var data = resource.Blocks[BlockType.DATA];
+            var data = resource.DataBlock;
             if (data is BinaryKV3 binaryKv)
             {
                 return binaryKv.Data;

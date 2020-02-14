@@ -16,7 +16,7 @@ namespace GUI.Types.Audio
 
         public AudioPlayer(Resource resource, TabPage tab)
         {
-            var soundData = (Sound)resource.Blocks[BlockType.DATA];
+            var soundData = (Sound)resource.DataBlock;
 
             var stream = soundData.GetSoundStream();
             waveOut = new WaveOutEvent();

@@ -514,7 +514,7 @@ namespace GUI
 
                         try
                         {
-                            var tex = (Texture)resource.Blocks[BlockType.DATA];
+                            var tex = (Texture)resource.DataBlock;
 
                             var control = new Forms.Texture
                             {
@@ -542,7 +542,7 @@ namespace GUI
                         resTabs.TabPages.Add(tab2);
                         break;
                     case ResourceType.Panorama:
-                        if (((Panorama)resource.Blocks[BlockType.DATA]).Names.Count > 0)
+                        if (((Panorama)resource.DataBlock).Names.Count > 0)
                         {
                             var nameTab = new TabPage("PANORAMA NAMES");
                             var nameControl = new DataGridView
@@ -552,7 +552,7 @@ namespace GUI
                                 ReadOnly = true,
                                 AllowUserToAddRows = false,
                                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                                DataSource = new BindingSource(new BindingList<Panorama.NameEntry>(((Panorama)resource.Blocks[BlockType.DATA]).Names), null),
+                                DataSource = new BindingSource(new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
                             };
                             nameTab.Controls.Add(nameControl);
                             resTabs.TabPages.Add(nameTab);
@@ -599,7 +599,7 @@ namespace GUI
                         var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.Blocks[BlockType.DATA]).Type}", fileName, new ExportData { Resource = resource });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).Type}", fileName, new ExportData { Resource = resource });
 
                         break;
                     case ResourceType.World:
@@ -1073,7 +1073,7 @@ namespace GUI
             {
                 case ResourceType.Sound:
                     //WAV or MP3
-                    extensions = new[] { ((Sound)resource.Blocks[BlockType.DATA]).Type.ToString().ToLower() };
+                    extensions = new[] { ((Sound)resource.DataBlock).Type.ToString().ToLower() };
                     break;
                 case ResourceType.Texture:
                     extensions = new[] { "png" };
@@ -1134,7 +1134,7 @@ namespace GUI
                                 Console.WriteLine($"Exporting texture for mesh: {texture}");
 
                                 var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(texture + "_c", tag.Renderer.CurrentFileName, tag.Renderer.CurrentPackage);
-                                var textureImage = SKImage.FromBitmap(((Texture)textureResource.Blocks[BlockType.DATA]).GenerateBitmap());
+                                var textureImage = SKImage.FromBitmap(((Texture)textureResource.DataBlock).GenerateBitmap());
 
                                 using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
                                 using (var data = textureImage.Encode(SKEncodedImageFormat.Png, 100))

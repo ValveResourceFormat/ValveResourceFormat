@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer.Animation
     {
         public static List<ValveResourceFormat.ResourceTypes.Animation.Animation> LoadAnimationGroup(Resource resource, string path, Package currentPackage)
         {
-            var dataBlock = resource.Blocks[BlockType.DATA];
+            var dataBlock = resource.DataBlock;
             var data = dataBlock is NTRO ntro
                 ? ntro.Output as IKeyValueCollection
                 : ((BinaryKV3)dataBlock).Data;

@@ -720,7 +720,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var data = (BinaryKV3)yo.Resource.Blocks[BlockType.DATA];
+            var data = (BinaryKV3)yo.Resource.DataBlock;
             var sceneObjects = data.Data.GetArray("m_sceneObjects");
 
             if (sceneObjects.Length == 0)

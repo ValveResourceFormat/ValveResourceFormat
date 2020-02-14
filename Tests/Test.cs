@@ -150,7 +150,7 @@ namespace Tests
 
             using (var sha1 = new SHA1CryptoServiceProvider())
             {
-                var sound = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                var sound = ((Sound)resource.DataBlock).GetSound();
                 var actualHash = BitConverter.ToString(sha1.ComputeHash(sound)).Replace("-", "");
 
                 Assert.AreEqual("59AC27F1A4395D8D02E4B3ADAA99023F243C8B41", actualHash);

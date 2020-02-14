@@ -26,8 +26,8 @@ namespace GUI.Types.Renderer
             if (Resource != null)
             {
                 var block = Resource.VBIB;
-                var data = (BinaryKV3)Resource.Blocks[BlockType.DATA];
-                var modelArguments = (ArgumentDependencies)((ResourceEditInfo)Resource.Blocks[BlockType.REDI]).Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
+                var data = (BinaryKV3)Resource.DataBlock;
+                var modelArguments = (ArgumentDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
 
                 var vertexBuffers = new uint[block.VertexBuffers.Count];
                 var indexBuffers = new uint[block.IndexBuffers.Count];
@@ -255,7 +255,7 @@ namespace GUI.Types.Renderer
                 throw new InvalidDataException("VertexBuffers.Count != IndexBuffers.Count");
             }
 
-            var data = (BinaryKV3)resource.Blocks[BlockType.DATA];
+            var data = (BinaryKV3)resource.DataBlock;
             var sceneObjects = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
 
             var indexCount = 1;

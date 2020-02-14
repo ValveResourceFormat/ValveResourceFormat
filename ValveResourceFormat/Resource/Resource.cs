@@ -99,6 +99,18 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
+        /// Gets the generic DATA block.
+        /// </summary>
+        public ResourceData DataBlock
+        {
+            get
+            {
+                Blocks.TryGetValue(BlockType.DATA, out var block);
+                return (ResourceData)block;
+            }
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Resource"/> class.
         /// </summary>
         public Resource()

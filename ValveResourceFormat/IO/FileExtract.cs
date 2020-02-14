@@ -20,16 +20,16 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaVectorGraphic:
-                    data = ((Panorama)resource.Blocks[BlockType.DATA]).Data;
+                    data = ((Panorama)resource.DataBlock).Data;
                     break;
 
                 case ResourceType.Sound:
-                    data = ((Sound)resource.Blocks[BlockType.DATA]).GetSound();
+                    data = ((Sound)resource.DataBlock).GetSound();
 
                     break;
 
                 case ResourceType.Texture:
-                    var bitmap = ((Texture)resource.Blocks[BlockType.DATA]).GenerateBitmap();
+                    var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                     var image = SKImage.FromBitmap(bitmap);
 
                     using (var ms = new MemoryStream())
@@ -47,17 +47,17 @@ namespace ValveResourceFormat.IO
                 case ResourceType.Particle:
                 case ResourceType.Mesh:
                     // Wrap it around a KV3File object to get the header.
-                    data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.Blocks[BlockType.DATA]).GetKV3File().ToString());
+                    data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.DataBlock).GetKV3File().ToString());
                     break;
 
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.SoundEventScript:
-                    data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                    data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
                 default:
                     Console.WriteLine("-- (I don't know how to dump this resource type)"); // TODO: What do we do with this
-                    data = Encoding.UTF8.GetBytes(resource.Blocks[BlockType.DATA].ToString());
+                    data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
             }
 
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.Texture: return "png";
 
                 case ResourceType.Sound:
-                    switch (((Sound)resource.Blocks[BlockType.DATA]).Type)
+                    switch (((Sound)resource.DataBlock).Type)
                     {
                         case Sound.AudioFileType.MP3: return "mp3";
                         case Sound.AudioFileType.WAV: return "wav";

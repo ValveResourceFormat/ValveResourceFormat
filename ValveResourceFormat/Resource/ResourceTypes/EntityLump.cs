@@ -32,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IKeyValueCollection GetData()
         {
-            var data = resource.Blocks[BlockType.DATA];
+            var data = resource.DataBlock;
             if (data is NTRO ntro)
             {
                 return ntro.Output;
