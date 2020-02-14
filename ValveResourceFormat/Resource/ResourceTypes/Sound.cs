@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -56,8 +57,6 @@ namespace ValveResourceFormat.ResourceTypes
             // NTRO only in version 0?
             if (resource.IntrospectionManifest == null)
             {
-                // TODO: Removed due to block refactor, maybe this hack isn't needed anymore?
-#if false
                 var block = new ResourceIntrospectionManifest.ResourceDiskStruct();
 
                 var field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
@@ -83,9 +82,8 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 block.FieldIntrospection.Add(field);
 
-                resource.Blocks[BlockType.NTRO] = new ResourceIntrospectionManifest();
+                resource.Blocks.Add(new ResourceIntrospectionManifest());
                 resource.IntrospectionManifest.ReferencedStructs.Add(block);
-#endif
             }
 
             reader.BaseStream.Position = Offset;
