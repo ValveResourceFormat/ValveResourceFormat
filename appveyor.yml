@@ -25,7 +25,7 @@ after_build:
 test_script:
 - ps: >-
     $opencover = (Resolve-Path "$ENV:USERPROFILE/.nuget/packages/OpenCover/*/tools/OpenCover.Console.exe").ToString();
-    & $opencover "-target:%ProgramFiles%\dotnet\dotnet.exe" "-targetargs:test -c debug Tests\Tests.csproj" -filter:"+[ValveResourceFormat*]* -[ValveResourceFormat]SevenZip*" -output:opencoverCoverage.xml -register:user -returntargetcode -oldStyle
+    & $opencover "-target:%ProgramFiles%\dotnet\dotnet.exe" "-targetargs:test -c debug Tests\Tests.csproj" -filter:"+[ValveResourceFormat*]* -[ValveResourceFormat]SevenZip*" -output:opencoverCoverage.xml -register:administrator -returntargetcode -oldStyle
 
     if ($LastExitCode -ne 0) {
       throw "Exec: $ErrorMessage`nExit code: $LastExitCode";
