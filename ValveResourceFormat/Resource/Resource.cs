@@ -267,9 +267,13 @@ namespace ValveResourceFormat
             }
         }
 
+        public Block GetBlockByIndex(int index)
+        {
+            return Blocks[index];
+        }
+
         public Block GetBlockByType(BlockType type)
         {
-            // TODO: Return null or default(Block) if not found? I think .Find() throws
             return Blocks.Find(b => b.Type == type);
         }
 
