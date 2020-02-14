@@ -115,6 +115,8 @@ namespace Tests
                     continue;
                 }
 
+                TestContext.Out.WriteLine($"Verifying file '{file}' - {blockType}");
+
                 var actualOutput = resource.GetBlockByType(blockType).ToString();
                 var expectedOutput = File.ReadAllText(file);
 
