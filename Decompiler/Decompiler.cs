@@ -272,7 +272,7 @@ namespace Decompiler
                             break;
 
                         case ResourceType.Sound:
-                            info = ((Sound)resource.DataBlock).Type.ToString();
+                            info = ((Sound)resource.DataBlock).SoundType.ToString();
                             break;
 
                         case ResourceType.Particle:

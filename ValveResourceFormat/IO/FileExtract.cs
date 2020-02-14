@@ -75,7 +75,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.Texture: return "png";
 
                 case ResourceType.Sound:
-                    switch (((Sound)resource.DataBlock).Type)
+                    switch (((Sound)resource.DataBlock).SoundType)
                     {
                         case Sound.AudioFileType.MP3: return "mp3";
                         case Sound.AudioFileType.WAV: return "wav";

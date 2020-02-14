@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -20,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the audio file type.
         /// </summary>
         /// <value>The file type.</value>
-        public AudioFileType Type { get; private set; }
+        public AudioFileType SoundType { get; private set; }
 
         /// <summary>
         /// Gets the samples per second.
@@ -102,7 +101,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 // New format
                 SampleRate = ExtractSub(bitpackedSoundInfo, 0, 16);
-                Type = GetTypeFromNewFormat(ExtractSub(bitpackedSoundInfo, 16, 2));
+                SoundType = GetTypeFromNewFormat(ExtractSub(bitpackedSoundInfo, 16, 2));
                 // unknown = ExtractSub(bitpackedSoundInfo, 18, 2);
                 Bits = ExtractSub(bitpackedSoundInfo, 20, 7);
 
@@ -113,7 +112,7 @@ namespace ValveResourceFormat.ResourceTypes
             else
             {
                 // Old format
-                Type = (AudioFileType)ExtractSub(bitpackedSoundInfo, 0, 2);
+                SoundType = (AudioFileType)ExtractSub(bitpackedSoundInfo, 0, 2);
                 Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
                 Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
                 SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
@@ -121,9 +120,9 @@ namespace ValveResourceFormat.ResourceTypes
                 SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
             }
 
-            if (Type > AudioFileType.MP3)
+            if (SoundType > AudioFileType.MP3)
             {
-                throw new NotImplementedException($"Unknown audio file format '{Type}', please report this on GitHub.");
+                throw new NotImplementedException($"Unknown audio file format '{SoundType}', please report this on GitHub.");
             }
         }
 
@@ -174,7 +173,7 @@ namespace ValveResourceFormat.ResourceTypes
             var streamingDataSize = (uint)(Reader.BaseStream.Length - Reader.BaseStream.Position);
             var stream = new MemoryStream();
 
-            if (Type == AudioFileType.WAV)
+            if (SoundType == AudioFileType.WAV)
             {
                 // http://soundfile.sapp.org/doc/WaveFormat/
                 // http://www.codeproject.com/Articles/129173/Writing-a-Proper-Wave-File
@@ -234,7 +233,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             output += "\nSample Rate: " + SampleRate;
             output += "\nBits: " + Bits;
-            output += "\nType: " + Type;
+            output += "\nType: " + SoundType;
             output += "\nSampleSize: " + SampleSize;
             output += "\nFormat: " + AudioFormat;
             output += "\nChannels: " + Channels;

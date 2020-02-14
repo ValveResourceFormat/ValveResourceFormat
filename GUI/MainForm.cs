@@ -599,7 +599,7 @@ namespace GUI
                         var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).Type}", fileName, new ExportData { Resource = resource });
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).SoundType}", fileName, new ExportData { Resource = resource });
 
                         break;
                     case ResourceType.World:
@@ -1073,7 +1073,7 @@ namespace GUI
             {
                 case ResourceType.Sound:
                     //WAV or MP3
-                    extensions = new[] { ((Sound)resource.DataBlock).Type.ToString().ToLower() };
+                    extensions = new[] { ((Sound)resource.DataBlock).SoundType.ToString().ToLower() };
                     break;
                 case ResourceType.Texture:
                     extensions = new[] { "png" };
