@@ -51,7 +51,7 @@ namespace Tests
                 Assert.AreEqual(extension, attribute, file);
             }
 
-            VerifyResources(resources);
+            Assert.Multiple(() => VerifyResources(resources));
         }
 
         [Test]
@@ -80,7 +80,7 @@ namespace Tests
                 resources.Add(Path.GetFileName(file), resource);
             }
 
-            VerifyResources(resources);
+            Assert.Multiple(() => VerifyResources(resources));
         }
 
         private void VerifyResources(Dictionary<string, Resource> resources)
@@ -124,19 +124,10 @@ namespace Tests
                 actualOutput = Regex.Replace(actualOutput, @"\s+", string.Empty);
                 expectedOutput = Regex.Replace(expectedOutput, @"\s+", string.Empty);
 
-                try
+                //Assert.AreEqual(expectedOutput, actualOutput);
+                if (expectedOutput != actualOutput)
                 {
-                    Assert.AreEqual(expectedOutput, actualOutput);
-                }
-                catch (AssertionException e)
-                {
-                    //exceptions.AppendLine("File: " + file);
-                    //exceptions.AppendLine(e + Environment.NewLine);
-
-                    // Allow these tests to fail because we can't control float formatting in C# and they may fail
-                    // depending on OS, runtime version and other stuff
-                    Console.WriteLine("File: " + file);
-                    Console.WriteLine(e + Environment.NewLine);
+                    TestContext.Error.WriteLine($"File '{file}' has mismatching ToString() in {blockType}");
                 }
             }
 
