@@ -28,4 +28,4 @@ jobs:
       run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Run tests
-      run: dotnet test ./Tests/Tests.csproj
+      run: dotnet test -v detailed ./Tests/Tests.csproj
