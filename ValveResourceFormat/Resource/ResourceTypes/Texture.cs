@@ -318,6 +318,10 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.IA88:
                     return TextureDecompressors.ReadIA88(GetDecompressedBuffer(), Width, Height);
 
+                case VTexFormat.ATI1N:
+                    TextureDecompressors.UncompressATI1N(GetDecompressedBuffer(), data, Width, Height);
+                    break;
+
                 // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
@@ -369,7 +373,11 @@ namespace ValveResourceFormat.ResourceTypes
                 depth = 1;
             }
 
-            if (Format == VTexFormat.DXT1 || Format == VTexFormat.DXT5 || Format == VTexFormat.ETC2 || Format == VTexFormat.ETC2_EAC)
+            if (Format == VTexFormat.DXT1
+            || Format == VTexFormat.DXT5
+            || Format == VTexFormat.ETC2
+            || Format == VTexFormat.ETC2_EAC
+            || Format == VTexFormat.ATI1N)
             {
                 var misalign = width % 4;
 
@@ -490,6 +498,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.ETC2: return 8;
                 case VTexFormat.ETC2_EAC: return 16;
                 case VTexFormat.BGRA8888: return 4;
+                case VTexFormat.ATI1N: return 8;
             }
 
             return 1;

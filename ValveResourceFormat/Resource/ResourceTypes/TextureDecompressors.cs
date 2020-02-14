@@ -302,6 +302,84 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
+        public static void UncompressATI1N(BinaryReader r, Span<byte> data, int w, int h)
+        {
+            byte InterpolateColor(byte index, sbyte red0, sbyte red1)
+            {
+                float red;
+                if (index == 0)
+                {
+                    red = red0;
+                }
+                else if (index == 1)
+                {
+                    red = red1;
+                }
+                else
+                {
+                    if (red0 > red1)
+                    {
+                        index -= 1;
+                        red = ((red0 * (7 - index)) + (red1 * index)) / 7.0f;
+                    }
+                    else
+                    {
+                        if (index == 6)
+                        {
+                            red = -127.0f;
+                        }
+                        else if (index == 7)
+                        {
+                            red = 127.0f;
+                        }
+                        else
+                        {
+                            index -= 1;
+                            red = ((red0 * (5 - index)) + (red1 * index)) / 5.0f;
+                        }
+                    }
+                }
+
+                return (byte)(((red + 127) * (255.0f / 254.0f)) + 0.5f);
+            }
+
+            var dataIndex = 0;
+            var blockCountX = (w + 3) / 4;
+            var blockCountY = (h + 3) / 4;
+
+            for (var j = 0; j < blockCountY; j++)
+            {
+                for (var i = 0; i < blockCountX; i++)
+                {
+                    var blockStorage = r.ReadBytes(8);
+                    sbyte red0 = (sbyte)blockStorage[0];
+                    sbyte red1 = (sbyte)blockStorage[1];
+                    red0 = (red0 == -128) ? (sbyte)-127 : red0;
+                    red1 = (red1 == -128) ? (sbyte)-127 : red1;
+
+                    ulong rIndex = blockStorage[2];
+                    rIndex |= (ulong)blockStorage[3] << 8;
+                    rIndex |= (ulong)blockStorage[4] << 16;
+                    rIndex |= (ulong)blockStorage[5] << 24;
+                    rIndex |= (ulong)blockStorage[6] << 32;
+                    rIndex |= (ulong)blockStorage[7] << 40;
+
+                    for (int p = 0; p < 16; p++)
+                    {
+                        uint index = (byte)((uint)(rIndex >> (3 * p)) & 0x07);
+
+                        data[dataIndex++] = InterpolateColor((byte)index, red0, red1);
+
+                        // Is mult 4?
+                        if (((p + 1) & 0x3) == 0)
+                        {
+                            dataIndex += blockCountX - 4;
+                        }
+                    }
+                }
+            }
+        }
+
         public static void UncompressDXT1(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h)
         {
             var blockCountX = (w + 3) / 4;
