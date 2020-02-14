@@ -1,4 +1,5 @@
-﻿using System.IO;
+using System;
+using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
 
@@ -15,7 +16,14 @@ namespace Tests
             foreach (var file in files)
             {
                 var shader = new CompiledShader();
+
+                using var sw = new StringWriter();
+                var originalOutput = Console.Out;
+                Console.SetOut(sw);
+
                 shader.Read(file);
+
+                Console.SetOut(originalOutput);
             }
         }
     }
