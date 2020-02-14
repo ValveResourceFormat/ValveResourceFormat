@@ -128,26 +128,19 @@ namespace GUI.Types.Renderer
 
             InternalFormat format;
 
-            if (tex.Format == VTexFormat.DXT1)
+            switch (tex.Format)
             {
-                format = InternalFormat.CompressedRgbaS3tcDxt1Ext;
-            }
-            else if (tex.Format == VTexFormat.DXT5)
-            {
-                format = InternalFormat.CompressedRgbaS3tcDxt5Ext;
-            }
-            else if (tex.Format == VTexFormat.ETC2)
-            {
-                format = InternalFormat.CompressedRgb8Etc2;
-            }
-            else if (tex.Format == VTexFormat.ETC2_EAC)
-            {
-                format = InternalFormat.CompressedRgba8Etc2Eac;
-            }
-            else
-            {
-                Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
-                return GetErrorTexture();
+                case VTexFormat.DXT1: format = InternalFormat.CompressedRgbaS3tcDxt1Ext; break;
+                case VTexFormat.DXT5: format = InternalFormat.CompressedRgbaS3tcDxt5Ext; break;
+                case VTexFormat.ETC2: format = InternalFormat.CompressedRgb8Etc2; break;
+                case VTexFormat.ETC2_EAC: format = InternalFormat.CompressedRgba8Etc2Eac; break;
+                case VTexFormat.ATI1N: format = InternalFormat.CompressedRedRgtc1; break;
+                case VTexFormat.ATI2N: format = InternalFormat.CompressedRgRgtc2; break;
+                case VTexFormat.BC6H: format = InternalFormat.CompressedRgbBptcUnsignedFloat; break;
+                case VTexFormat.BC7: format = InternalFormat.CompressedSrgbAlphaBptcUnorm; break;
+                default:
+                    Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
+                    return GetErrorTexture();
             }
 
             for (var i = tex.NumMipLevels - 1; i >= 0; i--)
