@@ -42,12 +42,6 @@ namespace ValveResourceFormat.Serialization.NTRO
         {
             if (Value == null)
             {
-                if (Type == DataType.ExternalReference)
-                {
-                    writer.WriteLine("ID: {0:X16}", 0);
-                    return;
-                }
-
                 writer.WriteLine("NULL");
                 return;
             }
@@ -85,9 +79,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 case DataType.ExternalReference:
-                    var refInfo = Value as ResourceExtRefList.ResourceReferenceInfo;
-
-                    writer.WriteLine("ID: {0:X16}", refInfo.Id);
+                    writer.WriteLine($"resource:\"{Value}\"");
                     break;
 
                 case DataType.Color:

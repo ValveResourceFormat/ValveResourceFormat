@@ -193,10 +193,10 @@ namespace ValveResourceFormat.ResourceTypes
                 case DataType.ExternalReference:
                     var id = Reader.ReadUInt64();
                     var value = id > 0
-                        ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)
+                        ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
                         : null;
 
-                    return new NTROValue<ResourceExtRefList.ResourceReferenceInfo>(field.Type, value, pointer);
+                    return new NTROValue<string>(field.Type, value, pointer);
 
                 case DataType.UInt64:
                     return new NTROValue<ulong>(field.Type, Reader.ReadUInt64(), pointer);
