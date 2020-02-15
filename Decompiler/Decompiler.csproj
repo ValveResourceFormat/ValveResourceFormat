@@ -18,7 +18,7 @@
     <StartupObject>Decompiler.Decompiler</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.5.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
