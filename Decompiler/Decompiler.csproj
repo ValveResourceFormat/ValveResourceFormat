@@ -15,7 +15,6 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <StartupObject>Decompiler.Decompiler</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.5.1" />
