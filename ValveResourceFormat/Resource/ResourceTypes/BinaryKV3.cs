@@ -8,6 +8,9 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class BinaryKV3 : ResourceData
     {
+        private BlockType KVBlockType;
+        public override BlockType Type => KVBlockType;
+
 #pragma warning disable SA1310 // Field names should not contain underscore
         private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new Guid(new byte[] { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 });
         private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new Guid(new byte[] { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 });
@@ -26,6 +29,16 @@ namespace ValveResourceFormat.ResourceTypes
         private long currentTypeIndex;
         private long currentEightBytesOffset;
         private long currentBinaryBytesOffset = -1;
+
+        public BinaryKV3()
+        {
+            KVBlockType = BlockType.DATA;
+        }
+
+        public BinaryKV3(BlockType type)
+        {
+            KVBlockType = type;
+        }
 
         public override void Read(BinaryReader reader, Resource resource)
         {

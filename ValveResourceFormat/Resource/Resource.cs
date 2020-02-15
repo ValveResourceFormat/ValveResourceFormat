@@ -311,25 +311,25 @@ namespace ValveResourceFormat
                     return new MBUF();
 
                 case "CTRL":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.CTRL);
 
                 case "MDAT":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.MDAT);
 
                 case "MRPH":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.MRPH);
 
                 case "ANIM":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.ANIM);
 
                 case "ASEQ":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.ASEQ);
 
                 case "AGRP":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.AGRP);
 
                 case "PHYS":
-                    return new BinaryKV3();
+                    return new BinaryKV3(BlockType.PHYS);
             }
 
             throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));
