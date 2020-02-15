@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <Authors>Steam Database</Authors>
@@ -15,10 +15,9 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <StartupObject>Decompiler.Decompiler</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.5.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
