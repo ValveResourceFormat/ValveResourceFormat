@@ -116,7 +116,8 @@
     <Compile Include="Types\ParticleRenderer\Emitters\ContinuousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
-    <Compile Include="Types\ParticleRenderer\GLRenderControl.cs" />
+    <Compile Include="Types\Renderer\GLModelRenderControl.cs" />
+    <Compile Include="Types\Renderer\GLRenderControl.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\InitialVelocityNoise.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\PositionOffset.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomAlpha.cs" />

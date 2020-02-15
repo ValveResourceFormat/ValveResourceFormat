@@ -1,13 +1,12 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace GUI.Types.Renderer
 {
     internal class Shader
     {
         public string Name { get; set; }
-        public ArgumentDependencies Parameters { get; set; }
+        public IDictionary<string, bool> Parameters { get; set; }
         public int Program { get; set; }
         public List<string> RenderModes { get; set; }
 

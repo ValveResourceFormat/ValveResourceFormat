@@ -27,7 +27,8 @@ namespace GUI.Types.Renderer
             {
                 var block = Resource.VBIB;
                 var data = (BinaryKV3)Resource.DataBlock;
-                var modelArguments = (ArgumentDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ArgumentDependencies];
+
+                var shaderArguments = new Dictionary<string, bool>();
 
                 var vertexBuffers = new uint[block.VertexBuffers.Count];
                 var indexBuffers = new uint[block.IndexBuffers.Count];
@@ -72,7 +73,7 @@ namespace GUI.Types.Renderer
                         var material = materialLoader.GetMaterial(materialName);
 
                         // TODO: Don't pass around so much shit
-                        var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, Resource.VBIB, material);
+                        var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, shaderArguments, Resource.VBIB, material);
                         DrawCalls.Add(drawCall);
                     }
                 }
@@ -85,7 +86,7 @@ namespace GUI.Types.Renderer
         }
 
         //Set up a draw call
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, Material material)
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> arguments, VBIB block, Material material)
         {
             var drawCall = new DrawCall();
 
@@ -101,7 +102,7 @@ namespace GUI.Types.Renderer
             drawCall.Material = material;
 
             // Load shader
-            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Parameters.ShaderName, modelArguments);
+            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Parameters.ShaderName, arguments);
 
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);
