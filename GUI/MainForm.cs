@@ -15,7 +15,6 @@ using GUI.Types;
 using GUI.Types.Audio;
 using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer;
-using GUI.Types.Renderer.Animation;
 using GUI.Utils;
 using OpenTK;
 using SkiaSharp;
@@ -25,7 +24,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ClosedCaptions;
 using ValveResourceFormat.ResourceTypes;
-using RenderModel = GUI.Types.RenderModel;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI
@@ -573,18 +571,18 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.Particle:
-                        var particleGLControl = new GLRenderControl();
-                        particleGLControl.Load += (_, __) =>
+                        var glControl = new GLRenderControl();
+                        glControl.Load += (_, __) =>
                         {
-                            particleGLControl.Camera.SetViewportSize(particleGLControl.Control.Width, particleGLControl.Control.Height);
-                            particleGLControl.Camera.SetLocation(new Vector3(200));
-                            particleGLControl.Camera.LookAt(new Vector3(0));
+                            glControl.Camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
+                            glControl.Camera.SetLocation(new Vector3(200));
+                            glControl.Camera.LookAt(new Vector3(0));
 
                             var particleSystem = new ParticleSystem(resource);
                             var particleGrid = new ParticleGrid(20, 5);
                             var particleRenderer = new ParticleRenderer(particleSystem, vrfGuiContext);
 
-                            particleGLControl.Paint += (sender, args) =>
+                            glControl.Paint += (sender, args) =>
                             {
                                 particleGrid.Render(args.Camera.ProjectionMatrix, args.Camera.CameraViewMatrix);
 
@@ -595,7 +593,7 @@ namespace GUI
                         };
 
                         var particleRendererTab = new TabPage("PARTICLE");
-                        particleRendererTab.Controls.Add(particleGLControl.Control);
+                        particleRendererTab.Controls.Add(glControl.Control);
                         resTabs.TabPages.Add(particleRendererTab);
                         break;
                     case ResourceType.Sound:
@@ -628,34 +626,27 @@ namespace GUI
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
-                        // Create model
-                        var model = new Model(resource);
-                        var renderModel = new RenderModel(model);
-
-                        // Create skeleton
-                        var skeleton = model.GetSkeleton();
-
-                        // Create tab
-                        var modelmeshTab = new TabPage("MESH");
-                        var modelmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.Model);
-                        renderModel.LoadMeshes(modelmv, fileName, Matrix4.Identity, Vector4.One, currentPackage);
-
-                        // Add skeleton to renderer
-                        modelmv.SetSkeleton(skeleton);
-
-                        // Add animations if available
-                        var animGroupPaths = renderModel.GetAnimationGroups();
-                        foreach (var animGroupPath in animGroupPaths)
+                        glControl = new GLRenderControl();
+                        glControl.Load += (_, __) =>
                         {
-                            var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", fileName, currentPackage);
+                            glControl.Camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
+                            glControl.Camera.SetLocation(new Vector3(200));
+                            glControl.Camera.LookAt(new Vector3(0));
 
-                            modelmv.AddAnimations(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileName, currentPackage));
-                        }
+                            var model = new Model(resource);
+                            var modelRenderer = new ModelRenderer(model, vrfGuiContext);
 
-                        //Initialise OpenGL
-                        var modelglControl = modelmv.CreateGL();
-                        modelmeshTab.Controls.Add(modelglControl);
-                        resTabs.TabPages.Add(modelmeshTab);
+                            glControl.Paint += (sender, args) =>
+                            {
+                                // Updating FPS-coupled dynamic step
+                                modelRenderer.Update(args.FrameTime);
+                                modelRenderer.Render(args.Camera);
+                            };
+                        };
+
+                        var modelRendererTab = new TabPage("MODEL");
+                        modelRendererTab.Controls.Add(glControl.Control);
+                        resTabs.TabPages.Add(modelRendererTab);
                         break;
                     case ResourceType.Mesh:
                         if (!resource.ContainsBlockType(BlockType.VBIB))
@@ -670,8 +661,8 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, Renderer = mv });
 
                         mv.AddMeshObject(new MeshObject { Resource = resource });
-                        var glControl = mv.CreateGL();
-                        meshTab.Controls.Add(glControl);
+                        var meshRenderControl = mv.CreateGL();
+                        meshTab.Controls.Add(meshRenderControl);
                         resTabs.TabPages.Add(meshTab);
                         break;
                 }

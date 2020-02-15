@@ -6,11 +6,11 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
-namespace GUI.Types.Renderer.Animation
+namespace GUI.Types.Renderer
 {
     internal static class AnimationGroupLoader
     {
-        public static List<ValveResourceFormat.ResourceTypes.Animation.Animation> LoadAnimationGroup(Resource resource, string path, Package currentPackage)
+        public static List<ValveResourceFormat.ResourceTypes.ModelAnimation.Animation> LoadAnimationGroup(Resource resource, string path, Package currentPackage)
         {
             var dataBlock = resource.DataBlock;
             var data = dataBlock is NTRO ntro
@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer.Animation
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
-            var animationList = new List<ValveResourceFormat.ResourceTypes.Animation.Animation>();
+            var animationList = new List<ValveResourceFormat.ResourceTypes.ModelAnimation.Animation>();
 
             // Load animation files
             foreach (var animationFile in animArray)
@@ -35,7 +35,7 @@ namespace GUI.Types.Renderer.Animation
                 }
 
                 // Build animation classes
-                animationList.Add(new ValveResourceFormat.ResourceTypes.Animation.Animation(animResource, decodeKey));
+                animationList.Add(new ValveResourceFormat.ResourceTypes.ModelAnimation.Animation(animResource, decodeKey));
             }
 
             return animationList;

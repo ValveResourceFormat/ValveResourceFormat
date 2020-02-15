@@ -87,8 +87,8 @@ namespace GUI.Types
                     }
 
                     var model = new Model(newResource);
-                    var modelEntry = new RenderModel(model);
-                    modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
+                    //var modelEntry = new RenderModel(model);
+                    //modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
                 }
 
                 var renderable = sceneObject.GetProperty<string>("m_renderable");

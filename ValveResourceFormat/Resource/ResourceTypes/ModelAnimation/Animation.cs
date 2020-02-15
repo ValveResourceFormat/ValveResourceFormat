@@ -5,7 +5,7 @@ using System.Numerics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.NTRO;
 
-namespace ValveResourceFormat.ResourceTypes.Animation
+namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Animation
     {

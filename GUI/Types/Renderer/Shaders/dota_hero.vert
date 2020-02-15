@@ -48,8 +48,8 @@ void main()
 	//Unpack normals
 #if param_fulltangent == 1
 	vNormalOut = normalize((normalTransform * vNORMAL).xyz);
-	vTangentOut = normalize((normalTransform * vTANGENT.xyz);
-	vBitangentOut = cross( vNormalOut, vTangentOut);
+	vTangentOut = normalize((normalTransform * vTANGENT).xyz);
+	vBitangentOut = cross(vNormalOut, vTangentOut);
 #else
     vec4 tangent = DecompressTangent(vNORMAL);
 	vNormalOut = normalize((normalTransform * vec4(DecompressNormal(vNORMAL), 0.0)).xyz);

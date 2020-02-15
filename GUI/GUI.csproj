@@ -155,6 +155,8 @@
     <Compile Include="Types\ParticleRenderer\VrfGuiContext.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
     <Compile Include="Types\Renderer\DebugUtil.cs" />
+    <Compile Include="Types\Renderer\MeshRenderer.cs" />
+    <Compile Include="Types\Renderer\ModelRenderer.cs" />
     <Compile Include="Types\Renderer\Shader.cs" />
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
     <Compile Include="Types\Renderer\MeshObject.cs" />
@@ -202,7 +204,6 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -217,7 +218,6 @@
     <Compile Include="Types\Audio\AudioPlayer.cs" />
     <Compile Include="Types\Renderer\Camera.cs" />
     <Compile Include="Types\Renderer\Renderer.cs" />
-    <Compile Include="Types\RenderModel.cs" />
     <Compile Include="Types\Renderer\Material.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
   </ItemGroup>

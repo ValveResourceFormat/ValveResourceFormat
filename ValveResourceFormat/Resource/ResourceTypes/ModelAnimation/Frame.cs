@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace ValveResourceFormat.ResourceTypes.Animation
+namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Frame
     {
