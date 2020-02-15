@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using ValveResourceFormat;
@@ -41,6 +42,17 @@ namespace GUI.Types.Renderer
             foreach (var meshRenderer in meshRenderers)
             {
                 meshRenderer.Render(camera);
+            }
+        }
+
+        public IEnumerable<string> GetRenderModes()
+            => meshRenderers.SelectMany(renderer => renderer.GetRenderModes()).Distinct();
+
+        public void SetRenderMode(string renderMode)
+        {
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.SetRenderMode(renderMode);
             }
         }
 

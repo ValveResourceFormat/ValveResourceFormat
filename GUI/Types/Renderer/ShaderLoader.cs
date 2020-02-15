@@ -42,24 +42,23 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static int CalculateShaderCacheHash(string shaderFileName, ArgumentDependencies modelArguments)
+        private static int CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
             shaderCacheHashString.AppendLine(shaderFileName);
 
-            foreach (var argument in modelArguments.List)
+            foreach (var kvp in arguments)
             {
-                shaderCacheHashString.AppendLine(argument.ParameterName);
-                shaderCacheHashString.AppendLine(argument.Fingerprint.ToString());
+                shaderCacheHashString.AppendLine($"{kvp.Key}{kvp.Value}");
             }
 
             return shaderCacheHashString.ToString().GetHashCode();
         }
 
-        public static Shader LoadShader(string shaderName, ArgumentDependencies modelArguments)
+        public static Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-            var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, modelArguments); // shader collision roulette
+            var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments); // shader collision roulette
 
 #if !DEBUG_SHADERS || !DEBUG
             if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
@@ -95,7 +94,7 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, modelArguments));
+                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, arguments));
 
                 // Find render modes supported from source
                 renderModes.AddRange(FindRenderModes(shaderSource));
@@ -123,7 +122,7 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, modelArguments));
+                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, arguments));
 
                 // Find render modes supported from source, take union to avoid duplicates
                 renderModes = renderModes.Union(FindRenderModes(shaderSource)).ToList();
@@ -143,7 +142,7 @@ namespace GUI.Types.Renderer
             var shader = new Shader
             {
                 Name = shaderName,
-                Parameters = modelArguments,
+                Parameters = arguments,
                 Program = GL.CreateProgram(),
                 RenderModes = renderModes,
             };
@@ -181,7 +180,7 @@ namespace GUI.Types.Renderer
         }
 
         //Preprocess a vertex shader's source to include the #version plus #defines for parameters
-        private static string PreprocessVertexShader(string source, ArgumentDependencies arguments)
+        private static string PreprocessVertexShader(string source, IDictionary<string, bool> arguments)
         {
             //Update parameter defines
             var paramSource = UpdateDefines(source, arguments);
@@ -193,26 +192,19 @@ namespace GUI.Types.Renderer
         }
 
         //Update default defines with possible overrides from the model
-        private static string UpdateDefines(string source, ArgumentDependencies arguments)
+        private static string UpdateDefines(string source, IDictionary<string, bool> arguments)
         {
-            //Add all parameters to a dictionary
-            var argumentDict = new Dictionary<string, uint>();
-            foreach (var argument in arguments.List)
-            {
-                argumentDict.Add(argument.ParameterName, argument.Fingerprint);
-            }
-
             //Find all #define param_(paramName) (paramValue) using regex
             var defines = Regex.Matches(source, @"#define param_(\S*?) (\S*?)\s*?\n");
             foreach (Match define in defines)
             {
                 //Check if this parameter is in the arguments
-                if (argumentDict.ContainsKey(define.Groups[1].Value))
+                if (arguments.TryGetValue(define.Groups[1].Value, out var value))
                 {
                     //Overwrite default value
                     var index = define.Groups[2].Index;
                     var length = define.Groups[2].Length;
-                    source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, argumentDict[define.Groups[1].Value].ToString());
+                    source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, value ? "1" : "0");
                 }
             }
 

@@ -6,8 +6,9 @@ using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Input;
 
-namespace GUI.Types.ParticleRenderer
+namespace GUI.Types
 {
     internal class GLRenderControl
     {
@@ -95,6 +96,7 @@ namespace GUI.Types.ParticleRenderer
             stopwatch.Restart();
 
             Camera.Tick(frameTime);
+            Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
 
             GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);

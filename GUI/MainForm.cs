@@ -622,26 +622,33 @@ namespace GUI
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
-                        glControl = new GLRenderControl();
-                        glControl.Load += (_, __) =>
+                        var glModelControl = new GLModelRenderControl();
+                        glModelControl.Load += (_, __) =>
                         {
-                            glControl.Camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
-                            glControl.Camera.SetLocation(new Vector3(200));
-                            glControl.Camera.LookAt(new Vector3(0));
+                            glModelControl.Camera.SetViewportSize(glModelControl.Control.Width, glModelControl.Control.Height);
+                            glModelControl.Camera.SetLocation(new Vector3(200));
+                            glModelControl.Camera.LookAt(new Vector3(0));
 
                             var model = new Model(resource);
                             var modelRenderer = new ModelRenderer(model, vrfGuiContext);
 
-                            glControl.Paint += (sender, args) =>
+                            glModelControl.SetRenderModes(modelRenderer.GetRenderModes());
+
+                            glModelControl.Paint += (sender, args) =>
                             {
                                 // Updating FPS-coupled dynamic step
                                 modelRenderer.Update(args.FrameTime);
                                 modelRenderer.Render(args.Camera);
                             };
+
+                            glModelControl.OnRenderModeChanged += (sender, renderMode) =>
+                            {
+                                modelRenderer.SetRenderMode(renderMode);
+                            };
                         };
 
                         var modelRendererTab = new TabPage("MODEL");
-                        modelRendererTab.Controls.Add(glControl.Control);
+                        modelRendererTab.Controls.Add(glModelControl.Control);
                         resTabs.TabPages.Add(modelRendererTab);
                         break;
                     case ResourceType.Mesh:

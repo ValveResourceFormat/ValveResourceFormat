@@ -195,7 +195,7 @@ namespace GUI.Types.Renderer
         private void OnRenderModeChange(object sender, EventArgs e)
         {
             // Override placeholder item
-            if (renderModeComboBox.SelectedIndex > 0)
+            /*if (renderModeComboBox.SelectedIndex > 0)
             {
                 renderModeComboBox.Items[0] = "Default";
             }
@@ -222,7 +222,7 @@ namespace GUI.Types.Renderer
 
                     call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
                 }
-            }
+            }*/
         }
 
         private void CameraBox_ItemCheck(object sender, ItemCheckEventArgs e)

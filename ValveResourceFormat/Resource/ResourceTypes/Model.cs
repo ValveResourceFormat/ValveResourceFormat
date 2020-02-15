@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -21,7 +22,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         public IEnumerable<string> GetReferredMeshNames()
-            => GetData().GetArray<string>("m_refMeshes");
+            => GetData().GetArray<string>("m_refMeshes").Where(m => m != null);
 
         public IEnumerable<Mesh> GetEmbeddedMeshes()
         {

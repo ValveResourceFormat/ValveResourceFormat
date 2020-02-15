@@ -6,7 +6,6 @@ using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -27,6 +26,28 @@ namespace GUI.Types.Renderer
             guiContext = vrfGuiContext;
 
             SetupDrawCalls();
+        }
+
+        public IEnumerable<string> GetRenderModes()
+            => drawCalls.SelectMany(drawCall => drawCall.Shader.RenderModes).Distinct();
+
+        public void SetRenderMode(string renderMode)
+        {
+            foreach (var call in drawCalls)
+            {
+                if (call.Shader.RenderModes.Contains(renderMode))
+                {
+                    // Recycle old shader parameters that are not render modes since we are scrapping those anyway
+                    call.Shader.Parameters = call.Shader.Parameters
+                        .Where(kvp => !kvp.Key.StartsWith("renderMode"))
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                    call.Shader.Parameters.Add($"renderMode_{renderMode}", true);
+
+                    call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
+                    prevMaterial = string.Empty; // Reset previous material to force reloading textures
+                }
+            }
         }
 
         public void Render(Camera camera)
@@ -168,7 +189,6 @@ namespace GUI.Types.Renderer
         {
             var vbib = Mesh.VBIB;
             var data = (BinaryKV3)Mesh.Data;
-            var modelArguments = Mesh.MeshArguments;
 
             var vertexBuffers = new uint[vbib.VertexBuffers.Count];
             var indexBuffers = new uint[vbib.IndexBuffers.Count];
@@ -213,8 +233,14 @@ namespace GUI.Types.Renderer
 
                     var material = materialLoader.GetMaterial(materialName);
 
+                    var shaderArguments = new Dictionary<string, bool>();
+                    if (d.Properties.TryGetValue("m_bUseCompressedNormalTangent", out var compressedNormalTangent))
+                    {
+                        shaderArguments.Add("fulltangent", !(bool)compressedNormalTangent.Value);
+                    }
+
                     // TODO: Don't pass around so much shit
-                    var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, modelArguments, vbib, material);
+                    var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, shaderArguments, vbib, material);
                     drawCalls.Add(drawCall);
                 }
             }
@@ -222,7 +248,7 @@ namespace GUI.Types.Renderer
             drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, ArgumentDependencies modelArguments, VBIB block, Material material)
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, Material material)
         {
             var drawCall = new DrawCall();
 
@@ -238,7 +264,7 @@ namespace GUI.Types.Renderer
             drawCall.Material = material;
 
             // Load shader
-            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Parameters.ShaderName, modelArguments);
+            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Parameters.ShaderName, shaderArguments);
 
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);
