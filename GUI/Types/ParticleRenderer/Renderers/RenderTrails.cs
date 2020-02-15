@@ -191,7 +191,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private (int TextureIndex, Texture TextureData) LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
         {
-            var materialLoader = new MaterialLoader(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+            var materialLoader = MaterialLoader.GetInstance(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 
             var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(textureName + "_c", vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 

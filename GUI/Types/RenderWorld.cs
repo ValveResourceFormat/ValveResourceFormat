@@ -191,8 +191,8 @@ namespace GUI.Types
                 }
 
                 var newModel = new Model(newEntity);
-                var entityModel = new RenderModel(newModel);
-                entityModel.LoadMeshes(renderer, path, transformationMatrix, objColor, package, skin);
+                //var entityModel = new RenderModel(newModel);
+                //entityModel.LoadMeshes(renderer, path, transformationMatrix, objColor, package, skin);
             }
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
+using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
@@ -94,6 +95,11 @@ namespace GUI.Types.ParticleRenderer
             stopwatch.Restart();
 
             Camera.Tick(frameTime);
+
+            GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.DepthTest);
+
+            GL.ClearColor(Settings.BackgroundColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             Paint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });

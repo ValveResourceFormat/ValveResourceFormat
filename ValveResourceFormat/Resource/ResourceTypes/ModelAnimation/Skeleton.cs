@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.Serialization;
 
-namespace ValveResourceFormat.ResourceTypes.Animation
+namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Skeleton
     {
