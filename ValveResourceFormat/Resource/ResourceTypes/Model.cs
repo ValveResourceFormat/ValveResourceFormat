@@ -6,11 +6,11 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Model
     {
-        private readonly Resource resource;
+        public Resource Resource { get; }
 
         public Model(Resource modelResource)
         {
-            resource = modelResource;
+            Resource = modelResource;
         }
 
         public Skeleton GetSkeleton()
@@ -20,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IKeyValueCollection GetData()
         {
-            var data = resource.DataBlock;
+            var data = Resource.DataBlock;
             if (data is BinaryKV3 binaryKv)
             {
                 return binaryKv.Data;

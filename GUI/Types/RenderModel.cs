@@ -22,6 +22,14 @@ namespace GUI.Types
 
         public void LoadMeshes(Renderer.Renderer renderer, string path, Matrix4 transform, Vector4 tintColor, Package currentPackage = null, string skin = null)
         {
+            if (model.Resource.ContainsBlockType(BlockType.CTRL))
+            {
+                var ctrl = model.Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+                var meshes = ctrl.Data.GetArray("embedded_meshes");
+
+                return;
+            }
+
             var data = model.GetData();
 
             var refMeshes = data.GetArray<string>("m_refMeshes");
