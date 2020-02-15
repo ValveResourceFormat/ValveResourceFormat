@@ -24,12 +24,6 @@ namespace GUI
                 searchForm = null;
             }
 
-            if (disposing && ImageList != null)
-            {
-                ImageList.Dispose();
-                ImageList = null;
-            }
-
             base.Dispose(disposing);
         }
 

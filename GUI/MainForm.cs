@@ -40,7 +40,11 @@ namespace GUI
 
         private readonly Regex NewLineRegex;
         private SearchForm searchForm;
+#pragma warning disable CA2213
+        // Disposable fields should be disposed
+        // for some reason disposing it makes closing GUI very slow
         private ImageList ImageList;
+#pragma warning restore CA2213
 
         public MainForm()
         {
