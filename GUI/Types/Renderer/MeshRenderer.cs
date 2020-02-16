@@ -212,8 +212,6 @@ namespace GUI.Types.Renderer
                 GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out int _);
             }
 
-            var materialLoader = MaterialLoader.GetInstance(guiContext.FileName, guiContext.CurrentPackage);
-
             //Prepare drawcalls
             var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
             for (var b = 0; b < a.Properties.Count; b++)
@@ -231,7 +229,7 @@ namespace GUI.Types.Renderer
                         materialName = SkinMaterials[i];
                     }*/
 
-                    var material = materialLoader.GetMaterial(materialName);
+                    var material = guiContext.MaterialLoader.GetMaterial(materialName);
 
                     var shaderArguments = new Dictionary<string, bool>();
                     if (d.Properties.TryGetValue("m_bUseCompressedNormalTangent", out var compressedNormalTangent))

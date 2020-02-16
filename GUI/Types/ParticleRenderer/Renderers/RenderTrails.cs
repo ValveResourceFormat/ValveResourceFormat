@@ -191,11 +191,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private (int TextureIndex, Texture TextureData) LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
         {
-            var materialLoader = MaterialLoader.GetInstance(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
-
             var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(textureName + "_c", vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 
-            return (materialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
+            return (vrfGuiContext.MaterialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
         }
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)

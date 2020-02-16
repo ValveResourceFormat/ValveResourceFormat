@@ -354,11 +354,7 @@ namespace GUI
         private TabPage ProcessFile(string fileName, byte[] input, Package currentPackage)
         {
             var tab = new TabPage();
-            var vrfGuiContext = new VrfGuiContext
-            {
-                FileName = fileName,
-                CurrentPackage = currentPackage,
-            };
+            var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
             uint magic = 0;
             ushort magicResourceVersion = 0;
