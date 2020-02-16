@@ -57,6 +57,11 @@ namespace ValveResourceFormat.ResourceTypes
                 var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
                 var embeddedAnimation = ctrl.Data.GetSubCollection("embedded_animation");
 
+                if (embeddedAnimation == null)
+                {
+                    return animations;
+                }
+
                 var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
                 var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
 
