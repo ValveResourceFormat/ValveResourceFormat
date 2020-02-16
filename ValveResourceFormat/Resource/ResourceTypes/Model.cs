@@ -38,7 +38,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
                     var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
 
-                    meshes.Add(new Mesh(Resource.Blocks[dataBlockIndex] as ResourceData, Resource.Blocks[vbibBlockIndex] as VBIB));
+                    meshes.Add(new Mesh(Resource.GetBlockByIndex(dataBlockIndex) as ResourceData, Resource.GetBlockByIndex(vbibBlockIndex) as VBIB));
                 }
             }
 
@@ -50,9 +50,26 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
-            var animationGroups = new List<Animation>();
+            var animations = new List<Animation>();
 
-            return animationGroups;
+            if (Resource.ContainsBlockType(BlockType.CTRL))
+            {
+                var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+                var embeddedAnimation = ctrl.Data.GetSubCollection("embedded_animation");
+
+                var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
+                var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
+
+                var animationGroup = new AnimationGroup(Resource.GetBlockByIndex(groupDataBlockIndex) as ResourceData);
+                var decodeKey = animationGroup.GetDecodeKey();
+
+                var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as BinaryKV3;
+                var animationDataList = animationDataBlock.Data.GetArray("m_animArray");
+
+                animations.AddRange(Animation.FromData(animationDataBlock.Data, decodeKey));
+            }
+
+            return animations;
         }
 
         public IKeyValueCollection GetData()
