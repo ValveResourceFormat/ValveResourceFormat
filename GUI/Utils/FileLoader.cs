@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using GUI.Types.ParticleRenderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 
@@ -23,7 +22,7 @@ namespace GUI.Utils
 
             resource = new Resource();
 
-            var entry = guiContext.CurrentPackage.FindEntry(file);
+            var entry = guiContext.CurrentPackage?.FindEntry(file);
 
             if (entry != null)
             {

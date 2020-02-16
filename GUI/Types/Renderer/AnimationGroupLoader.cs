@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
-using GUI.Types.ParticleRenderer;
 using GUI.Utils;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;

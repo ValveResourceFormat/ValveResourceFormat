@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;

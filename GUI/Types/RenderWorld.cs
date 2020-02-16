@@ -1,9 +1,6 @@
 using System;
 using System.Globalization;
-using GUI.Types.ParticleRenderer;
-using GUI.Utils;
 using OpenTK;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat.ResourceTypes;
 using Vector3 = OpenTK.Vector3;
 using Vector4 = OpenTK.Vector4;
