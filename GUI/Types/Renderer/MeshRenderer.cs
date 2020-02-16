@@ -60,6 +60,9 @@ namespace GUI.Types.Renderer
 
         public void Render(Camera camera)
         {
+            GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.DepthTest);
+
             foreach (var call in drawCalls)
             {
                 int uniformLocation;

@@ -67,6 +67,14 @@ namespace GUI.Types
             glControl.MouseLeave += (_, __) => Camera.MouseOverRenderArea = false;
             glControl.GotFocus += OnGotFocus;
 
+            glControl.VisibleChanged += (_, __) =>
+            {
+                if (glControl.Visible)
+                {
+                    glControl.Focus();
+                }
+            };
+
             panel.Controls.Add(glControl);
             return panel;
         }
@@ -92,22 +100,24 @@ namespace GUI.Types
 
         private void Draw()
         {
-            var frameTime = stopwatch.ElapsedMilliseconds / 1000f;
-            stopwatch.Restart();
+            if (glControl.Visible)
+            {
+                var frameTime = stopwatch.ElapsedMilliseconds / 1000f;
+                stopwatch.Restart();
 
-            Camera.Tick(frameTime);
-            Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
+                Camera.Tick(frameTime);
+                Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
 
-            GL.Enable(EnableCap.CullFace);
-            GL.Enable(EnableCap.DepthTest);
+                fpsLabel.Text = $"FPS: {Math.Round(1f / frameTime)}";
 
-            GL.ClearColor(Settings.BackgroundColor);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                GL.ClearColor(Settings.BackgroundColor);
+                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Paint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
+                Paint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
 
-            glControl.SwapBuffers();
-            glControl.Invalidate();
+                glControl.SwapBuffers();
+                glControl.Invalidate();
+            }
         }
 
         private void OnResize(object sender, EventArgs e)
