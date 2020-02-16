@@ -1,7 +1,8 @@
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
 
-namespace GUI.Types.ParticleRenderer
+namespace GUI.Utils
 {
     public class VrfGuiContext
     {
@@ -11,11 +12,17 @@ namespace GUI.Types.ParticleRenderer
 
         public MaterialLoader MaterialLoader { get; }
 
+        private readonly FileLoader FileLoader;
+
         public VrfGuiContext(string fileName, Package package)
         {
             FileName = fileName;
             CurrentPackage = package;
-            MaterialLoader = new MaterialLoader(fileName, package);
+            MaterialLoader = new MaterialLoader(this);
+            FileLoader = new FileLoader();
         }
+
+        public Resource LoadFileByAnyMeansNecessary(string file) =>
+            FileLoader.LoadFileByAnyMeansNecessary(file, this);
     }
 }

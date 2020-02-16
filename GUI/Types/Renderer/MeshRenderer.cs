@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using GUI.Types.ParticleRenderer;
+using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;

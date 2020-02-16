@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK;
 using SteamDatabase.ValvePak;
@@ -20,7 +21,7 @@ namespace GUI.Types
             this.world = world;
         }
 
-        internal void AddObjects(Renderer.Renderer renderer, string path, Package package)
+        internal void AddObjects(Renderer.Renderer renderer)
         {
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -28,7 +29,7 @@ namespace GUI.Types
             {
                 if (worldNode != null)
                 {
-                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c", path, package);
+                    var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
@@ -36,24 +37,24 @@ namespace GUI.Types
                     }
 
                     var renderWorldNode = new RenderWorldNode(newResource);
-                    renderWorldNode.AddMeshes(renderer, path, package);
+                    renderWorldNode.AddMeshes(renderer);
                 }
             }
 
             foreach (var lump in world.GetEntityLumpNames())
             {
-                LoadEntities(lump, renderer, path, package);
+                LoadEntities(lump, renderer);
             }
         }
 
-        private void LoadEntities(string entityName, Renderer.Renderer renderer, string path, Package package)
+        private void LoadEntities(string entityName, Renderer.Renderer renderer)
         {
             if (entityName == null)
             {
                 return;
             }
 
-            var newResource = FileExtensions.LoadFileByAnyMeansNecessary(entityName + "_c", path, package);
+            var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(entityName + "_c");
             if (newResource == null)
             {
                 Console.WriteLine("unable to load entity lump " + entityName + "_c");
@@ -72,7 +73,7 @@ namespace GUI.Types
                     continue;
                 }
 
-                LoadEntities(childEntityName, renderer, path, package);
+                LoadEntities(childEntityName, renderer);
             }
 
             var worldEntities = entityLump.GetEntities();
@@ -182,7 +183,7 @@ namespace GUI.Types
                     }
                 }
 
-                var newEntity = FileExtensions.LoadFileByAnyMeansNecessary(model + "_c", path, package);
+                var newEntity = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(model + "_c");
                 if (newEntity == null)
                 {
                     Console.WriteLine($"unable to load entity {model}_c");

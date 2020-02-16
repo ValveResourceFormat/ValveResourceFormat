@@ -211,7 +211,7 @@ namespace GUI.Types.ParticleRenderer
             foreach (var rendererInfo in rendererData)
             {
                 var rendererClass = rendererInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext, out var renderer))
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext: vrfGuiContext, out var renderer))
                 {
                     renderers.Add(renderer);
                 }
@@ -228,7 +228,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var childName in childNames)
             {
-                var childResource = FileExtensions.LoadFileByAnyMeansNecessary(childName + "_c", vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+                var childResource = vrfGuiContext.LoadFileByAnyMeansNecessary(childName + "_c");
                 var childSystem = new ParticleSystem(childResource);
 
                 childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext));
