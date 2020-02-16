@@ -153,6 +153,7 @@
     <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderTrails.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
+    <Compile Include="Types\Renderer\IAnimationRenderer.cs" />
     <Compile Include="Types\Renderer\IMeshRenderer.cs" />
     <Compile Include="Utils\VrfGuiContext.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />

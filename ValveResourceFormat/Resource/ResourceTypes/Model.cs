@@ -21,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
             return new Skeleton(GetData());
         }
 
-        public IEnumerable<string> GetReferredMeshNames()
+        public IEnumerable<string> GetReferencedMeshNames()
             => GetData().GetArray<string>("m_refMeshes").Where(m => m != null);
 
         public IEnumerable<Mesh> GetEmbeddedMeshes()
@@ -43,6 +43,16 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return meshes;
+        }
+
+        public IEnumerable<string> GetReferencedAnimationGroupNames()
+            => GetData().GetArray<string>("m_refAnimGroups");
+
+        public IEnumerable<Animation> GetEmbeddedAnimations()
+        {
+            var animationGroups = new List<Animation>();
+
+            return animationGroups;
         }
 
         public IKeyValueCollection GetData()

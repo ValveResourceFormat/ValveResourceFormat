@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -17,7 +18,7 @@ namespace GUI.Types.Renderer
                 : ((BinaryKV3)dataBlock).Data;
 
             // Get the list of animation files
-            var animArray = data.GetArray<string>("m_localHAnimArray");
+            var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 

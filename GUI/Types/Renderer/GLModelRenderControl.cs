@@ -21,6 +21,7 @@ namespace GUI.Types.Renderer
 
         private readonly GLRenderControl glRenderControl;
 
+        private ComboBox animationComboBox;
         private ComboBox renderModeComboBox;
 
         public GLModelRenderControl()
@@ -68,6 +69,14 @@ namespace GUI.Types.Renderer
                 .Distinct();
 
             SetRenderModes(supportedRenderModes);
+
+            // Update supported animations
+            var supportedAnimations = Renderers
+                .OfType<IAnimationRenderer>()
+                .SelectMany(r => r.GetSupportedAnimationNames())
+                .Distinct();
+
+            SetAnimations(supportedAnimations);
         }
 
         private void SetRenderModes(IEnumerable<string> renderModes)
@@ -78,10 +87,18 @@ namespace GUI.Types.Renderer
             renderModeComboBox.SelectedIndex = 0;
         }
 
+        private void SetAnimations(IEnumerable<string> animations)
+        {
+            animationComboBox.Items.Clear();
+            animationComboBox.Items.AddRange(animations.ToArray());
+            animationComboBox.SelectedIndex = 0;
+        }
+
         private void InitializeControl()
         {
             var control = glRenderControl.Control;
 
+            // Add combobox for render modes
             renderModeComboBox = new ComboBox
             {
                 Dock = DockStyle.Top,
@@ -90,6 +107,16 @@ namespace GUI.Types.Renderer
 
             renderModeComboBox.SelectedIndexChanged += OnRenderModeChange;
             control.Controls.Add(renderModeComboBox);
+
+            // Add combobox for animations
+            animationComboBox = new ComboBox
+            {
+                Dock = DockStyle.Top,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+            };
+
+            animationComboBox.SelectedIndexChanged += OnAnimationChange;
+            control.Controls.Add(animationComboBox);
         }
 
         private void OnRenderModeChange(object obj, EventArgs e)
@@ -107,6 +134,10 @@ namespace GUI.Types.Renderer
             {
                 renderer.SetRenderMode(selectedRenderMode);
             }
+        }
+
+        private void OnAnimationChange(object obj, EventArgs e)
+        {
         }
     }
 }
