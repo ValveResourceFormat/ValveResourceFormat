@@ -658,15 +658,32 @@ namespace GUI
                             break;
                         }
 
-                        var meshTab = new TabPage("MESH");
-                        var mv = new Renderer(mainTabs, vrfGuiContext, RenderSubject.Model);
+                        glModelControl = new GLModelRenderControl();
+                        glModelControl.Load += (_, __) =>
+                        {
+                            glModelControl.Camera.SetViewportSize(glModelControl.Control.Width, glModelControl.Control.Height);
+                            glModelControl.Camera.SetLocation(new Vector3(200));
+                            glModelControl.Camera.LookAt(new Vector3(0));
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, Renderer = mv });
+                            var mesh = new Mesh(resource);
+                            var modelRenderer = new MeshRenderer(mesh, vrfGuiContext);
 
-                        mv.AddMeshObject(new MeshObject { Resource = resource });
-                        var meshRenderControl = mv.CreateGL();
-                        meshTab.Controls.Add(meshRenderControl);
-                        resTabs.TabPages.Add(meshTab);
+                            glModelControl.SetRenderModes(modelRenderer.GetRenderModes());
+
+                            glModelControl.Paint += (sender, args) =>
+                            {
+                                modelRenderer.Render(args.Camera);
+                            };
+
+                            glModelControl.OnRenderModeChanged += (sender, renderMode) =>
+                            {
+                                modelRenderer.SetRenderMode(renderMode);
+                            };
+                        };
+
+                        var meshRendererTab = new TabPage("MESH");
+                        meshRendererTab.Controls.Add(glModelControl.Control);
+                        resTabs.TabPages.Add(meshRendererTab);
                         break;
                 }
 

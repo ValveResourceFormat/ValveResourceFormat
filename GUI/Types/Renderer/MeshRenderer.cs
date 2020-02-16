@@ -35,14 +35,17 @@ namespace GUI.Types.Renderer
         {
             foreach (var call in drawCalls)
             {
-                if (call.Shader.RenderModes.Contains(renderMode))
+                if (renderMode == null || call.Shader.RenderModes.Contains(renderMode))
                 {
                     // Recycle old shader parameters that are not render modes since we are scrapping those anyway
                     call.Shader.Parameters = call.Shader.Parameters
                         .Where(kvp => !kvp.Key.StartsWith("renderMode"))
                         .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-                    call.Shader.Parameters.Add($"renderMode_{renderMode}", true);
+                    if (renderMode != null)
+                    {
+                        call.Shader.Parameters.Add($"renderMode_{renderMode}", true);
+                    }
 
                     call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
                     prevMaterial = string.Empty; // Reset previous material to force reloading textures

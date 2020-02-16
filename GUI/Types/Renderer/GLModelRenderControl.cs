@@ -42,7 +42,11 @@ namespace GUI.Types.Renderer
                 renderModeComboBox.Items[0] = "Default";
             }
 
-            OnRenderModeChanged?.Invoke(obj, renderModeComboBox.SelectedItem.ToString());
+            var selectedRenderMode = renderModeComboBox.SelectedIndex == 0
+                ? null
+                : renderModeComboBox.SelectedItem.ToString();
+
+            OnRenderModeChanged?.Invoke(obj, selectedRenderMode);
         }
     }
 }
