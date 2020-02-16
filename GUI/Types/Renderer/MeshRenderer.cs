@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshRenderer
+    internal class MeshRenderer : IMeshRenderer
     {
         public Mesh Mesh { get; }
 
@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
             SetupDrawCalls();
         }
 
-        public IEnumerable<string> GetRenderModes()
+        public IEnumerable<string> GetSupportedRenderModes()
             => drawCalls.SelectMany(drawCall => drawCall.Shader.RenderModes).Distinct();
 
         public void SetRenderMode(string renderMode)
@@ -51,6 +51,11 @@ namespace GUI.Types.Renderer
                     prevMaterial = string.Empty; // Reset previous material to force reloading textures
                 }
             }
+        }
+
+        public void Update(float frameTime)
+        {
+            // Nothing to do here
         }
 
         public void Render(Camera camera)

@@ -38,7 +38,7 @@ namespace GUI.Types
             stopwatch = new Stopwatch();
         }
 
-        protected virtual Control InitializeControl()
+        public virtual Control InitializeControl()
         {
             var panel = new Panel
             {

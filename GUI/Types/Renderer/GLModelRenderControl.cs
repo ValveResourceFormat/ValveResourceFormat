@@ -2,16 +2,69 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using OpenTK;
+using static GUI.Types.GLRenderControl;
 
 namespace GUI.Types.Renderer
 {
-    internal class GLModelRenderControl : GLRenderControl
+    /// <summary>
+    /// GL Render control with model controls (render mode, animation panels).
+    /// Renders a list of IMeshRenderers.
+    /// </summary>
+    internal class GLModelRenderControl
     {
-        public event EventHandler<string> OnRenderModeChanged;
+        public ICollection<IMeshRenderer> Renderers { get; } = new HashSet<IMeshRenderer>();
+
+        public event EventHandler Load;
+
+        public Control Control => glRenderControl.Control;
+
+        private readonly GLRenderControl glRenderControl;
 
         private ComboBox renderModeComboBox;
 
-        public void SetRenderModes(IEnumerable<string> renderModes)
+        public GLModelRenderControl()
+        {
+            glRenderControl = new GLRenderControl();
+
+            InitializeControl();
+
+            glRenderControl.Load += OnLoad;
+        }
+
+        public void OnLoad(object sender, EventArgs e)
+        {
+            glRenderControl.Camera.SetViewportSize(glRenderControl.Control.Width, glRenderControl.Control.Height);
+            glRenderControl.Camera.SetLocation(new Vector3(200));
+            glRenderControl.Camera.LookAt(new Vector3(0));
+
+            Load?.Invoke(this, e);
+
+            glRenderControl.Paint += OnPaint;
+        }
+
+        public void OnPaint(object sender, RenderEventArgs e)
+        {
+            foreach (var renderer in Renderers)
+            {
+                renderer.Update(e.FrameTime);
+                renderer.Render(e.Camera);
+            }
+        }
+
+        public void AddRenderer(IMeshRenderer renderer)
+        {
+            Renderers.Add(renderer);
+
+            // Update supported render modes
+            var supportedRenderModes = Renderers
+                .SelectMany(r => r.GetSupportedRenderModes())
+                .Distinct();
+
+            SetRenderModes(supportedRenderModes);
+        }
+
+        private void SetRenderModes(IEnumerable<string> renderModes)
         {
             renderModeComboBox.Items.Clear();
             renderModeComboBox.Items.Add("Change render mode...");
@@ -19,9 +72,9 @@ namespace GUI.Types.Renderer
             renderModeComboBox.SelectedIndex = 0;
         }
 
-        protected override Control InitializeControl()
+        protected void InitializeControl()
         {
-            var control = base.InitializeControl();
+            var control = glRenderControl.Control;
 
             renderModeComboBox = new ComboBox
             {
@@ -31,8 +84,6 @@ namespace GUI.Types.Renderer
 
             renderModeComboBox.SelectedIndexChanged += OnRenderModeChange;
             control.Controls.Add(renderModeComboBox);
-
-            return control;
         }
 
         private void OnRenderModeChange(object obj, EventArgs e)
@@ -46,7 +97,10 @@ namespace GUI.Types.Renderer
                 ? null
                 : renderModeComboBox.SelectedItem.ToString();
 
-            OnRenderModeChanged?.Invoke(obj, selectedRenderMode);
+            foreach (var renderer in Renderers)
+            {
+                renderer.SetRenderMode(selectedRenderMode);
+            }
         }
     }
 }
