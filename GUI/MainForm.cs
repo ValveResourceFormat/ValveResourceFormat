@@ -623,28 +623,13 @@ namespace GUI
                         break;
                     case ResourceType.Model:
                         var glModelControl = new GLModelRenderControl();
+
                         glModelControl.Load += (_, __) =>
                         {
-                            glModelControl.Camera.SetViewportSize(glModelControl.Control.Width, glModelControl.Control.Height);
-                            glModelControl.Camera.SetLocation(new Vector3(200));
-                            glModelControl.Camera.LookAt(new Vector3(0));
-
                             var model = new Model(resource);
                             var modelRenderer = new ModelRenderer(model, vrfGuiContext);
 
-                            glModelControl.SetRenderModes(modelRenderer.GetRenderModes());
-
-                            glModelControl.Paint += (sender, args) =>
-                            {
-                                // Updating FPS-coupled dynamic step
-                                modelRenderer.Update(args.FrameTime);
-                                modelRenderer.Render(args.Camera);
-                            };
-
-                            glModelControl.OnRenderModeChanged += (sender, renderMode) =>
-                            {
-                                modelRenderer.SetRenderMode(renderMode);
-                            };
+                            glModelControl.AddRenderer(modelRenderer);
                         };
 
                         var modelRendererTab = new TabPage("MODEL");
@@ -661,24 +646,10 @@ namespace GUI
                         glModelControl = new GLModelRenderControl();
                         glModelControl.Load += (_, __) =>
                         {
-                            glModelControl.Camera.SetViewportSize(glModelControl.Control.Width, glModelControl.Control.Height);
-                            glModelControl.Camera.SetLocation(new Vector3(200));
-                            glModelControl.Camera.LookAt(new Vector3(0));
-
                             var mesh = new Mesh(resource);
-                            var modelRenderer = new MeshRenderer(mesh, vrfGuiContext);
+                            var meshRenderer = new MeshRenderer(mesh, vrfGuiContext);
 
-                            glModelControl.SetRenderModes(modelRenderer.GetRenderModes());
-
-                            glModelControl.Paint += (sender, args) =>
-                            {
-                                modelRenderer.Render(args.Camera);
-                            };
-
-                            glModelControl.OnRenderModeChanged += (sender, renderMode) =>
-                            {
-                                modelRenderer.SetRenderMode(renderMode);
-                            };
+                            glModelControl.AddRenderer(meshRenderer);
                         };
 
                         var meshRendererTab = new TabPage("MESH");

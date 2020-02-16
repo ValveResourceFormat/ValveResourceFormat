@@ -8,7 +8,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.Renderer
 {
-    internal class ModelRenderer
+    internal class ModelRenderer : IMeshRenderer
     {
         public Model Model { get; }
 
@@ -44,8 +44,8 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public IEnumerable<string> GetRenderModes()
-            => meshRenderers.SelectMany(renderer => renderer.GetRenderModes()).Distinct();
+        public IEnumerable<string> GetSupportedRenderModes()
+            => meshRenderers.SelectMany(renderer => renderer.GetSupportedRenderModes()).Distinct();
 
         public void SetRenderMode(string renderMode)
         {
