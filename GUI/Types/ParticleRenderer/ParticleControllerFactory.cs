@@ -4,6 +4,7 @@ using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
+using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer

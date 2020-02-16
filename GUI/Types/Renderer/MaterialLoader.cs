@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
@@ -14,16 +15,13 @@ namespace GUI.Types.Renderer
     {
         public List<string> LoadedTextures { get; } = new List<string>();
         private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
-        private readonly Package CurrentPackage;
-        private readonly string CurrentFileName;
+        private readonly VrfGuiContext VrfGuiContext;
         private int ErrorTextureID;
         public int MaxTextureMaxAnisotropy { get; set; }
 
-        public MaterialLoader(string currentFileName, Package currentPackage)
+        public MaterialLoader(VrfGuiContext guiContext)
         {
-            CurrentPackage = currentPackage;
-            CurrentFileName = currentFileName;
-
+            VrfGuiContext = guiContext;
             MaxTextureMaxAnisotropy = 0;
         }
 
@@ -42,7 +40,7 @@ namespace GUI.Types.Renderer
             var mat = new Material();
             mat.Textures["g_tColor"] = GetErrorTexture();
 
-            var resource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
+            var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
 
             Materials.Add(name, mat);
 
@@ -99,7 +97,7 @@ namespace GUI.Types.Renderer
 
         public int LoadTexture(string name)
         {
-            var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(name + "_c", CurrentFileName, CurrentPackage);
+            var textureResource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
 
             if (textureResource == null)
             {

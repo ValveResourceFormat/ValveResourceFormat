@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
-using SteamDatabase.ValvePak;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -34,9 +33,7 @@ namespace GUI.Types.Renderer
         private readonly List<Tuple<string, Matrix4>> cameras;
         private readonly DebugUtil Debug;
 
-        public MaterialLoader MaterialLoader { get; }
-        public Package CurrentPackage { get; }
-        public string CurrentFileName { get; }
+        public VrfGuiContext VrfGuiContext { get; }
 
         private readonly TabControl tabs;
 
@@ -66,7 +63,7 @@ namespace GUI.Types.Renderer
 
         private int AnimationTexture;
 
-        public Renderer(TabControl mainTabs, string fileName, Package currentPackage, RenderSubject subjectType = RenderSubject.Unknown)
+        public Renderer(TabControl mainTabs, VrfGuiContext vrfGuiContext, RenderSubject subjectType = RenderSubject.Unknown)
         {
             SubjectType = subjectType;
 
@@ -77,15 +74,12 @@ namespace GUI.Types.Renderer
             Animations = new List<Animation>();
             cameras = new List<Tuple<string, Matrix4>>();
 
-            CurrentPackage = currentPackage;
-            CurrentFileName = fileName;
+            VrfGuiContext = vrfGuiContext;
             tabs = mainTabs;
 
             Debug = new DebugUtil();
 
             Skeleton = new Skeleton(); // Default empty skeleton
-
-            MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
         public void Dispose()
@@ -334,7 +328,7 @@ namespace GUI.Types.Renderer
 
             if (extensions.ContainsKey("GL_EXT_texture_filter_anisotropic"))
             {
-                MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
+                VrfGuiContext.MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
             }
             else
             {
@@ -384,7 +378,7 @@ namespace GUI.Types.Renderer
 
             foreach (var obj in MeshesToRender)
             {
-                obj.LoadFromResource(MaterialLoader);
+                obj.LoadFromResource(VrfGuiContext.MaterialLoader);
             }
 
             // Gather render modes
@@ -416,9 +410,6 @@ namespace GUI.Types.Renderer
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
             //Unbind texture again
             GL.BindTexture(TextureTarget.Texture2D, 0);
-
-            // TODO: poor hack
-            FileExtensions.ClearCache();
 
             Loaded = true;
 

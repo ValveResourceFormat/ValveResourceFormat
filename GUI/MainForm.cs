@@ -603,8 +603,8 @@ namespace GUI
                     case ResourceType.World:
                         var world = new World(resource);
                         var renderWorld = new RenderWorld(world);
-                        var worldmv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.World);
-                        renderWorld.AddObjects(worldmv, fileName, currentPackage);
+                        var worldmv = new Renderer(mainTabs, vrfGuiContext, RenderSubject.World);
+                        renderWorld.AddObjects(worldmv);
 
                         var worldmeshTab = new TabPage("MAP");
                         var worldglControl = worldmv.CreateGL();
@@ -613,8 +613,8 @@ namespace GUI
                         break;
                     case ResourceType.WorldNode:
                         var node = new RenderWorldNode(resource);
-                        var nodemv = new Renderer(mainTabs, fileName, currentPackage);
-                        node.AddMeshes(nodemv, fileName, currentPackage);
+                        var nodemv = new Renderer(mainTabs, vrfGuiContext);
+                        node.AddMeshes(nodemv);
 
                         var nodemeshTab = new TabPage("MAP");
                         var nodeglControl = nodemv.CreateGL();
@@ -659,7 +659,7 @@ namespace GUI
                         }
 
                         var meshTab = new TabPage("MESH");
-                        var mv = new Renderer(mainTabs, fileName, currentPackage, RenderSubject.Model);
+                        var mv = new Renderer(mainTabs, vrfGuiContext, RenderSubject.Model);
 
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, Renderer = mv });
 
@@ -1127,11 +1127,11 @@ namespace GUI
                                 MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
                             }
 
-                            foreach (var texture in tag.Renderer.MaterialLoader.LoadedTextures)
+                            foreach (var texture in tag.Renderer.VrfGuiContext.MaterialLoader.LoadedTextures)
                             {
                                 Console.WriteLine($"Exporting texture for mesh: {texture}");
 
-                                var textureResource = FileExtensions.LoadFileByAnyMeansNecessary(texture + "_c", tag.Renderer.CurrentFileName, tag.Renderer.CurrentPackage);
+                                var textureResource = tag.Renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(texture + "_c");
                                 var textureImage = SKImage.FromBitmap(((Texture)textureResource.DataBlock).GenerateBitmap());
 
                                 using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))

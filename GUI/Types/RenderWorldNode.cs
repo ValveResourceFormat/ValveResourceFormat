@@ -23,7 +23,7 @@ namespace GUI.Types
             worldNode = new WorldNode(resource);
         }
 
-        internal void AddMeshes(Renderer.Renderer renderer, string path, Package package)
+        internal void AddMeshes(Renderer.Renderer renderer)
         {
             var data = worldNode.GetData();
 
@@ -78,7 +78,7 @@ namespace GUI.Types
 
                 if (renderableModel != null)
                 {
-                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderableModel + "_c", path, package);
+                    var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + renderableModel + "_c");
@@ -95,7 +95,7 @@ namespace GUI.Types
 
                 if (renderable != null)
                 {
-                    var newResource = FileExtensions.LoadFileByAnyMeansNecessary(renderable + "_c", path, package);
+                    var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load renderable " + renderable + "_c");

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -68,7 +67,7 @@ namespace GUI.Types.Renderer
             var referredMeshNames = Model.GetReferredMeshNames();
             foreach (var refMesh in referredMeshNames)
             {
-                var newResource = FileExtensions.LoadFileByAnyMeansNecessary(refMesh + "_c", guiContext.FileName, guiContext.CurrentPackage);
+                var newResource = guiContext.LoadFileByAnyMeansNecessary(refMesh + "_c");
                 if (newResource == null)
                 {
                     Console.WriteLine("unable to load mesh " + refMesh);
@@ -110,8 +109,8 @@ namespace GUI.Types.Renderer
             var animGroupPaths = Model.GetData().GetArray<string>("m_refAnimGroups");
             foreach (var animGroupPath in animGroupPaths)
             {
-                var animGroup = FileExtensions.LoadFileByAnyMeansNecessary(animGroupPath + "_c", guiContext.FileName, guiContext.CurrentPackage);
-                animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, guiContext.FileName, guiContext.CurrentPackage));
+                var animGroup = guiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
+                animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, guiContext));
             }
         }
     }
