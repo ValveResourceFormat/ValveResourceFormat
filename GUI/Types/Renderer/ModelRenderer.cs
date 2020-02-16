@@ -8,7 +8,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.Renderer
 {
-    internal class ModelRenderer : IMeshRenderer
+    internal class ModelRenderer : IMeshRenderer, IAnimationRenderer
     {
         public Model Model { get; }
 
@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
             }
 
             // Load referred meshes from file
-            var referredMeshNames = Model.GetReferredMeshNames();
+            var referredMeshNames = Model.GetReferencedMeshNames();
             foreach (var refMesh in referredMeshNames)
             {
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(refMesh + "_c");
@@ -106,12 +106,22 @@ namespace GUI.Types.Renderer
 
         private void LoadAnimations()
         {
-            var animGroupPaths = Model.GetData().GetArray<string>("m_refAnimGroups");
+            var animGroupPaths = Model.GetReferencedAnimationGroupNames();
             foreach (var animGroupPath in animGroupPaths)
             {
                 var animGroup = guiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
                 animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, guiContext));
             }
+
+            animations.AddRange(Model.GetEmbeddedAnimations());
+        }
+
+        public IEnumerable<string> GetSupportedAnimationNames()
+            => animations.Select(a => a.Name);
+
+        public void SetAnimation(string animationName)
+        {
+            throw new NotImplementedException();
         }
     }
 }
