@@ -10,22 +10,8 @@ using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
 {
-    internal class MaterialLoader
+    public class MaterialLoader
     {
-        private static Dictionary<string, MaterialLoader> instances = new Dictionary<string, MaterialLoader>();
-        public static MaterialLoader GetInstance(string currentFileName, Package currentPackage)
-        {
-            var key = currentFileName + currentPackage?.FileName;
-            if (instances.TryGetValue(key, out var loader))
-            {
-                return loader;
-            }
-
-            var newLoader = new MaterialLoader(currentFileName, currentPackage);
-            instances.Add(key, newLoader);
-            return newLoader;
-        }
-
         public List<string> LoadedTextures { get; } = new List<string>();
         private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         private readonly Package CurrentPackage;
@@ -33,7 +19,7 @@ namespace GUI.Types.Renderer
         private int ErrorTextureID;
         public int MaxTextureMaxAnisotropy { get; set; }
 
-        private MaterialLoader(string currentFileName, Package currentPackage)
+        public MaterialLoader(string currentFileName, Package currentPackage)
         {
             CurrentPackage = currentPackage;
             CurrentFileName = currentFileName;

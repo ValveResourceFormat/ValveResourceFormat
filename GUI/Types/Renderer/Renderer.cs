@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
 
             Skeleton = new Skeleton(); // Default empty skeleton
 
-            MaterialLoader = MaterialLoader.GetInstance(CurrentFileName, CurrentPackage);
+            MaterialLoader = new MaterialLoader(CurrentFileName, CurrentPackage);
         }
 
         public void Dispose()
