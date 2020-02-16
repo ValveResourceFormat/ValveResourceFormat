@@ -69,7 +69,6 @@ namespace ValveResourceFormat.ResourceTypes
                 var decodeKey = animationGroup.GetDecodeKey();
 
                 var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as BinaryKV3;
-                var animationDataList = animationDataBlock.Data.GetArray("m_animArray");
 
                 animations.AddRange(Animation.FromData(animationDataBlock.Data, decodeKey));
             }

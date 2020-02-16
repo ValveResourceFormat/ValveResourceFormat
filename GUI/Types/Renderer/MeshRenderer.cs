@@ -251,6 +251,12 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("fulltangent", !(bool)compressedNormalTangent.Value);
                     }
 
+                    if (d.Properties.TryGetValue("m_nFlags", out var flags)
+                        && flags.Value.ToString().Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
+                    {
+                        shaderArguments.Add("fulltangent", false);
+                    }
+
                     // TODO: Don't pass around so much shit
                     var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, shaderArguments, vbib, material);
                     drawCalls.Add(drawCall);
