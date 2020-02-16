@@ -211,7 +211,7 @@ namespace GUI.Types.ParticleRenderer
             foreach (var rendererInfo in rendererData)
             {
                 var rendererClass = rendererInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext: vrfGuiContext, out var renderer))
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext, out var renderer))
                 {
                     renderers.Add(renderer);
                 }

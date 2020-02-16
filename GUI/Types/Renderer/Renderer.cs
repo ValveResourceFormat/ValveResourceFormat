@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
-using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;

@@ -1,8 +1,6 @@
 using System;
 using GUI.Types.Renderer;
-using GUI.Utils;
 using OpenTK;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
