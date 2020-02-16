@@ -24,6 +24,9 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<string> GetReferencedMeshNames()
             => GetData().GetArray<string>("m_refMeshes").Where(m => m != null);
 
+        public IEnumerable<(string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
+            => GetReferencedMeshNames().Zip(GetData().GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r));
+
         public IEnumerable<Mesh> GetEmbeddedMeshes()
         {
             var meshes = new List<Mesh>();
