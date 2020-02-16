@@ -91,14 +91,14 @@ namespace GUI.Types.Renderer
                 meshRenderers.Add(new MeshRenderer(embeddedMesh, guiContext));
             }
 
-            // Load referred meshes from file
-            var referredMeshNames = Model.GetReferencedMeshNames();
-            foreach (var refMesh in referredMeshNames)
+            // Load referred meshes from file (only load meshes with LoD 1)
+            var referredMeshesAndLoDs = Model.GetReferenceMeshNamesAndLoD();
+            foreach (var refMesh in referredMeshesAndLoDs.Where(m => (m.LoDMask & 1) != 0))
             {
-                var newResource = guiContext.LoadFileByAnyMeansNecessary(refMesh + "_c");
+                var newResource = guiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
                 if (newResource == null)
                 {
-                    Console.WriteLine("unable to load mesh " + refMesh);
+                    Console.WriteLine("unable to load mesh " + refMesh.MeshName);
                     continue;
                 }
 
