@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.NTRO;
@@ -12,27 +13,43 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public string Name { get; private set; }
         public float Fps { get; private set; }
 
-        private readonly Resource resource;
-
         private long FrameCount;
 
         private Frame[] Frames;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Animation"/> class.
-        /// Build animation from resource.
-        /// </summary>
-        public Animation(Resource resource, IKeyValueCollection decodeKey)
+        private Animation(
+            IKeyValueCollection animDesc,
+            IKeyValueCollection decodeKey,
+            AnimDecoderType[] decoderArray,
+            IKeyValueCollection[] segmentArray)
         {
             Name = string.Empty;
             Fps = 0;
             Frames = new Frame[0];
 
-            this.resource = resource;
-            ConstructAnimation(GetAnimationData(), decodeKey);
+            ConstructFromDesc(animDesc, decodeKey, decoderArray, segmentArray);
         }
 
-        public IKeyValueCollection GetAnimationData()
+        public static IEnumerable<Animation> FromData(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
+        {
+            var animArray = animationData.GetArray<IKeyValueCollection>("m_animArray");
+
+            if (animArray.Length == 0)
+            {
+                Console.WriteLine("Empty animation file found.");
+                return Enumerable.Empty<Animation>();
+            }
+
+            var decoderArray = MakeDecoderArray(animationData.GetArray("m_decoderArray"));
+            var segmentArray = animationData.GetArray("m_segmentArray");
+
+            return animArray.Select(anim => new Animation(anim, decodeKey, decoderArray, segmentArray));
+        }
+
+        public static IEnumerable<Animation> FromResource(Resource resource, IKeyValueCollection decodeKey)
+            => FromData(GetAnimationData(resource), decodeKey);
+
+        private static IKeyValueCollection GetAnimationData(Resource resource)
         {
             var dataBlock = resource.DataBlock;
             if (dataBlock is NTRO ntro)
@@ -45,23 +62,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return default;
-        }
-
-        private void ConstructAnimation(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
-        {
-            var animArray = animationData.GetArray<IKeyValueCollection>("m_animArray");
-
-            if (animArray.Length == 0)
-            {
-                Console.WriteLine("Empty animation file found.");
-                return;
-            }
-
-            var decoderArray = MakeDecoderArray(animationData.GetArray("m_decoderArray"));
-            var segmentArray = animationData.GetArray("m_segmentArray");
-
-            // Get the first animation description
-            ConstructFromDesc(animArray[0], decodeKey, decoderArray, segmentArray);
         }
 
         /// <summary>
@@ -346,7 +346,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Transform the decoder array to a mapping of index to type ID.
         /// </summary>
-        private AnimDecoderType[] MakeDecoderArray(IKeyValueCollection[] decoderArray)
+        private static AnimDecoderType[] MakeDecoderArray(IKeyValueCollection[] decoderArray)
         {
             var array = new AnimDecoderType[decoderArray.Length];
             for (var i = 0; i < decoderArray.Length; i++)

@@ -90,8 +90,11 @@ namespace GUI.Types.Renderer
         private void SetAnimations(IEnumerable<string> animations)
         {
             animationComboBox.Items.Clear();
-            animationComboBox.Items.AddRange(animations.ToArray());
-            animationComboBox.SelectedIndex = 0;
+            if (animations.Any())
+            {
+                animationComboBox.Items.AddRange(animations.ToArray());
+                animationComboBox.SelectedIndex = 0;
+            }
         }
 
         private void InitializeControl()
@@ -138,6 +141,10 @@ namespace GUI.Types.Renderer
 
         private void OnAnimationChange(object obj, EventArgs e)
         {
+            foreach (var renderer in Renderers.OfType<IAnimationRenderer>())
+            {
+                renderer.SetAnimation(animationComboBox.SelectedItem.ToString());
+            }
         }
     }
 }

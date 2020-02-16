@@ -4,6 +4,7 @@ using System.Linq;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
@@ -35,7 +36,7 @@ namespace GUI.Types.Renderer
                 }
 
                 // Build animation classes
-                animationList.Add(new ValveResourceFormat.ResourceTypes.ModelAnimation.Animation(animResource, decodeKey));
+                animationList.AddRange(Animation.FromResource(animResource, decodeKey));
             }
 
             return animationList;

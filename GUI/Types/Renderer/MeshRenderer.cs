@@ -20,6 +20,9 @@ namespace GUI.Types.Renderer
         private List<DrawCall> drawCalls = new List<DrawCall>();
         private string prevMaterial = string.Empty;
 
+        private int? animationTexture;
+        private int boneCount;
+
         public MeshRenderer(Mesh mesh, VrfGuiContext vrfGuiContext)
         {
             Mesh = mesh;
@@ -51,6 +54,12 @@ namespace GUI.Types.Renderer
                     prevMaterial = string.Empty; // Reset previous material to force reloading textures
                 }
             }
+        }
+
+        public void SetAnimationTexture(int? texture, int numBones)
+        {
+            animationTexture = texture;
+            boneCount = numBones;
         }
 
         public void Update(float frameTime)
@@ -86,28 +95,27 @@ namespace GUI.Types.Renderer
                 uniformLocation = call.Shader.GetUniformLocation("bAnimated");
                 if (uniformLocation != -1)
                 {
-                    //GL.Uniform1(uniformLocation, Animations.Count == 0 ? 0.0f : 1.0f);
-                    GL.Uniform1(uniformLocation, 0.0f);
+                    GL.Uniform1(uniformLocation, animationTexture.HasValue ? 1.0f : 0.0f);
                 }
 
                 //Push animation texture to the shader (if it supports it)
-                /*if (Animations.Count > 0)
+                if (animationTexture.HasValue)
                 {
                     uniformLocation = call.Shader.GetUniformLocation("animationTexture");
                     if (uniformLocation != -1)
                     {
                         GL.ActiveTexture(TextureUnit.Texture0);
-                        GL.BindTexture(TextureTarget.Texture2D, AnimationTexture);
+                        GL.BindTexture(TextureTarget.Texture2D, animationTexture.Value);
                         GL.Uniform1(uniformLocation, 0);
                     }
 
                     uniformLocation = call.Shader.GetUniformLocation("fNumBones");
                     if (uniformLocation != -1)
                     {
-                        var v = (float)Math.Max(1, Skeleton.Bones.Length - 1);
+                        var v = (float)Math.Max(1, boneCount - 1);
                         GL.Uniform1(uniformLocation, v);
                     }
-                }*/
+                }
 
                 //var transform = obj.Transform;
                 var transform = Matrix4.Identity;
@@ -128,69 +136,64 @@ namespace GUI.Types.Renderer
                     GL.Uniform3(uniformLocation, call.TintColor);
                 }
 
-                if (call.Material.Parameters.Name != prevMaterial)
+                //Start at 1, texture unit 0 is reserved for the animation texture
+                var textureUnit = 1;
+                foreach (var texture in call.Material.Textures)
                 {
-                    prevMaterial = call.Material.Parameters.Name;
+                    uniformLocation = call.Shader.GetUniformLocation(texture.Key);
 
-                    //Start at 1, texture unit 0 is reserved for the animation texture
-                    var textureUnit = 1;
-                    foreach (var texture in call.Material.Textures)
+                    if (uniformLocation > -1)
                     {
-                        uniformLocation = call.Shader.GetUniformLocation(texture.Key);
+                        GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
+                        GL.BindTexture(TextureTarget.Texture2D, texture.Value);
+                        GL.Uniform1(uniformLocation, textureUnit);
 
-                        if (uniformLocation > -1)
-                        {
-                            GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-                            GL.BindTexture(TextureTarget.Texture2D, texture.Value);
-                            GL.Uniform1(uniformLocation, textureUnit);
-
-                            textureUnit++;
-                        }
+                        textureUnit++;
                     }
-
-                    foreach (var param in call.Material.Parameters.FloatParams)
-                    {
-                        uniformLocation = call.Shader.GetUniformLocation(param.Key);
-
-                        if (uniformLocation > -1)
-                        {
-                            GL.Uniform1(uniformLocation, param.Value);
-                        }
-                    }
-
-                    foreach (var param in call.Material.Parameters.VectorParams)
-                    {
-                        uniformLocation = call.Shader.GetUniformLocation(param.Key);
-
-                        if (uniformLocation > -1)
-                        {
-                            GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
-                        }
-                    }
-
-                    var alpha = 0f;
-                    if (call.Material.Parameters.IntParams.ContainsKey("F_ALPHA_TEST") &&
-                        call.Material.Parameters.IntParams["F_ALPHA_TEST"] == 1 &&
-                        call.Material.Parameters.FloatParams.ContainsKey("g_flAlphaTestReference"))
-                    {
-                        alpha = call.Material.Parameters.FloatParams["g_flAlphaTestReference"];
-                    }
-
-                    var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
-                    GL.Uniform1(alphaReference, alpha);
-
-                    /*
-                    if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
-                    {
-                        GL.Enable(EnableCap.Blend);
-                        GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
-                    }
-                    else
-                    {
-                        GL.Disable(EnableCap.Blend);
-                    }
-                    */
                 }
+
+                foreach (var param in call.Material.Parameters.FloatParams)
+                {
+                    uniformLocation = call.Shader.GetUniformLocation(param.Key);
+
+                    if (uniformLocation > -1)
+                    {
+                        GL.Uniform1(uniformLocation, param.Value);
+                    }
+                }
+
+                foreach (var param in call.Material.Parameters.VectorParams)
+                {
+                    uniformLocation = call.Shader.GetUniformLocation(param.Key);
+
+                    if (uniformLocation > -1)
+                    {
+                        GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
+                    }
+                }
+
+                var alpha = 0f;
+                if (call.Material.Parameters.IntParams.ContainsKey("F_ALPHA_TEST") &&
+                    call.Material.Parameters.IntParams["F_ALPHA_TEST"] == 1 &&
+                    call.Material.Parameters.FloatParams.ContainsKey("g_flAlphaTestReference"))
+                {
+                    alpha = call.Material.Parameters.FloatParams["g_flAlphaTestReference"];
+                }
+
+                var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
+                GL.Uniform1(alphaReference, alpha);
+
+                /*
+                if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
+                {
+                    GL.Enable(EnableCap.Blend);
+                    GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                }
+                else
+                {
+                    GL.Disable(EnableCap.Blend);
+                }
+                */
 
                 GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
             }

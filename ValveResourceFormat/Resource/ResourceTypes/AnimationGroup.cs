@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -8,17 +9,16 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private readonly IKeyValueCollection data;
 
-        public AnimationGroup(IKeyValueCollection animationData)
+        public AnimationGroup(ResourceData animationData)
         {
-            data = animationData;
+            data = animationData is NTRO ntro
+                ? ntro.Output as IKeyValueCollection
+                : ((BinaryKV3)animationData).Data;
         }
 
         public AnimationGroup(Resource resource)
+            : this(resource.DataBlock)
         {
-            var dataBlock = resource.DataBlock;
-            data = dataBlock is NTRO ntro
-                ? ntro.Output as IKeyValueCollection
-                : ((BinaryKV3)dataBlock).Data;
         }
 
         public IKeyValueCollection GetDecodeKey()
