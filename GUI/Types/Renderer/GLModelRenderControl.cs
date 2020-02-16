@@ -32,6 +32,9 @@ namespace GUI.Types.Renderer
             glRenderControl.Load += OnLoad;
         }
 
+        /// <summary>
+        /// OpenGL loaded event handler.
+        /// </summary>
         public void OnLoad(object sender, EventArgs e)
         {
             glRenderControl.Camera.SetViewportSize(glRenderControl.Control.Width, glRenderControl.Control.Height);
@@ -43,6 +46,9 @@ namespace GUI.Types.Renderer
             glRenderControl.Paint += OnPaint;
         }
 
+        /// <summary>
+        /// Render control event.
+        /// </summary>
         public void OnPaint(object sender, RenderEventArgs e)
         {
             foreach (var renderer in Renderers)
@@ -72,7 +78,7 @@ namespace GUI.Types.Renderer
             renderModeComboBox.SelectedIndex = 0;
         }
 
-        protected void InitializeControl()
+        private void InitializeControl()
         {
             var control = glRenderControl.Control;
 
