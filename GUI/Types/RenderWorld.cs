@@ -195,6 +195,7 @@ namespace GUI.Types
 
                 var newModel = new Model(newEntity);
                 var modelRenderer = new ModelRenderer(newModel, vrfGuiContext);
+                modelRenderer.SetMeshTransform(transformationMatrix);
                 // TODO
                 glRenderControl.AddRenderer(modelRenderer);
                 //var entityModel = new RenderModel(newModel);
