@@ -15,11 +15,13 @@ namespace GUI.Types.Renderer
     {
         public Mesh Mesh { get; }
 
+        public Matrix4 Transform { get; set; } = Matrix4.Identity;
+        public Vector4 Tint { get; set; } = Vector4.One;
+
         private readonly VrfGuiContext guiContext;
 
         private List<DrawCall> drawCalls = new List<DrawCall>();
 
-        public Matrix4 Transform { get; set; } = Matrix4.Identity;
         private int? animationTexture;
         private int boneCount;
 
@@ -123,7 +125,7 @@ namespace GUI.Types.Renderer
                 uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
                 if (uniformLocation > -1)
                 {
-                    GL.Uniform4(uniformLocation, Vector4.One);
+                    GL.Uniform4(uniformLocation, Tint);
                 }
 
                 GL.BindVertexArray(call.VertexArrayObject);
@@ -242,6 +244,13 @@ namespace GUI.Types.Renderer
                     }*/
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
+                    var isOverlay = material.Parameters.IntParams.Any(p => p.Key == "F_OVERLAY");
+
+                    // Ignore overlays for now
+                    if (isOverlay)
+                    {
+                        continue;
+                    }
 
                     var shaderArguments = new Dictionary<string, bool>();
                     if (d.Properties.TryGetValue("m_bUseCompressedNormalTangent", out var compressedNormalTangent))

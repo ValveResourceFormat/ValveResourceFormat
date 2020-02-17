@@ -92,6 +92,14 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetTint(Vector4 tint)
+        {
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.Tint = tint;
+            }
+        }
+
         private void LoadMeshes()
         {
             // Get embedded meshes

@@ -602,7 +602,7 @@ namespace GUI
 
                         break;
                     case ResourceType.World:
-                        var glWorldControl = new GLModelRenderControl();
+                        var glWorldControl = new GLModelViewerControl();
 
                         glWorldControl.Load += (_, __) =>
                         {
@@ -619,7 +619,7 @@ namespace GUI
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
                     case ResourceType.WorldNode:
-                        var glWorldNodeControl = new GLModelRenderControl();
+                        var glWorldNodeControl = new GLModelViewerControl();
 
                         glWorldNodeControl.Load += (_, __) =>
                         {
@@ -632,7 +632,7 @@ namespace GUI
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
-                        var glModelControl = new GLModelRenderControl();
+                        var glModelControl = new GLModelViewerControl();
 
                         glModelControl.Load += (_, __) =>
                         {
@@ -653,7 +653,7 @@ namespace GUI
                             break;
                         }
 
-                        glModelControl = new GLModelRenderControl();
+                        glModelControl = new GLModelViewerControl();
                         glModelControl.Load += (_, __) =>
                         {
                             var mesh = new Mesh(resource);

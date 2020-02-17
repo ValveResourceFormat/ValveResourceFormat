@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
     /// GL Render control with model controls (render mode, animation panels).
     /// Renders a list of IMeshRenderers.
     /// </summary>
-    internal class GLModelRenderControl
+    internal class GLModelViewerControl
     {
         public ICollection<IRenderer> Renderers { get; } = new HashSet<IRenderer>();
 
@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
         private ComboBox animationComboBox;
         private ComboBox renderModeComboBox;
 
-        public GLModelRenderControl()
+        public GLModelViewerControl()
         {
             glRenderControl = new GLRenderControl();
 
