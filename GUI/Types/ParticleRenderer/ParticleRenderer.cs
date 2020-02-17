@@ -12,7 +12,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    internal class ParticleRenderer
+    internal class ParticleRenderer : IRenderer
     {
         public IEnumerable<IParticleEmitter> Emitters { get; private set; } = new List<IParticleEmitter>();
 

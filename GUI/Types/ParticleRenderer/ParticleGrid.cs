@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using OpenTK;
+using GUI.Types.Renderer;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.ParticleRenderer
 {
-    internal class ParticleGrid
+    internal class ParticleGrid : IRenderer
     {
         private const string VertextShaderSource = @"
             attribute vec3 aVertexPosition;
@@ -56,13 +56,18 @@ namespace GUI.Types.ParticleRenderer
             GL.BindVertexArray(0); // Unbind VAO
         }
 
-        public void Render(Matrix4 projectionMatrix, Matrix4 viewMatrix)
+        public void Update(float frameTime)
+        {
+            // not required
+        }
+
+        public void Render(Camera camera)
         {
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(shaderProgram);
 
-            var projectionViewMatrix = viewMatrix * projectionMatrix;
+            var projectionViewMatrix = camera.CameraViewMatrix * camera.ProjectionMatrix;
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uProjectionViewMatrix"), false, ref projectionViewMatrix);
 
             GL.BindVertexArray(vao);

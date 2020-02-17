@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
     /// </summary>
     internal class GLModelRenderControl
     {
-        public ICollection<IMeshRenderer> Renderers { get; } = new HashSet<IMeshRenderer>();
+        public ICollection<IRenderer> Renderers { get; } = new HashSet<IRenderer>();
 
         public event EventHandler Load;
 
@@ -59,24 +59,28 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void AddRenderer(IMeshRenderer renderer)
+        public void AddRenderer(IRenderer renderer)
         {
             Renderers.Add(renderer);
 
-            // Update supported render modes
-            var supportedRenderModes = Renderers
-                .SelectMany(r => r.GetSupportedRenderModes())
-                .Distinct();
+            if (renderer is IMeshRenderer)
+            {
+                // Update supported render modes
+                var supportedRenderModes = Renderers
+                    .OfType<IMeshRenderer>()
+                    .SelectMany(r => r.GetSupportedRenderModes())
+                    .Distinct();
 
-            SetRenderModes(supportedRenderModes);
+                SetRenderModes(supportedRenderModes);
 
-            // Update supported animations
-            var supportedAnimations = Renderers
-                .OfType<IAnimationRenderer>()
-                .SelectMany(r => r.GetSupportedAnimationNames())
-                .Distinct();
+                // Update supported animations
+                var supportedAnimations = Renderers
+                    .OfType<IAnimationRenderer>()
+                    .SelectMany(r => r.GetSupportedAnimationNames())
+                    .Distinct();
 
-            SetAnimations(supportedAnimations);
+                SetAnimations(supportedAnimations);
+            }
         }
 
         private void SetRenderModes(IEnumerable<string> renderModes)
@@ -135,7 +139,10 @@ namespace GUI.Types.Renderer
 
             foreach (var renderer in Renderers)
             {
-                renderer.SetRenderMode(selectedRenderMode);
+                if (renderer is IMeshRenderer)
+                {
+                    ((IMeshRenderer)renderer).SetRenderMode(selectedRenderMode);
+                }
             }
         }
 

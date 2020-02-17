@@ -581,7 +581,7 @@ namespace GUI
 
                             glControl.Paint += (sender, args) =>
                             {
-                                particleGrid.Render(args.Camera.ProjectionMatrix, args.Camera.CameraViewMatrix);
+                                particleGrid.Render(args.Camera);
 
                                 // Updating FPS-coupled dynamic step
                                 particleRenderer.Update(args.FrameTime);
@@ -606,6 +606,9 @@ namespace GUI
 
                         glWorldControl.Load += (_, __) =>
                         {
+                            var particleGrid = new ParticleGrid(20, 5);
+                            glWorldControl.AddRenderer(particleGrid);
+
                             var world = new World(resource);
                             var renderWorld = new RenderWorld(world);
                             renderWorld.AddObjects(glWorldControl, vrfGuiContext);
