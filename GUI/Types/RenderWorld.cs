@@ -87,6 +87,7 @@ namespace GUI.Types
                 var colour = new byte[0];
                 var classname = string.Empty;
                 var name = string.Empty;
+                string particle = null;
 
                 foreach (var property in entity.Properties)
                 {
@@ -117,11 +118,28 @@ namespace GUI.Types
                         case 1094168427:
                             name = property.Data as string;
                             break;
+                        case 2433605045: // Ambient effect
+                            particle = property.Data as string;
+                            break;
                     }
                 }
 
                 if (scale == string.Empty || position == string.Empty || angles == string.Empty)
                 {
+                    continue;
+                }
+
+                if (particle != null)
+                {
+                    var particleResource = vrfGuiContext.LoadFileByAnyMeansNecessary(particle + "_c");
+
+                    if (particleResource != null)
+                    {
+                        var particleSystem = new ParticleSystem(particleResource);
+                        var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext);
+                        glRenderControl.AddRenderer(particleRenderer);
+                    }
+
                     continue;
                 }
 
