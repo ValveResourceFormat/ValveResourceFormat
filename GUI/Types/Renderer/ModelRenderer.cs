@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using GUI.Utils;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -80,6 +81,14 @@ namespace GUI.Types.Renderer
             foreach (var renderer in meshRenderers)
             {
                 renderer.SetRenderMode(renderMode);
+            }
+        }
+
+        public void SetMeshTransform(Matrix4 matrix)
+        {
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.Transform = matrix;
             }
         }
 

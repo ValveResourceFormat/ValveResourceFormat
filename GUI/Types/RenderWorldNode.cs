@@ -105,7 +105,9 @@ namespace GUI.Types
                     }
 
                     // TODO
-                    glRenderControl.AddRenderer(new MeshRenderer(new Mesh(newResource), vrfGuiContext));
+                    var renderer = new MeshRenderer(new Mesh(newResource), vrfGuiContext);
+                    renderer.Transform = matrix;
+                    glRenderControl.AddRenderer(renderer);
                     /*glRenderControl.AddMeshObject(new MeshObject
                     {
                         Resource = newResource,

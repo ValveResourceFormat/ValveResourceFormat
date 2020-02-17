@@ -18,8 +18,8 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext guiContext;
 
         private List<DrawCall> drawCalls = new List<DrawCall>();
-        private string prevMaterial = string.Empty;
 
+        public Matrix4 Transform { get; set; } = Matrix4.Identity;
         private int? animationTexture;
         private int boneCount;
 
@@ -51,7 +51,6 @@ namespace GUI.Types.Renderer
                     }
 
                     call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
-                    prevMaterial = string.Empty; // Reset previous material to force reloading textures
                 }
             }
         }
@@ -117,8 +116,7 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                //var transform = obj.Transform;
-                var transform = Matrix4.Identity;
+                var transform = Transform;
                 uniformLocation = call.Shader.GetUniformLocation("transform");
                 GL.UniformMatrix4(uniformLocation, false, ref transform);
 
@@ -263,7 +261,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
+            //drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
         private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, Material material)
