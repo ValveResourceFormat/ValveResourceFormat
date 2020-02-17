@@ -1,5 +1,6 @@
 using System;
 using GUI.Types.Renderer;
+using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -21,7 +22,7 @@ namespace GUI.Types
             worldNode = new WorldNode(resource);
         }
 
-        internal void AddMeshes(Renderer.Renderer renderer)
+        internal void AddMeshes(GLModelRenderControl glRenderControl, VrfGuiContext vrfGuiContext)
         {
             var data = worldNode.GetData();
 
@@ -76,7 +77,7 @@ namespace GUI.Types
 
                 if (renderableModel != null)
                 {
-                    var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
+                    var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + renderableModel + "_c");
@@ -84,7 +85,9 @@ namespace GUI.Types
                         continue;
                     }
 
+                    // TODO
                     var model = new Model(newResource);
+                    glRenderControl.AddRenderer(new ModelRenderer(model, vrfGuiContext));
                     //var modelEntry = new RenderModel(model);
                     //modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
                 }
@@ -93,7 +96,7 @@ namespace GUI.Types
 
                 if (renderable != null)
                 {
-                    var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
+                    var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load renderable " + renderable + "_c");
@@ -101,12 +104,14 @@ namespace GUI.Types
                         continue;
                     }
 
-                    renderer.AddMeshObject(new MeshObject
+                    // TODO
+                    glRenderControl.AddRenderer(new MeshRenderer(new Mesh(newResource), vrfGuiContext));
+                    /*glRenderControl.AddMeshObject(new MeshObject
                     {
                         Resource = newResource,
                         Transform = matrix,
                         TintColor = tintColor,
-                    });
+                    });*/
                 }
             }
         }

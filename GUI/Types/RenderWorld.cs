@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using GUI.Types.Renderer;
+using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat.ResourceTypes;
 using Vector3 = OpenTK.Vector3;
@@ -11,14 +13,14 @@ namespace GUI.Types
     {
         private readonly World world;
 
-        private static int anonymousCameraCount;
+        //private static int anonymousCameraCount;
 
         public RenderWorld(World world)
         {
             this.world = world;
         }
 
-        internal void AddObjects(Renderer.Renderer renderer)
+        internal void AddObjects(GLModelRenderControl glRenderControl, VrfGuiContext vrfGuiContext)
         {
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -26,7 +28,7 @@ namespace GUI.Types
             {
                 if (worldNode != null)
                 {
-                    var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
+                    var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
@@ -34,24 +36,24 @@ namespace GUI.Types
                     }
 
                     var renderWorldNode = new RenderWorldNode(newResource);
-                    renderWorldNode.AddMeshes(renderer);
+                    renderWorldNode.AddMeshes(glRenderControl, vrfGuiContext);
                 }
             }
 
             foreach (var lump in world.GetEntityLumpNames())
             {
-                LoadEntities(lump, renderer);
+                LoadEntities(lump, glRenderControl, vrfGuiContext);
             }
         }
 
-        private void LoadEntities(string entityName, Renderer.Renderer renderer)
+        private void LoadEntities(string entityName, GLModelRenderControl glRenderControl, VrfGuiContext vrfGuiContext)
         {
             if (entityName == null)
             {
                 return;
             }
 
-            var newResource = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(entityName + "_c");
+            var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(entityName + "_c");
             if (newResource == null)
             {
                 Console.WriteLine("unable to load entity lump " + entityName + "_c");
@@ -70,7 +72,7 @@ namespace GUI.Types
                     continue;
                 }
 
-                LoadEntities(childEntityName, renderer);
+                LoadEntities(childEntityName, glRenderControl, vrfGuiContext);
             }
 
             var worldEntities = entityLump.GetEntities();
@@ -153,18 +155,21 @@ namespace GUI.Types
                 {
                     if (classname == "worldspawn")
                     {
-                        renderer.SetDefaultWorldCamera(positionVector);
+                        // TODO
+                        //glRenderControl.SetDefaultWorldCamera(positionVector);
                     }
                     else
                     {
-                        renderer.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, transformationMatrix);
+                        // TODO
+                        //glRenderControl.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, transformationMatrix);
                     }
 
                     continue;
                 }
                 else if (isGlobalLight)
                 {
-                    renderer.SetWorldGlobalLight(positionVector); // TODO: set light angle
+                    // TODO
+                    //glRenderControl.SetWorldGlobalLight(positionVector); // TODO: set light angle
 
                     continue;
                 }
@@ -180,7 +185,7 @@ namespace GUI.Types
                     }
                 }
 
-                var newEntity = renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(model + "_c");
+                var newEntity = vrfGuiContext.LoadFileByAnyMeansNecessary(model + "_c");
                 if (newEntity == null)
                 {
                     Console.WriteLine($"unable to load entity {model}_c");
@@ -189,6 +194,9 @@ namespace GUI.Types
                 }
 
                 var newModel = new Model(newEntity);
+                var modelRenderer = new ModelRenderer(newModel, vrfGuiContext);
+                // TODO
+                glRenderControl.AddRenderer(modelRenderer);
                 //var entityModel = new RenderModel(newModel);
                 //entityModel.LoadMeshes(renderer, path, transformationMatrix, objColor, package, skin);
             }
