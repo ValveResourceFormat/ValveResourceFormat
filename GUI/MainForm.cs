@@ -33,7 +33,7 @@ namespace GUI
         private class ExportData
         {
             public Resource Resource { get; set; }
-            public Renderer Renderer { get; set; }
+            public VrfGuiContext VrfGuiContext { get; set; }
         }
 
         private readonly Regex NewLineRegex;
@@ -601,24 +601,30 @@ namespace GUI
 
                         break;
                     case ResourceType.World:
-                        var world = new World(resource);
-                        var renderWorld = new RenderWorld(world);
-                        var worldmv = new Renderer(mainTabs, vrfGuiContext, RenderSubject.World);
-                        renderWorld.AddObjects(worldmv);
+                        var glWorldControl = new GLModelRenderControl();
+
+                        glWorldControl.Load += (_, __) =>
+                        {
+                            var world = new World(resource);
+                            var renderWorld = new RenderWorld(world);
+                            renderWorld.AddObjects(glWorldControl, vrfGuiContext);
+                        };
 
                         var worldmeshTab = new TabPage("MAP");
-                        var worldglControl = worldmv.CreateGL();
-                        worldmeshTab.Controls.Add(worldglControl);
+                        worldmeshTab.Controls.Add(glWorldControl.Control);
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
                     case ResourceType.WorldNode:
-                        var node = new RenderWorldNode(resource);
-                        var nodemv = new Renderer(mainTabs, vrfGuiContext);
-                        node.AddMeshes(nodemv);
+                        var glWorldNodeControl = new GLModelRenderControl();
 
-                        var nodemeshTab = new TabPage("MAP");
-                        var nodeglControl = nodemv.CreateGL();
-                        nodemeshTab.Controls.Add(nodeglControl);
+                        glWorldNodeControl.Load += (_, __) =>
+                        {
+                            var node = new RenderWorldNode(resource);
+                            node.AddMeshes(glWorldNodeControl, vrfGuiContext);
+                        };
+
+                        var nodemeshTab = new TabPage("WORLD NODE");
+                        nodemeshTab.Controls.Add(glWorldNodeControl.Control);
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
@@ -1115,11 +1121,11 @@ namespace GUI
                                 MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
                             }
 
-                            foreach (var texture in tag.Renderer.VrfGuiContext.MaterialLoader.LoadedTextures)
+                            foreach (var texture in tag.VrfGuiContext.MaterialLoader.LoadedTextures)
                             {
                                 Console.WriteLine($"Exporting texture for mesh: {texture}");
 
-                                var textureResource = tag.Renderer.VrfGuiContext.LoadFileByAnyMeansNecessary(texture + "_c");
+                                var textureResource = tag.VrfGuiContext.LoadFileByAnyMeansNecessary(texture + "_c");
                                 var textureImage = SKImage.FromBitmap(((Texture)textureResource.DataBlock).GenerateBitmap());
 
                                 using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
