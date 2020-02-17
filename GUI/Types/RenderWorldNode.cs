@@ -22,7 +22,7 @@ namespace GUI.Types
             worldNode = new WorldNode(resource);
         }
 
-        internal void AddMeshes(GLModelRenderControl glRenderControl, VrfGuiContext vrfGuiContext)
+        internal void AddMeshes(GLModelViewerControl glRenderControl, VrfGuiContext vrfGuiContext)
         {
             var data = worldNode.GetData();
 
@@ -75,6 +75,9 @@ namespace GUI.Types
                     tintColor = new Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
                 }
 
+                var test = sceneObject.GetIntegerProperty("m_nOverlayRenderOrder");
+                matrix = Matrix4.CreateTranslation(0, 0, test * 1f) * matrix;
+
                 if (renderableModel != null)
                 {
                     var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
@@ -88,6 +91,7 @@ namespace GUI.Types
                     // TODO
                     var renderer = new ModelRenderer(new Model(newResource), vrfGuiContext);
                     renderer.SetMeshTransform(matrix);
+                    renderer.SetTint(tintColor);
                     glRenderControl.AddRenderer(renderer);
                     //var modelEntry = new RenderModel(model);
                     //modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
@@ -108,6 +112,7 @@ namespace GUI.Types
                     // TODO
                     var renderer = new MeshRenderer(new Mesh(newResource), vrfGuiContext);
                     renderer.Transform = matrix;
+                    renderer.Tint = tintColor;
                     glRenderControl.AddRenderer(renderer);
                     /*glRenderControl.AddMeshObject(new MeshObject
                     {

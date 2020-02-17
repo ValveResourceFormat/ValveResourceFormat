@@ -20,7 +20,7 @@ namespace GUI.Types
             this.world = world;
         }
 
-        internal void AddObjects(GLModelRenderControl glRenderControl, VrfGuiContext vrfGuiContext)
+        internal void AddObjects(GLModelViewerControl glRenderControl, VrfGuiContext vrfGuiContext)
         {
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -46,7 +46,7 @@ namespace GUI.Types
             }
         }
 
-        private void LoadEntities(string entityName, GLModelRenderControl glRenderControl, VrfGuiContext vrfGuiContext)
+        private void LoadEntities(string entityName, GLModelViewerControl glRenderControl, VrfGuiContext vrfGuiContext)
         {
             if (entityName == null)
             {
@@ -214,6 +214,7 @@ namespace GUI.Types
                 var newModel = new Model(newEntity);
                 var modelRenderer = new ModelRenderer(newModel, vrfGuiContext);
                 modelRenderer.SetMeshTransform(transformationMatrix);
+                modelRenderer.SetTint(objColor);
                 // TODO
                 glRenderControl.AddRenderer(modelRenderer);
                 //var entityModel = new RenderModel(newModel);
