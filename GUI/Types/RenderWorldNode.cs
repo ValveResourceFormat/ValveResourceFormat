@@ -86,8 +86,9 @@ namespace GUI.Types
                     }
 
                     // TODO
-                    var model = new Model(newResource);
-                    glRenderControl.AddRenderer(new ModelRenderer(model, vrfGuiContext));
+                    var renderer = new ModelRenderer(new Model(newResource), vrfGuiContext);
+                    renderer.SetMeshTransform(matrix);
+                    glRenderControl.AddRenderer(renderer);
                     //var modelEntry = new RenderModel(model);
                     //modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
                 }
