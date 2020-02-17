@@ -23,6 +23,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ClosedCaptions;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 
@@ -1118,7 +1119,7 @@ namespace GUI
                             using (var objStream = new StreamWriter(stream))
                             using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
                             {
-                                MeshObject.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
+                                MeshWriter.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
                             }
 
                             foreach (var texture in tag.VrfGuiContext.MaterialLoader.LoadedTextures)
