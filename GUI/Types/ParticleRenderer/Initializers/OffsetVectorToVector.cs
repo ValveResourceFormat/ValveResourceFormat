@@ -49,7 +49,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (outputField == ParticleField.Position)
             {
-                particle.Position = input + offset;
+                particle.Position += input + offset;
             }
             else if (outputField == ParticleField.PositionPrevious)
             {

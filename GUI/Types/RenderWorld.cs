@@ -82,7 +82,7 @@ namespace GUI.Types
                 var scale = string.Empty;
                 var position = string.Empty;
                 var angles = string.Empty;
-                var model = string.Empty;
+                string model = null;
                 var skin = string.Empty;
                 var colour = new byte[0];
                 var classname = string.Empty;
@@ -129,20 +129,6 @@ namespace GUI.Types
                     continue;
                 }
 
-                if (particle != null)
-                {
-                    var particleResource = vrfGuiContext.LoadFileByAnyMeansNecessary(particle + "_c");
-
-                    if (particleResource != null)
-                    {
-                        var particleSystem = new ParticleSystem(particleResource);
-                        var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext);
-                        glRenderControl.AddRenderer(particleRenderer);
-                    }
-
-                    continue;
-                }
-
                 var isGlobalLight = classname == "env_global_light";
                 var isCamera =
                     classname == "info_player_start" ||
@@ -150,11 +136,6 @@ namespace GUI.Types
                     classname == "sky_camera" ||
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
-
-                if (!isGlobalLight && !isCamera && model == string.Empty)
-                {
-                    continue;
-                }
 
                 var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
 
@@ -168,6 +149,20 @@ namespace GUI.Types
 
                 var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
                 var transformationMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+
+                if (particle != null)
+                {
+                    var particleResource = vrfGuiContext.LoadFileByAnyMeansNecessary(particle + "_c");
+
+                    if (particleResource != null)
+                    {
+                        var particleSystem = new ParticleSystem(particleResource);
+                        var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext, new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z));
+                        glRenderControl.AddRenderer(particleRenderer);
+                    }
+
+                    continue;
+                }
 
                 if (isCamera)
                 {
@@ -189,6 +184,10 @@ namespace GUI.Types
                     // TODO
                     //glRenderControl.SetWorldGlobalLight(positionVector); // TODO: set light angle
 
+                    continue;
+                }
+                else if (model == null)
+                {
                     continue;
                 }
 

@@ -68,7 +68,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var localCoordinateSystemSpeed = localCoordinateSystemSpeedMin
                 + ((float)random.NextDouble() * (localCoordinateSystemSpeedMax - localCoordinateSystemSpeedMin));
 
-            particle.Position = direction * distance;
+            particle.Position += direction * distance;
             particle.Velocity = (direction * speed) + localCoordinateSystemSpeed;
 
             return particle;
