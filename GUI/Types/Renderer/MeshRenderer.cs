@@ -197,6 +197,9 @@ namespace GUI.Types.Renderer
 
                 GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
             }
+
+            GL.Disable(EnableCap.CullFace);
+            GL.Disable(EnableCap.DepthTest);
         }
 
         private void SetupDrawCalls()
