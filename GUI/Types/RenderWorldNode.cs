@@ -75,9 +75,6 @@ namespace GUI.Types
                     tintColor = new Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
                 }
 
-                var test = sceneObject.GetIntegerProperty("m_nOverlayRenderOrder");
-                matrix = Matrix4.CreateTranslation(0, 0, test * 1f) * matrix;
-
                 if (renderableModel != null)
                 {
                     var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
