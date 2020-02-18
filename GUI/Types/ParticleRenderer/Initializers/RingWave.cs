@@ -44,7 +44,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             var angle = GetNextAngle();
 
-            particle.Position = radius * new Vector3((float)Math.Cos(angle), (float)Math.Sin(angle), 0);
+            particle.Position += radius * new Vector3((float)Math.Cos(angle), (float)Math.Sin(angle), 0);
 
             return particle;
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
@@ -22,21 +23,22 @@ namespace GUI.Types.ParticleRenderer
 
         public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
 
-        private readonly ParticleSystem particleSystem;
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
 
         private List<Particle> particles;
         private ParticleSystemRenderState systemRenderState;
 
-        public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
+        // TODO: Passing in position here was for testing, do it properly
+        public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext, Vector3 pos = default)
         {
-            this.particleSystem = particleSystem;
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
             particles = new List<Particle>();
             systemRenderState = new ParticleSystemRenderState();
+
+            systemRenderState.SetControlPoint(0, pos);
 
             SetupEmitters(particleSystem.GetData(), particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -63,6 +65,8 @@ namespace GUI.Types.ParticleRenderer
 
         private void OnParticleSpawn(Particle particle)
         {
+            particle.Position = systemRenderState.GetControlPoint(0);
+
             foreach (var initializer in Initializers)
             {
                 initializer.Initialize(particle, systemRenderState);
@@ -231,7 +235,7 @@ namespace GUI.Types.ParticleRenderer
                 var childResource = vrfGuiContext.LoadFileByAnyMeansNecessary(childName + "_c");
                 var childSystem = new ParticleSystem(childResource);
 
-                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext));
+                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0)));
             }
         }
     }
