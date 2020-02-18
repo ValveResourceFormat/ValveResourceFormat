@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Utils
                 return Lookup[key];
             }
 
-            var hash = MurmurHash2.Hash("origin", MURMUR2SEED);
+            var hash = MurmurHash2.Hash(key, MURMUR2SEED);
             Lookup[key] = hash;
 
             return hash;
