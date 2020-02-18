@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         private readonly VrfGuiContext VrfGuiContext;
         private int ErrorTextureID;
-        public int MaxTextureMaxAnisotropy { get; set; }
+        public static int MaxTextureMaxAnisotropy { get; set; }
 
         public MaterialLoader(VrfGuiContext guiContext)
         {
@@ -152,13 +152,18 @@ namespace GUI.Types.Renderer
             // TODO: This might conflict when opening multiple files due to shit caching
             textureResource.Dispose();
 
-            if (MaxTextureMaxAnisotropy > 0)
+            if (MaxTextureMaxAnisotropy >= 4)
             {
                 GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            }
+            else
+            {
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             }
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)(tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat));
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)(tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat));
 
