@@ -88,6 +88,7 @@ namespace GUI.Types
                 var classname = string.Empty;
                 var name = string.Empty;
                 string particle = null;
+                string animation = null;
 
                 foreach (var property in entity.Properties)
                 {
@@ -120,6 +121,9 @@ namespace GUI.Types
                             break;
                         case 2433605045: // Ambient effect
                             particle = property.Data as string;
+                            break;
+                        case 2267127509: // (default?) animation
+                            animation = property.Data as string;
                             break;
                     }
                 }
@@ -214,6 +218,13 @@ namespace GUI.Types
                 var modelRenderer = new ModelRenderer(newModel, vrfGuiContext);
                 modelRenderer.SetMeshTransform(transformationMatrix);
                 modelRenderer.SetTint(objColor);
+
+                if (animation != null)
+                {
+                    // TODO: Causes rendering bugs, maybe skeletons or something are missing
+                    //modelRenderer.SetAnimation(animation);
+                }
+
                 // TODO
                 glRenderControl.AddRenderer(modelRenderer);
                 //var entityModel = new RenderModel(newModel);
