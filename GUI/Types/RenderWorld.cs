@@ -4,6 +4,7 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 using Vector3 = OpenTK.Vector3;
 using Vector4 = OpenTK.Vector4;
 
@@ -86,45 +87,46 @@ namespace GUI.Types
                 var skin = string.Empty;
                 var colour = new byte[0];
                 var classname = string.Empty;
-                var name = string.Empty;
                 string particle = null;
                 string animation = null;
 
                 foreach (var property in entity.Properties)
                 {
-                    //metadata
-                    switch (property.MiscType)
+                    if (property.MiscType == EntityLumpKeyLookup.Get("model"))
                     {
-                        case 3368008710: //World Model
-                            model = property.Data as string;
-                            break;
-                        case 3827302934: //Position
-                            position = property.Data as string;
-                            break;
-                        case 3130579663: //Angles
-                            angles = property.Data as string;
-                            break;
-                        case 432137260: //Scale
-                            scale = property.Data as string;
-                            break;
-                        case 2020856412: //Skin
-                            skin = property.Data as string;
-                            break;
-                        case 588463423: //Colour
-                            colour = property.Data as byte[];
-                            break;
-                        case 3323665506: //Classname
-                            classname = property.Data as string;
-                            break;
-                        case 1094168427:
-                            name = property.Data as string;
-                            break;
-                        case 2433605045: // Ambient effect
-                            particle = property.Data as string;
-                            break;
-                        case 2267127509: // (default?) animation
-                            animation = property.Data as string;
-                            break;
+                        model = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("origin"))
+                    {
+                        position = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("angles"))
+                    {
+                        angles = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("scales"))
+                    {
+                        scale = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("skin"))
+                    {
+                        skin = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("rendercolor"))
+                    {
+                        colour = property.Data as byte[];
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("classname"))
+                    {
+                        classname = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("effect_name"))
+                    {
+                        particle = property.Data as string;
+                    }
+                    else if (property.MiscType == EntityLumpKeyLookup.Get("defaultanim"))
+                    {
+                        animation = property.Data as string;
                     }
                 }
 
