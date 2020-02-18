@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
@@ -87,6 +88,8 @@ namespace GUI.Types
             Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
             Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
 
+            CheckOpenGL();
+
             stopwatch.Start();
 
             Load?.Invoke(this, e);
@@ -137,6 +140,26 @@ namespace GUI.Types
         {
             glControl.MakeCurrent();
             Draw();
+        }
+
+        private void CheckOpenGL()
+        {
+            var extensions = new Dictionary<string, bool>();
+            var count = GL.GetInteger(GetPName.NumExtensions);
+            for (var i = 0; i < count; i++)
+            {
+                var extension = GL.GetString(StringNameIndexed.Extensions, i);
+                extensions.Add(extension, true);
+            }
+
+            if (extensions.ContainsKey("GL_EXT_texture_filter_anisotropic"))
+            {
+                MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
+            }
+            else
+            {
+                Console.Error.WriteLine("GL_EXT_texture_filter_anisotropic is not supported");
+            }
         }
     }
 }
