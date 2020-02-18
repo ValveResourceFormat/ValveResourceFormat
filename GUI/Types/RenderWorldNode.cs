@@ -67,8 +67,8 @@ namespace GUI.Types
                 Vector4 tintColor;
                 if (tintColorWrongVector.W == 0)
                 {
+                    // Ignoring tintColor, it will fuck things up.
                     tintColor = Vector4.One;
-                    Console.WriteLine("Ignoring tintColor, it will fuck things up.");
                 }
                 else
                 {
