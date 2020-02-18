@@ -1,5 +1,9 @@
 #version 330
 
+// Render modes -- Switched on/off by code
+#define param_renderMode_Color 0
+#define param_renderMode_Illumination 0
+
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -53,4 +57,13 @@ void main()
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb * tintFactor, color.a);
+
+    // Different render mode definitions
+#if param_renderMode_Color == 1
+	outputColor = vec4(color.rgb, 1.0);
+#endif
+
+#if param_renderMode_Illumination == 1
+	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+#endif
 }
