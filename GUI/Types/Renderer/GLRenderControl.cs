@@ -87,8 +87,6 @@ namespace GUI.Types
             Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
             Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
 
-            GL.Enable(EnableCap.Blend);
-
             stopwatch.Start();
 
             Load?.Invoke(this, e);

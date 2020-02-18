@@ -173,6 +173,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
         {
+            GL.Enable(EnableCap.Blend);
             GL.UseProgram(shaderProgram);
 
             if (additive)
@@ -254,6 +255,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 GL.BlendEquation(BlendEquationMode.FuncAdd);
             }
+
+            GL.Disable(EnableCap.Blend);
         }
     }
 }
