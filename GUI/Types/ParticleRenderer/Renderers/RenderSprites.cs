@@ -80,7 +80,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
             else
             {
-                glTexture = MaterialLoader.GetErrorTexture();
+                glTexture = vrfGuiContext.MaterialLoader.GetErrorTexture();
             }
 
             additive = keyValues.GetProperty<bool>("m_bAdditive");
