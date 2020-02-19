@@ -156,6 +156,8 @@
     <Compile Include="Types\Renderer\IAnimationRenderer.cs" />
     <Compile Include="Types\Renderer\IRenderer.cs" />
     <Compile Include="Types\Renderer\IMeshRenderer.cs" />
+    <Compile Include="Types\Renderer\WorldRenderer.cs" />
+    <Compile Include="Types\Renderer\WorldNodeRenderer.cs" />
     <Compile Include="Utils\VrfGuiContext.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
     <Compile Include="Types\Renderer\DebugUtil.cs" />
@@ -165,8 +167,6 @@
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
     <Compile Include="Types\Renderer\MeshObject.cs" />
     <Compile Include="Types\Renderer\ShaderLoader.cs" />
-    <Compile Include="Types\RenderWorld.cs" />
-    <Compile Include="Types\RenderWorldNode.cs" />
     <Compile Include="Utils\ConsoleTab.cs" />
     <Compile Include="Utils\FileLoader.cs" />
     <Compile Include="Utils\FileExtensions.cs" />
