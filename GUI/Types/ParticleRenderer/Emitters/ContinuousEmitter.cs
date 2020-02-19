@@ -9,8 +9,8 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private readonly IKeyValueCollection baseProperties;
 
-        private readonly float emissionDuration = 0f;
-        private readonly float startTime = 0f;
+        private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0);
+        private readonly INumberProvider startTime = new LiteralNumberProvider(0);
         private readonly INumberProvider emitRate = new LiteralNumberProvider(100);
         private readonly float emitInterval = 0.01f;
 
@@ -26,12 +26,12 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             if (keyValues.ContainsKey("m_flEmissionDuration"))
             {
-                emissionDuration = keyValues.GetFloatProperty("m_flEmissionDuration");
+                emissionDuration = keyValues.GetNumberProvider("m_flEmissionDuration");
             }
 
             if (keyValues.ContainsKey("m_flStartTime"))
             {
-                startTime = keyValues.GetFloatProperty("m_flStartTime");
+                startTime = keyValues.GetNumberProvider("m_flStartTime");
             }
 
             if (keyValues.ContainsKey("m_flEmitRate"))
@@ -66,7 +66,10 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             time += frameTime;
 
-            if (time >= startTime && (emissionDuration == 0f || time <= startTime + emissionDuration))
+            var nextStartTime = startTime.NextNumber();
+            var nextEmissionDuration = emissionDuration.NextNumber();
+
+            if (time >= nextStartTime && (nextEmissionDuration == 0f || time <= nextStartTime + nextEmissionDuration))
             {
                 var numToEmit = (int)Math.Floor((time - lastEmissionTime) / emitInterval);
                 var emitCount = Math.Min(5 * emitRate.NextNumber(), numToEmit); // Limit the amount of particles to emit at once in case of refocus
