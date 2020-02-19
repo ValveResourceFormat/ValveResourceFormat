@@ -52,7 +52,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (baseProperties.ContainsKey("m_ConstantColor"))
             {
-                var vectorValues = baseProperties.GetArray<long>("m_ConstantColor");
+                var vectorValues = baseProperties.GetIntegerArray("m_ConstantColor");
                 ConstantColor = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
 
