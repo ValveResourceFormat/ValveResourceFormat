@@ -72,9 +72,16 @@ namespace GUI.Types.ParticleRenderer.Renderers
             // The same quad is reused for all particles
             quadVao = SetupQuadBuffer();
 
-            var textureSetup = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
-            glTexture = textureSetup.TextureIndex;
-            spriteSheetData = textureSetup.TextureData.GetSpriteSheetData();
+            if (keyValues.ContainsKey("m_hTexture"))
+            {
+                var textureSetup = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
+                glTexture = textureSetup.TextureIndex;
+                spriteSheetData = textureSetup.TextureData.GetSpriteSheetData();
+            }
+            else
+            {
+                glTexture = MaterialLoader.GetErrorTexture();
+            }
 
             additive = keyValues.GetProperty<bool>("m_bAdditive");
             if (keyValues.ContainsKey("m_flOverbrightFactor"))

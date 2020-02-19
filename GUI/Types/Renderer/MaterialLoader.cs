@@ -14,7 +14,7 @@ namespace GUI.Types.Renderer
         public List<string> LoadedTextures { get; } = new List<string>();
         private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         private readonly VrfGuiContext VrfGuiContext;
-        private int ErrorTextureID;
+        private static int ErrorTextureID;
         public static int MaxTextureMaxAnisotropy { get; set; }
 
         public MaterialLoader(VrfGuiContext guiContext)
@@ -170,7 +170,7 @@ namespace GUI.Types.Renderer
             return id;
         }
 
-        private int GetErrorTexture()
+        public static int GetErrorTexture()
         {
             if (ErrorTextureID == 0)
             {
