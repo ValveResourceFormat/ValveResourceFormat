@@ -14,7 +14,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             if (keyValues.ContainsKey("m_ColorFade"))
             {
-                var vectorValues = keyValues.GetArray<long>("m_ColorFade");
+                var vectorValues = keyValues.GetIntegerArray("m_ColorFade");
                 colorFade = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
 
