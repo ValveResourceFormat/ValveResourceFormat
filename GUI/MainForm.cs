@@ -610,8 +610,8 @@ namespace GUI
                             glWorldControl.AddRenderer(particleGrid);
 
                             var world = new World(resource);
-                            var renderWorld = new RenderWorld(world);
-                            renderWorld.AddObjects(glWorldControl, vrfGuiContext);
+                            var worldRenderer = new WorldRenderer(world, vrfGuiContext);
+                            glWorldControl.AddRenderer(worldRenderer);
                         };
 
                         var worldmeshTab = new TabPage("MAP");
@@ -623,8 +623,9 @@ namespace GUI
 
                         glWorldNodeControl.Load += (_, __) =>
                         {
-                            var node = new RenderWorldNode(resource);
-                            node.AddMeshes(glWorldNodeControl, vrfGuiContext);
+                            var worldNode = new WorldNode(resource);
+                            var worldNodeRenderer = new WorldNodeRenderer(worldNode, vrfGuiContext);
+                            glWorldNodeControl.AddRenderer(worldNodeRenderer);
                         };
 
                         var nodemeshTab = new TabPage("WORLD NODE");

@@ -1,30 +1,45 @@
 using System;
-using GUI.Types.Renderer;
+using System.Collections.Generic;
 using GUI.Utils;
 using OpenTK;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
-namespace GUI.Types
+namespace GUI.Types.Renderer
 {
-    internal class RenderWorldNode
+    internal class WorldNodeRenderer : IRenderer
     {
-        private readonly WorldNode worldNode;
+        public WorldNode WorldNode { get; }
 
-        public RenderWorldNode(WorldNode worldNode)
+        private readonly VrfGuiContext guiContext;
+
+        private readonly List<IMeshRenderer> meshRenderers = new List<IMeshRenderer>();
+
+        public WorldNodeRenderer(WorldNode worldNode, VrfGuiContext vrfGuiContext)
         {
-            this.worldNode = worldNode;
+            WorldNode = worldNode;
+            guiContext = vrfGuiContext;
+
+            // Do setup
+            SetupMeshRenderers();
         }
 
-        public RenderWorldNode(Resource resource)
+        public void Render(Camera camera)
         {
-            worldNode = new WorldNode(resource);
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.Render(camera);
+            }
         }
 
-        internal void AddMeshes(GLModelViewerControl glRenderControl, VrfGuiContext vrfGuiContext)
+        public void Update(float frameTime)
         {
-            var data = worldNode.GetData();
+            // Nothing to do here
+        }
+
+        private void SetupMeshRenderers()
+        {
+            var data = WorldNode.GetData();
 
             var sceneObjectLayerIndices = data.GetIntegerArray("m_sceneObjectLayerIndices");
             var sceneObjects = data.GetArray("m_sceneObjects");
@@ -48,7 +63,7 @@ namespace GUI.Types
 
                 var matrix = Matrix4.Identity;
 
-                // what is this
+                // Copy transform matrix to right type
                 for (var x = 0; x < transform.Length; x++)
                 {
                     var a = transform[x].ToVector4();
@@ -77,7 +92,7 @@ namespace GUI.Types
 
                 if (renderableModel != null)
                 {
-                    var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
+                    var newResource = guiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + renderableModel + "_c");
@@ -85,20 +100,17 @@ namespace GUI.Types
                         continue;
                     }
 
-                    // TODO
-                    var renderer = new ModelRenderer(new Model(newResource), vrfGuiContext);
+                    var renderer = new ModelRenderer(new Model(newResource), guiContext);
                     renderer.SetMeshTransform(matrix);
                     renderer.SetTint(tintColor);
-                    glRenderControl.AddRenderer(renderer);
-                    //var modelEntry = new RenderModel(model);
-                    //modelEntry.LoadMeshes(renderer, path, matrix, tintColor, package);
+                    meshRenderers.Add(renderer);
                 }
 
                 var renderable = sceneObject.GetProperty<string>("m_renderable");
 
                 if (renderable != null)
                 {
-                    var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
+                    var newResource = guiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load renderable " + renderable + "_c");
@@ -106,17 +118,10 @@ namespace GUI.Types
                         continue;
                     }
 
-                    // TODO
-                    var renderer = new MeshRenderer(new Mesh(newResource), vrfGuiContext);
+                    var renderer = new MeshRenderer(new Mesh(newResource), guiContext);
                     renderer.Transform = matrix;
                     renderer.Tint = tintColor;
-                    glRenderControl.AddRenderer(renderer);
-                    /*glRenderControl.AddMeshObject(new MeshObject
-                    {
-                        Resource = newResource,
-                        Transform = matrix,
-                        TintColor = tintColor,
-                    });*/
+                    meshRenderers.Add(renderer);
                 }
             }
         }

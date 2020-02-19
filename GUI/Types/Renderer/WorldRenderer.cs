@@ -1,68 +1,111 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
-using Vector3 = OpenTK.Vector3;
-using Vector4 = OpenTK.Vector4;
 
-namespace GUI.Types
+namespace GUI.Types.Renderer
 {
-    internal class RenderWorld
+    internal class WorldRenderer : IRenderer
     {
-        private readonly World world;
+        public World World { get; }
 
-        //private static int anonymousCameraCount;
+        private readonly VrfGuiContext guiContext;
 
-        public RenderWorld(World world)
+        private readonly List<WorldNodeRenderer> worldNodeRenderers = new List<WorldNodeRenderer>();
+        private readonly List<IRenderer> particleRenderers = new List<IRenderer>();
+        private readonly List<ModelRenderer> modelRenderers = new List<ModelRenderer>();
+
+        public WorldRenderer(World world, VrfGuiContext vrfGuiContext)
         {
-            this.world = world;
+            World = world;
+            guiContext = vrfGuiContext;
+
+            // Do setup
+            LoadWorldNodes();
+            LoadEntities();
+
+            // TODO: Figure out which animations to play on which model renderers
         }
 
-        internal void AddObjects(GLModelViewerControl glRenderControl, VrfGuiContext vrfGuiContext)
+        public void Render(Camera camera)
+        {
+            foreach (var renderer in worldNodeRenderers)
+            {
+                renderer.Render(camera);
+            }
+
+            foreach (var renderer in modelRenderers)
+            {
+                renderer.Render(camera);
+            }
+
+            foreach (var renderer in particleRenderers)
+            {
+                renderer.Render(camera);
+            }
+        }
+
+        public void Update(float frameTime)
+        {
+            foreach (var renderer in particleRenderers)
+            {
+                renderer.Update(frameTime);
+            }
+
+            foreach (var renderer in modelRenderers)
+            {
+                renderer.Update(frameTime);
+            }
+        }
+
+        private void LoadWorldNodes()
         {
             // Output is World_t we need to iterate m_worldNodes inside it.
-            var worldNodes = world.GetWorldNodeNames();
+            var worldNodes = World.GetWorldNodeNames();
             foreach (var worldNode in worldNodes)
             {
                 if (worldNode != null)
                 {
-                    var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
+                    var newResource = guiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
                     if (newResource == null)
                     {
                         Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
                         throw new Exception("WTF");
                     }
 
-                    var renderWorldNode = new RenderWorldNode(newResource);
-                    renderWorldNode.AddMeshes(glRenderControl, vrfGuiContext);
+                    var worldNodeRenderer = new WorldNodeRenderer(new WorldNode(newResource), guiContext);
+                    worldNodeRenderers.Add(worldNodeRenderer);
                 }
-            }
-
-            foreach (var lump in world.GetEntityLumpNames())
-            {
-                LoadEntities(lump, glRenderControl, vrfGuiContext);
             }
         }
 
-        private void LoadEntities(string entityName, GLModelViewerControl glRenderControl, VrfGuiContext vrfGuiContext)
+        private void LoadEntities()
         {
-            if (entityName == null)
+            foreach (var lumpName in World.GetEntityLumpNames())
             {
-                return;
+                if (lumpName == null)
+                {
+                    return;
+                }
+
+                var newResource = guiContext.LoadFileByAnyMeansNecessary(lumpName + "_c");
+                if (newResource == null)
+                {
+                    Console.WriteLine("unable to load entity lump " + lumpName + "_c");
+
+                    return;
+                }
+
+                var entityLump = new EntityLump(newResource);
+                LoadEntitiesFromLump(entityLump);
             }
+        }
 
-            var newResource = vrfGuiContext.LoadFileByAnyMeansNecessary(entityName + "_c");
-            if (newResource == null)
-            {
-                Console.WriteLine("unable to load entity lump " + entityName + "_c");
-
-                return;
-            }
-
-            var entityLump = new EntityLump(newResource);
+        private void LoadEntitiesFromLump(EntityLump entityLump)
+        {
             var childEntities = entityLump.GetChildEntityNames();
 
             foreach (var childEntityName in childEntities)
@@ -73,7 +116,14 @@ namespace GUI.Types
                     continue;
                 }
 
-                LoadEntities(childEntityName, glRenderControl, vrfGuiContext);
+                var newResource = guiContext.LoadFileByAnyMeansNecessary(childEntityName + "_c");
+                if (newResource == null)
+                {
+                    Console.WriteLine("unable to load entity lump " + childEntityName + "_c");
+                    continue;
+                }
+
+                LoadEntitiesFromLump(new EntityLump(newResource));
             }
 
             var worldEntities = entityLump.GetEntities();
@@ -158,13 +208,13 @@ namespace GUI.Types
 
                 if (particle != null)
                 {
-                    var particleResource = vrfGuiContext.LoadFileByAnyMeansNecessary(particle + "_c");
+                    var particleResource = guiContext.LoadFileByAnyMeansNecessary(particle + "_c");
 
                     if (particleResource != null)
                     {
                         var particleSystem = new ParticleSystem(particleResource);
-                        var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext, new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z));
-                        glRenderControl.AddRenderer(particleRenderer);
+                        var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
+                        particleRenderers.Add(new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin));
                     }
 
                     continue;
@@ -208,7 +258,7 @@ namespace GUI.Types
                     }
                 }
 
-                var newEntity = vrfGuiContext.LoadFileByAnyMeansNecessary(model + "_c");
+                var newEntity = guiContext.LoadFileByAnyMeansNecessary(model + "_c");
                 if (newEntity == null)
                 {
                     Console.WriteLine($"unable to load entity {model}_c");
@@ -217,7 +267,7 @@ namespace GUI.Types
                 }
 
                 var newModel = new Model(newEntity);
-                var modelRenderer = new ModelRenderer(newModel, vrfGuiContext);
+                var modelRenderer = new ModelRenderer(newModel, guiContext);
                 modelRenderer.SetMeshTransform(transformationMatrix);
                 modelRenderer.SetTint(objColor);
 
@@ -227,10 +277,7 @@ namespace GUI.Types
                     //modelRenderer.SetAnimation(animation);
                 }
 
-                // TODO
-                glRenderControl.AddRenderer(modelRenderer);
-                //var entityModel = new RenderModel(newModel);
-                //entityModel.LoadMeshes(renderer, path, transformationMatrix, objColor, package, skin);
+                modelRenderers.Add(modelRenderer);
             }
         }
 
