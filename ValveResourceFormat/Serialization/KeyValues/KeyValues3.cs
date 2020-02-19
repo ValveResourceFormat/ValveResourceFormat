@@ -408,7 +408,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 }
                 else
                 {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.INT64, int.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.INT64, long.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
                 }
 
                 return;
