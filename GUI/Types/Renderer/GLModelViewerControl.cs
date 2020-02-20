@@ -139,9 +139,9 @@ namespace GUI.Types.Renderer
 
             foreach (var renderer in Renderers)
             {
-                if (renderer is IMeshRenderer)
+                if (renderer is IMeshRenderer meshRenderer)
                 {
-                    ((IMeshRenderer)renderer).SetRenderMode(selectedRenderMode);
+                    meshRenderer.SetRenderMode(selectedRenderMode);
                 }
             }
         }
