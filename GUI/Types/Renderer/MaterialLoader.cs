@@ -160,12 +160,15 @@ namespace GUI.Types.Renderer
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             }
 
-            var clampMode = tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS)
-                ? (int)TextureWrapMode.Clamp
-                : (int)TextureWrapMode.Repeat;
+            var clampModeS = tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS)
+                ? TextureWrapMode.Clamp
+                : TextureWrapMode.Repeat;
+            var clampModeT = tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT)
+                ? TextureWrapMode.Clamp
+                : TextureWrapMode.Repeat;
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, clampMode);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, clampMode);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)clampModeS);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)clampModeT);
 
             GL.BindTexture(TextureTarget.Texture2D, 0);
 

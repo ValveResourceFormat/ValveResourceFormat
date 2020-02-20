@@ -213,7 +213,7 @@ namespace GUI.Types.Renderer
                     {
                         var particleSystem = new ParticleSystem(particleResource);
                         var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
-                        //particleRenderers.Add(new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin));
+                        particleRenderers.Add(new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin));
                     }
 
                     continue;
