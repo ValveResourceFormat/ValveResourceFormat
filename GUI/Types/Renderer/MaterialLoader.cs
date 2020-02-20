@@ -44,8 +44,6 @@ namespace GUI.Types.Renderer
 
             if (resource == null)
             {
-                Console.Error.WriteLine("File " + name + " not found");
-
                 mat.Textures["g_tNormal"] = GetErrorTexture();
                 mat.Parameters = new VrfMaterial();
 
@@ -99,8 +97,6 @@ namespace GUI.Types.Renderer
 
             if (textureResource == null)
             {
-                Console.Error.WriteLine("File " + name + " not found");
-
                 return GetErrorTexture();
             }
 

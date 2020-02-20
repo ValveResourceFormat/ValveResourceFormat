@@ -93,10 +93,9 @@ namespace GUI.Types.Renderer
                 if (renderableModel != null)
                 {
                     var newResource = guiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
+
                     if (newResource == null)
                     {
-                        Console.WriteLine("unable to load model " + renderableModel + "_c");
-
                         continue;
                     }
 
@@ -111,10 +110,9 @@ namespace GUI.Types.Renderer
                 if (renderable != null)
                 {
                     var newResource = guiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
+
                     if (newResource == null)
                     {
-                        Console.WriteLine("unable to load renderable " + renderable + "_c");
-
                         continue;
                     }
 

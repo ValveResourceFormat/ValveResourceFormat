@@ -122,7 +122,6 @@ namespace GUI.Types.Renderer
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
                 if (newResource == null)
                 {
-                    Console.WriteLine("unable to load mesh " + refMesh.MeshName);
                     continue;
                 }
 
