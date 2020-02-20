@@ -1,5 +1,15 @@
 #version 330
 
+// Render modes -- Switched on/off by code
+#define param_renderMode_Color 0
+#define param_renderMode_Terrain_Blend 0
+#define param_renderMode_Ambient_Occlusion 0
+#define param_renderMode_Normals 0
+#define param_renderMode_Tangents 0
+#define param_renderMode_BumpMap 0
+#define param_renderMode_BumpNormals 0
+#define param_renderMode_Illumination 0
+
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -144,7 +154,39 @@ void main()
     float specular = blendSpecular.x * pow(max(0,dot(lightDirection, finalNormal)), 6);
 
     //Apply ambient occlusion
-    finalColor *= vec4(vWeightsOut2.xyz, 1);
+    vec4 occludedColor = finalColor * vec4(vWeightsOut2.xyz, 1.0);
 
-    outputColor = vec4(illumination * finalColor.xyz + vec3(0.7) * specular, 1);
+    outputColor = vec4(illumination * occludedColor.xyz + vec3(0.7) * specular, 1);
+
+#if param_renderMode_Color == 1
+	outputColor = vec4(finalColor.rgb, 1.0);
+#endif
+
+#if param_renderMode_Terrain_Blend == 1
+	outputColor = vec4(blend.xyz, 1.0);
+#endif
+
+#if param_renderMode_Ambient_Occlusion == 1
+	outputColor = vec4(vWeightsOut2.xyz, 1.0);
+#endif
+
+#if param_renderMode_Normals == 1
+	outputColor = vec4(vNormalOut, 1.0);
+#endif
+
+#if param_renderMode_Tangents == 1
+	outputColor = outputColor = vec4(tangent, 1.0);
+#endif
+
+#if param_renderMode_BumpMap == 1
+	outputColor = vec4(bumpNormal.xyz, 1.0);
+#endif
+
+#if param_renderMode_BumpNormals == 1
+	outputColor = vec4(finalNormal, 1.0);
+#endif
+
+#if param_renderMode_Illumination == 1
+	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+#endif
 }
