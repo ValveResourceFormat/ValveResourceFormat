@@ -82,6 +82,8 @@ namespace GUI.Types
 
         private void OnLoad(object sender, EventArgs e)
         {
+            glControl.Load -= OnLoad;
+
             glControl.MakeCurrent();
 
             Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));

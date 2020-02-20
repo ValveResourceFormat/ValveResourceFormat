@@ -604,19 +604,32 @@ namespace GUI
                     case ResourceType.World:
                         var glWorldControl = new GLModelViewerControl();
 
-                        glWorldControl.Load += (_, __) =>
+                        void WorldLoad(object sender, EventArgs e)
                         {
+                            glWorldControl.Load -= WorldLoad;
+
                             var particleGrid = new ParticleGrid(20, 5);
                             glWorldControl.AddRenderer(particleGrid);
 
                             var world = new World(resource);
                             var worldRenderer = new WorldRenderer(world, vrfGuiContext);
                             glWorldControl.AddRenderer(worldRenderer);
-                        };
+                        }
+
+                        glWorldControl.Load += WorldLoad;
 
                         var worldmeshTab = new TabPage("MAP");
                         worldmeshTab.Controls.Add(glWorldControl.Control);
                         resTabs.TabPages.Add(worldmeshTab);
+
+                        void WorldTabDisposed(object sender, EventArgs e)
+                        {
+                            worldmeshTab.Disposed -= WorldTabDisposed;
+                            glWorldControl.Unload();
+                        }
+
+                        worldmeshTab.Disposed += WorldTabDisposed;
+
                         break;
                     case ResourceType.WorldNode:
                         var glWorldNodeControl = new GLModelViewerControl();
@@ -832,6 +845,11 @@ namespace GUI
             }
 
             return tab;
+        }
+
+        private void Tab_Disposed(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>

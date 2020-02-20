@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
     /// </summary>
     internal class GLModelViewerControl
     {
-        public ICollection<IRenderer> Renderers { get; } = new HashSet<IRenderer>();
+        private ICollection<IRenderer> Renderers { get; } = new HashSet<IRenderer>();
 
         public event EventHandler Load;
 
@@ -33,11 +33,15 @@ namespace GUI.Types.Renderer
             glRenderControl.Load += OnLoad;
         }
 
-        /// <summary>
-        /// OpenGL loaded event handler.
-        /// </summary>
-        public void OnLoad(object sender, EventArgs e)
+        public void Unload()
         {
+            glRenderControl.Paint -= OnPaint;
+        }
+
+        private void OnLoad(object sender, EventArgs e)
+        {
+            glRenderControl.Load -= OnLoad;
+
             glRenderControl.Camera.SetViewportSize(glRenderControl.Control.Width, glRenderControl.Control.Height);
             glRenderControl.Camera.SetLocation(new Vector3(200));
             glRenderControl.Camera.LookAt(new Vector3(0));
@@ -47,10 +51,7 @@ namespace GUI.Types.Renderer
             glRenderControl.Paint += OnPaint;
         }
 
-        /// <summary>
-        /// Render control event.
-        /// </summary>
-        public void OnPaint(object sender, RenderEventArgs e)
+        private void OnPaint(object sender, RenderEventArgs e)
         {
             foreach (var renderer in Renderers)
             {
