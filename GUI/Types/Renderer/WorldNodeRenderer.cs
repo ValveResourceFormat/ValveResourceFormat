@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat.ResourceTypes;
@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class WorldNodeRenderer : IRenderer
+    internal class WorldNodeRenderer : IMeshRenderer
     {
         public WorldNode WorldNode { get; }
 
@@ -121,6 +121,17 @@ namespace GUI.Types.Renderer
                     renderer.Tint = tintColor;
                     meshRenderers.Add(renderer);
                 }
+            }
+        }
+
+        public IEnumerable<string> GetSupportedRenderModes()
+            => meshRenderers.SelectMany(r => r.GetSupportedRenderModes()).Distinct();
+
+        public void SetRenderMode(string renderMode)
+        {
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.SetRenderMode(renderMode);
             }
         }
     }

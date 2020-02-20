@@ -160,8 +160,14 @@ namespace GUI.Types.Renderer
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             }
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)(tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat));
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)(tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat));
+            var clampMode = tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS)
+                ? (int)TextureWrapMode.Clamp
+                : (int)TextureWrapMode.Repeat;
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, clampMode);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, clampMode);
+
+            GL.BindTexture(TextureTarget.Texture2D, 0);
 
             return id;
         }
@@ -213,6 +219,8 @@ namespace GUI.Types.Renderer
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+            GL.BindTexture(TextureTarget.Texture2D, 0);
 
             return texture;
         }

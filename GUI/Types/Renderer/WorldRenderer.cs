@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using GUI.Utils;
 using OpenTK;
 using ValveResourceFormat.ResourceTypes;
@@ -8,7 +9,7 @@ using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
-    internal class WorldRenderer : IRenderer
+    internal class WorldRenderer : IMeshRenderer
     {
         public World World { get; }
 
@@ -212,7 +213,7 @@ namespace GUI.Types.Renderer
                     {
                         var particleSystem = new ParticleSystem(particleResource);
                         var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
-                        particleRenderers.Add(new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin));
+                        //particleRenderers.Add(new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin));
                     }
 
                     continue;
@@ -283,6 +284,24 @@ namespace GUI.Types.Renderer
             }
 
             return vector;
+        }
+
+        public IEnumerable<string> GetSupportedRenderModes()
+            => worldNodeRenderers.SelectMany(r => r.GetSupportedRenderModes())
+            .Concat(modelRenderers.SelectMany(r => r.GetSupportedRenderModes()))
+            .Distinct();
+
+        public void SetRenderMode(string renderMode)
+        {
+            foreach (var renderer in worldNodeRenderers)
+            {
+                renderer.SetRenderMode(renderMode);
+            }
+
+            foreach (var renderer in modelRenderers)
+            {
+                renderer.SetRenderMode(renderMode);
+            }
         }
     }
 }
