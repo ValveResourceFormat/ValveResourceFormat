@@ -72,7 +72,6 @@ namespace GUI.Types.Renderer
                     var newResource = guiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
                     if (newResource == null)
                     {
-                        Console.WriteLine("unable to load model " + worldNode + ".vwnod_c");
                         throw new Exception("WTF");
                     }
 
@@ -92,10 +91,9 @@ namespace GUI.Types.Renderer
                 }
 
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(lumpName + "_c");
+
                 if (newResource == null)
                 {
-                    Console.WriteLine("unable to load entity lump " + lumpName + "_c");
-
                     return;
                 }
 
@@ -117,9 +115,9 @@ namespace GUI.Types.Renderer
                 }
 
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(childEntityName + "_c");
+
                 if (newResource == null)
                 {
-                    Console.WriteLine("unable to load entity lump " + childEntityName + "_c");
                     continue;
                 }
 
@@ -259,10 +257,9 @@ namespace GUI.Types.Renderer
                 }
 
                 var newEntity = guiContext.LoadFileByAnyMeansNecessary(model + "_c");
+
                 if (newEntity == null)
                 {
-                    Console.WriteLine($"unable to load entity {model}_c");
-
                     continue;
                 }
 

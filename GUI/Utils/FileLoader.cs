@@ -70,6 +70,8 @@ namespace GUI.Utils
 
             if (path == null)
             {
+                Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
+
                 return null;
             }
 
