@@ -27,23 +27,32 @@ namespace GUI.Types.Renderer
         private Stopwatch timer = new Stopwatch();
         private List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
 
-        public ModelRenderer(Model model, VrfGuiContext vrfGuiContext)
+        public ModelRenderer(Model model, VrfGuiContext vrfGuiContext, bool loadAnimations = true)
         {
             Model = model;
 
             guiContext = vrfGuiContext;
 
             // Load required resources
-            LoadAnimations();
+            if (loadAnimations)
+            {
+                LoadSkeleton();
+                LoadAnimations();
+            }
+
             LoadMaterials();
             LoadMeshes();
-            LoadSkeleton();
 
             timer.Start();
         }
 
         public void Update(float frameTime)
         {
+            if (activeAnimation == null)
+            {
+                return;
+            }
+
             // Update animation matrices
             var animationMatrices = new float[skeleton.Bones.Length * 16];
             for (var i = 0; i < skeleton.Bones.Length; i++)
@@ -55,14 +64,12 @@ namespace GUI.Types.Renderer
                 animationMatrices[(i * 16) + 15] = 1.0f;
             }
 
-            if (activeAnimation != null)
-            {
-                animationMatrices = activeAnimation.GetAnimationMatricesAsArray((float)timer.Elapsed.TotalSeconds, skeleton);
-                //Update animation texture
-                GL.BindTexture(TextureTarget.Texture2D, animationTexture);
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
-                GL.BindTexture(TextureTarget.Texture2D, 0);
-            }
+            animationMatrices = activeAnimation.GetAnimationMatricesAsArray((float)timer.Elapsed.TotalSeconds, skeleton);
+
+            // Update animation texture
+            GL.BindTexture(TextureTarget.Texture2D, animationTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
         public void Render(Camera camera)
@@ -151,6 +158,14 @@ namespace GUI.Types.Renderer
 
         private void LoadAnimations()
         {
+            var animGroupPaths = Model.GetReferencedAnimationGroupNames();
+            var emebeddedAnims = Model.GetEmbeddedAnimations();
+
+            if (!animGroupPaths.Any() && !emebeddedAnims.Any())
+            {
+                return;
+            }
+
             // Create animation texture
             animationTexture = GL.GenTexture();
             GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -164,7 +179,6 @@ namespace GUI.Types.Renderer
             GL.BindTexture(TextureTarget.Texture2D, 0);
 
             // Load animations from referenced animation groups
-            var animGroupPaths = Model.GetReferencedAnimationGroupNames();
             foreach (var animGroupPath in animGroupPaths)
             {
                 var animGroup = guiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
@@ -172,7 +186,7 @@ namespace GUI.Types.Renderer
             }
 
             // Get embedded animations
-            animations.AddRange(Model.GetEmbeddedAnimations());
+            animations.AddRange(emebeddedAnims);
         }
 
         public IEnumerable<string> GetSupportedAnimationNames()
