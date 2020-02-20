@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
 {
     internal static class AnimationGroupLoader
     {
-        public static List<ValveResourceFormat.ResourceTypes.ModelAnimation.Animation> LoadAnimationGroup(Resource resource, VrfGuiContext vrfGuiContext)
+        public static List<Animation> LoadAnimationGroup(Resource resource, VrfGuiContext vrfGuiContext)
         {
             var dataBlock = resource.DataBlock;
             var data = dataBlock is NTRO ntro
@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
-            var animationList = new List<ValveResourceFormat.ResourceTypes.ModelAnimation.Animation>();
+            var animationList = new List<Animation>();
 
             // Load animation files
             foreach (var animationFile in animArray)

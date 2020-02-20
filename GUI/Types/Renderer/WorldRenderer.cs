@@ -267,15 +267,9 @@ namespace GUI.Types.Renderer
                 }
 
                 var newModel = new Model(newEntity);
-                var modelRenderer = new ModelRenderer(newModel, guiContext);
+                var modelRenderer = new ModelRenderer(newModel, guiContext, false);
                 modelRenderer.SetMeshTransform(transformationMatrix);
                 modelRenderer.SetTint(objColor);
-
-                if (animation != null)
-                {
-                    // TODO: Causes rendering bugs, maybe skeletons or something are missing
-                    //modelRenderer.SetAnimation(animation);
-                }
 
                 modelRenderers.Add(modelRenderer);
             }
