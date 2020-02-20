@@ -614,6 +614,8 @@ namespace GUI
                             var world = new World(resource);
                             var worldRenderer = new WorldRenderer(world, vrfGuiContext);
                             glWorldControl.AddRenderer(worldRenderer);
+
+                            vrfGuiContext.ClearCache();
                         }
 
                         glWorldControl.Load += WorldLoad;
@@ -639,6 +641,8 @@ namespace GUI
                             var worldNode = new WorldNode(resource);
                             var worldNodeRenderer = new WorldNodeRenderer(worldNode, vrfGuiContext);
                             glWorldNodeControl.AddRenderer(worldNodeRenderer);
+
+                            vrfGuiContext.ClearCache();
                         };
 
                         var nodemeshTab = new TabPage("WORLD NODE");
@@ -654,6 +658,8 @@ namespace GUI
                             var modelRenderer = new ModelRenderer(model, vrfGuiContext);
 
                             glModelControl.AddRenderer(modelRenderer);
+
+                            vrfGuiContext.ClearCache();
                         };
 
                         var modelRendererTab = new TabPage("MODEL");
@@ -674,6 +680,8 @@ namespace GUI
                             var meshRenderer = new MeshRenderer(mesh, vrfGuiContext);
 
                             glModelControl.AddRenderer(meshRenderer);
+
+                            vrfGuiContext.ClearCache();
                         };
 
                         var meshRendererTab = new TabPage("MESH");
