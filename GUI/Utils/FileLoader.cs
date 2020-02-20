@@ -12,6 +12,16 @@ namespace GUI.Utils
         private static readonly Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
         private readonly Dictionary<string, Resource> CachedResources = new Dictionary<string, Resource>();
 
+        public void ClearCache()
+        {
+            foreach (var resource in CachedResources.Values)
+            {
+                resource.Dispose();
+            }
+
+            CachedResources.Clear();
+        }
+
         public Resource LoadFileByAnyMeansNecessary(string file, VrfGuiContext guiContext)
         {
             // TODO: Might conflict where same file name is available in different paths

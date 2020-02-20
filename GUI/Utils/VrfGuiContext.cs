@@ -24,5 +24,7 @@ namespace GUI.Utils
 
         public Resource LoadFileByAnyMeansNecessary(string file) =>
             FileLoader.LoadFileByAnyMeansNecessary(file, this);
+
+        public void ClearCache() => FileLoader.ClearCache();
     }
 }
