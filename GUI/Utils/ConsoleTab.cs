@@ -54,7 +54,9 @@ namespace GUI.Utils
             var tab = new TabPage("Console");
             tab.Controls.Add(control);
 
-            Console.SetOut(new MyLogger(control));
+            var logger = new MyLogger(control);
+            Console.SetOut(logger);
+            Console.SetError(logger);
 
             return tab;
         }
