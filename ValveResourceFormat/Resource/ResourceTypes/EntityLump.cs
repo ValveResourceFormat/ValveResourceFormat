@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             public uint Type { get; set; }
 
-            public uint MiscType { get; set; }
+            public uint Key { get; set; }
 
             public object Data { get; set; }
         }
@@ -82,7 +82,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = dataReader.ReadByte(),
                             }); //1
                             break;
@@ -90,7 +90,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = dataReader.ReadSingle(),
                             }); //4
                             break;
@@ -100,7 +100,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = dataReader.ReadBytes(4),
                             }); //4
                             break;
@@ -108,7 +108,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = dataReader.ReadUInt64(),
                             }); //8
                             break;
@@ -116,7 +116,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = $"{{{dataReader.ReadSingle()}, {dataReader.ReadSingle()}, {dataReader.ReadSingle()}}}",
                             }); //12
                             break;
@@ -124,7 +124,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = dataReader.ReadBytes(12),
                             }); //12
                             break;
@@ -132,7 +132,7 @@ namespace ValveResourceFormat.ResourceTypes
                             properties.Add(new EntityProperty
                             {
                                 Type = type,
-                                MiscType = miscType,
+                                Key = miscType,
                                 Data = dataReader.ReadNullTermString(Encoding.UTF8),
                             });
                             break;
@@ -167,7 +167,7 @@ namespace ValveResourceFormat.ResourceTypes
                         value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString()).ToArray())}]";
                     }
 
-                    switch (property.MiscType)
+                    switch (property.Key)
                     {
                         case 2433605045:
                             builder.AppendLine($"   {"Ambient Effect",-20} | {value}\n");
@@ -203,7 +203,7 @@ namespace ValveResourceFormat.ResourceTypes
                             builder.AppendLine($"   {"Name",-20} | {value}\n");
                             break;
                         default:
-                            builder.AppendLine($"   {i,3}: {value} (type={property.Type}, meta={property.MiscType})\n");
+                            builder.AppendLine($"   {i,3}: {value} (type={property.Type}, key={property.Key})\n");
                             break;
                     }
 

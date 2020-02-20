@@ -142,39 +142,39 @@ namespace GUI.Types.Renderer
 
                 foreach (var property in entity.Properties)
                 {
-                    if (property.MiscType == EntityLumpKeyLookup.Get("model"))
+                    if (property.Key == EntityLumpKeyLookup.Get("model"))
                     {
                         model = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("origin"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("origin"))
                     {
                         position = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("angles"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("angles"))
                     {
                         angles = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("scales"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("scales"))
                     {
                         scale = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("skin"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("skin"))
                     {
                         skin = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("rendercolor"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("rendercolor"))
                     {
                         colour = property.Data as byte[];
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("classname"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("classname"))
                     {
                         classname = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("effect_name"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("effect_name"))
                     {
                         particle = property.Data as string;
                     }
-                    else if (property.MiscType == EntityLumpKeyLookup.Get("defaultanim"))
+                    else if (property.Key == EntityLumpKeyLookup.Get("defaultanim"))
                     {
                         animation = property.Data as string;
                     }
