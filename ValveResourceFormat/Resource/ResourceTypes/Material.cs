@@ -97,5 +97,22 @@ namespace ValveResourceFormat.ResourceTypes
 
             throw new InvalidOperationException($"Unknown material data type {data.GetType().Name}");
         }
+
+        public IDictionary<string, bool> GetShaderArguments()
+        {
+            var data = GetData();
+
+            var arguments = new Dictionary<string, bool>();
+
+            foreach (var intParam in data.GetArray("m_intParams"))
+            {
+                var name = intParam.GetProperty<string>("m_name");
+                var value = intParam.GetIntegerProperty("m_nValue");
+
+                arguments.Add(name, value != 0);
+            }
+
+            return arguments;
+        }
     }
 }

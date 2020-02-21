@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext guiContext;
 
         private List<Animation> animations = new List<Animation>();
-        private List<Material> materials = new List<Material>();
+        private List<RenderMaterial> materials = new List<RenderMaterial>();
 
         private Animation activeAnimation;
         private int animationTexture;

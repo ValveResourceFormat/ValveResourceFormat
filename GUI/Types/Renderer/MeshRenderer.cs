@@ -152,7 +152,7 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                foreach (var param in call.Material.Parameters.FloatParams)
+                foreach (var param in call.Material.Material.FloatParams)
                 {
                     uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
@@ -162,7 +162,7 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                foreach (var param in call.Material.Parameters.VectorParams)
+                foreach (var param in call.Material.Material.VectorParams)
                 {
                     uniformLocation = call.Shader.GetUniformLocation(param.Key);
 
@@ -173,11 +173,11 @@ namespace GUI.Types.Renderer
                 }
 
                 var alpha = 0f;
-                if (call.Material.Parameters.IntParams.ContainsKey("F_ALPHA_TEST") &&
-                    call.Material.Parameters.IntParams["F_ALPHA_TEST"] == 1 &&
-                    call.Material.Parameters.FloatParams.ContainsKey("g_flAlphaTestReference"))
+                if (call.Material.Material.IntParams.ContainsKey("F_ALPHA_TEST") &&
+                    call.Material.Material.IntParams["F_ALPHA_TEST"] == 1 &&
+                    call.Material.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
                 {
-                    alpha = call.Material.Parameters.FloatParams["g_flAlphaTestReference"];
+                    alpha = call.Material.Material.FloatParams["g_flAlphaTestReference"];
                 }
 
                 var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
@@ -247,7 +247,7 @@ namespace GUI.Types.Renderer
                     }*/
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var isOverlay = material.Parameters.IntParams.Any(p => p.Key == "F_OVERLAY");
+                    var isOverlay = material.Material.IntParams.Any(p => p.Key == "F_OVERLAY");
 
                     // Ignore overlays for now
                     if (isOverlay)
@@ -276,7 +276,7 @@ namespace GUI.Types.Renderer
             //drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, Material material)
+        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, RenderMaterial material)
         {
             var drawCall = new DrawCall();
 
@@ -290,9 +290,13 @@ namespace GUI.Types.Renderer
             }
 
             drawCall.Material = material;
+            // Add shader parameters from material to the shader parameters from the draw call
+            var combinedShaderParameters = shaderArguments
+                .Concat(material.Material.GetShaderArguments())
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             // Load shader
-            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Parameters.ShaderName, shaderArguments);
+            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Material.ShaderName, combinedShaderParameters);
 
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);

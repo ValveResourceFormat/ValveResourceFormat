@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
     public class MaterialLoader
     {
         public List<string> LoadedTextures { get; } = new List<string>();
-        private readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
+        private readonly Dictionary<string, RenderMaterial> Materials = new Dictionary<string, RenderMaterial>();
         private readonly VrfGuiContext VrfGuiContext;
         private int ErrorTextureID;
         public static int MaxTextureMaxAnisotropy { get; set; }
@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
             MaxTextureMaxAnisotropy = 0;
         }
 
-        public Material GetMaterial(string name)
+        public RenderMaterial GetMaterial(string name)
         {
             if (!Materials.ContainsKey(name))
             {
@@ -33,9 +33,9 @@ namespace GUI.Types.Renderer
             return Materials[name];
         }
 
-        private Material LoadMaterial(string name)
+        private RenderMaterial LoadMaterial(string name)
         {
-            var mat = new Material();
+            var mat = new RenderMaterial();
             mat.Textures["g_tColor"] = GetErrorTexture();
 
             var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
@@ -45,23 +45,23 @@ namespace GUI.Types.Renderer
             if (resource == null)
             {
                 mat.Textures["g_tNormal"] = GetErrorTexture();
-                mat.Parameters = new VrfMaterial();
+                mat.Material = new VrfMaterial();
 
                 return mat;
             }
 
-            mat.Parameters = new VrfMaterial(resource);
+            mat.Material = new VrfMaterial(resource);
 
-            foreach (var textureReference in mat.Parameters.TextureParams)
+            foreach (var textureReference in mat.Material.TextureParams)
             {
                 var key = textureReference.Key;
 
                 mat.Textures[key] = LoadTexture(textureReference.Value);
             }
 
-            if (mat.Parameters.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Parameters.IntParams["F_SOLID_COLOR"] == 1)
+            if (mat.Material.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Material.IntParams["F_SOLID_COLOR"] == 1)
             {
-                var a = mat.Parameters.VectorParams["g_vColorTint"];
+                var a = mat.Material.VectorParams["g_vColorTint"];
 
                 mat.Textures["g_tColor"] = GenerateColorTexture(1, 1, new[] { a.X, a.Y, a.Z, a.W });
             }
@@ -78,14 +78,14 @@ namespace GUI.Types.Renderer
             }
 
             // Set default values for scale and positions
-            if (!mat.Parameters.VectorParams.ContainsKey("g_vTexCoordScale"))
+            if (!mat.Material.VectorParams.ContainsKey("g_vTexCoordScale"))
             {
-                mat.Parameters.VectorParams["g_vTexCoordScale"] = Vector4.One;
+                mat.Material.VectorParams["g_vTexCoordScale"] = Vector4.One;
             }
 
-            if (!mat.Parameters.VectorParams.ContainsKey("g_vTexCoordOffset"))
+            if (!mat.Material.VectorParams.ContainsKey("g_vTexCoordOffset"))
             {
-                mat.Parameters.VectorParams["g_vTexCoordOffset"] = Vector4.Zero;
+                mat.Material.VectorParams["g_vTexCoordOffset"] = Vector4.Zero;
             }
 
             return mat;
