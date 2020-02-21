@@ -10,6 +10,11 @@
 #define param_renderMode_BumpNormals 0
 #define param_renderMode_Illumination 0
 
+//Parameter defines - These are default values and can be overwritten based on material/model parameters
+#define param_F_TINT_MASK 0
+#define param_F_NORMAL_MAP 0
+//End of parameter defines
+
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -115,14 +120,23 @@ void main()
 
     //Simple blending
     //Calculate each of the 4 colours to blend
+#if param_F_TINT_MASK == 1
+    // Include tint mask
     vec4 c0 = blend.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
     vec4 c1 = blend.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
     vec4 c2 = blend.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2, g_flTexCoordRotate2);
     vec4 c3 = blend.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3, g_flTexCoordRotate3);
+#else
+    vec4 c0 = blend.x * color0;
+    vec4 c1 = blend.y * color1;
+    vec4 c2 = blend.z * color2;
+    vec4 c3 = blend.w * color3;
+#endif
     
     //Add up the result
     vec4 finalColor = c0 + c1 + c2 + c3;
 
+#if param_F_NORMAL_MAP == 1
     //calculate blended normal
     vec4 bumpNormal = blend.x * normal0 + blend.y * normal1 + blend.z * normal2 + blend.w * normal3;
 
@@ -138,6 +152,9 @@ void main()
 
     //Calculate the tangent normal in world space and return it
     vec3 finalNormal = normalize(tangentSpace * finalBumpNormal);
+#else
+    vec3 finalNormal = vNormalOut.xyz;
+#endif
 
     //Don't need lighting yet
     //Get the direction from the fragment to the light - light position == camera position for now

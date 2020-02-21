@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
         //public float UvDensity { get; set; }     //TODO
         //public string Flags { get; set; }        //TODO
         public Vector3 TintColor { get; set; } = Vector3.One;
-        public Material Material { get; set; }
+        public RenderMaterial Material { get; set; }
         public uint VertexArrayObject { get; set; }
         public DrawBuffer VertexBuffer { get; set; }
         public DrawElementsType IndiceType { get; set; }
