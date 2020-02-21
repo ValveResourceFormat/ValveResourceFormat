@@ -3,7 +3,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class Shader
+    public class Shader
     {
         public string Name { get; set; }
         public IDictionary<string, bool> Parameters { get; set; }

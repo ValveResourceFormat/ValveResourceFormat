@@ -11,17 +11,17 @@ using ValveResourceFormat.ThirdParty;
 
 namespace GUI.Types.Renderer
 {
-    internal class ShaderLoader
+    public class ShaderLoader
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
 
 #if !DEBUG_SHADERS || !DEBUG
-        private static readonly Dictionary<uint, Shader> CachedShaders = new Dictionary<uint, Shader>();
-        private static readonly Dictionary<string, List<string>> ShaderDefines = new Dictionary<string, List<string>>();
+        private readonly Dictionary<uint, Shader> CachedShaders = new Dictionary<uint, Shader>();
+        private readonly Dictionary<string, List<string>> ShaderDefines = new Dictionary<string, List<string>>();
 #endif
 
-        public static Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
+        public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
 
@@ -32,19 +32,7 @@ namespace GUI.Types.Renderer
 
                 if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
                 {
-                    GL.GetError();
-                    GL.ValidateProgram(cachedShader.Program);
-
-                    if (GL.GetError() == 0)
-                    {
-                        return cachedShader;
-                    }
-
-                    // If you close all existing opengl tabs and open a new one, it trashes all opengl caches
-                    // and thus breaks the shaders.
-                    // TODO: We need a global singletone renderer object which handles the opengl state,
-                    // for now we just recompile the shader if it dies.
-                    Console.WriteLine($"Shader {shaderCacheHash} ({shaderName}) failed to validate, recompiling...");
+                    return cachedShader;
                 }
             }
 #endif
@@ -254,7 +242,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
+        private uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
             shaderCacheHashString.AppendLine(shaderFileName);

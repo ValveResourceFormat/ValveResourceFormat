@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
                         parameters.Add($"renderMode_{renderMode}", true);
                     }
 
-                    call.Shader = ShaderLoader.LoadShader(call.Shader.Name, parameters);
+                    call.Shader = guiContext.ShaderLoader.LoadShader(call.Shader.Name, parameters);
                 }
             }
         }
@@ -296,7 +296,7 @@ namespace GUI.Types.Renderer
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             // Load shader
-            drawCall.Shader = ShaderLoader.LoadShader(drawCall.Material.Material.ShaderName, combinedShaderParameters);
+            drawCall.Shader = guiContext.ShaderLoader.LoadShader(drawCall.Material.Material.ShaderName, combinedShaderParameters);
 
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);

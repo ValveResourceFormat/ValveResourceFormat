@@ -12,6 +12,8 @@ namespace GUI.Utils
 
         public MaterialLoader MaterialLoader { get; }
 
+        public ShaderLoader ShaderLoader { get; }
+
         private readonly FileLoader FileLoader;
 
         public VrfGuiContext(string fileName, Package package)
@@ -19,6 +21,7 @@ namespace GUI.Utils
             FileName = fileName;
             CurrentPackage = package;
             MaterialLoader = new MaterialLoader(this);
+            ShaderLoader = new ShaderLoader();
             FileLoader = new FileLoader();
         }
 
