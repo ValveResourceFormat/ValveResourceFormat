@@ -7,78 +7,49 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.ThirdParty;
 
 namespace GUI.Types.Renderer
 {
     internal class ShaderLoader
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
+        private const int ShaderSeed = 0x13141516;
 
 #if !DEBUG_SHADERS || !DEBUG
-        private static readonly Dictionary<int, Shader> CachedShaders = new Dictionary<int, Shader>();
+        private static readonly Dictionary<uint, Shader> CachedShaders = new Dictionary<uint, Shader>();
+        private static readonly Dictionary<string, List<string>> ShaderDefines = new Dictionary<string, List<string>>();
 #endif
-
-        //Map shader names to shader files
-        public static string GetShaderFileByName(string shaderName)
-        {
-            switch (shaderName)
-            {
-                case "vr_standard.vfx":
-                    return "vr_standard";
-                case "vr_unlit.vfx":
-                    return "vr_unlit";
-                case "water_dota.vfx":
-                    return "water";
-                case "hero.vfx":
-                    return "dota_hero";
-                case "multiblend.vfx":
-                    return "multiblend";
-                default:
-                    //Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
-                    //Shader names that are supposed to use this:
-                    //vr_simple.vfx
-                    return "simple";
-            }
-        }
-
-        private static int CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
-        {
-            var shaderCacheHashString = new StringBuilder();
-            shaderCacheHashString.AppendLine(shaderFileName);
-
-            foreach (var kvp in arguments)
-            {
-                shaderCacheHashString.AppendLine($"{kvp.Key}{kvp.Value}");
-            }
-
-            return shaderCacheHashString.ToString().GetHashCode();
-        }
 
         public static Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-            var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments); // shader collision roulette
 
 #if !DEBUG_SHADERS || !DEBUG
-            if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
+            if (ShaderDefines.ContainsKey(shaderFileName))
             {
-                GL.GetError();
-                GL.ValidateProgram(cachedShader.Program);
+                var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
 
-                if (GL.GetError() == 0)
+                if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
                 {
-                    return cachedShader;
-                }
+                    GL.GetError();
+                    GL.ValidateProgram(cachedShader.Program);
 
-                // If you close all existing opengl tabs and open a new one, it trashes all opengl caches
-                // and thus breaks the shaders.
-                // TODO: We need a global singletone renderer object which handles the opengl state,
-                // for now we just recompile the shader if it dies.
-                Console.WriteLine($"Shader {shaderCacheHash} ({shaderName}) failed to validate, recompiling...");
+                    if (GL.GetError() == 0)
+                    {
+                        return cachedShader;
+                    }
+
+                    // If you close all existing opengl tabs and open a new one, it trashes all opengl caches
+                    // and thus breaks the shaders.
+                    // TODO: We need a global singletone renderer object which handles the opengl state,
+                    // for now we just recompile the shader if it dies.
+                    Console.WriteLine($"Shader {shaderCacheHash} ({shaderName}) failed to validate, recompiling...");
+                }
             }
 #endif
 
-            var renderModes = new List<string>();
+            var defines = new List<string>();
 
             /* Vertex shader */
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
@@ -95,8 +66,8 @@ namespace GUI.Types.Renderer
                 var shaderSource = reader.ReadToEnd();
                 GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, arguments));
 
-                // Find render modes supported from source
-                renderModes.AddRange(FindRenderModes(shaderSource));
+                // Find defines supported from source
+                defines.AddRange(FindDefines(shaderSource));
             }
 
             GL.CompileShader(vertexShader);
@@ -124,7 +95,7 @@ namespace GUI.Types.Renderer
                 GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, arguments));
 
                 // Find render modes supported from source, take union to avoid duplicates
-                renderModes = renderModes.Union(FindRenderModes(shaderSource)).ToList();
+                defines = defines.Union(FindDefines(shaderSource)).ToList();
             }
 
             GL.CompileShader(fragmentShader);
@@ -138,11 +109,18 @@ namespace GUI.Types.Renderer
                 throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
 
+            const string renderMode = "renderMode_";
+            var renderModes = defines
+                .Where(k => k.StartsWith(renderMode))
+                .Select(k => k.Substring(renderMode.Length))
+                .ToList();
+
             var shader = new Shader
             {
                 Name = shaderName,
                 Parameters = arguments,
                 Program = GL.CreateProgram(),
+                Defines = defines,
                 RenderModes = renderModes,
             };
             GL.AttachShader(shader.Program, vertexShader);
@@ -170,9 +148,12 @@ namespace GUI.Types.Renderer
             GL.DeleteShader(fragmentShader);
 
 #if !DEBUG_SHADERS || !DEBUG
-            CachedShaders[shaderCacheHash] = shader;
+            ShaderDefines[shaderFileName] = defines;
+            var newShaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
 
-            Console.WriteLine($"Shader {shaderCacheHash} ({shaderName}) compiled and linked succesfully");
+            CachedShaders[newShaderCacheHash] = shader;
+
+            Console.WriteLine($"Shader {newShaderCacheHash} ({shaderName}) compiled and linked succesfully");
 #endif
 
             return shader;
@@ -233,7 +214,7 @@ namespace GUI.Types.Renderer
                     includedCode = ResolveIncludes(includedCode);
                     if (!includedCode.EndsWith("\n"))
                     {
-                        includedCode = includedCode + "\n";
+                        includedCode += "\n";
                     }
 
                     //Replace the include with the code
@@ -244,10 +225,51 @@ namespace GUI.Types.Renderer
             return source;
         }
 
-        private static List<string> FindRenderModes(string source)
+        private static List<string> FindDefines(string source)
         {
-            var renderModeDefines = Regex.Matches(source, @"#define param_renderMode_(\S+)");
-            return renderModeDefines.Cast<Match>().Select(_ => _.Groups[1].Value).ToList();
+            var defines = Regex.Matches(source, @"#define param_(\S+)");
+            return defines.Cast<Match>().Select(_ => _.Groups[1].Value).ToList();
+        }
+
+        // Map shader names to shader files
+        private static string GetShaderFileByName(string shaderName)
+        {
+            switch (shaderName)
+            {
+                case "vr_standard.vfx":
+                    return "vr_standard";
+                case "vr_unlit.vfx":
+                    return "vr_unlit";
+                case "water_dota.vfx":
+                    return "water";
+                case "hero.vfx":
+                    return "dota_hero";
+                case "multiblend.vfx":
+                    return "multiblend";
+                default:
+                    //Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
+                    //Shader names that are supposed to use this:
+                    //vr_simple.vfx
+                    return "simple";
+            }
+        }
+
+        private static uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
+        {
+            var shaderCacheHashString = new StringBuilder();
+            shaderCacheHashString.AppendLine(shaderFileName);
+
+            var parameters = ShaderDefines[shaderFileName].Intersect(arguments.Keys);
+
+            foreach (var key in parameters)
+            {
+                shaderCacheHashString.AppendLine(key);
+                shaderCacheHashString.AppendLine(arguments[key] ? "t" : "f");
+            }
+
+            var test = shaderCacheHashString.ToString();
+
+            return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
         }
 
 #if DEBUG_SHADERS && DEBUG
