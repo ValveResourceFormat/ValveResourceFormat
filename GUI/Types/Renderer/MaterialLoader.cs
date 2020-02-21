@@ -130,6 +130,7 @@ namespace GUI.Types.Renderer
                 case VTexFormat.ATI2N: format = InternalFormat.CompressedRgRgtc2; break;
                 case VTexFormat.BC6H: format = InternalFormat.CompressedRgbBptcUnsignedFloat; break;
                 case VTexFormat.BC7: format = InternalFormat.CompressedSrgbAlphaBptcUnorm; break;
+                case VTexFormat.RGBA8888: format = InternalFormat.Rgba8; break;
                 default:
                     Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
                     return GetErrorTexture();
