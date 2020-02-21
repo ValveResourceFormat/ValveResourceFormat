@@ -33,15 +33,8 @@ namespace GUI.Types.Renderer
             glRenderControl.Load += OnLoad;
         }
 
-        public void Unload()
-        {
-            glRenderControl.Paint -= OnPaint;
-        }
-
         private void OnLoad(object sender, EventArgs e)
         {
-            glRenderControl.Load -= OnLoad;
-
             glRenderControl.Camera.SetViewportSize(glRenderControl.Control.Width, glRenderControl.Control.Height);
             glRenderControl.Camera.SetLocation(new Vector3(200));
             glRenderControl.Camera.LookAt(new Vector3(0));

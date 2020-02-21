@@ -64,26 +64,48 @@ namespace GUI.Types
             glControl.Load += OnLoad;
             glControl.Paint += OnPaint;
             glControl.Resize += OnResize;
-            glControl.MouseEnter += (_, __) => Camera.MouseOverRenderArea = true;
-            glControl.MouseLeave += (_, __) => Camera.MouseOverRenderArea = false;
+            glControl.MouseEnter += OnMouseEnter;
+            glControl.MouseLeave += OnMouseLeave;
             glControl.GotFocus += OnGotFocus;
-
-            glControl.VisibleChanged += (_, __) =>
-            {
-                if (glControl.Visible)
-                {
-                    glControl.Focus();
-                }
-            };
+            glControl.VisibleChanged += OnVisibleChanged;
+            glControl.Disposed += OnDisposed;
 
             panel.Controls.Add(glControl);
             return panel;
         }
 
-        private void OnLoad(object sender, EventArgs e)
+        private void OnDisposed(object sender, EventArgs e)
         {
             glControl.Load -= OnLoad;
+            glControl.Paint -= OnPaint;
+            glControl.Resize -= OnResize;
+            glControl.MouseEnter -= OnMouseEnter;
+            glControl.MouseLeave -= OnMouseLeave;
+            glControl.GotFocus -= OnGotFocus;
+            glControl.VisibleChanged -= OnVisibleChanged;
+            glControl.Disposed -= OnDisposed;
+        }
 
+        private void OnVisibleChanged(object sender, EventArgs e)
+        {
+            if (glControl.Visible)
+            {
+                glControl.Focus();
+            }
+        }
+
+        private void OnMouseLeave(object sender, EventArgs e)
+        {
+            Camera.MouseOverRenderArea = false;
+        }
+
+        private void OnMouseEnter(object sender, EventArgs e)
+        {
+            Camera.MouseOverRenderArea = true;
+        }
+
+        private void OnLoad(object sender, EventArgs e)
+        {
             glControl.MakeCurrent();
 
             Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));
