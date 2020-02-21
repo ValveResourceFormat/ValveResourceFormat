@@ -191,11 +191,11 @@ void main()
 	outputColor = vec4(vNormalOut, 1.0);
 #endif
 
-#if param_renderMode_Tangents == 1
-	outputColor = outputColor = vec4(tangent, 1.0);
+#if param_renderMode_Tangents == 1 && param_F_NORMAL_MAP == 1
+	outputColor = vec4(tangent, 1.0);
 #endif
 
-#if param_renderMode_BumpMap == 1
+#if param_renderMode_BumpMap == 1 && param_F_NORMAL_MAP == 1
 	outputColor = vec4(bumpNormal.xyz, 1.0);
 #endif
 
