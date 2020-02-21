@@ -43,16 +43,16 @@ namespace GUI.Types.Renderer
                 if (renderMode == null || call.Shader.RenderModes.Contains(renderMode))
                 {
                     // Recycle old shader parameters that are not render modes since we are scrapping those anyway
-                    call.Shader.Parameters = call.Shader.Parameters
+                    var parameters = call.Shader.Parameters
                         .Where(kvp => !kvp.Key.StartsWith("renderMode"))
                         .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                     if (renderMode != null)
                     {
-                        call.Shader.Parameters.Add($"renderMode_{renderMode}", true);
+                        parameters.Add($"renderMode_{renderMode}", true);
                     }
 
-                    call.Shader = ShaderLoader.LoadShader(call.Shader.Name, call.Shader.Parameters);
+                    call.Shader = ShaderLoader.LoadShader(call.Shader.Name, parameters);
                 }
             }
         }
