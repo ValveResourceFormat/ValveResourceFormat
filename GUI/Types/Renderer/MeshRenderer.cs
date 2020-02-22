@@ -7,7 +7,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -204,7 +204,7 @@ namespace GUI.Types.Renderer
         private void SetupDrawCalls()
         {
             var vbib = Mesh.VBIB;
-            var data = (BinaryKV3)Mesh.Data;
+            var data = Mesh.GetData();
 
             var vertexBuffers = new uint[vbib.VertexBuffers.Count];
             var indexBuffers = new uint[vbib.IndexBuffers.Count];
@@ -229,16 +229,15 @@ namespace GUI.Types.Renderer
             }
 
             //Prepare drawcalls
-            var a = (KVObject)data.Data.Properties["m_sceneObjects"].Value;
-            for (var b = 0; b < a.Properties.Count; b++)
+            var sceneObjects = data.GetArray("m_sceneObjects");
+
+            foreach (var sceneObject in sceneObjects)
             {
-                var c = (KVObject)((KVObject)a.Properties[b.ToString()].Value).Properties["m_drawCalls"].Value;
+                var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
 
-                for (var i = 0; i < c.Properties.Count; i++)
+                foreach (var objectDrawCall in objectDrawCalls)
                 {
-                    var d = (KVObject)c.Properties[i.ToString()].Value;
-
-                    var materialName = d.Properties["m_material"].Value.ToString();
+                    var materialName = objectDrawCall.GetProperty<string>("m_material");
 
                     /*if (i < SkinMaterials.Count)
                     {
@@ -255,19 +254,19 @@ namespace GUI.Types.Renderer
                     }
 
                     var shaderArguments = new Dictionary<string, bool>();
-                    if (d.Properties.TryGetValue("m_bUseCompressedNormalTangent", out var compressedNormalTangent))
+                    if (objectDrawCall.ContainsKey("m_bUseCompressedNormalTangent"))
                     {
-                        shaderArguments.Add("fulltangent", !(bool)compressedNormalTangent.Value);
+                        shaderArguments.Add("fulltangent", !objectDrawCall.GetProperty<bool>("m_bUseCompressedNormalTangent"));
                     }
 
-                    if (d.Properties.TryGetValue("m_nFlags", out var flags)
-                        && flags.Value.ToString().Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
+                    if (objectDrawCall.ContainsKey("m_nFlags")
+                        && objectDrawCall.GetProperty<string>("m_nFlags").Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
                     {
                         shaderArguments.Add("fulltangent", false);
                     }
 
                     // TODO: Don't pass around so much shit
-                    var drawCall = CreateDrawCall(d.Properties, vertexBuffers, indexBuffers, shaderArguments, vbib, material);
+                    var drawCall = CreateDrawCall(objectDrawCall, vertexBuffers, indexBuffers, shaderArguments, vbib, material);
                     drawCalls.Add(drawCall);
                 }
             }
@@ -275,17 +274,17 @@ namespace GUI.Types.Renderer
             //drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
-        private DrawCall CreateDrawCall(Dictionary<string, KVValue> drawProperties, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, RenderMaterial material)
+        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, RenderMaterial material)
         {
             var drawCall = new DrawCall();
 
-            switch (drawProperties["m_nPrimitiveType"].Value.ToString())
+            switch (objectDrawCall.GetProperty<string>("m_nPrimitiveType"))
             {
                 case "RENDER_PRIM_TRIANGLES":
                     drawCall.PrimitiveType = PrimitiveType.Triangles;
                     break;
                 default:
-                    throw new Exception("Unknown PrimitiveType in drawCall! (" + drawProperties["m_nPrimitiveType"].Value + ")");
+                    throw new Exception("Unknown PrimitiveType in drawCall! (" + objectDrawCall.GetProperty<string>("m_nPrimitiveType") + ")");
             }
 
             drawCall.Material = material;
@@ -300,26 +299,23 @@ namespace GUI.Types.Renderer
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);
 
-            var f = (KVObject)drawProperties["m_indexBuffer"].Value;
+            var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
 
             var indexBuffer = default(DrawBuffer);
-            indexBuffer.Id = Convert.ToUInt32(f.Properties["m_hBuffer"].Value);
-            indexBuffer.Offset = Convert.ToUInt32(f.Properties["m_nBindOffsetBytes"].Value);
+            indexBuffer.Id = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_hBuffer"));
+            indexBuffer.Offset = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_nBindOffsetBytes"));
             drawCall.IndexBuffer = indexBuffer;
 
             var bufferSize = block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
-            drawCall.BaseVertex = Convert.ToUInt32(drawProperties["m_nBaseVertex"].Value);
-            drawCall.VertexCount = Convert.ToUInt32(drawProperties["m_nVertexCount"].Value);
-            drawCall.StartIndex = Convert.ToUInt32(drawProperties["m_nStartIndex"].Value) * bufferSize;
-            drawCall.IndexCount = Convert.ToInt32(drawProperties["m_nIndexCount"].Value);
+            drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
+            drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
+            drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * bufferSize;
+            drawCall.IndexCount = Convert.ToInt32(objectDrawCall.GetProperty<object>("m_nIndexCount"));
 
-            if (drawProperties.ContainsKey("m_vTintColor"))
+            if (objectDrawCall.ContainsKey("m_vTintColor"))
             {
-                var tint = (KVObject)drawProperties["m_vTintColor"].Value;
-                drawCall.TintColor = new Vector3(
-                    Convert.ToSingle(tint.Properties["0"].Value),
-                    Convert.ToSingle(tint.Properties["1"].Value),
-                    Convert.ToSingle(tint.Properties["2"].Value));
+                var tintColor = objectDrawCall.GetSubCollection("m_vTintColor").ToVector3();
+                drawCall.TintColor = new Vector3(tintColor.X, tintColor.Y, tintColor.Z);
 
                 if (!drawCall.Material.Textures.ContainsKey("g_tTintMask"))
                 {
@@ -342,12 +338,12 @@ namespace GUI.Types.Renderer
                 throw new Exception("Unsupported indice type");
             }
 
-            var g = (KVObject)drawProperties["m_vertexBuffers"].Value;
-            var h = (KVObject)g.Properties["0"].Value; // TODO: Not just 0
+            var m_vertexBuffers = objectDrawCall.GetSubCollection("m_vertexBuffers");
+            var m_vertexBuffer = m_vertexBuffers.GetSubCollection("0"); // TODO: Not just 0
 
             var vertexBuffer = default(DrawBuffer);
-            vertexBuffer.Id = Convert.ToUInt32(h.Properties["m_hBuffer"].Value);
-            vertexBuffer.Offset = Convert.ToUInt32(h.Properties["m_nBindOffsetBytes"].Value);
+            vertexBuffer.Id = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_hBuffer"));
+            vertexBuffer.Offset = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_nBindOffsetBytes"));
             drawCall.VertexBuffer = vertexBuffer;
 
             GL.GenVertexArrays(1, out uint vertexArrayObject);
