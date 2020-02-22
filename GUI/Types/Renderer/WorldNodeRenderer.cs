@@ -41,20 +41,23 @@ namespace GUI.Types.Renderer
         {
             var data = WorldNode.GetData();
 
-            var sceneObjectLayerIndices = data.GetIntegerArray("m_sceneObjectLayerIndices");
+            var sceneObjectLayerIndices = data.ContainsKey("m_sceneObjectLayerIndices") ? data.GetIntegerArray("m_sceneObjectLayerIndices") : null;
             var sceneObjects = data.GetArray("m_sceneObjects");
             var i = 0;
 
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
             foreach (var sceneObject in sceneObjects)
             {
-                var layerIndex = sceneObjectLayerIndices[i];
-                i++;
-
-                // TODO: We want UI for this
-                if (layerIndex == 2 || layerIndex == 4)
+                if (sceneObjectLayerIndices != null)
                 {
-                    continue;
+                    var layerIndex = sceneObjectLayerIndices[i];
+                    i++;
+
+                    // TODO: We want UI for this
+                    if (layerIndex == 2 || layerIndex == 4)
+                    {
+                        continue;
+                    }
                 }
 
                 // sceneObject is SceneObject_t
