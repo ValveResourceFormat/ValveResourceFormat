@@ -80,7 +80,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.EnableVertexAttribArray(0);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "vPOSITION");
+            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
 
             GL.BindVertexArray(0); // Unbind VAO
