@@ -85,6 +85,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IKeyValueCollection GetData()
         {
+            if (resource == null)
+            {
+                return null;
+            }
+
             var data = resource.DataBlock;
             if (data is NTRO ntro)
             {
@@ -103,6 +108,11 @@ namespace ValveResourceFormat.ResourceTypes
             var data = GetData();
 
             var arguments = new Dictionary<string, bool>();
+
+            if (data == null)
+            {
+                return arguments;
+            }
 
             foreach (var intParam in data.GetArray("m_intParams"))
             {
