@@ -25,22 +25,23 @@ namespace GUI.Types.Renderer
 
         public RenderMaterial GetMaterial(string name)
         {
-            if (!Materials.ContainsKey(name))
+            if (Materials.ContainsKey(name))
             {
-                return LoadMaterial(name);
+                return Materials[name];
             }
 
-            return Materials[name];
+            var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
+            var mat = LoadMaterial(resource);
+
+            Materials.Add(name, mat);
+
+            return mat;
         }
 
-        private RenderMaterial LoadMaterial(string name)
+        public RenderMaterial LoadMaterial(Resource resource)
         {
             var mat = new RenderMaterial();
             mat.Textures["g_tColor"] = GetErrorTexture();
-
-            var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
-
-            Materials.Add(name, mat);
 
             if (resource == null)
             {
