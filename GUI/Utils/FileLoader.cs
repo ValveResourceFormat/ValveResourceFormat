@@ -43,6 +43,17 @@ namespace GUI.Utils
                 return resource;
             }
 
+            entry = guiContext.ParentPackage?.FindEntry(file);
+
+            if (entry != null)
+            {
+                guiContext.ParentPackage.ReadEntry(entry, out var output);
+                resource.Read(new MemoryStream(output));
+                CachedResources[file] = resource;
+
+                return resource;
+            }
+
             var paths = Settings.Config.GameSearchPaths.ToList();
             var packages = new List<Package>();
 

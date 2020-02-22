@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -14,6 +14,12 @@ namespace GUI.Controls
     /// </summary>
     public partial class TreeViewWithSearchResults : UserControl
     {
+        public class TreeViewPackageTag
+        {
+            public Package Package { get; set; }
+            public Package ParentPackage { get; set; }
+        }
+
         private readonly ImageList imageList;
 
         public TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick { get; set;  } // when a TreeNode is double clicked
@@ -94,24 +100,21 @@ namespace GUI.Controls
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
-        /// <param name="name">Name of the package.</param>
         /// <param name="package">Package object.</param>
-        internal void InitializeTreeViewFromPackage(string name, Package package)
+        internal void InitializeTreeViewFromPackage(TreeViewPackageTag package)
         {
-            mainListView.Tag = package;
-
             var control = mainTreeView;
             control.BeginUpdate();
             control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.PathSeparator = Package.DirectorySeparatorChar.ToString();
-            control.Name = name;
+            control.Name = "treeViewVpk";
             control.Tag = package; //so we can access it later
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
 
-            control.GenerateIconList(package.Entries.Keys.ToList());
+            control.GenerateIconList(package.Package.Entries.Keys.ToList());
 
-            foreach (var fileType in package.Entries)
+            foreach (var fileType in package.Package.Entries)
             {
                 foreach (var file in fileType.Value)
                 {
