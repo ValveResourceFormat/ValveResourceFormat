@@ -669,6 +669,8 @@ namespace GUI
                             glModelControl.AddRenderer(meshRenderer);
 
                             vrfGuiContext.ClearCache();
+
+                            Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
                         };
 
                         var meshRendererTab = new TabPage("MESH");
