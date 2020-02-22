@@ -242,6 +242,7 @@ namespace GUI.Types.Renderer
             }
         }
 
+#if !DEBUG_SHADERS || !DEBUG
         private uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
@@ -259,6 +260,7 @@ namespace GUI.Types.Renderer
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
         }
+#endif
 
 #if DEBUG_SHADERS && DEBUG
         // Reload shaders at runtime
