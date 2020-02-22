@@ -180,19 +180,21 @@ namespace GUI.Types.Renderer
                 var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
                 GL.Uniform1(alphaReference, alpha);
 
-                /*
-                if (call.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.IntParams["F_TRANSLUCENT"] == 1)
+                var disableBlend = false;
+
+                if (call.Material.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.Material.IntParams["F_TRANSLUCENT"] == 1)
                 {
+                    disableBlend = true;
                     GL.Enable(EnableCap.Blend);
-                    GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 }
-                else
+
+                GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
+
+                if (disableBlend)
                 {
                     GL.Disable(EnableCap.Blend);
                 }
-                */
-
-                GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
             }
 
             GL.Disable(EnableCap.CullFace);
