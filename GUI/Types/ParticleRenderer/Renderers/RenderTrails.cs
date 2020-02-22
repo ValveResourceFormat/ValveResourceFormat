@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 var textureSetup = LoadTexture(keyValues.GetProperty<string>("m_hTexture"), vrfGuiContext);
                 glTexture = textureSetup.TextureIndex;
-                spriteSheetData = textureSetup.TextureData.GetSpriteSheetData();
+                spriteSheetData = textureSetup.TextureData?.GetSpriteSheetData();
             }
             else
             {
