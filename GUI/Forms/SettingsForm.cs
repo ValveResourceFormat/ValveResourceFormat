@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using GUI.Utils;
 
@@ -52,6 +52,27 @@ namespace GUI.Forms
                 Settings.Save();
 
                 gamePaths.Items.Add(dlg.FileName);
+            }
+        }
+
+        private void GamePathAddFolder(object sender, EventArgs e)
+        {
+            using (var dlg = new FolderBrowserDialog())
+            {
+                if (dlg.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                if (Settings.Config.GameSearchPaths.Contains(dlg.SelectedPath))
+                {
+                    return;
+                }
+
+                Settings.Config.GameSearchPaths.Add(dlg.SelectedPath);
+                Settings.Save();
+
+                gamePaths.Items.Add(dlg.SelectedPath);
             }
         }
 
