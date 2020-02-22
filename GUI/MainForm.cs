@@ -301,7 +301,7 @@ namespace GUI
             }
         }
 
-        private void OpenFile(string fileName, byte[] input = null, Package currentPackage = null)
+        private void OpenFile(string fileName, byte[] input = null, TreeViewWithSearchResults.TreeViewPackageTag currentPackage = null)
         {
             Console.WriteLine($"Opening {fileName}");
 
@@ -352,7 +352,7 @@ namespace GUI
                 TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        private TabPage ProcessFile(string fileName, byte[] input, Package currentPackage)
+        private TabPage ProcessFile(string fileName, byte[] input, TreeViewWithSearchResults.TreeViewPackageTag currentPackage)
         {
             var tab = new TabPage();
             var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
@@ -404,7 +404,11 @@ namespace GUI
                 {
                     Dock = DockStyle.Fill,
                 };
-                treeViewWithSearch.InitializeTreeViewFromPackage("treeViewVpk", package);
+                treeViewWithSearch.InitializeTreeViewFromPackage(new TreeViewWithSearchResults.TreeViewPackageTag
+                {
+                    Package = package,
+                    ParentPackage = currentPackage?.Package,
+                });
                 treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
                 treeViewWithSearch.TreeNodeMouseClick += VPK_OnClick;
                 treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
@@ -868,9 +872,9 @@ namespace GUI
             //Make sure we aren't a directory!
             if (node.Tag.GetType() == typeof(PackageEntry))
             {
-                var package = node.TreeView.Tag as Package;
+                var package = node.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
                 var file = node.Tag as PackageEntry;
-                package.ReadEntry(file, out var output);
+                package.Package.ReadEntry(file, out var output);
 
                 OpenFile(file.GetFileName(), output, package);
             }
@@ -965,7 +969,7 @@ namespace GUI
 
         private void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Package package = null;
+            TreeViewWithSearchResults.TreeViewPackageTag package = null;
             TreeNode selectedNode = null;
 
             // the context menu can come from a TreeView or a ListView depending on where the user clicked to extract
@@ -974,13 +978,13 @@ namespace GUI
             {
                 var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
                 selectedNode = tree.SelectedNode;
-                package = tree.Tag as Package;
+                package = tree.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
             }
             else if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is ListView)
             {
                 var listView = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ListView;
                 selectedNode = listView.SelectedItems[0].Tag as TreeNode;
-                package = listView.Tag as Package;
+                package = listView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
             }
 
             if (selectedNode.Tag.GetType() == typeof(PackageEntry))
@@ -1003,7 +1007,7 @@ namespace GUI
 
                     using (var stream = dialog.OpenFile())
                     {
-                        package.ReadEntry(file, out var output);
+                        package.Package.ReadEntry(file, out var output);
                         stream.Write(output, 0, output.Length);
                     }
                 }
@@ -1014,7 +1018,7 @@ namespace GUI
                 var dialog = new FolderBrowserDialog();
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    var extractDialog = new ExtractProgressForm(package, selectedNode, dialog.SelectedPath);
+                    var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath);
                     extractDialog.ShowDialog();
                 }
             }
