@@ -82,7 +82,7 @@ vec2 getTexCoord(float scale, float rotation) {
 }
 
 //Interpolate between two tint colors based on the tint mask and coordinate scale.
-vec4 interpolateTint(int id, vec4 tint1, vec4 tint2, float coordScale, float coordRotation) 
+vec4 interpolateTint(int id, vec4 tint1, vec4 tint2, float coordScale, float coordRotation)
 {
     float maskValue = texture2D(g_tTintMasks, getTexCoord(coordScale, coordRotation))[id];
     return tint1 * (maskValue) + tint2 * (1-maskValue);
@@ -133,7 +133,7 @@ void main()
     vec4 c2 = blend.z * color2;
     vec4 c3 = blend.w * color3;
 #endif
-    
+
     //Add up the result
     vec4 finalColor = c0 + c1 + c2 + c3;
 

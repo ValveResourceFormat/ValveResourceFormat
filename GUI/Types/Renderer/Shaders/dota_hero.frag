@@ -35,7 +35,7 @@ uniform vec3 vLightPosition;
 uniform vec3 vEyePosition;
 
 //Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal() 
+vec3 calculateWorldNormal()
 {
     //Get the noral from the texture map -- Normal map seems broken
     vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);
@@ -113,13 +113,13 @@ void main()
     rimLight = rimLight * mask2.g;
 
 	//Final color
-    vec3 finalColor = ambientColor  * mix(1, 0.5, metalness) + specularColor * specular + color.rgb * rimLight;
+    vec3 finalColor = ambientColor * mix(1.0, 0.5, metalness) + specularColor * specular + color.rgb * rimLight;
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(finalColor, color.a);
 
 	// == End of shader
-    
+
 	// Different render mode definitions
 #if param_renderMode_Color == 1
 	outputColor = vec4(color.rgb, 1.0);
