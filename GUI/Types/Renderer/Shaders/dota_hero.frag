@@ -1,6 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
+#define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
 #define param_renderMode_Normals 0
 #define param_renderMode_Tangents 0
@@ -74,6 +75,9 @@ void main()
 	//Get shadow and light color
     vec3 shadowColor = texture2D(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
+#if param_renderMode_FullBright == 1
+    float illumination = 1.0;
+#else
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
@@ -81,6 +85,7 @@ void main()
 
     //Self illumination - mask 1 channel A
     illumination = illumination + mask1.a;
+#endif
 
     //Calculate ambient color
     vec3 ambientColor = illumination * color.rgb;
