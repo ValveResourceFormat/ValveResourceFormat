@@ -121,7 +121,7 @@ void main()
 
     //Simple blending
     //Calculate each of the 4 colours to blend
-#if param_F_TINT_MASK == 1
+#if param_F_TINT_MASK
     // Include tint mask
     vec4 c0 = blend.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
     vec4 c1 = blend.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
@@ -137,7 +137,7 @@ void main()
     //Add up the result
     vec4 finalColor = c0 + c1 + c2 + c3;
 
-#if param_F_NORMAL_MAP == 1
+#if param_F_NORMAL_MAP
     //calculate blended normal
     vec4 bumpNormal = blend.x * normal0 + blend.y * normal1 + blend.z * normal2 + blend.w * normal3;
 

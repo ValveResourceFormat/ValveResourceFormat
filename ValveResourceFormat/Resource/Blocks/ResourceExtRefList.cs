@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -57,6 +58,18 @@ namespace ValveResourceFormat.Blocks
 
                 throw new KeyNotFoundException($"ResourceReferenceInfo_t does not contain key {name}");
             }
+
+            public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+                => new KeyValuePair<string, object>[]
+                {
+                    new KeyValuePair<string, object>("id", Id),
+                    new KeyValuePair<string, object>("name", Name),
+                }
+                    .AsEnumerable()
+                    .GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator()
+                => GetEnumerator();
         }
 
         public List<ResourceReferenceInfo> ResourceRefInfoList { get; private set; }
