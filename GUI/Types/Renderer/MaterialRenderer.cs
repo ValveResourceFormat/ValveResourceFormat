@@ -14,7 +14,7 @@ namespace GUI.Types.Renderer
         public MaterialRenderer(RenderMaterial renderMaterial, VrfGuiContext vrfGuiContext)
         {
             material = renderMaterial;
-            shader = vrfGuiContext.ShaderLoader.LoadShader(material.Material.ShaderName, material.Material.GetShaderArguments());
+            shader = vrfGuiContext.ShaderLoader.LoadPlaneShader(material.Material.ShaderName);
             quadVao = SetupQuadBuffer();
         }
 
@@ -31,18 +31,37 @@ namespace GUI.Types.Renderer
 
             var vertices = new[]
             {
-                -1.0f, -1.0f, 0.0f,
-                -1.0f, 1.0f, 0.0f,
-                1.0f, -1.0f, 0.0f,
-                1.0f, 1.0f, 0.0f,
+                // position       ; normal          ; texcoord  ; tangent
+                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+                // position      ; normal          ; texcoord  ; tangent
+                -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                // position      ; normal          ; texcoord  ; tangent
+                1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+                // position     ; normal          ; texcoord  ; tangent
+                1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
             };
 
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
 
             GL.EnableVertexAttribArray(0);
 
+            var stride = sizeof(float) * 11;
+
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "vPOSITION");
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
+            GL.EnableVertexAttribArray(positionAttributeLocation);
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
+
+            var normalAttributeLocation = GL.GetAttribLocation(shader.Program, "vNORMAL");
+            GL.EnableVertexAttribArray(normalAttributeLocation);
+            GL.VertexAttribPointer(normalAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
+
+            var texCoordAttributeLocation = GL.GetAttribLocation(shader.Program, "vTEXCOORD");
+            GL.EnableVertexAttribArray(texCoordAttributeLocation);
+            GL.VertexAttribPointer(texCoordAttributeLocation, 2, VertexAttribPointerType.Float, false, stride, sizeof(float) * 6);
+
+            var tangentAttributeLocation = GL.GetAttribLocation(shader.Program, "vTANGENT");
+            GL.EnableVertexAttribArray(tangentAttributeLocation);
+            GL.VertexAttribPointer(tangentAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, sizeof(float) * 8);
 
             GL.BindVertexArray(0); // Unbind VAO
 
@@ -58,24 +77,16 @@ namespace GUI.Types.Renderer
             int uniformLocation;
             var textureUnit = 1;
 
-            uniformLocation = shader.GetUniformLocation("vLightPosition");
-            GL.Uniform3(uniformLocation, camera.Location);
-
-            uniformLocation = shader.GetUniformLocation("vEyePosition");
-            GL.Uniform3(uniformLocation, camera.Location);
-
-            uniformLocation = shader.GetUniformLocation("projection");
-            var matrix = camera.ProjectionMatrix;
-            GL.UniformMatrix4(uniformLocation, false, ref matrix);
-
-            uniformLocation = shader.GetUniformLocation("modelview");
-            matrix = camera.CameraViewMatrix;
-            GL.UniformMatrix4(uniformLocation, false, ref matrix);
-
-            uniformLocation = shader.GetUniformLocation("bAnimated");
-            if (uniformLocation != -1)
+            uniformLocation = shader.GetUniformLocation("m_vTintColorSceneObject");
+            if (uniformLocation > -1)
             {
-                GL.Uniform1(uniformLocation, 0.0f);
+                GL.Uniform4(uniformLocation, Vector4.One);
+            }
+
+            uniformLocation = shader.GetUniformLocation("m_vTintColorDrawCall");
+            if (uniformLocation > -1)
+            {
+                GL.Uniform3(uniformLocation, Vector3.One);
             }
 
             foreach (var texture in material.Textures)
