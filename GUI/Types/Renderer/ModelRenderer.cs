@@ -155,6 +155,24 @@ namespace GUI.Types.Renderer
             skeleton = Model.GetSkeleton();
         }
 
+        private void SetupAnimationTexture()
+        {
+            if (animationTexture == default)
+            {
+                // Create animation texture
+                animationTexture = GL.GenTexture();
+                GL.BindTexture(TextureTarget.Texture2D, animationTexture);
+                // Set clamping to edges
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+                // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
+                //Unbind texture again
+                GL.BindTexture(TextureTarget.Texture2D, 0);
+            }
+        }
+
         private void LoadAnimations()
         {
             var animGroupPaths = Model.GetReferencedAnimationGroupNames();
@@ -165,17 +183,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            // Create animation texture
-            animationTexture = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, animationTexture);
-            // Set clamping to edges
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-            // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
-            //Unbind texture again
-            GL.BindTexture(TextureTarget.Texture2D, 0);
+            SetupAnimationTexture();
 
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
@@ -186,6 +194,43 @@ namespace GUI.Types.Renderer
 
             // Get embedded animations
             animations.AddRange(emebeddedAnims);
+        }
+
+        public void LoadAnimation(string animationName)
+        {
+            var animGroupPaths = Model.GetReferencedAnimationGroupNames();
+            var embeddedAnims = Model.GetEmbeddedAnimations();
+
+            if (!animGroupPaths.Any() && !embeddedAnims.Any())
+            {
+                return;
+            }
+
+            if (skeleton == default)
+            {
+                LoadSkeleton();
+                SetupAnimationTexture();
+            }
+
+            // Get embedded animations
+            var embeddedAnim = embeddedAnims.FirstOrDefault(a => a.Name == animationName);
+            if (embeddedAnim != default)
+            {
+                animations.Add(embeddedAnim);
+                return;
+            }
+
+            // Load animations from referenced animation groups
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                var animGroup = guiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
+                var foundAnimations = AnimationGroupLoader.TryLoadSingleAnimationFileFromGroup(animGroup, animationName, guiContext);
+                if (foundAnimations != default)
+                {
+                    animations.AddRange(foundAnimations);
+                    return;
+                }
+            }
         }
 
         public IEnumerable<string> GetSupportedAnimationNames()

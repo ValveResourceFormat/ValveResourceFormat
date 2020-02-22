@@ -269,6 +269,12 @@ namespace GUI.Types.Renderer
                 modelRenderer.SetMeshTransform(transformationMatrix);
                 modelRenderer.SetTint(objColor);
 
+                if (animation != default)
+                {
+                    modelRenderer.LoadAnimation(animation); // Load only this animation
+                    modelRenderer.SetAnimation(animation);
+                }
+
                 modelRenderers.Add(modelRenderer);
             }
         }
