@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using GUI.Utils;
 
@@ -46,16 +47,23 @@ namespace GUI.Forms
                     return;
                 }
 
-                if (Settings.Config.GameSearchPaths.Contains(dlg.FileName))
+                var fileName = dlg.FileName;
+
+                if (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+                {
+                    fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
+                }
+
+                if (Settings.Config.GameSearchPaths.Contains(fileName))
                 {
                     return;
                 }
 
-                Settings.Config.OpenDirectory = Path.GetDirectoryName(dlg.FileName);
-                Settings.Config.GameSearchPaths.Add(dlg.FileName);
+                Settings.Config.OpenDirectory = Path.GetDirectoryName(fileName);
+                Settings.Config.GameSearchPaths.Add(fileName);
                 Settings.Save();
 
-                gamePaths.Items.Add(dlg.FileName);
+                gamePaths.Items.Add(fileName);
             }
         }
 
@@ -76,7 +84,7 @@ namespace GUI.Forms
                     return;
                 }
 
-                Settings.Config.OpenDirectory = Path.GetDirectoryName(dlg.SelectedPath);
+                Settings.Config.OpenDirectory = dlg.SelectedPath;
                 Settings.Config.GameSearchPaths.Add(dlg.SelectedPath);
                 Settings.Save();
 
