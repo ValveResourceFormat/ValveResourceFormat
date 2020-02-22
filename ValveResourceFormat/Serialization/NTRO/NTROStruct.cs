@@ -200,5 +200,10 @@ namespace ValveResourceFormat.Serialization.NTRO
                 return default(T);
             }
         }
+
+        IEnumerator<KeyValuePair<string, object>> IEnumerable<KeyValuePair<string, object>>.GetEnumerator()
+            => Contents
+                .Select(p => new KeyValuePair<string, object>(p.Key, p.Value.ValueObject))
+                .GetEnumerator();
     }
 }

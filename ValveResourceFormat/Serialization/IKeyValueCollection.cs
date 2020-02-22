@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 
 namespace ValveResourceFormat.Serialization
 {
-    public interface IKeyValueCollection
+    public interface IKeyValueCollection : IEnumerable<KeyValuePair<string, object>>
     {
         bool ContainsKey(string name);
 
@@ -56,5 +58,28 @@ namespace ValveResourceFormat.Serialization
             collection.GetFloatProperty("1"),
             collection.GetFloatProperty("2"),
             collection.GetFloatProperty("3"));
+
+        public static string Print(this IKeyValueCollection collection) => PrintHelper(collection, 0);
+
+        private static string PrintHelper(IKeyValueCollection collection, int indent)
+        {
+            var stringBuilder = new StringBuilder();
+            var space = new string(' ', indent * 4);
+            foreach (var kvp in collection)
+            {
+                if (kvp.Value is IKeyValueCollection nestedCollection)
+                {
+                    stringBuilder.AppendLine($"{space}{kvp.Key} = {{");
+                    stringBuilder.Append(PrintHelper(nestedCollection, indent + 1));
+                    stringBuilder.AppendLine($"{space}}}");
+                }
+                else
+                {
+                    stringBuilder.AppendLine($"{space}{kvp.Key} = {kvp.Value}");
+                }
+            }
+
+            return stringBuilder.ToString();
+        }
     }
 }
