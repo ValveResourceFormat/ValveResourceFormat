@@ -154,6 +154,7 @@
     <Compile Include="Types\Renderer\IAnimationRenderer.cs" />
     <Compile Include="Types\Renderer\IRenderer.cs" />
     <Compile Include="Types\Renderer\IMeshRenderer.cs" />
+    <Compile Include="Types\Renderer\MaterialRenderer.cs" />
     <Compile Include="Types\Renderer\WorldRenderer.cs" />
     <Compile Include="Types\Renderer\WorldNodeRenderer.cs" />
     <Compile Include="Utils\VrfGuiContext.cs" />

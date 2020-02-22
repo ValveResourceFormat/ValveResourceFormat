@@ -681,6 +681,23 @@ namespace GUI
                         meshRendererTab.Controls.Add(glModelControl.Control);
                         resTabs.TabPages.Add(meshRendererTab);
                         break;
+                    case ResourceType.Material:
+                        var glMaterialControl = new GLRenderControl();
+                        glMaterialControl.Load += (_, __) =>
+                        {
+                            var material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
+                            var materialRenderer = new MaterialRenderer(material, vrfGuiContext);
+
+                            glMaterialControl.Paint += (sender, e) =>
+                            {
+                                materialRenderer.Render(e.Camera);
+                            };
+                        };
+
+                        var materialRendererTab = new TabPage("MATERIAL");
+                        materialRendererTab.Controls.Add(glMaterialControl.Control);
+                        resTabs.TabPages.Add(materialRendererTab);
+                        break;
                 }
 
                 foreach (var block in resource.Blocks)
