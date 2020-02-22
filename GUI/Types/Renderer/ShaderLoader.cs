@@ -224,6 +224,10 @@ namespace GUI.Types.Renderer
         {
             switch (shaderName)
             {
+                case "vrf.particle.sprite":
+                    return "particle_sprite";
+                case "vrf.particle.trail":
+                    return "particle_trail";
                 case "vr_standard.vfx":
                     return "vr_standard";
                 case "vr_unlit.vfx":

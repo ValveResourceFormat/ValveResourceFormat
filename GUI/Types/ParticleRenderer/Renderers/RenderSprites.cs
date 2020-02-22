@@ -4,7 +4,6 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -12,49 +11,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 {
     internal class RenderSprites : IParticleRenderer
     {
-        private const string VertextShaderSource = @"
-            #version 400
-            in vec3 aVertexPosition;
-
-            uniform mat4 uProjectionMatrix;
-            uniform mat4 uModelViewMatrix;
-
-            uniform mat4 uModelMatrix;
-
-            out vec2 uv;
-
-            void main(void) {
-                uv = aVertexPosition.xy * 0.5 + 0.5;
-                uv.y = 1 - uv.y;
-                gl_Position = uProjectionMatrix * uModelViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
-            }";
-
-        private const string FragmentShaderSource = @"
-            #version 400
-
-            uniform vec3 uColor;
-            uniform sampler2D uTexture;
-
-            in vec2 uv;
-
-            uniform vec2 uUvOffset;
-            uniform vec2 uUvScale;
-
-            uniform float uAlpha;
-            uniform float uOverbrightFactor;
-
-            out vec4 fragColor;
-
-            void main(void) {
-                vec4 color = texture(uTexture, uUvOffset + uv * uUvScale);
-
-                vec3 finalColor = uColor * color.xyz;
-                float blendingFactor = uOverbrightFactor * (0.212 * finalColor.x + 0.715 * finalColor.y + 0.0722 * finalColor.z);
-
-                fragColor = vec4(uAlpha * finalColor, color.w * blendingFactor);
-            }";
-
-        private readonly int shaderProgram;
+        private readonly Shader shader;
         private readonly int quadVao;
         private readonly int glTexture;
 
@@ -67,7 +24,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
-            shaderProgram = SetupShaderProgram();
+            shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.particle.sprite", new Dictionary<string, bool>());
 
             // The same quad is reused for all particles
             quadVao = SetupQuadBuffer();
@@ -100,49 +57,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
         }
 
-        private int SetupShaderProgram()
-        {
-            var shaderProgram = GL.CreateProgram();
-
-            var vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertexShader, VertextShaderSource);
-            GL.CompileShader(vertexShader);
-
-            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out var vertextShaderStatus);
-            if (vertextShaderStatus != 1)
-            {
-                GL.GetShaderInfoLog(vertexShader, out var vsInfo);
-                throw new Exception($"Error setting up vertex shader : {vsInfo}");
-            }
-
-            var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fragmentShader, FragmentShaderSource);
-            GL.CompileShader(fragmentShader);
-
-            GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out var fragmentShaderStatus);
-            if (fragmentShaderStatus != 1)
-            {
-                GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
-                throw new Exception($"Error setting up fragment shader : {fsInfo}");
-            }
-
-            GL.AttachShader(shaderProgram, vertexShader);
-            GL.AttachShader(shaderProgram, fragmentShader);
-            GL.LinkProgram(shaderProgram);
-
-            GL.GetProgram(shaderProgram, GetProgramParameterName.LinkStatus, out var programStatus);
-            if (programStatus != 1)
-            {
-                GL.GetProgramInfoLog(shaderProgram, out var programInfo);
-                throw new Exception($"Error linking shader program: {programInfo}");
-            }
-
-            return shaderProgram;
-        }
-
         private int SetupQuadBuffer()
         {
-            GL.UseProgram(shaderProgram);
+            GL.UseProgram(shader.Program);
 
             // Create and bind VAO
             var vao = GL.GenVertexArray();
@@ -163,7 +80,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.EnableVertexAttribArray(0);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
+            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
 
             GL.BindVertexArray(0); // Unbind VAO
@@ -181,7 +98,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
         {
             GL.Enable(EnableCap.Blend);
-            GL.UseProgram(shaderProgram);
+            GL.UseProgram(shader.Program);
 
             if (additive)
             {
@@ -198,18 +115,18 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, glTexture);
 
-            GL.Uniform1(GL.GetUniformLocation(shaderProgram, "uTexture"), 0); // set texture unit 0 as uTexture uniform
-            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uProjectionMatrix"), false, ref projectionMatrix);
-            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "uModelViewMatrix"), false, ref modelViewMatrix);
+            GL.Uniform1(shader.GetUniformLocation("uTexture"), 0); // set texture unit 0 as uTexture uniform
+            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionMatrix"), false, ref projectionMatrix);
+            GL.UniformMatrix4(shader.GetUniformLocation("uModelViewMatrix"), false, ref modelViewMatrix);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            GL.Uniform1(GL.GetUniformLocation(shaderProgram, "uOverbrightFactor"), overbrightFactor);
+            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor);
 
-            var modelMatrixLocation = GL.GetUniformLocation(shaderProgram, "uModelMatrix");
-            var colorLocation = GL.GetUniformLocation(shaderProgram, "uColor");
-            var alphaLocation = GL.GetUniformLocation(shaderProgram, "uAlpha");
-            var uvOffsetLocation = GL.GetUniformLocation(shaderProgram, "uUvOffset");
-            var uvScaleLocation = GL.GetUniformLocation(shaderProgram, "uUvScale");
+            var modelMatrixLocation = shader.GetUniformLocation("uModelMatrix");
+            var colorLocation = shader.GetUniformLocation("uColor");
+            var alphaLocation = shader.GetUniformLocation("uAlpha");
+            var uvOffsetLocation = shader.GetUniformLocation("uUvOffset");
+            var uvScaleLocation = shader.GetUniformLocation("uUvScale");
 
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
             var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
