@@ -63,6 +63,7 @@ namespace GUI.Types.ParticleRenderer
 
         public void Render(Camera camera)
         {
+            GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(shaderProgram);
@@ -77,6 +78,7 @@ namespace GUI.Types.ParticleRenderer
 
             GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.Disable(EnableCap.Blend);
         }
 
         private int SetupShaderProgram()
