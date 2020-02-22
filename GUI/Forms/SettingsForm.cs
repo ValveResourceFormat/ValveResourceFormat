@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Windows.Forms;
 using GUI.Utils;
 
@@ -34,10 +35,12 @@ namespace GUI.Forms
 
         private void GamePathAdd(object sender, EventArgs e)
         {
-            using (var dlg = new OpenFileDialog())
+            using (var dlg = new OpenFileDialog
             {
-                dlg.Filter = "Valve Pak (*.vpk)|*.vpk|All files (*.*)|*.*";
-
+                InitialDirectory = Settings.Config.OpenDirectory,
+                Filter = "Valve Pak (*.vpk)|*.vpk|All files (*.*)|*.*",
+            })
+            {
                 if (dlg.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -48,6 +51,7 @@ namespace GUI.Forms
                     return;
                 }
 
+                Settings.Config.OpenDirectory = Path.GetDirectoryName(dlg.FileName);
                 Settings.Config.GameSearchPaths.Add(dlg.FileName);
                 Settings.Save();
 
@@ -57,7 +61,10 @@ namespace GUI.Forms
 
         private void GamePathAddFolder(object sender, EventArgs e)
         {
-            using (var dlg = new FolderBrowserDialog())
+            using (var dlg = new FolderBrowserDialog
+            {
+                SelectedPath = Settings.Config.OpenDirectory,
+            })
             {
                 if (dlg.ShowDialog() != DialogResult.OK)
                 {
@@ -69,6 +76,7 @@ namespace GUI.Forms
                     return;
                 }
 
+                Settings.Config.OpenDirectory = Path.GetDirectoryName(dlg.SelectedPath);
                 Settings.Config.GameSearchPaths.Add(dlg.SelectedPath);
                 Settings.Save();
 
