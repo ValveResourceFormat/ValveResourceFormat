@@ -92,6 +92,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
         {
             var textureResource = vrfGuiContext.LoadFileByAnyMeansNecessary(textureName + "_c");
 
+            if (textureResource == null)
+            {
+                return (vrfGuiContext.MaterialLoader.GetErrorTexture(), null);
+            }
+
             return (vrfGuiContext.MaterialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
         }
 
