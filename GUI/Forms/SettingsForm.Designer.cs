@@ -1,4 +1,4 @@
-﻿namespace GUI.Forms
+namespace GUI.Forms
 {
     partial class SettingsForm
     {
@@ -33,6 +33,7 @@
             this.gamePathsRemove = new System.Windows.Forms.Button();
             this.gamePathsLabel = new System.Windows.Forms.Label();
             this.bgColorPickButton = new System.Windows.Forms.Button();
+            this.gamePathsAddFolder = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // gamePaths
@@ -49,13 +50,13 @@
             this.gamePathsAdd.Name = "gamePathsAdd";
             this.gamePathsAdd.Size = new System.Drawing.Size(75, 23);
             this.gamePathsAdd.TabIndex = 1;
-            this.gamePathsAdd.Text = "Add";
+            this.gamePathsAdd.Text = "Add .vpk";
             this.gamePathsAdd.UseVisualStyleBackColor = true;
             this.gamePathsAdd.Click += new System.EventHandler(this.GamePathAdd);
             // 
             // gamePathsRemove
             // 
-            this.gamePathsRemove.Location = new System.Drawing.Point(93, 130);
+            this.gamePathsRemove.Location = new System.Drawing.Point(486, 130);
             this.gamePathsRemove.Name = "gamePathsRemove";
             this.gamePathsRemove.Size = new System.Drawing.Size(75, 23);
             this.gamePathsRemove.TabIndex = 2;
@@ -82,11 +83,22 @@
             this.bgColorPickButton.UseVisualStyleBackColor = true;
             this.bgColorPickButton.Click += new System.EventHandler(this.Button1_Click);
             // 
+            // gamePathsAddFolder
+            // 
+            this.gamePathsAddFolder.Location = new System.Drawing.Point(93, 130);
+            this.gamePathsAddFolder.Name = "gamePathsAddFolder";
+            this.gamePathsAddFolder.Size = new System.Drawing.Size(75, 23);
+            this.gamePathsAddFolder.TabIndex = 5;
+            this.gamePathsAddFolder.Text = "Add folder";
+            this.gamePathsAddFolder.UseVisualStyleBackColor = true;
+            this.gamePathsAddFolder.Click += new System.EventHandler(this.GamePathAddFolder);
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(573, 261);
+            this.Controls.Add(this.gamePathsAddFolder);
             this.Controls.Add(this.bgColorPickButton);
             this.Controls.Add(this.gamePathsLabel);
             this.Controls.Add(this.gamePathsRemove);
@@ -108,5 +120,6 @@
         private System.Windows.Forms.Button gamePathsRemove;
         private System.Windows.Forms.Label gamePathsLabel;
         private System.Windows.Forms.Button bgColorPickButton;
+        private System.Windows.Forms.Button gamePathsAddFolder;
     }
 }
