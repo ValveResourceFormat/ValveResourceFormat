@@ -778,8 +778,16 @@ namespace GUI
                             {
                                 case ResourceType.Particle:
                                 case ResourceType.Mesh:
-                                    //Wrap it around a KV3File object to get the header.
-                                    control.Text = NormalizeLineEndings(((BinaryKV3)block).GetKV3File().ToString());
+                                    if (block is BinaryKV3 blockKeyvalues)
+                                    {
+                                        //Wrap it around a KV3File object to get the header.
+                                        control.Text = NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
+                                    }
+                                    else if (block is NTRO blockNTRO)
+                                    {
+                                        control.Text = NormalizeLineEndings(blockNTRO.ToString());
+                                    }
+
                                     break;
                                 default:
                                     control.Text = NormalizeLineEndings(block.ToString());
