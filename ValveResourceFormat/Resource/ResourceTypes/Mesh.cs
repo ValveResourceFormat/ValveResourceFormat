@@ -1,4 +1,6 @@
+using System;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -18,6 +20,16 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Data = data;
             VBIB = vbib;
+        }
+
+        public IKeyValueCollection GetData()
+        {
+            switch (Data)
+            {
+                case BinaryKV3 binaryKv: return binaryKv.Data;
+                case NTRO ntro: return ntro.Output;
+                default: throw new InvalidOperationException($"Unknown model data type {Data.GetType().Name}");
+            }
         }
     }
 }
