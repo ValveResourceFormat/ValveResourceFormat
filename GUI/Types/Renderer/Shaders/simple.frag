@@ -1,6 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
+#define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
 #define param_renderMode_Illumination 0
 
@@ -44,11 +45,15 @@ void main()
     //Get the world normal for this fragment
     vec3 worldNormal = vNormalOut;
 
+#if param_renderMode_FullBright == 1
+    float illumination = 1.0;
+#else
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
     illumination = min(illumination + 0.3, 1.0);
+#endif
 
     //Calculate tint color
     float tintStrength = texture2D(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;

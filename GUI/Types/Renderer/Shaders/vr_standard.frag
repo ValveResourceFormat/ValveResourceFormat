@@ -1,5 +1,7 @@
 #version 330
 
+// Render modes -- Switched on/off by code
+#define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
 #define param_renderMode_BumpMap 0
 #define param_renderMode_Tangents 0
@@ -56,11 +58,15 @@ void main()
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
 
+#if param_renderMode_FullBright == 1
+    float illumination = 1.0;
+#else
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
     illumination = min(illumination + 0.3, 1.0);
+#endif
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb, color.a);

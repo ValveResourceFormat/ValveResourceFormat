@@ -1,6 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
+#define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
 #define param_renderMode_Terrain_Blend 0
 #define param_renderMode_Ambient_Occlusion 0
@@ -160,11 +161,15 @@ void main()
     //Get the direction from the fragment to the light - light position == camera position for now
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
+#if param_renderMode_FullBright == 1
+    float illumination = 1.0;
+#else
     //Calculate half-lambert lighting
     float illumination = dot(finalNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
     illumination = min(illumination + 0.3, 1.0);
+#endif
 
     //Calculate specular
     vec4 blendSpecular = blend.x * specular0 + blend.y * specular1 + blend.z * specular2 + blend.w * specular3;
