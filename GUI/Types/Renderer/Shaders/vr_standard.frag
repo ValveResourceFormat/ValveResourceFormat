@@ -25,7 +25,7 @@ uniform sampler2D g_tNormal;
 uniform vec3 vLightPosition;
 
 //Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal() 
+vec3 calculateWorldNormal()
 {
     //Get the noral from the texture map -- Normal map seems broken
     vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);

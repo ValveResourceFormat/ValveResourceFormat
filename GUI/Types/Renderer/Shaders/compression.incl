@@ -30,7 +30,7 @@ vec4 DecompressTangent( vec4 inputNormal )
     return outputTangent;
 }
 
-//Decompress a byte4 normal in the 0..255 range to a float3 normal 
+//Decompress a byte4 normal in the 0..255 range to a float3 normal
 vec3 DecompressNormal( vec4 inputNormal )
 {
     float fOne   = 1.0f;
