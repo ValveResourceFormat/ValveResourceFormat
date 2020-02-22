@@ -103,6 +103,8 @@ namespace GUI.Controls
         /// <param name="package">Package object.</param>
         internal void InitializeTreeViewFromPackage(TreeViewPackageTag package)
         {
+            mainListView.Tag = package;
+
             var control = mainTreeView;
             control.BeginUpdate();
             control.TreeViewNodeSorter = new TreeViewFileSorter();
