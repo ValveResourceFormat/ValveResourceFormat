@@ -131,12 +131,9 @@ namespace GUI.Types.Renderer
                 ? null
                 : renderModeComboBox.SelectedItem.ToString();
 
-            foreach (var renderer in Renderers)
+            foreach (var renderer in Renderers.OfType<IMeshRenderer>())
             {
-                if (renderer is IMeshRenderer meshRenderer)
-                {
-                    meshRenderer.SetRenderMode(selectedRenderMode);
-                }
+                renderer.SetRenderMode(selectedRenderMode);
             }
         }
 
