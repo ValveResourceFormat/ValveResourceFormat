@@ -188,7 +188,7 @@ namespace GUI.Types.Renderer
                     }*/
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var isOverlay = material.Material.IntParams.Any(p => p.Key == "F_OVERLAY");
+                    var isOverlay = material.Material.IntParams.ContainsKey("F_OVERLAY");
 
                     // Ignore overlays for now
                     if (isOverlay)

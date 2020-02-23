@@ -5,6 +5,10 @@
 #define param_renderMode_Color 0
 #define param_renderMode_Illumination 0
 
+//Parameter defines - These are default values and can be overwritten based on material/model parameters
+#define param_F_FULLBRIGHT 0
+//End of parameter defines
+
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -45,7 +49,7 @@ void main()
     //Get the world normal for this fragment
     vec3 worldNormal = vNormalOut;
 
-#if param_renderMode_FullBright == 1
+#if param_renderMode_FullBright == 1 || param_F_FULLBRIGHT == 1
     float illumination = 1.0;
 #else
     //Calculate half-lambert lighting
