@@ -40,24 +40,27 @@ namespace GUI.Types.Renderer
 
         public RenderMaterial LoadMaterial(Resource resource)
         {
-            var mat = new RenderMaterial();
-            mat.Textures["g_tColor"] = GetErrorTexture();
-
             if (resource == null)
             {
-                mat.Textures["g_tNormal"] = GetErrorTexture();
-                mat.Material = new VrfMaterial();
+                var errorMat = new RenderMaterial(new VrfMaterial());
+                errorMat.Textures["g_tColor"] = GetErrorTexture();
+                errorMat.Textures["g_tNormal"] = GetErrorTexture();
 
-                return mat;
+                return errorMat;
             }
 
-            mat.Material = new VrfMaterial(resource);
+            var mat = new RenderMaterial(new VrfMaterial(resource));
 
             foreach (var textureReference in mat.Material.TextureParams)
             {
                 var key = textureReference.Key;
 
                 mat.Textures[key] = LoadTexture(textureReference.Value);
+            }
+
+            if (!mat.Textures.ContainsKey("g_tColor"))
+            {
+                mat.Textures["g_tColor"] = GetErrorTexture();
             }
 
             if (mat.Material.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Material.IntParams["F_SOLID_COLOR"] == 1)

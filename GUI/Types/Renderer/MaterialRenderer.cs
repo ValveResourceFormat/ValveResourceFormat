@@ -74,10 +74,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
 
-            int uniformLocation;
-            var textureUnit = 1;
-
-            uniformLocation = shader.GetUniformLocation("m_vTintColorSceneObject");
+            var uniformLocation = shader.GetUniformLocation("m_vTintColorSceneObject");
             if (uniformLocation > -1)
             {
                 GL.Uniform4(uniformLocation, Vector4.One);
@@ -89,41 +86,11 @@ namespace GUI.Types.Renderer
                 GL.Uniform3(uniformLocation, Vector3.One);
             }
 
-            foreach (var texture in material.Textures)
-            {
-                uniformLocation = shader.GetUniformLocation(texture.Key);
-
-                if (uniformLocation > -1)
-                {
-                    GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-                    GL.BindTexture(TextureTarget.Texture2D, texture.Value);
-                    GL.Uniform1(uniformLocation, textureUnit);
-
-                    textureUnit++;
-                }
-            }
-
-            foreach (var param in material.Material.FloatParams)
-            {
-                uniformLocation = shader.GetUniformLocation(param.Key);
-
-                if (uniformLocation > -1)
-                {
-                    GL.Uniform1(uniformLocation, param.Value);
-                }
-            }
-
-            foreach (var param in material.Material.VectorParams)
-            {
-                uniformLocation = shader.GetUniformLocation(param.Key);
-
-                if (uniformLocation > -1)
-                {
-                    GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
-                }
-            }
+            material.Render(shader);
 
             GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
+
+            material.PostRender();
 
             GL.BindVertexArray(0);
             GL.UseProgram(0);
