@@ -37,9 +37,9 @@ test_script:
     }
 
 artifacts:
-- path: Decompiler\bin\Release\netcoreapp3.0\win-x64\publish
+- path: Decompiler\bin\Release\*\win-x64\publish
   name: Decompiler-win-x64
-- path: Decompiler\bin\Release\netcoreapp3.0\linux-x64\publish
+- path: Decompiler\bin\Release\*\linux-x64\publish
   name: Decompiler-linux-x64
 - path: GUI\bin\Release
   name: GUI
