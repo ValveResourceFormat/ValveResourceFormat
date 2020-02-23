@@ -11,9 +11,11 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class ModelRenderer : IMeshRenderer, IAnimationRenderer
+    internal class ModelRenderer : IMeshRenderer, IAnimationRenderer, IOctreeElement
     {
         public Model Model { get; }
+
+        public AABB BoundingBox { get; private set; }
 
         private readonly VrfGuiContext guiContext;
 
@@ -46,6 +48,7 @@ namespace GUI.Types.Renderer
             }
 
             LoadMeshes();
+            UpdateBoundingBox();
         }
 
         public void Update(float frameTime)
@@ -100,6 +103,8 @@ namespace GUI.Types.Renderer
             {
                 renderer.Transform = matrix;
             }
+
+            UpdateBoundingBox();
         }
 
         public void SetTint(Vector4 tint)
@@ -262,6 +267,17 @@ namespace GUI.Types.Renderer
                 {
                     renderer.SetAnimationTexture(animationTexture, skeleton.Bones.Length);
                 }
+            }
+        }
+
+        private void UpdateBoundingBox()
+        {
+            bool first = true;
+
+            foreach (var mesh in meshRenderers)
+            {
+                BoundingBox = first ? mesh.BoundingBox : BoundingBox.Union(mesh.BoundingBox);
+                first = false;
             }
         }
     }

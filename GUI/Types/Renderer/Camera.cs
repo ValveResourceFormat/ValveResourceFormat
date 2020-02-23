@@ -18,6 +18,7 @@ namespace GUI.Types.Renderer
 
         public Matrix4 ProjectionMatrix { get; private set; }
         public Matrix4 CameraViewMatrix { get; private set; }
+        public Frustum ViewFrustum { get; private set; }
 
         // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }
@@ -65,6 +66,7 @@ namespace GUI.Types.Renderer
 
             // Build camera view matrix
             CameraViewMatrix = Matrix4.LookAt(Location, Location + dir, Vector3.UnitZ);
+            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
 
             Name = name;
         }
@@ -79,6 +81,7 @@ namespace GUI.Types.Renderer
 
             // Build camera view matrix
             CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
         // Calculate forward vector from pitch and yaw
@@ -100,6 +103,7 @@ namespace GUI.Types.Renderer
 
             // Calculate projection matrix
             ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 40000.0f);
+            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
 
             // setup viewport
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
@@ -110,6 +114,7 @@ namespace GUI.Types.Renderer
             Location = location;
 
             CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
         public void LookAt(Vector3 target)
@@ -121,6 +126,7 @@ namespace GUI.Types.Renderer
             ClampRotation();
 
             CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
         public void Tick(float deltaTime)
@@ -140,6 +146,7 @@ namespace GUI.Types.Renderer
             ClampRotation();
 
             CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
         public void HandleInput(MouseState mouseState, KeyboardState keyboardState)
