@@ -28,17 +28,18 @@ uniform mat4 transform;
 
 void main()
 {
-    vec4 fragPosition = transform * getSkinMatrix() * vec4(vPOSITION, 1.0);
+    mat4 skinTransform = transform * getSkinMatrix();
+    vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
 	gl_Position = projection * modelview * fragPosition;
 	vFragPosition = fragPosition.xyz;
 
+    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+
 	//Unpack normals
 #if param_fulltangent == 1
-    vec4 transformedNormal = transpose(inverse(transform)) * vec4(DecompressNormal(vNORMAL), 0.0);
-	vNormalOut = transformedNormal.xyz;
+	vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
 #else
-    vec4 transformedNormal = transpose(inverse(transform)) * vec4(DecompressNormal(vNORMAL), 0.0);
-	vNormalOut = transformedNormal.xyz;
+    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
 #endif
 
 	vTexCoordOut = vTEXCOORD;
