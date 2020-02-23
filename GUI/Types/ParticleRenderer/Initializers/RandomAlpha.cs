@@ -23,6 +23,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
             {
                 alphaMax = (int)keyValue.GetIntegerProperty("m_nAlphaMax");
             }
+
+            if (alphaMin > alphaMax)
+            {
+                var temp = alphaMin;
+                alphaMin = alphaMax;
+                alphaMax = temp;
+            }
         }
 
         public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
