@@ -3,10 +3,11 @@
 // Render modes -- Switched on/off by code
 #define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
-#define param_renderMode_BumpMap 0
-#define param_renderMode_Tangents 0
 #define param_renderMode_Normals 0
+#define param_renderMode_Tangents 0
+#define param_renderMode_BumpMap 0
 #define param_renderMode_BumpNormals 0
+#define param_renderMode_Illumination 0
 
 in vec3 vFragPosition;
 
@@ -79,7 +80,7 @@ void main()
 #endif
 
 #if param_renderMode_Tangents == 1
-	outputColor = outputColor = vec4(vTangentOut.xyz, 1.0);
+	outputColor = vec4(vTangentOut.xyz, 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
@@ -89,6 +90,8 @@ void main()
 #if param_renderMode_BumpNormals == 1
 	outputColor = vec4(worldNormal, 1.0);
 #endif
+
+#if param_renderMode_Illumination == 1
+	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+#endif
 }
-
-
