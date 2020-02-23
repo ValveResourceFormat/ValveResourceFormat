@@ -605,6 +605,20 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).SoundType}", fileName, new ExportData { Resource = resource });
 
                         break;
+                    case ResourceType.EntityLump:
+                        var entitiesTab = new TabPage("ENTITY LUMP");
+                        var text = new TextBox
+                        {
+                            Dock = DockStyle.Fill,
+                            ScrollBars = ScrollBars.Vertical,
+                            Multiline = true,
+                            ReadOnly = true,
+                            Text = new EntityLump(resource).ToString(),
+                        };
+                        entitiesTab.Controls.Add(text);
+                        resTabs.TabPages.Add(entitiesTab);
+
+                        break;
                     case ResourceType.World:
                         var glWorldControl = new GLModelViewerControl();
 
