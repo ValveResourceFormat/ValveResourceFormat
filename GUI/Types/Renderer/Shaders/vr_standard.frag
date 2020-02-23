@@ -31,9 +31,8 @@ vec3 calculateWorldNormal()
     vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);
 
     //Reconstruct the tangent vector from the map
-    vec2 temp = vec2(bumpNormal.y, bumpNormal.w) * 2 - 1;
-    vec3 tangentNormal = vec3(temp, 1 - temp.x*temp.x - temp.y*temp.y);
-    tangentNormal = tangentNormal.xzy;
+    vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
+    vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
 
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
