@@ -6,9 +6,10 @@
 		<title>$title$</title>
 		<authors>$author$</authors>
 		<owners>$author$</owners>
-        <license type="expression">MIT</license>
-		<licenseUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/LICENSE</licenseUrl>
+		<license type="expression">MIT</license>
 		<projectUrl>https://github.com/SteamDatabase/ValveResourceFormat</projectUrl>
+        <repository type="git" url="https://github.com/SteamDatabase/ValveResourceFormat.git">
+		<icon>images\1455069708_api-code-window.png</icon>
 		<iconUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/Icons/Programs/1455069708_api-code-window.png</iconUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<description>$description$</description>
@@ -19,4 +20,7 @@
 			<frameworkAssembly assemblyName="System.Drawing" />
 		</frameworkAssemblies>
 	</metadata>
+	<files>
+		<file src="Icons\Programs\1455069708_api-code-window.png" target="images\" />
+	</files>
 </package>
