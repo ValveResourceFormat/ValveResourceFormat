@@ -299,6 +299,11 @@ namespace GUI.Types.Renderer
                 drawCall.Material.Textures.Add("g_tTintMask", MaterialLoader.CreateSolidTexture(1f, 1f, 1f));
             }
 
+            if (!drawCall.Material.Textures.ContainsKey("g_tNormal"))
+            {
+                drawCall.Material.Textures.Add("g_tNormal", MaterialLoader.CreateSolidTexture(0f, 0f, 1f));
+            }
+
             if (bufferSize == 2)
             {
                 //shopkeeper_vr
