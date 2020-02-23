@@ -102,7 +102,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var renderer = new ModelRenderer(new Model(newResource), guiContext);
+                    var renderer = new ModelRenderer(new Model(newResource), guiContext, false);
                     renderer.SetMeshTransform(matrix);
                     renderer.SetTint(tintColor);
                     meshRenderers.Add(renderer);
