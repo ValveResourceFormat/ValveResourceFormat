@@ -3,6 +3,10 @@
 // Render modes -- Switched on/off by code
 #define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
+#define param_renderMode_Normals 0
+#define param_renderMode_Tangents 0
+#define param_renderMode_BumpMap 0
+#define param_renderMode_BumpNormals 0
 #define param_renderMode_Illumination 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -70,6 +74,14 @@ void main()
     // Different render mode definitions
 #if param_renderMode_Color == 1
 	outputColor = vec4(color.rgb, 1.0);
+#endif
+
+#if param_renderMode_Normals
+	outputColor = vec4(vNormalOut, 1.0);
+#endif
+
+#if param_renderMode_BumpNormals
+	outputColor = vec4(vNormalOut, 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1

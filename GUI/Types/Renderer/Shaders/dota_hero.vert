@@ -34,23 +34,18 @@ void main()
 	gl_Position = projection * modelview * fragPosition;
 	vFragPosition = vPOSITION.xyz;
 
-    // Calculate model matrix
-    mat4 normalTransform = skinTransformMatrix;
-    // Remove translation from matrix
-    normalTransform[3][0] = 0.0;
-    normalTransform[3][1] = 0.0;
-    normalTransform[3][2] = 0.0;
+    mat3 normalTransform = transpose(inverse(mat3(skinTransformMatrix)));
 
 	//Unpack normals
 #if param_fulltangent == 1
-	vNormalOut = normalize((normalTransform * vNORMAL).xyz);
-	vTangentOut = normalize((normalTransform * vTANGENT).xyz);
+	vNormalOut = normalize(normalTransform * vNORMAL.xyz);
+	vTangentOut = normalize(normalTransform * vTANGENT.xyz);
 	vBitangentOut = cross(vNormalOut, vTangentOut);
 #else
     vec4 tangent = DecompressTangent(vNORMAL);
-	vNormalOut = normalize((normalTransform * vec4(DecompressNormal(vNORMAL), 0.0)).xyz);
-    vTangentOut = normalize((normalTransform * vec4(tangent.xyz, 0.0)).xyz);
-	vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
+	vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    vTangentOut = normalize(normalTransform * tangent.xyz);
+	vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 #endif
 
 	vTexCoordOut = vTEXCOORD;
