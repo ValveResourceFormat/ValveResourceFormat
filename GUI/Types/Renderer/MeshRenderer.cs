@@ -277,11 +277,11 @@ namespace GUI.Types.Renderer
             {
                 var tintColor = objectDrawCall.GetSubCollection("m_vTintColor").ToVector3();
                 drawCall.TintColor = new Vector3(tintColor.X, tintColor.Y, tintColor.Z);
+            }
 
-                if (!drawCall.Material.Textures.ContainsKey("g_tTintMask"))
-                {
-                    drawCall.Material.Textures.Add("g_tTintMask", MaterialLoader.CreateSolidTexture(1f, 1f, 1f));
-                }
+            if (!drawCall.Material.Textures.ContainsKey("g_tTintMask"))
+            {
+                drawCall.Material.Textures.Add("g_tTintMask", MaterialLoader.CreateSolidTexture(1f, 1f, 1f));
             }
 
             if (bufferSize == 2)
