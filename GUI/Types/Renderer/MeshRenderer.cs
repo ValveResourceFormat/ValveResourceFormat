@@ -202,11 +202,28 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("fulltangent", !objectDrawCall.GetProperty<bool>("m_bUseCompressedNormalTangent"));
                     }
 
-                    if (objectDrawCall.ContainsKey("m_nFlags")
-                        && objectDrawCall.GetProperty<object>("m_nFlags") is string flagsString
-                        && flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
+                    if (objectDrawCall.ContainsKey("m_nFlags"))
                     {
-                        shaderArguments.Add("fulltangent", false);
+                        var flags = objectDrawCall.GetProperty<object>("m_nFlags");
+
+                        switch (flags)
+                        {
+                            case string flagsString:
+                                if (flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
+                                {
+                                    shaderArguments.Add("fulltangent", false);
+                                }
+
+                                break;
+                            case long flagsLong:
+                                // TODO: enum
+                                if ((flagsLong & 2) == 2)
+                                {
+                                    shaderArguments.Add("fulltangent", false);
+                                }
+
+                                break;
+                        }
                     }
 
                     // TODO: Don't pass around so much shit
