@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using GUI.Utils;
 using OpenTK;
+using OpenTK.Input;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -13,11 +14,15 @@ namespace GUI.Types.Renderer
     {
         public World World { get; }
 
+        public AABB BoundingBox { get; private set; }
+
         private readonly VrfGuiContext guiContext;
 
         private readonly List<WorldNodeRenderer> worldNodeRenderers = new List<WorldNodeRenderer>();
         private readonly List<IRenderer> particleRenderers = new List<IRenderer>();
         private readonly List<ModelRenderer> modelRenderers = new List<ModelRenderer>();
+
+        private readonly Octree<IMeshRenderer> worldOctree = new Octree<IMeshRenderer>(32768);
 
         public WorldRenderer(World world, VrfGuiContext vrfGuiContext)
         {
@@ -33,12 +38,8 @@ namespace GUI.Types.Renderer
 
         public void Render(Camera camera)
         {
-            foreach (var renderer in worldNodeRenderers)
-            {
-                renderer.Render(camera);
-            }
-
-            foreach (var renderer in modelRenderers)
+            // Both world nodes and entity models are rendered through the octree rather than directly
+            foreach (var renderer in worldOctree.Query(camera.ViewFrustum))
             {
                 renderer.Render(camera);
             }
@@ -76,8 +77,10 @@ namespace GUI.Types.Renderer
                         throw new Exception("WTF");
                     }
 
-                    var worldNodeRenderer = new WorldNodeRenderer(new WorldNode(newResource), guiContext);
+                    var worldNodeRenderer = new WorldNodeRenderer(new WorldNode(newResource), guiContext, worldOctree);
                     worldNodeRenderers.Add(worldNodeRenderer);
+
+                    BoundingBox = BoundingBox.IsZero ? worldNodeRenderer.BoundingBox : BoundingBox.Union(worldNodeRenderer.BoundingBox);
                 }
             }
         }
@@ -275,7 +278,10 @@ namespace GUI.Types.Renderer
                     modelRenderer.SetAnimation(animation);
                 }
 
+                worldOctree.Insert(modelRenderer);
                 modelRenderers.Add(modelRenderer);
+
+                BoundingBox = BoundingBox.IsZero ? modelRenderer.BoundingBox : BoundingBox.Union(modelRenderer.BoundingBox);
             }
         }
 

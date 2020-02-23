@@ -644,7 +644,7 @@ namespace GUI
                         glWorldNodeControl.Load += (_, __) =>
                         {
                             var worldNode = new WorldNode(resource);
-                            var worldNodeRenderer = new WorldNodeRenderer(worldNode, vrfGuiContext);
+                            var worldNodeRenderer = new WorldNodeRenderer(worldNode, vrfGuiContext, null);
                             glWorldNodeControl.AddRenderer(worldNodeRenderer);
 
                             vrfGuiContext.ClearCache();

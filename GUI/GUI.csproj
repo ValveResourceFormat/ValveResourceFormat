@@ -114,6 +114,8 @@
     <Compile Include="Types\ParticleRenderer\Emitters\ContinuousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
+    <Compile Include="Types\Renderer\AABB.cs" />
+    <Compile Include="Types\Renderer\Frustum.cs" />
     <Compile Include="Types\Renderer\GLModelViewerControl.cs" />
     <Compile Include="Types\Renderer\GLRenderControl.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\InitialVelocityNoise.cs" />
@@ -155,8 +157,11 @@
     <Compile Include="Types\Renderer\IRenderer.cs" />
     <Compile Include="Types\Renderer\IMeshRenderer.cs" />
     <Compile Include="Types\Renderer\MaterialRenderer.cs" />
+    <Compile Include="Types\Renderer\Octree.cs" />
+    <Compile Include="Types\Renderer\OctreeDebugRenderer.cs" />
     <Compile Include="Types\Renderer\WorldRenderer.cs" />
     <Compile Include="Types\Renderer\WorldNodeRenderer.cs" />
+    <Compile Include="Utils\VectorExtensions.cs" />
     <Compile Include="Utils\VrfGuiContext.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
     <Compile Include="Types\Renderer\DebugUtil.cs" />

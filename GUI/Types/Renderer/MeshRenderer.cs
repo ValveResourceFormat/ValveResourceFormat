@@ -11,14 +11,26 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshRenderer : IMeshRenderer
+    internal class MeshRenderer : IMeshRenderer, IOctreeElement
     {
         public Mesh Mesh { get; }
 
-        public Matrix4 Transform { get; set; } = Matrix4.Identity;
+        public Matrix4 Transform
+        {
+            get => meshTransform;
+            set
+            {
+                meshTransform = value;
+                BoundingBox = localBoundingBox.Transformed(Transform);
+            }
+        }
+
         public Vector4 Tint { get; set; } = Vector4.One;
+        public AABB BoundingBox { get; private set; }
 
         private readonly VrfGuiContext guiContext;
+        private AABB localBoundingBox;
+        private Matrix4 meshTransform = Matrix4.Identity;
 
         private List<DrawCall> drawCalls = new List<DrawCall>();
 
@@ -29,6 +41,9 @@ namespace GUI.Types.Renderer
         {
             Mesh = mesh;
             guiContext = vrfGuiContext;
+
+            localBoundingBox = new AABB(mesh.MinBounds.ToOpenTK(), mesh.MaxBounds.ToOpenTK());
+            BoundingBox = localBoundingBox.Transformed(Transform);
 
             SetupDrawCalls(skinMaterials);
         }

@@ -7,18 +7,23 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class WorldNodeRenderer : IMeshRenderer
+    internal class WorldNodeRenderer : IMeshRenderer, IOctreeElement
     {
         public WorldNode WorldNode { get; }
+
+        public AABB BoundingBox { get; private set; }
 
         private readonly VrfGuiContext guiContext;
 
         private readonly List<IMeshRenderer> meshRenderers = new List<IMeshRenderer>();
 
-        public WorldNodeRenderer(WorldNode worldNode, VrfGuiContext vrfGuiContext)
+        private readonly Octree<IMeshRenderer> meshOctree;
+
+        public WorldNodeRenderer(WorldNode worldNode, VrfGuiContext vrfGuiContext, Octree<IMeshRenderer> externalOctree)
         {
             WorldNode = worldNode;
             guiContext = vrfGuiContext;
+            meshOctree = externalOctree ?? new Octree<IMeshRenderer>(16384);
 
             // Do setup
             SetupMeshRenderers();
@@ -26,7 +31,7 @@ namespace GUI.Types.Renderer
 
         public void Render(Camera camera)
         {
-            foreach (var renderer in meshRenderers)
+            foreach (var renderer in meshOctree.Query(camera.ViewFrustum))
             {
                 renderer.Render(camera);
             }
@@ -106,6 +111,9 @@ namespace GUI.Types.Renderer
                     renderer.SetMeshTransform(matrix);
                     renderer.SetTint(tintColor);
                     meshRenderers.Add(renderer);
+
+                    BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
+                    meshOctree.Insert(renderer);
                 }
 
                 var renderable = sceneObject.GetProperty<string>("m_renderable");
@@ -123,6 +131,9 @@ namespace GUI.Types.Renderer
                     renderer.Transform = matrix;
                     renderer.Tint = tintColor;
                     meshRenderers.Add(renderer);
+
+                    BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
+                    meshOctree.Insert(renderer);
                 }
             }
         }
