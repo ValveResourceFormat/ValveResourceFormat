@@ -226,14 +226,14 @@ namespace GUI.Types.Renderer
             Root.Clear();
         }
 
-        public IEnumerable<T> Query(AABB boundingBox)
+        public List<T> Query(AABB boundingBox)
         {
             var results = new List<T>();
             Root.Query(boundingBox, results);
             return results;
         }
 
-        public IEnumerable<T> Query(Frustum frustum)
+        public List<T> Query(Frustum frustum)
         {
             var results = new List<T>();
             Root.Query(frustum, results);

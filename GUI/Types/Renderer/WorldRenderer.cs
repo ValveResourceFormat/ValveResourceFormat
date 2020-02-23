@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
         public void Render(Camera camera)
         {
             // Both world nodes and entity models are rendered through the octree rather than directly
-            foreach (var renderer in worldOctree.Query(camera.ViewFrustum))
+            foreach (var renderer in GetMeshesToRender(camera))
             {
                 renderer.Render(camera);
             }
@@ -74,6 +74,16 @@ namespace GUI.Types.Renderer
             {
                 renderer.Update(frameTime);
             }
+        }
+
+        private IEnumerable<IMeshRenderer> GetMeshesToRender(Camera camera)
+        {
+            var renderers = worldOctree.Query(camera.ViewFrustum);
+
+            renderers.Sort((a, b) =>
+                (a.BoundingBox.Center - camera.Location).Length < (b.BoundingBox.Center - camera.Location).Length ? 1 : -1);
+
+            return renderers;
         }
 
         private void LoadWorldNodes()
