@@ -133,68 +133,11 @@ namespace GUI.Types.Renderer
                     GL.Uniform3(uniformLocation, call.TintColor);
                 }
 
-                //Start at 1, texture unit 0 is reserved for the animation texture
-                var textureUnit = 1;
-                foreach (var texture in call.Material.Textures)
-                {
-                    uniformLocation = call.Shader.GetUniformLocation(texture.Key);
-
-                    if (uniformLocation > -1)
-                    {
-                        GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-                        GL.BindTexture(TextureTarget.Texture2D, texture.Value);
-                        GL.Uniform1(uniformLocation, textureUnit);
-
-                        textureUnit++;
-                    }
-                }
-
-                foreach (var param in call.Material.Material.FloatParams)
-                {
-                    uniformLocation = call.Shader.GetUniformLocation(param.Key);
-
-                    if (uniformLocation > -1)
-                    {
-                        GL.Uniform1(uniformLocation, param.Value);
-                    }
-                }
-
-                foreach (var param in call.Material.Material.VectorParams)
-                {
-                    uniformLocation = call.Shader.GetUniformLocation(param.Key);
-
-                    if (uniformLocation > -1)
-                    {
-                        GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
-                    }
-                }
-
-                var alpha = 0f;
-                if (call.Material.Material.IntParams.ContainsKey("F_ALPHA_TEST") &&
-                    call.Material.Material.IntParams["F_ALPHA_TEST"] == 1 &&
-                    call.Material.Material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-                {
-                    alpha = call.Material.Material.FloatParams["g_flAlphaTestReference"];
-                }
-
-                var alphaReference = call.Shader.GetUniformLocation("g_flAlphaTestReference");
-                GL.Uniform1(alphaReference, alpha);
-
-                var disableBlend = false;
-
-                if (call.Material.Material.IntParams.ContainsKey("F_TRANSLUCENT") && call.Material.Material.IntParams["F_TRANSLUCENT"] == 1)
-                {
-                    disableBlend = true;
-                    GL.Enable(EnableCap.Blend);
-                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                }
+                call.Material.Render(call.Shader);
 
                 GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
 
-                if (disableBlend)
-                {
-                    GL.Disable(EnableCap.Blend);
-                }
+                call.Material.PostRender();
             }
 
             GL.Disable(EnableCap.CullFace);
