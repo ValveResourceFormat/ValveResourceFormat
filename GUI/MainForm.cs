@@ -580,7 +580,7 @@ namespace GUI
                             glControl.Camera.LookAt(new Vector3(0));
 
                             var particleSystem = new ParticleSystem(resource);
-                            var particleGrid = new ParticleGrid(20, 5);
+                            var particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
                             var particleRenderer = new ParticleRenderer(particleSystem, vrfGuiContext);
 
                             glControl.Paint += (sender, args) =>
@@ -624,7 +624,7 @@ namespace GUI
 
                         glWorldControl.Load += (_, __) =>
                         {
-                            var particleGrid = new ParticleGrid(20, 5);
+                            var particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
                             glWorldControl.AddRenderer(particleGrid);
 
                             var world = new World(resource);

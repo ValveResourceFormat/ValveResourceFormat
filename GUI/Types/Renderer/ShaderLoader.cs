@@ -314,6 +314,8 @@ namespace GUI.Types.Renderer
         {
             switch (shaderName)
             {
+                case "vrf.grid":
+                    return "debug_grid";
                 case "vrf.particle.sprite":
                     return "particle_sprite";
                 case "vrf.particle.trail":

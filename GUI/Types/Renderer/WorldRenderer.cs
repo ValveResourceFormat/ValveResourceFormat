@@ -1,3 +1,5 @@
+//#define DEBUG_OCTREE
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -23,6 +25,10 @@ namespace GUI.Types.Renderer
 
         private readonly Octree<IMeshRenderer> worldOctree = new Octree<IMeshRenderer>(32768);
 
+#if DEBUG_OCTREE
+        private readonly OctreeDebugRenderer<IMeshRenderer> octreeDebugRenderer;
+#endif
+
         public WorldRenderer(World world, VrfGuiContext vrfGuiContext)
         {
             World = world;
@@ -31,6 +37,10 @@ namespace GUI.Types.Renderer
             // Do setup
             LoadWorldNodes();
             LoadEntities();
+
+#if DEBUG_OCTREE
+            octreeDebugRenderer = new OctreeDebugRenderer<IMeshRenderer>(worldOctree, guiContext);
+#endif
 
             // TODO: Figure out which animations to play on which model renderers
         }
@@ -47,6 +57,10 @@ namespace GUI.Types.Renderer
             {
                 renderer.Render(camera);
             }
+
+#if DEBUG_OCTREE
+            octreeDebugRenderer.Render(camera);
+#endif
         }
 
         public void Update(float frameTime)
