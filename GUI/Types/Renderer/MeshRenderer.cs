@@ -301,7 +301,7 @@ namespace GUI.Types.Renderer
 
             if (!drawCall.Material.Textures.ContainsKey("g_tNormal"))
             {
-                drawCall.Material.Textures.Add("g_tNormal", MaterialLoader.CreateSolidTexture(0f, 0f, 1f));
+                drawCall.Material.Textures.Add("g_tNormal", MaterialLoader.CreateSolidTexture(0.5f, 1f, 0.5f));
             }
 
             if (bufferSize == 2)
