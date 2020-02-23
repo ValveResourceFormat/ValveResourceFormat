@@ -25,12 +25,12 @@ namespace GUI.Types.Renderer
         private int? animationTexture;
         private int boneCount;
 
-        public MeshRenderer(Mesh mesh, VrfGuiContext vrfGuiContext)
+        public MeshRenderer(Mesh mesh, VrfGuiContext vrfGuiContext, List<string> skinMaterials = null)
         {
             Mesh = mesh;
             guiContext = vrfGuiContext;
 
-            SetupDrawCalls();
+            SetupDrawCalls(skinMaterials);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
@@ -144,7 +144,7 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.DepthTest);
         }
 
-        private void SetupDrawCalls()
+        private void SetupDrawCalls(List<string> skinMaterials)
         {
             var vbib = Mesh.VBIB;
             var data = Mesh.GetData();
@@ -173,6 +173,7 @@ namespace GUI.Types.Renderer
 
             //Prepare drawcalls
             var sceneObjects = data.GetArray("m_sceneObjects");
+            var drawCallId = 0;
 
             foreach (var sceneObject in sceneObjects)
             {
@@ -180,13 +181,7 @@ namespace GUI.Types.Renderer
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
-                    var materialName = objectDrawCall.GetProperty<string>("m_material");
-
-                    /*if (i < SkinMaterials.Count)
-                    {
-                        materialName = SkinMaterials[i];
-                    }*/
-
+                    var materialName = skinMaterials != null ? skinMaterials[drawCallId++] : objectDrawCall.GetProperty<string>("m_material");
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
                     var isOverlay = material.Material.IntParams.ContainsKey("F_OVERLAY");
 

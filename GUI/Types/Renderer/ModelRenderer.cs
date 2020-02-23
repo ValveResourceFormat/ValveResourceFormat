@@ -8,6 +8,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -17,17 +18,17 @@ namespace GUI.Types.Renderer
 
         private readonly VrfGuiContext guiContext;
 
-        private List<Animation> animations = new List<Animation>();
-        private List<RenderMaterial> materials = new List<RenderMaterial>();
+        private readonly List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
+        private readonly List<Animation> animations = new List<Animation>();
+        private List<string> skinMaterials;
 
         private Animation activeAnimation;
         private int animationTexture;
         private Skeleton skeleton;
 
         private Stopwatch timer = new Stopwatch();
-        private List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
 
-        public ModelRenderer(Model model, VrfGuiContext vrfGuiContext, bool loadAnimations = true)
+        public ModelRenderer(Model model, VrfGuiContext vrfGuiContext, string skin = null, bool loadAnimations = true)
         {
             Model = model;
 
@@ -40,7 +41,11 @@ namespace GUI.Types.Renderer
                 LoadAnimations();
             }
 
-            LoadMaterials();
+            if (skin != null)
+            {
+                SetSkin(skin);
+            }
+
             LoadMeshes();
 
             timer.Start();
@@ -107,12 +112,27 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private void SetSkin(string skin)
+        {
+            var materialGroups = Model.GetData().GetArray<IKeyValueCollection>("m_materialGroups");
+
+            foreach (var materialGroup in materialGroups)
+            {
+                if (materialGroup.GetProperty<string>("m_name") == skin)
+                {
+                    var materials = materialGroup.GetArray<string>("m_materials");
+                    skinMaterials = new List<string>(materials);
+                    break;
+                }
+            }
+        }
+
         private void LoadMeshes()
         {
             // Get embedded meshes
             foreach (var embeddedMesh in Model.GetEmbeddedMeshes())
             {
-                meshRenderers.Add(new MeshRenderer(embeddedMesh, guiContext));
+                meshRenderers.Add(new MeshRenderer(embeddedMesh, guiContext, skinMaterials));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
@@ -131,23 +151,8 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new MeshRenderer(new Mesh(newResource), guiContext));
+                meshRenderers.Add(new MeshRenderer(new Mesh(newResource), guiContext, skinMaterials));
             }
-        }
-
-        private void LoadMaterials()
-        {
-            /*var materialGroups = Model.GetData().GetArray<IKeyValueCollection>("m_materialGroups");
-
-            foreach (var materialGroup in materialGroups)
-            {
-                if (materialGroup.GetProperty<string>("m_name") == skin)
-                {
-                    var materials = materialGroup.GetArray<string>("m_materials");
-                    skinMaterials.AddRange(materials);
-                    break;
-                }
-            }*/
         }
 
         private void LoadSkeleton()
