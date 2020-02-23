@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
 
         private readonly List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
         private readonly List<Animation> animations = new List<Animation>();
-        private List<string> skinMaterials;
+        private Dictionary<string, string> skinMaterials;
 
         private Animation activeAnimation;
         private int animationTexture;
@@ -113,13 +113,27 @@ namespace GUI.Types.Renderer
         private void SetSkin(string skin)
         {
             var materialGroups = Model.GetData().GetArray<IKeyValueCollection>("m_materialGroups");
+            string[] defaultMaterials = null;
 
             foreach (var materialGroup in materialGroups)
             {
+                // "The first item needs to match the default materials on the model"
+                if (defaultMaterials == null)
+                {
+                    defaultMaterials = materialGroup.GetArray<string>("m_materials");
+                }
+
                 if (materialGroup.GetProperty<string>("m_name") == skin)
                 {
                     var materials = materialGroup.GetArray<string>("m_materials");
-                    skinMaterials = new List<string>(materials);
+
+                    skinMaterials = new Dictionary<string, string>();
+
+                    for (var i = 0; i < defaultMaterials.Length; i++)
+                    {
+                        skinMaterials[defaultMaterials[i]] = materials[i];
+                    }
+
                     break;
                 }
             }
