@@ -108,7 +108,6 @@ namespace GUI.Types.Renderer
                 Name = shaderName,
                 Parameters = arguments,
                 Program = GL.CreateProgram(),
-                Defines = defines,
                 RenderModes = renderModes,
             };
             GL.AttachShader(shader.Program, vertexShader);

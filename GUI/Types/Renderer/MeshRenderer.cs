@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
 {
     internal class MeshRenderer : IMeshRenderer, IOctreeElement
     {
-        public Mesh Mesh { get; }
+        private Mesh Mesh { get; }
 
         public Matrix4 Transform
         {
@@ -283,8 +283,8 @@ namespace GUI.Types.Renderer
             drawCall.IndexBuffer = indexBuffer;
 
             var bufferSize = block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
-            drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
-            drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
+            //drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
+            //drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
             drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * bufferSize;
             drawCall.IndexCount = Convert.ToInt32(objectDrawCall.GetProperty<object>("m_nIndexCount"));
 

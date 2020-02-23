@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
 {
     internal class WorldRenderer : IMeshRenderer
     {
-        public World World { get; }
+        private World World { get; }
 
         public AABB BoundingBox { get; private set; }
 

@@ -169,7 +169,6 @@
     <Compile Include="Types\Renderer\ModelRenderer.cs" />
     <Compile Include="Types\Renderer\Shader.cs" />
     <Compile Include="Types\Renderer\MaterialLoader.cs" />
-    <Compile Include="Types\Renderer\MeshObject.cs" />
     <Compile Include="Types\Renderer\ShaderLoader.cs" />
     <Compile Include="Utils\ConsoleTab.cs" />
     <Compile Include="Utils\FileLoader.cs" />
@@ -226,7 +225,6 @@
     <EmbeddedResource Include="Types\Renderer\Shaders\*" />
     <Compile Include="Types\Audio\AudioPlayer.cs" />
     <Compile Include="Types\Renderer\Camera.cs" />
-    <Compile Include="Types\Renderer\Renderer.cs" />
     <Compile Include="Types\Renderer\RenderMaterial.cs" />
     <Compile Include="Types\Renderer\DrawCall.cs" />
   </ItemGroup>

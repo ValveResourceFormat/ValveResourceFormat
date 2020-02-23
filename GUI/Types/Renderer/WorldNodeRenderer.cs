@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
 {
     internal class WorldNodeRenderer : IMeshRenderer, IOctreeElement
     {
-        public WorldNode WorldNode { get; }
+        private WorldNode WorldNode { get; }
 
         public AABB BoundingBox { get; private set; }
 

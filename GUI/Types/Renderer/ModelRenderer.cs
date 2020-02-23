@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
 {
     internal class ModelRenderer : IMeshRenderer, IAnimationRenderer, IOctreeElement
     {
-        public Model Model { get; }
+        private Model Model { get; }
 
         public AABB BoundingBox { get; private set; }
 

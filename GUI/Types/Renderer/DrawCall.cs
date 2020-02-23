@@ -1,4 +1,4 @@
-﻿using OpenTK;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
@@ -7,8 +7,8 @@ namespace GUI.Types.Renderer
     {
         public PrimitiveType PrimitiveType { get; set; }
         public Shader Shader { get; set; }
-        public uint BaseVertex { get; set; }
-        public uint VertexCount { get; set; }
+        //public uint BaseVertex { get; set; }
+        //public uint VertexCount { get; set; }
         public uint StartIndex { get; set; }
         public int IndexCount { get; set; }
         //public uint InstanceIndex { get; set; }   //TODO
