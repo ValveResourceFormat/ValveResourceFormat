@@ -203,7 +203,8 @@ namespace GUI.Types.Renderer
                     }
 
                     if (objectDrawCall.ContainsKey("m_nFlags")
-                        && objectDrawCall.GetProperty<string>("m_nFlags").Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
+                        && objectDrawCall.GetProperty<object>("m_nFlags") is string flagsString
+                        && flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"))
                     {
                         shaderArguments.Add("fulltangent", false);
                     }
