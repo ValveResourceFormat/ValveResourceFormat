@@ -142,8 +142,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Create output frame
             var frame = new Frame();
 
-            var length = FrameCount / Fps;
-
             // Interpolate bone positions and angles
             foreach (var bonePair in frame1.Bones)
             {
