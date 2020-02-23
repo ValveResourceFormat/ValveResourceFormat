@@ -265,7 +265,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var newModel = new Model(newEntity);
-                var modelRenderer = new ModelRenderer(newModel, guiContext, false);
+                var modelRenderer = new ModelRenderer(newModel, guiContext, skin, false);
                 modelRenderer.SetMeshTransform(transformationMatrix);
                 modelRenderer.SetTint(objColor);
 
