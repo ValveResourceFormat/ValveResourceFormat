@@ -27,10 +27,6 @@ uniform mat4 projection;
 uniform mat4 modelview;
 uniform mat4 transform;
 
-mat3 getNormalMat(mat4 mat) {
-    return mat3(mat[0][0], mat[1][0], mat[2][0], mat[0][1], mat[1][1], mat[2][1], mat[0][2], mat[1][2], mat[2][2]);
-}
-
 void main()
 {
     mat4 skinTransformMatrix = transform * getSkinMatrix();
