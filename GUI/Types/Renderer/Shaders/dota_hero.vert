@@ -32,7 +32,7 @@ void main()
     mat4 skinTransformMatrix = transform * getSkinMatrix();
     vec4 fragPosition = skinTransformMatrix * vec4(vPOSITION, 1.0);
 	gl_Position = projection * modelview * fragPosition;
-	vFragPosition = vPOSITION.xyz;
+	vFragPosition = fragPosition.xyz / fragPosition.w;
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransformMatrix)));
 

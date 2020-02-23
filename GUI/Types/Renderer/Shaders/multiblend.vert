@@ -36,8 +36,9 @@ uniform mat4 transform;
 
 void main()
 {
-    gl_Position = projection * modelview * transform * vec4(vPOSITION, 1.0);
-    vFragPosition = vPOSITION;
+    vec4 fragPosition = transform * vec4(vPOSITION, 1.0);
+    gl_Position = projection * modelview * fragPosition;
+    vFragPosition = fragPosition.xyz / fragPosition.w;
 
     //Unpack normals
 #if param_fulltangent == 1
