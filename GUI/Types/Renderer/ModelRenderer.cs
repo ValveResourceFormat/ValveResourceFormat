@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using GUI.Utils;
 using OpenTK;
@@ -26,7 +25,7 @@ namespace GUI.Types.Renderer
         private int animationTexture;
         private Skeleton skeleton;
 
-        private Stopwatch timer = new Stopwatch();
+        private float time;
 
         public ModelRenderer(Model model, VrfGuiContext vrfGuiContext, string skin = null, bool loadAnimations = true)
         {
@@ -47,8 +46,6 @@ namespace GUI.Types.Renderer
             }
 
             LoadMeshes();
-
-            timer.Start();
         }
 
         public void Update(float frameTime)
@@ -69,7 +66,8 @@ namespace GUI.Types.Renderer
                 animationMatrices[(i * 16) + 15] = 1.0f;
             }
 
-            animationMatrices = activeAnimation.GetAnimationMatricesAsArray((float)timer.Elapsed.TotalSeconds, skeleton);
+            time += frameTime;
+            animationMatrices = activeAnimation.GetAnimationMatricesAsArray(time, skeleton);
 
             // Update animation texture
             GL.BindTexture(TextureTarget.Texture2D, animationTexture);
