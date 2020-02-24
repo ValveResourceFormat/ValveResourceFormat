@@ -1,16 +1,17 @@
 #version 400
 
 in vec3 aVertexPosition;
+in vec4 aVertexColor;
+in vec2 aTexCoords;
 
 uniform mat4 uProjectionMatrix;
 uniform mat4 uModelViewMatrix;
 
-uniform mat4 uModelMatrix;
-
-out vec2 uv;
+out vec2 vTexCoords;
+out vec4 vColor;
 
 void main(void) {
-    uv = aVertexPosition.xy * 0.5 + 0.5;
-    uv.y = 1.0 - uv.y;
-    gl_Position = uProjectionMatrix * uModelViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
+    vColor = aVertexColor;
+    vTexCoords = aTexCoords;
+    gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
 }

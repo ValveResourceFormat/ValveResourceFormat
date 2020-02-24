@@ -65,25 +65,18 @@ namespace GUI.Types.ParticleRenderer
 
         public void PruneExpired()
         {
-            bool anyRemoved = false;
-
+            // TODO: This alters the order of the particles so they are no longer in creation order after something expires. Fix that.
             for (int i = 0; i < usedParticles;)
             {
                 if (particles[i].Lifetime <= 0)
                 {
                     particles[i] = particles[usedParticles - 1];
                     usedParticles--;
-                    anyRemoved = true;
                 }
                 else
                 {
                     ++i;
                 }
-            }
-
-            if (anyRemoved)
-            {
-                Array.Sort(particles, (a, b) => a.ParticleCount - b.ParticleCount);
             }
         }
 

@@ -46,8 +46,8 @@ namespace GUI.Types.ParticleRenderer
         public Particle(IKeyValueCollection baseProperties)
         {
             ParticleCount = 0;
-            Alpha = 1;
-            AlphaAlternate = 1;
+            Alpha = 1.0f;
+            AlphaAlternate = 1.0f;
             Position = Vector3.Zero;
             PositionPrevious = Vector3.Zero;
             Rotation = Vector3.Zero;

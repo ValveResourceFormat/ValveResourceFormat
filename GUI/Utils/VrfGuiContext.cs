@@ -19,6 +19,21 @@ namespace GUI.Utils
 
         private readonly FileLoader FileLoader;
 
+        public QuadIndexBuffer QuadIndices
+        {
+            get
+            {
+                if (quadIndices == null)
+                {
+                    quadIndices = new QuadIndexBuffer(65532);
+                }
+
+                return quadIndices;
+            }
+        }
+
+        private QuadIndexBuffer quadIndices;
+
         public VrfGuiContext(string fileName, TreeViewWithSearchResults.TreeViewPackageTag package)
         {
             FileName = fileName;
