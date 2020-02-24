@@ -21,8 +21,8 @@ namespace GUI.Types.Renderer
 
         private readonly GLRenderControl glRenderControl;
 
-        private ComboBox animationComboBox;
-        private ComboBox renderModeComboBox;
+        private CheckedListBox animationComboBox;
+        private CheckedListBox renderModeComboBox;
 
         public GLModelViewerControl()
         {
@@ -80,9 +80,9 @@ namespace GUI.Types.Renderer
         private void SetRenderModes(IEnumerable<string> renderModes)
         {
             renderModeComboBox.Items.Clear();
-            renderModeComboBox.Items.Add("Change render mode...");
+            renderModeComboBox.Items.Add("Default render mode");
             renderModeComboBox.Items.AddRange(renderModes.ToArray());
-            renderModeComboBox.SelectedIndex = 0;
+            renderModeComboBox.SetItemChecked(0, true);
         }
 
         private void SetAnimations(IEnumerable<string> animations)
@@ -91,7 +91,7 @@ namespace GUI.Types.Renderer
             if (animations.Any())
             {
                 animationComboBox.Items.AddRange(animations.ToArray());
-                animationComboBox.SelectedIndex = 0;
+                renderModeComboBox.SetItemChecked(0, true);
             }
         }
 
@@ -100,36 +100,41 @@ namespace GUI.Types.Renderer
             var control = glRenderControl.Control.ViewerControls;
 
             // Add combobox for render modes
-            renderModeComboBox = new ComboBox
+            renderModeComboBox = new CheckedListBox
             {
                 Dock = DockStyle.Top,
-                DropDownStyle = ComboBoxStyle.DropDownList,
+                CheckOnClick = true,
             };
 
-            renderModeComboBox.SelectedIndexChanged += OnRenderModeChange;
+            renderModeComboBox.ItemCheck += OnRenderModeChange;
             control.Controls.Add(renderModeComboBox);
 
             // Add combobox for animations
-            animationComboBox = new ComboBox
+            animationComboBox = new CheckedListBox
             {
                 Dock = DockStyle.Top,
-                DropDownStyle = ComboBoxStyle.DropDownList,
+                CheckOnClick = true,
             };
 
-            animationComboBox.SelectedIndexChanged += OnAnimationChange;
+            animationComboBox.ItemCheck += OnAnimationChange;
             control.Controls.Add(animationComboBox);
         }
 
-        private void OnRenderModeChange(object obj, EventArgs e)
+        private void OnRenderModeChange(object obj, ItemCheckEventArgs e)
         {
-            if (renderModeComboBox.SelectedIndex > 0)
+            if (e.NewValue != CheckState.Checked)
             {
-                renderModeComboBox.Items[0] = "Default";
+                return;
             }
 
-            var selectedRenderMode = renderModeComboBox.SelectedIndex == 0
-                ? null
-                : renderModeComboBox.SelectedItem.ToString();
+            if (renderModeComboBox.CheckedItems.Count > 0)
+            {
+                renderModeComboBox.ItemCheck -= OnRenderModeChange;
+                renderModeComboBox.SetItemChecked(renderModeComboBox.CheckedIndices[0], false);
+                renderModeComboBox.ItemCheck += OnRenderModeChange;
+            }
+
+            var selectedRenderMode = e.Index == 0 ? null : renderModeComboBox.Items[e.Index].ToString();
 
             foreach (var renderer in Renderers.OfType<IMeshRenderer>())
             {
@@ -137,11 +142,25 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void OnAnimationChange(object obj, EventArgs e)
+        private void OnAnimationChange(object obj, ItemCheckEventArgs e)
         {
+            if (e.NewValue != CheckState.Checked)
+            {
+                return;
+            }
+
+            if (animationComboBox.CheckedItems.Count > 0)
+            {
+                animationComboBox.ItemCheck -= OnRenderModeChange;
+                animationComboBox.SetItemChecked(animationComboBox.CheckedIndices[0], false);
+                animationComboBox.ItemCheck += OnRenderModeChange;
+            }
+
+            var selectedAnimation = animationComboBox.Items[e.Index].ToString();
+
             foreach (var renderer in Renderers.OfType<IAnimationRenderer>())
             {
-                renderer.SetAnimation(animationComboBox.SelectedItem.ToString());
+                renderer.SetAnimation(selectedAnimation);
             }
         }
     }
