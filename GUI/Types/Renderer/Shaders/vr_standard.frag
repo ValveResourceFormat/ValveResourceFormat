@@ -55,6 +55,11 @@ void main()
     //Get the ambient color from the color texture
     vec4 color = texture2D(g_tColor, vTexCoordOut);
 
+    if (color.a <= g_flAlphaTestReference)
+    {
+        discard;
+    }
+
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
 

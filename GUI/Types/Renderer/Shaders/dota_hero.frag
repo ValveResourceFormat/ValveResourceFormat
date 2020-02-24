@@ -66,6 +66,12 @@ void main()
 
     //Read textures
     vec4 color = texture2D(g_tColor, vTexCoordOut);
+
+    if (color.a <= g_flAlphaTestReference)
+    {
+        discard;
+    }
+
     vec4 mask1 = texture2D(g_tMasks1, vTexCoordOut);
     vec4 mask2 = texture2D(g_tMasks2, vTexCoordOut);
 
