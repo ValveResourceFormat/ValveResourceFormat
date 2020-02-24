@@ -12,6 +12,8 @@ namespace GUI.Types.Renderer
 
         private readonly float flAlphaTestReference;
         private readonly bool isTranslucent;
+        private readonly bool isAdditiveBlend;
+        private readonly bool isRenderBackfaces;
 
         public RenderMaterial(Material material)
         {
@@ -25,6 +27,8 @@ namespace GUI.Types.Renderer
             }
 
             isTranslucent = material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1;
+            isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
+            isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
         }
 
         public void Render(Shader shader)
@@ -77,7 +81,12 @@ namespace GUI.Types.Renderer
             if (isTranslucent)
             {
                 GL.Enable(EnableCap.Blend);
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
+            }
+
+            if (isRenderBackfaces)
+            {
+                GL.Disable(EnableCap.CullFace);
             }
         }
 
@@ -86,6 +95,11 @@ namespace GUI.Types.Renderer
             if (isTranslucent)
             {
                 GL.Disable(EnableCap.Blend);
+            }
+
+            if (isRenderBackfaces)
+            {
+                GL.Enable(EnableCap.CullFace);
             }
         }
     }
