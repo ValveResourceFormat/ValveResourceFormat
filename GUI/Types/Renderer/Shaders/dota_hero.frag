@@ -14,6 +14,11 @@
 #define param_renderMode_Specular 0
 #define param_renderMode_RimLight 0
 
+//Parameter defines - These are default values and can be overwritten based on material/model parameters
+#define param_F_MASKS_1 0
+#define param_F_MASKS_2 0
+//End of parameter defines
+
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
@@ -29,7 +34,7 @@ uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
-uniform sampler2D g_tDiffuseWarp;
+//uniform sampler2D g_tDiffuseWarp;
 
 uniform vec3 vLightPosition;
 uniform vec3 vEyePosition;
@@ -72,14 +77,19 @@ void main()
         discard;
     }
 
+#if param_F_MASKS_1
     vec4 mask1 = texture2D(g_tMasks1, vTexCoordOut);
+#endif
+
+#if param_F_MASKS_2
     vec4 mask2 = texture2D(g_tMasks2, vTexCoordOut);
+#endif
 
 	//Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
 
 	//Get shadow and light color
-    vec3 shadowColor = texture2D(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
+    //vec3 shadowColor = texture2D(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
 #if param_renderMode_FullBright == 1
     float illumination = 1.0;
@@ -89,20 +99,27 @@ void main()
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
 
-    //Self illumination - mask 1 channel A
-    illumination = illumination + mask1.a;
+    #if param_F_MASKS_1
+        //Self illumination - mask 1 channel A
+        illumination = illumination + mask1.a;
+    #endif
 #endif
 
     //Calculate ambient color
     vec3 ambientColor = illumination * color.rgb;
 
+#if param_F_MASKS_1
     //Get metalness for future use - mask 1 channel B
     float metalness = mask1.b;
+#else
+    float metalness = 0.0;
+#endif
 
 	//Calculate Blinn specular based on reflected light
     vec3 halfDir = normalize(lightDirection + viewDirection);
     float specularAngle = max(dot(halfDir, worldNormal), 0.0);
 
+#if param_F_MASKS_2
     //Calculate final specular based on specular exponent - mask 2 channel A
     float specular = pow(specularAngle, mask2.a * 100);
     //Multiply by mapped specular intensity - mask 2 channel R
@@ -110,13 +127,19 @@ void main()
 
     //Calculate specular light color based on the specular tint map - mask 2 channel B
     vec3 specularColor = mix(vec3(1.0, 1.0, 1.0), color.rgb, mask2.b);
+#else
+    vec3 specularColor = vec3(0);
+    float specular = 0.0;
+#endif
 
 	//Calculate rim light
     float rimLight = 1.0 - abs(dot(worldNormal, viewDirection));
     rimLight = pow(rimLight, 2);
 
+#if param_F_MASKS_2
     //Multiply the rim light by the rim light intensity - mask 2 channel G
     rimLight = rimLight * mask2.g;
+#endif
 
 	//Final color
     vec3 finalColor = ambientColor * mix(1.0, 0.5, metalness) + specularColor * specular + color.rgb * rimLight;
@@ -135,11 +158,11 @@ void main()
 	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
 #endif
 
-#if param_renderMode_Mask1 == 1
+#if param_renderMode_Mask1 == 1 && param_F_MASKS_1
 	outputColor = vec4(mask1.rgb, 1.0);
 #endif
 
-#if param_renderMode_Mask2 == 1
+#if param_renderMode_Mask2 == 1 && param_F_MASKS_2
 	outputColor = vec4(mask2.rgb, 1.0);
 #endif
 
