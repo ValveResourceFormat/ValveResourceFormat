@@ -55,9 +55,10 @@ namespace GUI.Types.Renderer
                 renderer.Render(camera, RenderPass.Opaque);
             }
 
-            foreach (var renderer in meshesToRender)
+            // Render translucent items back (furthest) to front (closest)
+            for (var i = meshesToRender.Count - 1; i >= 0; i--)
             {
-                renderer.Render(camera, RenderPass.Translucent);
+                meshesToRender[i].Render(camera, RenderPass.Translucent);
             }
 
             foreach (var renderer in particleRenderers)
@@ -83,12 +84,12 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private IEnumerable<IMeshRenderer> GetMeshesToRender(Camera camera)
+        private List<IMeshRenderer> GetMeshesToRender(Camera camera)
         {
             var renderers = worldOctree.Query(camera.ViewFrustum);
 
             renderers.Sort((a, b) =>
-                (a.BoundingBox.Center - camera.Location).Length < (b.BoundingBox.Center - camera.Location).Length ? 1 : -1);
+                (b.BoundingBox.Center - camera.Location).Length < (a.BoundingBox.Center - camera.Location).Length ? 1 : -1);
 
             return renderers;
         }

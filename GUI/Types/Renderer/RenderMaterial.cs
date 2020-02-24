@@ -81,6 +81,7 @@ namespace GUI.Types.Renderer
 
             if (isTranslucent)
             {
+                GL.DepthMask(false);
                 GL.Enable(EnableCap.Blend);
                 GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
             }
@@ -95,6 +96,7 @@ namespace GUI.Types.Renderer
         {
             if (isTranslucent)
             {
+                GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);
             }
 
