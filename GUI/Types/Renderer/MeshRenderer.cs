@@ -90,6 +90,10 @@ namespace GUI.Types.Renderer
         {
             switch (renderPass)
             {
+                case RenderPass.None:
+                    Render(camera, true);
+                    Render(camera, false);
+                    break;
                 case RenderPass.Opaque: Render(camera, true); break;
                 case RenderPass.Translucent: Render(camera, false); break;
             }

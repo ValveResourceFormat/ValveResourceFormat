@@ -70,16 +70,6 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public void RenderOpaque(Camera camera)
-        {
-            // todo
-        }
-
-        public void RenderBlended(Camera camera)
-        {
-            // todo
-        }
-
         public void Update(float frameTime)
         {
             foreach (var renderer in particleRenderers)
