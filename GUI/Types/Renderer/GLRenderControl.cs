@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
@@ -21,9 +22,8 @@ namespace GUI.Types
 
         public Camera Camera { get; set; }
 
-        public Control Control { get; }
+        public GLViewerControl Control { get; }
 
-        private Label fpsLabel;
         private GLControl glControl;
 
         public event EventHandler<RenderEventArgs> Paint;
@@ -39,28 +39,11 @@ namespace GUI.Types
             stopwatch = new Stopwatch();
         }
 
-        private Control InitializeControl()
+        private GLViewerControl InitializeControl()
         {
-            var panel = new Panel
-            {
-                Dock = DockStyle.Fill,
-            };
+            var panel = new GLViewerControl();
 
-            fpsLabel = new Label
-            {
-                Anchor = AnchorStyles.Top | AnchorStyles.Left,
-                AutoSize = true,
-                Dock = DockStyle.Top,
-            };
-            panel.Controls.Add(fpsLabel);
-
-#if DEBUG
-            glControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
-#else
-            glControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Default);
-#endif
-            glControl.Dock = DockStyle.Fill;
-            glControl.AutoSize = true;
+            glControl = panel.GLControl;
             glControl.Load += OnLoad;
             glControl.Paint += OnPaint;
             glControl.Resize += OnResize;
@@ -70,7 +53,6 @@ namespace GUI.Types
             glControl.VisibleChanged += OnVisibleChanged;
             glControl.Disposed += OnDisposed;
 
-            panel.Controls.Add(glControl);
             return panel;
         }
 
@@ -137,7 +119,7 @@ namespace GUI.Types
                 Camera.Tick(frameTime);
                 Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
 
-                fpsLabel.Text = $"FPS: {Math.Round(1f / frameTime)}";
+                Control.SetFps(1f / frameTime);
 
                 GL.ClearColor(Settings.BackgroundColor);
                 GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

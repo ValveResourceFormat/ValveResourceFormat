@@ -36,6 +36,7 @@ namespace GUI.Controls
             : this()
         {
             this.imageList = imageList;
+            Dock = DockStyle.Fill;
         }
 
         /// <summary>

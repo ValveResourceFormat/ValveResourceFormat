@@ -35,9 +35,11 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
     <Reference Include="System.Design" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="1.10.0" />
@@ -56,6 +58,12 @@
     </Compile>
     <Compile Include="Controls\BetterTreeView.Designer.cs">
       <DependentUpon>BetterTreeView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\GLViewerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\GLViewerControl.Designer.cs">
+      <DependentUpon>GLViewerControl.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
     <Compile Include="Controls\TreeViewFileSorter.cs" />
@@ -177,6 +185,9 @@
     <Compile Include="Utils\Settings.cs" />
     <EmbeddedResource Include="Controls\BetterTreeView.resx">
       <DependentUpon>BetterTreeView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GLViewerControl.resx">
+      <DependentUpon>GLViewerControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\TreeViewWithSearchResults.resx">
       <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>

@@ -97,7 +97,7 @@ namespace GUI.Types.Renderer
 
         private void InitializeControl()
         {
-            var control = glRenderControl.Control;
+            var control = glRenderControl.Control.ViewerControls;
 
             // Add combobox for render modes
             renderModeComboBox = new ComboBox

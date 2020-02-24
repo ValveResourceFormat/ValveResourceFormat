@@ -400,10 +400,7 @@ namespace GUI
                 }
 
                 // create a TreeView with search capabilities, register its events, and add it to the tab
-                var treeViewWithSearch = new TreeViewWithSearchResults(ImageList)
-                {
-                    Dock = DockStyle.Fill,
-                };
+                var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
                 treeViewWithSearch.InitializeTreeViewFromPackage(new TreeViewWithSearchResults.TreeViewPackageTag
                 {
                     Package = package,
