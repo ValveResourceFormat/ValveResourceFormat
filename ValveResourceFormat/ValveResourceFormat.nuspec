@@ -8,7 +8,7 @@
 		<owners>$author$</owners>
 		<license type="expression">MIT</license>
 		<projectUrl>https://github.com/SteamDatabase/ValveResourceFormat</projectUrl>
-        <repository type="git" url="https://github.com/SteamDatabase/ValveResourceFormat.git">
+		<repository type="git" url="https://github.com/SteamDatabase/ValveResourceFormat.git" />
 		<icon>images\1455069708_api-code-window.png</icon>
 		<iconUrl>https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/master/Icons/Programs/1455069708_api-code-window.png</iconUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>

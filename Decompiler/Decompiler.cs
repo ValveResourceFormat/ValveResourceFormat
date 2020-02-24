@@ -402,14 +402,8 @@ namespace Decompiler
 
             Console.WriteLine(Environment.NewLine);
 
-            if (false)
-            {
-                // TODO: Resource Deferred Refs:
-            }
-            else
-            {
-                Console.WriteLine("--- (No Deferred Resource References Found)");
-            }
+            // TODO: Resource Deferred Refs:
+            Console.WriteLine("--- (No Deferred Resource References Found)");
 
             Console.WriteLine(Environment.NewLine);
 
