@@ -4,7 +4,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 {
     public interface IParticleEmitter
     {
-        void Start(Action<Particle> particleEmitCallback);
+        void Start(Action particleEmitCallback);
 
         void Stop();
 

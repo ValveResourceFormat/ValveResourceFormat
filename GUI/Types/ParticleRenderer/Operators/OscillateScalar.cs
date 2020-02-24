@@ -63,70 +63,70 @@ namespace GUI.Types.ParticleRenderer.Operators
             random = new Random();
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Remove expired particles
-            var particlesToRemove = particleRates.Keys.Except(particles).ToList();
+            /*var particlesToRemove = particleRates.Keys.Except(particles[i]).ToList();
             foreach (var p in particlesToRemove)
             {
                 particleRates.Remove(p);
                 particleFrequencies.Remove(p);
-            }
+            }*/
 
             // Update remaining particles
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
-                var rate = GetParticleRate(particle);
-                var frequency = GetParticleFrequency(particle);
+                var rate = GetParticleRate(particles[i].ParticleCount);
+                var frequency = GetParticleFrequency(particles[i].ParticleCount);
 
                 var t = proportional
-                    ? 1 - (particle.Lifetime / particle.ConstantLifetime)
-                    : particle.Lifetime;
+                    ? 1 - (particles[i].Lifetime / particles[i].ConstantLifetime)
+                    : particles[i].Lifetime;
 
                 var delta = (float)Math.Sin(((t * frequency * oscillationMultiplier) + oscillationOffset) * Math.PI);
 
                 if (outputField == ParticleField.Radius)
                 {
-                    particle.Radius += delta * rate * frameTime;
+                    particles[i].Radius += delta * rate * frameTime;
                 }
                 else if (outputField == ParticleField.Alpha)
                 {
-                    particle.Alpha += delta * rate * frameTime;
+                    particles[i].Alpha += delta * rate * frameTime;
                 }
                 else if (outputField == ParticleField.AlphaAlternate)
                 {
-                    particle.AlphaAlternate += delta * rate * frameTime;
+                    particles[i].AlphaAlternate += delta * rate * frameTime;
                 }
             }
         }
 
-        private Dictionary<Particle, float> particleRates = new Dictionary<Particle, float>();
-        private Dictionary<Particle, float> particleFrequencies = new Dictionary<Particle, float>();
+        private Dictionary<int, float> particleRates = new Dictionary<int, float>();
+        private Dictionary<int, float> particleFrequencies = new Dictionary<int, float>();
 
-        private float GetParticleRate(Particle particle)
+        private float GetParticleRate(int particleId)
         {
-            if (particleRates.TryGetValue(particle, out var rate))
+            if (particleRates.TryGetValue(particleId, out var rate))
             {
                 return rate;
             }
             else
             {
                 var newRate = rateMin + ((float)random.NextDouble() * (rateMax - rateMin));
-                particleRates[particle] = newRate;
+                particleRates[particleId] = newRate;
                 return newRate;
             }
         }
 
-        private float GetParticleFrequency(Particle particle)
+        private float GetParticleFrequency(int particleId)
         {
-            if (particleFrequencies.TryGetValue(particle, out var frequency))
+            if (particleFrequencies.TryGetValue(particleId, out var frequency))
             {
                 return frequency;
             }
             else
             {
                 var newFrequency = frequencyMin + ((float)random.NextDouble() * (frequencyMax - frequencyMin));
-                particleFrequencies[particle] = newFrequency;
+                particleFrequencies[particleId] = newFrequency;
                 return newFrequency;
             }
         }

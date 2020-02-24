@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
@@ -23,19 +24,19 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var acceleration = gravity * frameTime;
 
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
                 // Apply acceleration
-                particle.Velocity += acceleration;
+                particles[i].Velocity += acceleration;
 
                 // Apply drag
-                particle.Velocity *= 1 - (drag * 30f * frameTime);
+                particles[i].Velocity *= 1 - (drag * 30f * frameTime);
 
-                particle.Position += particle.Velocity * frameTime;
+                particles[i].Position += particles[i].Velocity * frameTime;
             }
         }
     }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
@@ -29,18 +30,18 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
-                var time = 1 - (particle.Lifetime / particle.ConstantLifetime);
+                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
 
                 if (time >= fadeStartTime && time <= fadeEndTime)
                 {
                     var t = (time - fadeStartTime) / (fadeEndTime - fadeStartTime);
 
                     // Interpolate from constant color to fade color
-                    particle.Color = ((1 - t) * particle.ConstantColor) + (t * colorFade);
+                    particles[i].Color = ((1 - t) * particles[i].ConstantColor) + (t * colorFade);
                 }
             }
         }

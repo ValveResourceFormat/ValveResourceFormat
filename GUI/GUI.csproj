@@ -122,6 +122,7 @@
     <Compile Include="Types\ParticleRenderer\Emitters\ContinuousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
     <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
+    <Compile Include="Types\ParticleRenderer\ParticleBag.cs" />
     <Compile Include="Types\Renderer\AABB.cs" />
     <Compile Include="Types\Renderer\Frustum.cs" />
     <Compile Include="Types\Renderer\GLModelViewerControl.cs" />

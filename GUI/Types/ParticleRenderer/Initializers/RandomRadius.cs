@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             particle.ConstantRadius = radiusMin + ((float)random.NextDouble() * (radiusMax - radiusMin));
             particle.Radius = particle.ConstantRadius;

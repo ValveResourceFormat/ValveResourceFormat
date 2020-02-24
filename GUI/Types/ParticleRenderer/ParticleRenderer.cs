@@ -26,7 +26,8 @@ namespace GUI.Types.ParticleRenderer
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
 
-        private List<Particle> particles;
+        private ParticleBag particleBag;
+        private int particlesEmitted = 0;
         private ParticleSystemRenderState systemRenderState;
 
         // TODO: Passing in position here was for testing, do it properly
@@ -35,7 +36,7 @@ namespace GUI.Types.ParticleRenderer
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
-            particles = new List<Particle>();
+            particleBag = new ParticleBag(100, true);
             systemRenderState = new ParticleSystemRenderState();
 
             systemRenderState.SetControlPoint(0, pos);
@@ -54,7 +55,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var emitter in Emitters)
             {
-                emitter.Start(OnParticleSpawn);
+                emitter.Start(EmitParticle);
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)
@@ -63,16 +64,27 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        private void OnParticleSpawn(Particle particle)
+        private void EmitParticle()
         {
-            particle.Position = systemRenderState.GetControlPoint(0);
+            int index = particleBag.Add();
+            if (index < 0)
+            {
+                Console.WriteLine("Out of space in particle bag");
+                return;
+            }
+
+            particleBag.LiveParticles[index].ParticleCount = particlesEmitted++;
+            InitializeParticle(ref particleBag.LiveParticles[index]);
+        }
+
+        private void InitializeParticle(ref Particle p)
+        {
+            p.Position = systemRenderState.GetControlPoint(0);
 
             foreach (var initializer in Initializers)
             {
-                initializer.Initialize(particle, systemRenderState);
+                initializer.Initialize(ref p, systemRenderState);
             }
-
-            particles.Add(particle);
         }
 
         public void Stop()
@@ -92,7 +104,7 @@ namespace GUI.Types.ParticleRenderer
         {
             Stop();
             systemRenderState.Lifetime = 0;
-            particles.Clear();
+            particleBag.Clear();
             Start();
 
             foreach (var childParticleRenderer in childParticleRenderers)
@@ -112,11 +124,11 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var particleOperator in Operators)
             {
-                particleOperator.Update(particles, frameTime, systemRenderState);
+                particleOperator.Update(particleBag.LiveParticles, frameTime, systemRenderState);
             }
 
             // Remove all dead particles
-            particles = particles.Where(p => p.Lifetime > 0).ToList();
+            particleBag.PruneExpired();
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
@@ -132,14 +144,14 @@ namespace GUI.Types.ParticleRenderer
 
         public bool IsFinished()
             => Emitters.All(e => e.IsFinished)
-            && particles.Count == 0
+            && particleBag.Count == 0
             && childParticleRenderers.All(r => r.IsFinished());
 
         public void Render(Camera camera, RenderPass renderPass)
         {
             foreach (var renderer in Renderers)
             {
-                renderer.Render(particles, camera.ProjectionMatrix, camera.CameraViewMatrix);
+                renderer.Render(particleBag, camera.ProjectionMatrix, camera.CameraViewMatrix);
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)

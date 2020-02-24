@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using ValveResourceFormat.Serialization;
 
@@ -46,11 +47,11 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
-                var time = 1 - (particle.Lifetime / particle.ConstantLifetime);
+                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
 
                 // If fading in
                 if (time >= startFadeInTime && time <= endFadeInTime)
@@ -58,7 +59,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = (time - startFadeInTime) / (endFadeInTime - startFadeInTime);
 
                     // Interpolate from startAlpha to constantAlpha
-                    particle.Alpha = ((1 - t) * startAlpha) + (t * particle.ConstantAlpha);
+                    particles[i].Alpha = ((1 - t) * startAlpha) + (t * particles[i].ConstantAlpha);
                 }
 
                 // If fading out
@@ -67,10 +68,10 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = (time - startFadeOutTime) / (endFadeOutTime - startFadeOutTime);
 
                     // Interpolate from constantAlpha to end alpha
-                    particle.Alpha = ((1 - t) * particle.ConstantAlpha) + (t * endAlpha);
+                    particles[i].Alpha = ((1 - t) * particles[i].ConstantAlpha) + (t * endAlpha);
                 }
 
-                particle.Lifetime -= frameTime;
+                particles[i].Lifetime -= frameTime;
             }
         }
     }

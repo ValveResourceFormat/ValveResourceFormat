@@ -30,7 +30,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var r = new Vector3(
                 Simplex1D(particleSystemState.Lifetime * noiseScale),

@@ -32,7 +32,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             var alpha = random.Next(alphaMin, alphaMax) / 255f;
 

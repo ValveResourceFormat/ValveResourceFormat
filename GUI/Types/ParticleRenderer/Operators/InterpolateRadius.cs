@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using ValveResourceFormat.Serialization;
 
@@ -33,18 +34,18 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
-                var time = 1 - (particle.Lifetime / particle.ConstantLifetime);
+                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
 
                 if (time >= startTime && time <= endTime)
                 {
                     var t = (time - startTime) / (endTime - startTime);
                     var radiusScale = (startScale * (1 - t)) + (endScale * t);
 
-                    particle.Radius = particle.ConstantRadius * radiusScale;
+                    particles[i].Radius = particles[i].ConstantRadius * radiusScale;
                 }
             }
         }

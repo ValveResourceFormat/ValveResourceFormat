@@ -3,53 +3,63 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public class Particle
+    public struct Particle
     {
-        public long ParticleCount { get; set; }
+        public int ParticleCount;
 
         // Base properties
-        public float ConstantAlpha { get; set; } = 1f;
-        public Vector3 ConstantColor { get; set; } = Vector3.One;
-        public float ConstantLifetime { get; set; } = 1f;
-        public float ConstantRadius { get; set; } = 5f;
+        public float ConstantAlpha;
+        public Vector3 ConstantColor;
+        public float ConstantLifetime;
+        public float ConstantRadius;
 
         // Variable fields
-        public float Alpha { get; set; } = 1;
-        public float AlphaAlternate { get; set; } = 1;
+        public float Alpha;
+        public float AlphaAlternate;
 
-        public Vector3 Color { get; set; }
+        public Vector3 Color;
 
-        public float Lifetime { get; set; }
+        public float Lifetime;
 
-        public Vector3 Position { get; set; }
+        public Vector3 Position;
 
-        public Vector3 PositionPrevious { get; set; }
+        public Vector3 PositionPrevious;
 
-        public float Radius { get; set; }
+        public float Radius;
 
-        public float TrailLength { get; set; } = 1f;
+        public float TrailLength;
 
         /// <summary>
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles.
         /// </summary>
-        public Vector3 Rotation { get; set; }
+        public Vector3 Rotation;
 
         /// <summary>
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles rotation speed.
         /// </summary>
-        public Vector3 RotationSpeed { get; set; }
+        public Vector3 RotationSpeed;
 
-        public int Sequence { get; set; }
+        public int Sequence;
 
-        public Vector3 Velocity { get; set; }
-
-        public Particle()
-        {
-            Init();
-        }
+        public Vector3 Velocity;
 
         public Particle(IKeyValueCollection baseProperties)
         {
+            ParticleCount = 0;
+            Alpha = 1;
+            AlphaAlternate = 1;
+            Position = Vector3.Zero;
+            PositionPrevious = Vector3.Zero;
+            Rotation = Vector3.Zero;
+            RotationSpeed = Vector3.Zero;
+            Velocity = Vector3.Zero;
+            ConstantRadius = 5.0f;
+            ConstantAlpha = 1.0f;
+            ConstantColor = Vector3.One;
+            ConstantLifetime = 1;
+            TrailLength = 1;
+            Sequence = 0;
+
             if (baseProperties.ContainsKey("m_ConstantColor"))
             {
                 var vectorValues = baseProperties.GetIntegerArray("m_ConstantColor");
@@ -66,11 +76,6 @@ namespace GUI.Types.ParticleRenderer
                 ConstantLifetime = baseProperties.GetFloatProperty("m_flConstantLifespan");
             }
 
-            Init();
-        }
-
-        private void Init()
-        {
             Color = ConstantColor;
             Lifetime = ConstantLifetime;
             Radius = ConstantRadius;

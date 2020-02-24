@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using ValveResourceFormat.Serialization;
 
@@ -15,15 +16,15 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        public void Update(IEnumerable<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
-                var timeLeft = particle.Lifetime / particle.ConstantLifetime;
+                var timeLeft = particles[i].Lifetime / particles[i].ConstantLifetime;
                 if (timeLeft <= fadeOutTime)
                 {
                     var t = timeLeft / fadeOutTime;
-                    particle.Alpha = t * particle.ConstantAlpha;
+                    particles[i].Alpha = t * particles[i].ConstantAlpha;
                 }
             }
         }

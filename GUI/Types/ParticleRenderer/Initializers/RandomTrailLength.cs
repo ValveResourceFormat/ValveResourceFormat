@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             particle.TrailLength = minLength + ((float)random.NextDouble() * (maxLength - minLength));
 

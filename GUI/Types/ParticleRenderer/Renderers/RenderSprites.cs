@@ -100,8 +100,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return (vrfGuiContext.MaterialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
         }
 
-        public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
+        public void Render(ParticleBag particleBag, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
         {
+            var particles = particleBag.LiveParticles;
+
             GL.Enable(EnableCap.Blend);
             GL.UseProgram(shader.Program);
 
@@ -136,20 +138,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
             var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
 
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
                 var modelMatrix = orientationType == 0
-                    ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix()
-                    : particle.GetRotationMatrix() * particle.GetTransformationMatrix();
+                    ? particles[i].GetRotationMatrix() * billboardMatrix * particles[i].GetTransformationMatrix()
+                    : particles[i].GetRotationMatrix() * particles[i].GetTransformationMatrix();
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);
 
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {
-                    var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
+                    var sequence = spriteSheetData.Sequences[particles[i].Sequence % spriteSheetData.Sequences.Length];
 
-                    var particleTime = particle.ConstantLifetime - particle.Lifetime;
+                    var particleTime = particles[i].ConstantLifetime - particles[i].Lifetime;
                     var frame = particleTime * sequence.FramesPerSecond * animationRate;
 
                     var currentFrame = sequence.Frames[(int)Math.Floor(frame) % sequence.Frames.Length];
@@ -170,9 +172,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 }
 
                 // Color uniform
-                GL.Uniform3(colorLocation, particle.Color.X, particle.Color.Y, particle.Color.Z);
+                GL.Uniform3(colorLocation, particles[i].Color.X, particles[i].Color.Y, particles[i].Color.Z);
 
-                GL.Uniform1(alphaLocation, particle.Alpha * particle.AlphaAlternate);
+                GL.Uniform1(alphaLocation, particles[i].Alpha * particles[i].AlphaAlternate);
 
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }

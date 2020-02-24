@@ -126,8 +126,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return (vrfGuiContext.MaterialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
         }
 
-        public void Render(IEnumerable<Particle> particles, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
+        public void Render(ParticleBag particleBag, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
         {
+            var particles = particleBag.LiveParticles;
+
             GL.Enable(EnableCap.Blend);
             GL.UseProgram(shader.Program);
 
@@ -162,10 +164,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
             var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
 
-            foreach (var particle in particles)
+            for (int i = 0; i < particles.Length; ++i)
             {
-                var position = new Vector3(particle.Position.X, particle.Position.Y, particle.Position.Z);
-                var previousPosition = new Vector3(particle.PositionPrevious.X, particle.PositionPrevious.Y, particle.PositionPrevious.Z);
+                var position = new Vector3(particles[i].Position.X, particles[i].Position.Y, particles[i].Position.Z);
+                var previousPosition = new Vector3(particles[i].PositionPrevious.X, particles[i].PositionPrevious.Y, particles[i].PositionPrevious.Z);
                 var difference = previousPosition - position;
                 var direction = difference.Normalized();
 
@@ -173,12 +175,12 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 // Trail width = radius
                 // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
-                var length = Math.Min(maxLength, particle.TrailLength * difference.Length / 2f);
-                var t = 1 - (particle.Lifetime / particle.ConstantLifetime);
+                var length = Math.Min(maxLength, particles[i].TrailLength * difference.Length / 2f);
+                var t = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
                 var animatedLength = t >= lengthFadeInTime
                     ? length
                     : t * length / lengthFadeInTime;
-                var scaleMatrix = Matrix4.CreateScale(particle.Radius, animatedLength, 1);
+                var scaleMatrix = Matrix4.CreateScale(particles[i].Radius, animatedLength, 1);
 
                 // Center the particle at the midpoint between the two points
                 var translationMatrix = Matrix4.CreateTranslation(Vector3.UnitY * animatedLength);
@@ -191,7 +193,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 var modelMatrix = orientationType == 0
                     ? scaleMatrix * translationMatrix * rotationMatrix
-                    : particle.GetTransformationMatrix();
+                    : particles[i].GetTransformationMatrix();
 
                 // Position/Radius uniform
                 GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);
@@ -200,7 +202,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 {
                     var sequence = spriteSheetData.Sequences[0];
 
-                    var particleTime = particle.ConstantLifetime - particle.Lifetime;
+                    var particleTime = particles[i].ConstantLifetime - particles[i].Lifetime;
                     var frame = particleTime * sequence.FramesPerSecond * animationRate;
 
                     var currentFrame = sequence.Frames[(int)Math.Floor(frame) % sequence.Frames.Length];
@@ -221,9 +223,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 }
 
                 // Color uniform
-                GL.Uniform3(colorLocation, particle.Color.X, particle.Color.Y, particle.Color.Z);
+                GL.Uniform3(colorLocation, particles[i].Color.X, particles[i].Color.Y, particles[i].Color.Z);
 
-                GL.Uniform1(alphaLocation, particle.Alpha * particle.AlphaAlternate);
+                GL.Uniform1(alphaLocation, particles[i].Alpha * particles[i].AlphaAlternate);
 
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }

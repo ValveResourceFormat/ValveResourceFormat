@@ -28,7 +28,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemRenderState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemRenderState)
         {
             var t = (float)random.NextDouble();
             particle.ConstantColor = colorMin + (t * (colorMax - colorMin));

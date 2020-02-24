@@ -44,7 +44,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(Particle particle, ParticleSystemRenderState particleSystemState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var value = PiOver180 * (degrees + degreesMin + ((float)random.NextDouble() * (degreesMin - degreesMin)));
 
