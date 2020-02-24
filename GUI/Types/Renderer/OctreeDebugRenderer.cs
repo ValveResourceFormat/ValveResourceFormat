@@ -106,7 +106,7 @@ namespace GUI.Types.Renderer
         {
         }
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
         {
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);

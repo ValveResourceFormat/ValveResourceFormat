@@ -32,7 +32,8 @@ namespace GUI.Types.Renderer
         private AABB localBoundingBox;
         private Matrix4 meshTransform = Matrix4.Identity;
 
-        private List<DrawCall> drawCalls = new List<DrawCall>();
+        private List<DrawCall> drawCallsOpaque = new List<DrawCall>();
+        private List<DrawCall> drawCallsBlended = new List<DrawCall>();
 
         private int? animationTexture;
         private int boneCount;
@@ -49,10 +50,15 @@ namespace GUI.Types.Renderer
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
-            => drawCalls.SelectMany(drawCall => drawCall.Shader.RenderModes).Distinct();
+            => drawCallsOpaque
+                .SelectMany(drawCall => drawCall.Shader.RenderModes)
+                .Union(drawCallsBlended.SelectMany(drawCall => drawCall.Shader.RenderModes))
+                .Distinct();
 
         public void SetRenderMode(string renderMode)
         {
+            var drawCalls = drawCallsOpaque.Union(drawCallsBlended);
+
             foreach (var call in drawCalls)
             {
                 // Recycle old shader parameters that are not render modes since we are scrapping those anyway
@@ -80,10 +86,21 @@ namespace GUI.Types.Renderer
             // Nothing to do here
         }
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
+        {
+            switch (renderPass)
+            {
+                case RenderPass.Opaque: Render(camera, true); break;
+                case RenderPass.Translucent: Render(camera, false); break;
+            }
+        }
+
+        private void Render(Camera camera, bool opaque)
         {
             GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
+
+            var drawCalls = opaque ? drawCallsOpaque : drawCallsBlended;
 
             foreach (var call in drawCalls)
             {
@@ -243,7 +260,15 @@ namespace GUI.Types.Renderer
 
                     // TODO: Don't pass around so much shit
                     var drawCall = CreateDrawCall(objectDrawCall, vertexBuffers, indexBuffers, shaderArguments, vbib, material);
-                    drawCalls.Add(drawCall);
+
+                    if (drawCall.Material.IsBlended)
+                    {
+                        drawCallsBlended.Add(drawCall);
+                    }
+                    else
+                    {
+                        drawCallsOpaque.Add(drawCall);
+                    }
                 }
             }
 

@@ -583,11 +583,11 @@ namespace GUI
 
                             glControl.Paint += (sender, args) =>
                             {
-                                particleGrid.Render(args.Camera);
+                                particleGrid.Render(args.Camera, RenderPass.None);
 
                                 // Updating FPS-coupled dynamic step
                                 particleRenderer.Update(args.FrameTime);
-                                particleRenderer.Render(args.Camera);
+                                particleRenderer.Render(args.Camera, RenderPass.None);
                             };
                         };
 
@@ -702,7 +702,7 @@ namespace GUI
 
                             glMaterialControl.Paint += (sender, e) =>
                             {
-                                materialRenderer.Render(e.Camera);
+                                materialRenderer.Render(e.Camera, RenderPass.None);
                             };
                         };
 

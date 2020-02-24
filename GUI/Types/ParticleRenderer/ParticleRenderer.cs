@@ -135,7 +135,7 @@ namespace GUI.Types.ParticleRenderer
             && particles.Count == 0
             && childParticleRenderers.All(r => r.IsFinished());
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
         {
             foreach (var renderer in Renderers)
             {
@@ -144,7 +144,7 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                childParticleRenderer.Render(camera);
+                childParticleRenderer.Render(camera, RenderPass.None);
             }
         }
 

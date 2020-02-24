@@ -68,7 +68,7 @@ namespace GUI.Types.Renderer
             return vao;
         }
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
         {
             GL.UseProgram(shader.Program);
             GL.BindVertexArray(quadVao);

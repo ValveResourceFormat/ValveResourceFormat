@@ -45,22 +45,39 @@ namespace GUI.Types.Renderer
             // TODO: Figure out which animations to play on which model renderers
         }
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
         {
             // Both world nodes and entity models are rendered through the octree rather than directly
-            foreach (var renderer in GetMeshesToRender(camera))
+            var meshesToRender = GetMeshesToRender(camera);
+
+            foreach (var renderer in meshesToRender)
             {
-                renderer.Render(camera);
+                renderer.Render(camera, RenderPass.Opaque);
+            }
+
+            foreach (var renderer in meshesToRender)
+            {
+                renderer.Render(camera, RenderPass.Translucent);
             }
 
             foreach (var renderer in particleRenderers)
             {
-                renderer.Render(camera);
+                renderer.Render(camera, RenderPass.None);
             }
 
 #if DEBUG_OCTREE
             octreeDebugRenderer.Render(camera);
 #endif
+        }
+
+        public void RenderOpaque(Camera camera)
+        {
+            // todo
+        }
+
+        public void RenderBlended(Camera camera)
+        {
+            // todo
         }
 
         public void Update(float frameTime)

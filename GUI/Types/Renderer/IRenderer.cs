@@ -4,7 +4,7 @@ namespace GUI.Types.Renderer
 {
     internal interface IRenderer
     {
-        void Render(Camera camera);
+        void Render(Camera camera, RenderPass renderPass);
 
         void Update(float frameTime);
     }

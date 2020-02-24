@@ -167,6 +167,7 @@
     <Compile Include="Types\Renderer\MaterialRenderer.cs" />
     <Compile Include="Types\Renderer\Octree.cs" />
     <Compile Include="Types\Renderer\OctreeDebugRenderer.cs" />
+    <Compile Include="Types\Renderer\RenderPass.cs" />
     <Compile Include="Types\Renderer\WorldRenderer.cs" />
     <Compile Include="Types\Renderer\WorldNodeRenderer.cs" />
     <Compile Include="Utils\VectorExtensions.cs" />

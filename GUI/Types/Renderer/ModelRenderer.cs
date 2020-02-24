@@ -78,11 +78,11 @@ namespace GUI.Types.Renderer
             GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
         {
             foreach (var meshRenderer in meshRenderers)
             {
-                meshRenderer.Render(camera);
+                meshRenderer.Render(camera, renderPass);
             }
         }
 

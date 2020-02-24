@@ -9,6 +9,7 @@ namespace GUI.Types.Renderer
     {
         public Material Material { get; }
         public Dictionary<string, int> Textures { get; } = new Dictionary<string, int>();
+        public bool IsBlended => isTranslucent;
 
         private readonly float flAlphaTestReference;
         private readonly bool isTranslucent;

@@ -29,11 +29,11 @@ namespace GUI.Types.Renderer
             SetupMeshRenderers();
         }
 
-        public void Render(Camera camera)
+        public void Render(Camera camera, RenderPass renderPass)
         {
             foreach (var renderer in meshOctree.Query(camera.ViewFrustum))
             {
-                renderer.Render(camera);
+                renderer.Render(camera, renderPass);
             }
         }
 
