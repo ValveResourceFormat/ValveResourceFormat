@@ -151,9 +151,9 @@ namespace GUI.Types.Renderer
 
             if (animationComboBox.CheckedItems.Count > 0)
             {
-                animationComboBox.ItemCheck -= OnRenderModeChange;
+                animationComboBox.ItemCheck -= OnAnimationChange;
                 animationComboBox.SetItemChecked(animationComboBox.CheckedIndices[0], false);
-                animationComboBox.ItemCheck += OnRenderModeChange;
+                animationComboBox.ItemCheck += OnAnimationChange;
             }
 
             var selectedAnimation = animationComboBox.Items[e.Index].ToString();
