@@ -413,6 +413,7 @@ namespace GUI
                 treeViewWithSearch.TreeNodeMouseClick += VPK_OnClick;
                 treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
                 treeViewWithSearch.ListViewItemRightClick += VPK_OnClick;
+                treeViewWithSearch.Disposed += VPK_Disposed;
                 tab.Controls.Add(treeViewWithSearch);
 
                 // since we're in a separate thread, invoke to update the UI
@@ -885,6 +886,18 @@ namespace GUI
             }
 
             return tab;
+        }
+
+        private void VPK_Disposed(object sender, EventArgs e)
+        {
+            if (sender is TreeViewWithSearchResults treeViewWithSearch)
+            {
+                treeViewWithSearch.TreeNodeMouseDoubleClick -= VPK_OpenFile;
+                treeViewWithSearch.TreeNodeMouseClick -= VPK_OnClick;
+                treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
+                treeViewWithSearch.ListViewItemRightClick -= VPK_OnClick;
+                treeViewWithSearch.Disposed -= VPK_Disposed;
+            }
         }
 
         /// <summary>

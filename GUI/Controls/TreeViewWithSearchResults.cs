@@ -22,10 +22,10 @@ namespace GUI.Controls
 
         private readonly ImageList imageList;
 
-        public TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick { get; set;  } // when a TreeNode is double clicked
-        public TreeNodeMouseClickEventHandler TreeNodeMouseClick { get; set; } // when a TreeNode is single clicked
-        public EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick { get; set; } // when a ListViewItem is double clicked
-        public EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick { get; set; } // when a ListViewItem is single clicked
+        public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
+        public event TreeNodeMouseClickEventHandler TreeNodeMouseClick; // when a TreeNode is single clicked
+        public event EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick; // when a ListViewItem is double clicked
+        public event EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick; // when a ListViewItem is single clicked
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
@@ -42,39 +42,56 @@ namespace GUI.Controls
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
         /// </summary>
-        public TreeViewWithSearchResults()
+        private TreeViewWithSearchResults()
         {
             InitializeComponent();
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
             mainListView.Resize += MainListView_Resize;
+            mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
+            mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
+            mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
-
             mainTreeView.HideSelection = false;
+        }
 
-            mainTreeView.NodeMouseDoubleClick += (o, e) =>
-            {
-                TreeNodeMouseDoubleClick?.Invoke(o, e);
-            };
+        private void MainListView_Disposed(object sender, EventArgs e)
+        {
+            mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
+            mainListView.MouseDown -= MainListView_MouseDown;
+            mainListView.Resize -= MainListView_Resize;
+            mainTreeView.NodeMouseDoubleClick -= MainTreeView_NodeMouseDoubleClick;
+            mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
+            mainListView.Disposed -= MainListView_Disposed;
 
-            mainTreeView.NodeMouseClick += (o, e) =>
+            (mainTreeView.Tag as TreeViewPackageTag).Package.Dispose();
+            mainTreeView.Tag = null;
+            mainTreeView = null;
+            mainListView = null;
+        }
+
+        private void MainTreeView_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            TreeNodeMouseDoubleClick?.Invoke(sender, e);
+        }
+
+        private void MainTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (TreeNodeMouseClick != null)
             {
-                if (TreeNodeMouseClick != null)
+                // if user left clicked a folder, show the contents of that folder in the list view
+                if (e.Button == MouseButtons.Left && e.Node.Tag is TreeViewFolder)
                 {
-                    // if user left clicked a folder, show the contents of that folder in the list view
-                    if (e.Button == MouseButtons.Left && e.Node.Tag is TreeViewFolder)
+                    mainListView.Items.Clear();
+                    foreach (TreeNode node in e.Node.Nodes)
                     {
-                        mainListView.Items.Clear();
-                        foreach (TreeNode node in e.Node.Nodes)
-                        {
-                            AddNodeToListView(node);
-                        }
+                        AddNodeToListView(node);
                     }
-
-                    TreeNodeMouseClick(o, e);
                 }
-            };
+
+                TreeNodeMouseClick(sender, e);
+            }
         }
 
         private void MainListView_Resize(object sender, EventArgs e)
