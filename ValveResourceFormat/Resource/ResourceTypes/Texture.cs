@@ -14,6 +14,8 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Texture : ResourceData
     {
+        private const short MipmapLevelToExtract = 0; // for debugging purposes
+
         public class SpritesheetData
         {
             public class Sequence
@@ -249,6 +251,9 @@ namespace ValveResourceFormat.ResourceTypes
             var width = NonPow2Width > 0 ? NonPow2Width : Width;
             var height = NonPow2Height > 0 ? NonPow2Height : Height;
 
+            width >>= MipmapLevelToExtract;
+            height >>= MipmapLevelToExtract;
+
             var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             Span<byte> data = new byte[imageInfo.RowBytes * imageInfo.Height];
 
@@ -257,7 +262,7 @@ namespace ValveResourceFormat.ResourceTypes
             switch (Format)
             {
                 case VTexFormat.DXT1:
-                    TextureDecompressors.UncompressDXT1(imageInfo, GetDecompressedBuffer(), data, Width, Height);
+                    TextureDecompressors.UncompressDXT1(imageInfo, GetDecompressedBuffer(), data, Width >> MipmapLevelToExtract, Height >> MipmapLevelToExtract);
                     break;
 
                 case VTexFormat.DXT5:
@@ -424,7 +429,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            for (var j = NumMipLevels - 1; j > 0; j--)
+            for (var j = NumMipLevels - 1; j > MipmapLevelToExtract; j--)
             {
                 int offset;
 
@@ -467,7 +472,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return Reader;
             }
 
-            var outStream = new MemoryStream(GetDecompressedTextureAtMipLevel(0), false);
+            var outStream = new MemoryStream(GetDecompressedTextureAtMipLevel(MipmapLevelToExtract), false);
 
             return new BinaryReader(outStream); // TODO: dispose
         }
