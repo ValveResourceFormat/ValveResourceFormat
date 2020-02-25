@@ -49,7 +49,7 @@ namespace GUI.Types.Renderer
             foreach (var renderer in Renderers)
             {
                 renderer.Update(e.FrameTime);
-                renderer.Render(e.Camera, RenderPass.None);
+                renderer.Render(e.Camera, RenderPass.Both);
             }
         }
 

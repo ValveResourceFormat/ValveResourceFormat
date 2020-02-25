@@ -9,28 +9,34 @@ namespace GUI.Types.Renderer
     internal class OctreeDebugRenderer<T> : IRenderer
         where T : IOctreeElement
     {
-        private readonly int vao;
         private readonly Shader shader;
-        private readonly int vertexCount;
+        private readonly Octree<T> octree;
+        private readonly int vaoHandle;
+        private readonly int vboHandle;
+        private int vertexCount;
+        private bool dynamic;
+        public AABB BoundingBox { get; }
 
-        public OctreeDebugRenderer(Octree<T> octree, VrfGuiContext guiContext)
+        public OctreeDebugRenderer(Octree<T> octree, VrfGuiContext guiContext, bool dynamic)
         {
-            var vertices = new List<float>();
-            AddOctreeNode(vertices, octree.Root, 0);
-
-            vertexCount = vertices.Count / 7;
-            const int stride = sizeof(float) * 7;
+            this.octree = octree;
+            this.dynamic = dynamic;
+            BoundingBox = octree.Root.Region;
 
             shader = shader = guiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
             GL.UseProgram(shader.Program);
 
-            vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
+            vboHandle = GL.GenBuffer();
+            if (!dynamic)
+            {
+                Rebuild();
+            }
 
-            var vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), BufferUsageHint.StaticDraw);
+            vaoHandle = GL.GenVertexArray();
+            GL.BindVertexArray(vaoHandle);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
 
+            const int stride = sizeof(float) * 7;
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.EnableVertexAttribArray(positionAttributeLocation);
             GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
@@ -88,6 +94,7 @@ namespace GUI.Types.Renderer
                 {
                     var shading = System.Math.Min(1.0f, depth * 0.1f);
                     AddBox(vertices, element.BoundingBox, 1.0f, shading, 0.0f, 1.0f);
+
                     // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, 1.0f, shading, 0.0f, 0.5f);
                     // AddLine(vertices, element.BoundingBox.Max, node.Region.Max, 1.0f, shading, 0.0f, 0.5f);
                 }
@@ -102,24 +109,42 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private void Rebuild()
+        {
+            var vertices = new List<float>();
+            AddOctreeNode(vertices, octree.Root, 0);
+            vertexCount = vertices.Count / 7;
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
+        }
+
         public void Update(float frameTime)
         {
         }
 
         public void Render(Camera camera, RenderPass renderPass)
         {
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            GL.UseProgram(shader.Program);
+            if (renderPass == RenderPass.Translucent || renderPass == RenderPass.Both)
+            {
+                if (dynamic)
+                {
+                    Rebuild();
+                }
 
-            var projectionViewMatrix = camera.CameraViewMatrix * camera.ProjectionMatrix;
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
+                GL.Enable(EnableCap.Blend);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                GL.UseProgram(shader.Program);
 
-            GL.BindVertexArray(vao);
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
-            GL.BindVertexArray(0);
-            GL.UseProgram(0);
-            GL.Disable(EnableCap.Blend);
+                var projectionViewMatrix = camera.CameraViewMatrix * camera.ProjectionMatrix;
+                GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
+
+                GL.BindVertexArray(vaoHandle);
+                GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
+                GL.BindVertexArray(0);
+                GL.UseProgram(0);
+                GL.Disable(EnableCap.Blend);
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.ParticleRenderer
@@ -13,8 +14,14 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly int vertexCount;
 
+        public AABB BoundingBox { get; }
+
         public ParticleGrid(float cellWidth, int gridWidthInCells, VrfGuiContext guiContext)
         {
+            BoundingBox = new AABB(
+                new Vector3(-cellWidth * 0.5f * gridWidthInCells, -cellWidth * 0.5f * gridWidthInCells, 0),
+                new Vector3(cellWidth * 0.5f * gridWidthInCells, cellWidth * 0.5f * gridWidthInCells, 0));
+
             var vertices = GenerateGridVertexBuffer(cellWidth, gridWidthInCells);
 
             vertexCount = vertices.Length / 3; // Number of vertices in our buffer

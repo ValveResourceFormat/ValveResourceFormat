@@ -90,7 +90,7 @@ namespace GUI.Types.Renderer
         {
             switch (renderPass)
             {
-                case RenderPass.None:
+                case RenderPass.Both:
                     Render(camera, true);
                     Render(camera, false);
                     break;

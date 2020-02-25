@@ -23,6 +23,8 @@ namespace GUI.Types.ParticleRenderer
 
         public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
 
+        public AABB BoundingBox { get; private set; }
+
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
 
@@ -40,6 +42,8 @@ namespace GUI.Types.ParticleRenderer
             systemRenderState = new ParticleSystemRenderState();
 
             systemRenderState.SetControlPoint(0, pos);
+
+            BoundingBox = new AABB((pos + new Vector3(-32, -32, -32)).ToOpenTK(), (pos + new Vector3(32, 32, 32)).ToOpenTK());
 
             SetupEmitters(particleSystem.GetData(), particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -130,9 +134,32 @@ namespace GUI.Types.ParticleRenderer
             // Remove all dead particles
             particleBag.PruneExpired();
 
+            var center = systemRenderState.GetControlPoint(0);
+            if (particleBag.Count == 0)
+            {
+                BoundingBox = new AABB(center.ToOpenTK(), center.ToOpenTK());
+            }
+            else
+            {
+                var minParticlePos = center;
+                var maxParticlePos = center;
+
+                var liveParticles = particleBag.LiveParticles;
+                for (int i = 0; i < liveParticles.Length; ++i)
+                {
+                    var pos = liveParticles[i].Position;
+                    var radius = liveParticles[i].Radius;
+                    minParticlePos = Vector3.Min(minParticlePos, pos - new Vector3(radius));
+                    maxParticlePos = Vector3.Max(maxParticlePos, pos + new Vector3(radius));
+                }
+
+                BoundingBox = new AABB(minParticlePos.ToOpenTK(), maxParticlePos.ToOpenTK());
+            }
+
             foreach (var childParticleRenderer in childParticleRenderers)
             {
                 childParticleRenderer.Update(frameTime);
+                BoundingBox = BoundingBox.Union(childParticleRenderer.BoundingBox);
             }
 
             // Restart if all emitters are done and all particles expired
@@ -149,14 +176,22 @@ namespace GUI.Types.ParticleRenderer
 
         public void Render(Camera camera, RenderPass renderPass)
         {
-            foreach (var renderer in Renderers)
+            if (particleBag.Count == 0)
             {
-                renderer.Render(particleBag, camera.ProjectionMatrix, camera.CameraViewMatrix);
+                return;
+            }
+
+            if (renderPass == RenderPass.Translucent || renderPass == RenderPass.Both)
+            {
+                foreach (var renderer in Renderers)
+                {
+                    renderer.Render(particleBag, camera.ProjectionMatrix, camera.CameraViewMatrix);
+                }
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                childParticleRenderer.Render(camera, RenderPass.None);
+                childParticleRenderer.Render(camera, RenderPass.Both);
             }
         }
 

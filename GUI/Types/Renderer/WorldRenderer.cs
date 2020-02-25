@@ -1,4 +1,4 @@
-//#define DEBUG_OCTREE
+// #define DEBUG_OCTREE
 
 using System;
 using System.Collections.Generic;
@@ -23,10 +23,11 @@ namespace GUI.Types.Renderer
         private readonly List<IRenderer> particleRenderers = new List<IRenderer>();
         private readonly List<ModelRenderer> modelRenderers = new List<ModelRenderer>();
 
-        private readonly Octree<IMeshRenderer> worldOctree = new Octree<IMeshRenderer>(32768);
+        private readonly Octree<IRenderer> staticOctree = new Octree<IRenderer>(32768);
+        private readonly Octree<IRenderer> particleOctree = new Octree<IRenderer>(32768);
 
 #if DEBUG_OCTREE
-        private readonly OctreeDebugRenderer<IMeshRenderer> octreeDebugRenderer;
+        private readonly OctreeDebugRenderer<IRenderer> octreeDebugRenderer;
 #endif
 
         public WorldRenderer(World world, VrfGuiContext vrfGuiContext)
@@ -39,7 +40,7 @@ namespace GUI.Types.Renderer
             LoadEntities();
 
 #if DEBUG_OCTREE
-            octreeDebugRenderer = new OctreeDebugRenderer<IMeshRenderer>(worldOctree, guiContext);
+            octreeDebugRenderer = new OctreeDebugRenderer<IRenderer>(particleOctree, guiContext, true);
 #endif
 
             // TODO: Figure out which animations to play on which model renderers
@@ -61,21 +62,18 @@ namespace GUI.Types.Renderer
                 meshesToRender[i].Render(camera, RenderPass.Translucent);
             }
 
-            foreach (var renderer in particleRenderers)
-            {
-                renderer.Render(camera, RenderPass.None);
-            }
-
 #if DEBUG_OCTREE
-            octreeDebugRenderer.Render(camera, RenderPass.None);
+            octreeDebugRenderer.Render(camera, RenderPass.Both);
 #endif
         }
 
         public void Update(float frameTime)
         {
+            particleOctree.Clear();
             foreach (var renderer in particleRenderers)
             {
                 renderer.Update(frameTime);
+                particleOctree.Insert(renderer);
             }
 
             foreach (var renderer in modelRenderers)
@@ -84,9 +82,10 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private List<IMeshRenderer> GetMeshesToRender(Camera camera)
+        private List<IRenderer> GetMeshesToRender(Camera camera)
         {
-            var renderers = worldOctree.Query(camera.ViewFrustum);
+            var renderers = staticOctree.Query(camera.ViewFrustum);
+            renderers.AddRange(particleOctree.Query(camera.ViewFrustum));
 
             renderers.Sort((a, b) =>
             {
@@ -113,7 +112,7 @@ namespace GUI.Types.Renderer
                         throw new Exception("WTF");
                     }
 
-                    var worldNodeRenderer = new WorldNodeRenderer(new WorldNode(newResource), guiContext, worldOctree);
+                    var worldNodeRenderer = new WorldNodeRenderer(new WorldNode(newResource), guiContext, staticOctree);
                     worldNodeRenderers.Add(worldNodeRenderer);
 
                     BoundingBox = BoundingBox.IsZero ? worldNodeRenderer.BoundingBox : BoundingBox.Union(worldNodeRenderer.BoundingBox);
@@ -252,7 +251,9 @@ namespace GUI.Types.Renderer
                     {
                         var particleSystem = new ParticleSystem(particleResource);
                         var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
-                        particleRenderers.Add(new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin));
+
+                        var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin);
+                        particleRenderers.Add(particleRenderer);
                     }
 
                     continue;
@@ -314,7 +315,7 @@ namespace GUI.Types.Renderer
                     modelRenderer.SetAnimation(animation);
                 }
 
-                worldOctree.Insert(modelRenderer);
+                staticOctree.Insert(modelRenderer);
                 modelRenderers.Add(modelRenderer);
 
                 BoundingBox = BoundingBox.IsZero ? modelRenderer.BoundingBox : BoundingBox.Union(modelRenderer.BoundingBox);

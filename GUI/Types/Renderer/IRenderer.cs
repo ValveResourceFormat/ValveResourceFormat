@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace GUI.Types.Renderer
 {
-    internal interface IRenderer
+    internal interface IRenderer : IOctreeElement
     {
         void Render(Camera camera, RenderPass renderPass);
 

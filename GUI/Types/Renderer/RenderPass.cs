@@ -2,7 +2,7 @@ namespace GUI.Types.Renderer
 {
     public enum RenderPass
     {
-        None,
+        Both,
         Opaque,
         Translucent,
     }

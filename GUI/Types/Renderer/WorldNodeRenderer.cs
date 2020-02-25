@@ -17,13 +17,13 @@ namespace GUI.Types.Renderer
 
         private readonly List<IMeshRenderer> meshRenderers = new List<IMeshRenderer>();
 
-        private readonly Octree<IMeshRenderer> meshOctree;
+        private readonly Octree<IRenderer> meshOctree;
 
-        public WorldNodeRenderer(WorldNode worldNode, VrfGuiContext vrfGuiContext, Octree<IMeshRenderer> externalOctree)
+        public WorldNodeRenderer(WorldNode worldNode, VrfGuiContext vrfGuiContext, Octree<IRenderer> externalOctree)
         {
             WorldNode = worldNode;
             guiContext = vrfGuiContext;
-            meshOctree = externalOctree ?? new Octree<IMeshRenderer>(16384);
+            meshOctree = externalOctree ?? new Octree<IRenderer>(16384);
 
             // Do setup
             SetupMeshRenderers();
