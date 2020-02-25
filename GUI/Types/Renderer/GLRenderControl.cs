@@ -155,7 +155,7 @@ namespace GUI.Types
             for (var i = 0; i < count; i++)
             {
                 var extension = GL.GetString(StringNameIndexed.Extensions, i);
-                if (!extension.Contains(extension))
+                if (!extensions.Contains(extension))
                 {
                     extensions.Add(extension);
                 }
