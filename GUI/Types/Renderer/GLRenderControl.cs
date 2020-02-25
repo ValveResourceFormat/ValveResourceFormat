@@ -150,15 +150,18 @@ namespace GUI.Types
 
         private void CheckOpenGL()
         {
-            var extensions = new Dictionary<string, bool>();
+            var extensions = new HashSet<string>();
             var count = GL.GetInteger(GetPName.NumExtensions);
             for (var i = 0; i < count; i++)
             {
                 var extension = GL.GetString(StringNameIndexed.Extensions, i);
-                extensions.Add(extension, true);
+                if (!extension.Contains(extension))
+                {
+                    extensions.Add(extension);
+                }
             }
 
-            if (extensions.ContainsKey("GL_EXT_texture_filter_anisotropic"))
+            if (extensions.Contains("GL_EXT_texture_filter_anisotropic"))
             {
                 MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
             }
