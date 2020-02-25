@@ -89,7 +89,12 @@ namespace GUI.Types.Renderer
             var renderers = worldOctree.Query(camera.ViewFrustum);
 
             renderers.Sort((a, b) =>
-                (b.BoundingBox.Center - camera.Location).Length.CompareTo((a.BoundingBox.Center - camera.Location).Length));
+            {
+                var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared;
+                var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared;
+
+                return bLength.CompareTo(aLength);
+            });
 
             return renderers;
         }
