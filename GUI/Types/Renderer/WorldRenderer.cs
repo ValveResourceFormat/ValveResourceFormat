@@ -67,7 +67,7 @@ namespace GUI.Types.Renderer
             }
 
 #if DEBUG_OCTREE
-            octreeDebugRenderer.Render(camera);
+            octreeDebugRenderer.Render(camera, RenderPass.None);
 #endif
         }
 
