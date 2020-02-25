@@ -457,6 +457,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             var compressedSize = CompressedMips[mipLevel];
 
+            if (compressedSize >= uncompressedSize)
+            {
+                return Reader.ReadBytes(uncompressedSize);
+            }
+
             var input = Reader.ReadBytes(compressedSize);
             var output = new Span<byte>(new byte[uncompressedSize]);
 
