@@ -16,8 +16,9 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
-        public Matrix4x4 ProjectionMatrix { get; private set; }
+        private Matrix4x4 ProjectionMatrix;
         public Matrix4x4 CameraViewMatrix { get; private set; }
+        public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; private set; }
 
         // Set from outside this class by forms code
@@ -66,7 +67,8 @@ namespace GUI.Types.Renderer
 
             // Build camera view matrix
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + dir, Vector3.UnitZ);
-            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum = new Frustum(ViewProjectionMatrix);
 
             Name = name;
         }
@@ -81,7 +83,8 @@ namespace GUI.Types.Renderer
 
             // Build camera view matrix
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
-            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum = new Frustum(ViewProjectionMatrix);
         }
 
         // Calculate forward vector from pitch and yaw
@@ -103,7 +106,8 @@ namespace GUI.Types.Renderer
 
             // Calculate projection matrix
             ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 40000.0f);
-            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum = new Frustum(ViewProjectionMatrix);
 
             // setup viewport
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
@@ -114,7 +118,8 @@ namespace GUI.Types.Renderer
             Location = location;
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
-            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum = new Frustum(ViewProjectionMatrix);
         }
 
         public void LookAt(Vector3 target)
@@ -126,7 +131,8 @@ namespace GUI.Types.Renderer
             ClampRotation();
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
-            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum = new Frustum(ViewProjectionMatrix);
         }
 
         public void Tick(float deltaTime)
@@ -146,7 +152,8 @@ namespace GUI.Types.Renderer
             ClampRotation();
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
-            ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum = new Frustum(ViewProjectionMatrix);
         }
 
         public void HandleInput(MouseState mouseState, KeyboardState keyboardState)

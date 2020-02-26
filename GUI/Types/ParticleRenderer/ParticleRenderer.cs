@@ -185,7 +185,7 @@ namespace GUI.Types.ParticleRenderer
             {
                 foreach (var renderer in Renderers)
                 {
-                    renderer.Render(particleBag, camera.ProjectionMatrix, camera.CameraViewMatrix);
+                    renderer.Render(particleBag, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
                 }
             }
 

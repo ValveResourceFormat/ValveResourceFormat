@@ -22,15 +22,14 @@ out vec3 vBitangentOut;
 
 out vec2 vTexCoordOut;
 
-uniform mat4 projection;
-uniform mat4 modelview;
+uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
 
 void main()
 {
     mat4 skinTransformMatrix = transform * getSkinMatrix();
     vec4 fragPosition = skinTransformMatrix * vec4(vPOSITION, 1.0);
-    gl_Position = projection * modelview * fragPosition;
+    gl_Position = uProjectionViewMatrix * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     // Calculate model matrix

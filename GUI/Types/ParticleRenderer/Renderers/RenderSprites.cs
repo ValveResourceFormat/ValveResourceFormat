@@ -207,7 +207,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BufferData(BufferTarget.ArrayBuffer, particleBag.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
         }
 
-        public void Render(ParticleBag particleBag, Matrix4x4 projectionMatrix, Matrix4x4 modelViewMatrix)
+        public void Render(ParticleBag particleBag, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
             if (particleBag.Count == 0)
             {
@@ -240,10 +240,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.Uniform1(shader.GetUniformLocation("uTexture"), 0); // set texture unit 0 as uTexture uniform
 
-            var otkProjection = projectionMatrix.ToOpenTK();
-            var otkMV = modelViewMatrix.ToOpenTK();
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionMatrix"), false, ref otkProjection);
-            GL.UniformMatrix4(shader.GetUniformLocation("uModelViewMatrix"), false, ref otkMV);
+            var otkProjection = viewProjectionMatrix.ToOpenTK();
+            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref otkProjection);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor);

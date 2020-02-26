@@ -66,7 +66,7 @@ namespace GUI.Types.ParticleRenderer
 
             GL.UseProgram(shader.Program);
 
-            var projectionViewMatrix = Matrix4x4.Multiply(camera.CameraViewMatrix, camera.ProjectionMatrix).ToOpenTK();
+            var projectionViewMatrix = camera.ViewProjectionMatrix.ToOpenTK();
             GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
 
             GL.BindVertexArray(vao);

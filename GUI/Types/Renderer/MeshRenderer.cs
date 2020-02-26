@@ -105,8 +105,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.DepthTest);
 
             var drawCalls = opaque ? drawCallsOpaque : drawCallsBlended;
-            var projectionMatrix = camera.ProjectionMatrix.ToOpenTK();
-            var viewMatrix = camera.CameraViewMatrix.ToOpenTK();
+            var viewProjectionMatrix = camera.ViewProjectionMatrix.ToOpenTK();
 
             foreach (var call in drawCalls)
             {
@@ -120,11 +119,8 @@ namespace GUI.Types.Renderer
                 uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
                 GL.Uniform3(uniformLocation, camera.Location.ToOpenTK());
 
-                uniformLocation = call.Shader.GetUniformLocation("projection");
-                GL.UniformMatrix4(uniformLocation, false, ref projectionMatrix);
-
-                uniformLocation = call.Shader.GetUniformLocation("modelview");
-                GL.UniformMatrix4(uniformLocation, false, ref viewMatrix);
+                uniformLocation = call.Shader.GetUniformLocation("uProjectionViewMatrix");
+                GL.UniformMatrix4(uniformLocation, false, ref viewProjectionMatrix);
 
                 uniformLocation = call.Shader.GetUniformLocation("bAnimated");
                 if (uniformLocation != -1)
