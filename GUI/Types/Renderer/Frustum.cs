@@ -6,7 +6,7 @@ namespace GUI.Types.Renderer
     {
         private readonly Vector4[] Planes = new Vector4[6];
 
-        public Frustum(Matrix4x4 viewProjectionMatrix)
+        public void Update(Matrix4x4 viewProjectionMatrix)
         {
             Planes[0] = Vector4.Normalize(new Vector4(
                 viewProjectionMatrix.M14 + viewProjectionMatrix.M11,
