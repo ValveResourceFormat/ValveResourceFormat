@@ -660,6 +660,9 @@ namespace GUI
                             var model = new Model(resource);
                             var modelRenderer = new ModelRenderer(model, vrfGuiContext);
 
+                            var particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
+                            glModelControl.AddRenderer(particleGrid);
+
                             glModelControl.AddRenderer(modelRenderer);
 
                             vrfGuiContext.ClearCache();
