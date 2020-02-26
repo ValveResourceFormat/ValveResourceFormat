@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshRenderer : IMeshRenderer, IOctreeElement
+    internal class MeshRenderer : IMeshRenderer
     {
         private Mesh Mesh { get; }
 

@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class WorldNodeRenderer : IMeshRenderer, IOctreeElement
+    internal class WorldNodeRenderer : IMeshRenderer
     {
         private WorldNode WorldNode { get; }
 
@@ -113,7 +113,7 @@ namespace GUI.Types.Renderer
                     meshRenderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
-                    meshOctree.Insert(renderer);
+                    meshOctree.Insert(renderer, renderer.BoundingBox);
                 }
 
                 var renderable = sceneObject.GetProperty<string>("m_renderable");
@@ -133,7 +133,7 @@ namespace GUI.Types.Renderer
                     meshRenderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
-                    meshOctree.Insert(renderer);
+                    meshOctree.Insert(renderer, renderer.BoundingBox);
                 }
             }
         }

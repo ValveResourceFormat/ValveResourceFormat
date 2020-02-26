@@ -2,8 +2,10 @@ using System.Collections.Generic;
 
 namespace GUI.Types.Renderer
 {
-    internal interface IRenderer : IOctreeElement
+    internal interface IRenderer
     {
+        AABB BoundingBox { get; }
+
         void Render(Camera camera, RenderPass renderPass);
 
         void Update(float frameTime);

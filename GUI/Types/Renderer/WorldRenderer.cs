@@ -69,11 +69,11 @@ namespace GUI.Types.Renderer
 
         public void Update(float frameTime)
         {
-            particleOctree.Clear();
             foreach (var renderer in particleRenderers)
             {
+                var oldBounds = renderer.BoundingBox;
                 renderer.Update(frameTime);
-                particleOctree.Insert(renderer);
+                particleOctree.Update(renderer, oldBounds, renderer.BoundingBox);
             }
 
             foreach (var renderer in modelRenderers)
@@ -253,6 +253,7 @@ namespace GUI.Types.Renderer
                         var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
 
                         var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin);
+                        particleOctree.Insert(particleRenderer, particleRenderer.BoundingBox);
                         particleRenderers.Add(particleRenderer);
                     }
 
@@ -315,7 +316,7 @@ namespace GUI.Types.Renderer
                     modelRenderer.SetAnimation(animation);
                 }
 
-                staticOctree.Insert(modelRenderer);
+                staticOctree.Insert(modelRenderer, modelRenderer.BoundingBox);
                 modelRenderers.Add(modelRenderer);
 
                 BoundingBox = BoundingBox.IsZero ? modelRenderer.BoundingBox : BoundingBox.Union(modelRenderer.BoundingBox);

@@ -7,7 +7,7 @@ using OpenTK.Graphics.OpenGL;
 namespace GUI.Types.Renderer
 {
     internal class OctreeDebugRenderer<T> : IRenderer
-        where T : IOctreeElement
+        where T : class
     {
         private readonly Shader shader;
         private readonly Octree<T> octree;
