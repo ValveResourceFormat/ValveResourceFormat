@@ -175,7 +175,6 @@
     <Compile Include="Utils\VectorExtensions.cs" />
     <Compile Include="Utils\VrfGuiContext.cs" />
     <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
-    <Compile Include="Types\Renderer\DebugUtil.cs" />
     <Compile Include="Types\Renderer\MeshRenderer.cs" />
     <Compile Include="Types\Renderer\ModelRenderer.cs" />
     <Compile Include="Types\Renderer\Shader.cs" />

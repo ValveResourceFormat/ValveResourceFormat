@@ -1,3 +1,4 @@
+#if DEBUG_OCTREE
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -148,3 +149,4 @@ namespace GUI.Types.Renderer
         }
     }
 }
+#endif
