@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -119,10 +119,14 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
         }
 
-        private void UpdateVertices(ParticleBag particleBag, Matrix4 modelViewMatrix)
+        private void UpdateVertices(ParticleBag particleBag, Matrix4x4 modelViewMatrix)
         {
             var particles = particleBag.LiveParticles;
-            var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewMatrix.ExtractRotation().Inverted());
+
+            // Create billboarding rotation (always facing camera)
+            Matrix4x4.Decompose(modelViewMatrix, out _, out Quaternion modelViewRotation, out _);
+            modelViewRotation = Quaternion.Inverse(modelViewRotation);
+            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             // Update vertex buffer
             EnsureSpaceForVertices(particleBag.Count * 4);
@@ -133,10 +137,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     ? particles[i].GetRotationMatrix() * billboardMatrix * particles[i].GetTransformationMatrix()
                     : particles[i].GetRotationMatrix() * particles[i].GetTransformationMatrix();
 
-                var tl = new Vector4(-1, -1, 0, 1) * modelMatrix;
-                var bl = new Vector4(-1, 1, 0, 1) * modelMatrix;
-                var br = new Vector4(1, 1, 0, 1) * modelMatrix;
-                var tr = new Vector4(1, -1, 0, 1) * modelMatrix;
+                var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
+                var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
+                var br = Vector4.Transform(new Vector4(1, 1, 0, 1), modelMatrix);
+                var tr = Vector4.Transform(new Vector4(1, -1, 0, 1), modelMatrix);
 
                 int quadStart = i * VertexSize * 4;
                 rawVertices[quadStart + 0] = tl.X;
@@ -203,7 +207,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BufferData(BufferTarget.ArrayBuffer, particleBag.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
         }
 
-        public void Render(ParticleBag particleBag, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
+        public void Render(ParticleBag particleBag, Matrix4x4 projectionMatrix, Matrix4x4 modelViewMatrix)
         {
             if (particleBag.Count == 0)
             {
@@ -235,8 +239,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
 
             GL.Uniform1(shader.GetUniformLocation("uTexture"), 0); // set texture unit 0 as uTexture uniform
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionMatrix"), false, ref projectionMatrix);
-            GL.UniformMatrix4(shader.GetUniformLocation("uModelViewMatrix"), false, ref modelViewMatrix);
+
+            var otkProjection = projectionMatrix.ToOpenTK();
+            var otkMV = modelViewMatrix.ToOpenTK();
+            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionMatrix"), false, ref otkProjection);
+            GL.UniformMatrix4(shader.GetUniformLocation("uModelViewMatrix"), false, ref otkMV);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor);

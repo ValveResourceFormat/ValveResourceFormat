@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -126,7 +126,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return (vrfGuiContext.MaterialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
         }
 
-        public void Render(ParticleBag particleBag, Matrix4 projectionMatrix, Matrix4 modelViewMatrix)
+        public void Render(ParticleBag particleBag, Matrix4x4 projectionMatrix, Matrix4x4 modelViewMatrix)
         {
             var particles = particleBag.LiveParticles;
 
@@ -149,8 +149,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BindTexture(TextureTarget.Texture2D, glTexture);
 
             GL.Uniform1(shader.GetUniformLocation("uTexture"), 0); // set texture unit 0 as uTexture uniform
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionMatrix"), false, ref projectionMatrix);
-            GL.UniformMatrix4(shader.GetUniformLocation("uModelViewMatrix"), false, ref modelViewMatrix);
+
+            var otkProjection = projectionMatrix.ToOpenTK();
+            var otkMV = modelViewMatrix.ToOpenTK();
+            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionMatrix"), false, ref otkProjection);
+            GL.UniformMatrix4(shader.GetUniformLocation("uModelViewMatrix"), false, ref otkMV);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor);
@@ -161,42 +164,45 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var uvOffsetLocation = shader.GetUniformLocation("uUvOffset");
             var uvScaleLocation = shader.GetUniformLocation("uUvScale");
 
-            var modelViewRotation = modelViewMatrix.ExtractRotation().Inverted(); // Create billboarding rotation (always facing camera)
-            var billboardMatrix = Matrix4.CreateFromQuaternion(modelViewRotation);
+            // Create billboarding rotation (always facing camera)
+            Matrix4x4.Decompose(modelViewMatrix, out _, out Quaternion modelViewRotation, out _);
+            modelViewRotation = Quaternion.Inverse(modelViewRotation);
+            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             for (int i = 0; i < particles.Length; ++i)
             {
                 var position = new Vector3(particles[i].Position.X, particles[i].Position.Y, particles[i].Position.Z);
                 var previousPosition = new Vector3(particles[i].PositionPrevious.X, particles[i].PositionPrevious.Y, particles[i].PositionPrevious.Z);
                 var difference = previousPosition - position;
-                var direction = difference.Normalized();
+                var direction = Vector3.Normalize(difference);
 
                 var midPoint = position + (0.5f * difference);
 
                 // Trail width = radius
                 // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
-                var length = Math.Min(maxLength, particles[i].TrailLength * difference.Length / 2f);
+                var length = Math.Min(maxLength, particles[i].TrailLength * difference.Length() / 2f);
                 var t = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
                 var animatedLength = t >= lengthFadeInTime
                     ? length
                     : t * length / lengthFadeInTime;
-                var scaleMatrix = Matrix4.CreateScale(particles[i].Radius, animatedLength, 1);
+                var scaleMatrix = Matrix4x4.CreateScale(particles[i].Radius, animatedLength, 1);
 
                 // Center the particle at the midpoint between the two points
-                var translationMatrix = Matrix4.CreateTranslation(Vector3.UnitY * animatedLength);
+                var translationMatrix = Matrix4x4.CreateTranslation(Vector3.UnitY * animatedLength);
 
                 // Calculate rotation matrix
 
-                var axis = Vector3.Cross(Vector3.UnitY, direction).Normalized();
+                var axis = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, direction));
                 var angle = (float)Math.Acos(direction.Y);
-                var rotationMatrix = Matrix4.CreateFromAxisAngle(axis, angle);
+                var rotationMatrix = Matrix4x4.CreateFromAxisAngle(axis, angle);
 
-                var modelMatrix = orientationType == 0
-                    ? scaleMatrix * translationMatrix * rotationMatrix
+                var modelMatrix =
+                    orientationType == 0 ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
                     : particles[i].GetTransformationMatrix();
 
                 // Position/Radius uniform
-                GL.UniformMatrix4(modelMatrixLocation, false, ref modelMatrix);
+                var otkModelMatrix = modelMatrix.ToOpenTK();
+                GL.UniformMatrix4(modelMatrixLocation, false, ref otkModelMatrix);
 
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {

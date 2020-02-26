@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Windows.Forms;
-using OpenTK;
 using static GUI.Types.GLRenderControl;
 
 namespace GUI.Types.Renderer

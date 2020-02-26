@@ -43,7 +43,7 @@ namespace GUI.Types.ParticleRenderer
 
             systemRenderState.SetControlPoint(0, pos);
 
-            BoundingBox = new AABB((pos + new Vector3(-32, -32, -32)).ToOpenTK(), (pos + new Vector3(32, 32, 32)).ToOpenTK());
+            BoundingBox = new AABB(pos + new Vector3(-32, -32, -32), pos + new Vector3(32, 32, 32));
 
             SetupEmitters(particleSystem.GetData(), particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -137,7 +137,7 @@ namespace GUI.Types.ParticleRenderer
             var center = systemRenderState.GetControlPoint(0);
             if (particleBag.Count == 0)
             {
-                BoundingBox = new AABB(center.ToOpenTK(), center.ToOpenTK());
+                BoundingBox = new AABB(center, center);
             }
             else
             {
@@ -153,7 +153,7 @@ namespace GUI.Types.ParticleRenderer
                     maxParticlePos = Vector3.Max(maxParticlePos, pos + new Vector3(radius));
                 }
 
-                BoundingBox = new AABB(minParticlePos.ToOpenTK(), maxParticlePos.ToOpenTK());
+                BoundingBox = new AABB(minParticlePos, maxParticlePos);
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using GUI.Utils;
-using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -15,13 +15,13 @@ namespace GUI.Types.Renderer
     {
         private Mesh Mesh { get; }
 
-        public Matrix4 Transform
+        public Matrix4x4 Transform
         {
             get => meshTransform;
             set
             {
                 meshTransform = value;
-                BoundingBox = localBoundingBox.Transformed(Transform);
+                BoundingBox = localBoundingBox.Transform(Transform);
             }
         }
 
@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
 
         private readonly VrfGuiContext guiContext;
         private AABB localBoundingBox;
-        private Matrix4 meshTransform = Matrix4.Identity;
+        private Matrix4x4 meshTransform = Matrix4x4.Identity;
 
         private List<DrawCall> drawCallsOpaque = new List<DrawCall>();
         private List<DrawCall> drawCallsBlended = new List<DrawCall>();
@@ -43,8 +43,8 @@ namespace GUI.Types.Renderer
             Mesh = mesh;
             guiContext = vrfGuiContext;
 
-            localBoundingBox = new AABB(mesh.MinBounds.ToOpenTK(), mesh.MaxBounds.ToOpenTK());
-            BoundingBox = localBoundingBox.Transformed(Transform);
+            localBoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
+            BoundingBox = localBoundingBox.Transform(Transform);
 
             SetupDrawCalls(skinMaterials);
         }
@@ -105,6 +105,8 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.DepthTest);
 
             var drawCalls = opaque ? drawCallsOpaque : drawCallsBlended;
+            var projectionMatrix = camera.ProjectionMatrix.ToOpenTK();
+            var viewMatrix = camera.CameraViewMatrix.ToOpenTK();
 
             foreach (var call in drawCalls)
             {
@@ -113,18 +115,16 @@ namespace GUI.Types.Renderer
                 GL.UseProgram(call.Shader.Program);
 
                 uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
-                GL.Uniform3(uniformLocation, camera.Location);
+                GL.Uniform3(uniformLocation, camera.Location.ToOpenTK());
 
                 uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
-                GL.Uniform3(uniformLocation, camera.Location);
+                GL.Uniform3(uniformLocation, camera.Location.ToOpenTK());
 
                 uniformLocation = call.Shader.GetUniformLocation("projection");
-                var matrix = camera.ProjectionMatrix;
-                GL.UniformMatrix4(uniformLocation, false, ref matrix);
+                GL.UniformMatrix4(uniformLocation, false, ref projectionMatrix);
 
                 uniformLocation = call.Shader.GetUniformLocation("modelview");
-                matrix = camera.CameraViewMatrix;
-                GL.UniformMatrix4(uniformLocation, false, ref matrix);
+                GL.UniformMatrix4(uniformLocation, false, ref viewMatrix);
 
                 uniformLocation = call.Shader.GetUniformLocation("bAnimated");
                 if (uniformLocation != -1)
@@ -151,14 +151,15 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                var transform = Transform;
+                var transform = Transform.ToOpenTK();
                 uniformLocation = call.Shader.GetUniformLocation("transform");
                 GL.UniformMatrix4(uniformLocation, false, ref transform);
 
                 uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
                 if (uniformLocation > -1)
                 {
-                    GL.Uniform4(uniformLocation, Tint);
+                    var tint = Tint.ToOpenTK();
+                    GL.Uniform4(uniformLocation, tint);
                 }
 
                 GL.BindVertexArray(call.VertexArrayObject);
@@ -320,7 +321,7 @@ namespace GUI.Types.Renderer
             if (objectDrawCall.ContainsKey("m_vTintColor"))
             {
                 var tintColor = objectDrawCall.GetSubCollection("m_vTintColor").ToVector3();
-                drawCall.TintColor = new Vector3(tintColor.X, tintColor.Y, tintColor.Z);
+                drawCall.TintColor = new OpenTK.Vector3(tintColor.X, tintColor.Y, tintColor.Z);
             }
 
             if (!drawCall.Material.Textures.ContainsKey("g_tTintMask"))

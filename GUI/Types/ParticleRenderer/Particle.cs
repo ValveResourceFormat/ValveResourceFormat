@@ -81,17 +81,17 @@ namespace GUI.Types.ParticleRenderer
             Radius = ConstantRadius;
         }
 
-        public OpenTK.Matrix4 GetTransformationMatrix()
+        public Matrix4x4 GetTransformationMatrix()
         {
-            var scaleMatrix = OpenTK.Matrix4.CreateScale(Radius);
-            var translationMatrix = OpenTK.Matrix4.CreateTranslation(Position.X, Position.Y, Position.Z);
+            var scaleMatrix = Matrix4x4.CreateScale(Radius);
+            var translationMatrix = Matrix4x4.CreateTranslation(Position.X, Position.Y, Position.Z);
 
-            return scaleMatrix * translationMatrix;
+            return Matrix4x4.Multiply(scaleMatrix, translationMatrix);
         }
 
-        public OpenTK.Matrix4 GetRotationMatrix()
+        public Matrix4x4 GetRotationMatrix()
         {
-            var rotationMatrix = OpenTK.Matrix4.CreateRotationZ(Rotation.Z) * OpenTK.Matrix4.CreateRotationY(Rotation.Y);
+            var rotationMatrix = Matrix4x4.Multiply(Matrix4x4.CreateRotationZ(Rotation.Z), Matrix4x4.CreateRotationY(Rotation.Y));
             return rotationMatrix;
         }
     }

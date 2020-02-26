@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using GUI.Utils;
-using OpenTK;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -67,23 +67,7 @@ namespace GUI.Types.Renderer
 
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
-                var transform = sceneObject.GetArray("m_vTransform");
-
-                var matrix = Matrix4.Identity;
-
-                // Copy transform matrix to right type
-                for (var x = 0; x < transform.Length; x++)
-                {
-                    var a = transform[x].ToVector4();
-
-                    switch (x)
-                    {
-                        case 0: matrix.Column0 = new Vector4(a.X, a.Y, a.Z, a.W); break;
-                        case 1: matrix.Column1 = new Vector4(a.X, a.Y, a.Z, a.W); break;
-                        case 2: matrix.Column2 = new Vector4(a.X, a.Y, a.Z, a.W); break;
-                        case 3: matrix.Column3 = new Vector4(a.X, a.Y, a.Z, a.W); break;
-                    }
-                }
+                var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
 
                 var tintColorWrongVector = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
 

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using GUI.Utils;
-using OpenTK;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
@@ -136,7 +136,7 @@ namespace GUI.Types.Renderer
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 GL.UseProgram(shader.Program);
 
-                var projectionViewMatrix = camera.CameraViewMatrix * camera.ProjectionMatrix;
+                var projectionViewMatrix = Matrix4x4.Multiply(camera.CameraViewMatrix, camera.ProjectionMatrix).ToOpenTK();
                 GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
 
                 GL.BindVertexArray(vaoHandle);

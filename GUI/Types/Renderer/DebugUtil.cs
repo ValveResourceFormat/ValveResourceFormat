@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using OpenTK;
+using System.Numerics;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
@@ -77,10 +78,10 @@ void main(void) {
 
         public void AddCube(Vector3 position, float scale)
         {
-            AddCube(Matrix4.CreateScale(scale) * Matrix4.CreateTranslation(position));
+            AddCube(Matrix4x4.Multiply(Matrix4x4.CreateScale(scale), Matrix4x4.CreateTranslation(position)));
         }
 
-        public void AddCube(Matrix4 transform)
+        public void AddCube(OpenTK.Matrix4 transform)
         {
             // Create VAO
             var vao = GL.GenVertexArray();
@@ -102,7 +103,7 @@ void main(void) {
 
             var posAttribute = GL.GetAttribLocation(shaderProgram, "aVertexPos");
             GL.EnableVertexAttribArray(posAttribute);
-            GL.VertexAttribPointer(posAttribute, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, 0);
+            GL.VertexAttribPointer(posAttribute, 3, VertexAttribPointerType.Float, false, sizeof(float) * 3, 0);
 
             GL.BindVertexArray(0);
 
@@ -111,23 +112,7 @@ void main(void) {
 
         public void AddCube(System.Numerics.Matrix4x4 transform)
         {
-            AddCube(new Matrix4(
-                transform.M11,
-                transform.M12,
-                transform.M13,
-                transform.M14,
-                transform.M21,
-                transform.M22,
-                transform.M23,
-                transform.M24,
-                transform.M31,
-                transform.M32,
-                transform.M33,
-                transform.M34,
-                transform.M41,
-                transform.M42,
-                transform.M43,
-                transform.M44));
+            AddCube(transform.ToOpenTK());
         }
 
         public void Draw(Camera camera, bool ztest)
@@ -143,13 +128,14 @@ void main(void) {
             // Bind debug shader
             GL.UseProgram(shaderProgram);
 
+            var projectionMatrix = camera.ProjectionMatrix.ToOpenTK();
+            var viewMatrix = camera.CameraViewMatrix.ToOpenTK();
+
             var uniformLocation = GL.GetUniformLocation(shaderProgram, "uProjection");
-            var matrix = camera.ProjectionMatrix;
-            GL.UniformMatrix4(uniformLocation, false, ref matrix);
+            GL.UniformMatrix4(uniformLocation, false, ref projectionMatrix);
 
             uniformLocation = GL.GetUniformLocation(shaderProgram, "uView");
-            matrix = camera.CameraViewMatrix;
-            GL.UniformMatrix4(uniformLocation, false, ref matrix);
+            GL.UniformMatrix4(uniformLocation, false, ref viewMatrix);
 
             foreach (var obj in objects)
             {
@@ -179,9 +165,9 @@ void main(void) {
         {
             public readonly int VAO;
             public readonly int Size;
-            public readonly Matrix4 Transform;
+            public readonly OpenTK.Matrix4 Transform;
 
-            public DebugObject(int vao, int size, Matrix4 transform)
+            public DebugObject(int vao, int size, OpenTK.Matrix4 transform)
             {
                 VAO = vao;
                 Size = size;

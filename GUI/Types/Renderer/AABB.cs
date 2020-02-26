@@ -1,4 +1,4 @@
-using OpenTK;
+using System.Numerics;
 
 namespace GUI.Types.Renderer
 {
@@ -50,42 +50,35 @@ namespace GUI.Types.Renderer
 
         public AABB Union(AABB other)
         {
-            return new AABB(
-                new Vector3(System.Math.Min(Min.X, other.Min.X), System.Math.Min(Min.Y, other.Min.Y), System.Math.Min(Min.Z, other.Min.Z)),
-                new Vector3(System.Math.Max(Max.X, other.Max.X), System.Math.Max(Max.Y, other.Max.Y), System.Math.Max(Max.Z, other.Max.Z)));
+            return new AABB(Vector3.Min(Min, other.Min), Vector3.Max(Max, other.Max));
         }
 
         // Note: Since we're dealing with AABBs here, the resulting AABB is likely to be bigger than the original if rotation
         // and whatnot is involved. This problem compounds with multiple transformations. Therefore, endeavour to premultiply matrices
         // and only use this at the last step.
-        public AABB Transformed(Matrix4 transform)
+        public AABB Transform(Matrix4x4 transform)
         {
             var points = new Vector4[]
             {
-                new Vector4(Min.X, Min.Y, Min.Z, 1.0f) * transform,
-                new Vector4(Max.X, Min.Y, Min.Z, 1.0f) * transform,
-                new Vector4(Max.X, Max.Y, Min.Z, 1.0f) * transform,
-                new Vector4(Min.X, Max.Y, Min.Z, 1.0f) * transform,
-                new Vector4(Min.X, Max.Y, Max.Z, 1.0f) * transform,
-                new Vector4(Min.X, Min.Y, Max.Z, 1.0f) * transform,
-                new Vector4(Max.X, Min.Y, Max.Z, 1.0f) * transform,
-                new Vector4(Max.X, Max.Y, Max.Z, 1.0f) * transform,
+                Vector4.Transform(new Vector4(Min.X, Min.Y, Min.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Max.X, Min.Y, Min.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Max.X, Max.Y, Min.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Min.X, Max.Y, Min.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Min.X, Max.Y, Max.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Min.X, Min.Y, Max.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Max.X, Min.Y, Max.Z, 1.0f), transform),
+                Vector4.Transform(new Vector4(Max.X, Max.Y, Max.Z, 1.0f), transform),
             };
 
             var min = points[0];
             var max = points[0];
             for (int i = 1; i < points.Length; ++i)
             {
-                var tf = points[i];
-                min.X = System.Math.Min(min.X, tf.X);
-                min.Y = System.Math.Min(min.Y, tf.Y);
-                min.Z = System.Math.Min(min.Z, tf.Z);
-                max.X = System.Math.Max(max.X, tf.X);
-                max.Y = System.Math.Max(max.Y, tf.Y);
-                max.Z = System.Math.Max(max.Z, tf.Z);
+                min = Vector4.Min(min, points[i]);
+                max = Vector4.Max(max, points[i]);
             }
 
-            return new AABB(min.Xyz, max.Xyz);
+            return new AABB(new Vector3(min.X, min.Y, min.Z), new Vector3(max.X, max.Y, max.Z));
         }
 
         public override string ToString()

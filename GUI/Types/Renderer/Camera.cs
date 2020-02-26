@@ -1,5 +1,5 @@
 using System;
-using OpenTK;
+using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 
@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer
     internal class Camera
     {
         private const float CAMERASPEED = 300f; // Per second
-        private const float FOV = MathHelper.PiOver4;
+        private const float FOV = OpenTK.MathHelper.PiOver4;
 
         public string Name { get; protected set; }
 
@@ -16,8 +16,8 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
-        public Matrix4 ProjectionMatrix { get; private set; }
-        public Matrix4 CameraViewMatrix { get; private set; }
+        public Matrix4x4 ProjectionMatrix { get; private set; }
+        public Matrix4x4 CameraViewMatrix { get; private set; }
         public Frustum ViewFrustum { get; private set; }
 
         // Set from outside this class by forms code
@@ -55,17 +55,17 @@ namespace GUI.Types.Renderer
             LookAt(new Vector3(0));
         }
 
-        public Camera(Matrix4 transformationMatrix, string name = "Default")
+        public Camera(Matrix4x4 transformationMatrix, string name = "Default")
         {
-            Location = transformationMatrix.ExtractTranslation();
+            Location = transformationMatrix.Translation;
 
             // Extract view direction from view matrix and use it to calculate pitch and yaw
-            var dir = transformationMatrix.Row0.Xyz;
+            var dir = new Vector3(transformationMatrix.M11, transformationMatrix.M12, transformationMatrix.M13);
             Yaw = (float)Math.Atan2(dir.Y, dir.X);
             Pitch = (float)Math.Asin(dir.Z);
 
             // Build camera view matrix
-            CameraViewMatrix = Matrix4.LookAt(Location, Location + dir, Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + dir, Vector3.UnitZ);
             ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
 
             Name = name;
@@ -80,7 +80,7 @@ namespace GUI.Types.Renderer
             Name = original.Name;
 
             // Build camera view matrix
-            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
             ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
@@ -92,7 +92,7 @@ namespace GUI.Types.Renderer
 
         private Vector3 GetRightVector()
         {
-            return new Vector3((float)Math.Cos(Yaw - MathHelper.PiOver2), (float)Math.Sin(Yaw - MathHelper.PiOver2), 0);
+            return new Vector3((float)Math.Cos(Yaw - OpenTK.MathHelper.PiOver2), (float)Math.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
@@ -102,7 +102,7 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
             // Calculate projection matrix
-            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 40000.0f);
+            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 40000.0f);
             ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
 
             // setup viewport
@@ -113,19 +113,19 @@ namespace GUI.Types.Renderer
         {
             Location = location;
 
-            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
             ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
         public void LookAt(Vector3 target)
         {
-            var dir = (target - Location).Normalized();
+            var dir = Vector3.Normalize(target - Location);
             Yaw = (float)Math.Atan2(dir.Y, dir.X);
             Pitch = (float)Math.Asin(dir.Z);
 
             ClampRotation();
 
-            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
             ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
@@ -145,7 +145,7 @@ namespace GUI.Types.Renderer
 
             ClampRotation();
 
-            CameraViewMatrix = Matrix4.LookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
             ViewFrustum = new Frustum(CameraViewMatrix * ProjectionMatrix);
         }
 
@@ -220,13 +220,13 @@ namespace GUI.Types.Renderer
         // Prevent camera from going upside-down
         private void ClampRotation()
         {
-            if (Pitch >= MathHelper.PiOver2)
+            if (Pitch >= OpenTK.MathHelper.PiOver2)
             {
-                Pitch = MathHelper.PiOver2 - 0.001f;
+                Pitch = OpenTK.MathHelper.PiOver2 - 0.001f;
             }
-            else if (Pitch <= -MathHelper.PiOver2)
+            else if (Pitch <= -OpenTK.MathHelper.PiOver2)
             {
-                Pitch = -MathHelper.PiOver2 + 0.001f;
+                Pitch = -OpenTK.MathHelper.PiOver2 + 0.001f;
             }
         }
 

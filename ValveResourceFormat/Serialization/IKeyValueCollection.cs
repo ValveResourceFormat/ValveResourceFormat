@@ -59,6 +59,16 @@ namespace ValveResourceFormat.Serialization
             collection.GetFloatProperty("2"),
             collection.GetFloatProperty("3"));
 
+        public static Matrix4x4 ToMatrix4x4(this IKeyValueCollection[] array)
+        {
+            var column1 = array[0].ToVector4();
+            var column2 = array[1].ToVector4();
+            var column3 = array[2].ToVector4();
+            var column4 = array.Length > 3 ? array[3].ToVector4() : new Vector4(0, 0, 0, 1);
+
+            return new Matrix4x4(column1.X, column2.X, column3.X, column4.X, column1.Y, column2.Y, column3.Y, column4.Y, column1.Z, column2.Z, column3.Z, column4.Z, column1.W, column2.W, column3.W, column4.W);
+        }
+
         public static string Print(this IKeyValueCollection collection) => PrintHelper(collection, 0);
 
         private static string PrintHelper(IKeyValueCollection collection, int indent)

@@ -4,8 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using GUI.Utils;
-using OpenTK;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -89,9 +89,8 @@ namespace GUI.Types.Renderer
 
             renderers.Sort((a, b) =>
             {
-                var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared;
-                var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared;
-
+                var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
+                var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
                 return bLength.CompareTo(aLength);
             });
 
@@ -230,15 +229,15 @@ namespace GUI.Types.Renderer
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
 
-                var scaleMatrix = Matrix4.CreateScale(ParseCoordinates(scale));
+                var scaleMatrix = Matrix4x4.CreateScale(ParseCoordinates(scale));
 
                 var positionVector = ParseCoordinates(position);
-                var positionMatrix = Matrix4.CreateTranslation(positionVector);
+                var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
 
                 var pitchYawRoll = ParseCoordinates(angles);
-                var rollMatrix = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(pitchYawRoll.Z)); // Roll
-                var pitchMatrix = Matrix4.CreateRotationY(MathHelper.DegreesToRadians(pitchYawRoll.X)); // Pitch
-                var yawMatrix = Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(pitchYawRoll.Y)); // Yaw
+                var rollMatrix = Matrix4x4.CreateRotationX(OpenTK.MathHelper.DegreesToRadians(pitchYawRoll.Z)); // Roll
+                var pitchMatrix = Matrix4x4.CreateRotationY(OpenTK.MathHelper.DegreesToRadians(pitchYawRoll.X)); // Pitch
+                var yawMatrix = Matrix4x4.CreateRotationZ(OpenTK.MathHelper.DegreesToRadians(pitchYawRoll.Y)); // Yaw
 
                 var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
                 var transformationMatrix = scaleMatrix * rotationMatrix * positionMatrix;
@@ -292,10 +291,10 @@ namespace GUI.Types.Renderer
                 // Parse colour if present
                 if (colour.Length == 4)
                 {
-                    for (var i = 0; i < 4; i++)
-                    {
-                        objColor[i] = colour[i] / 255.0f;
-                    }
+                    objColor.X = colour[0] / 255.0f;
+                    objColor.Y = colour[1] / 255.0f;
+                    objColor.Z = colour[2] / 255.0f;
+                    objColor.W = colour[3] / 255.0f;
                 }
 
                 var newEntity = guiContext.LoadFileByAnyMeansNecessary(model + "_c");
@@ -325,15 +324,17 @@ namespace GUI.Types.Renderer
 
         private static Vector3 ParseCoordinates(string input)
         {
-            var vector = default(Vector3);
             var split = input.Split(' ');
 
-            for (var i = 0; i < split.Length; i++)
+            if (split.Length == 3)
             {
-                vector[i] = float.Parse(split[i], CultureInfo.InvariantCulture);
+                return new Vector3(
+                    float.Parse(split[0], CultureInfo.InvariantCulture),
+                    float.Parse(split[1], CultureInfo.InvariantCulture),
+                    float.Parse(split[2], CultureInfo.InvariantCulture));
             }
 
-            return vector;
+            return default(Vector3);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
