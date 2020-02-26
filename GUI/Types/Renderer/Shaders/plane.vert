@@ -9,9 +9,12 @@ out vec2 vPOSITIONOut;
 out vec2 vTexCoordOut;
 out vec3 vNormalOut;
 out vec3 vTangentOut;
+out vec3 vFragPosition;
 
 void main(void) {
-    gl_Position = vec4(vPOSITION, 1.0);
+    vec4 fragPosition = vec4(vPOSITION, 1.0);
+    gl_Position = fragPosition;
+    vFragPosition = fragPosition.xyz / fragPosition.w;
     vTexCoordOut = vTEXCOORD;
     vNormalOut = vNORMAL;
     vTangentOut = vTANGENT;
