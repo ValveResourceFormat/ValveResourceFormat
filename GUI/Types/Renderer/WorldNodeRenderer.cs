@@ -13,6 +13,8 @@ namespace GUI.Types.Renderer
 
         public AABB BoundingBox { get; private set; }
 
+        public IEnumerable<string> Layers { get; private set; }
+
         private readonly VrfGuiContext guiContext;
 
         private readonly List<IMeshRenderer> meshRenderers = new List<IMeshRenderer>();
@@ -46,6 +48,11 @@ namespace GUI.Types.Renderer
         {
             var data = WorldNode.GetData();
 
+            if (data.ContainsKey("m_layerNames"))
+            {
+                Layers = data.GetArray<string>("m_layerNames");
+            }
+
             var sceneObjectLayerIndices = data.ContainsKey("m_sceneObjectLayerIndices") ? data.GetIntegerArray("m_sceneObjectLayerIndices") : null;
             var sceneObjects = data.GetArray("m_sceneObjects");
             var i = 0;
@@ -53,17 +60,7 @@ namespace GUI.Types.Renderer
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
             foreach (var sceneObject in sceneObjects)
             {
-                if (sceneObjectLayerIndices != null)
-                {
-                    var layerIndex = sceneObjectLayerIndices[i];
-                    i++;
-
-                    // TODO: We want UI for this
-                    if (layerIndex == 2 || layerIndex == 4)
-                    {
-                        continue;
-                    }
-                }
+                var layerIndex = sceneObjectLayerIndices?[i++] ?? -1;
 
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
@@ -94,6 +91,7 @@ namespace GUI.Types.Renderer
                     var renderer = new ModelRenderer(new Model(newResource), guiContext, null, false);
                     renderer.SetMeshTransform(matrix);
                     renderer.SetTint(tintColor);
+                    renderer.SetLayerIndex(layerIndex);
                     meshRenderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
@@ -111,9 +109,12 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var renderer = new MeshRenderer(new Mesh(newResource), guiContext);
-                    renderer.Transform = matrix;
-                    renderer.Tint = tintColor;
+                    var renderer = new MeshRenderer(new Mesh(newResource), guiContext)
+                    {
+                        Transform = matrix,
+                        Tint = tintColor,
+                        LayerIndex = layerIndex,
+                    };
                     meshRenderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
@@ -121,6 +122,9 @@ namespace GUI.Types.Renderer
                 }
             }
         }
+
+        public IEnumerable<string> GetWorldLayerNames()
+            => Layers ?? Enumerable.Empty<string>();
 
         public IEnumerable<string> GetSupportedRenderModes()
             => meshRenderers.SelectMany(r => r.GetSupportedRenderModes()).Distinct();

@@ -23,6 +23,7 @@ namespace GUI.Types.Renderer
         private readonly GLViewerControl viewerControl;
 
         private ComboBox renderModeComboBox;
+        private CheckedListBox worldLayersComboBox;
 
         public GLWorldViewer()
         {
@@ -40,6 +41,14 @@ namespace GUI.Types.Renderer
                 foreach (var renderer in Renderers.OfType<IMeshRenderer>())
                 {
                     renderer.SetRenderMode(renderMode);
+                }
+            });
+
+            worldLayersComboBox = viewerControl.AddMultiSelection("World Layers", (worldLayers) =>
+            {
+                foreach (var renderer in Renderers.OfType<WorldRenderer>())
+                {
+                    // TODO
                 }
             });
         }
@@ -78,6 +87,16 @@ namespace GUI.Types.Renderer
 
                 SetRenderModes(supportedRenderModes);
             }
+
+            if (renderer is WorldRenderer)
+            {
+                // Update world layer names
+                var worldLayers = Renderers
+                    .OfType<WorldRenderer>()
+                    .SelectMany(r => r.GetWorldLayerNames());
+
+                SetWorldLayers(worldLayers);
+            }
         }
 
         private void SetRenderModes(IEnumerable<string> renderModes)
@@ -95,6 +114,21 @@ namespace GUI.Types.Renderer
                 renderModeComboBox.Items.Add("No render modes available");
                 renderModeComboBox.SelectedIndex = 0;
                 renderModeComboBox.Enabled = false;
+            }
+        }
+
+        private void SetWorldLayers(IEnumerable<string> worldLayers)
+        {
+            worldLayersComboBox.Items.Clear();
+            if (worldLayers.Any())
+            {
+                worldLayersComboBox.Enabled = true;
+                worldLayersComboBox.Items.AddRange(worldLayers.ToArray());
+                worldLayersComboBox.SelectedIndex = 0;
+            }
+            else
+            {
+                worldLayersComboBox.Enabled = false;
             }
         }
     }

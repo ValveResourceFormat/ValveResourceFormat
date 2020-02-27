@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -16,8 +17,8 @@ namespace GUI.Controls
     {
         public GLControl GLControl { get; }
 
-        private List<Label> labels = new List<Label>();
-        private List<GLViewerSelectionControl> selectionBoxes = new List<GLViewerSelectionControl>();
+        private readonly List<Label> labels = new List<Label>();
+        private readonly List<UserControl> selectionBoxes = new List<UserControl>();
 
         public class RenderEventArgs
         {
@@ -96,6 +97,29 @@ namespace GUI.Controls
             };
 
             return selectionControl.ComboBox;
+        }
+
+        public CheckedListBox AddMultiSelection(string name, Action<IEnumerable<string>> changeCallback)
+        {
+            var selectionControl = new GLViewerMultiSelectionControl(name);
+
+            Controls.Add(selectionControl);
+
+            selectionBoxes.Add(selectionControl);
+
+            RecalculatePositions();
+
+            selectionControl.CheckedListBox.ItemCheck += (_, __) =>
+            {
+                // ItemCheck is called before CheckedItems is updated
+                BeginInvoke((MethodInvoker)(() =>
+                {
+                    selectionControl.Refresh();
+                    changeCallback(selectionControl.CheckedListBox.CheckedItems.OfType<string>());
+                }));
+            };
+
+            return selectionControl.CheckedListBox;
         }
 
         public void RecalculatePositions()

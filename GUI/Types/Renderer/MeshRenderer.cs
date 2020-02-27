@@ -27,6 +27,7 @@ namespace GUI.Types.Renderer
 
         public Vector4 Tint { get; set; } = Vector4.One;
         public AABB BoundingBox { get; private set; }
+        public long LayerIndex { get; set; } = -1;
 
         private readonly VrfGuiContext guiContext;
         private AABB localBoundingBox;

@@ -337,6 +337,9 @@ namespace GUI.Types.Renderer
             return default(Vector3);
         }
 
+        public IEnumerable<string> GetWorldLayerNames()
+            => worldNodeRenderers.SelectMany(r => r.GetWorldLayerNames());
+
         public IEnumerable<string> GetSupportedRenderModes()
             => worldNodeRenderers.SelectMany(r => r.GetSupportedRenderModes())
             .Concat(modelRenderers.SelectMany(r => r.GetSupportedRenderModes()))

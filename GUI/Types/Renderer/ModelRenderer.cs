@@ -115,6 +115,14 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetLayerIndex(long index)
+        {
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.LayerIndex = index;
+            }
+        }
+
         private void SetSkin(string skin)
         {
             var materialGroups = Model.GetData().GetArray<IKeyValueCollection>("m_materialGroups");
