@@ -20,7 +20,6 @@ namespace GUI.Types.Renderer
         public MaterialLoader(VrfGuiContext guiContext)
         {
             VrfGuiContext = guiContext;
-            MaxTextureMaxAnisotropy = 0;
         }
 
         public RenderMaterial GetMaterial(string name)
