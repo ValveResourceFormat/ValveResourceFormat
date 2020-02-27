@@ -33,6 +33,8 @@ namespace GUI.Controls
 
         private readonly Stopwatch stopwatch;
 
+        private static bool hasCheckedOpenGL;
+
         public GLViewerControl()
         {
             InitializeComponent();
@@ -187,10 +189,6 @@ namespace GUI.Controls
         {
             GLControl.MakeCurrent();
 
-            Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));
-            Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
-            Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
-
             CheckOpenGL();
 
             stopwatch.Start();
@@ -248,6 +246,17 @@ namespace GUI.Controls
 
         private void CheckOpenGL()
         {
+            if (hasCheckedOpenGL)
+            {
+                return;
+            }
+
+            hasCheckedOpenGL = true;
+
+            Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));
+            Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
+            Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
+
             var extensions = new HashSet<string>();
             var count = GL.GetInteger(GetPName.NumExtensions);
             for (var i = 0; i < count; i++)

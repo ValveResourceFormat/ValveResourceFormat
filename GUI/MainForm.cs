@@ -61,6 +61,8 @@ namespace GUI
 
             mainTabs.TabPages.Add(new ConsoleTab().CreateTab());
 
+            Console.WriteLine($"VRF v{Application.ProductVersion}");
+
             searchForm = new SearchForm();
 
             Settings.Load();
