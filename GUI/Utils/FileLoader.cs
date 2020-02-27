@@ -1,3 +1,5 @@
+//#define DEBUG_FILE_LOAD
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -36,6 +38,10 @@ namespace GUI.Utils
 
             if (entry != null)
             {
+#if DEBUG_FILE_LOAD
+                Console.WriteLine($"Loaded \"{file}\" from current vpk");
+#endif
+
                 guiContext.CurrentPackage.ReadEntry(entry, out var output);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
@@ -47,6 +53,10 @@ namespace GUI.Utils
 
             if (entry != null)
             {
+#if DEBUG_FILE_LOAD
+                Console.WriteLine($"Loaded \"{file}\" from parent vpk");
+#endif
+
                 guiContext.ParentPackage.ReadEntry(entry, out var output);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
@@ -63,7 +73,7 @@ namespace GUI.Utils
 
                 if (!CachedPackages.TryGetValue(searchPath, out var package))
                 {
-                    Console.WriteLine("Preloading vpk {0}", searchPath);
+                    Console.WriteLine($"Preloading vpk \"{searchPath}\"");
 
                     package = new Package();
                     package.Read(searchPath);
@@ -79,6 +89,10 @@ namespace GUI.Utils
 
                 if (entry != null)
                 {
+#if DEBUG_FILE_LOAD
+                    Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
+#endif
+
                     package.ReadEntry(entry, out var output);
                     resource.Read(new MemoryStream(output));
                     CachedResources[file] = resource;
@@ -116,6 +130,10 @@ namespace GUI.Utils
 
                 if (File.Exists(path))
                 {
+#if DEBUG_FILE_LOAD
+                    Console.WriteLine($"Loaded \"{file}\" from disk: \"{path}\"");
+#endif
+
                     return path;
                 }
             }
