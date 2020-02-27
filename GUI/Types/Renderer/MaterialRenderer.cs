@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
         public MaterialRenderer(RenderMaterial renderMaterial, VrfGuiContext vrfGuiContext)
         {
             material = renderMaterial;
-            shader = vrfGuiContext.ShaderLoader.LoadPlaneShader(material.Material.ShaderName);
+            shader = vrfGuiContext.ShaderLoader.LoadPlaneShader(material.Material.ShaderName, material.Material.GetShaderArguments());
             quadVao = SetupQuadBuffer();
         }
 
@@ -87,6 +87,14 @@ namespace GUI.Types.Renderer
             {
                 GL.Uniform3(uniformLocation, Vector3.One);
             }
+
+            var identity = Matrix4.Identity;
+
+            uniformLocation = shader.GetUniformLocation("projection");
+            GL.UniformMatrix4(uniformLocation, false, ref identity);
+
+            uniformLocation = shader.GetUniformLocation("modelview");
+            GL.UniformMatrix4(uniformLocation, false, ref identity);
 
             material.Render(shader);
 

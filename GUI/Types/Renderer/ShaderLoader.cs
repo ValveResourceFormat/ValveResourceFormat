@@ -146,7 +146,7 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        public Shader LoadPlaneShader(string shaderName)
+        public Shader LoadPlaneShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
 
@@ -187,10 +187,7 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, new Dictionary<string, bool>
-                {
-                    { "renderMode_FullBright", true },
-                }));
+                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, arguments));
             }
 
             GL.CompileShader(fragmentShader);

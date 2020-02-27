@@ -570,29 +570,17 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.Particle:
-                        var glControl = new GLRenderControl();
-                        glControl.Load += (_, __) =>
+                        var viewerControl = new GLParticleViewer(vrfGuiContext);
+                        viewerControl.Load += (_, __) =>
                         {
-                            glControl.Camera.SetViewportSize(glControl.Control.Width, glControl.Control.Height);
-                            glControl.Camera.SetLocation(new Vector3(200));
-                            glControl.Camera.LookAt(new Vector3(0));
-
                             var particleSystem = new ParticleSystem(resource);
-                            var particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
                             var particleRenderer = new ParticleRenderer(particleSystem, vrfGuiContext);
 
-                            glControl.Paint += (sender, args) =>
-                            {
-                                particleGrid.Render(args.Camera, RenderPass.Both);
-
-                                // Updating FPS-coupled dynamic step
-                                particleRenderer.Update(args.FrameTime);
-                                particleRenderer.Render(args.Camera, RenderPass.Both);
-                            };
+                            viewerControl.AddRenderer(particleRenderer);
                         };
 
                         var particleRendererTab = new TabPage("PARTICLE");
-                        particleRendererTab.Controls.Add(glControl.Control);
+                        particleRendererTab.Controls.Add(viewerControl.Control);
                         resTabs.TabPages.Add(particleRendererTab);
                         break;
                     case ResourceType.Sound:
@@ -618,7 +606,7 @@ namespace GUI
 
                         break;
                     case ResourceType.World:
-                        var glWorldControl = new GLModelViewerControl();
+                        var glWorldControl = new GLWorldViewer();
 
                         glWorldControl.Load += (_, __) =>
                         {
@@ -637,7 +625,7 @@ namespace GUI
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
                     case ResourceType.WorldNode:
-                        var glWorldNodeControl = new GLModelViewerControl();
+                        var glWorldNodeControl = new GLWorldViewer();
 
                         glWorldNodeControl.Load += (_, __) =>
                         {
@@ -653,15 +641,12 @@ namespace GUI
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
                     case ResourceType.Model:
-                        var glModelControl = new GLModelViewerControl();
+                        var glModelControl = new GLModelViewer(vrfGuiContext);
 
                         glModelControl.Load += (_, __) =>
                         {
                             var model = new Model(resource);
                             var modelRenderer = new ModelRenderer(model, vrfGuiContext);
-
-                            var particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
-                            glModelControl.AddRenderer(particleGrid);
 
                             glModelControl.AddRenderer(modelRenderer);
 
@@ -679,7 +664,7 @@ namespace GUI
                             break;
                         }
 
-                        glModelControl = new GLModelViewerControl();
+                        glModelControl = new GLModelViewer(vrfGuiContext);
                         glModelControl.Load += (_, __) =>
                         {
                             var mesh = new Mesh(resource);
@@ -697,20 +682,17 @@ namespace GUI
                         resTabs.TabPages.Add(meshRendererTab);
                         break;
                     case ResourceType.Material:
-                        var glMaterialControl = new GLRenderControl();
-                        glMaterialControl.Load += (_, __) =>
+                        var materialViewerControl = new GLMaterialViewer();
+                        materialViewerControl.Load += (_, __) =>
                         {
                             var material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
                             var materialRenderer = new MaterialRenderer(material, vrfGuiContext);
 
-                            glMaterialControl.Paint += (sender, e) =>
-                            {
-                                materialRenderer.Render(e.Camera, RenderPass.Both);
-                            };
+                            materialViewerControl.AddRenderer(materialRenderer);
                         };
 
                         var materialRendererTab = new TabPage("MATERIAL");
-                        materialRendererTab.Controls.Add(glMaterialControl.Control);
+                        materialRendererTab.Controls.Add(materialViewerControl.Control);
                         resTabs.TabPages.Add(materialRendererTab);
                         break;
                 }

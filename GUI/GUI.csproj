@@ -65,6 +65,12 @@
     <Compile Include="Controls\GLViewerControl.Designer.cs">
       <DependentUpon>GLViewerControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\GLViewerSelectionControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\GLViewerSelectionControl.Designer.cs">
+      <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
     <Compile Include="Controls\TreeViewFileSorter.cs" />
     <Compile Include="Controls\TreeViewWithSearchResults.cs">
@@ -125,8 +131,10 @@
     <Compile Include="Types\ParticleRenderer\ParticleBag.cs" />
     <Compile Include="Types\Renderer\AABB.cs" />
     <Compile Include="Types\Renderer\Frustum.cs" />
-    <Compile Include="Types\Renderer\GLModelViewerControl.cs" />
-    <Compile Include="Types\Renderer\GLRenderControl.cs" />
+    <Compile Include="Types\Renderer\GLMaterialViewer.cs" />
+    <Compile Include="Types\Renderer\GLWorldViewer.cs" />
+    <Compile Include="Types\Renderer\GLParticleViewer.cs" />
+    <Compile Include="Types\Renderer\GLModelViewer.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\InitialVelocityNoise.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\PositionOffset.cs" />
     <Compile Include="Types\ParticleRenderer\Initializers\RandomAlpha.cs" />
@@ -190,6 +198,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\GLViewerControl.resx">
       <DependentUpon>GLViewerControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GLViewerSelectionControl.resx">
+      <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\TreeViewWithSearchResults.resx">
       <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>
