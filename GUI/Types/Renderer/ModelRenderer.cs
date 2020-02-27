@@ -86,6 +86,9 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public List<MeshRenderer> GetMeshRenderers()
+            => meshRenderers;
+
         public IEnumerable<string> GetSupportedRenderModes()
             => meshRenderers.SelectMany(renderer => renderer.GetSupportedRenderModes()).Distinct();
 

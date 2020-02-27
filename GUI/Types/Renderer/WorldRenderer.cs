@@ -357,5 +357,13 @@ namespace GUI.Types.Renderer
                 renderer.SetRenderMode(renderMode);
             }
         }
+
+        public void SetWorldLayers(IEnumerable<string> worldLayers)
+        {
+            foreach (var renderer in worldNodeRenderers)
+            {
+                renderer.SetWorldLayers(worldLayers);
+            }
+        }
     }
 }

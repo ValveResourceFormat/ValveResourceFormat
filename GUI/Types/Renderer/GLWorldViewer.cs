@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
             {
                 foreach (var renderer in Renderers.OfType<WorldRenderer>())
                 {
-                    // TODO
+                    renderer.SetWorldLayers(worldLayers);
                 }
             });
         }

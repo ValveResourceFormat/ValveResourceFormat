@@ -13,13 +13,13 @@ namespace GUI.Types.Renderer
 
         public AABB BoundingBox { get; private set; }
 
-        public IEnumerable<string> Layers { get; private set; }
-
         private readonly VrfGuiContext guiContext;
 
-        private readonly List<IMeshRenderer> meshRenderers = new List<IMeshRenderer>();
+        private readonly List<IMeshRenderer> renderers = new List<IMeshRenderer>();
 
         private readonly Octree<IRenderer> meshOctree;
+
+        private string[] worldLayers;
 
         public WorldNodeRenderer(WorldNode worldNode, VrfGuiContext vrfGuiContext, Octree<IRenderer> externalOctree)
         {
@@ -50,7 +50,7 @@ namespace GUI.Types.Renderer
 
             if (data.ContainsKey("m_layerNames"))
             {
-                Layers = data.GetArray<string>("m_layerNames");
+                worldLayers = data.GetArray<string>("m_layerNames");
             }
 
             var sceneObjectLayerIndices = data.ContainsKey("m_sceneObjectLayerIndices") ? data.GetIntegerArray("m_sceneObjectLayerIndices") : null;
@@ -92,7 +92,7 @@ namespace GUI.Types.Renderer
                     renderer.SetMeshTransform(matrix);
                     renderer.SetTint(tintColor);
                     renderer.SetLayerIndex(layerIndex);
-                    meshRenderers.Add(renderer);
+                    renderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
                     meshOctree.Insert(renderer, renderer.BoundingBox);
@@ -115,7 +115,7 @@ namespace GUI.Types.Renderer
                         Tint = tintColor,
                         LayerIndex = layerIndex,
                     };
-                    meshRenderers.Add(renderer);
+                    renderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
                     meshOctree.Insert(renderer, renderer.BoundingBox);
@@ -124,16 +124,41 @@ namespace GUI.Types.Renderer
         }
 
         public IEnumerable<string> GetWorldLayerNames()
-            => Layers ?? Enumerable.Empty<string>();
+            => worldLayers ?? Enumerable.Empty<string>();
 
         public IEnumerable<string> GetSupportedRenderModes()
-            => meshRenderers.SelectMany(r => r.GetSupportedRenderModes()).Distinct();
+            => renderers.SelectMany(r => r.GetSupportedRenderModes()).Distinct();
 
         public void SetRenderMode(string renderMode)
         {
-            foreach (var renderer in meshRenderers)
+            foreach (var renderer in renderers)
             {
                 renderer.SetRenderMode(renderMode);
+            }
+        }
+
+        public void SetWorldLayers(IEnumerable<string> enabledWorldLayers)
+        {
+            var enabledWorldLayerIndices = new Dictionary<long, bool>();
+
+            for (var i = 0; i < worldLayers.Length; i++)
+            {
+                enabledWorldLayerIndices.Add(i, enabledWorldLayers.Contains(worldLayers[i]));
+            }
+
+            var meshRenderers = renderers
+                .OfType<MeshRenderer>()
+                .Union(renderers.OfType<ModelRenderer>().SelectMany(m => m.GetMeshRenderers()));
+
+            // TODO: This clears out entities added by WorldRenderer
+            meshOctree.Clear();
+
+            foreach (var renderer in meshRenderers)
+            {
+                if (enabledWorldLayerIndices[renderer.LayerIndex])
+                {
+                    meshOctree.Insert(renderer, renderer.BoundingBox);
+                }
             }
         }
     }
