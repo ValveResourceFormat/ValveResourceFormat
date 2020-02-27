@@ -35,7 +35,10 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 Simplex1D((particleSystemState.Lifetime * noiseScale) + 101723),
                 Simplex1D((particleSystemState.Lifetime * noiseScale) + 555557));
 
-            particle.Velocity = outputMin.NextVector() + (r * (outputMax.NextVector() - outputMin.NextVector()));
+            var min = outputMin.NextVector();
+            var max = outputMax.NextVector();
+
+            particle.Velocity = min + (r * (max - min));
 
             return particle;
         }
