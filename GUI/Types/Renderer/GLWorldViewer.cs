@@ -96,6 +96,22 @@ namespace GUI.Types.Renderer
                     .SelectMany(r => r.GetWorldLayerNames());
 
                 SetWorldLayers(worldLayers);
+
+                if (worldLayers.Any())
+                {
+                    // Enable default layers
+                    var enabledWorldLayers = Renderers
+                        .OfType<WorldRenderer>()
+                        .SelectMany(r => r.GetDefaultWorldLayerNames());
+
+                    // TODO: Since the layers are combined, has to be first in each world node?
+                    worldLayersComboBox.SetItemCheckState(0, CheckState.Checked);
+
+                    foreach (var worldNode in enabledWorldLayers)
+                    {
+                        worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldNode), CheckState.Checked);
+                    }
+                }
             }
         }
 
@@ -124,7 +140,6 @@ namespace GUI.Types.Renderer
             {
                 worldLayersComboBox.Enabled = true;
                 worldLayersComboBox.Items.AddRange(worldLayers.ToArray());
-                worldLayersComboBox.SelectedIndex = 0;
             }
             else
             {

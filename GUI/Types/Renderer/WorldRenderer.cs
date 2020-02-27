@@ -7,7 +7,6 @@ using System.Linq;
 using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
@@ -19,6 +18,7 @@ namespace GUI.Types.Renderer
 
         private readonly VrfGuiContext guiContext;
 
+        private readonly HashSet<string> VisibleOnSpawnWorldLayers = new HashSet<string>();
         private readonly List<WorldNodeRenderer> worldNodeRenderers = new List<WorldNodeRenderer>();
         private readonly List<IRenderer> particleRenderers = new List<IRenderer>();
         private readonly List<ModelRenderer> modelRenderers = new List<ModelRenderer>();
@@ -163,13 +163,28 @@ namespace GUI.Types.Renderer
 
             foreach (var entity in worldEntities)
             {
+                var classname = entity.GetProperty<string>("classname");
+
+                if (classname == "info_world_layer")
+                {
+                    var spawnflags = entity.GetProperty<uint>("spawnflags");
+                    var layername = entity.GetProperty<string>("layername");
+
+                    // Visible on spawn flag
+                    if ((spawnflags & 1) == 1)
+                    {
+                        VisibleOnSpawnWorldLayers.Add(layername);
+                    }
+
+                    continue;
+                }
+
                 var scale = entity.GetProperty<string>("scales");
                 var position = entity.GetProperty<string>("origin");
                 var angles = entity.GetProperty<string>("angles");
                 var model = entity.GetProperty<string>("model");
                 var skin = entity.GetProperty<string>("skin");
                 var colour = entity.GetProperty<byte[]>("rendercolor");
-                var classname = entity.GetProperty<string>("classname");
                 var particle = entity.GetProperty<string>("effect_name");
                 var animation = entity.GetProperty<string>("defaultanim");
 
@@ -296,6 +311,29 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<string> GetWorldLayerNames()
             => worldNodeRenderers.SelectMany(r => r.GetWorldLayerNames());
+
+        public IEnumerable<string> GetDefaultWorldLayerNames()
+        {
+            // TODO: this will probably not work with multiple world nodes
+            var worldLayers = worldNodeRenderers.SelectMany(r => r.GetWorldLayerNames());
+
+            if (!worldLayers.Any())
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            var enabledWorldLayers = new List<string>();
+
+            foreach (var layer in worldLayers)
+            {
+                if (VisibleOnSpawnWorldLayers.Contains(layer))
+                {
+                    enabledWorldLayers.Add(layer);
+                }
+            }
+
+            return enabledWorldLayers;
+        }
 
         public IEnumerable<string> GetSupportedRenderModes()
             => worldNodeRenderers.SelectMany(r => r.GetSupportedRenderModes())
