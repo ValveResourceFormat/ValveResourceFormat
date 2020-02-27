@@ -6,22 +6,20 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class InitialVelocityNoise : IParticleInitializer
     {
-        private readonly Vector3 outputMin = Vector3.Zero;
-        private readonly Vector3 outputMax = Vector3.One;
+        private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);
+        private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);
         private readonly float noiseScale = 1f;
 
         public InitialVelocityNoise(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_vecOutputMin"))
             {
-                var vectorValues = keyValues.GetArray<double>("m_vecOutputMin");
-                outputMin = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                outputMin = keyValues.GetVectorProvider("m_vecOutputMin");
             }
 
             if (keyValues.ContainsKey("m_vecOutputMax"))
             {
-                var vectorValues = keyValues.GetArray<double>("m_vecOutputMax");
-                outputMax = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                outputMax = keyValues.GetVectorProvider("m_vecOutputMax");
             }
 
             if (keyValues.ContainsKey("m_flNoiseScale"))
@@ -37,7 +35,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 Simplex1D((particleSystemState.Lifetime * noiseScale) + 101723),
                 Simplex1D((particleSystemState.Lifetime * noiseScale) + 555557));
 
-            particle.Velocity = outputMin + (r * (outputMax - outputMin));
+            particle.Velocity = outputMin.NextVector() + (r * (outputMax.NextVector() - outputMin.NextVector()));
 
             return particle;
         }
