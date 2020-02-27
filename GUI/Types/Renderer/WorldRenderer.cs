@@ -147,10 +147,7 @@ namespace GUI.Types.Renderer
             foreach (var childEntityName in childEntities)
             {
                 // TODO: Should be controlled in UI with world layers
-                if (childEntityName.Contains("_destruction"))
-                {
-                    continue;
-                }
+                // TODO: Use lump's "m_name" to correlate to the world layer
 
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(childEntityName + "_c");
 
@@ -166,57 +163,17 @@ namespace GUI.Types.Renderer
 
             foreach (var entity in worldEntities)
             {
-                var scale = string.Empty;
-                var position = string.Empty;
-                var angles = string.Empty;
-                string model = null;
-                var skin = string.Empty;
-                var colour = new byte[0];
-                var classname = string.Empty;
-                string particle = null;
-                string animation = null;
+                var scale = entity.GetProperty<string>("scales");
+                var position = entity.GetProperty<string>("origin");
+                var angles = entity.GetProperty<string>("angles");
+                var model = entity.GetProperty<string>("model");
+                var skin = entity.GetProperty<string>("skin");
+                var colour = entity.GetProperty<byte[]>("rendercolor");
+                var classname = entity.GetProperty<string>("classname");
+                var particle = entity.GetProperty<string>("effect_name");
+                var animation = entity.GetProperty<string>("defaultanim");
 
-                foreach (var property in entity.Properties)
-                {
-                    if (property.Key == EntityLumpKeyLookup.Get("model"))
-                    {
-                        model = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("origin"))
-                    {
-                        position = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("angles"))
-                    {
-                        angles = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("scales"))
-                    {
-                        scale = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("skin"))
-                    {
-                        skin = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("rendercolor"))
-                    {
-                        colour = property.Data as byte[];
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("classname"))
-                    {
-                        classname = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("effect_name"))
-                    {
-                        particle = property.Data as string;
-                    }
-                    else if (property.Key == EntityLumpKeyLookup.Get("defaultanim"))
-                    {
-                        animation = property.Data as string;
-                    }
-                }
-
-                if (scale == string.Empty || position == string.Empty || angles == string.Empty)
+                if (scale == null || position == null || angles == null)
                 {
                     continue;
                 }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -11,14 +12,25 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public class Entity
         {
-            public IEnumerable<EntityProperty> Properties { get; set; }
+            public Dictionary<uint, EntityProperty> Properties { get; set; }
+
+            public T GetProperty<T>(string name)
+                => GetProperty<T>(EntityLumpKeyLookup.Get(name));
+
+            public T GetProperty<T>(uint hash)
+            {
+                if (Properties.ContainsKey(hash))
+                {
+                    return (T)Properties[hash].Data;
+                }
+
+                return default;
+            }
         }
 
         public class EntityProperty
         {
             public uint Type { get; set; }
-
-            public uint Key { get; set; }
 
             public object Data { get; set; }
         }
@@ -64,7 +76,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var valuesCount = dataReader.ReadUInt32();
                 var c = dataReader.ReadUInt32(); // always 0? (Its been seen to be 1, footer count?)
 
-                var properties = new List<EntityProperty>();
+                var properties = new Dictionary<uint, EntityProperty>();
                 while (dataStream.Position != dataStream.Length)
                 {
                     if (properties.Count == valuesCount)
@@ -79,60 +91,59 @@ namespace ValveResourceFormat.ResourceTypes
                     switch (type)
                     {
                         case 0x06:
-                            properties.Add(new EntityProperty
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
                                 Data = dataReader.ReadByte(),
                             }); //1
                             break;
                         case 0x01:
-                            properties.Add(new EntityProperty
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
                                 Data = dataReader.ReadSingle(),
                             }); //4
                             break;
-                        case 0x05:
-                        case 0x09:
-                        case 0x25: //TODO: figure out the difference
-                            properties.Add(new EntityProperty
+                        case 0x05: // TODO: one of these is "color255"
+                        case 0x09: //TODO: figure out the difference
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
                                 Data = dataReader.ReadBytes(4),
                             }); //4
                             break;
-                        case 0x1a:
-                            properties.Add(new EntityProperty
+                        case 0x25:
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
+                                Data = dataReader.ReadUInt32(),
+                            }); //4
+                            break;
+                        case 0x1a:
+                            properties.Add(miscType, new EntityProperty
+                            {
+                                Type = type,
                                 Data = dataReader.ReadUInt64(),
                             }); //8
                             break;
                         case 0x03:
-                            properties.Add(new EntityProperty
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
                                 Data = $"{{{dataReader.ReadSingle()}, {dataReader.ReadSingle()}, {dataReader.ReadSingle()}}}",
                             }); //12
                             break;
                         case 0x27:
-                            properties.Add(new EntityProperty
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
                                 Data = dataReader.ReadBytes(12),
                             }); //12
                             break;
                         case 0x1e:
-                            properties.Add(new EntityProperty
+                            properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Key = miscType,
                                 Data = dataReader.ReadNullTermString(Encoding.UTF8),
                             });
                             break;
@@ -160,7 +171,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var i = 0;
                 foreach (var property in entity.Properties)
                 {
-                    var value = property.Data;
+                    var value = property.Value.Data;
                     if (value.GetType() == typeof(byte[]))
                     {
                         var tmp = value as byte[];
@@ -203,7 +214,7 @@ namespace ValveResourceFormat.ResourceTypes
                             builder.AppendLine($"   {"Name",-20} | {value}\n");
                             break;
                         default:
-                            builder.AppendLine($"   {i,3}: {value} (type={property.Type}, key={property.Key})\n");
+                            builder.AppendLine($"   {i,3}: {value} (type={property.Value.Type}, key={property.Key})\n");
                             break;
                     }
 
