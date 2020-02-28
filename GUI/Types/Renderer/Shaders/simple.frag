@@ -11,6 +11,7 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define param_F_FULLBRIGHT 0
+#define param_F_TINT_MASK 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -63,9 +64,14 @@ void main()
 #endif
 
     //Calculate tint color
-    float tintStrength = texture2D(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;
     vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
+
+#if param_F_TINT_MASK == 1
+    float tintStrength = texture2D(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;
     vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
+#else
+    vec3 tintFactor = tintColor;
+#endif
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb * tintFactor, color.a);
