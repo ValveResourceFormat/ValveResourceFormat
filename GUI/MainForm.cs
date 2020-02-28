@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.ComponentModel.Design;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -1001,6 +1002,42 @@ namespace GUI
             }
 
             Clipboard.SetText(selectedNode.Name);
+        }
+
+        private void OpenWithDefaultAppToolStripMenuIte_Click(object sender, EventArgs e)
+        {
+            TreeNode selectedNode = null;
+            var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+
+            if (control is TreeView)
+            {
+                selectedNode = (control as TreeView).SelectedNode;
+            }
+            else if (control is ListView)
+            {
+                selectedNode = (control as ListView).SelectedItems[0].Tag as TreeNode;
+            }
+
+            if (selectedNode.Tag is PackageEntry file)
+            {
+                var package = selectedNode.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
+                package.Package.ReadEntry(file, out var output);
+
+                var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(package.Package.FileName)} - {file.GetFileName()}";
+                using (var stream = new FileStream(tempPath, FileMode.Create))
+                {
+                    stream.Write(output, 0, output.Length);
+                }
+
+                try
+                {
+                    Process.Start(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex.Message);
+                }
+            }
         }
 
         private void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
