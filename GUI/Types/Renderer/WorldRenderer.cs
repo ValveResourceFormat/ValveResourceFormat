@@ -261,7 +261,7 @@ namespace GUI.Types.Renderer
                 var objColor = Vector4.One;
 
                 // Parse colour if present
-                if (colour.Length == 4)
+                if (colour != default && colour.Length == 4)
                 {
                     objColor.X = colour[0] / 255.0f;
                     objColor.Y = colour[1] / 255.0f;
