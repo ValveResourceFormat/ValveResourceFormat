@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
         private Model Model { get; }
 
         public AABB BoundingBox { get; private set; }
+        public string LayerName { get; set; }
 
         private readonly VrfGuiContext guiContext;
 
@@ -115,14 +116,6 @@ namespace GUI.Types.Renderer
             foreach (var renderer in meshRenderers)
             {
                 renderer.Tint = tint;
-            }
-        }
-
-        public void SetLayerIndex(long index)
-        {
-            foreach (var renderer in meshRenderers)
-            {
-                renderer.LayerIndex = index;
             }
         }
 

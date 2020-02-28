@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
         private World World { get; }
 
         public AABB BoundingBox { get; private set; }
+        public string LayerName { get; set; }
 
         private readonly VrfGuiContext guiContext;
 
@@ -136,19 +137,16 @@ namespace GUI.Types.Renderer
                 }
 
                 var entityLump = new EntityLump(newResource);
-                LoadEntitiesFromLump(entityLump);
+                LoadEntitiesFromLump(entityLump, "world_layer_base"); // TODO
             }
         }
 
-        private void LoadEntitiesFromLump(EntityLump entityLump)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string layerName = null)
         {
             var childEntities = entityLump.GetChildEntityNames();
 
             foreach (var childEntityName in childEntities)
             {
-                // TODO: Should be controlled in UI with world layers
-                // TODO: Use lump's "m_name" to correlate to the world layer
-
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(childEntityName + "_c");
 
                 if (newResource == null)
@@ -156,7 +154,10 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                LoadEntitiesFromLump(new EntityLump(newResource));
+                var childLump = new EntityLump(newResource);
+                var childName = childLump.GetData().GetProperty<string>("m_name");
+
+                LoadEntitiesFromLump(childLump, childName);
             }
 
             var worldEntities = entityLump.GetEntities();
@@ -278,6 +279,7 @@ namespace GUI.Types.Renderer
 
                 var newModel = new Model(newEntity);
                 var modelRenderer = new ModelRenderer(newModel, guiContext, skin, false);
+                modelRenderer.LayerName = layerName;
                 modelRenderer.SetMeshTransform(transformationMatrix);
                 modelRenderer.SetTint(objColor);
 
@@ -353,11 +355,23 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void SetWorldLayers(IEnumerable<string> worldLayers)
+        public void SetWorldLayers(IEnumerable<string> enabledWorldLayers)
         {
             foreach (var renderer in worldNodeRenderers)
             {
-                renderer.SetWorldLayers(worldLayers);
+                renderer.SetWorldLayers(enabledWorldLayers);
+            }
+
+            foreach (var renderer in modelRenderers)
+            {
+                if (enabledWorldLayers.Contains(renderer.LayerName))
+                {
+                    staticOctree.Insert(renderer, renderer.BoundingBox);
+                }
+                else
+                {
+                    staticOctree.Remove(renderer, renderer.BoundingBox);
+                }
             }
         }
     }

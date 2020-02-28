@@ -13,6 +13,8 @@ namespace GUI.Types.Renderer
 
         public AABB BoundingBox { get; private set; }
 
+        public string LayerName { get; set; }
+
         private readonly VrfGuiContext guiContext;
 
         private readonly List<IMeshRenderer> renderers = new List<IMeshRenderer>();
@@ -91,7 +93,7 @@ namespace GUI.Types.Renderer
                     var renderer = new ModelRenderer(new Model(newResource), guiContext, null, false);
                     renderer.SetMeshTransform(matrix);
                     renderer.SetTint(tintColor);
-                    renderer.SetLayerIndex(layerIndex);
+                    renderer.LayerName = worldLayers[layerIndex];
                     renderers.Add(renderer);
 
                     BoundingBox = BoundingBox.IsZero ? renderer.BoundingBox : BoundingBox.Union(renderer.BoundingBox);
@@ -113,7 +115,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerIndex = layerIndex,
+                        LayerName = worldLayers[layerIndex],
                     };
                     renderers.Add(renderer);
 
@@ -139,25 +141,17 @@ namespace GUI.Types.Renderer
 
         public void SetWorldLayers(IEnumerable<string> enabledWorldLayers)
         {
-            var enabledWorldLayerIndices = new Dictionary<long, bool>();
-
-            for (var i = 0; i < worldLayers.Length; i++)
+            foreach (var renderer in renderers)
             {
-                enabledWorldLayerIndices.Add(i, enabledWorldLayers.Contains(worldLayers[i]));
-            }
-
-            var meshRenderers = renderers
-                .OfType<MeshRenderer>()
-                .Union(renderers.OfType<ModelRenderer>().SelectMany(m => m.GetMeshRenderers()));
-
-            // TODO: This clears out entities added by WorldRenderer
-            meshOctree.Clear();
-
-            foreach (var renderer in meshRenderers)
-            {
-                if (enabledWorldLayerIndices[renderer.LayerIndex])
+                if (enabledWorldLayers.Contains(renderer.LayerName))
                 {
                     meshOctree.Insert(renderer, renderer.BoundingBox);
+                }
+                else
+                {
+                    // TODO
+                    meshOctree.Remove(renderer, renderer.BoundingBox);
+                    meshOctree.Remove(renderer, renderer.BoundingBox);
                 }
             }
         }
