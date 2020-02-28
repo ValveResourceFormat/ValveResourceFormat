@@ -6,6 +6,8 @@ namespace GUI.Types.Renderer
     {
         AABB BoundingBox { get; }
 
+        string LayerName { get; }
+
         void Render(Camera camera, RenderPass renderPass);
 
         void Update(float frameTime);

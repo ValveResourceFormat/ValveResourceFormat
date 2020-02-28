@@ -225,6 +225,7 @@ namespace GUI.Types.Renderer
                         var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
 
                         var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, guiContext, origin);
+                        particleRenderer.LayerName = layerName;
                         particleOctree.Insert(particleRenderer, particleRenderer.BoundingBox);
                         particleRenderers.Add(particleRenderer);
                     }
@@ -357,6 +358,9 @@ namespace GUI.Types.Renderer
 
         public void SetWorldLayers(IEnumerable<string> enabledWorldLayers)
         {
+            // TODO: Not very ideal
+            staticOctree.Clear();
+
             foreach (var renderer in worldNodeRenderers)
             {
                 renderer.SetWorldLayers(enabledWorldLayers);
@@ -368,9 +372,15 @@ namespace GUI.Types.Renderer
                 {
                     staticOctree.Insert(renderer, renderer.BoundingBox);
                 }
-                else
+            }
+
+            particleOctree.Clear();
+
+            foreach (var particleRenderer in particleRenderers)
+            {
+                if (enabledWorldLayers.Contains(particleRenderer.LayerName))
                 {
-                    staticOctree.Remove(renderer, renderer.BoundingBox);
+                    particleOctree.Insert(particleRenderer, particleRenderer.BoundingBox);
                 }
             }
         }

@@ -147,12 +147,6 @@ namespace GUI.Types.Renderer
                 {
                     meshOctree.Insert(renderer, renderer.BoundingBox);
                 }
-                else
-                {
-                    // TODO
-                    meshOctree.Remove(renderer, renderer.BoundingBox);
-                    meshOctree.Remove(renderer, renderer.BoundingBox);
-                }
             }
         }
     }
