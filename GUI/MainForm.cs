@@ -222,6 +222,7 @@ namespace GUI
         private void LoadAssetTypes()
         {
             ImageList = new ImageList();
+            ImageList.ColorDepth = ColorDepth.Depth32Bit;
 
             var assembly = Assembly.GetExecutingAssembly();
             var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal));
@@ -309,6 +310,7 @@ namespace GUI
             Console.WriteLine($"Opening {fileName}");
 
             var tab = new TabPage(Path.GetFileName(fileName));
+            tab.ToolTipText = fileName;
             tab.Controls.Add(new LoadingFile());
 
             mainTabs.TabPages.Add(tab);
