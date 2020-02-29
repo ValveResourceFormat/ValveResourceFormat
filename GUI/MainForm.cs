@@ -604,7 +604,8 @@ namespace GUI
                             ScrollBars = ScrollBars.Vertical,
                             Multiline = true,
                             ReadOnly = true,
-                            Text = new EntityLump(resource).ToString(),
+                            Font = new Font(FontFamily.GenericMonospace, entitiesTab.Font.Size),
+                            Text = NormalizeLineEndings(new EntityLump(resource).ToString()),
                         };
                         entitiesTab.Controls.Add(text);
                         resTabs.TabPages.Add(entitiesTab);
