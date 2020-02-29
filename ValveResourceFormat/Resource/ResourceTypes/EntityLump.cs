@@ -161,14 +161,15 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
+            var knownKeys = new EntityLumpKnownKeys().Fields;
             var builder = new StringBuilder();
+            var unknownKeys = new Dictionary<uint, uint>();
 
             var index = 0;
             foreach (var entity in GetEntities())
             {
-                builder.AppendLine($"===={index}====\r\n");
+                builder.AppendLine($"===={index++}====");
 
-                var i = 0;
                 foreach (var property in entity.Properties)
                 {
                     var value = property.Value.Data;
@@ -178,51 +179,41 @@ namespace ValveResourceFormat.ResourceTypes
                         value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString()).ToArray())}]";
                     }
 
-                    switch (property.Key)
+                    string key;
+
+                    if (knownKeys.ContainsKey(property.Key))
                     {
-                        case 2433605045:
-                            builder.AppendLine($"   {"Ambient Effect",-20} | {value}\n");
-                            break;
-                        case 2777094460:
-                            builder.AppendLine($"   {"Start Disabled",-20} | {value}\n");
-                            break;
-                        case 3323665506:
-                            builder.AppendLine($"   {"Class Name",-20} | {value}\n");
-                            break;
-                        case 3827302934:
-                            builder.AppendLine($"   {"Position",-20} | {value}\n");
-                            break;
-                        case 3130579663:
-                            builder.AppendLine($"   {"Angles",-20} | {value}\n");
-                            break;
-                        case 432137260:
-                            builder.AppendLine($"   {"Scale",-20} | {value}\n");
-                            break;
-                        case 1226772763:
-                            builder.AppendLine($"   {"Disable Shadows",-20} | {value}\n");
-                            break;
-                        case 3368008710:
-                            builder.AppendLine($"   {"World Model",-20} | {value}\n");
-                            break;
-                        case 1677246174:
-                            builder.AppendLine($"   {"FX Colour",-20} | {value}\n");
-                            break;
-                        case 588463423:
-                            builder.AppendLine($"   {"Colour",-20} | {value}\n");
-                            break;
-                        case 1094168427:
-                            builder.AppendLine($"   {"Name",-20} | {value}\n");
-                            break;
-                        default:
-                            builder.AppendLine($"   {i,3}: {value} (type={property.Value.Type}, key={property.Key})\n");
-                            break;
+                        key = knownKeys[property.Key];
+                    }
+                    else
+                    {
+                        key = $"key={property.Key}";
+
+                        if (!unknownKeys.ContainsKey(property.Key))
+                        {
+                            unknownKeys.Add(property.Key, 1);
+                        }
+                        else
+                        {
+                            unknownKeys[property.Key]++;
+                        }
                     }
 
-                    ++i;
+                    builder.AppendLine($"{key,-30}: {value} (type {property.Value.Type})");
                 }
 
-                builder.AppendLine($"----{index}----\r\n");
-                ++index;
+                builder.AppendLine();
+            }
+
+            if (unknownKeys.Count > 0)
+            {
+                builder.AppendLine($"@@@@@ UNKNOWN KEY LOOKUPS:");
+                builder.AppendLine($"If you know what these are, add them to EntityLumpKnownKeys.cs");
+
+                foreach (var unknownKey in unknownKeys)
+                {
+                    builder.AppendLine($"key={unknownKey.Key} hits={unknownKey.Value}");
+                }
             }
 
             return builder.ToString();
