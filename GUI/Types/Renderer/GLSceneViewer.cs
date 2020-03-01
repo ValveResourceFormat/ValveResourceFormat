@@ -134,5 +134,11 @@ namespace GUI.Types.Renderer
                 renderModeComboBox.Enabled = false;
             }
         }
+
+        protected void SetEnabledLayers(HashSet<string> layers)
+        {
+            Scene.SetEnabledLayers(layers);
+            staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
+        }
     }
 }
