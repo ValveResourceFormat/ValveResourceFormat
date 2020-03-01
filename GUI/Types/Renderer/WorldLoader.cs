@@ -17,7 +17,7 @@ namespace GUI.Types.Renderer
         // Contains metadata that can't be captured by manipulating the scene itself. Returned from Load().
         public class LoadResult
         {
-            public HashSet<string> DefaultEnabledLayers => new HashSet<string>();
+            public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>();
             public Vector3 DefaultWorldCamera { get; set; }
         }
 

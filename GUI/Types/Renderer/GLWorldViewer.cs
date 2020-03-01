@@ -53,6 +53,8 @@ namespace GUI.Types.Renderer
                     .Distinct();
                 SetAvailableLayers(worldLayers);
 
+                Scene.SetEnabledLayers(result.DefaultEnabledLayers);
+
                 if (worldLayers.Any())
                 {
                     // TODO: Since the layers are combined, has to be first in each world node?
