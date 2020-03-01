@@ -1,294 +1,42 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{39C336BB-2ADD-4AB5-A3F0-E4E5E1ACA6A5}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>GUI</RootNamespace>
-    <AssemblyName>VRF</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RollForward>LatestMajor</RollForward>
+    <OutputType>WinExe</OutputType>
+    <Authors>Steam Database</Authors>
+    <Copyright>Steam Database</Copyright>
+    <Description>Source 2 resource viewer</Description>
+    <PackageProjectUrl>https://opensource.steamdb.info/ValveResourceFormat/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
     <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
-    <TargetFrameworkProfile />
-    <StartupObject>GUI.Program</StartupObject>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
-    <PlatformTarget>x64</PlatformTarget>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <StartupObject>GUI.Program</StartupObject>
+    <AssemblyName>VRF</AssemblyName>
+    <NeutralLanguage>en</NeutralLanguage>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <AllowedReferenceRelatedFileExtensions>.absolutelyNothing</AllowedReferenceRelatedFileExtensions>
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Design" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="1.10.0" />
     <PackageReference Include="NLayer" Version="1.13.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.1.0" />
     <PackageReference Include="OpenTK" Version="3.1.0" />
     <PackageReference Include="OpenTK.GLControl" Version="3.1.0" />
-    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.1.1" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.2-preview.45" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.164" PrivateAssets="all" />
     <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Controls\BetterTreeView.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\BetterTreeView.Designer.cs">
-      <DependentUpon>BetterTreeView.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Controls\GLViewerControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\GLViewerControl.Designer.cs">
-      <DependentUpon>GLViewerControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Controls\GLViewerMultiSelectionControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\GLViewerMultiSelectionControl.Designer.cs">
-      <DependentUpon>GLViewerMultiSelectionControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Controls\GLViewerCheckboxControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\GLViewerCheckboxControl.Designer.cs">
-      <DependentUpon>GLViewerCheckboxControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Controls\GLViewerSelectionControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\GLViewerSelectionControl.Designer.cs">
-      <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
-    <Compile Include="Controls\SavedCameraPositionsControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\SavedCameraPositionsControl.Designer.cs">
-      <DependentUpon>SavedCameraPositionsControl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Controls\TreeViewFileSorter.cs" />
-    <Compile Include="Controls\TreeViewWithSearchResults.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\TreeViewWithSearchResults.Designer.cs">
-      <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\AboutForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\AboutForm.Designer.cs">
-      <DependentUpon>AboutForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\ExtractProgressForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\ExtractProgressForm.Designer.cs">
-      <DependentUpon>ExtractProgressForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\LoadingFile.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Forms\LoadingFile.Designer.cs">
-      <DependentUpon>LoadingFile.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\SearchForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\SearchForm.Designer.cs">
-      <DependentUpon>SearchForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\SearchType.cs" />
-    <Compile Include="Forms\SearchTypeItem.cs" />
-    <Compile Include="Forms\SettingsForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\SettingsForm.Designer.cs">
-      <DependentUpon>SettingsForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\Texture.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Forms\Texture.Designer.cs">
-      <DependentUpon>Texture.cs</DependentUpon>
-    </Compile>
-    <Compile Include="MainForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="MainForm.Designer.cs">
-      <DependentUpon>MainForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Types\ParticleRenderer\Emitters\ContinuousEmitter.cs" />
-    <Compile Include="Types\ParticleRenderer\Emitters\InstantaneousEmitter.cs" />
-    <Compile Include="Types\ParticleRenderer\Emitters\IParticleEmitter.cs" />
-    <Compile Include="Types\ParticleRenderer\IVectorProvider.cs" />
-    <Compile Include="Types\ParticleRenderer\ParticleBag.cs" />
-    <Compile Include="Types\Renderer\AABB.cs" />
-    <Compile Include="Types\Renderer\Frustum.cs" />
-    <Compile Include="Types\Renderer\GLMaterialViewer.cs" />
-    <Compile Include="Types\Renderer\GLSceneViewer.cs" />
-    <Compile Include="Types\Renderer\GLWorldViewer.cs" />
-    <Compile Include="Types\Renderer\GLParticleViewer.cs" />
-    <Compile Include="Types\Renderer\GLModelViewer.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\InitialVelocityNoise.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\PositionOffset.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomAlpha.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomRotation.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomRotationSpeed.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomSequence.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomTrailLength.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RemapParticleCountToScalar.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\CreateWithinSphere.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\IParticleInitializer.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomColor.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomLifeTime.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RandomRadius.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\RingWave.cs" />
-    <Compile Include="Types\ParticleRenderer\INumberProvider.cs" />
-    <Compile Include="Types\ParticleRenderer\Initializers\OffsetVectorToVector.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\OscillateScalar.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\ColorInterpolate.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\FadeAndKill.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\FadeOutSimple.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\FadeInSimple.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\IParticleOperator.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\Decay.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\BasicMovement.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\InterpolateRadius.cs" />
-    <Compile Include="Types\ParticleRenderer\Operators\SpinUpdate.cs" />
-    <Compile Include="Types\ParticleRenderer\Particle.cs" />
-    <Compile Include="Types\ParticleRenderer\ParticleControllerFactory.cs" />
-    <Compile Include="Types\ParticleRenderer\ParticleFieldExtensions.cs" />
-    <Compile Include="Types\ParticleRenderer\ParticleGrid.cs" />
-    <Compile Include="Types\ParticleRenderer\ParticleRenderer.cs" />
-    <Compile Include="Types\ParticleRenderer\ParticleSystemRenderState.cs" />
-    <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
-    <Compile Include="Types\ParticleRenderer\Renderers\RenderTrails.cs" />
-    <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
-    <Compile Include="Types\Renderer\GPUMeshBufferCache.cs" />
-    <Compile Include="Types\Renderer\GPUMeshBuffers.cs" />
-    <Compile Include="Types\Renderer\IRenderer.cs" />
-    <Compile Include="Types\Renderer\MaterialRenderer.cs" />
-    <Compile Include="Types\Renderer\MeshBatchRenderer.cs" />
-    <Compile Include="Types\Renderer\RenderableMesh.cs" />
-    <Compile Include="Types\Renderer\Octree.cs" />
-    <Compile Include="Types\Renderer\OctreeDebugRenderer.cs" />
-    <Compile Include="Types\Renderer\ParticleSceneNode.cs" />
-    <Compile Include="Types\Renderer\RenderPass.cs" />
-    <Compile Include="Types\Renderer\QuadIndexBuffer.cs" />
-    <Compile Include="Types\Renderer\Scene.cs" />
-    <Compile Include="Types\Renderer\SceneNode.cs" />
-    <Compile Include="Types\Renderer\WorldLoader.cs" />
-    <Compile Include="Types\Renderer\WorldNodeLoader.cs" />
-    <Compile Include="Utils\VectorExtensions.cs" />
-    <Compile Include="Utils\VrfGuiContext.cs" />
-    <Compile Include="Types\Renderer\AnimationGroupLoader.cs" />
-    <Compile Include="Types\Renderer\MeshSceneNode.cs" />
-    <Compile Include="Types\Renderer\ModelSceneNode.cs" />
-    <Compile Include="Types\Renderer\Shader.cs" />
-    <Compile Include="Types\Renderer\MaterialLoader.cs" />
-    <Compile Include="Types\Renderer\ShaderLoader.cs" />
-    <Compile Include="Utils\ConsoleTab.cs" />
-    <Compile Include="Utils\FileLoader.cs" />
-    <Compile Include="Utils\FileExtensions.cs" />
-    <Compile Include="Controls\TreeViewFolder.cs" />
-    <Compile Include="Utils\Settings.cs" />
-    <EmbeddedResource Include="Controls\BetterTreeView.resx">
-      <DependentUpon>BetterTreeView.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\GLViewerControl.resx">
-      <DependentUpon>GLViewerControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\GLViewerMultiSelectionControl.resx">
-      <DependentUpon>GLViewerMultiSelectionControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\GLViewerCheckboxControl.resx">
-      <DependentUpon>GLViewerCheckboxControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\GLViewerSelectionControl.resx">
-      <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\SavedCameraPositionsControl.resx">
-      <DependentUpon>SavedCameraPositionsControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\TreeViewWithSearchResults.resx">
-      <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\AboutForm.resx">
-      <DependentUpon>AboutForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\ExtractProgressForm.resx">
-      <DependentUpon>ExtractProgressForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\LoadingFile.resx">
-      <DependentUpon>LoadingFile.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\SearchForm.resx">
-      <DependentUpon>SearchForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\SettingsForm.resx">
-      <DependentUpon>SettingsForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\Texture.resx">
-      <DependentUpon>Texture.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="MainForm.resx">
-      <DependentUpon>MainForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-      <DesignTime>True</DesignTime>
-    </Compile>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
     <EmbeddedResource Include="AssetTypes\*" />
     <EmbeddedResource Include="Types\Renderer\Shaders\*" />
-    <Compile Include="Types\Audio\AudioPlayer.cs" />
-    <Compile Include="Types\Renderer\Camera.cs" />
-    <Compile Include="Types\Renderer\RenderMaterial.cs" />
-    <Compile Include="Types\Renderer\DrawCall.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">
@@ -296,5 +44,4 @@
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
