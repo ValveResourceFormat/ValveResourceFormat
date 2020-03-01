@@ -11,14 +11,30 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class ModelRenderer : IMeshRenderer, IAnimationRenderer
+    internal class ModelSceneNode : SceneNode
     {
         private Model Model { get; }
+        public Vector4 Tint
+        {
+            get
+            {
+                if (meshRenderers.Count > 0)
+                {
+                    return meshRenderers[0].Tint;
+                }
 
-        public AABB BoundingBox { get; private set; }
+                return Vector4.One;
+            }
+            set
+            {
+                foreach (var renderer in meshRenderers)
+                {
+                    renderer.Tint = value;
+                }
+            }
+        }
+
         public string LayerName { get; set; }
-
-        private readonly VrfGuiContext guiContext;
 
         private readonly List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
         private readonly List<Animation> animations = new List<Animation>();
@@ -30,11 +46,10 @@ namespace GUI.Types.Renderer
 
         private float time;
 
-        public ModelRenderer(Model model, VrfGuiContext vrfGuiContext, string skin = null, bool loadAnimations = true)
+        public ModelSceneNode(Scene scene, Model model, string skin = null, bool loadAnimations = true)
+            : base(scene)
         {
             Model = model;
-
-            guiContext = vrfGuiContext;
 
             // Load required resources
             if (loadAnimations)
@@ -52,7 +67,7 @@ namespace GUI.Types.Renderer
             UpdateBoundingBox();
         }
 
-        public void Update(float frameTime)
+        public override void Update(Scene.UpdateContext context)
         {
             if (activeAnimation == null)
             {
@@ -70,7 +85,7 @@ namespace GUI.Types.Renderer
                 animationMatrices[(i * 16) + 15] = 1.0f;
             }
 
-            time += frameTime;
+            time += context.Timestep;
             animationMatrices = activeAnimation.GetAnimationMatricesAsArray(time, skeleton);
 
             // Update animation texture
@@ -79,21 +94,18 @@ namespace GUI.Types.Renderer
             GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
-        public void Render(Camera camera, RenderPass renderPass)
+        public override void Render(Scene.RenderContext context)
         {
             foreach (var meshRenderer in meshRenderers)
             {
-                meshRenderer.Render(camera, renderPass);
+                meshRenderer.Render(context.Camera, Transform, context.RenderPass);
             }
         }
 
-        public List<MeshRenderer> GetMeshRenderers()
-            => meshRenderers;
-
-        public IEnumerable<string> GetSupportedRenderModes()
+        public override IEnumerable<string> GetSupportedRenderModes()
             => meshRenderers.SelectMany(renderer => renderer.GetSupportedRenderModes()).Distinct();
 
-        public void SetRenderMode(string renderMode)
+        public override void SetRenderMode(string renderMode)
         {
             foreach (var renderer in meshRenderers)
             {
@@ -101,22 +113,13 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void SetMeshTransform(Matrix4x4 matrix)
+        public override IEnumerable<string> GetSupportedLayers()
         {
-            foreach (var renderer in meshRenderers)
-            {
-                renderer.Transform = matrix;
-            }
-
-            UpdateBoundingBox();
+            return new string[0];
         }
 
-        public void SetTint(Vector4 tint)
+        public override void SetEnabledLayers(IEnumerable<string> layers)
         {
-            foreach (var renderer in meshRenderers)
-            {
-                renderer.Tint = tint;
-            }
         }
 
         private void SetSkin(string skin)
@@ -153,14 +156,14 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in Model.GetEmbeddedMeshes())
             {
-                meshRenderers.Add(new MeshRenderer(embeddedMesh, guiContext, skinMaterials));
+                meshRenderers.Add(new MeshRenderer(embeddedMesh, Scene.GuiContext, skinMaterials));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
             var referredMeshesAndLoDs = Model.GetReferenceMeshNamesAndLoD();
             foreach (var refMesh in referredMeshesAndLoDs.Where(m => (m.LoDMask & 1) != 0))
             {
-                var newResource = guiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
+                var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
                 if (newResource == null)
                 {
                     continue;
@@ -172,7 +175,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new MeshRenderer(new Mesh(newResource), guiContext, skinMaterials));
+                meshRenderers.Add(new MeshRenderer(new Mesh(newResource), Scene.GuiContext, skinMaterials));
             }
         }
 
@@ -214,8 +217,8 @@ namespace GUI.Types.Renderer
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
             {
-                var animGroup = guiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
-                animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, guiContext));
+                var animGroup = Scene.GuiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
+                animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, Scene.GuiContext));
             }
 
             // Get embedded animations
@@ -249,8 +252,8 @@ namespace GUI.Types.Renderer
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
             {
-                var animGroup = guiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
-                var foundAnimations = AnimationGroupLoader.TryLoadSingleAnimationFileFromGroup(animGroup, animationName, guiContext);
+                var animGroup = Scene.GuiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
+                var foundAnimations = AnimationGroupLoader.TryLoadSingleAnimationFileFromGroup(animGroup, animationName, Scene.GuiContext);
                 if (foundAnimations != default)
                 {
                     animations.AddRange(foundAnimations);
@@ -277,10 +280,9 @@ namespace GUI.Types.Renderer
         private void UpdateBoundingBox()
         {
             bool first = true;
-
             foreach (var mesh in meshRenderers)
             {
-                BoundingBox = first ? mesh.BoundingBox : BoundingBox.Union(mesh.BoundingBox);
+                LocalBoundingBox = first ? mesh.BoundingBox : BoundingBox.Union(mesh.BoundingBox);
                 first = false;
             }
         }

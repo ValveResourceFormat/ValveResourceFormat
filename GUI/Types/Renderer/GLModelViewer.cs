@@ -6,130 +6,71 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
+using ValveResourceFormat.ResourceTypes;
 using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
     /// <summary>
     /// GL Render control with model controls (render mode, animation panels).
-    /// Renders a list of IMeshRenderers.
     /// </summary>
-    internal class GLModelViewer
+    internal class GLModelViewer : GLSceneViewer
     {
-        private ICollection<IRenderer> Renderers { get; } = new HashSet<IRenderer>();
-
-        public event EventHandler Load;
-
-        public Control Control => viewerControl;
-
-        private readonly GLViewerControl viewerControl;
-        private readonly VrfGuiContext vrfGuiContext;
-
-        private ParticleGrid grid;
-
+        private readonly Model model;
+        private readonly Mesh mesh;
         private Label drawCallsLabel;
         private ComboBox animationComboBox;
-        private ComboBox renderModeComboBox;
+        private ModelSceneNode modelSceneNode;
+        private MeshSceneNode meshSceneNode;
 
-        public GLModelViewer(VrfGuiContext guiContext)
+        public GLModelViewer(VrfGuiContext guiContext, Model model)
+            : base(guiContext)
         {
-            vrfGuiContext = guiContext;
-
-            viewerControl = new GLViewerControl();
-
-            InitializeControl();
-
-            viewerControl.GLLoad += OnLoad;
+            this.model = model;
         }
 
-        private void InitializeControl()
+        public GLModelViewer(VrfGuiContext guiContext, Mesh mesh)
+           : base(guiContext)
         {
-            drawCallsLabel = viewerControl.AddLabel("Drawcalls: 0");
+            this.mesh = mesh;
+        }
 
-            renderModeComboBox = viewerControl.AddSelection("Render Mode", (renderMode, _) =>
-            {
-                foreach (var renderer in Renderers.OfType<IMeshRenderer>())
-                {
-                    renderer.SetRenderMode(renderMode);
-                }
-            });
+        protected override void InitializeControl()
+        {
+            drawCallsLabel = ViewerControl.AddLabel("Drawcalls: 0");
 
-            animationComboBox = viewerControl.AddSelection("Animation", (animation, _) =>
+            AddRenderModeSelectionControl();
+
+            animationComboBox = ViewerControl.AddSelection("Animation", (animation, _) =>
             {
-                foreach (var renderer in Renderers.OfType<IAnimationRenderer>())
+                if (modelSceneNode != null)
                 {
-                    renderer.SetAnimation(animation);
+                    modelSceneNode.SetAnimation(animation);
                 }
             });
         }
 
-        private void OnLoad(object sender, EventArgs e)
+        protected override void LoadScene()
         {
-            grid = new ParticleGrid(20, 5, vrfGuiContext);
-
-            viewerControl.Camera.SetViewportSize(viewerControl.GLControl.Width, viewerControl.GLControl.Height);
-            viewerControl.Camera.SetLocation(new Vector3(200));
-            viewerControl.Camera.LookAt(new Vector3(0));
-
-            Load?.Invoke(this, e);
-
-            viewerControl.GLPaint += OnPaint;
-        }
-
-        private void OnPaint(object sender, RenderEventArgs e)
-        {
-            grid.Render(e.Camera, RenderPass.Both);
-
-            foreach (var renderer in Renderers)
+            if (model != null)
             {
-                renderer.Update(e.FrameTime);
-                renderer.Render(e.Camera, RenderPass.Both);
-            }
-        }
-
-        public void AddRenderer(IRenderer renderer)
-        {
-            Renderers.Add(renderer);
-
-            if (renderer is IMeshRenderer)
-            {
-                // Update supported render modes
-                var supportedRenderModes = Renderers
-                    .OfType<IMeshRenderer>()
-                    .SelectMany(r => r.GetSupportedRenderModes())
-                    .Distinct();
-
-                SetRenderModes(supportedRenderModes);
-
-                // Update supported animations
-                var supportedAnimations = Renderers
-                    .OfType<IAnimationRenderer>()
-                    .SelectMany(r => r.GetSupportedAnimationNames())
-                    .Distinct();
-
-                SetAnimations(supportedAnimations);
-            }
-        }
-
-        private void SetRenderModes(IEnumerable<string> renderModes)
-        {
-            renderModeComboBox.Items.Clear();
-            if (renderModes.Any())
-            {
-                renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.Add("Default render mode");
-                renderModeComboBox.Items.AddRange(renderModes.ToArray());
-                renderModeComboBox.SelectedIndex = 0;
+                modelSceneNode = new ModelSceneNode(Scene, model, null, false);
+                SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
+                Scene.Add(modelSceneNode, false);
             }
             else
             {
-                renderModeComboBox.Items.Add("No render modes available");
-                renderModeComboBox.SelectedIndex = 0;
-                renderModeComboBox.Enabled = false;
+                SetAvailableAnimations(Enumerable.Empty<string>());
+            }
+
+            if (mesh != null)
+            {
+                meshSceneNode = new MeshSceneNode(Scene, mesh);
+                Scene.Add(meshSceneNode, false);
             }
         }
 
-        private void SetAnimations(IEnumerable<string> animations)
+        private void SetAvailableAnimations(IEnumerable<string> animations)
         {
             animationComboBox.Items.Clear();
             if (animations.Any())
@@ -140,7 +81,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                animationComboBox.Items.Add("No animations available");
+                animationComboBox.Items.Add("(no animations available)");
                 animationComboBox.SelectedIndex = 0;
                 animationComboBox.Enabled = false;
             }

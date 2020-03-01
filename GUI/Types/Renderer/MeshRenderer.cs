@@ -11,41 +11,24 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshRenderer : IMeshRenderer
+    internal class MeshRenderer
     {
-        private Mesh Mesh { get; }
-
-        public Matrix4x4 Transform
-        {
-            get => meshTransform;
-            set
-            {
-                meshTransform = value;
-                BoundingBox = localBoundingBox.Transform(Transform);
-            }
-        }
-
+        public Mesh Mesh { get; }
+        public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
-        public AABB BoundingBox { get; private set; }
-        public string LayerName { get; set; }
 
         private readonly VrfGuiContext guiContext;
-        private AABB localBoundingBox;
-        private Matrix4x4 meshTransform = Matrix4x4.Identity;
-
         private List<DrawCall> drawCallsOpaque = new List<DrawCall>();
         private List<DrawCall> drawCallsBlended = new List<DrawCall>();
 
         private int? animationTexture;
         private int boneCount;
 
-        public MeshRenderer(Mesh mesh, VrfGuiContext vrfGuiContext, Dictionary<string, string> skinMaterials = null)
+        public MeshRenderer(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {
+            this.guiContext = guiContext;
             Mesh = mesh;
-            guiContext = vrfGuiContext;
-
-            localBoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
-            BoundingBox = localBoundingBox.Transform(Transform);
+            BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
 
             SetupDrawCalls(skinMaterials);
         }
@@ -82,31 +65,21 @@ namespace GUI.Types.Renderer
             boneCount = numBones;
         }
 
-        public void Update(float frameTime)
+        public void Render(Camera camera, Matrix4x4 withTransform, RenderPass renderPass)
         {
-            // Nothing to do here
-        }
-
-        public void Render(Camera camera, RenderPass renderPass)
-        {
-            switch (renderPass)
+            if (renderPass == RenderPass.Both)
             {
-                case RenderPass.Both:
-                    Render(camera, true);
-                    Render(camera, false);
-                    break;
-                case RenderPass.Opaque: Render(camera, true); break;
-                case RenderPass.Translucent: Render(camera, false); break;
+                Render(camera, withTransform, RenderPass.Opaque);
+                Render(camera, withTransform, RenderPass.Translucent);
+                return;
             }
-        }
 
-        private void Render(Camera camera, bool opaque)
-        {
             GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
 
-            var drawCalls = opaque ? drawCallsOpaque : drawCallsBlended;
+            var drawCalls = (renderPass == RenderPass.Opaque) ? drawCallsOpaque : drawCallsBlended;
             var viewProjectionMatrix = camera.ViewProjectionMatrix.ToOpenTK();
+            var transform = withTransform.ToOpenTK();
 
             foreach (var call in drawCalls)
             {
@@ -148,7 +121,6 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                var transform = Transform.ToOpenTK();
                 uniformLocation = call.Shader.GetUniformLocation("transform");
                 GL.UniformMatrix4(uniformLocation, false, ref transform);
 

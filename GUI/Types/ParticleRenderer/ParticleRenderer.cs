@@ -26,6 +26,12 @@ namespace GUI.Types.ParticleRenderer
         public AABB BoundingBox { get; private set; }
         public string LayerName { get; set; }
 
+        public Vector3 Position
+        {
+            get => systemRenderState.GetControlPoint(0);
+            set => systemRenderState.SetControlPoint(0, value);
+        }
+
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
 

@@ -4,136 +4,91 @@ using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Utils;
+using ValveResourceFormat.ResourceTypes;
 using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
     /// <summary>
     /// GL Render control with world controls (render mode, camera selection).
-    /// Renders a list of IMeshRenderers.
     /// </summary>
-    internal class GLWorldViewer
+    internal class GLWorldViewer : GLSceneViewer
     {
-        private ICollection<IRenderer> Renderers { get; } = new HashSet<IRenderer>();
-
-        public event EventHandler Load;
-
-        public Control Control => viewerControl;
-
-        private readonly GLViewerControl viewerControl;
-
-        private ComboBox renderModeComboBox;
+        private readonly World world;
+        private readonly WorldNode worldNode;
         private CheckedListBox worldLayersComboBox;
 
-        public GLWorldViewer()
+        public GLWorldViewer(VrfGuiContext guiContext, World world)
+            : base(guiContext)
         {
-            viewerControl = new GLViewerControl();
-
-            InitializeControl();
-
-            viewerControl.GLLoad += OnLoad;
+            this.world = world;
         }
 
-        private void InitializeControl()
+        public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode)
+            : base(guiContext)
         {
-            renderModeComboBox = viewerControl.AddSelection("Render Mode", (renderMode, _) =>
-            {
-                foreach (var renderer in Renderers.OfType<IMeshRenderer>())
-                {
-                    renderer.SetRenderMode(renderMode);
-                }
-            });
+            this.worldNode = worldNode;
+        }
 
-            worldLayersComboBox = viewerControl.AddMultiSelection("World Layers", (worldLayers) =>
+        protected override void InitializeControl()
+        {
+            AddRenderModeSelectionControl();
+
+            worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", (worldLayers) =>
             {
-                foreach (var renderer in Renderers.OfType<WorldRenderer>())
+                foreach (var renderer in Scene.AllNodes)
                 {
-                    renderer.SetWorldLayers(worldLayers);
+                    renderer.SetEnabledLayers(worldLayers);
                 }
             });
         }
 
-        private void OnLoad(object sender, EventArgs e)
+        protected override void LoadScene()
         {
-            viewerControl.Camera.SetViewportSize(viewerControl.GLControl.Width, viewerControl.GLControl.Height);
-            viewerControl.Camera.SetLocation(new Vector3(200));
-            viewerControl.Camera.LookAt(new Vector3(0));
-
-            Load?.Invoke(this, e);
-
-            viewerControl.GLPaint += OnPaint;
-        }
-
-        private void OnPaint(object sender, RenderEventArgs e)
-        {
-            foreach (var renderer in Renderers)
+            if (world != null)
             {
-                renderer.Update(e.FrameTime);
-                renderer.Render(e.Camera, RenderPass.Both);
-            }
-        }
+                var loader = new WorldLoader(GuiContext, world);
+                var result = loader.Load(Scene);
 
-        public void AddRenderer(IRenderer renderer)
-        {
-            Renderers.Add(renderer);
-
-            if (renderer is IMeshRenderer)
-            {
-                // Update supported render modes
-                var supportedRenderModes = Renderers
-                    .OfType<IMeshRenderer>()
-                    .SelectMany(r => r.GetSupportedRenderModes())
+                var worldLayers = Scene.AllNodes
+                    .SelectMany(r => r.GetSupportedLayers())
                     .Distinct();
-
-                SetRenderModes(supportedRenderModes);
-            }
-
-            if (renderer is WorldRenderer)
-            {
-                // Update world layer names
-                var worldLayers = Renderers
-                    .OfType<WorldRenderer>()
-                    .SelectMany(r => r.GetWorldLayerNames());
-
-                SetWorldLayers(worldLayers);
+                SetAvailableLayers(worldLayers);
 
                 if (worldLayers.Any())
                 {
-                    // Enable default layers
-                    var enabledWorldLayers = Renderers
-                        .OfType<WorldRenderer>()
-                        .SelectMany(r => r.GetDefaultWorldLayerNames());
-
                     // TODO: Since the layers are combined, has to be first in each world node?
                     worldLayersComboBox.SetItemCheckState(0, CheckState.Checked);
 
-                    foreach (var worldNode in enabledWorldLayers)
+                    foreach (var worldNode in result.DefaultEnabledLayers)
                     {
                         worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldNode), CheckState.Checked);
                     }
                 }
+
+                if (result.DefaultWorldCamera.LengthSquared() != 0)
+                {
+                    ViewerControl.Camera.SetLocation(result.DefaultWorldCamera);
+                    ViewerControl.Camera.LookAt(Vector3.Zero);
+                }
             }
+
+            if (worldNode != null)
+            {
+                var loader = new WorldNodeLoader(GuiContext, worldNode);
+                loader.Load(Scene);
+
+                var worldLayers = Scene.AllNodes
+                    .SelectMany(r => r.GetSupportedLayers())
+                    .Distinct();
+                SetAvailableLayers(worldLayers);
+            }
+
+            BaseGridEnabled = false;
         }
 
-        private void SetRenderModes(IEnumerable<string> renderModes)
-        {
-            renderModeComboBox.Items.Clear();
-            if (renderModes.Any())
-            {
-                renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.Add("Default render mode");
-                renderModeComboBox.Items.AddRange(renderModes.ToArray());
-                renderModeComboBox.SelectedIndex = 0;
-            }
-            else
-            {
-                renderModeComboBox.Items.Add("No render modes available");
-                renderModeComboBox.SelectedIndex = 0;
-                renderModeComboBox.Enabled = false;
-            }
-        }
-
-        private void SetWorldLayers(IEnumerable<string> worldLayers)
+        private void SetAvailableLayers(IEnumerable<string> worldLayers)
         {
             worldLayersComboBox.Items.Clear();
             if (worldLayers.Any())

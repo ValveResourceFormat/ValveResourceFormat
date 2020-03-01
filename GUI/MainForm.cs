@@ -612,57 +612,23 @@ namespace GUI
 
                         break;
                     case ResourceType.World:
-                        var glWorldControl = new GLWorldViewer();
-
-                        glWorldControl.Load += (_, __) =>
-                        {
-                            var particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
-                            glWorldControl.AddRenderer(particleGrid);
-
-                            var world = new World(resource);
-                            var worldRenderer = new WorldRenderer(world, vrfGuiContext);
-                            glWorldControl.AddRenderer(worldRenderer);
-
-                            vrfGuiContext.ClearCache();
-                        };
-
                         var worldmeshTab = new TabPage("MAP");
-                        worldmeshTab.Controls.Add(glWorldControl.Control);
+                        worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, new World(resource)).ViewerControl);
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
+
                     case ResourceType.WorldNode:
-                        var glWorldNodeControl = new GLWorldViewer();
-
-                        glWorldNodeControl.Load += (_, __) =>
-                        {
-                            var worldNode = new WorldNode(resource);
-                            var worldNodeRenderer = new WorldNodeRenderer(worldNode, vrfGuiContext, null);
-                            glWorldNodeControl.AddRenderer(worldNodeRenderer);
-
-                            vrfGuiContext.ClearCache();
-                        };
-
                         var nodemeshTab = new TabPage("WORLD NODE");
-                        nodemeshTab.Controls.Add(glWorldNodeControl.Control);
+                        nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, new WorldNode(resource)).ViewerControl);
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
+
                     case ResourceType.Model:
-                        var glModelControl = new GLModelViewer(vrfGuiContext);
-
-                        glModelControl.Load += (_, __) =>
-                        {
-                            var model = new Model(resource);
-                            var modelRenderer = new ModelRenderer(model, vrfGuiContext);
-
-                            glModelControl.AddRenderer(modelRenderer);
-
-                            vrfGuiContext.ClearCache();
-                        };
-
                         var modelRendererTab = new TabPage("MODEL");
-                        modelRendererTab.Controls.Add(glModelControl.Control);
+                        modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Model(resource)).ViewerControl);
                         resTabs.TabPages.Add(modelRendererTab);
                         break;
+
                     case ResourceType.Mesh:
                         if (!resource.ContainsBlockType(BlockType.VBIB))
                         {
@@ -670,23 +636,13 @@ namespace GUI
                             break;
                         }
 
-                        glModelControl = new GLModelViewer(vrfGuiContext);
-                        glModelControl.Load += (_, __) =>
-                        {
-                            var mesh = new Mesh(resource);
-                            var meshRenderer = new MeshRenderer(mesh, vrfGuiContext);
-
-                            glModelControl.AddRenderer(meshRenderer);
-
-                            vrfGuiContext.ClearCache();
-
-                            Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
-                        };
+                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
 
                         var meshRendererTab = new TabPage("MESH");
-                        meshRendererTab.Controls.Add(glModelControl.Control);
+                        meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Mesh(resource)).ViewerControl);
                         resTabs.TabPages.Add(meshRendererTab);
                         break;
+
                     case ResourceType.Material:
                         var materialViewerControl = new GLMaterialViewer();
                         materialViewerControl.Load += (_, __) =>

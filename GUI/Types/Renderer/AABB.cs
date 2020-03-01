@@ -53,6 +53,11 @@ namespace GUI.Types.Renderer
             return new AABB(Vector3.Min(Min, other.Min), Vector3.Max(Max, other.Max));
         }
 
+        public AABB Translate(Vector3 offset)
+        {
+            return new AABB(Min + offset, Max + offset);
+        }
+
         // Note: Since we're dealing with AABBs here, the resulting AABB is likely to be bigger than the original if rotation
         // and whatnot is involved. This problem compounds with multiple transformations. Therefore, endeavour to premultiply matrices
         // and only use this at the last step.
