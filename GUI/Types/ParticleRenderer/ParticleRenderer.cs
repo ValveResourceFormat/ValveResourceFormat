@@ -29,11 +29,19 @@ namespace GUI.Types.ParticleRenderer
         public Vector3 Position
         {
             get => systemRenderState.GetControlPoint(0);
-            set => systemRenderState.SetControlPoint(0, value);
+            set
+            {
+                systemRenderState.SetControlPoint(0, value);
+                foreach (var child in childParticleRenderers)
+                {
+                    child.Position = value;
+                }
+            }
         }
 
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
+        private bool hasStarted = false;
 
         private ParticleBag particleBag;
         private int particlesEmitted = 0;
@@ -58,8 +66,6 @@ namespace GUI.Types.ParticleRenderer
             SetupRenderers(particleSystem.GetRenderers());
 
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
-
-            Start();
         }
 
         public void Start()
@@ -126,6 +132,12 @@ namespace GUI.Types.ParticleRenderer
 
         public void Update(float frameTime)
         {
+            if (!hasStarted)
+            {
+                Start();
+                hasStarted = true;
+            }
+
             systemRenderState.Lifetime += frameTime;
 
             foreach (var emitter in Emitters)

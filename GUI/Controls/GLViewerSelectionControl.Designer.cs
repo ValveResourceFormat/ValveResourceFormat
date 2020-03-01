@@ -43,11 +43,13 @@ namespace GUI.Controls
             // 
             // comboBox
             // 
+            this.comboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBox.FormattingEnabled = true;
             this.comboBox.Location = new System.Drawing.Point(3, 18);
             this.comboBox.Name = "comboBox";
-            this.comboBox.Size = new System.Drawing.Size(177, 21);
+            this.comboBox.Size = new System.Drawing.Size(174, 21);
             this.comboBox.TabIndex = 1;
             // 
             // GLViewerSelectionControl
@@ -56,8 +58,9 @@ namespace GUI.Controls
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.comboBox);
             this.Controls.Add(this.selectionNameLabel);
+            this.MinimumSize = new System.Drawing.Size(0, 41);
             this.Name = "GLViewerSelectionControl";
-            this.Size = new System.Drawing.Size(183, 41);
+            this.Size = new System.Drawing.Size(180, 41);
             this.ResumeLayout(false);
             this.PerformLayout();
 

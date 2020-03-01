@@ -1,4 +1,3 @@
-#if DEBUG_OCTREE
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -7,7 +6,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class OctreeDebugRenderer<T> : IRenderer
+    internal class OctreeDebugRenderer<T>
         where T : class
     {
         private readonly Shader shader;
@@ -134,19 +133,22 @@ namespace GUI.Types.Renderer
                 }
 
                 GL.Enable(EnableCap.Blend);
+                GL.Enable(EnableCap.DepthTest);
+                GL.DepthMask(false);
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 GL.UseProgram(shader.Program);
 
-                var projectionViewMatrix = Matrix4x4.Multiply(camera.CameraViewMatrix, camera.ProjectionMatrix).ToOpenTK();
+                var projectionViewMatrix = camera.ViewProjectionMatrix.ToOpenTK();
                 GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
 
                 GL.BindVertexArray(vaoHandle);
                 GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
                 GL.BindVertexArray(0);
                 GL.UseProgram(0);
+                GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);
+                GL.Disable(EnableCap.DepthTest);
             }
         }
     }
 }
-#endif

@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
                 SetAvailableLayers(worldLayers);
             }
 
-            BaseGridEnabled = false;
+            ShowBaseGrid = false;
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

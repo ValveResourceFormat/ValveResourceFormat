@@ -19,6 +19,7 @@ namespace GUI.Controls
 
         private readonly List<Label> labels = new List<Label>();
         private readonly List<UserControl> selectionBoxes = new List<UserControl>();
+        private readonly List<Control> otherControls = new List<Control>();
 
         public class RenderEventArgs
         {
@@ -72,6 +73,7 @@ namespace GUI.Controls
         {
             var label = new Label();
             label.Text = text;
+            label.AutoSize = true;
 
             Controls.Add(label);
 
@@ -82,12 +84,29 @@ namespace GUI.Controls
             return label;
         }
 
+        public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
+        {
+            var checkbox = new CheckBox();
+            checkbox.Text = name;
+            checkbox.Checked = defaultChecked;
+            checkbox.CheckedChanged += (_, __) =>
+            {
+                changeCallback(checkbox.Checked);
+            };
+
+            Controls.Add(checkbox);
+            otherControls.Add(checkbox);
+
+            RecalculatePositions();
+
+            return checkbox;
+        }
+
         public ComboBox AddSelection(string name, Action<string, int> changeCallback)
         {
             var selectionControl = new GLViewerSelectionControl(name);
 
             Controls.Add(selectionControl);
-
             selectionBoxes.Add(selectionControl);
 
             RecalculatePositions();
@@ -106,7 +125,6 @@ namespace GUI.Controls
             var selectionControl = new GLViewerMultiSelectionControl(name);
 
             Controls.Add(selectionControl);
-
             selectionBoxes.Add(selectionControl);
 
             RecalculatePositions();
@@ -139,6 +157,13 @@ namespace GUI.Controls
                 selection.Location = new Point(0, y);
                 y += selection.Height;
             }
+
+            foreach (var control in otherControls)
+            {
+                control.Location = new Point(0, y);
+                control.Width = glControlContainer.Location.X;
+                y += control.Height;
+            }
         }
 
         private void GLViewerControl_Paint(object sender, PaintEventArgs e)
@@ -151,6 +176,11 @@ namespace GUI.Controls
             foreach (var selectionBox in selectionBoxes)
             {
                 selectionBox.Refresh();
+            }
+
+            foreach (var control in otherControls)
+            {
+                control.Refresh();
             }
         }
 
@@ -235,6 +265,7 @@ namespace GUI.Controls
         private void HandleResize()
         {
             Camera.SetViewportSize(GLControl.Width, GLControl.Height);
+            RecalculatePositions();
         }
 
         private void OnGotFocus(object sender, EventArgs e)

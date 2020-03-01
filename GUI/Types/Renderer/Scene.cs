@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer
@@ -29,42 +30,50 @@ namespace GUI.Types.Renderer
 
         public Camera MainCamera { get; set; }
         public VrfGuiContext GuiContext { get; }
+        public Octree<SceneNode> StaticOctree { get; }
+        public Octree<SceneNode> DynamicOctree { get; }
 
-        public IEnumerable<SceneNode> AllNodes => sceneNodes;
+        public IEnumerable<SceneNode> AllNodes => Enumerable.Concat(staticNodes, dynamicNodes);
 
         private readonly HashSet<string> VisibleOnSpawnWorldLayers = new HashSet<string>();
 
-        private readonly List<SceneNode> sceneNodes = new List<SceneNode>();
-        private readonly Octree<SceneNode> staticOctree;
-        private readonly Octree<SceneNode> dynamicOctree;
+        private readonly List<SceneNode> staticNodes = new List<SceneNode>();
+        private readonly List<SceneNode> dynamicNodes = new List<SceneNode>();
 
         public Scene(VrfGuiContext context, float sizeHint = 32768)
         {
             GuiContext = context;
-            staticOctree = new Octree<SceneNode>(sizeHint);
-            dynamicOctree = new Octree<SceneNode>(sizeHint);
+            StaticOctree = new Octree<SceneNode>(sizeHint);
+            DynamicOctree = new Octree<SceneNode>(sizeHint);
         }
 
         public void Add(SceneNode node, bool dynamic)
         {
-            sceneNodes.Add(node);
-
             if (dynamic)
             {
-                dynamicOctree.Insert(node, node.BoundingBox);
+                dynamicNodes.Add(node);
+                DynamicOctree.Insert(node, node.BoundingBox);
             }
             else
             {
-                staticOctree.Insert(node, node.BoundingBox);
+                staticNodes.Add(node);
+                StaticOctree.Insert(node, node.BoundingBox);
             }
         }
 
         public void Update(float timestep)
         {
             var updateContext = new UpdateContext(timestep);
-            foreach (var node in sceneNodes)
+            foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
+            }
+
+            foreach (var node in dynamicNodes)
+            {
+                var oldBox = node.BoundingBox;
+                node.Update(updateContext);
+                DynamicOctree.Update(node, oldBox, node.BoundingBox);
             }
         }
 
@@ -75,8 +84,8 @@ namespace GUI.Types.Renderer
 
         public void RenderWithCamera(Camera camera)
         {
-            var allNodes = staticOctree.Query(camera.ViewFrustum);
-            allNodes.AddRange(dynamicOctree.Query(camera.ViewFrustum));
+            var allNodes = StaticOctree.Query(camera.ViewFrustum);
+            allNodes.AddRange(DynamicOctree.Query(camera.ViewFrustum));
 
             allNodes.Sort((a, b) =>
             {

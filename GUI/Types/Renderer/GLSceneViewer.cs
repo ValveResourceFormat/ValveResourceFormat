@@ -16,10 +16,14 @@ namespace GUI.Types.Renderer
         public GLViewerControl ViewerControl { get; }
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
-        public bool BaseGridEnabled { get; set; } = true;
+        public bool ShowBaseGrid { get; set; } = true;
+        private bool showStaticOctree = false;
+        private bool showDynamicOctree = false;
 
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
+        private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
+        private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
 
         public GLSceneViewer(VrfGuiContext guiContext)
         {
@@ -27,6 +31,8 @@ namespace GUI.Types.Renderer
             ViewerControl = new GLViewerControl();
 
             InitializeControl();
+            ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
+            ViewerControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
 
             ViewerControl.GLLoad += OnLoad;
         }
@@ -44,6 +50,9 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.LookAt(new Vector3(0));
 
             LoadScene();
+
+            staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
+            dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
             if (renderModeComboBox != null)
             {
@@ -64,12 +73,22 @@ namespace GUI.Types.Renderer
             Scene.MainCamera = e.Camera;
             Scene.Update(e.FrameTime);
 
-            if (BaseGridEnabled)
+            if (ShowBaseGrid)
             {
                 baseGrid.Render(e.Camera, RenderPass.Both);
             }
 
             Scene.Render();
+
+            if (showStaticOctree)
+            {
+                staticOctreeRenderer.Render(e.Camera, RenderPass.Both);
+            }
+
+            if (showDynamicOctree)
+            {
+                dynamicOctreeRenderer.Render(e.Camera, RenderPass.Both);
+            }
         }
 
         protected void AddRenderModeSelectionControl()

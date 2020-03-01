@@ -253,6 +253,21 @@ namespace GUI.Types.Renderer
                 // Still fits in same node?
                 if (ancestor == node)
                 {
+                    // Still check for pushdown
+                    if (node.HasChildren)
+                    {
+                        foreach (var child in node.Children)
+                        {
+                            if (child.Region.Contains(newBounds))
+                            {
+                                node.Elements.RemoveAt(index);
+                                child.Insert(new Element { ClientObject = obj, BoundingBox = newBounds });
+                                return;
+                            }
+                        }
+                    }
+
+                    // Not pushed down into any children
                     node.Elements[index] = new Element { ClientObject = obj, BoundingBox = newBounds };
                 }
                 else
