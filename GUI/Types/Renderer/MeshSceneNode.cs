@@ -37,6 +37,7 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
+            meshRenderer.Update(context.Timestep);
         }
 
         public override void Render(Scene.RenderContext context)

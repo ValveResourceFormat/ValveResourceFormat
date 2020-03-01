@@ -23,6 +23,7 @@ namespace GUI.Types.Renderer
 
         private int? animationTexture;
         private int boneCount;
+        private float time = 0f;
 
         public MeshRenderer(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {
@@ -65,6 +66,11 @@ namespace GUI.Types.Renderer
             boneCount = numBones;
         }
 
+        public void Update(float timeStep)
+        {
+            time += timeStep;
+        }
+
         public void Render(Camera camera, Matrix4x4 withTransform, RenderPass renderPass)
         {
             if (renderPass == RenderPass.Both)
@@ -95,6 +101,12 @@ namespace GUI.Types.Renderer
 
                 uniformLocation = call.Shader.GetUniformLocation("uProjectionViewMatrix");
                 GL.UniformMatrix4(uniformLocation, false, ref viewProjectionMatrix);
+
+                uniformLocation = call.Shader.GetUniformLocation("g_flTime");
+                if (uniformLocation != 1)
+                {
+                    GL.Uniform1(uniformLocation, time);
+                }
 
                 uniformLocation = call.Shader.GetUniformLocation("bAnimated");
                 if (uniformLocation != -1)
