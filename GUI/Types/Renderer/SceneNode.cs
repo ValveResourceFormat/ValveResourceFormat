@@ -9,13 +9,33 @@ namespace GUI.Types.Renderer
 {
     internal abstract class SceneNode
     {
-        public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+        public Matrix4x4 Transform
+        {
+            get => transform;
+            set
+            {
+                transform = value;
+                BoundingBox = LocalBoundingBox.Transform(transform);
+            }
+        }
+
         public string LayerName { get; set; }
         public bool LayerEnabled { get; set; } = true;
-        public AABB BoundingBox => LocalBoundingBox.Transform(Transform);
+        public AABB BoundingBox { get; private set; }
+        public AABB LocalBoundingBox
+        {
+            get => localBoundingBox;
+            protected set
+            {
+                localBoundingBox = value;
+                BoundingBox = LocalBoundingBox.Transform(transform);
+            }
+        }
 
-        public AABB LocalBoundingBox { get; protected set; }
         public Scene Scene { get; }
+
+        private AABB localBoundingBox;
+        private Matrix4x4 transform = Matrix4x4.Identity;
 
         public SceneNode(Scene scene)
         {
