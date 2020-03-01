@@ -10,6 +10,8 @@ namespace GUI.Types.Renderer
     internal abstract class SceneNode
     {
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+        public string LayerName { get; set; }
+        public bool LayerEnabled { get; set; } = true;
         public AABB BoundingBox => LocalBoundingBox.Transform(Transform);
 
         public AABB LocalBoundingBox { get; protected set; }
@@ -25,11 +27,6 @@ namespace GUI.Types.Renderer
 
         public virtual IEnumerable<string> GetSupportedRenderModes() => Enumerable.Empty<string>();
         public virtual void SetRenderMode(string mode)
-        {
-        }
-
-        public virtual IEnumerable<string> GetSupportedLayers() => Enumerable.Empty<string>();
-        public virtual void SetEnabledLayers(IEnumerable<string> layers)
         {
         }
     }

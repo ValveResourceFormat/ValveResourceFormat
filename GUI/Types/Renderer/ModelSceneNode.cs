@@ -34,8 +34,6 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public string LayerName { get; set; }
-
         private readonly List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
         private readonly List<Animation> animations = new List<Animation>();
         private Dictionary<string, string> skinMaterials;
@@ -113,15 +111,6 @@ namespace GUI.Types.Renderer
             {
                 renderer.SetRenderMode(renderMode);
             }
-        }
-
-        public override IEnumerable<string> GetSupportedLayers()
-        {
-            return new string[0];
-        }
-
-        public override void SetEnabledLayers(IEnumerable<string> layers)
-        {
         }
 
         private void SetSkin(string skin)

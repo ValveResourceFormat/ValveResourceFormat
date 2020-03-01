@@ -108,5 +108,32 @@ namespace GUI.Types.Renderer
                 allNodes[i].Render(translucentRenderContext);
             }
         }
+
+        public void SetEnabledLayers(HashSet<string> layers)
+        {
+            foreach (var renderer in AllNodes)
+            {
+                renderer.LayerEnabled = layers.Contains(renderer.LayerName);
+            }
+
+            StaticOctree.Clear();
+            DynamicOctree.Clear();
+
+            foreach (var node in staticNodes)
+            {
+                if (node.LayerEnabled)
+                {
+                    StaticOctree.Insert(node, node.BoundingBox);
+                }
+            }
+
+            foreach (var node in dynamicNodes)
+            {
+                if (node.LayerEnabled)
+                {
+                    DynamicOctree.Insert(node, node.BoundingBox);
+                }
+            }
+        }
     }
 }

@@ -37,10 +37,7 @@ namespace GUI.Types.Renderer
 
             worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", (worldLayers) =>
             {
-                foreach (var renderer in Scene.AllNodes)
-                {
-                    renderer.SetEnabledLayers(worldLayers);
-                }
+                Scene.SetEnabledLayers(new HashSet<string>(worldLayers));
             });
         }
 
@@ -52,7 +49,7 @@ namespace GUI.Types.Renderer
                 var result = loader.Load(Scene);
 
                 var worldLayers = Scene.AllNodes
-                    .SelectMany(r => r.GetSupportedLayers())
+                    .Select(r => r.LayerName)
                     .Distinct();
                 SetAvailableLayers(worldLayers);
 
@@ -80,7 +77,7 @@ namespace GUI.Types.Renderer
                 loader.Load(Scene);
 
                 var worldLayers = Scene.AllNodes
-                    .SelectMany(r => r.GetSupportedLayers())
+                    .Select(r => r.LayerName)
                     .Distinct();
                 SetAvailableLayers(worldLayers);
             }

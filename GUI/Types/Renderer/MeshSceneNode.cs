@@ -13,7 +13,6 @@ namespace GUI.Types.Renderer
 {
     internal class MeshSceneNode : SceneNode
     {
-        public string LayerName { get; set; }
         public Vector4 Tint
         {
             get => meshRenderer.Tint;
@@ -34,15 +33,6 @@ namespace GUI.Types.Renderer
         public override void SetRenderMode(string renderMode)
         {
             meshRenderer.SetRenderMode(renderMode);
-        }
-
-        public override IEnumerable<string> GetSupportedLayers()
-        {
-            return new string[0];
-        }
-
-        public override void SetEnabledLayers(IEnumerable<string> layers)
-        {
         }
 
         public override void Update(Scene.UpdateContext context)

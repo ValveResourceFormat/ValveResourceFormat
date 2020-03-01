@@ -13,8 +13,6 @@ namespace GUI.Types.Renderer
 {
     internal class ParticleSceneNode : SceneNode
     {
-        public string LayerName { get; set; }
-
         private ParticleRenderer.ParticleRenderer particleRenderer;
 
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem)
