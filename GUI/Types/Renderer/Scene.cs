@@ -82,10 +82,10 @@ namespace GUI.Types.Renderer
             RenderWithCamera(MainCamera);
         }
 
-        public void RenderWithCamera(Camera camera)
+        public void RenderWithCamera(Camera camera, Frustum cullFrustum = null)
         {
-            var allNodes = StaticOctree.Query(camera.ViewFrustum);
-            allNodes.AddRange(DynamicOctree.Query(camera.ViewFrustum));
+            var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
+            allNodes.AddRange(DynamicOctree.Query(cullFrustum ?? camera.ViewFrustum));
 
             allNodes.Sort((a, b) =>
             {
@@ -95,14 +95,14 @@ namespace GUI.Types.Renderer
             });
 
             // Opaque render pass, front to back
-            var opaqueRenderContext = new RenderContext(MainCamera, RenderPass.Opaque);
+            var opaqueRenderContext = new RenderContext(camera, RenderPass.Opaque);
             foreach (var node in allNodes)
             {
                 node.Render(opaqueRenderContext);
             }
 
             // Translucent render pass, back to front
-            var translucentRenderContext = new RenderContext(MainCamera, RenderPass.Translucent);
+            var translucentRenderContext = new RenderContext(camera, RenderPass.Translucent);
             for (var i = allNodes.Count - 1; i >= 0; i--)
             {
                 allNodes[i].Render(translucentRenderContext);

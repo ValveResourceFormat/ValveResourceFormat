@@ -19,6 +19,7 @@ namespace GUI.Types.Renderer
         public bool ShowBaseGrid { get; set; } = true;
         private bool showStaticOctree = false;
         private bool showDynamicOctree = false;
+        private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
@@ -33,6 +34,17 @@ namespace GUI.Types.Renderer
             InitializeControl();
             ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
             ViewerControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
+            ViewerControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
+            {
+                if (v)
+                {
+                    lockedCullFrustum = Scene.MainCamera.ViewFrustum.Clone();
+                }
+                else
+                {
+                    lockedCullFrustum = null;
+                }
+            });
 
             ViewerControl.GLLoad += OnLoad;
         }
@@ -78,7 +90,7 @@ namespace GUI.Types.Renderer
                 baseGrid.Render(e.Camera, RenderPass.Both);
             }
 
-            Scene.Render();
+            Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 
             if (showStaticOctree)
             {

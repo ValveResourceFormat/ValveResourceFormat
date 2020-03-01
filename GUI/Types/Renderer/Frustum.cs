@@ -40,6 +40,13 @@ namespace GUI.Types.Renderer
                 viewProjectionMatrix.M44 - viewProjectionMatrix.M43));
         }
 
+        public Frustum Clone()
+        {
+            var rv = new Frustum();
+            Planes.CopyTo(rv.Planes, 0);
+            return rv;
+        }
+
         public bool Intersects(AABB box)
         {
             for (var i = 0; i < Planes.Length; ++i)
