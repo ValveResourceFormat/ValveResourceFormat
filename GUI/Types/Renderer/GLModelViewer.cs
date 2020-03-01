@@ -20,6 +20,7 @@ namespace GUI.Types.Renderer
         private readonly Mesh mesh;
         private Label drawCallsLabel;
         private ComboBox animationComboBox;
+        private CheckedListBox meshGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
 
@@ -57,6 +58,22 @@ namespace GUI.Types.Renderer
                 modelSceneNode = new ModelSceneNode(Scene, model, null, false);
                 SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
                 Scene.Add(modelSceneNode, false);
+
+                var meshGroups = modelSceneNode.GetMeshGroups();
+
+                if (meshGroups.Count() > 1)
+                {
+                    meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", selectedGroups =>
+                    {
+                        modelSceneNode.SetActiveMeshGroups(selectedGroups);
+                    });
+
+                    meshGroupListBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray());
+                    foreach (var group in modelSceneNode.GetActiveMeshGroups())
+                    {
+                        meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
+                    }
+                }
             }
             else
             {

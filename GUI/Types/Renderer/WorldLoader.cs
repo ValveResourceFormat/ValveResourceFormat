@@ -112,6 +112,7 @@ namespace GUI.Types.Renderer
                 var position = entity.GetProperty<string>("origin");
                 var angles = entity.GetProperty<string>("angles");
                 var model = entity.GetProperty<string>("model");
+                var body = entity.GetProperty<string>("body");
                 var skin = entity.GetProperty<string>("skin");
                 var colour = entity.GetProperty<byte[]>("rendercolor");
                 var particle = entity.GetProperty<string>("effect_name");
@@ -220,6 +221,12 @@ namespace GUI.Types.Renderer
                 {
                     modelNode.LoadAnimation(animation); // Load only this animation
                     modelNode.SetAnimation(animation);
+                }
+
+                if (body != default && int.TryParse(body, out var bodyGroup))
+                {
+                    var groups = modelNode.GetMeshGroups();
+                    modelNode.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));
                 }
 
                 scene.Add(modelNode, false);

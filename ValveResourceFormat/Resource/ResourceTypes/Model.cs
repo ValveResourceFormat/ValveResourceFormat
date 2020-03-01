@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -78,6 +77,30 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return animations;
+        }
+
+        public IEnumerable<string> GetMeshGroups()
+            => GetData().GetArray<string>("m_meshGroups");
+
+        public IEnumerable<string> GetDefaultMeshGroups()
+        {
+            var defaultGroupMask = GetData().GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
+
+            return GetMeshGroups().Where((group, index) => ((ulong)(1 << index) & defaultGroupMask) != 0);
+        }
+
+        public IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
+        {
+            var groupIndex = GetMeshGroups().ToList().IndexOf(groupName);
+            var meshGroupMasks = GetData().GetIntegerArray("m_refMeshGroupMasks");
+            if (groupIndex >= 0)
+            {
+                return meshGroupMasks.Select(mask => (mask & 1 << groupIndex) != 0);
+            }
+            else
+            {
+                return meshGroupMasks.Select(_ => false);
+            }
         }
 
         public IKeyValueCollection GetData()

@@ -28,6 +28,21 @@ namespace ValveResourceFormat.Serialization
         public static long GetIntegerProperty(this IKeyValueCollection collection, string name)
             => Convert.ToInt64(collection.GetProperty<object>(name));
 
+        public static ulong GetUnsignedIntegerProperty(this IKeyValueCollection collection, string name)
+        {
+            var value = collection.GetProperty<object>(name);
+
+            if (value is int i)
+            {
+                unchecked
+                {
+                    return (ulong)i;
+                }
+            }
+
+            return Convert.ToUInt64(value);
+        }
+
         public static double GetDoubleProperty(this IKeyValueCollection collection, string name)
             => Convert.ToDouble(collection.GetProperty<object>(name));
 
@@ -37,6 +52,11 @@ namespace ValveResourceFormat.Serialization
         public static long[] GetIntegerArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<object>(name)
                 .Select(Convert.ToInt64)
+                .ToArray();
+
+        public static ulong[] GetUnsignedIntegerArray(this IKeyValueCollection collection, string name)
+            => collection.GetArray<object>(name)
+                .Select(Convert.ToUInt64)
                 .ToArray();
 
         public static IKeyValueCollection[] GetArray(this IKeyValueCollection collection, string name)
