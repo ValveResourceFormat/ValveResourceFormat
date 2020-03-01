@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -90,57 +91,51 @@ namespace ValveResourceFormat.ResourceTypes
 
                     switch (type)
                     {
-                        case 0x06:
+                        case 0x06: // boolean
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Data = dataReader.ReadByte(),
+                                Data = dataReader.ReadBoolean(),
                             }); //1
                             break;
-                        case 0x01:
+                        case 0x01: // float
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
                                 Data = dataReader.ReadSingle(),
                             }); //4
                             break;
-                        case 0x05: // TODO: one of these is "color255"
-                        case 0x09: //TODO: figure out the difference
+                        case 0x09: // color255
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
                                 Data = dataReader.ReadBytes(4),
                             }); //4
                             break;
-                        case 0x25:
+                        case 0x05: // node_id
+                        case 0x25: // flags
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
                                 Data = dataReader.ReadUInt32(),
                             }); //4
                             break;
-                        case 0x1a:
+                        case 0x1a: // integer
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
                                 Data = dataReader.ReadUInt64(),
                             }); //8
                             break;
-                        case 0x03:
+                        case 0x03: // vector
+                        case 0x27: // angle
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
-                                Data = $"{{{dataReader.ReadSingle()}, {dataReader.ReadSingle()}, {dataReader.ReadSingle()}}}",
+                                Data = new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()),
                             }); //12
                             break;
-                        case 0x27:
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadBytes(12),
-                            }); //12
-                            break;
-                        case 0x1e:
+                        case 0x1e: // string
                             properties.Add(miscType, new EntityProperty
                             {
                                 Type = type,
@@ -164,6 +159,19 @@ namespace ValveResourceFormat.ResourceTypes
             var knownKeys = new EntityLumpKnownKeys().Fields;
             var builder = new StringBuilder();
             var unknownKeys = new Dictionary<uint, uint>();
+
+            var types = new Dictionary<uint, string>
+            {
+                { 0x01, "float" },
+                { 0x03, "vector" },
+                { 0x05, "node_id" },
+                { 0x06, "boolean" },
+                { 0x09, "color255" },
+                { 0x1a, "integer" },
+                { 0x1e, "string" },
+                { 0x25, "flags" },
+                { 0x27, "angle" },
+            };
 
             var index = 0;
             foreach (var entity in GetEntities())
@@ -199,7 +207,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    builder.AppendLine($"{key,-30}: {value} (type {property.Value.Type})");
+                    builder.AppendLine($"{key,-30} {types[property.Value.Type],-10} {value}");
                 }
 
                 builder.AppendLine();
