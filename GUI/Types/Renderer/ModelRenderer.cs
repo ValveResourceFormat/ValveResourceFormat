@@ -27,6 +27,8 @@ namespace GUI.Types.Renderer
         private Animation activeAnimation;
         private int animationTexture;
         private Skeleton skeleton;
+        private ICollection<string> activeMeshGroups = new HashSet<string>();
+        private ICollection<MeshRenderer> activeMeshRenderers = new HashSet<MeshRenderer>();
 
         private float time;
 
@@ -81,14 +83,11 @@ namespace GUI.Types.Renderer
 
         public void Render(Camera camera, RenderPass renderPass)
         {
-            foreach (var meshRenderer in meshRenderers)
+            foreach (var meshRenderer in activeMeshRenderers)
             {
                 meshRenderer.Render(camera, renderPass);
             }
         }
-
-        public List<MeshRenderer> GetMeshRenderers()
-            => meshRenderers;
 
         public IEnumerable<string> GetSupportedRenderModes()
             => meshRenderers.SelectMany(renderer => renderer.GetSupportedRenderModes()).Distinct();
@@ -174,6 +173,9 @@ namespace GUI.Types.Renderer
 
                 meshRenderers.Add(new MeshRenderer(new Mesh(newResource), guiContext, skinMaterials));
             }
+
+            // Set active meshes to default
+            SetActiveMeshGroups(Model.GetDefaultMeshGroups());
         }
 
         private void LoadSkeleton()
@@ -271,6 +273,38 @@ namespace GUI.Types.Renderer
                 {
                     renderer.SetAnimationTexture(animationTexture, skeleton.Bones.Length);
                 }
+            }
+        }
+
+        public IEnumerable<string> GetMeshGroups()
+            => Model.GetMeshGroups();
+
+        public ICollection<string> GetActiveMeshGroups()
+            => activeMeshGroups;
+
+        public void SetActiveMeshGroups(IEnumerable<string> meshGroups)
+        {
+            activeMeshGroups = new HashSet<string>(GetMeshGroups().Intersect(meshGroups));
+
+            var groups = GetMeshGroups();
+            if (groups.Count() > 1)
+            {
+                activeMeshRenderers.Clear();
+                foreach (var group in activeMeshGroups)
+                {
+                    var meshMask = Model.GetActiveMeshMaskForGroup(group).ToArray();
+                    for (var meshIndex = 0; meshIndex < meshRenderers.Count; meshIndex++)
+                    {
+                        if (meshMask[meshIndex] && !activeMeshRenderers.Contains(meshRenderers[meshIndex]))
+                        {
+                            activeMeshRenderers.Add(meshRenderers[meshIndex]);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                activeMeshRenderers = new HashSet<MeshRenderer>(meshRenderers);
             }
         }
 

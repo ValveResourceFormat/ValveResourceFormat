@@ -184,6 +184,7 @@ namespace GUI.Types.Renderer
                 var position = entity.GetProperty<string>("origin");
                 var angles = entity.GetProperty<string>("angles");
                 var model = entity.GetProperty<string>("model");
+                var body = entity.GetProperty<string>("body");
                 var skin = entity.GetProperty<string>("skin");
                 var colour = entity.GetProperty<byte[]>("rendercolor");
                 var particle = entity.GetProperty<string>("effect_name");
@@ -288,6 +289,12 @@ namespace GUI.Types.Renderer
                 {
                     modelRenderer.LoadAnimation(animation); // Load only this animation
                     modelRenderer.SetAnimation(animation);
+                }
+
+                if (body != default && int.TryParse(body, out var bodyGroup))
+                {
+                    var groups = modelRenderer.GetMeshGroups();
+                    modelRenderer.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));
                 }
 
                 staticOctree.Insert(modelRenderer, modelRenderer.BoundingBox);

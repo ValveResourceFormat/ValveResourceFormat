@@ -30,6 +30,7 @@ namespace GUI.Types.Renderer
         private Label drawCallsLabel;
         private ComboBox animationComboBox;
         private ComboBox renderModeComboBox;
+        private CheckedListBox meshGroupListBox;
 
         public GLModelViewer(VrfGuiContext guiContext)
         {
@@ -108,6 +109,28 @@ namespace GUI.Types.Renderer
                     .Distinct();
 
                 SetAnimations(supportedAnimations);
+            }
+
+            if (renderer is ModelRenderer modelRenderer)
+            {
+                var meshGroups = modelRenderer.GetMeshGroups();
+
+                if (meshGroups.Count() > 1)
+                {
+                    meshGroupListBox = viewerControl.AddMultiSelection("Mesh group", selectedGroups =>
+                    {
+                        foreach (var r in Renderers.OfType<ModelRenderer>())
+                        {
+                            r.SetActiveMeshGroups(selectedGroups);
+                        }
+                    });
+
+                    meshGroupListBox.Items.AddRange(modelRenderer.GetMeshGroups().ToArray());
+                    foreach (var group in modelRenderer.GetActiveMeshGroups())
+                    {
+                        meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
+                    }
+                }
             }
         }
 
