@@ -205,6 +205,22 @@ namespace GUI.Types.Renderer
 
                 if (newEntity == null)
                 {
+                    var errorModelResource = guiContext.LoadFileByAnyMeansNecessary("models/dev/error.vmdl_c");
+
+                    if (errorModelResource != null)
+                    {
+                        var errorModel = new ModelSceneNode(scene, new Model(errorModelResource), skin, false)
+                        {
+                            Transform = transformationMatrix,
+                            LayerName = layerName,
+                        };
+                        scene.Add(errorModel, false);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Unable to load error.vmdl_c. Did you add \"core/pak_001.dir\" to your game paths?");
+                    }
+
                     continue;
                 }
 
