@@ -63,6 +63,15 @@ namespace GUI.Types.Renderer
 
             LoadScene();
 
+            if (Scene.AllNodes.Any())
+            {
+                var bbox = Scene.AllNodes.First().BoundingBox;
+                var location = new Vector3(bbox.Max.Z, 0, bbox.Max.Z) * 1.5f;
+
+                ViewerControl.Camera.SetLocation(location);
+                ViewerControl.Camera.LookAt(bbox.Center);
+            }
+
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 

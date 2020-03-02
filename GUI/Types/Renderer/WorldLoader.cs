@@ -168,7 +168,7 @@ namespace GUI.Types.Renderer
                 {
                     if (classname == "worldspawn")
                     {
-                        result.DefaultWorldCamera = positionVector;
+                        //result.DefaultWorldCamera = positionVector;
                     }
                     else
                     {

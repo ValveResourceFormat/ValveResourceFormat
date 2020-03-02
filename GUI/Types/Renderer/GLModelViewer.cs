@@ -1,13 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Windows.Forms;
-using GUI.Controls;
-using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
-using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
