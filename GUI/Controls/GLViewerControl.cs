@@ -92,6 +92,8 @@ namespace GUI.Controls
             checkbox.CheckedChanged += (_, __) =>
             {
                 changeCallback(checkbox.Checked);
+
+                GLControl.Focus();
             };
 
             Controls.Add(checkbox);
@@ -115,6 +117,8 @@ namespace GUI.Controls
             {
                 selectionControl.Refresh();
                 changeCallback(selectionControl.ComboBox.SelectedItem as string, selectionControl.ComboBox.SelectedIndex);
+
+                GLControl.Focus();
             };
 
             return selectionControl.ComboBox;
@@ -136,6 +140,8 @@ namespace GUI.Controls
                 {
                     selectionControl.Refresh();
                     changeCallback(selectionControl.CheckedListBox.CheckedItems.OfType<string>());
+
+                    GLControl.Focus();
                 }));
             };
 
