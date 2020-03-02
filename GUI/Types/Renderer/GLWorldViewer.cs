@@ -18,6 +18,7 @@ namespace GUI.Types.Renderer
         private readonly World world;
         private readonly WorldNode worldNode;
         private CheckedListBox worldLayersComboBox;
+        private ComboBox cameraComboBox;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -66,10 +67,28 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                if (result.DefaultWorldCamera.LengthSquared() != 0)
+                if (result.CameraMatrices.Any())
                 {
-                    ViewerControl.Camera.SetLocation(result.DefaultWorldCamera);
-                    ViewerControl.Camera.LookAt(Vector3.Zero);
+                    if (cameraComboBox == default)
+                    {
+                        cameraComboBox = ViewerControl.AddSelection("Camera", (cameraName, index) =>
+                        {
+                            if (index > 0)
+                            {
+                                if (result.CameraMatrices.TryGetValue(cameraName, out var cameraMatrix))
+                                {
+                                    Scene.MainCamera.SetViewMatrix(cameraMatrix);
+                                }
+
+                                cameraComboBox.SelectedIndex = 0;
+                            }
+                        });
+
+                        cameraComboBox.Items.Add("Set view to camera...");
+                        cameraComboBox.SelectedIndex = 0;
+                    }
+
+                    cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray());
                 }
             }
 

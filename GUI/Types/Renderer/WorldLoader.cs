@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
@@ -19,7 +17,10 @@ namespace GUI.Types.Renderer
         public class LoadResult
         {
             public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>();
-            public Vector3 DefaultWorldCamera { get; set; }
+
+            public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
+
+            public Vector3? GlobalLightPosition { get; set; }
         }
 
         public WorldLoader(VrfGuiContext vrfGuiContext, World world)
@@ -125,8 +126,6 @@ namespace GUI.Types.Renderer
 
                 var isGlobalLight = classname == "env_global_light";
                 var isCamera =
-                    classname == "info_player_start" ||
-                    classname == "worldspawn" ||
                     classname == "sky_camera" ||
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
@@ -151,7 +150,7 @@ namespace GUI.Types.Renderer
                     if (particleResource != null)
                     {
                         var particleSystem = new ParticleSystem(particleResource);
-                        var origin = new System.Numerics.Vector3(positionVector.X, positionVector.Y, positionVector.Z);
+                        var origin = new Vector3(positionVector.X, positionVector.Y, positionVector.Z);
 
                         var particleNode = new ParticleSceneNode(scene, particleSystem)
                         {
@@ -166,22 +165,18 @@ namespace GUI.Types.Renderer
 
                 if (isCamera)
                 {
-                    if (classname == "worldspawn")
-                    {
-                        //result.DefaultWorldCamera = positionVector;
-                    }
-                    else
-                    {
-                        // TODO
-                        //glRenderControl.AddCamera(name == string.Empty ? $"{classname} #{anonymousCameraCount++}" : name, transformationMatrix);
-                    }
+                    var name = entity.GetProperty<string>("name") ?? string.Empty;
+                    var cameraName = name == string.Empty
+                        ? classname
+                        : name;
+
+                    result.CameraMatrices.Add(cameraName, transformationMatrix);
 
                     continue;
                 }
                 else if (isGlobalLight)
                 {
-                    // TODO
-                    //glRenderControl.SetWorldGlobalLight(positionVector); // TODO: set light angle
+                    result.GlobalLightPosition = positionVector;
 
                     continue;
                 }

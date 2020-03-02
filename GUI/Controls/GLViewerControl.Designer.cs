@@ -33,6 +33,8 @@ namespace GUI.Controls
         {
             this.glControlContainer = new System.Windows.Forms.Panel();
             this.fpsLabel = new System.Windows.Forms.Label();
+            this.controlsPanel = new System.Windows.Forms.Panel();
+            this.controlsPanel.SuspendLayout();
             this.SuspendLayout();
             // 
             // glControlContainer
@@ -49,23 +51,32 @@ namespace GUI.Controls
             // fpsLabel
             // 
             this.fpsLabel.AutoSize = true;
-            this.fpsLabel.Location = new System.Drawing.Point(1, 8);
+            this.fpsLabel.Location = new System.Drawing.Point(1, 7);
             this.fpsLabel.Name = "fpsLabel";
             this.fpsLabel.Size = new System.Drawing.Size(39, 13);
             this.fpsLabel.TabIndex = 3;
             this.fpsLabel.Text = "FPS: 0";
             // 
+            // controlsPanel
+            // 
+            this.controlsPanel.Controls.Add(this.fpsLabel);
+            this.controlsPanel.Dock = System.Windows.Forms.DockStyle.Left;
+            this.controlsPanel.Location = new System.Drawing.Point(0, 0);
+            this.controlsPanel.Name = "controlsPanel";
+            this.controlsPanel.Size = new System.Drawing.Size(192, 357);
+            this.controlsPanel.TabIndex = 4;
+            // 
             // GLViewerControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.fpsLabel);
+            this.Controls.Add(this.controlsPanel);
             this.Controls.Add(this.glControlContainer);
             this.Name = "GLViewerControl";
             this.Size = new System.Drawing.Size(883, 357);
-            this.Paint += new System.Windows.Forms.PaintEventHandler(this.GLViewerControl_Paint);
+            this.controlsPanel.ResumeLayout(false);
+            this.controlsPanel.PerformLayout();
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
@@ -73,5 +84,6 @@ namespace GUI.Controls
 
         private Panel glControlContainer;
         private Label fpsLabel;
+        private Panel controlsPanel;
     }
 }

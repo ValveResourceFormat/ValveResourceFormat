@@ -75,7 +75,7 @@ namespace GUI.Controls
             label.Text = text;
             label.AutoSize = true;
 
-            Controls.Add(label);
+            controlsPanel.Controls.Add(label);
 
             labels.Add(label);
 
@@ -96,7 +96,7 @@ namespace GUI.Controls
                 GLControl.Focus();
             };
 
-            Controls.Add(checkbox);
+            controlsPanel.Controls.Add(checkbox);
             otherControls.Add(checkbox);
 
             RecalculatePositions();
@@ -108,8 +108,10 @@ namespace GUI.Controls
         {
             var selectionControl = new GLViewerSelectionControl(name);
 
-            Controls.Add(selectionControl);
+            controlsPanel.Controls.Add(selectionControl);
             selectionBoxes.Add(selectionControl);
+
+            selectionControl.PerformAutoScale();
 
             RecalculatePositions();
 
@@ -128,8 +130,10 @@ namespace GUI.Controls
         {
             var selectionControl = new GLViewerMultiSelectionControl(name);
 
-            Controls.Add(selectionControl);
+            controlsPanel.Controls.Add(selectionControl);
             selectionBoxes.Add(selectionControl);
+
+            selectionControl.PerformAutoScale();
 
             RecalculatePositions();
 
@@ -169,24 +173,6 @@ namespace GUI.Controls
                 control.Location = new Point(0, y);
                 control.Width = glControlContainer.Location.X;
                 y += control.Height;
-            }
-        }
-
-        private void GLViewerControl_Paint(object sender, PaintEventArgs e)
-        {
-            foreach (var label in labels)
-            {
-                label.Refresh();
-            }
-
-            foreach (var selectionBox in selectionBoxes)
-            {
-                selectionBox.Refresh();
-            }
-
-            foreach (var control in otherControls)
-            {
-                control.Refresh();
             }
         }
 

@@ -56,23 +56,6 @@ namespace GUI.Types.Renderer
             LookAt(new Vector3(0));
         }
 
-        public Camera(Matrix4x4 transformationMatrix, string name = "Default")
-        {
-            Location = transformationMatrix.Translation;
-
-            // Extract view direction from view matrix and use it to calculate pitch and yaw
-            var dir = new Vector3(transformationMatrix.M11, transformationMatrix.M12, transformationMatrix.M13);
-            Yaw = (float)Math.Atan2(dir.Y, dir.X);
-            Pitch = (float)Math.Asin(dir.Z);
-
-            // Build camera view matrix
-            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + dir, Vector3.UnitZ);
-            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
-            ViewFrustum.Update(ViewProjectionMatrix);
-
-            Name = name;
-        }
-
         // Make a copy of another camera
         public Camera(Camera original)
         {
@@ -131,6 +114,21 @@ namespace GUI.Types.Renderer
             ClampRotation();
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum.Update(ViewProjectionMatrix);
+        }
+
+        public void SetViewMatrix(Matrix4x4 matrix)
+        {
+            Location = matrix.Translation;
+
+            // Extract view direction from view matrix and use it to calculate pitch and yaw
+            var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
+            Yaw = (float)Math.Atan2(dir.Y, dir.X);
+            Pitch = (float)Math.Asin(dir.Z);
+
+            // Build camera view matrix
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + dir, Vector3.UnitZ);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
         }

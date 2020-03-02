@@ -54,10 +54,10 @@ namespace GUI.Controls
             // 
             // GLViewerSelectionControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.Controls.Add(this.comboBox);
             this.Controls.Add(this.selectionNameLabel);
+            this.Margin = new System.Windows.Forms.Padding(0);
             this.MinimumSize = new System.Drawing.Size(0, 41);
             this.Name = "GLViewerSelectionControl";
             this.Size = new System.Drawing.Size(180, 41);
