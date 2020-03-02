@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
@@ -112,7 +113,6 @@ namespace GUI.Types.Renderer
                 var position = entity.GetProperty<string>("origin");
                 var angles = entity.GetProperty<string>("angles");
                 var model = entity.GetProperty<string>("model");
-                var body = entity.GetProperty<string>("body");
                 var skin = entity.GetProperty<string>("skin");
                 var colour = entity.GetProperty<byte[]>("rendercolor");
                 var particle = entity.GetProperty<string>("effect_name");
@@ -223,9 +223,22 @@ namespace GUI.Types.Renderer
                     modelNode.SetAnimation(animation);
                 }
 
-                if (body != default && int.TryParse(body, out var bodyGroup))
+                var bodyHash = EntityLumpKeyLookup.Get("body");
+                if (entity.Properties.ContainsKey(bodyHash))
                 {
                     var groups = modelNode.GetMeshGroups();
+                    var body = entity.Properties[bodyHash].Data;
+                    int bodyGroup = -1;
+
+                    if (body is ulong bodyGroupLong)
+                    {
+                        bodyGroup = (int)bodyGroupLong;
+                    }
+                    else if (body is string bodyGroupString)
+                    {
+                        int.TryParse(bodyGroupString, out bodyGroup);
+                    }
+
                     modelNode.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));
                 }
 
