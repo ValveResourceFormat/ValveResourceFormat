@@ -35,6 +35,7 @@ uniform vec3 m_vTintColorDrawCall;
 
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
+uniform vec4 g_vColorTint;
 
 //Main entry point
 void main()
@@ -74,7 +75,7 @@ void main()
 #endif
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb * tintFactor, color.a);
+    outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
 
     // Different render mode definitions
 #if param_renderMode_Color == 1

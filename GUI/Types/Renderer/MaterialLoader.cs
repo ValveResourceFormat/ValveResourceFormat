@@ -91,6 +91,11 @@ namespace GUI.Types.Renderer
                 mat.Material.VectorParams["g_vTexCoordOffset"] = Vector4.Zero;
             }
 
+            if (!mat.Material.VectorParams.ContainsKey("g_vColorTint"))
+            {
+                mat.Material.VectorParams["g_vColorTint"] = Vector4.One;
+            }
+
             return mat;
         }
 
