@@ -19,6 +19,7 @@ namespace GUI.Types.Renderer
         private readonly WorldNode worldNode;
         private CheckedListBox worldLayersComboBox;
         private ComboBox cameraComboBox;
+        private SavedCameraPositionsControl savedCameraPositionsControl;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -40,6 +41,37 @@ namespace GUI.Types.Renderer
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
+
+            savedCameraPositionsControl = new SavedCameraPositionsControl();
+            savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
+            savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
+            ViewerControl.AddControl(savedCameraPositionsControl);
+        }
+
+        private void OnRestoreCameraRequest(object sender, string e)
+        {
+            if (Settings.Config.SavedCameras.TryGetValue(e, out var savedCamString))
+            {
+                var savedFloats = savedCamString.Split(',').Select(float.Parse).ToArray();
+                if (savedFloats.Length == 5)
+                {
+                    Scene.MainCamera.SetLocationPitchYaw(
+                        new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
+                        savedFloats[3],
+                        savedFloats[4]);
+                }
+            }
+        }
+
+        private void OnSaveCameraRequest(object sender, EventArgs e)
+        {
+            var cam = Scene.MainCamera;
+            var saveName = string.Format("Saved Camera #{0}", Settings.Config.SavedCameras.Count + 1);
+
+            Settings.Config.SavedCameras.Add(saveName, string.Join(",", new float[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw }));
+            Settings.Save();
+
+            savedCameraPositionsControl.RefreshSavedPositions();
         }
 
         protected override void LoadScene()

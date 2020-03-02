@@ -84,6 +84,13 @@ namespace GUI.Controls
             return label;
         }
 
+        public void AddControl(Control control)
+        {
+            controlsPanel.Controls.Add(control);
+            otherControls.Add(control);
+            RecalculatePositions();
+        }
+
         public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
         {
             var checkbox = new GLViewerCheckboxControl(name, defaultChecked);

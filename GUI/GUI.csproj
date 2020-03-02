@@ -84,6 +84,12 @@
       <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
+    <Compile Include="Controls\SavedCameraPositionsControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\SavedCameraPositionsControl.Designer.cs">
+      <DependentUpon>SavedCameraPositionsControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\TreeViewFileSorter.cs" />
     <Compile Include="Controls\TreeViewWithSearchResults.cs">
       <SubType>UserControl</SubType>
@@ -225,6 +231,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\GLViewerSelectionControl.resx">
       <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SavedCameraPositionsControl.resx">
+      <DependentUpon>SavedCameraPositionsControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\TreeViewWithSearchResults.resx">
       <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>

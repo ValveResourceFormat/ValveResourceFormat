@@ -1,6 +1,12 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Numerics;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Xml.Serialization;
+using GUI.Types.Renderer;
 using ValveKeyValue;
 
 namespace GUI.Utils
@@ -13,6 +19,7 @@ namespace GUI.Utils
             public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
+            public Dictionary<string, string> SavedCameras { get; set; }
         }
 
         private static string SettingsFilePath;
@@ -37,6 +44,8 @@ namespace GUI.Utils
             }
 
             BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
+
+            Config.SavedCameras = Config.SavedCameras ?? new Dictionary<string, string>();
         }
 
         public static void Save()

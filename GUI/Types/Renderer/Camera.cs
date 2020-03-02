@@ -73,6 +73,31 @@ namespace GUI.Types.Renderer
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 
+        public void SetLocationPitchYaw(Vector3 location, float pitch, float yaw)
+        {
+            Location = location;
+            Pitch = pitch;
+            Yaw = yaw;
+
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum.Update(ViewProjectionMatrix);
+        }
+
+        public void SetViewMatrix(Matrix4x4 matrix)
+        {
+            CameraViewMatrix = matrix;
+
+            Location = matrix.Translation;
+
+            var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
+            Yaw = (float)Math.Atan2(dir.Y, dir.X);
+            Pitch = (float)Math.Asin(dir.Z);
+
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum.Update(ViewProjectionMatrix);
+        }
+
         public void LookAt(Vector3 target)
         {
             var dir = Vector3.Normalize(target - Location);
