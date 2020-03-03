@@ -51,7 +51,7 @@ namespace GUI.Types.Renderer
         {
             if (model != null)
             {
-                modelSceneNode = new ModelSceneNode(Scene, model, null, false);
+                modelSceneNode = new ModelSceneNode(Scene, model);
                 SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
                 Scene.Add(modelSceneNode, false);
 
