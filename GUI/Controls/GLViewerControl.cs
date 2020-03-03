@@ -86,12 +86,10 @@ namespace GUI.Controls
 
         public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
         {
-            var checkbox = new CheckBox();
-            checkbox.Text = name;
-            checkbox.Checked = defaultChecked;
-            checkbox.CheckedChanged += (_, __) =>
+            var checkbox = new GLViewerCheckboxControl(name, defaultChecked);
+            checkbox.CheckBox.CheckedChanged += (_, __) =>
             {
-                changeCallback(checkbox.Checked);
+                changeCallback(checkbox.CheckBox.Checked);
 
                 GLControl.Focus();
             };
@@ -101,7 +99,7 @@ namespace GUI.Controls
 
             RecalculatePositions();
 
-            return checkbox;
+            return checkbox.CheckBox;
         }
 
         public ComboBox AddSelection(string name, Action<string, int> changeCallback)

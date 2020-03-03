@@ -71,6 +71,12 @@
     <Compile Include="Controls\GLViewerMultiSelectionControl.Designer.cs">
       <DependentUpon>GLViewerMultiSelectionControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\GLViewerCheckboxControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\GLViewerCheckboxControl.Designer.cs">
+      <DependentUpon>GLViewerCheckboxControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\GLViewerSelectionControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -213,6 +219,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\GLViewerMultiSelectionControl.resx">
       <DependentUpon>GLViewerMultiSelectionControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\GLViewerCheckboxControl.resx">
+      <DependentUpon>GLViewerCheckboxControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\GLViewerSelectionControl.resx">
       <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
