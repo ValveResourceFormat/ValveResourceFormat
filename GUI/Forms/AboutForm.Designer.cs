@@ -45,7 +45,7 @@ namespace GUI.Forms
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(173, 20);
             this.label1.TabIndex = 0;
-            this.label1.Text = "Valve Resource Viewer";
+            this.label1.Text = "VRF";
             this.label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
             // label2
@@ -95,7 +95,7 @@ namespace GUI.Forms
             this.ShowInTaskbar = false;
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "About Valve Resource Viewer";
+            this.Text = "About VRF";
             this.TopMost = true;
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);

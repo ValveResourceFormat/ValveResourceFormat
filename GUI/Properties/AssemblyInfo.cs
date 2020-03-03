@@ -1,9 +1,9 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("Source 2 Resource Viewer")]
-[assembly: AssemblyProduct("Source 2 Resource Viewer")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("VRF")]
+[assembly: AssemblyProduct("VRF")]
+[assembly: AssemblyDescription("Source 2 Resource Viewer")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Steam Database")]
 [assembly: AssemblyCopyright("Steam Database")]

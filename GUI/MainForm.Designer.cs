@@ -247,7 +247,7 @@ namespace GUI
             this.MinimumSize = new System.Drawing.Size(300, 300);
             this.Name = "MainForm";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
-            this.Text = "Valve Resource Viewer";
+            this.Text = "VRF - Source 2 Resource Viewer";
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.MainForm_DragEnter);
