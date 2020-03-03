@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
             public RenderContext(Camera camera, RenderPass renderPass)
             {
                 Camera = camera;
-                RenderPass = RenderPass;
+                RenderPass = renderPass;
             }
         }
 

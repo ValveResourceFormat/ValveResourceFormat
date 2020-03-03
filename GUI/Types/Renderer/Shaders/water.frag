@@ -62,6 +62,6 @@ void main()
     float fresnel = max(1 - pow(dot(vec3(0.0, 0.0, 1.0), viewDirection), 0.5), 0.0);
 
     // idk why this formula, but it looks okay
-    float transparancy = max(g_flLowEndSurfaceMinimumColor, fresnel + fresnel * specular);
+    float transparancy = max(g_flLowEndSurfaceMinimumColor, fresnel + fresnel * specular * 2);
     outputColor = vec4(g_vLowEndSurfaceColor.xyz * pow(fresnel, 3.0) + g_vLowEndReflectionColor.xyz * pow(specular, 4.0), transparancy);
 }
