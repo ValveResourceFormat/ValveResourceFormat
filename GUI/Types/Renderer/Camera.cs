@@ -10,8 +10,6 @@ namespace GUI.Types.Renderer
         private const float CAMERASPEED = 300f; // Per second
         private const float FOV = OpenTK.MathHelper.PiOver4;
 
-        public string Name { get; protected set; }
-
         public Vector3 Location { get; private set; }
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
@@ -34,40 +32,10 @@ namespace GUI.Types.Renderer
 
         private KeyboardState KeyboardState;
 
-        public static Camera FromBoundingBox(Vector3 minBounds, Vector3 maxBounds, string name = "Default")
+        public Camera()
         {
-            // Calculate center of bounding box
-            var bboxCenter = (minBounds + maxBounds) * 0.5f;
-
-            // Set initial position based on the bounding box
-            var location = new Vector3(maxBounds.Z, 0, maxBounds.Z) * 1.5f;
-
-            var camera = new Camera();
-            camera.SetLocation(location);
-            camera.LookAt(bboxCenter);
-
-            return camera;
-        }
-
-        public Camera(string name = "Default")
-        {
-            Name = name;
             Location = new Vector3(1);
             LookAt(new Vector3(0));
-        }
-
-        // Make a copy of another camera
-        public Camera(Camera original)
-        {
-            Location = original.Location;
-            Pitch = original.Pitch;
-            Yaw = original.Yaw;
-            Name = original.Name;
-
-            // Build camera view matrix
-            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
-            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
-            ViewFrustum.Update(ViewProjectionMatrix);
         }
 
         // Calculate forward vector from pitch and yaw
@@ -233,11 +201,6 @@ namespace GUI.Types.Renderer
             {
                 Pitch = -OpenTK.MathHelper.PiOver2 + 0.001f;
             }
-        }
-
-        public override string ToString()
-        {
-            return Name;
         }
     }
 }
