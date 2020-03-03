@@ -113,7 +113,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            public (Node, int) Find(T clientObject, AABB bounds)
+            public (Node Node, int Index) Find(T clientObject, AABB bounds)
             {
                 if (HasElements)
                 {

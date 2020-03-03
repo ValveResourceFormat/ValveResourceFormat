@@ -249,7 +249,7 @@ namespace ValveResourceFormat.ResourceTypes
             outWrite.BaseStream.Position = 0;
         }
 
-        private (KVType, KVFlag) ReadType(BinaryReader reader)
+        private (KVType Type, KVFlag Flag) ReadType(BinaryReader reader)
         {
             byte databyte;
 
