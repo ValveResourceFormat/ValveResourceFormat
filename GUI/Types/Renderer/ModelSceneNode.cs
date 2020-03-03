@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class ModelSceneNode : SceneNode
+    internal class ModelSceneNode : SceneNode, IRenderableMeshCollection
     {
         private Model Model { get; }
         public Vector4 Tint
@@ -34,7 +34,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private readonly List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
+        public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
+
+        private readonly List<RenderableMesh> meshRenderers = new List<RenderableMesh>();
         private readonly List<Animation> animations = new List<Animation>();
         private Dictionary<string, string> skinMaterials;
 
@@ -42,7 +44,7 @@ namespace GUI.Types.Renderer
         private int animationTexture;
         private Skeleton skeleton;
         private ICollection<string> activeMeshGroups = new HashSet<string>();
-        private ICollection<MeshRenderer> activeMeshRenderers = new HashSet<MeshRenderer>();
+        private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
 
         private float time;
 
@@ -96,10 +98,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            foreach (var meshRenderer in activeMeshRenderers)
-            {
-                meshRenderer.Render(context.Camera, Transform, context.RenderPass);
-            }
+            // This node does not render itself; it uses the batching system via IRenderableMeshCollection
         }
 
         public override IEnumerable<string> GetSupportedRenderModes()
@@ -147,7 +146,7 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in Model.GetEmbeddedMeshes())
             {
-                meshRenderers.Add(new MeshRenderer(embeddedMesh, Scene.GuiContext, skinMaterials));
+                meshRenderers.Add(new RenderableMesh(embeddedMesh, Scene.GuiContext, skinMaterials));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
@@ -166,7 +165,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new MeshRenderer(new Mesh(newResource), Scene.GuiContext, skinMaterials));
+                meshRenderers.Add(new RenderableMesh(new Mesh(newResource), Scene.GuiContext, skinMaterials));
             }
 
             // Set active meshes to default
@@ -299,7 +298,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                activeMeshRenderers = new HashSet<MeshRenderer>(meshRenderers);
+                activeMeshRenderers = new HashSet<RenderableMesh>(meshRenderers);
             }
         }
 

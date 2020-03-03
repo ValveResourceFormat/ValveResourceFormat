@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshSceneNode : SceneNode
+    internal class MeshSceneNode : SceneNode, IRenderableMeshCollection
     {
         public Vector4 Tint
         {
@@ -19,12 +19,20 @@ namespace GUI.Types.Renderer
             set => meshRenderer.Tint = value;
         }
 
-        private MeshRenderer meshRenderer;
+        public IEnumerable<RenderableMesh> RenderableMeshes
+        {
+            get
+            {
+                yield return meshRenderer;
+            }
+        }
+
+        private RenderableMesh meshRenderer;
 
         public MeshSceneNode(Scene scene, Mesh mesh, Dictionary<string, string> skinMaterials = null)
             : base(scene)
         {
-            meshRenderer = new MeshRenderer(mesh, Scene.GuiContext, skinMaterials);
+            meshRenderer = new RenderableMesh(mesh, Scene.GuiContext, skinMaterials);
             LocalBoundingBox = meshRenderer.BoundingBox;
         }
 
@@ -42,7 +50,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            meshRenderer.Render(context.Camera, Transform, context.RenderPass);
+            // This node does not render itself; it uses the batching system via IRenderableMeshCollection
         }
     }
 }

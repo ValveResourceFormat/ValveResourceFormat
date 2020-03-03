@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
         public RenderMaterial Material { get; set; }
         public uint VertexArrayObject { get; set; }
         public DrawBuffer VertexBuffer { get; set; }
-        public DrawElementsType IndiceType { get; set; }
+        public DrawElementsType IndexType { get; set; }
         public DrawBuffer IndexBuffer { get; set; }
     }
 

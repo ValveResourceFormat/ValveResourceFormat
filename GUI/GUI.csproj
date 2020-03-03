@@ -194,7 +194,8 @@
     <Compile Include="Types\Renderer\IRenderer.cs" />
     <Compile Include="Types\Renderer\IMeshRenderer.cs" />
     <Compile Include="Types\Renderer\MaterialRenderer.cs" />
-    <Compile Include="Types\Renderer\MeshRenderer.cs" />
+    <Compile Include="Types\Renderer\MeshBatchRenderer.cs" />
+    <Compile Include="Types\Renderer\RenderableMesh.cs" />
     <Compile Include="Types\Renderer\Octree.cs" />
     <Compile Include="Types\Renderer\OctreeDebugRenderer.cs" />
     <Compile Include="Types\Renderer\ParticleSceneNode.cs" />
