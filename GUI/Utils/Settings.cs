@@ -2,11 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Numerics;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Xml.Serialization;
-using GUI.Types.Renderer;
 using ValveKeyValue;
 
 namespace GUI.Utils

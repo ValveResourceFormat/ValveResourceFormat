@@ -1,12 +1,10 @@
-using System.Collections.Generic;
+using System;
 
 namespace GUI.Types.Renderer
 {
     internal interface IRenderer
     {
         AABB BoundingBox { get; }
-
-        string LayerName { get; }
 
         void Render(Camera camera, RenderPass renderPass);
 

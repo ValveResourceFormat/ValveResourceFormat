@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using GUI.Controls;
-using OpenTK;
 using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer

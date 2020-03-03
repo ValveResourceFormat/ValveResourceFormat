@@ -23,11 +23,6 @@ namespace GUI
             Application.Run(new MainForm());
         }
 
-        private static void WinFormsException(object sender, ThreadExceptionEventArgs t)
-        {
-            ShowError("Windows Forms Exception", t.Exception);
-        }
-
         private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
         {
             ShowError("Unhandled Error", (Exception)ex.ExceptionObject);
@@ -37,7 +32,7 @@ namespace GUI
         {
             Console.WriteLine(e);
 
-            MessageBox.Show(e.GetType().ToString() + Environment.NewLine + e.Message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(e.GetType() + Environment.NewLine + e.Message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

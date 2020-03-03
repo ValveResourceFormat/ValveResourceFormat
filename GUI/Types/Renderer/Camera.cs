@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
         // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }
 
-        public Vector2 WindowSize { get; set; }
+        private Vector2 WindowSize;
         private float AspectRatio;
 
         private bool MouseDragging;
@@ -156,7 +156,7 @@ namespace GUI.Types.Renderer
             if (!MouseOverRenderArea || mouseState.LeftButton == ButtonState.Released)
             {
                 MouseDragging = false;
-                MouseDelta = default(Vector2);
+                MouseDelta = default;
             }
         }
 

@@ -1,8 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -11,32 +7,10 @@ namespace GUI.Types.ParticleRenderer
         private readonly bool isGrowable;
 
         private Particle[] particles;
-        private int usedParticles = 0;
 
-        private static int SortComparator(in Particle a, in Particle b)
-        {
-            return a.ParticleCount - b.ParticleCount;
-        }
+        public int Count { get; private set; }
 
-        public ref Particle this[int index]
-        {
-            get => ref particles[index];
-        }
-
-        public int Count
-        {
-            get => usedParticles;
-        }
-
-        public int Capacity
-        {
-            get => particles.Length;
-        }
-
-        public Span<Particle> LiveParticles
-        {
-            get => new Span<Particle>(particles, 0, usedParticles);
-        }
+        public Span<Particle> LiveParticles => new Span<Particle>(particles, 0, Count);
 
         public ParticleBag(int initialCapacity, bool growable)
         {
@@ -46,18 +20,18 @@ namespace GUI.Types.ParticleRenderer
 
         public int Add()
         {
-            if (usedParticles < particles.Length)
+            if (Count < particles.Length)
             {
-                return usedParticles++;
+                return Count++;
             }
             else if (isGrowable)
             {
                 int newSize = particles.Length < 1024 ? particles.Length * 2 : particles.Length + 1024;
                 var newArray = new Particle[newSize];
-                Array.Copy(particles, 0, newArray, 0, usedParticles);
+                Array.Copy(particles, 0, newArray, 0, Count);
                 particles = newArray;
 
-                return usedParticles++;
+                return Count++;
             }
 
             return -1;
@@ -66,12 +40,12 @@ namespace GUI.Types.ParticleRenderer
         public void PruneExpired()
         {
             // TODO: This alters the order of the particles so they are no longer in creation order after something expires. Fix that.
-            for (int i = 0; i < usedParticles;)
+            for (int i = 0; i < Count;)
             {
                 if (particles[i].Lifetime <= 0)
                 {
-                    particles[i] = particles[usedParticles - 1];
-                    usedParticles--;
+                    particles[i] = particles[Count - 1];
+                    Count--;
                 }
                 else
                 {
@@ -82,7 +56,7 @@ namespace GUI.Types.ParticleRenderer
 
         public void Clear()
         {
-            usedParticles = 0;
+            Count = 0;
         }
     }
 }

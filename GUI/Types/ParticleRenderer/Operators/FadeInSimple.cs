@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators

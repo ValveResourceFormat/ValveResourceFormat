@@ -40,10 +40,7 @@ namespace GUI.Types.Renderer
 
             animationComboBox = ViewerControl.AddSelection("Animation", (animation, _) =>
             {
-                if (modelSceneNode != null)
-                {
-                    modelSceneNode.SetAnimation(animation);
-                }
+                modelSceneNode?.SetAnimation(animation);
             });
         }
 
@@ -64,7 +61,7 @@ namespace GUI.Types.Renderer
                         modelSceneNode.SetActiveMeshGroups(selectedGroups);
                     });
 
-                    meshGroupListBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray());
+                    meshGroupListBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray<object>());
                     foreach (var group in modelSceneNode.GetActiveMeshGroups())
                     {
                         meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);

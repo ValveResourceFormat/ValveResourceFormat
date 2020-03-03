@@ -13,25 +13,23 @@ namespace GUI.Types.Renderer
 {
     internal class RenderableMesh
     {
-        public Mesh Mesh { get; }
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
 
         private readonly VrfGuiContext guiContext;
         public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
         public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
-        public int? AnimationTexture { get; set; }
-        public int BoneCount { get; set; }
+        public int? AnimationTexture { get; private set; }
+        public int BoneCount { get; private set; }
 
         public float Time { get; private set; } = 0f;
 
         public RenderableMesh(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {
             this.guiContext = guiContext;
-            Mesh = mesh;
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
 
-            SetupDrawCalls(skinMaterials);
+            SetupDrawCalls(mesh, skinMaterials);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
@@ -71,10 +69,10 @@ namespace GUI.Types.Renderer
             Time += timeStep;
         }
 
-        private void SetupDrawCalls(Dictionary<string, string> skinMaterials)
+        private void SetupDrawCalls(Mesh mesh, Dictionary<string, string> skinMaterials)
         {
-            var vbib = Mesh.VBIB;
-            var data = Mesh.GetData();
+            var vbib = mesh.VBIB;
+            var data = mesh.GetData();
 
             var vertexBuffers = new uint[vbib.VertexBuffers.Count];
             var indexBuffers = new uint[vbib.IndexBuffers.Count];

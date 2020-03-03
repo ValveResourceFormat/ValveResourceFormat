@@ -14,14 +14,14 @@ namespace GUI.Types.Renderer
 
         public int GetUniformLocation(string name)
         {
-            int value;
-
-            if (!Uniforms.TryGetValue(name, out value))
+            if (Uniforms.TryGetValue(name, out var value))
             {
-                value = GL.GetUniformLocation(Program, name);
-
-                Uniforms[name] = value;
+                return value;
             }
+
+            value = GL.GetUniformLocation(Program, name);
+
+            Uniforms[name] = value;
 
             return value;
         }

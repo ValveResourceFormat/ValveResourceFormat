@@ -8,9 +8,9 @@ namespace GUI.Utils
 {
     internal class ConsoleTab
     {
-        internal class MyLogger : TextWriter
+        private class MyLogger : TextWriter
         {
-            private TextBox control;
+            private readonly TextBox control;
 
             public MyLogger(TextBox control)
             {
@@ -32,7 +32,7 @@ namespace GUI.Utils
                     return;
                 }
 
-                var logLine = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] {value}{Environment.NewLine}";
+                var logLine = $"[{DateTime.Now:HH:mm:ss.fff}] {value}{Environment.NewLine}";
                 control.AppendText(logLine);
             }
         }

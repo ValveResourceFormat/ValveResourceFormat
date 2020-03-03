@@ -2,14 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshBatchRenderer
+    internal static class MeshBatchRenderer
     {
         public struct Request
         {
@@ -53,17 +51,16 @@ namespace GUI.Types.Renderer
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
             var shader = drawCalls.First().Call.Shader;
 
-            int uniformLocation;
-            int uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
-            int uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
-            int uniformLocationNumBones = shader.GetUniformLocation("fNumBones");
-            int uniformLocationTransform = shader.GetUniformLocation("transform");
-            int uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
-            int uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
+            var uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
+            var uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
+            var uniformLocationNumBones = shader.GetUniformLocation("fNumBones");
+            var uniformLocationTransform = shader.GetUniformLocation("transform");
+            var uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
+            var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
 
             GL.UseProgram(shader.Program);
 
-            uniformLocation = shader.GetUniformLocation("vLightPosition");
+            var uniformLocation = shader.GetUniformLocation("vLightPosition");
             GL.Uniform3(uniformLocation, context.Camera.Location.ToOpenTK());
 
             uniformLocation = shader.GetUniformLocation("vEyePosition");

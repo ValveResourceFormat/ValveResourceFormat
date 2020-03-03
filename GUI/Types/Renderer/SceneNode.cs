@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GUI.Types.Renderer
 {
@@ -37,7 +35,7 @@ namespace GUI.Types.Renderer
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;
 
-        public SceneNode(Scene scene)
+        protected SceneNode(Scene scene)
         {
             Scene = scene;
         }

@@ -94,7 +94,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var vbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
 
-            var vertices = new float[]
+            var vertices = new[]
             {
                 -1.0f, -1.0f, 0.0f,
                 -1.0f, 1.0f, 0.0f,

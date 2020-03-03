@@ -58,7 +58,7 @@ namespace GUI.Forms
                 {
                     if (!t.IsCanceled)
                     {
-                        Invoke((Action)(() => Close()));
+                        Invoke((Action)Close);
                     }
                 });
         }
@@ -96,7 +96,7 @@ namespace GUI.Forms
 
                 Invoke((Action)(() =>
                 {
-                    extractProgressBar.Value = 100 - (int)(((float)filesToExtract.Count / (float)initialFileCount) * 100.0f);
+                    extractProgressBar.Value = 100 - (int)((filesToExtract.Count / (float)initialFileCount) * 100.0f);
                     extractStatusLabel.Text = $"Extracting {packageFile.GetFullPath()}";
                 }));
 

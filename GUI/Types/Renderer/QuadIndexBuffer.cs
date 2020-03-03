@@ -5,7 +5,7 @@ namespace GUI.Types.Renderer
 {
     public class QuadIndexBuffer
     {
-        public int GLHandle { get; private set; }
+        public int GLHandle { get; }
 
         public QuadIndexBuffer(int size)
         {

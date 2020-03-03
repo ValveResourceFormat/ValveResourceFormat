@@ -2,8 +2,8 @@ namespace GUI.Forms
 {
     public class SearchTypeItem
     {
-        public string Name { get; private set; }
-        public SearchType Type { get; private set; }
+        public string Name { get; }
+        public SearchType Type { get; }
 
         public SearchTypeItem(string name, SearchType type)
         {

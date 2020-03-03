@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
 
-        public GLSceneViewer(VrfGuiContext guiContext)
+        protected GLSceneViewer(VrfGuiContext guiContext)
         {
             Scene = new Scene(guiContext);
             ViewerControl = new GLViewerControl();

@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 
@@ -27,7 +28,7 @@ namespace GUI.Controls
             public Camera Camera { get; set; }
         }
 
-        public Camera Camera { get; set; }
+        public Camera Camera { get; }
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
@@ -47,9 +48,9 @@ namespace GUI.Controls
 
             // Initialize GL control
 #if DEBUG
-            GLControl = new OpenTK.GLControl(new OpenTK.Graphics.GraphicsMode(32, 24, 0, 8), 3, 3, OpenTK.Graphics.GraphicsContextFlags.Debug);
+            GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
 #else
-            GLControl = new OpenTK.GLControl(new OpenTK.Graphics.GraphicsMode(32, 24, 0, 8), 3, 3, OpenTK.Graphics.GraphicsContextFlags.Default);
+            GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Default);
 #endif
             GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
@@ -64,7 +65,7 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
         }
 
-        public void SetFps(double fps)
+        private void SetFps(double fps)
         {
             fpsLabel.Text = $"FPS: {Math.Round(fps).ToString(CultureInfo.InvariantCulture)}";
         }

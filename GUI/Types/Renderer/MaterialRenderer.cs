@@ -12,7 +12,6 @@ namespace GUI.Types.Renderer
         private readonly int quadVao;
 
         public AABB BoundingBox => new AABB(-1, -1, -1, 1, 1, 1);
-        public string LayerName { get; }
 
         public MaterialRenderer(RenderMaterial renderMaterial, VrfGuiContext vrfGuiContext)
         {

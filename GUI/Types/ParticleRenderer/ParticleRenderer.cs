@@ -24,7 +24,6 @@ namespace GUI.Types.ParticleRenderer
         public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
 
         public AABB BoundingBox { get; private set; }
-        public string LayerName { get; set; }
 
         public Vector3 Position
         {

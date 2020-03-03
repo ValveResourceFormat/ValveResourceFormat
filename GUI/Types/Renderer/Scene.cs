@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer
@@ -35,9 +34,7 @@ namespace GUI.Types.Renderer
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
 
-        public IEnumerable<SceneNode> AllNodes => Enumerable.Concat(staticNodes, dynamicNodes);
-
-        private readonly HashSet<string> VisibleOnSpawnWorldLayers = new HashSet<string>();
+        public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
         private readonly List<SceneNode> staticNodes = new List<SceneNode>();
         private readonly List<SceneNode> dynamicNodes = new List<SceneNode>();
@@ -79,11 +76,6 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void Render()
-        {
-            RenderWithCamera(MainCamera);
-        }
-
         public void RenderWithCamera(Camera camera, Frustum cullFrustum = null)
         {
             var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
@@ -95,8 +87,7 @@ namespace GUI.Types.Renderer
             var looseNodes = new List<SceneNode>();
             foreach (var node in allNodes)
             {
-                var meshCollection = node as IRenderableMeshCollection;
-                if (meshCollection != null)
+                if (node is IRenderableMeshCollection meshCollection)
                 {
                     foreach (var mesh in meshCollection.RenderableMeshes)
                     {

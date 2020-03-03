@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -13,7 +12,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
-using GUI.Types;
 using GUI.Types.Audio;
 using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer;
@@ -55,8 +53,7 @@ namespace GUI
             {
                 if (mainTabs.SelectedTab != null)
                 {
-                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                    findToolStripButton.Enabled = treeView != null;
+                    findToolStripButton.Enabled = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] is TreeViewWithSearchResults;
                 }
             };
 
@@ -121,8 +118,7 @@ namespace GUI
             // enable/disable the search button as necessary
             if (mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
             {
-                var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
-                findToolStripButton.Enabled = treeView != null;
+                findToolStripButton.Enabled = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] is TreeViewWithSearchResults;
             }
             else
             {
@@ -362,8 +358,8 @@ namespace GUI
             var tab = new TabPage();
             var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
-            uint magic = 0;
-            ushort magicResourceVersion = 0;
+            uint magic;
+            ushort magicResourceVersion;
 
             if (input != null)
             {
@@ -951,13 +947,13 @@ namespace GUI
             TreeNode selectedNode = null;
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
 
-            if (control is TreeView)
+            if (control is TreeView treeView)
             {
-                selectedNode = (control as TreeView).SelectedNode;
+                selectedNode = treeView.SelectedNode;
             }
-            else if (control is ListView)
+            else if (control is ListView listView)
             {
-                selectedNode = (control as ListView).SelectedItems[0].Tag as TreeNode;
+                selectedNode = listView.SelectedItems[0].Tag as TreeNode;
             }
 
             Clipboard.SetText(selectedNode.Name);
@@ -968,13 +964,13 @@ namespace GUI
             TreeNode selectedNode = null;
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
 
-            if (control is TreeView)
+            if (control is TreeView treeView)
             {
-                selectedNode = (control as TreeView).SelectedNode;
+                selectedNode = treeView.SelectedNode;
             }
-            else if (control is ListView)
+            else if (control is ListView listView)
             {
-                selectedNode = (control as ListView).SelectedItems[0].Tag as TreeNode;
+                selectedNode = listView.SelectedItems[0].Tag as TreeNode;
             }
 
             if (selectedNode.Tag is PackageEntry file)
@@ -1188,7 +1184,7 @@ namespace GUI
                         }
                         else
                         {
-                            var data = ValveResourceFormat.IO.FileExtract.Extract(resource).ToArray();
+                            var data = FileExtract.Extract(resource).ToArray();
                             stream.Write(data, 0, data.Length);
                         }
                     }

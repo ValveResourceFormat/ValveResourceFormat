@@ -6,7 +6,6 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
-using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
@@ -68,7 +67,7 @@ namespace GUI.Types.Renderer
             var cam = Scene.MainCamera;
             var saveName = string.Format("Saved Camera #{0}", Settings.Config.SavedCameras.Count + 1);
 
-            Settings.Config.SavedCameras.Add(saveName, string.Join(",", new float[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw }));
+            Settings.Config.SavedCameras.Add(saveName, string.Join(",", new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw }));
             Settings.Save();
 
             savedCameraPositionsControl.RefreshSavedPositions();
@@ -93,9 +92,9 @@ namespace GUI.Types.Renderer
                     // TODO: Since the layers are combined, has to be first in each world node?
                     worldLayersComboBox.SetItemCheckState(0, CheckState.Checked);
 
-                    foreach (var worldNode in result.DefaultEnabledLayers)
+                    foreach (var worldLayer in result.DefaultEnabledLayers)
                     {
-                        worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldNode), CheckState.Checked);
+                        worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldLayer), CheckState.Checked);
                     }
                 }
 
@@ -120,7 +119,7 @@ namespace GUI.Types.Renderer
                         cameraComboBox.SelectedIndex = 0;
                     }
 
-                    cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray());
+                    cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray<object>());
                 }
             }
 
