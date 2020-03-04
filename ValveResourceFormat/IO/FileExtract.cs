@@ -52,6 +52,7 @@ namespace ValveResourceFormat.IO
 
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.SoundEventScript:
+                case ResourceType.SoundStackScript:
                     data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
