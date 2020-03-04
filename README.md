@@ -68,11 +68,11 @@ Not all formats are 100% supported, some parameters are still unknown and not fu
 ## Eye catchy screenshots
 <table>
 	<tr>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_glados.png"></td>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_potato.png"></td>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_map.png"></td>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_texture.png"></td>
 	</tr>
 	<tr>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_vpk.png"></td>
+		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_package.png"></td>
 		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_cli.png"></td>
 	</tr>
 </table>
