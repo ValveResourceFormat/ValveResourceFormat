@@ -31,6 +31,7 @@
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <AllowedReferenceRelatedFileExtensions>.absolutelyNothing</AllowedReferenceRelatedFileExtensions>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
