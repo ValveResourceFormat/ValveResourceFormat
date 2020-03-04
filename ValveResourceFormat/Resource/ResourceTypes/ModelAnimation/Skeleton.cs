@@ -24,8 +24,21 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Get the remap table and invert it for our construction method
             var remapTable = modelData.GetIntegerArray("m_remappingTable");
+
+            var start = 0;
+            var end = remapTable.Length;
+
+            var remapTableStarts = modelData.GetIntegerArray("m_remappingTableStarts");
+
+            // we only use lod 1
+            if (remapTableStarts.Length > 1)
+            {
+                start = (int)remapTableStarts[0];
+                end = (int)remapTableStarts[1];
+            }
+
             var invMapTable = new Dictionary<long, int>();
-            for (var i = 0; i < remapTable.Length; i++)
+            for (var i = start; i < end; i++)
             {
                 if (!invMapTable.ContainsKey(remapTable[i]))
                 {
@@ -90,7 +103,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             foreach (var bone in Bones)
             {
-                if (bone.Parent == null)
+                if (bone != null && bone.Parent == null)
                 {
                     Roots.Add(bone);
                 }
