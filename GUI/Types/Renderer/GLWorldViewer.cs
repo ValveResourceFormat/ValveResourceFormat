@@ -49,9 +49,8 @@ namespace GUI.Types.Renderer
 
         private void OnRestoreCameraRequest(object sender, string e)
         {
-            if (Settings.Config.SavedCameras.TryGetValue(e, out var savedCamString))
+            if (Settings.Config.SavedCameras.TryGetValue(e, out var savedFloats))
             {
-                var savedFloats = savedCamString.Split(',').Select(float.Parse).ToArray();
                 if (savedFloats.Length == 5)
                 {
                     Scene.MainCamera.SetLocationPitchYaw(
@@ -67,7 +66,7 @@ namespace GUI.Types.Renderer
             var cam = Scene.MainCamera;
             var saveName = string.Format("Saved Camera #{0}", Settings.Config.SavedCameras.Count + 1);
 
-            Settings.Config.SavedCameras.Add(saveName, string.Join(",", new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw }));
+            Settings.Config.SavedCameras.Add(saveName, new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw });
             Settings.Save();
 
             savedCameraPositionsControl.RefreshSavedPositions();
