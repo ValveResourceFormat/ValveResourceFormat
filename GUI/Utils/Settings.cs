@@ -14,7 +14,7 @@ namespace GUI.Utils
             public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
-            public Dictionary<string, float[]> SavedCameras { get; set; }
+            public Dictionary<string, float[]> SavedCameras { get; set; } = new Dictionary<string, float[]>();
         }
 
         private static string SettingsFilePath;
@@ -39,8 +39,6 @@ namespace GUI.Utils
             }
 
             BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
-
-            Config.SavedCameras = Config.SavedCameras ?? new Dictionary<string, float[]>();
         }
 
         public static void Save()
