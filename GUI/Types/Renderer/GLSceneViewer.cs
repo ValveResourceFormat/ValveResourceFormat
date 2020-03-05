@@ -19,12 +19,18 @@ namespace GUI.Types.Renderer
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
         public bool ShowBaseGrid { get; set; } = true;
+        public bool ShowSkybox { get; set; } = true;
+
+        protected float SkyboxScale { get; set; } = 1.0f;
+        protected Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
+
         private bool showStaticOctree = false;
         private bool showDynamicOctree = false;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
+        private Camera skyboxCamera = new Camera();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
 
@@ -101,11 +107,16 @@ namespace GUI.Types.Renderer
                 baseGrid.Render(e.Camera, RenderPass.Both);
             }
 
-            if (SkyboxScene != null)
+            if (ShowSkybox && SkyboxScene != null)
             {
-                SkyboxScene.MainCamera = e.Camera;
+                skyboxCamera.CopyFrom(e.Camera);
+                skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
+                skyboxCamera.SetScale(SkyboxScale);
+
+                SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
-                SkyboxScene.RenderWithCamera(e.Camera, lockedCullFrustum);
+                SkyboxScene.RenderWithCamera(skyboxCamera);
+
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 

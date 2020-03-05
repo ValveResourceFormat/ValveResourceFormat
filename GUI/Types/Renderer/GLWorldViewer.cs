@@ -83,7 +83,12 @@ namespace GUI.Types.Renderer
                 {
                     SkyboxScene = new Scene(GuiContext);
                     var skyboxLoader = new WorldLoader(GuiContext, result.Skybox);
-                    skyboxLoader.Load(SkyboxScene);
+                    var skyboxResult = skyboxLoader.Load(SkyboxScene);
+
+                    SkyboxScale = skyboxResult.SkyboxScale;
+                    SkyboxOrigin = skyboxResult.SkyboxOrigin;
+
+                    ViewerControl.AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
 
                 var worldLayers = Scene.AllNodes
@@ -114,7 +119,7 @@ namespace GUI.Types.Renderer
                             {
                                 if (result.CameraMatrices.TryGetValue(cameraName, out var cameraMatrix))
                                 {
-                                    Scene.MainCamera.SetViewMatrix(cameraMatrix);
+                                    Scene.MainCamera.SetFromTransformMatrix(cameraMatrix);
                                 }
 
                                 cameraComboBox.SelectedIndex = 0;

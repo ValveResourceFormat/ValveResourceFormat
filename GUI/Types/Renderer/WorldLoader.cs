@@ -24,6 +24,8 @@ namespace GUI.Types.Renderer
             public Vector3? GlobalLightPosition { get; set; }
 
             public World Skybox { get; set; }
+            public float SkyboxScale { get; set; } = 1.0f;
+            public Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
         }
 
         public WorldLoader(VrfGuiContext vrfGuiContext, World world)
@@ -154,6 +156,12 @@ namespace GUI.Types.Renderer
 
                 var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
                 var transformationMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+
+                if (classname == "sky_camera")
+                {
+                    result.SkyboxScale = entity.GetProperty<ulong>("scale");
+                    result.SkyboxOrigin = positionVector;
+                }
 
                 if (particle != null)
                 {
