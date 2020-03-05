@@ -121,7 +121,11 @@ namespace GUI.Types.Renderer
 
                     var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
                     var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
-                    result.Skybox = new World(skyboxPackage);
+
+                    if (skyboxPackage != null)
+                    {
+                        result.Skybox = new World(skyboxPackage);
+                    }
                 }
 
                 var scale = entity.GetProperty<string>("scales");
