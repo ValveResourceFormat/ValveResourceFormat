@@ -544,7 +544,12 @@ namespace Decompiler
             {
                 Console.WriteLine("--- Files in package:");
 
-                var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key);
+                var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
+
+                if (ExtFilterList != null)
+                {
+                    orderedEntries = orderedEntries.Where(x => ExtFilterList.Contains(x.Key)).ToList();
+                }
 
                 if (CollectStats)
                 {
