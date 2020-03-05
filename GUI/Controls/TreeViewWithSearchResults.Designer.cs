@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using GUI.Forms;
 
 namespace GUI.Controls
@@ -74,6 +74,7 @@ namespace GUI.Controls
             this.mainListView.TabIndex = 0;
             this.mainListView.UseCompatibleStateImageBehavior = false;
             this.mainListView.View = System.Windows.Forms.View.Details;
+            this.mainListView.MultiSelect = false;
             // 
             // TreeViewWithSearchResults
             // 
