@@ -152,12 +152,19 @@ namespace GUI.Types.Renderer
                         var particleSystem = new ParticleSystem(particleResource);
                         var origin = new Vector3(positionVector.X, positionVector.Y, positionVector.Z);
 
-                        var particleNode = new ParticleSceneNode(scene, particleSystem)
+                        try
                         {
-                            Transform = Matrix4x4.CreateTranslation(origin),
-                            LayerName = layerName,
-                        };
-                        scene.Add(particleNode, true);
+                            var particleNode = new ParticleSceneNode(scene, particleSystem)
+                            {
+                                Transform = Matrix4x4.CreateTranslation(origin),
+                                LayerName = layerName,
+                            };
+                            scene.Add(particleNode, true);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.Error.WriteLine($"Failed to setup particle '{particle}': {e.Message}");
+                        }
                     }
 
                     continue;
