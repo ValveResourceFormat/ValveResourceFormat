@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);
-        private readonly float noiseScale = 1f;
+        private readonly INumberProvider noiseScale = new LiteralNumberProvider(1f);
 
         public InitialVelocityNoise(IKeyValueCollection keyValues)
         {
@@ -24,12 +24,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (keyValues.ContainsKey("m_flNoiseScale"))
             {
-                noiseScale = keyValues.GetFloatProperty("m_flNoiseScale");
+                noiseScale = keyValues.GetNumberProvider("m_flNoiseScale");
             }
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
+            var noiseScale = (float)this.noiseScale.NextNumber();
             var r = new Vector3(
                 Simplex1D(particleSystemState.Lifetime * noiseScale),
                 Simplex1D((particleSystemState.Lifetime * noiseScale) + 101723),
