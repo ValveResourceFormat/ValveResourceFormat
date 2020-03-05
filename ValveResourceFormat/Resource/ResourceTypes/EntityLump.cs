@@ -33,6 +33,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             public uint Type { get; set; }
 
+            public string Name { get; set; }
+
             public object Data { get; set; }
         }
 
@@ -74,77 +76,72 @@ namespace ValveResourceFormat.ResourceTypes
             using (var dataReader = new BinaryReader(dataStream))
             {
                 var a = dataReader.ReadUInt32(); // always 1?
-                var valuesCount = dataReader.ReadUInt32();
-                var c = dataReader.ReadUInt32(); // always 0? (Its been seen to be 1, footer count?)
+
+                if (a != 1)
+                {
+                    throw new NotImplementedException($"First field in entity lump is not 1");
+                }
+
+                var hashedFieldsCount = dataReader.ReadUInt32();
+                var stringFieldsCount = dataReader.ReadUInt32();
 
                 var properties = new Dictionary<uint, EntityProperty>();
-                while (dataStream.Position != dataStream.Length)
-                {
-                    if (properties.Count == valuesCount)
-                    {
-                        Console.WriteLine("We hit our values target without reading every byte?!");
-                        break;
-                    }
 
-                    var miscType = dataReader.ReadUInt32(); // Stuff before type, some pointer?
+                void ReadTypedValue(uint keyHash, string keyName)
+                {
                     var type = dataReader.ReadUInt32();
+                    var entityProperty = new EntityProperty
+                    {
+                        Type = type,
+                        Name = keyName,
+                    };
 
                     switch (type)
                     {
                         case 0x06: // boolean
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadBoolean(),
-                            }); //1
+                            entityProperty.Data = dataReader.ReadBoolean(); // 1
                             break;
                         case 0x01: // float
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadSingle(),
-                            }); //4
+                            entityProperty.Data = dataReader.ReadSingle(); // 4
                             break;
                         case 0x09: // color255
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadBytes(4),
-                            }); //4
+                            entityProperty.Data = dataReader.ReadBytes(4); // 4
                             break;
                         case 0x05: // node_id
                         case 0x25: // flags
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadUInt32(),
-                            }); //4
+                            entityProperty.Data = dataReader.ReadUInt32(); // 4
                             break;
                         case 0x1a: // integer
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadUInt64(),
-                            }); //8
+                            entityProperty.Data = dataReader.ReadUInt64(); // 8
                             break;
                         case 0x03: // vector
                         case 0x27: // angle
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()),
-                            }); //12
+                            entityProperty.Data = new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()); // 12
                             break;
                         case 0x1e: // string
-                            properties.Add(miscType, new EntityProperty
-                            {
-                                Type = type,
-                                Data = dataReader.ReadNullTermString(Encoding.UTF8),
-                            });
+                            entityProperty.Data = dataReader.ReadNullTermString(Encoding.UTF8); // null term variable
                             break;
                         default:
                             throw new NotImplementedException($"Unknown type {type}");
                     }
+
+                    properties.Add(keyHash, entityProperty);
+                }
+
+                for (var i = 0; i < hashedFieldsCount; i++)
+                {
+                    // murmur2 hashed field name (see EntityLumpKeyLookup)
+                    var keyHash = dataReader.ReadUInt32();
+
+                    ReadTypedValue(keyHash, null);
+                }
+
+                for (var i = 0; i < stringFieldsCount; i++)
+                {
+                    var keyHash = dataReader.ReadUInt32();
+                    var keyName = dataReader.ReadNullTermString(Encoding.UTF8);
+
+                    ReadTypedValue(keyHash, keyName);
                 }
 
                 return new Entity
@@ -192,6 +189,10 @@ namespace ValveResourceFormat.ResourceTypes
                     if (knownKeys.ContainsKey(property.Key))
                     {
                         key = knownKeys[property.Key];
+                    }
+                    else if (property.Value.Name != null)
+                    {
+                        key = property.Value.Name;
                     }
                     else
                     {
