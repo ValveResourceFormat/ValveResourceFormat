@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
@@ -13,6 +14,7 @@ namespace GUI.Types.Renderer
     internal abstract class GLSceneViewer
     {
         public Scene Scene { get; }
+        public Scene SkyboxScene { get; protected set; }
         public GLViewerControl ViewerControl { get; }
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
@@ -97,6 +99,14 @@ namespace GUI.Types.Renderer
             if (ShowBaseGrid)
             {
                 baseGrid.Render(e.Camera, RenderPass.Both);
+            }
+
+            if (SkyboxScene != null)
+            {
+                SkyboxScene.MainCamera = e.Camera;
+                SkyboxScene.Update(e.FrameTime);
+                SkyboxScene.RenderWithCamera(e.Camera, lockedCullFrustum);
+                GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);

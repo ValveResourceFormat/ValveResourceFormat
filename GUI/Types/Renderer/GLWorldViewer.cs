@@ -79,6 +79,13 @@ namespace GUI.Types.Renderer
                 var loader = new WorldLoader(GuiContext, world);
                 var result = loader.Load(Scene);
 
+                if (result.Skybox != null)
+                {
+                    SkyboxScene = new Scene(GuiContext);
+                    var skyboxLoader = new WorldLoader(GuiContext, result.Skybox);
+                    skyboxLoader.Load(SkyboxScene);
+                }
+
                 var worldLayers = Scene.AllNodes
                     .Select(r => r.LayerName)
                     .Distinct();

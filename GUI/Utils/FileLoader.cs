@@ -83,6 +83,26 @@ namespace GUI.Utils
                 packages.Add(package);
             }
 
+            if (guiContext.ParentPackage != null && guiContext.ParentPackage.Entries.ContainsKey("vpk"))
+            {
+                foreach (var searchPath in guiContext.ParentPackage.Entries["vpk"])
+                {
+                    if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
+                    {
+                        Console.WriteLine($"Preloading vpk from parent vpk \"{searchPath}\"");
+
+                        guiContext.ParentPackage.ReadEntry(searchPath, out var vpk);
+                        var ms = new MemoryStream(vpk);
+                        package = new Package();
+                        package.SetFileName(searchPath.GetFileName());
+                        package.Read(ms);
+                        CachedPackages[searchPath.GetFileName()] = package;
+                    }
+
+                    packages.Add(package);
+                }
+            }
+
             foreach (var package in packages)
             {
                 entry = package?.FindEntry(file);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
@@ -21,6 +22,8 @@ namespace GUI.Types.Renderer
             public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
 
             public Vector3? GlobalLightPosition { get; set; }
+
+            public World Skybox { get; set; }
         }
 
         public WorldLoader(VrfGuiContext vrfGuiContext, World world)
@@ -108,6 +111,15 @@ namespace GUI.Types.Renderer
                     }
 
                     continue;
+                }
+                else if (classname == "skybox_reference")
+                {
+                    var worldgroupid = entity.GetProperty<string>("worldgroupid");
+                    var targetmapname = entity.GetProperty<string>("targetmapname");
+
+                    var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
+                    var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
+                    result.Skybox = new World(skyboxPackage);
                 }
 
                 var scale = entity.GetProperty<string>("scales");
