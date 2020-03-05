@@ -995,7 +995,17 @@ namespace GUI
             }
         }
 
+        private void DecompileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExtractFiles(sender, true);
+        }
+
         private void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExtractFiles(sender, false);
+        }
+
+        private void ExtractFiles(object sender, bool decompile)
         {
             TreeViewWithSearchResults.TreeViewPackageTag package = null;
             TreeNode selectedNode = null;
@@ -1019,12 +1029,37 @@ namespace GUI
             {
                 // We are a file
                 var file = selectedNode.Tag as PackageEntry;
+                var fileName = file.GetFileName();
+
+                package.Package.ReadEntry(file, out var output);
+
+                if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
+                {
+                    using (var resource = new Resource())
+                    using (var memory = new MemoryStream(output))
+                    {
+                        resource.Read(memory);
+
+                        var extension = FileExtract.GetExtension(resource);
+
+                        if (extension == null)
+                        {
+                            fileName = fileName.Substring(0, fileName.Length - 2);
+                        }
+                        else
+                        {
+                            fileName = Path.ChangeExtension(fileName, extension);
+                        }
+
+                        output = FileExtract.Extract(resource).ToArray();
+                    }
+                }
 
                 var dialog = new SaveFileDialog
                 {
                     InitialDirectory = Settings.Config.SaveDirectory,
                     Filter = "All files (*.*)|*.*",
-                    FileName = file.GetFileName(),
+                    FileName = fileName,
                 };
                 var userOK = dialog.ShowDialog();
 
@@ -1035,7 +1070,6 @@ namespace GUI
 
                     using (var stream = dialog.OpenFile())
                     {
-                        package.Package.ReadEntry(file, out var output);
                         stream.Write(output, 0, output.Length);
                     }
                 }
@@ -1046,7 +1080,7 @@ namespace GUI
                 var dialog = new FolderBrowserDialog();
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath);
+                    var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath, decompile);
                     extractDialog.ShowDialog();
                 }
             }

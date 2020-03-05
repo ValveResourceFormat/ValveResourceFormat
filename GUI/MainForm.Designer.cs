@@ -55,6 +55,8 @@ namespace GUI
             this.extractToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copyFileNameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openWithDefaultAppToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.decompileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.contextMenuStrip1.SuspendLayout();
             this.vpkContextMenu.SuspendLayout();
@@ -206,32 +208,46 @@ namespace GUI
             // 
             this.vpkContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.extractToolStripMenuItem,
+            this.decompileToolStripMenuItem,
+            this.toolStripSeparator1,
             this.copyFileNameToolStripMenuItem,
             this.openWithDefaultAppToolStripMenuItem});
             this.vpkContextMenu.Name = "vpkContextMenu";
-            this.vpkContextMenu.Size = new System.Drawing.Size(193, 70);
+            this.vpkContextMenu.Size = new System.Drawing.Size(193, 120);
             // 
             // extractToolStripMenuItem
             // 
             this.extractToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("extractToolStripMenuItem.Image")));
             this.extractToolStripMenuItem.Name = "extractToolStripMenuItem";
-            this.extractToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            this.extractToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             this.extractToolStripMenuItem.Text = "Export";
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
             // 
             // copyFileNameToolStripMenuItem
             // 
             this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
-            this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             this.copyFileNameToolStripMenuItem.Text = "Copy file name";
             this.copyFileNameToolStripMenuItem.Click += new System.EventHandler(this.CopyFileNameToolStripMenuItem_Click);
             // 
             // openWithDefaultAppToolStripMenuItem
             // 
             this.openWithDefaultAppToolStripMenuItem.Name = "openWithDefaultAppToolStripMenuItem";
-            this.openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            this.openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(206, 22);
             this.openWithDefaultAppToolStripMenuItem.Text = "Open with default app";
             this.openWithDefaultAppToolStripMenuItem.Click += new System.EventHandler(this.OpenWithDefaultAppToolStripMenuIte_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(203, 6);
+            // 
+            // decompileToolStripMenuItem
+            // 
+            this.decompileToolStripMenuItem.Name = "decompileToolStripMenuItem";
+            this.decompileToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            this.decompileToolStripMenuItem.Text = "Decompile && Export";
+            this.decompileToolStripMenuItem.Click += new System.EventHandler(this.DecompileToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -280,6 +296,8 @@ namespace GUI
         private System.Windows.Forms.ToolStripButton findToolStripButton;
         private System.Windows.Forms.ToolStripDropDownButton exportToolStripButton;
         private System.Windows.Forms.ToolStripMenuItem openWithDefaultAppToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem decompileToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
     }
 }
 

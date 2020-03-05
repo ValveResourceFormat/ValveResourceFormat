@@ -6,19 +6,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
+using ValveResourceFormat.IO;
+using Exception = System.Exception;
 
 namespace GUI.Forms
 {
     public partial class ExtractProgressForm : Form
     {
+        private readonly Package package;
+        private readonly TreeNode root;
+        private readonly string path;
+        private readonly bool decompile;
+        private readonly Queue<PackageEntry> filesToExtract;
         private CancellationTokenSource cancellationTokenSource;
-        private Package package;
-        private TreeNode root;
-        private string path;
-        private Queue<PackageEntry> filesToExtract;
         private int initialFileCount;
 
-        public ExtractProgressForm(Package package, TreeNode root, string path)
+        public ExtractProgressForm(Package package, TreeNode root, string path, bool decompile)
         {
             InitializeComponent();
 
@@ -29,6 +33,7 @@ namespace GUI.Forms
             this.package = package;
             this.root = root;
             this.path = path;
+            this.decompile = decompile;
         }
 
         protected override void OnShown(EventArgs e)
@@ -102,11 +107,42 @@ namespace GUI.Forms
 
                 var filePath = Path.Combine(path, packageFile.GetFullPath());
 
+                package.ReadEntry(packageFile, out var output);
+
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                if (decompile && filePath.EndsWith("_c", StringComparison.Ordinal))
+                {
+                    using (var resource = new Resource())
+                    using (var memory = new MemoryStream(output))
+                    {
+                        try
+                        {
+                            resource.Read(memory);
+
+                            var extension = FileExtract.GetExtension(resource);
+
+                            if (extension == null)
+                            {
+                                filePath = filePath.Substring(0, filePath.Length - 2);
+                            }
+                            else
+                            {
+                                filePath = Path.ChangeExtension(filePath, extension);
+                            }
+
+                            output = FileExtract.Extract(resource).ToArray();
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}");
+                            return;
+                        }
+                    }
+                }
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
-                    package.ReadEntry(packageFile, out var output);
                     await stream.WriteAsync(output, 0, output.Length, cancellationTokenSource.Token);
                 }
             }
