@@ -39,6 +39,11 @@ namespace GUI.Utils
             }
 
             BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
+
+            if (Config.SavedCameras == null)
+            {
+                Config.SavedCameras = new Dictionary<string, float[]>();
+            }
         }
 
         public static void Save()
