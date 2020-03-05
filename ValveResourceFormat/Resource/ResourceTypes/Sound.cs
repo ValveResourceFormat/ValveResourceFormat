@@ -1,19 +1,18 @@
 using System;
 using System.IO;
+using System.Text;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Sound : NTRO
+    public class Sound : ResourceData
     {
         public enum AudioFileType
         {
             AAC = 0,
             WAV = 1,
             MP3 = 2,
-            Unknown3 = 3,
-            Unknown_This_Is_Actually_One_In_New_Format = -1,
+            Unknown_This_Is_Actually_One_In_New_Format = 3,
         }
 
         /// <summary>
@@ -48,60 +47,35 @@ namespace ValveResourceFormat.ResourceTypes
 
         public uint SampleSize { get; private set; }
 
+        public uint SampleCount { get; private set; }
+
         public int LoopStart { get; private set; }
 
         public float Duration { get; private set; }
 
+        public uint StreamingDataSize { get; private set; }
+
+        private BinaryReader Reader;
+
         public override void Read(BinaryReader reader, Resource resource)
         {
-            // NTRO only in version 0?
-            if (resource.IntrospectionManifest == null)
+            Reader = reader;
+            reader.BaseStream.Position = Offset;
+
+            if (resource.Version > 4)
             {
-                var block = new ResourceIntrospectionManifest.ResourceDiskStruct();
-
-                var field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
-                {
-                    FieldName = "m_bitpackedsoundinfo",
-                    Type = DataType.UInt32,
-                };
-                block.FieldIntrospection.Add(field);
-
-                field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
-                {
-                    FieldName = "m_loopStart",
-                    Type = DataType.Int32,
-                    OnDiskOffset = 4,
-                };
-                block.FieldIntrospection.Add(field);
-
-                field = new ResourceIntrospectionManifest.ResourceDiskStruct.Field
-                {
-                    FieldName = "m_flDuration",
-                    Type = DataType.Float,
-                    OnDiskOffset = 12,
-                };
-                block.FieldIntrospection.Add(field);
-
-                resource.Blocks.Add(new ResourceIntrospectionManifest());
-                resource.IntrospectionManifest.ReferencedStructs.Add(block);
+                throw new InvalidDataException($"Invalid vsnd version '{resource.Version}'");
             }
 
-            reader.BaseStream.Position = Offset;
-            base.Read(reader, resource);
-
-            LoopStart = ((NTROValue<int>)Output["m_loopStart"]).Value;
-            Duration = ((NTROValue<float>)Output["m_flDuration"]).Value;
-
-            var bitpackedSoundInfo = ((NTROValue<uint>)Output["m_bitpackedsoundinfo"]).Value;
-
-            // If these 5 bits are 0, it is the new format instead of the old
-            if (ExtractSub(bitpackedSoundInfo, 27, 5) == 0)
+            if (resource.Version >= 4)
             {
-                // New format
-                SampleRate = ExtractSub(bitpackedSoundInfo, 0, 16);
-                SoundType = GetTypeFromNewFormat(ExtractSub(bitpackedSoundInfo, 16, 2));
-                // unknown = ExtractSub(bitpackedSoundInfo, 18, 2);
-                Bits = ExtractSub(bitpackedSoundInfo, 20, 7);
+                SampleRate = reader.ReadUInt16();
+
+                // TODO: Is any of this actually correct?
+                var bitpackedSoundInfo = reader.ReadUInt16();
+                SoundType = GetTypeFromNewFormat(ExtractSub(bitpackedSoundInfo, 0, 2));
+                // unknown = ExtractSub(bitpackedSoundInfo, 2, 2);
+                Bits = ExtractSub(bitpackedSoundInfo, 4, 7);
 
                 SampleSize = Bits / 8;
                 Channels = 1;
@@ -109,8 +83,15 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                // Old format
-                SoundType = (AudioFileType)ExtractSub(bitpackedSoundInfo, 0, 2);
+                var bitpackedSoundInfo = reader.ReadUInt32();
+                var type = ExtractSub(bitpackedSoundInfo, 0, 2);
+
+                if (type > 2)
+                {
+                    throw new InvalidDataException($"Unknown sound type in old vsnd version: {type}");
+                }
+
+                SoundType = (AudioFileType)type;
                 Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
                 Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
                 SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
@@ -118,13 +99,14 @@ namespace ValveResourceFormat.ResourceTypes
                 SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
             }
 
-            if (SoundType > AudioFileType.MP3)
-            {
-                throw new NotImplementedException($"Unknown audio file format '{SoundType}', please report this on GitHub.");
-            }
+            LoopStart = reader.ReadInt32();
+            SampleCount = reader.ReadUInt32();
+            Duration = reader.ReadSingle();
+            reader.BaseStream.Position += 12;
+            StreamingDataSize = reader.ReadUInt32();
         }
 
-        public static AudioFileType GetTypeFromNewFormat(uint type)
+        private static AudioFileType GetTypeFromNewFormat(uint type)
         {
             switch (type)
             {
@@ -135,11 +117,11 @@ namespace ValveResourceFormat.ResourceTypes
                 case 2:
                     return AudioFileType.MP3;
                 default:
-                    return (AudioFileType)type;
+                    throw new InvalidDataException($"Unknown sound type: {type}");
             }
         }
 
-        public static uint ExtractSub(uint l, byte offset, byte nrBits)
+        private static uint ExtractSub(uint l, byte offset, byte nrBits)
         {
             var rightShifted = l >> offset;
             var mask = (1 << nrBits) - 1;
@@ -168,7 +150,6 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = Offset + Size;
 
-            var streamingDataSize = (uint)(Reader.BaseStream.Length - Reader.BaseStream.Position);
             var stream = new MemoryStream();
 
             if (SoundType == AudioFileType.WAV)
@@ -184,7 +165,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var blockAlign = Channels * (Bits / 8);
 
                 stream.Write(headerRiff, 0, headerRiff.Length);
-                stream.Write(PackageInt(streamingDataSize + 42, 4), 0, 4);
+                stream.Write(PackageInt(StreamingDataSize + 42, 4), 0, 4);
 
                 stream.Write(formatWave, 0, formatWave.Length);
                 stream.Write(formatTag, 0, formatTag.Length);
@@ -198,10 +179,10 @@ namespace ValveResourceFormat.ResourceTypes
                 stream.Write(PackageInt(Bits, 2), 0, 2);
                 //stream.Write(PackageInt(0,2), 0, 2); // Extra param size
                 stream.Write(subChunkId, 0, subChunkId.Length);
-                stream.Write(PackageInt(streamingDataSize, 4), 0, 4);
+                stream.Write(PackageInt(StreamingDataSize, 4), 0, 4);
             }
 
-            Reader.BaseStream.CopyTo(stream, (int)streamingDataSize);
+            Reader.BaseStream.CopyTo(stream, (int)StreamingDataSize);
 
             // Flush and reset position so that consumers can read it
             stream.Flush();
@@ -227,16 +208,21 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            var output = base.ToString();
+            var output = new StringBuilder();
 
-            output += "\nSample Rate: " + SampleRate;
-            output += "\nBits: " + Bits;
-            output += "\nType: " + SoundType;
-            output += "\nSampleSize: " + SampleSize;
-            output += "\nFormat: " + AudioFormat;
-            output += "\nChannels: " + Channels;
+            output.AppendLine($"SoundType: {SoundType}");
+            output.AppendLine($"Sample Rate: {SampleRate}");
+            output.AppendLine($"Bits: {Bits}");
+            output.AppendLine($"SampleSize: {SampleSize}");
+            output.AppendLine($"SampleCount: {SampleCount}");
+            output.AppendLine($"Format: {AudioFormat}");
+            output.AppendLine($"Channels: {Channels}");
+            output.AppendLine($"LoopStart: {LoopStart}");
 
-            return output;
+            var duration = TimeSpan.FromSeconds(Duration);
+            output.AppendLine($"Duration: {duration} ({Duration})");
+
+            return output.ToString();
         }
     }
 }

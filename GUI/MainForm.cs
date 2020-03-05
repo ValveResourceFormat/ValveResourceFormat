@@ -731,6 +731,9 @@ namespace GUI
                         {
                             switch (resource.ResourceType)
                             {
+                                case ResourceType.Sound:
+                                    control.Text = NormalizeLineEndings(((Sound)block).ToString());
+                                    break;
                                 case ResourceType.Particle:
                                 case ResourceType.Mesh:
                                     if (block is BinaryKV3 blockKeyvalues)
