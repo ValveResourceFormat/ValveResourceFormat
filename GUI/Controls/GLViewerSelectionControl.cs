@@ -6,7 +6,7 @@ namespace GUI.Controls
     {
         public ComboBox ComboBox => comboBox;
 
-        public GLViewerSelectionControl()
+        private GLViewerSelectionControl()
         {
             InitializeComponent();
         }

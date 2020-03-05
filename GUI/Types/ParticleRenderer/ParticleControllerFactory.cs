@@ -9,7 +9,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public class ParticleControllerFactory
+    public static class ParticleControllerFactory
     {
         // Register particle emitters
         private static readonly IDictionary<string, Func<IKeyValueCollection, IKeyValueCollection, IParticleEmitter>> EmitterDictionary

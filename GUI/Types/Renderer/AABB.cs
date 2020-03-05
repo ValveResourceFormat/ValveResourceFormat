@@ -7,9 +7,8 @@ namespace GUI.Types.Renderer
         public Vector3 Min;
         public Vector3 Max;
 
-        public Vector3 Size { get => Max - Min; }
-        public Vector3 Center { get => (Min + Max) * 0.5f; }
-        public bool IsZero { get => Max.X <= Min.X && Max.Y <= Min.Y && Max.Z <= Min.Z; }
+        public Vector3 Size => Max - Min;
+        public Vector3 Center => (Min + Max) * 0.5f;
 
         public AABB(Vector3 min, Vector3 max)
         {
@@ -63,7 +62,7 @@ namespace GUI.Types.Renderer
         // and only use this at the last step.
         public AABB Transform(Matrix4x4 transform)
         {
-            var points = new Vector4[]
+            var points = new[]
             {
                 Vector4.Transform(new Vector4(Min.X, Min.Y, Min.Z, 1.0f), transform),
                 Vector4.Transform(new Vector4(Max.X, Min.Y, Min.Z, 1.0f), transform),

@@ -15,7 +15,6 @@ namespace GUI.Types.ParticleRenderer
         private readonly int vertexCount;
 
         public AABB BoundingBox { get; }
-        public string LayerName { get; }
 
         public ParticleGrid(float cellWidth, int gridWidthInCells, VrfGuiContext guiContext)
         {

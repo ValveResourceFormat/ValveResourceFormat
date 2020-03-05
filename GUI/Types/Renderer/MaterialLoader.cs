@@ -219,7 +219,7 @@ namespace GUI.Types.Renderer
         }
 
         public static int CreateSolidTexture(float r, float g, float b)
-            => GenerateColorTexture(1, 1, new float[4] { r, g, b, 1f });
+            => GenerateColorTexture(1, 1, new[] { r, g, b, 1f });
 
         private static int GenerateColorTexture(int width, int height, float[] color)
         {

@@ -75,8 +75,8 @@ namespace GUI.Types.Renderer
                 Region = new AABB(regionMin, regionMin + regionSize);
             }
 
-            public bool HasChildren { get => Children != null; }
-            public bool HasElements { get => Elements != null && Elements.Count > 0; }
+            public bool HasChildren => Children != null;
+            public bool HasElements => Elements != null && Elements.Count > 0;
 
             public void Insert(Element element)
             {
@@ -197,7 +197,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public Node Root { get; private set; }
+        public Node Root { get; }
 
         public Octree(float size)
         {
@@ -227,10 +227,7 @@ namespace GUI.Types.Renderer
             }
 
             var (node, index) = Root.Find(obj, bounds);
-            if (node != null)
-            {
-                node.Elements.RemoveAt(index);
-            }
+            node?.Elements.RemoveAt(index);
         }
 
         public void Update(T obj, AABB oldBounds, AABB newBounds)

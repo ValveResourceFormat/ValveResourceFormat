@@ -6,7 +6,7 @@ namespace GUI.Controls
     {
         public CheckBox CheckBox => checkBox;
 
-        public GLViewerCheckboxControl()
+        private GLViewerCheckboxControl()
         {
             InitializeComponent();
         }

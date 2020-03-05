@@ -13,15 +13,13 @@ namespace GUI.Types.Renderer
         private readonly Octree<T> octree;
         private readonly int vaoHandle;
         private readonly int vboHandle;
+        private readonly bool dynamic;
         private int vertexCount;
-        private bool dynamic;
-        public AABB BoundingBox { get; }
 
         public OctreeDebugRenderer(Octree<T> octree, VrfGuiContext guiContext, bool dynamic)
         {
             this.octree = octree;
             this.dynamic = dynamic;
-            BoundingBox = octree.Root.Region;
 
             shader = shader = guiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
             GL.UseProgram(shader.Program);
@@ -92,7 +90,7 @@ namespace GUI.Types.Renderer
             {
                 foreach (var element in node.Elements)
                 {
-                    var shading = System.Math.Min(1.0f, depth * 0.1f);
+                    var shading = Math.Min(1.0f, depth * 0.1f);
                     AddBox(vertices, element.BoundingBox, 1.0f, shading, 0.0f, 1.0f);
 
                     // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, 1.0f, shading, 0.0f, 0.5f);
@@ -117,10 +115,6 @@ namespace GUI.Types.Renderer
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
-        }
-
-        public void Update(float frameTime)
-        {
         }
 
         public void Render(Camera camera, RenderPass renderPass)

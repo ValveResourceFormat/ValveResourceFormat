@@ -6,7 +6,6 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
-using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
@@ -19,6 +18,7 @@ namespace GUI.Types.Renderer
         private readonly WorldNode worldNode;
         private CheckedListBox worldLayersComboBox;
         private ComboBox cameraComboBox;
+        private SavedCameraPositionsControl savedCameraPositionsControl;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -40,6 +40,36 @@ namespace GUI.Types.Renderer
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
+
+            savedCameraPositionsControl = new SavedCameraPositionsControl();
+            savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
+            savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
+            ViewerControl.AddControl(savedCameraPositionsControl);
+        }
+
+        private void OnRestoreCameraRequest(object sender, string e)
+        {
+            if (Settings.Config.SavedCameras.TryGetValue(e, out var savedFloats))
+            {
+                if (savedFloats.Length == 5)
+                {
+                    Scene.MainCamera.SetLocationPitchYaw(
+                        new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
+                        savedFloats[3],
+                        savedFloats[4]);
+                }
+            }
+        }
+
+        private void OnSaveCameraRequest(object sender, EventArgs e)
+        {
+            var cam = Scene.MainCamera;
+            var saveName = string.Format("Saved Camera #{0}", Settings.Config.SavedCameras.Count + 1);
+
+            Settings.Config.SavedCameras.Add(saveName, new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw });
+            Settings.Save();
+
+            savedCameraPositionsControl.RefreshSavedPositions();
         }
 
         protected override void LoadScene()
@@ -61,9 +91,9 @@ namespace GUI.Types.Renderer
                     // TODO: Since the layers are combined, has to be first in each world node?
                     worldLayersComboBox.SetItemCheckState(0, CheckState.Checked);
 
-                    foreach (var worldNode in result.DefaultEnabledLayers)
+                    foreach (var worldLayer in result.DefaultEnabledLayers)
                     {
-                        worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldNode), CheckState.Checked);
+                        worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldLayer), CheckState.Checked);
                     }
                 }
 
@@ -88,7 +118,7 @@ namespace GUI.Types.Renderer
                         cameraComboBox.SelectedIndex = 0;
                     }
 
-                    cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray());
+                    cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray<object>());
                 }
             }
 

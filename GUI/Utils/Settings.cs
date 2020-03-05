@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using ValveKeyValue;
@@ -13,6 +14,7 @@ namespace GUI.Utils
             public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
+            public Dictionary<string, float[]> SavedCameras { get; set; } = new Dictionary<string, float[]>();
         }
 
         private static string SettingsFilePath;

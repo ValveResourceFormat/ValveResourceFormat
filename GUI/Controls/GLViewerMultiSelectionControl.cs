@@ -6,7 +6,7 @@ namespace GUI.Controls
     {
         public CheckedListBox CheckedListBox => checkedListBox;
 
-        public GLViewerMultiSelectionControl()
+        private GLViewerMultiSelectionControl()
         {
             InitializeComponent();
         }

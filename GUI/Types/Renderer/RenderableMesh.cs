@@ -11,38 +11,36 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshRenderer
+    internal class RenderableMesh
     {
-        public Mesh Mesh { get; }
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
 
         private readonly VrfGuiContext guiContext;
-        private List<DrawCall> drawCallsOpaque = new List<DrawCall>();
-        private List<DrawCall> drawCallsBlended = new List<DrawCall>();
+        public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
+        public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
+        public int? AnimationTexture { get; private set; }
+        public int BoneCount { get; private set; }
 
-        private int? animationTexture;
-        private int boneCount;
-        private float time = 0f;
+        public float Time { get; private set; } = 0f;
 
-        public MeshRenderer(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
+        public RenderableMesh(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {
             this.guiContext = guiContext;
-            Mesh = mesh;
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
 
-            SetupDrawCalls(skinMaterials);
+            SetupDrawCalls(mesh, skinMaterials);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
-            => drawCallsOpaque
+            => DrawCallsOpaque
                 .SelectMany(drawCall => drawCall.Shader.RenderModes)
-                .Union(drawCallsBlended.SelectMany(drawCall => drawCall.Shader.RenderModes))
+                .Union(DrawCallsBlended.SelectMany(drawCall => drawCall.Shader.RenderModes))
                 .Distinct();
 
         public void SetRenderMode(string renderMode)
         {
-            var drawCalls = drawCallsOpaque.Union(drawCallsBlended);
+            var drawCalls = DrawCallsOpaque.Union(DrawCallsBlended);
 
             foreach (var call in drawCalls)
             {
@@ -62,110 +60,19 @@ namespace GUI.Types.Renderer
 
         public void SetAnimationTexture(int? texture, int numBones)
         {
-            animationTexture = texture;
-            boneCount = numBones;
+            AnimationTexture = texture;
+            BoneCount = numBones;
         }
 
         public void Update(float timeStep)
         {
-            time += timeStep;
+            Time += timeStep;
         }
 
-        public void Render(Camera camera, Matrix4x4 withTransform, RenderPass renderPass)
+        private void SetupDrawCalls(Mesh mesh, Dictionary<string, string> skinMaterials)
         {
-            if (renderPass == RenderPass.Both)
-            {
-                Render(camera, withTransform, RenderPass.Opaque);
-                Render(camera, withTransform, RenderPass.Translucent);
-                return;
-            }
-
-            GL.Enable(EnableCap.CullFace);
-            GL.Enable(EnableCap.DepthTest);
-
-            var drawCalls = (renderPass == RenderPass.Opaque) ? drawCallsOpaque : drawCallsBlended;
-            var viewProjectionMatrix = camera.ViewProjectionMatrix.ToOpenTK();
-            var transform = withTransform.ToOpenTK();
-
-            foreach (var call in drawCalls)
-            {
-                int uniformLocation;
-
-                GL.UseProgram(call.Shader.Program);
-
-                uniformLocation = call.Shader.GetUniformLocation("vLightPosition");
-                GL.Uniform3(uniformLocation, camera.Location.ToOpenTK());
-
-                uniformLocation = call.Shader.GetUniformLocation("vEyePosition");
-                GL.Uniform3(uniformLocation, camera.Location.ToOpenTK());
-
-                uniformLocation = call.Shader.GetUniformLocation("uProjectionViewMatrix");
-                GL.UniformMatrix4(uniformLocation, false, ref viewProjectionMatrix);
-
-                uniformLocation = call.Shader.GetUniformLocation("g_flTime");
-                if (uniformLocation != 1)
-                {
-                    GL.Uniform1(uniformLocation, time);
-                }
-
-                uniformLocation = call.Shader.GetUniformLocation("bAnimated");
-                if (uniformLocation != -1)
-                {
-                    GL.Uniform1(uniformLocation, animationTexture.HasValue ? 1.0f : 0.0f);
-                }
-
-                //Push animation texture to the shader (if it supports it)
-                if (animationTexture.HasValue)
-                {
-                    uniformLocation = call.Shader.GetUniformLocation("animationTexture");
-                    if (uniformLocation != -1)
-                    {
-                        GL.ActiveTexture(TextureUnit.Texture0);
-                        GL.BindTexture(TextureTarget.Texture2D, animationTexture.Value);
-                        GL.Uniform1(uniformLocation, 0);
-                    }
-
-                    uniformLocation = call.Shader.GetUniformLocation("fNumBones");
-                    if (uniformLocation != -1)
-                    {
-                        var v = (float)Math.Max(1, boneCount - 1);
-                        GL.Uniform1(uniformLocation, v);
-                    }
-                }
-
-                uniformLocation = call.Shader.GetUniformLocation("transform");
-                GL.UniformMatrix4(uniformLocation, false, ref transform);
-
-                uniformLocation = call.Shader.GetUniformLocation("m_vTintColorSceneObject");
-                if (uniformLocation > -1)
-                {
-                    var tint = Tint.ToOpenTK();
-                    GL.Uniform4(uniformLocation, tint);
-                }
-
-                GL.BindVertexArray(call.VertexArrayObject);
-
-                uniformLocation = call.Shader.GetUniformLocation("m_vTintColorDrawCall");
-                if (uniformLocation > -1)
-                {
-                    GL.Uniform3(uniformLocation, call.TintColor);
-                }
-
-                call.Material.Render(call.Shader);
-
-                GL.DrawElements(call.PrimitiveType, call.IndexCount, call.IndiceType, (IntPtr)call.StartIndex);
-
-                call.Material.PostRender();
-            }
-
-            GL.Disable(EnableCap.CullFace);
-            GL.Disable(EnableCap.DepthTest);
-        }
-
-        private void SetupDrawCalls(Dictionary<string, string> skinMaterials)
-        {
-            var vbib = Mesh.VBIB;
-            var data = Mesh.GetData();
+            var vbib = mesh.VBIB;
+            var data = mesh.GetData();
 
             var vertexBuffers = new uint[vbib.VertexBuffers.Count];
             var indexBuffers = new uint[vbib.IndexBuffers.Count];
@@ -249,11 +156,11 @@ namespace GUI.Types.Renderer
 
                     if (drawCall.Material.IsBlended)
                     {
-                        drawCallsBlended.Add(drawCall);
+                        DrawCallsBlended.Add(drawCall);
                     }
                     else
                     {
-                        drawCallsOpaque.Add(drawCall);
+                        DrawCallsOpaque.Add(drawCall);
                     }
                 }
             }
@@ -318,12 +225,12 @@ namespace GUI.Types.Renderer
             if (bufferSize == 2)
             {
                 //shopkeeper_vr
-                drawCall.IndiceType = DrawElementsType.UnsignedShort;
+                drawCall.IndexType = DrawElementsType.UnsignedShort;
             }
             else if (bufferSize == 4)
             {
                 //glados
-                drawCall.IndiceType = DrawElementsType.UnsignedInt;
+                drawCall.IndexType = DrawElementsType.UnsignedInt;
             }
             else
             {
@@ -419,5 +326,10 @@ namespace GUI.Types.Renderer
                     throw new Exception("Unknown attribute format " + attribute.Type);
             }
         }
+    }
+
+    internal interface IRenderableMeshCollection
+    {
+        IEnumerable<RenderableMesh> RenderableMeshes { get; }
     }
 }

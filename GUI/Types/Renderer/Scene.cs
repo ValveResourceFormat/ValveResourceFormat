@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GUI.Utils;
@@ -33,9 +34,7 @@ namespace GUI.Types.Renderer
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
 
-        public IEnumerable<SceneNode> AllNodes => Enumerable.Concat(staticNodes, dynamicNodes);
-
-        private readonly HashSet<string> VisibleOnSpawnWorldLayers = new HashSet<string>();
+        public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
         private readonly List<SceneNode> staticNodes = new List<SceneNode>();
         private readonly List<SceneNode> dynamicNodes = new List<SceneNode>();
@@ -77,35 +76,74 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void Render()
-        {
-            RenderWithCamera(MainCamera);
-        }
-
         public void RenderWithCamera(Camera camera, Frustum cullFrustum = null)
         {
             var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
             allNodes.AddRange(DynamicOctree.Query(cullFrustum ?? camera.ViewFrustum));
 
-            allNodes.Sort((a, b) =>
+            // Collect mesh calls
+            var opaqueDrawCalls = new List<MeshBatchRenderer.Request>();
+            var translucentDrawCalls = new List<MeshBatchRenderer.Request>();
+            var looseNodes = new List<SceneNode>();
+            foreach (var node in allNodes)
+            {
+                if (node is IRenderableMeshCollection meshCollection)
+                {
+                    foreach (var mesh in meshCollection.RenderableMeshes)
+                    {
+                        foreach (var call in mesh.DrawCallsOpaque)
+                        {
+                            opaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                            {
+                                Transform = node.Transform,
+                                Mesh = mesh,
+                                Call = call,
+                                DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                            });
+                        }
+
+                        foreach (var call in mesh.DrawCallsBlended)
+                        {
+                            translucentDrawCalls.Add(new MeshBatchRenderer.Request
+                            {
+                                Transform = node.Transform,
+                                Mesh = mesh,
+                                Call = call,
+                                DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                            });
+                        }
+                    }
+                }
+                else
+                {
+                    looseNodes.Add(node);
+                }
+            }
+
+            // Sort loose nodes by distance from camera
+            looseNodes.Sort((a, b) =>
             {
                 var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
                 var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
                 return bLength.CompareTo(aLength);
             });
 
-            // Opaque render pass, front to back
+            // Opaque render pass
             var opaqueRenderContext = new RenderContext(camera, RenderPass.Opaque);
-            foreach (var node in allNodes)
+
+            MeshBatchRenderer.Render(opaqueDrawCalls, opaqueRenderContext);
+            foreach (var node in looseNodes)
             {
                 node.Render(opaqueRenderContext);
             }
 
-            // Translucent render pass, back to front
+            // Translucent render pass, back to front for loose nodes
             var translucentRenderContext = new RenderContext(camera, RenderPass.Translucent);
-            for (var i = allNodes.Count - 1; i >= 0; i--)
+
+            MeshBatchRenderer.Render(translucentDrawCalls, translucentRenderContext);
+            foreach (var node in Enumerable.Reverse(looseNodes))
             {
-                allNodes[i].Render(translucentRenderContext);
+                node.Render(translucentRenderContext);
             }
         }
 

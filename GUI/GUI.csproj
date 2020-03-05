@@ -31,6 +31,7 @@
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <AllowedReferenceRelatedFileExtensions>.absolutelyNothing</AllowedReferenceRelatedFileExtensions>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -49,7 +50,7 @@
     <PackageReference Include="OpenTK.GLControl" Version="3.1.0" />
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.1.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
-    <PackageReference Include="ValveKeyValue" Version="0.2.1.107" />
+    <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
   <ItemGroup>
@@ -84,6 +85,12 @@
       <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\ListViewItemClickEventArgs.cs" />
+    <Compile Include="Controls\SavedCameraPositionsControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\SavedCameraPositionsControl.Designer.cs">
+      <DependentUpon>SavedCameraPositionsControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\TreeViewFileSorter.cs" />
     <Compile Include="Controls\TreeViewWithSearchResults.cs">
       <SubType>UserControl</SubType>
@@ -184,11 +191,10 @@
     <Compile Include="Types\ParticleRenderer\Renderers\IParticleRenderer.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderTrails.cs" />
     <Compile Include="Types\ParticleRenderer\Renderers\RenderSprites.cs" />
-    <Compile Include="Types\Renderer\IAnimationRenderer.cs" />
     <Compile Include="Types\Renderer\IRenderer.cs" />
-    <Compile Include="Types\Renderer\IMeshRenderer.cs" />
     <Compile Include="Types\Renderer\MaterialRenderer.cs" />
-    <Compile Include="Types\Renderer\MeshRenderer.cs" />
+    <Compile Include="Types\Renderer\MeshBatchRenderer.cs" />
+    <Compile Include="Types\Renderer\RenderableMesh.cs" />
     <Compile Include="Types\Renderer\Octree.cs" />
     <Compile Include="Types\Renderer\OctreeDebugRenderer.cs" />
     <Compile Include="Types\Renderer\ParticleSceneNode.cs" />
@@ -225,6 +231,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\GLViewerSelectionControl.resx">
       <DependentUpon>GLViewerSelectionControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SavedCameraPositionsControl.resx">
+      <DependentUpon>SavedCameraPositionsControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\TreeViewWithSearchResults.resx">
       <DependentUpon>TreeViewWithSearchResults.cs</DependentUpon>

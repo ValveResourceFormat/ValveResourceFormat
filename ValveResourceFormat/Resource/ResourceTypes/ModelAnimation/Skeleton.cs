@@ -1,29 +1,21 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Skeleton
     {
-        public List<Bone> Roots { get; private set; }
-        public Bone[] Bones { get; private set; }
-        public int LastBone { get; private set; }
+        private const int BoneUsedByVertexLod0 = 0x00000400;
 
-        public Skeleton()
-        {
-            Bones = new Bone[0];
-        }
+        public List<Bone> Roots { get; private set; } = new List<Bone>();
+        public Bone[] Bones { get; private set; } = Array.Empty<Bone>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
         public Skeleton(IKeyValueCollection modelData)
         {
-            Bones = new Bone[0];
-            Roots = new List<Bone>();
-
             // Check if there is any skeleton data present at all
             if (!modelData.ContainsKey("m_modelSkeleton"))
             {
@@ -32,8 +24,21 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Get the remap table and invert it for our construction method
             var remapTable = modelData.GetIntegerArray("m_remappingTable");
+
+            var start = 0;
+            var end = remapTable.Length;
+
+            var remapTableStarts = modelData.GetIntegerArray("m_remappingTableStarts");
+
+            // we only use lod 1
+            if (remapTableStarts.Length > 1)
+            {
+                start = (int)remapTableStarts[0];
+                end = (int)remapTableStarts[1];
+            }
+
             var invMapTable = new Dictionary<long, int>();
-            for (var i = 0; i < remapTable.Length; i++)
+            for (var i = start; i < end; i++)
             {
                 if (!invMapTable.ContainsKey(remapTable[i]))
                 {
@@ -48,10 +53,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        public void ConstructFromNTRO(IKeyValueCollection skeletonData, Dictionary<long, int> remapTable)
+        private void ConstructFromNTRO(IKeyValueCollection skeletonData, Dictionary<long, int> remapTable)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
             var boneParents = skeletonData.GetIntegerArray("m_nParent");
+            var boneFlags = skeletonData.GetIntegerArray("m_nFlag");
             var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
             var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
 
@@ -61,6 +67,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             //Add all bones to the list
             for (var i = 0; i < boneNames.Length; i++)
             {
+                if ((boneFlags[i] & BoneUsedByVertexLod0) != BoneUsedByVertexLod0)
+                {
+                    continue;
+                }
+
                 var name = boneNames[i];
 
                 var position = bonePositions[i];
@@ -80,9 +91,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             FindRoots();
-
-            // Figure out the index of the last bone so we dont have to do that every draw call
-            LastBone = Bones.Length > 0 ? Bones.Max(b => b.Index) : -1;
         }
 
         /// <summary>
@@ -95,7 +103,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             foreach (var bone in Bones)
             {
-                if (bone.Parent == null)
+                if (bone != null && bone.Parent == null)
                 {
                     Roots.Add(bone);
                 }

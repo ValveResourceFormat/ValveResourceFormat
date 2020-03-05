@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
         // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }
 
-        public Vector2 WindowSize { get; set; }
+        private Vector2 WindowSize;
         private float AspectRatio;
 
         private bool MouseDragging;
@@ -67,6 +67,17 @@ namespace GUI.Types.Renderer
         public void SetLocation(Vector3 location)
         {
             Location = location;
+
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+            ViewFrustum.Update(ViewProjectionMatrix);
+        }
+
+        public void SetLocationPitchYaw(Vector3 location, float pitch, float yaw)
+        {
+            Location = location;
+            Pitch = pitch;
+            Yaw = yaw;
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
@@ -145,7 +156,7 @@ namespace GUI.Types.Renderer
             if (!MouseOverRenderArea || mouseState.LeftButton == ButtonState.Released)
             {
                 MouseDragging = false;
-                MouseDelta = default(Vector2);
+                MouseDelta = default;
             }
         }
 
