@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
             {
                 var errorMat = new RenderMaterial(new VrfMaterial());
                 errorMat.Textures["g_tColor"] = GetErrorTexture();
-                errorMat.Textures["g_tNormal"] = GetErrorTexture();
+                errorMat.Material.ShaderName = "vrf.error";
 
                 return errorMat;
             }
@@ -60,6 +60,7 @@ namespace GUI.Types.Renderer
             if (!mat.Textures.ContainsKey("g_tColor"))
             {
                 mat.Textures["g_tColor"] = GetErrorTexture();
+                mat.Material.ShaderName = "vrf.error";
             }
 
             if (mat.Material.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Material.IntParams["F_SOLID_COLOR"] == 1)

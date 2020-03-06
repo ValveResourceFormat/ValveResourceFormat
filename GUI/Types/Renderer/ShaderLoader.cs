@@ -310,6 +310,8 @@ namespace GUI.Types.Renderer
         {
             switch (shaderName)
             {
+                case "vrf.error":
+                    return "error";
                 case "vrf.grid":
                     return "debug_grid";
                 case "vrf.particle.sprite":
