@@ -12,7 +12,6 @@ namespace ValveResourceFormat.ResourceTypes
             AAC = 0,
             WAV = 1,
             MP3 = 2,
-            Unknown_This_Is_Actually_One_In_New_Format = 3,
         }
 
         /// <summary>
@@ -71,11 +70,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 SampleRate = reader.ReadUInt16();
 
-                // TODO: Is any of this actually correct?
-                var bitpackedSoundInfo = reader.ReadUInt16();
-                SoundType = GetTypeFromNewFormat(ExtractSub(bitpackedSoundInfo, 0, 2));
-                // unknown = ExtractSub(bitpackedSoundInfo, 2, 2);
-                Bits = ExtractSub(bitpackedSoundInfo, 4, 7);
+                SetVersion4();
 
                 SampleSize = Bits / 8;
                 Channels = 1;
@@ -97,6 +92,8 @@ namespace ValveResourceFormat.ResourceTypes
                 SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
                 AudioFormat = ExtractSub(bitpackedSoundInfo, 12, 2);
                 SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
+
+                SoundType = (AudioFileType)3;
             }
 
             LoopStart = reader.ReadInt32();
@@ -104,21 +101,6 @@ namespace ValveResourceFormat.ResourceTypes
             Duration = reader.ReadSingle();
             reader.BaseStream.Position += 12;
             StreamingDataSize = reader.ReadUInt32();
-        }
-
-        private static AudioFileType GetTypeFromNewFormat(uint type)
-        {
-            switch (type)
-            {
-                case 0:
-                    return AudioFileType.WAV;
-                case 1:
-                    return AudioFileType.Unknown_This_Is_Actually_One_In_New_Format;
-                case 2:
-                    return AudioFileType.MP3;
-                default:
-                    throw new InvalidDataException($"Unknown sound type: {type}");
-            }
         }
 
         private static uint ExtractSub(uint l, byte offset, byte nrBits)
@@ -189,6 +171,22 @@ namespace ValveResourceFormat.ResourceTypes
             stream.Seek(0, SeekOrigin.Begin);
 
             return stream;
+        }
+
+        private void SetVersion4()
+        {
+            var type = Reader.ReadUInt16();
+
+            // We don't know if it's actually calculated, or if its a lookup
+            switch (type)
+            {
+                case 0x0101: SoundType = AudioFileType.WAV; Bits = 8; break;
+                case 0x0100: SoundType = AudioFileType.WAV; Bits = 16; break;
+                case 0x0200: SoundType = AudioFileType.WAV; Bits = 32; break;
+                case 0x0102: SoundType = AudioFileType.MP3; Bits = 16; break;
+                case 0x0202: SoundType = AudioFileType.MP3; Bits = 32; break;
+                default: throw new NotImplementedException($"Unhandled v4 vsnd bits: {type}");
+            }
         }
 
         private static byte[] PackageInt(uint source, int length)
