@@ -92,8 +92,6 @@ namespace ValveResourceFormat.ResourceTypes
                 SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
                 AudioFormat = ExtractSub(bitpackedSoundInfo, 12, 2);
                 SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
-
-                SoundType = (AudioFileType)3;
             }
 
             LoopStart = reader.ReadInt32();
