@@ -19,7 +19,6 @@ out vec3 vFragPosition;
 out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
-out float fTangentW;
 
 out vec2 vTexCoordOut;
 
