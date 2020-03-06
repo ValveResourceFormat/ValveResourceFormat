@@ -57,17 +57,16 @@ namespace GUI.Types.Renderer
                 mat.Textures[key] = LoadTexture(textureReference.Value);
             }
 
-            if (!mat.Textures.ContainsKey("g_tColor"))
-            {
-                mat.Textures["g_tColor"] = GetErrorTexture();
-                mat.Material.ShaderName = "vrf.error";
-            }
-
             if (mat.Material.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Material.IntParams["F_SOLID_COLOR"] == 1)
             {
                 var a = mat.Material.VectorParams["g_vColorTint"];
 
                 mat.Textures["g_tColor"] = GenerateColorTexture(1, 1, new[] { a.X, a.Y, a.Z, a.W });
+            }
+
+            if (!mat.Textures.ContainsKey("g_tColor"))
+            {
+                mat.Textures["g_tColor"] = GetErrorTexture();
             }
 
             // TODO: Perry, this probably needs to be in shader or something
@@ -79,6 +78,12 @@ namespace GUI.Types.Renderer
             if (mat.Textures.ContainsKey("g_tColor1") && mat.Textures["g_tColor"] == GetErrorTexture())
             {
                 mat.Textures["g_tColor"] = mat.Textures["g_tColor1"];
+            }
+
+            // If g_tColor ends up being our error texture, change the shader
+            if (mat.Textures["g_tColor"] == GetErrorTexture())
+            {
+                mat.Material.ShaderName = "vrf.error";
             }
 
             // Set default values for scale and positions
