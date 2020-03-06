@@ -259,6 +259,7 @@ namespace GUI.Types.Renderer
 
         public void SetAnimation(string animationName)
         {
+            time = 0f;
             activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
             if (activeAnimation != default)
             {
