@@ -143,6 +143,14 @@ namespace GUI.Types.Renderer
                     {
                         node.SetRenderMode(renderMode);
                     }
+
+                    if (SkyboxScene != null)
+                    {
+                        foreach (var node in SkyboxScene.AllNodes)
+                        {
+                            node.SetRenderMode(renderMode);
+                        }
+                    }
                 });
             }
         }
