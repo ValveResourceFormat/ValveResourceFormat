@@ -82,10 +82,15 @@ namespace GUI.Types.Renderer
 
         private void SetAvailableAnimations(IEnumerable<string> animations)
         {
+            animationComboBox.BeginUpdate();
             animationComboBox.Items.Clear();
-            if (animations.Any())
+
+            var count = animations.Count();
+
+            if (count > 0)
             {
                 animationComboBox.Enabled = true;
+                animationComboBox.Items.Add($"({count} animations available)");
                 animationComboBox.Items.AddRange(animations.ToArray());
                 animationComboBox.SelectedIndex = 0;
             }
@@ -95,6 +100,8 @@ namespace GUI.Types.Renderer
                 animationComboBox.SelectedIndex = 0;
                 animationComboBox.Enabled = false;
             }
+
+            animationComboBox.EndUpdate();
         }
     }
 }

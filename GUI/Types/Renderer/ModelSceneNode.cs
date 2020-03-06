@@ -261,11 +261,19 @@ namespace GUI.Types.Renderer
         {
             time = 0f;
             activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+
             if (activeAnimation != default)
             {
                 foreach (var renderer in meshRenderers)
                 {
                     renderer.SetAnimationTexture(animationTexture, skeleton.Bones.Length);
+                }
+            }
+            else
+            {
+                foreach (var renderer in meshRenderers)
+                {
+                    renderer.SetAnimationTexture(null, 0);
                 }
             }
         }
