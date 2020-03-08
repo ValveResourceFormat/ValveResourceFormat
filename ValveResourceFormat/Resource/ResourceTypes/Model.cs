@@ -7,25 +7,20 @@ using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Model
+    public class Model : KeyValuesOrNTRO
     {
-        public Resource Resource { get; }
-
-        public Model(Resource modelResource)
-        {
-            Resource = modelResource;
-        }
+        private List<Animation> CachedEmbeddedAnimations;
 
         public Skeleton GetSkeleton()
         {
-            return new Skeleton(GetData());
+            return new Skeleton(Data);
         }
 
         public IEnumerable<string> GetReferencedMeshNames()
-            => GetData().GetArray<string>("m_refMeshes").Where(m => m != null);
+            => Data.GetArray<string>("m_refMeshes").Where(m => m != null);
 
         public IEnumerable<(string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
-            => GetReferencedMeshNames().Zip(GetData().GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r));
+            => GetReferencedMeshNames().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r));
 
         public IEnumerable<Mesh> GetEmbeddedMeshes()
         {
@@ -49,11 +44,16 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         public IEnumerable<string> GetReferencedAnimationGroupNames()
-            => GetData().GetArray<string>("m_refAnimGroups");
+            => Data.GetArray<string>("m_refAnimGroups");
 
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
-            var animations = new List<Animation>();
+            if (CachedEmbeddedAnimations != null)
+            {
+                return CachedEmbeddedAnimations;
+            }
+
+            CachedEmbeddedAnimations = new List<Animation>();
 
             if (Resource.ContainsBlockType(BlockType.CTRL))
             {
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (embeddedAnimation == null)
                 {
-                    return animations;
+                    return CachedEmbeddedAnimations;
                 }
 
                 var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
@@ -73,18 +73,18 @@ namespace ValveResourceFormat.ResourceTypes
 
                 var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as BinaryKV3;
 
-                animations.AddRange(Animation.FromData(animationDataBlock.Data, decodeKey));
+                CachedEmbeddedAnimations.AddRange(Animation.FromData(animationDataBlock.Data, decodeKey));
             }
 
-            return animations;
+            return CachedEmbeddedAnimations;
         }
 
         public IEnumerable<string> GetMeshGroups()
-            => GetData().GetArray<string>("m_meshGroups");
+            => Data.GetArray<string>("m_meshGroups");
 
         public IEnumerable<string> GetDefaultMeshGroups()
         {
-            var defaultGroupMask = GetData().GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
+            var defaultGroupMask = Data.GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
 
             return GetMeshGroups().Where((group, index) => ((ulong)(1 << index) & defaultGroupMask) != 0);
         }
@@ -92,7 +92,7 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
             var groupIndex = GetMeshGroups().ToList().IndexOf(groupName);
-            var meshGroupMasks = GetData().GetIntegerArray("m_refMeshGroupMasks");
+            var meshGroupMasks = Data.GetIntegerArray("m_refMeshGroupMasks");
             if (groupIndex >= 0)
             {
                 return meshGroupMasks.Select(mask => (mask & 1 << groupIndex) != 0);
@@ -101,21 +101,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return meshGroupMasks.Select(_ => false);
             }
-        }
-
-        public IKeyValueCollection GetData()
-        {
-            var data = Resource.DataBlock;
-            if (data is BinaryKV3 binaryKv)
-            {
-                return binaryKv.Data;
-            }
-            else if (data is NTRO ntro)
-            {
-                return ntro.Output;
-            }
-
-            throw new InvalidOperationException($"Unknown model data type {data.GetType().Name}");
         }
     }
 }

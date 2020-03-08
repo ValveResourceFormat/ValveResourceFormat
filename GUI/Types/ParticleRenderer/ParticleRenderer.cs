@@ -59,7 +59,7 @@ namespace GUI.Types.ParticleRenderer
 
             BoundingBox = new AABB(pos + new Vector3(-32, -32, -32), pos + new Vector3(32, 32, 32));
 
-            SetupEmitters(particleSystem.GetData(), particleSystem.GetEmitters());
+            SetupEmitters(particleSystem.Data, particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
             SetupOperators(particleSystem.GetOperators());
             SetupRenderers(particleSystem.GetRenderers());
@@ -298,7 +298,7 @@ namespace GUI.Types.ParticleRenderer
             foreach (var childName in childNames)
             {
                 var childResource = vrfGuiContext.LoadFileByAnyMeansNecessary(childName + "_c");
-                var childSystem = new ParticleSystem(childResource);
+                var childSystem = (ParticleSystem)childResource.DataBlock;
 
                 childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0)));
             }

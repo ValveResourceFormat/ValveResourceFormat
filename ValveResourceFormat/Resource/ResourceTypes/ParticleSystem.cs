@@ -5,45 +5,23 @@ using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ParticleSystem
+    public class ParticleSystem : KeyValuesOrNTRO
     {
-        private readonly Resource resource;
-
-        public ParticleSystem(Resource resource)
-        {
-            this.resource = resource;
-        }
-
-        public IKeyValueCollection GetData()
-        {
-            var data = resource.DataBlock;
-            if (data is NTRO ntro)
-            {
-                return ntro.Output;
-            }
-            else if (data is BinaryKV3 kv)
-            {
-                return kv.Data;
-            }
-
-            throw new InvalidOperationException($"Unknown particle data type {data.GetType().Name}");
-        }
-
         public IEnumerable<IKeyValueCollection> GetRenderers()
-            => GetData().GetArray("m_Renderers") ?? Enumerable.Empty<IKeyValueCollection>();
+            => Data.GetArray("m_Renderers") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetOperators()
-            => GetData().GetArray("m_Operators") ?? Enumerable.Empty<IKeyValueCollection>();
+            => Data.GetArray("m_Operators") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetInitializers()
-            => GetData().GetArray("m_Initializers") ?? Enumerable.Empty<IKeyValueCollection>();
+            => Data.GetArray("m_Initializers") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<IKeyValueCollection> GetEmitters()
-            => GetData().GetArray("m_Emitters") ?? Enumerable.Empty<IKeyValueCollection>();
+            => Data.GetArray("m_Emitters") ?? Enumerable.Empty<IKeyValueCollection>();
 
         public IEnumerable<string> GetChildParticleNames(bool enabledOnly = false)
         {
-            IEnumerable<IKeyValueCollection> children = GetData().GetArray("m_Children");
+            IEnumerable<IKeyValueCollection> children = Data.GetArray("m_Children");
 
             if (children == null)
             {

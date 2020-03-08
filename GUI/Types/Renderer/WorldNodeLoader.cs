@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -19,7 +20,7 @@ namespace GUI.Types.Renderer
 
         public void Load(Scene scene)
         {
-            var data = node.GetData();
+            var data = node.Data;
 
             string[] worldLayers = new string[0];
             if (data.ContainsKey("m_layerNames"))
@@ -62,7 +63,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var modelNode = new ModelSceneNode(scene, new Model(newResource), null, false)
+                    var modelNode = new ModelSceneNode(scene, (Model)newResource.DataBlock, null, false)
                     {
                         Transform = matrix,
                         Tint = tintColor,

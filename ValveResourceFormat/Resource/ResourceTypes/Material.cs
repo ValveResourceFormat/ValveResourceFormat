@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Material
+    public class Material : KeyValuesOrNTRO
     {
         public string Name { get; set; }
         public string ShaderName { get; set; }
@@ -19,40 +20,32 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, Vector4> VectorAttributes { get; } = new Dictionary<string, Vector4>();
         public Dictionary<string, string> StringAttributes { get; } = new Dictionary<string, string>();
 
-        private readonly Resource resource;
-
-        public Material()
+        public override void Read(BinaryReader reader, Resource resource)
         {
-        }
+            base.Read(reader, resource);
 
-        public Material(Resource resource)
-        {
-            this.resource = resource;
-
-            var data = GetData();
-
-            Name = data.GetProperty<string>("m_materialName");
-            ShaderName = data.GetProperty<string>("m_shaderName");
+            Name = Data.GetProperty<string>("m_materialName");
+            ShaderName = Data.GetProperty<string>("m_shaderName");
 
             // TODO: Is this a string array?
             //RenderAttributesUsed = ((ValveResourceFormat.ResourceTypes.NTROSerialization.NTROValue<string>)Output["m_renderAttributesUsed"]).Value;
 
-            foreach (var kvp in data.GetArray("m_intParams"))
+            foreach (var kvp in Data.GetArray("m_intParams"))
             {
                 IntParams[kvp.GetProperty<string>("m_name")] = kvp.GetIntegerProperty("m_nValue");
             }
 
-            foreach (var kvp in data.GetArray("m_floatParams"))
+            foreach (var kvp in Data.GetArray("m_floatParams"))
             {
                 FloatParams[kvp.GetProperty<string>("m_name")] = kvp.GetFloatProperty("m_flValue");
             }
 
-            foreach (var kvp in data.GetArray("m_vectorParams"))
+            foreach (var kvp in Data.GetArray("m_vectorParams"))
             {
                 VectorParams[kvp.GetProperty<string>("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
             }
 
-            foreach (var kvp in data.GetArray("m_textureParams"))
+            foreach (var kvp in Data.GetArray("m_textureParams"))
             {
                 TextureParams[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_pValue");
             }
@@ -62,59 +55,37 @@ namespace ValveResourceFormat.ResourceTypes
             //var dynamicParams = (NTROArray)Output["m_dynamicParams"];
             //var dynamicTextureParams = (NTROArray)Output["m_dynamicTextureParams"];
 
-            foreach (var kvp in data.GetArray("m_intAttributes"))
+            foreach (var kvp in Data.GetArray("m_intAttributes"))
             {
                 IntAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetIntegerProperty("m_nValue");
             }
 
-            foreach (var kvp in data.GetArray("m_floatAttributes"))
+            foreach (var kvp in Data.GetArray("m_floatAttributes"))
             {
                 FloatAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetFloatProperty("m_flValue");
             }
 
-            foreach (var kvp in data.GetArray("m_vectorAttributes"))
+            foreach (var kvp in Data.GetArray("m_vectorAttributes"))
             {
                 VectorAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
             }
 
-            foreach (var kvp in data.GetArray("m_stringAttributes"))
+            foreach (var kvp in Data.GetArray("m_stringAttributes"))
             {
                 StringAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_pValue");
             }
         }
 
-        public IKeyValueCollection GetData()
-        {
-            if (resource == null)
-            {
-                return null;
-            }
-
-            var data = resource.DataBlock;
-            if (data is NTRO ntro)
-            {
-                return ntro.Output;
-            }
-            else if (data is BinaryKV3 kv)
-            {
-                return kv.Data;
-            }
-
-            throw new InvalidOperationException($"Unknown material data type {data.GetType().Name}");
-        }
-
         public IDictionary<string, bool> GetShaderArguments()
         {
-            var data = GetData();
-
             var arguments = new Dictionary<string, bool>();
 
-            if (data == null)
+            if (Data == null)
             {
                 return arguments;
             }
 
-            foreach (var intParam in data.GetArray("m_intParams"))
+            foreach (var intParam in Data.GetArray("m_intParams"))
             {
                 var name = intParam.GetProperty<string>("m_name");
                 var value = intParam.GetIntegerProperty("m_nValue");

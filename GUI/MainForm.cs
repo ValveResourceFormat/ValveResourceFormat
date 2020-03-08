@@ -574,7 +574,7 @@ namespace GUI
                         var viewerControl = new GLParticleViewer(vrfGuiContext);
                         viewerControl.Load += (_, __) =>
                         {
-                            var particleSystem = new ParticleSystem(resource);
+                            var particleSystem = (ParticleSystem)resource.DataBlock;
                             var particleRenderer = new ParticleRenderer(particleSystem, vrfGuiContext);
 
                             viewerControl.AddRenderer(particleRenderer);
@@ -601,7 +601,7 @@ namespace GUI
                             Multiline = true,
                             ReadOnly = true,
                             Font = new Font(FontFamily.GenericMonospace, entitiesTab.Font.Size),
-                            Text = NormalizeLineEndings(new EntityLump(resource).ToString()),
+                            Text = NormalizeLineEndings(((EntityLump)resource.DataBlock).ToString()),
                         };
                         entitiesTab.Controls.Add(text);
                         resTabs.TabPages.Add(entitiesTab);
@@ -609,19 +609,19 @@ namespace GUI
                         break;
                     case ResourceType.World:
                         var worldmeshTab = new TabPage("MAP");
-                        worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, new World(resource)).ViewerControl);
+                        worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock).ViewerControl);
                         resTabs.TabPages.Add(worldmeshTab);
                         break;
 
                     case ResourceType.WorldNode:
                         var nodemeshTab = new TabPage("WORLD NODE");
-                        nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, new WorldNode(resource)).ViewerControl);
+                        nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock).ViewerControl);
                         resTabs.TabPages.Add(nodemeshTab);
                         break;
 
                     case ResourceType.Model:
                         var modelRendererTab = new TabPage("MODEL");
-                        modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Model(resource)).ViewerControl);
+                        modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock).ViewerControl);
                         resTabs.TabPages.Add(modelRendererTab);
                         break;
 

@@ -9,7 +9,7 @@ using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class EntityLump
+    public class EntityLump : KeyValuesOrNTRO
     {
         public class Entity
         {
@@ -38,35 +38,13 @@ namespace ValveResourceFormat.ResourceTypes
             public object Data { get; set; }
         }
 
-        private readonly Resource resource;
-
-        public EntityLump(Resource resource)
-        {
-            this.resource = resource;
-        }
-
-        public IKeyValueCollection GetData()
-        {
-            var data = resource.DataBlock;
-            if (data is NTRO ntro)
-            {
-                return ntro.Output;
-            }
-            else if (data is BinaryKV3 kv)
-            {
-                return kv.Data;
-            }
-
-            throw new InvalidOperationException($"Unknown entity lump data type {data.GetType().Name}");
-        }
-
         public IEnumerable<string> GetChildEntityNames()
         {
-            return GetData().GetArray<string>("m_childLumps");
+            return Data.GetArray<string>("m_childLumps");
         }
 
         public IEnumerable<Entity> GetEntities()
-            => GetData().GetArray("m_entityKeyValues")
+            => Data.GetArray("m_entityKeyValues")
                 .Select(entity => ParseEntityProperties(entity.GetArray<byte>("m_keyValuesData")))
                 .ToList();
 

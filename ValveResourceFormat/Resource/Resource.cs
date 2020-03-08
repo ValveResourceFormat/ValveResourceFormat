@@ -5,6 +5,7 @@ using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat
 {
@@ -204,7 +205,8 @@ namespace ValveResourceFormat
 
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
-                if (size >= 4 && blockType == "DATA")
+                // TODO: Find a better way without checking against resource type
+                if (size >= 4 && blockType == "DATA" && !IshandledResourceType(ResourceType))
                 {
                     Reader.BaseStream.Position = offset;
 
@@ -353,8 +355,20 @@ namespace ValveResourceFormat
                 case ResourceType.Texture:
                     return new Texture();
 
-                //case ResourceType.Material:
-                //    return new Material();
+                case ResourceType.Model:
+                    return new Model();
+
+                case ResourceType.World:
+                    return new World();
+
+                case ResourceType.WorldNode:
+                    return new WorldNode();
+
+                case ResourceType.EntityLump:
+                    return new EntityLump();
+
+                case ResourceType.Material:
+                    return new Material();
 
                 case ResourceType.SoundEventScript:
                     return new SoundEventScript();
@@ -363,7 +377,7 @@ namespace ValveResourceFormat
                     return new SoundStackScript();
 
                 case ResourceType.Particle:
-                    return new BinaryKV3();
+                    return new ParticleSystem();
 
                 case ResourceType.Mesh:
                     if (Version == 0)
@@ -380,6 +394,16 @@ namespace ValveResourceFormat
             }
 
             return new ResourceData();
+        }
+
+        private static bool IshandledResourceType(ResourceType type)
+        {
+            return type == ResourceType.Model
+                   || type == ResourceType.World
+                   || type == ResourceType.WorldNode
+                   || type == ResourceType.Particle
+                   || type == ResourceType.Material
+                   || type == ResourceType.EntityLump;
         }
 
         private static ResourceType DetermineResourceTypeByCompilerIdentifier(SpecialDependencies.SpecialDependency input)

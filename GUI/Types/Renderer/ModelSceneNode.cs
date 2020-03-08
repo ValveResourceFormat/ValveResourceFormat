@@ -113,7 +113,7 @@ namespace GUI.Types.Renderer
 
         private void SetSkin(string skin)
         {
-            var materialGroups = Model.GetData().GetArray<IKeyValueCollection>("m_materialGroups");
+            var materialGroups = Model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
             string[] defaultMaterials = null;
 
             foreach (var materialGroup in materialGroups)

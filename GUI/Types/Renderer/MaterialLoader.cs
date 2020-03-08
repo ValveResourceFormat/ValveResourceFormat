@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
                 return errorMat;
             }
 
-            var mat = new RenderMaterial(new VrfMaterial(resource));
+            var mat = new RenderMaterial((VrfMaterial)resource.DataBlock);
 
             foreach (var textureReference in mat.Material.TextureParams)
             {

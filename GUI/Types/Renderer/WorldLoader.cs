@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -50,7 +51,7 @@ namespace GUI.Types.Renderer
                         throw new Exception("WTF");
                     }
 
-                    var subloader = new WorldNodeLoader(guiContext, new WorldNode(newResource));
+                    var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock);
                     subloader.Load(scene);
                 }
             }
@@ -69,7 +70,7 @@ namespace GUI.Types.Renderer
                     return result;
                 }
 
-                var entityLump = new EntityLump(newResource);
+                var entityLump = (EntityLump)newResource.DataBlock;
                 LoadEntitiesFromLump(scene, result, entityLump, "world_layer_base"); // TODO
             }
 
@@ -89,8 +90,8 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var childLump = new EntityLump(newResource);
-                var childName = childLump.GetData().GetProperty<string>("m_name");
+                var childLump = (EntityLump)newResource.DataBlock;
+                var childName = childLump.Data.GetProperty<string>("m_name");
 
                 LoadEntitiesFromLump(scene, result, childLump, childName);
             }
@@ -124,7 +125,7 @@ namespace GUI.Types.Renderer
 
                     if (skyboxPackage != null)
                     {
-                        result.Skybox = new World(skyboxPackage);
+                        result.Skybox = (World)skyboxPackage.DataBlock;
                     }
                 }
 
@@ -173,7 +174,7 @@ namespace GUI.Types.Renderer
 
                     if (particleResource != null)
                     {
-                        var particleSystem = new ParticleSystem(particleResource);
+                        var particleSystem = (ParticleSystem)particleResource.DataBlock;
                         var origin = new Vector3(positionVector.X, positionVector.Y, positionVector.Z);
 
                         try
@@ -235,7 +236,7 @@ namespace GUI.Types.Renderer
 
                     if (errorModelResource != null)
                     {
-                        var errorModel = new ModelSceneNode(scene, new Model(errorModelResource), skin, false)
+                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin, false)
                         {
                             Transform = transformationMatrix,
                             LayerName = layerName,
@@ -250,7 +251,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var newModel = new Model(newEntity);
+                var newModel = (Model)newEntity.DataBlock;
 
                 var modelNode = new ModelSceneNode(scene, newModel, skin, false)
                 {
