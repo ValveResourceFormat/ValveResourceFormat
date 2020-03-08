@@ -73,7 +73,7 @@ namespace GUI.Types.Renderer
         {
             var vbib = mesh.VBIB;
             var data = mesh.GetData();
-            var gpuMeshBuffers = guiContext.MeshBufferCache.GetOrCreateVBIB(vbib);
+            var gpuMeshBuffers = guiContext.MeshBufferCache.GetVertexIndexBuffers(vbib);
 
             //Prepare drawcalls
             var sceneObjects = data.GetArray("m_sceneObjects");
@@ -224,86 +224,13 @@ namespace GUI.Types.Renderer
             vertexBuffer.Offset = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_nBindOffsetBytes"));
             drawCall.VertexBuffer = vertexBuffer;
 
-            GL.GenVertexArrays(1, out uint vertexArrayObject);
-            drawCall.VertexArrayObject = vertexArrayObject;
-
-            GL.BindVertexArray(drawCall.VertexArrayObject);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, gpuMeshBuffers.VertexBuffers[drawCall.VertexBuffer.Id].Handle);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuMeshBuffers.IndexBuffers[drawCall.IndexBuffer.Id].Handle);
-
-            var curVertexBuffer = vbib.VertexBuffers[(int)drawCall.VertexBuffer.Id];
-            var texCoordNum = 0;
-            foreach (var attribute in curVertexBuffer.Attributes)
-            {
-                var attributeName = "v" + attribute.Name;
-
-                // TODO: other params too?
-                if (attribute.Name == "TEXCOORD" && texCoordNum++ > 0)
-                {
-                    attributeName += texCoordNum;
-                }
-
-                BindVertexAttrib(attribute, attributeName, drawCall.Shader.Program, (int)curVertexBuffer.Size);
-            }
-
-            GL.BindVertexArray(0);
+            drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
+                vbib,
+                drawCall.Shader,
+                drawCall.VertexBuffer.Id,
+                drawCall.IndexBuffer.Id);
 
             return drawCall;
-        }
-
-        private void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int shaderProgram, int stride)
-        {
-            var attributeLocation = GL.GetAttribLocation(shaderProgram, attributeName);
-
-            //Ignore this attribute if it is not found in the shader
-            if (attributeLocation == -1)
-            {
-                return;
-            }
-
-            GL.EnableVertexAttribArray(attributeLocation);
-
-            switch (attribute.Type)
-            {
-                case DXGI_FORMAT.R32G32B32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 3, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.HalfFloat, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.Float, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 2, VertexAttribIntegerType.Short, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16B16A16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.Short, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, (IntPtr)attribute.Offset);
-                    break;
-
-                default:
-                    throw new Exception("Unknown attribute format " + attribute.Type);
-            }
         }
     }
 
