@@ -96,8 +96,6 @@ namespace GUI.Types.Renderer
                     .Distinct();
                 SetAvailableLayers(worldLayers);
 
-                SetEnabledLayers(result.DefaultEnabledLayers);
-
                 if (worldLayers.Any())
                 {
                     // TODO: Since the layers are combined, has to be first in each world node?
@@ -141,8 +139,14 @@ namespace GUI.Types.Renderer
 
                 var worldLayers = Scene.AllNodes
                     .Select(r => r.LayerName)
-                    .Distinct();
+                    .Distinct()
+                    .ToList();
                 SetAvailableLayers(worldLayers);
+
+                for (var i = 0; i < worldLayersComboBox.Items.Count; i++)
+                {
+                    worldLayersComboBox.SetItemChecked(i, true);
+                }
             }
 
             ShowBaseGrid = false;
