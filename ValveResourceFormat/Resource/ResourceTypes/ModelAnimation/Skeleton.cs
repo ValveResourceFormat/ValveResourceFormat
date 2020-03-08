@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -10,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public List<Bone> Roots { get; private set; } = new List<Bone>();
         public Bone[] Bones { get; private set; } = Array.Empty<Bone>();
+        public int AnimationTextureSize { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
@@ -37,14 +39,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 end = (int)remapTableStarts[1];
             }
 
-            var invMapTable = new Dictionary<long, int>();
-            for (var i = start; i < end; i++)
-            {
-                if (!invMapTable.ContainsKey(remapTable[i]))
-                {
-                    invMapTable.Add(remapTable[i], i);
-                }
-            }
+            var invMapTable = remapTable.Skip(start).Take(end - start)
+                .Select((mapping, index) => (mapping, index))
+                .ToLookup(mi => mi.mapping, mi => mi.index);
+
+            AnimationTextureSize = invMapTable.Select(g => g.Max()).Max() + 1;
 
             // Construct the armature from the skeleton KV
             ConstructFromNTRO(modelData.GetSubCollection("m_modelSkeleton"), invMapTable);
@@ -53,7 +52,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        private void ConstructFromNTRO(IKeyValueCollection skeletonData, Dictionary<long, int> remapTable)
+        private void ConstructFromNTRO(IKeyValueCollection skeletonData, ILookup<long, int> remapTable)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
             var boneParents = skeletonData.GetIntegerArray("m_nParent");
@@ -78,8 +77,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var rotation = boneRotations[i];
 
                 // Create bone
-                var index = remapTable.ContainsKey(i) ? remapTable[i] : -1;
-                var bone = new Bone(name, index, position, rotation);
+                var bone = new Bone(name, remapTable[i].ToList(), position, rotation);
 
                 if (boneParents[i] != -1)
                 {

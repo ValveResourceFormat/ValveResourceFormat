@@ -97,7 +97,7 @@ namespace GUI.Types.Renderer
 
                             if (uniformLocationNumBones != -1)
                             {
-                                var v = (float)Math.Max(1, request.Mesh.BoneCount - 1);
+                                var v = (float)Math.Max(1, request.Mesh.AnimationTextureSize - 1);
                                 GL.Uniform1(uniformLocationNumBones, v);
                             }
                         }

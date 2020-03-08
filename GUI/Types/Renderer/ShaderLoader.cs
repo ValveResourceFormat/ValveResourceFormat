@@ -325,6 +325,7 @@ namespace GUI.Types.Renderer
                 case "water_dota.vfx":
                     return "water";
                 case "hero.vfx":
+                case "hero_underlords.vfx":
                     return "dota_hero";
                 case "multiblend.vfx":
                     return "multiblend";

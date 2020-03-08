@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
         public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
         public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
         public int? AnimationTexture { get; private set; }
-        public int BoneCount { get; private set; }
+        public int AnimationTextureSize { get; private set; }
 
         public float Time { get; private set; } = 0f;
 
@@ -66,10 +66,10 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void SetAnimationTexture(int? texture, int numBones)
+        public void SetAnimationTexture(int? texture, int animationTextureSize)
         {
             AnimationTexture = texture;
-            BoneCount = numBones;
+            AnimationTextureSize = animationTextureSize;
         }
 
         public void Update(float timeStep)

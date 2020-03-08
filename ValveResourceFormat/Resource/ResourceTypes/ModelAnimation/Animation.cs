@@ -79,7 +79,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Matrix4x4[] GetAnimationMatrices(float time, Skeleton skeleton)
         {
             // Create output array
-            var matrices = new Matrix4x4[skeleton.Bones.Length];
+            var matrices = new Matrix4x4[skeleton.AnimationTextureSize + 1];
 
             // Get bone transformations
             var transforms = GetTransformsAtTime(time);
@@ -113,9 +113,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var transformed = transformMatrix * bindPose;
 
             // Store result
-            if (bone.Index > -1 && bone.Index < matrices.Length)
+            var skinMatrix = invBindPose * transformed;
+            foreach (var index in bone.SkinIndices)
             {
-                matrices[bone.Index] = invBindPose * transformed;
+                matrices[index] = skinMatrix;
             }
 
             // Propagate to childen

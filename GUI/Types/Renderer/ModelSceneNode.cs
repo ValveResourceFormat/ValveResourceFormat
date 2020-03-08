@@ -76,8 +76,8 @@ namespace GUI.Types.Renderer
             }
 
             // Update animation matrices
-            var animationMatrices = new float[skeleton.Bones.Length * 16];
-            for (var i = 0; i < skeleton.Bones.Length; i++)
+            var animationMatrices = new float[skeleton.AnimationTextureSize * 16];
+            for (var i = 0; i < skeleton.AnimationTextureSize; i++)
             {
                 // Default to identity matrices
                 animationMatrices[i * 16] = 1.0f;
@@ -91,7 +91,7 @@ namespace GUI.Types.Renderer
 
             // Update animation texture
             GL.BindTexture(TextureTarget.Texture2D, animationTexture);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.Bones.Length, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.AnimationTextureSize, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
             GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
@@ -266,7 +266,7 @@ namespace GUI.Types.Renderer
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetAnimationTexture(animationTexture, skeleton.Bones.Length);
+                    renderer.SetAnimationTexture(animationTexture, skeleton.AnimationTextureSize);
                 }
             }
             else
