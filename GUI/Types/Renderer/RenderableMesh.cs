@@ -24,9 +24,12 @@ namespace GUI.Types.Renderer
 
         public float Time { get; private set; } = 0f;
 
+        private Mesh mesh;
+
         public RenderableMesh(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {
             this.guiContext = guiContext;
+            this.mesh = mesh;
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
 
             SetupDrawCalls(mesh, skinMaterials);
@@ -55,6 +58,11 @@ namespace GUI.Types.Renderer
                 }
 
                 call.Shader = guiContext.ShaderLoader.LoadShader(call.Shader.Name, parameters);
+                call.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
+                    mesh.VBIB,
+                    call.Shader,
+                    call.VertexBuffer.Id,
+                    call.IndexBuffer.Id);
             }
         }
 
