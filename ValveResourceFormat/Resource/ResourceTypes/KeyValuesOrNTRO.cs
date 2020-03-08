@@ -10,6 +10,8 @@ namespace ValveResourceFormat.ResourceTypes
         protected Resource Resource { get; private set; }
         public IKeyValueCollection Data { get; private set; }
 
+        private ResourceData BackingData;
+
         public override void Read(BinaryReader reader, Resource resource)
         {
             Resource = resource;
@@ -23,6 +25,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 kv3.Read(reader, resource);
                 Data = kv3.Data;
+                BackingData = kv3;
             }
             else
             {
@@ -33,7 +36,13 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 ntro.Read(reader, resource);
                 Data = ntro.Output;
+                BackingData = ntro;
             }
+        }
+
+        public override string ToString()
+        {
+            return BackingData.ToString();
         }
     }
 }
