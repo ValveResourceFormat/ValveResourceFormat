@@ -16,6 +16,7 @@ namespace GUI.Utils
         public MaterialLoader MaterialLoader { get; }
 
         public ShaderLoader ShaderLoader { get; }
+        public GPUMeshBufferCache MeshBufferCache { get; }
 
         private readonly FileLoader FileLoader;
 
@@ -42,6 +43,7 @@ namespace GUI.Utils
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();
             FileLoader = new FileLoader();
+            MeshBufferCache = new GPUMeshBufferCache();
         }
 
         public Resource LoadFileByAnyMeansNecessary(string file) =>

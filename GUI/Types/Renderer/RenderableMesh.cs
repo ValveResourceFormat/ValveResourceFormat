@@ -73,28 +73,7 @@ namespace GUI.Types.Renderer
         {
             var vbib = mesh.VBIB;
             var data = mesh.GetData();
-
-            var vertexBuffers = new uint[vbib.VertexBuffers.Count];
-            var indexBuffers = new uint[vbib.IndexBuffers.Count];
-
-            GL.GenBuffers(vbib.VertexBuffers.Count, vertexBuffers);
-            GL.GenBuffers(vbib.IndexBuffers.Count, indexBuffers);
-
-            for (var i = 0; i < vbib.VertexBuffers.Count; i++)
-            {
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[i]);
-                GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vbib.VertexBuffers[i].Count * vbib.VertexBuffers[i].Size), vbib.VertexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
-
-                GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out int _);
-            }
-
-            for (var i = 0; i < vbib.IndexBuffers.Count; i++)
-            {
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[i]);
-                GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(vbib.IndexBuffers[i].Count * vbib.IndexBuffers[i].Size), vbib.IndexBuffers[i].Buffer, BufferUsageHint.StaticDraw);
-
-                GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out int _);
-            }
+            var gpuMeshBuffers = guiContext.MeshBufferCache.GetOrCreateVBIB(vbib);
 
             //Prepare drawcalls
             var sceneObjects = data.GetArray("m_sceneObjects");
@@ -152,7 +131,7 @@ namespace GUI.Types.Renderer
                     }
 
                     // TODO: Don't pass around so much shit
-                    var drawCall = CreateDrawCall(objectDrawCall, vertexBuffers, indexBuffers, shaderArguments, vbib, material);
+                    var drawCall = CreateDrawCall(objectDrawCall, vbib, gpuMeshBuffers, shaderArguments, material);
 
                     if (drawCall.Material.IsBlended)
                     {
@@ -168,7 +147,7 @@ namespace GUI.Types.Renderer
             //drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, uint[] vertexBuffers, uint[] indexBuffers, IDictionary<string, bool> shaderArguments, VBIB block, RenderMaterial material)
+        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, GPUMeshBuffers gpuMeshBuffers, IDictionary<string, bool> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
 
@@ -200,10 +179,10 @@ namespace GUI.Types.Renderer
             indexBuffer.Offset = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_nBindOffsetBytes"));
             drawCall.IndexBuffer = indexBuffer;
 
-            var bufferSize = block.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
+            var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
             //drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
             //drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
-            drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * bufferSize;
+            drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * indexElementSize;
             drawCall.IndexCount = Convert.ToInt32(objectDrawCall.GetProperty<object>("m_nIndexCount"));
 
             if (objectDrawCall.ContainsKey("m_vTintColor"))
@@ -222,19 +201,19 @@ namespace GUI.Types.Renderer
                 drawCall.Material.Textures.Add("g_tNormal", MaterialLoader.CreateSolidTexture(0.5f, 1f, 0.5f));
             }
 
-            if (bufferSize == 2)
+            if (indexElementSize == 2)
             {
                 //shopkeeper_vr
                 drawCall.IndexType = DrawElementsType.UnsignedShort;
             }
-            else if (bufferSize == 4)
+            else if (indexElementSize == 4)
             {
                 //glados
                 drawCall.IndexType = DrawElementsType.UnsignedInt;
             }
             else
             {
-                throw new Exception("Unsupported indice type");
+                throw new Exception("Unsupported index type");
             }
 
             var m_vertexBuffers = objectDrawCall.GetSubCollection("m_vertexBuffers");
@@ -249,10 +228,10 @@ namespace GUI.Types.Renderer
             drawCall.VertexArrayObject = vertexArrayObject;
 
             GL.BindVertexArray(drawCall.VertexArrayObject);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffers[drawCall.VertexBuffer.Id]);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffers[drawCall.IndexBuffer.Id]);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, gpuMeshBuffers.VertexBuffers[drawCall.VertexBuffer.Id].Handle);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuMeshBuffers.IndexBuffers[drawCall.IndexBuffer.Id].Handle);
 
-            var curVertexBuffer = block.VertexBuffers[(int)drawCall.VertexBuffer.Id];
+            var curVertexBuffer = vbib.VertexBuffers[(int)drawCall.VertexBuffer.Id];
             var texCoordNum = 0;
             foreach (var attribute in curVertexBuffer.Attributes)
             {

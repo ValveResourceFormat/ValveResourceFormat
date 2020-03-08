@@ -49,74 +49,76 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.DepthTest);
 
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
-            var shader = drawCalls.First().Call.Shader;
+            var cameraPosition = context.Camera.Location.ToOpenTK();
 
-            var uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
-            var uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
-            var uniformLocationNumBones = shader.GetUniformLocation("fNumBones");
-            var uniformLocationTransform = shader.GetUniformLocation("transform");
-            var uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
-            var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
+            var callsByShader = drawCalls.GroupBy((a) => a.Call.Shader);
 
-            GL.UseProgram(shader.Program);
-
-            var uniformLocation = shader.GetUniformLocation("vLightPosition");
-            GL.Uniform3(uniformLocation, context.Camera.Location.ToOpenTK());
-
-            uniformLocation = shader.GetUniformLocation("vEyePosition");
-            GL.Uniform3(uniformLocation, context.Camera.Location.ToOpenTK());
-
-            uniformLocation = shader.GetUniformLocation("uProjectionViewMatrix");
-            GL.UniformMatrix4(uniformLocation, false, ref viewProjectionMatrix);
-
-            material.Render(shader);
-
-            foreach (var request in drawCalls)
+            foreach (var shaderGroup in callsByShader)
             {
-                var transformTk = request.Transform.ToOpenTK();
-                GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
+                var shader = shaderGroup.Key;
 
-                uniformLocation = shader.GetUniformLocation("g_flTime");
-                if (uniformLocation != 1)
-                {
-                    GL.Uniform1(uniformLocation, request.Mesh.Time);
-                }
+                var uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
+                var uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
+                var uniformLocationNumBones = shader.GetUniformLocation("fNumBones");
+                var uniformLocationTransform = shader.GetUniformLocation("transform");
+                var uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
+                var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
+                var uniformLocationTime = shader.GetUniformLocation("g_flTime");
 
-                if (uniformLocationAnimated != -1)
-                {
-                    GL.Uniform1(uniformLocationAnimated, request.Mesh.AnimationTexture.HasValue ? 1.0f : 0.0f);
-                }
+                GL.UseProgram(shader.Program);
 
-                //Push animation texture to the shader (if it supports it)
-                if (request.Mesh.AnimationTexture.HasValue)
+                GL.Uniform3(shader.GetUniformLocation("vLightPosition"), cameraPosition);
+                GL.Uniform3(shader.GetUniformLocation("vEyePosition"), cameraPosition);
+                GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
+
+                material.Render(shader);
+
+                foreach (var request in shaderGroup)
                 {
-                    if (uniformLocationAnimationTexture != -1)
+                    var transformTk = request.Transform.ToOpenTK();
+                    GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
+
+                    if (uniformLocationTime != 1)
                     {
-                        GL.ActiveTexture(TextureUnit.Texture0);
-                        GL.BindTexture(TextureTarget.Texture2D, request.Mesh.AnimationTexture.Value);
-                        GL.Uniform1(uniformLocationAnimationTexture, 0);
+                        GL.Uniform1(uniformLocationTime, request.Mesh.Time);
                     }
 
-                    if (uniformLocationNumBones != -1)
+                    if (uniformLocationAnimated != -1)
                     {
-                        var v = (float)Math.Max(1, request.Mesh.BoneCount - 1);
-                        GL.Uniform1(uniformLocationNumBones, v);
+                        GL.Uniform1(uniformLocationAnimated, request.Mesh.AnimationTexture.HasValue ? 1.0f : 0.0f);
                     }
-                }
 
-                if (uniformLocationTint > -1)
-                {
-                    var tint = request.Mesh.Tint.ToOpenTK();
-                    GL.Uniform4(uniformLocationTint, tint);
-                }
+                    //Push animation texture to the shader (if it supports it)
+                    if (request.Mesh.AnimationTexture.HasValue)
+                    {
+                        if (uniformLocationAnimationTexture != -1)
+                        {
+                            GL.ActiveTexture(TextureUnit.Texture0);
+                            GL.BindTexture(TextureTarget.Texture2D, request.Mesh.AnimationTexture.Value);
+                            GL.Uniform1(uniformLocationAnimationTexture, 0);
+                        }
 
-                if (uniformLocationTintDrawCall > -1)
-                {
-                    GL.Uniform3(uniformLocationTintDrawCall, request.Call.TintColor);
-                }
+                        if (uniformLocationNumBones != -1)
+                        {
+                            var v = (float)Math.Max(1, request.Mesh.BoneCount - 1);
+                            GL.Uniform1(uniformLocationNumBones, v);
+                        }
+                    }
 
-                GL.BindVertexArray(request.Call.VertexArrayObject);
-                GL.DrawElements(request.Call.PrimitiveType, request.Call.IndexCount, request.Call.IndexType, (IntPtr)request.Call.StartIndex);
+                    if (uniformLocationTint > -1)
+                    {
+                        var tint = request.Mesh.Tint.ToOpenTK();
+                        GL.Uniform4(uniformLocationTint, tint);
+                    }
+
+                    if (uniformLocationTintDrawCall > -1)
+                    {
+                        GL.Uniform3(uniformLocationTintDrawCall, request.Call.TintColor);
+                    }
+
+                    GL.BindVertexArray(request.Call.VertexArrayObject);
+                    GL.DrawElements(request.Call.PrimitiveType, request.Call.IndexCount, request.Call.IndexType, (IntPtr)request.Call.StartIndex);
+                }
             }
 
             material.PostRender();
