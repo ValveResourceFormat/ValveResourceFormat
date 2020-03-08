@@ -80,12 +80,6 @@ namespace GUI.Types.Renderer
                 mat.Textures["g_tColor"] = mat.Textures["g_tColor1"];
             }
 
-            // If g_tColor ends up being our error texture, change the shader
-            if (mat.Textures["g_tColor"] == GetErrorTexture())
-            {
-                mat.Material.ShaderName = "vrf.error";
-            }
-
             // Set default values for scale and positions
             if (!mat.Material.VectorParams.ContainsKey("g_vTexCoordScale"))
             {
