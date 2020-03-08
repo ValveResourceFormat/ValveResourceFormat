@@ -143,9 +143,9 @@ namespace GUI.Types.Renderer
         private void LoadMeshes()
         {
             // Get embedded meshes
-            foreach (var embeddedMesh in Model.GetEmbeddedMeshes())
+            foreach (var embeddedMesh in Model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                meshRenderers.Add(new RenderableMesh(embeddedMesh, Scene.GuiContext, skinMaterials));
+                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, Scene.GuiContext, skinMaterials));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
