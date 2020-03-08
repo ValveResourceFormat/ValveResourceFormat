@@ -11,7 +11,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public List<Bone> Roots { get; private set; } = new List<Bone>();
         public Bone[] Bones { get; private set; } = Array.Empty<Bone>();
-        public int AnimationTextureSize { get; }
+        public int AnimationTextureSize { get; } = 0;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
@@ -43,7 +43,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 .Select((mapping, index) => (mapping, index))
                 .ToLookup(mi => mi.mapping, mi => mi.index);
 
-            AnimationTextureSize = invMapTable.Select(g => g.Max()).Max() + 1;
+            if (invMapTable.Any())
+            {
+                AnimationTextureSize = invMapTable.Select(g => g.Max()).Max() + 1;
+            }
 
             // Construct the armature from the skeleton KV
             ConstructFromNTRO(modelData.GetSubCollection("m_modelSkeleton"), invMapTable);
