@@ -358,13 +358,16 @@ namespace GUI
             var tab = new TabPage();
             var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
-            uint magic;
-            ushort magicResourceVersion;
+            uint magic = 0;
+            ushort magicResourceVersion = 0;
 
             if (input != null)
             {
-                magic = BitConverter.ToUInt32(input, 0);
-                magicResourceVersion = BitConverter.ToUInt16(input, 4);
+                if (input.Length >= 6)
+                {
+                    magic = BitConverter.ToUInt32(input, 0);
+                    magicResourceVersion = BitConverter.ToUInt16(input, 4);
+                }
             }
             else
             {
@@ -799,7 +802,12 @@ namespace GUI
                 bvTab.Controls.Add(bv);
                 resTabs.TabPages.Add(bvTab);
 
-                if (input != null && !input.Contains<byte>(0x00))
+                if (input == null)
+                {
+                    input = File.ReadAllBytes(fileName);
+                }
+
+                if (!input.Contains<byte>(0x00))
                 {
                     var textTab = new TabPage("Text");
                     var text = new TextBox
@@ -817,14 +825,7 @@ namespace GUI
 
                 Invoke((MethodInvoker)(() =>
                 {
-                    if (input != null)
-                    {
-                        bv.SetBytes(input);
-                    }
-                    else
-                    {
-                        bv.SetFile(fileName);
-                    }
+                    bv.SetBytes(input);
                 }));
             }
 
