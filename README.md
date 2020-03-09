@@ -14,7 +14,7 @@ This repository is split into three components:
 - *GUI Viewer* - A complete mess of winforms and other fun things.
 - *Library* - The only sane part of this repository, provides public API.
 
-You can download bleeding edge builds [from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/build/artifacts).
+⚒ You can download latest unstable build [from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
 
 ## What's supported?
 - Model viewer
