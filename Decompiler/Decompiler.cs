@@ -216,6 +216,13 @@ namespace Decompiler
                 return;
             }
 
+            if (extension == ".kv3")
+            {
+                ParseKV3(path);
+
+                return;
+            }
+
             lock (ConsoleWriterLock)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -455,6 +462,32 @@ namespace Decompiler
 
                     DumpFile(fileName, output, true);
                 }
+            }
+            catch (Exception e)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
+            }
+        }
+
+        private void ParseKV3(string path)
+        {
+            var kv3 = new BinaryKV3();
+
+            try
+            {
+                using (var file = File.OpenRead(path))
+                using (var binaryReader = new BinaryReader(file))
+                {
+                    kv3.Size = (uint)file.Length;
+                    kv3.Read(binaryReader, null);
+                }
+
+                Console.WriteLine(kv3.ToString());
             }
             catch (Exception e)
             {
