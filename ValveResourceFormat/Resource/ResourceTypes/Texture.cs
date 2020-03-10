@@ -320,6 +320,14 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.RGBA32323232F:
                     return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(), Width, Height);
 
+                case VTexFormat.BC6H:
+                    BPTC.BPTCDecoders.UncompressBC6H(imageInfo, GetDecompressedBuffer(), data, Width, Height);
+                    break;
+
+                case VTexFormat.BC7:
+                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height);
+                    break;
+
                 case VTexFormat.IA88:
                     return TextureDecompressors.ReadIA88(GetDecompressedBuffer(), Width, Height);
 
@@ -380,6 +388,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Format == VTexFormat.DXT1
             || Format == VTexFormat.DXT5
+            || Format == VTexFormat.BC6H
+            || Format == VTexFormat.BC7
             || Format == VTexFormat.ETC2
             || Format == VTexFormat.ETC2_EAC
             || Format == VTexFormat.ATI1N)
@@ -504,6 +514,8 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.RG3232F: return 8;
                 case VTexFormat.RGB323232F: return 12;
                 case VTexFormat.RGBA32323232F: return 16;
+                case VTexFormat.BC6H: return 16;
+                case VTexFormat.BC7: return 16;
                 case VTexFormat.IA88: return 2;
                 case VTexFormat.ETC2: return 8;
                 case VTexFormat.ETC2_EAC: return 16;
