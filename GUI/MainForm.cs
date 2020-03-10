@@ -448,7 +448,7 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
-            else if (magic == ClosedCaptions.MAGIC || fileName.EndsWith(".dat", StringComparison.Ordinal))
+            else if (magic == ClosedCaptions.MAGIC || (input == null && fileName.EndsWith(".dat", StringComparison.Ordinal)))
             {
                 var captions = new ClosedCaptions();
                 if (input != null)
@@ -475,13 +475,24 @@ namespace GUI
             else if (magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2)
             {
                 var kv3 = new BinaryKV3();
+                Stream kv3stream;
 
-                using (var file = File.OpenRead(fileName))
-                using (var binaryReader = new BinaryReader(file))
+                if (input != null)
                 {
-                    kv3.Size = (uint)file.Length;
+                    kv3stream = new MemoryStream(input);
+                }
+                else
+                {
+                    kv3stream = File.OpenRead(fileName);
+                }
+
+                using (var binaryReader = new BinaryReader(kv3stream))
+                {
+                    kv3.Size = (uint)kv3stream.Length;
                     kv3.Read(binaryReader, null);
                 }
+
+                kv3stream.Close();
 
                 var control = new TextBox();
                 control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
@@ -492,7 +503,7 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
-            else if (magicResourceVersion == Resource.KnownHeaderVersion || fileName.EndsWith("_c", StringComparison.Ordinal))
+            else if (magicResourceVersion == Resource.KnownHeaderVersion || (input == null && fileName.EndsWith("_c", StringComparison.Ordinal)))
             {
                 var resource = new Resource();
                 if (input != null)
