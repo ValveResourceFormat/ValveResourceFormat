@@ -45,6 +45,9 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Particle:
+                    data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
+                    break;
+
                 case ResourceType.Mesh:
                     // Wrap it around a KV3File object to get the header.
                     data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.DataBlock).GetKV3File().ToString());
