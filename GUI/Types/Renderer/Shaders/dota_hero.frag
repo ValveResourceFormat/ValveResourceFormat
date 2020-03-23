@@ -17,6 +17,7 @@
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define param_F_MASKS_1 0
 #define param_F_MASKS_2 0
+#define param_F_ALPHA_TEST 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -72,10 +73,12 @@ void main()
     //Read textures
     vec4 color = texture2D(g_tColor, vTexCoordOut);
 
-    if (color.a <= g_flAlphaTestReference)
+#if param_F_ALPHA_TEST == 1
+	if (color.a < g_flAlphaTestReference)
     {
-        discard;
+       discard;
     }
+#endif
 
 #if param_F_MASKS_1
     vec4 mask1 = texture2D(g_tMasks1, vTexCoordOut);

@@ -1,4 +1,8 @@
-﻿#version 330
+#version 330
+
+//Parameter defines - These are default values and can be overwritten based on material/model parameters
+#define param_F_ALPHA_TEST 0
+//End of parameter defines
 
 in vec3 vFragPosition;
 
@@ -24,10 +28,12 @@ void main()
     //Get the ambient color from the color texture
     vec4 color = texture2D(g_tColor2, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
 
-	if(color.a <= g_flAlphaTestReference)
+#if param_F_ALPHA_TEST == 1
+	if (color.a < g_flAlphaTestReference)
     {
-        discard;
+       discard;
     }
+#endif
 
     //Calculate tint color
     float tintStrength = texture2D(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;

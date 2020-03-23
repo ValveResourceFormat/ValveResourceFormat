@@ -1,5 +1,9 @@
 #version 330
 
+//Parameter defines - These are default values and can be overwritten based on material/model parameters
+#define param_F_ALPHA_TEST 0
+//End of parameter defines
+
 // Render modes -- Switched on/off by code
 #define param_renderMode_FullBright 0
 #define param_renderMode_Color 0
@@ -55,10 +59,12 @@ void main()
     //Get the ambient color from the color texture
     vec4 color = texture2D(g_tColor, vTexCoordOut);
 
-    if (color.a <= g_flAlphaTestReference)
+#if param_F_ALPHA_TEST == 1
+	if (color.a < g_flAlphaTestReference)
     {
-        discard;
+       discard;
     }
+#endif
 
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
