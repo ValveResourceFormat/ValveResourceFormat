@@ -179,10 +179,13 @@ namespace ValveResourceFormat.ResourceTypes
             switch (type)
             {
                 case 0x0101: SoundType = AudioFileType.WAV; Bits = 8; break;
+                case 0x0201: SoundType = AudioFileType.WAV; Bits = 8; break;
                 case 0x0100: SoundType = AudioFileType.WAV; Bits = 16; break;
                 case 0x0200: SoundType = AudioFileType.WAV; Bits = 32; break;
+                case 0x0400: SoundType = AudioFileType.WAV; Bits = 32; break;
                 case 0x0102: SoundType = AudioFileType.MP3; Bits = 16; break;
                 case 0x0202: SoundType = AudioFileType.MP3; Bits = 32; break;
+                //case 0x0203: // TODO: Unknown. In HL:A - pontoon_splash1 or switch_burst
                 default: throw new NotImplementedException($"Unhandled v4 vsnd bits: {type}");
             }
         }
