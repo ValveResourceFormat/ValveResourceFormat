@@ -229,7 +229,7 @@ namespace ValveResourceFormat
                 block.Offset = offset;
                 block.Size = size;
 
-                if (blockType == "NTRO")
+                if (blockType == "REDI" || blockType == "NTRO")
                 {
                     block.Read(Reader, this);
                 }
@@ -275,7 +275,7 @@ namespace ValveResourceFormat
 
             foreach (var block in Blocks)
             {
-                if (block.Type != BlockType.NTRO)
+                if (block.Type != BlockType.REDI && block.Type != BlockType.NTRO)
                 {
                     block.Read(Reader, this);
                 }
