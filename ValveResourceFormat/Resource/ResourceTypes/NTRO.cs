@@ -12,11 +12,21 @@ namespace ValveResourceFormat.ResourceTypes
         protected BinaryReader Reader { get; private set; }
         protected Resource Resource { get; private set; }
         public NTROStruct Output { get; private set; }
+        public string StructName { get; set; }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             Reader = reader;
             Resource = resource;
+
+            if (StructName != null)
+            {
+                var refStruct = resource.IntrospectionManifest.ReferencedStructs.Find(s => s.Name == StructName);
+
+                Output = ReadStructure(refStruct, Offset);
+
+                return;
+            }
 
             foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
             {
@@ -291,7 +301,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            return Output.ToString() ?? "Nope.";
+            return Output?.ToString() ?? "Nope.";
         }
     }
 }

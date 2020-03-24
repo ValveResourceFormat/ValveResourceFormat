@@ -7,10 +7,25 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class KeyValuesOrNTRO : ResourceData
     {
+        private string IntrospectionStructName;
+        private BlockType KVBlockType;
+        public override BlockType Type => KVBlockType;
+
         protected Resource Resource { get; private set; }
         public IKeyValueCollection Data { get; private set; }
 
         private ResourceData BackingData;
+
+        public KeyValuesOrNTRO()
+        {
+            KVBlockType = BlockType.DATA;
+        }
+
+        public KeyValuesOrNTRO(BlockType type, string introspectionStructName)
+        {
+            KVBlockType = type;
+            IntrospectionStructName = introspectionStructName;
+        }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -31,6 +46,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var ntro = new NTRO
                 {
+                    StructName = IntrospectionStructName,
                     Offset = Offset,
                     Size = Size,
                 };

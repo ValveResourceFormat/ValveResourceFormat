@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
@@ -227,7 +228,11 @@ namespace ValveResourceFormat
 
                 block.Offset = offset;
                 block.Size = size;
-                block.Read(Reader, this);
+
+                if (blockType == "NTRO")
+                {
+                    block.Read(Reader, this);
+                }
 
                 Blocks.Add(block);
 
@@ -266,6 +271,14 @@ namespace ValveResourceFormat
                 }
 
                 Reader.BaseStream.Position = position + 8;
+            }
+
+            foreach (var block in Blocks)
+            {
+                if (block.Type != BlockType.NTRO)
+                {
+                    block.Read(Reader, this);
+                }
             }
         }
 
@@ -322,16 +335,16 @@ namespace ValveResourceFormat
                     return new BinaryKV3(BlockType.MRPH);
 
                 case "ANIM":
-                    return new BinaryKV3(BlockType.ANIM);
+                    return new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t");
 
                 case "ASEQ":
-                    return new BinaryKV3(BlockType.ASEQ);
+                    return new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t");
 
                 case "AGRP":
-                    return new BinaryKV3(BlockType.AGRP);
+                    return new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t");
 
                 case "PHYS":
-                    return new BinaryKV3(BlockType.PHYS);
+                    return new KeyValuesOrNTRO(BlockType.PHYS, "VPhysXAggregateData_t");
             }
 
             throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));
