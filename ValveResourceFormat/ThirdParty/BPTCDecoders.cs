@@ -411,7 +411,7 @@ namespace BPTC
                             {
                                 ushort factor = BPTCInterpolateFactor(cweight, endpoints[subset, e], endpoints[subset + 1, e]);
                                 //gamma correction and mul 4
-                                factor = (ushort)(Math.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
+                                factor = (ushort)Math.Min(0xFFFF, Math.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
                                 data[pixelIndex + 2 - e] = (byte)(factor >> 8);
                             }
 
@@ -693,34 +693,42 @@ namespace BPTC
 
                             ib >>= BC7IndLength[m] - isAnchor;
 
-                            if (m == 4)
-                            {
-                                aweight = BPTCWeights3[ib2 & (0x7u >> isAnchor)];
-                                ib2 >>= ib2l - isAnchor;
-
-                                if (isb == 1)
-                                {
-                                    byte t = cweight;
-                                    cweight = aweight;
-                                    aweight = t;
-                                }
-                            }
-                            else if (m == 5)
-                            {
-                                aweight = BPTCWeights2[ib2 & (0x3u >> isAnchor)];
-                                ib2 >>= ib2l - isAnchor;
-                            }
-
                             data[pixelIndex] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 2], endpoints[subset + 1, 2]);
                             data[pixelIndex + 1] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 1], endpoints[subset + 1, 1]);
                             data[pixelIndex + 2] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 0], endpoints[subset + 1, 0]);
-                            data[pixelIndex + 3] = (byte)BPTCInterpolateFactor(aweight, endpoints[subset, 3], endpoints[subset + 1, 3]);
 
-                            if ((m == 4 || m == 5) && rb != 0)
+                            if (m < 4)
                             {
-                                byte t = data[pixelIndex + 3];
-                                data[pixelIndex + 3] = data[pixelIndex + 3 - rb];
-                                data[pixelIndex + 3 - rb] = t;
+                                data[pixelIndex + 3] = byte.MaxValue;
+                            }
+                            else
+                            {
+                                if (m == 4)
+                                {
+                                    aweight = BPTCWeights3[ib2 & (0x7u >> isAnchor)];
+                                    ib2 >>= ib2l - isAnchor;
+
+                                    if (isb == 1)
+                                    {
+                                        byte t = cweight;
+                                        cweight = aweight;
+                                        aweight = t;
+                                    }
+                                }
+                                else if (m == 5)
+                                {
+                                    aweight = BPTCWeights2[ib2 & (0x3u >> isAnchor)];
+                                    ib2 >>= ib2l - isAnchor;
+                                }
+
+                                data[pixelIndex + 3] = (byte)BPTCInterpolateFactor(aweight, endpoints[subset, 3], endpoints[subset + 1, 3]);
+
+                                if ((m == 4 || m == 5) && rb != 0)
+                                {
+                                    byte t = data[pixelIndex + 3];
+                                    data[pixelIndex + 3] = data[pixelIndex + 3 - rb];
+                                    data[pixelIndex + 3 - rb] = t;
+                                }
                             }
                         }
                     }
