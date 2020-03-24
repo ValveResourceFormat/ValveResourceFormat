@@ -320,6 +320,11 @@ namespace ValveResourceFormat.ResourceTypes
                         for (int x = 0; x < 4; x++)
                         {
                             int dataIndex = ofs + ((x + (y * w)) * 4);
+                            if (data.Length < dataIndex + 3)
+                            {
+                                break;
+                            }
+
                             data[dataIndex + 1] = data[dataIndex];
                             data[dataIndex + 2] = data[dataIndex];
                             data[dataIndex + 3] = byte.MaxValue;
@@ -348,6 +353,11 @@ namespace ValveResourceFormat.ResourceTypes
                         for (int x = 0; x < 4; x++)
                         {
                             int dataIndex = ofs + ((x + (y * w)) * 4);
+                            if (data.Length < dataIndex + 3)
+                            {
+                                break;
+                            }
+
                             data[dataIndex + 0] = 0; //b
                             data[dataIndex + 3] = byte.MaxValue;
                             if (normalize)
@@ -474,6 +484,11 @@ namespace ValveResourceFormat.ResourceTypes
                         for (int x = 0; x < 4; x++)
                         {
                             int dataIndex = ofs + ((x + (y * w)) * 4);
+                            if (data.Length < dataIndex + 3)
+                            {
+                                break;
+                            }
+
                             if (yCoCg)
                             {
                                 var s = (data[dataIndex + 0] >> 3) + 1;
@@ -517,9 +532,14 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (int x = 0; x < 4; x++)
                 {
+                    var dataIndex = offset + (((y * w) + x) * 4);
+                    if (pixels.Length < dataIndex + 3)
+                    {
+                        break;
+                    }
+
                     uint index = (byte)(code & 0x07);
                     code >>= 3;
-                    var dataIndex = offset + (((y * w) + x) * 4);
 
                     if (index == 0)
                     {
