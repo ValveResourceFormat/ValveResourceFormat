@@ -449,7 +449,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    offset = CalculateBufferSizeForMipLevel(j);
+                    offset = CalculateBufferSizeForMipLevel(j) * (Flags.HasFlag(VTexFlags.CUBE_TEXTURE) ? 6 : 1);
                 }
 
                 Reader.BaseStream.Position += offset;
