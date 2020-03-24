@@ -328,6 +328,17 @@ namespace ValveResourceFormat.ResourceTypes
                     BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height);
                     break;
 
+                case VTexFormat.ATI2N:
+                    normalize = false;
+                    if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                    {
+                        var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+                        normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
+                    }
+
+                    TextureDecompressors.UncompressATI2N(GetDecompressedBuffer(), data, Width, Height, normalize);
+                    break;
+
                 case VTexFormat.IA88:
                     return TextureDecompressors.ReadIA88(GetDecompressedBuffer(), Width, Height);
 

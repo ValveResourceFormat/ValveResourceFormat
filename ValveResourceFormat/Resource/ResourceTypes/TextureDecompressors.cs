@@ -304,46 +304,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static void UncompressATI1N(BinaryReader r, Span<byte> data, int w, int h)
         {
-            byte InterpolateColor(byte index, sbyte red0, sbyte red1)
-            {
-                float red;
-                if (index == 0)
-                {
-                    red = red0;
-                }
-                else if (index == 1)
-                {
-                    red = red1;
-                }
-                else
-                {
-                    if (red0 > red1)
-                    {
-                        index -= 1;
-                        red = ((red0 * (7 - index)) + (red1 * index)) / 7.0f;
-                    }
-                    else
-                    {
-                        if (index == 6)
-                        {
-                            red = -127.0f;
-                        }
-                        else if (index == 7)
-                        {
-                            red = 127.0f;
-                        }
-                        else
-                        {
-                            index -= 1;
-                            red = ((red0 * (5 - index)) + (red1 * index)) / 5.0f;
-                        }
-                    }
-                }
-
-                return (byte)(((red + 127) * (255.0f / 254.0f)) + 0.5f);
-            }
-
-            var dataIndex = 0;
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
@@ -351,29 +311,54 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    var blockStorage = r.ReadBytes(8);
-                    sbyte red0 = (sbyte)blockStorage[0];
-                    sbyte red1 = (sbyte)blockStorage[1];
-                    red0 = (red0 == -128) ? (sbyte)-127 : red0;
-                    red1 = (red1 == -128) ? (sbyte)-127 : red1;
+                    ulong block1 = r.ReadUInt64();
+                    int ofs = ((i * 4) + (j * 4 * w)) * 4;
+                    Decompress8BitBlock(block1, data, ofs, w);
 
-                    ulong rIndex = blockStorage[2];
-                    rIndex |= (ulong)blockStorage[3] << 8;
-                    rIndex |= (ulong)blockStorage[4] << 16;
-                    rIndex |= (ulong)blockStorage[5] << 24;
-                    rIndex |= (ulong)blockStorage[6] << 32;
-                    rIndex |= (ulong)blockStorage[7] << 40;
-
-                    for (int p = 0; p < 16; p++)
+                    for (int y = 0; y < 4; y++)
                     {
-                        uint index = (byte)((uint)(rIndex >> (3 * p)) & 0x07);
-
-                        data[dataIndex++] = InterpolateColor((byte)index, red0, red1);
-
-                        // Is mult 4?
-                        if (((p + 1) & 0x3) == 0)
+                        for (int x = 0; x < 4; x++)
                         {
-                            dataIndex += blockCountX - 4;
+                            int dataIndex = ofs + ((x + (y * w)) * 4);
+                            data[dataIndex + 1] = data[dataIndex];
+                            data[dataIndex + 2] = data[dataIndex];
+                            data[dataIndex + 3] = byte.MaxValue;
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void UncompressATI2N(BinaryReader r, Span<byte> data, int w, int h, bool normalize)
+        {
+            var blockCountX = (w + 3) / 4;
+            var blockCountY = (h + 3) / 4;
+
+            for (var j = 0; j < blockCountY; j++)
+            {
+                for (var i = 0; i < blockCountX; i++)
+                {
+                    ulong block1 = r.ReadUInt64();
+                    ulong block2 = r.ReadUInt64();
+                    int ofs = ((i * 4) + (j * 4 * w)) * 4;
+                    Decompress8BitBlock(block1, data, ofs + 2, w); //r
+                    Decompress8BitBlock(block2, data, ofs + 1, w); //g
+                    for (int y = 0; y < 4; y++)
+                    {
+                        for (int x = 0; x < 4; x++)
+                        {
+                            int dataIndex = ofs + ((x + (y * w)) * 4);
+                            data[dataIndex + 0] = 0; //b
+                            data[dataIndex + 3] = byte.MaxValue;
+                            if (normalize)
+                            {
+                                var swizzleR = (data[dataIndex + 2] * 2) - 255;     // premul R
+                                var swizzleG = (data[dataIndex + 1] * 2) - 255;     // premul G
+                                var deriveB = (int)System.Math.Sqrt((255 * 255) - (swizzleR * swizzleR) - (swizzleG * swizzleG));
+                                data[dataIndex + 2] = ClampColor((swizzleR / 2) + 128); // unpremul R and normalize (128 = forward, or facing viewer)
+                                data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
+                                data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                            }
                         }
                     }
                 }
@@ -478,157 +463,94 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    var blockStorage = r.ReadBytes(16);
-                    DecompressBlockDXT5(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes, yCoCg, normalize, invert);
+                    ulong blockAlpha = r.ReadUInt64();
+                    var blockStorage = r.ReadBytes(8);
+                    int ofs = ((i * 4) + (j * 4 * w)) * 4;
+                    DecompressBlockDXT1(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes);
+                    Decompress8BitBlock(blockAlpha, data, ofs + 3, w);
+
+                    for (int y = 0; y < 4; y++)
+                    {
+                        for (int x = 0; x < 4; x++)
+                        {
+                            int dataIndex = ofs + ((x + (y * w)) * 4);
+                            if (yCoCg)
+                            {
+                                var s = (data[dataIndex + 0] >> 3) + 1;
+                                var co = (data[dataIndex + 2] - 128) / s;
+                                var cg = (data[dataIndex + 1] - 128) / s;
+
+                                data[dataIndex + 2] = ClampColor(data[dataIndex + 3] + co - cg);
+                                data[dataIndex + 1] = ClampColor(data[dataIndex + 3] + cg);
+                                data[dataIndex + 0] = ClampColor(data[dataIndex + 3] - co - cg);
+                                data[dataIndex + 3] = 255; // TODO: yCoCg should have an alpha too?
+                            }
+
+                            if (normalize)
+                            {
+                                var swizzleA = (data[dataIndex + 3] * 2) - 255;     // premul A
+                                var swizzleG = (data[dataIndex + 1] * 2) - 255;         // premul G
+                                var deriveB = (int)System.Math.Sqrt((255 * 255) - (swizzleA * swizzleA) - (swizzleG * swizzleG));
+                                data[dataIndex + 2] = ClampColor((swizzleA / 2) + 128); // unpremul A and normalize (128 = forward, or facing viewer)
+                                data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
+                                data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                                data[dataIndex + 3] = 255;
+                            }
+
+                            if (invert)
+                            {
+                                data[dataIndex + 1] = (byte)(~data[dataIndex + 1]);  // LegacySource1InvertNormals
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        private static void DecompressBlockDXT5(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride, bool yCoCg, bool normalize, bool invert)
+        private static void Decompress8BitBlock(ulong block, Span<byte> pixels, int offset, int w)
         {
-            var alpha0 = blockStorage[0];
-            var alpha1 = blockStorage[1];
+            byte e0 = (byte)(block & 0xFF);
+            byte e1 = (byte)(block >> 8 & 0xFF);
+            ulong code = block >> 16;
 
-            uint a1 = blockStorage[4];
-            var a2 = (uint)blockStorage[5] << 8;
-            var a3 = (uint)blockStorage[6] << 16;
-            var a4 = (uint)blockStorage[7] << 24;
-            var alphaCode1 = a1 | a2 | a3 | a4;
-
-            var alphaCode2 = (ushort)(blockStorage[2] | (blockStorage[3] << 8));
-
-            var color0 = (ushort)(blockStorage[8] | blockStorage[9] << 8);
-            var color1 = (ushort)(blockStorage[10] | blockStorage[11] << 8);
-
-            ConvertRgb565ToRgb888(color0, out var r0, out var g0, out var b0);
-            ConvertRgb565ToRgb888(color1, out var r1, out var g1, out var b1);
-
-            uint c1 = blockStorage[12];
-            var c2 = (uint)blockStorage[13] << 8;
-            var c3 = (uint)blockStorage[14] << 16;
-            var c4 = (uint)blockStorage[15] << 24;
-            var code = c1 | c2 | c3 | c4;
-
-            for (var j = 0; j < 4; j++)
+            for (int y = 0; y < 4; y++)
             {
-                for (var i = 0; i < 4; i++)
+                for (int x = 0; x < 4; x++)
                 {
-                    var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
+                    uint index = (byte)(code & 0x07);
+                    code >>= 3;
+                    var dataIndex = offset + (((y * w) + x) * 4);
 
-                    // TODO: Why are we skipping so poorly
-                    if (x + i >= width || pixels.Length < pixelIndex + 3)
+                    if (index == 0)
                     {
-                        continue;
+                        pixels[dataIndex] = e0;
                     }
-
-                    var alphaCodeIndex = 3 * ((4 * j) + i);
-                    int alphaCode;
-
-                    if (alphaCodeIndex <= 12)
+                    else if (index == 1)
                     {
-                        alphaCode = (alphaCode2 >> alphaCodeIndex) & 0x07;
-                    }
-                    else if (alphaCodeIndex == 15)
-                    {
-                        alphaCode = (int)(((uint)alphaCode2 >> 15) | ((alphaCode1 << 1) & 0x06));
+                        pixels[dataIndex] = e1;
                     }
                     else
                     {
-                        alphaCode = (int)((alphaCode1 >> (alphaCodeIndex - 16)) & 0x07);
-                    }
-
-                    byte finalAlpha;
-                    if (alphaCode == 0)
-                    {
-                        finalAlpha = alpha0;
-                    }
-                    else if (alphaCode == 1)
-                    {
-                        finalAlpha = alpha1;
-                    }
-                    else
-                    {
-                        if (alpha0 > alpha1)
+                        if (e0 > e1)
                         {
-                            finalAlpha = (byte)((((8 - alphaCode) * alpha0) + ((alphaCode - 1) * alpha1)) / 7);
+                            pixels[dataIndex] = (byte)((((8 - index) * e0) + ((index - 1) * e1)) / 7);
                         }
                         else
                         {
-                            if (alphaCode == 6)
+                            if (index == 6)
                             {
-                                finalAlpha = 0;
+                                pixels[dataIndex] = 0;
                             }
-                            else if (alphaCode == 7)
+                            else if (index == 7)
                             {
-                                finalAlpha = 255;
+                                pixels[dataIndex] = 255;
                             }
                             else
                             {
-                                finalAlpha = (byte)((((6 - alphaCode) * alpha0) + ((alphaCode - 1) * alpha1)) / 5);
+                                pixels[dataIndex] = (byte)((((6 - index) * e0) + ((index - 1) * e1)) / 5);
                             }
                         }
                     }
-
-                    var colorCode = (byte)((code >> (2 * ((4 * j) + i))) & 0x03);
-
-                    byte finalR = 0, finalG = 0, finalB = 0;
-
-                    switch (colorCode)
-                    {
-                        case 0:
-                            finalR = r0;
-                            finalG = g0;
-                            finalB = b0;
-                            break;
-                        case 1:
-                            finalR = r1;
-                            finalG = g1;
-                            finalB = b1;
-                            break;
-                        case 2:
-                            finalR = (byte)(((2 * r0) + r1) / 3);
-                            finalG = (byte)(((2 * g0) + g1) / 3);
-                            finalB = (byte)(((2 * b0) + b1) / 3);
-                            break;
-                        case 3:
-                            finalR = (byte)(((2 * r1) + r0) / 3);
-                            finalG = (byte)(((2 * g1) + g0) / 3);
-                            finalB = (byte)(((2 * b1) + b0) / 3);
-                            break;
-                    }
-
-                    if (yCoCg)
-                    {
-                        var s = (finalB >> 3) + 1;
-                        var co = (finalR - 128) / s;
-                        var cg = (finalG - 128) / s;
-
-                        finalR = ClampColor(finalAlpha + co - cg);
-                        finalG = ClampColor(finalAlpha + cg);
-                        finalB = ClampColor(finalAlpha - co - cg);
-                        finalAlpha = 255; // TODO: yCoCg should have an alpha too?
-                    }
-
-                    if (normalize)
-                    {
-                        var swizzleA = (finalAlpha * 2) - 255;     // premul A
-                        var swizzleG = (finalG * 2) - 255;         // premul G
-                        var deriveB = (int)System.Math.Sqrt((255 * 255) - (swizzleA * swizzleA) - (swizzleG * swizzleG));
-                        finalR = ClampColor((swizzleA / 2) + 128); // unpremul A and normalize (128 = forward, or facing viewer)
-                        finalG = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
-                        finalB = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
-                        finalAlpha = 255;
-                    }
-
-                    if (invert)
-                    {
-                        finalG = (byte)(~finalG);  // LegacySource1InvertNormals
-                    }
-
-                    pixels[pixelIndex] = finalB;
-                    pixels[pixelIndex + 1] = finalG;
-                    pixels[pixelIndex + 2] = finalR;
-                    pixels[pixelIndex + 3] = finalAlpha;
                 }
             }
         }
