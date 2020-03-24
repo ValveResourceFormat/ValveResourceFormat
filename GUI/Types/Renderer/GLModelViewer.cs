@@ -21,13 +21,13 @@ namespace GUI.Types.Renderer
         private MeshSceneNode meshSceneNode;
 
         public GLModelViewer(VrfGuiContext guiContext, Model model)
-            : base(guiContext)
+            : base(guiContext, new Frustum().CreateEmpty())
         {
             this.model = model;
         }
 
         public GLModelViewer(VrfGuiContext guiContext, Mesh mesh)
-           : base(guiContext)
+           : base(guiContext, new Frustum().CreateEmpty())
         {
             this.mesh = mesh;
         }

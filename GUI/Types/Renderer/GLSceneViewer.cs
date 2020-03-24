@@ -34,6 +34,17 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
 
+        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
+        {
+            Scene = new Scene(guiContext);
+            ViewerControl = new GLViewerControl();
+            lockedCullFrustum = cullFrustum;
+
+            InitializeControl();
+
+            ViewerControl.GLLoad += OnLoad;
+        }
+
         protected GLSceneViewer(VrfGuiContext guiContext)
         {
             Scene = new Scene(guiContext);

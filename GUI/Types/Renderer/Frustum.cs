@@ -1,10 +1,17 @@
+using System;
 using System.Numerics;
 
 namespace GUI.Types.Renderer
 {
     internal class Frustum
     {
-        private readonly Vector4[] Planes = new Vector4[6];
+        private Vector4[] Planes = new Vector4[6];
+
+        public Frustum CreateEmpty()
+        {
+            Planes = Array.Empty<Vector4>();
+            return this;
+        }
 
         public void Update(Matrix4x4 viewProjectionMatrix)
         {
