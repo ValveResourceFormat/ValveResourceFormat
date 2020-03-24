@@ -7,10 +7,13 @@ namespace GUI.Types.Renderer
     {
         private Vector4[] Planes = new Vector4[6];
 
-        public Frustum CreateEmpty()
+        public static Frustum CreateEmpty()
         {
-            Planes = Array.Empty<Vector4>();
-            return this;
+            var rv = new Frustum
+            {
+                Planes = Array.Empty<Vector4>(),
+            };
+            return rv;
         }
 
         public void Update(Matrix4x4 viewProjectionMatrix)
