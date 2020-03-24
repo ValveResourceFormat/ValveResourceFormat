@@ -139,6 +139,7 @@ namespace GUI.Types.Renderer
                 case VTexFormat.BC6H: format = InternalFormat.CompressedRgbBptcUnsignedFloat; break;
                 case VTexFormat.BC7: format = InternalFormat.CompressedSrgbAlphaBptcUnorm; break;
                 case VTexFormat.RGBA8888: format = InternalFormat.Rgba8; break;
+                case VTexFormat.RGBA16161616F: format = InternalFormat.Rgba16f; break;
                 case VTexFormat.I8: format = InternalFormat.Intensity8; break;
                 default:
                     Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
