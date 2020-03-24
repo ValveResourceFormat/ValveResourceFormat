@@ -332,7 +332,7 @@ namespace ValveResourceFormat
                     return new BinaryKV3(BlockType.MDAT);
 
                 case "MRPH":
-                    return new BinaryKV3(BlockType.MRPH);
+                    return new KeyValuesOrNTRO(BlockType.MRPH, "MorphSetData_t");
 
                 case "ANIM":
                     return new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t");
