@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
@@ -149,7 +150,8 @@ namespace Decompiler
             {
                 Console.WriteLine("Will use {0} threads concurrently.", MaxParallelismThreads);
 
-                Parallel.ForEach(paths, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelismThreads }, (path, state) =>
+                var partitioner = Partitioner.Create(paths, EnumerablePartitionerOptions.NoBuffering);
+                Parallel.ForEach(partitioner, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelismThreads }, (path, state) =>
                 {
                     ProcessFile(path);
                 });
