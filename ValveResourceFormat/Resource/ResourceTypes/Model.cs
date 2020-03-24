@@ -71,10 +71,10 @@ namespace ValveResourceFormat.ResourceTypes
                 var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
                 var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
 
-                var animationGroup = new AnimationGroup(Resource.GetBlockByIndex(groupDataBlockIndex) as ResourceData);
-                var decodeKey = animationGroup.GetDecodeKey();
+                var animationGroup = Resource.GetBlockByIndex(groupDataBlockIndex) as KeyValuesOrNTRO;
+                var decodeKey = animationGroup.Data.GetSubCollection("m_decodeKey");
 
-                var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as BinaryKV3;
+                var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
 
                 CachedEmbeddedAnimations.AddRange(Animation.FromData(animationDataBlock.Data, decodeKey));
             }
