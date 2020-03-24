@@ -18,6 +18,7 @@ about: Create a report to help us improve
 
 ### Version info
 <!-- What version of VRF are you using? On what platform? -->
+<!-- Before creating an issue, make sure it still exists on the latest unstable build. -->
 
 
 ### Additional context
