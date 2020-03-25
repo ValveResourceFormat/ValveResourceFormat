@@ -780,6 +780,16 @@ namespace GUI
                     resTabs.TabPages.Add(tab2);
                 }
 
+                if (resource.ResourceType == ResourceType.PanoramaLayout
+                || resource.ResourceType == ResourceType.PanoramaScript
+                || resource.ResourceType == ResourceType.PanoramaStyle
+                || resource.ResourceType == ResourceType.SoundEventScript
+                || resource.ResourceType == ResourceType.SoundStackScript
+                || resource.ResourceType == ResourceType.EntityLump)
+                {
+                    resTabs.SelectTab(resTabs.TabCount - 1);
+                }
+
                 tab.Controls.Add(resTabs);
             }
             else
