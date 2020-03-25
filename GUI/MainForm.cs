@@ -606,21 +606,6 @@ namespace GUI
                         Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).SoundType}", fileName, new ExportData { Resource = resource });
 
                         break;
-                    case ResourceType.EntityLump:
-                        var entitiesTab = new TabPage("ENTITY LUMP");
-                        var text = new TextBox
-                        {
-                            Dock = DockStyle.Fill,
-                            ScrollBars = ScrollBars.Vertical,
-                            Multiline = true,
-                            ReadOnly = true,
-                            Font = new Font(FontFamily.GenericMonospace, entitiesTab.Font.Size),
-                            Text = NormalizeLineEndings(((EntityLump)resource.DataBlock).ToString()),
-                        };
-                        entitiesTab.Controls.Add(text);
-                        resTabs.TabPages.Add(entitiesTab);
-
-                        break;
                     case ResourceType.World:
                         var worldmeshTab = new TabPage("MAP");
                         worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock).ViewerControl);
