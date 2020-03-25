@@ -313,7 +313,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     ulong block1 = r.ReadUInt64();
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
-                    Decompress8BitBlock(block1, data, ofs, w);
+                    Decompress8BitBlock(i * 4, w, ofs, block1, data, w);
 
                     for (int y = 0; y < 4; y++)
                     {
@@ -346,8 +346,8 @@ namespace ValveResourceFormat.ResourceTypes
                     ulong block1 = r.ReadUInt64();
                     ulong block2 = r.ReadUInt64();
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
-                    Decompress8BitBlock(block1, data, ofs + 2, w); //r
-                    Decompress8BitBlock(block2, data, ofs + 1, w); //g
+                    Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w); //r
+                    Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w); //g
                     for (int y = 0; y < 4; y++)
                     {
                         for (int x = 0; x < 4; x++)
@@ -475,16 +475,16 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     ulong blockAlpha = r.ReadUInt64();
                     var blockStorage = r.ReadBytes(8);
-                    int ofs = ((i * 4) + (j * 4 * w)) * 4;
+                    int ofs = (i * 16) + (j * 4 * imageInfo.RowBytes);
                     DecompressBlockDXT1(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes);
-                    Decompress8BitBlock(blockAlpha, data, ofs + 3, w);
+                    Decompress8BitBlock(i * 4, imageInfo.Width, ofs + 3, blockAlpha, data, imageInfo.RowBytes);
 
                     for (int y = 0; y < 4; y++)
                     {
                         for (int x = 0; x < 4; x++)
                         {
-                            int dataIndex = ofs + ((x + (y * w)) * 4);
-                            if (data.Length < dataIndex + 3)
+                            int dataIndex = ofs + ((x * 4) + (y * imageInfo.RowBytes));
+                            if ((i * 4) + x >= imageInfo.Width || data.Length < dataIndex + 3)
                             {
                                 break;
                             }
@@ -522,7 +522,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static void Decompress8BitBlock(ulong block, Span<byte> pixels, int offset, int w)
+        private static void Decompress8BitBlock(int bx, int w, int offset, ulong block, Span<byte> pixels, int stride)
         {
             byte e0 = (byte)(block & 0xFF);
             byte e1 = (byte)(block >> 8 & 0xFF);
@@ -532,14 +532,15 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (int x = 0; x < 4; x++)
                 {
-                    var dataIndex = offset + (((y * w) + x) * 4);
-                    if (pixels.Length < dataIndex + 3)
-                    {
-                        break;
-                    }
+                    var dataIndex = offset + (y * stride) + (x * 4);
 
                     uint index = (byte)(code & 0x07);
                     code >>= 3;
+
+                    if (bx + x > w || pixels.Length <= dataIndex)
+                    {
+                        continue;
+                    }
 
                     if (index == 0)
                     {
