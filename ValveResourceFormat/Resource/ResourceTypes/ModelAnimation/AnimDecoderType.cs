@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -17,6 +17,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         CCompressedReferenceQuaternion,
         CCompressedStaticQuaternion,
         CCompressedAnimQuaternion,
+        CCompressedFullQuaternion,
         CCompressedReferenceInt,
         CCompressedStaticChar,
         CCompressedFullChar,

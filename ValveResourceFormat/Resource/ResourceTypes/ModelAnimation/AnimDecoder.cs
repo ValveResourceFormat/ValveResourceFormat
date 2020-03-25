@@ -35,6 +35,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 case "CCompressedReferenceQuaternion": return AnimDecoderType.CCompressedReferenceQuaternion;
                 case "CCompressedStaticQuaternion": return AnimDecoderType.CCompressedStaticQuaternion;
                 case "CCompressedAnimQuaternion": return AnimDecoderType.CCompressedAnimQuaternion;
+                case "CCompressedFullQuaternion": return AnimDecoderType.CCompressedFullQuaternion;
                 case "CCompressedReferenceInt": return AnimDecoderType.CCompressedReferenceInt;
                 case "CCompressedStaticChar": return AnimDecoderType.CCompressedStaticChar;
                 case "CCompressedFullChar": return AnimDecoderType.CCompressedFullChar;
@@ -55,6 +56,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 case "CCompressedStaticVector4D": return AnimDecoderType.CCompressedStaticVector4D;
                 case "CCompressedFullVector4D": return AnimDecoderType.CCompressedFullVector4D;
             }
+
+            Console.Error.WriteLine($"Unhandled AnimDecoderType string: {s}");
 
             return AnimDecoderType.Unknown;
         }
