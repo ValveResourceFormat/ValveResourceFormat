@@ -274,6 +274,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                                 ReadHalfFloat(containerReader)));
                             break;
                         case AnimDecoderType.CCompressedAnimQuaternion:
+                        case AnimDecoderType.CCompressedFullQuaternion:
+                        case AnimDecoderType.CCompressedStaticQuaternion:
                             outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
                             break;
 #if DEBUG
