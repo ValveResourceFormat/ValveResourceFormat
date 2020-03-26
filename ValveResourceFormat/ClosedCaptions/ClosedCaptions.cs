@@ -61,7 +61,7 @@ namespace ValveResourceFormat.ClosedCaptions
 
             var version = reader.ReadUInt32();
 
-            if (version != 1)
+            if (version != 1 && version != 2)
             {
                 throw new InvalidDataException("Unsupported VCCD version: " + version);
             }
@@ -76,7 +76,7 @@ namespace ValveResourceFormat.ClosedCaptions
             {
                 Captions.Add(new ClosedCaption
                 {
-                    Hash = reader.ReadUInt32(),
+                    Hash = version == 2 ? reader.ReadUInt64() : reader.ReadUInt32(),
                     Blocknum = reader.ReadInt32(),
                     Offset = reader.ReadUInt16(),
                     Length = reader.ReadUInt16(),
