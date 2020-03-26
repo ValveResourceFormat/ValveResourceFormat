@@ -69,15 +69,19 @@ namespace GUI.Types.Renderer
                 mat.Textures["g_tColor"] = GetErrorTexture();
             }
 
-            // TODO: Perry, this probably needs to be in shader or something
-            if (mat.Textures.ContainsKey("g_tColor2") && mat.Textures["g_tColor"] == GetErrorTexture())
+            // Since our shaders only use g_tColor, we have to find at least one texture to use here
+            if (mat.Textures["g_tColor"] == GetErrorTexture())
             {
-                mat.Textures["g_tColor"] = mat.Textures["g_tColor2"];
-            }
+                var namesToTry = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" };
 
-            if (mat.Textures.ContainsKey("g_tColor1") && mat.Textures["g_tColor"] == GetErrorTexture())
-            {
-                mat.Textures["g_tColor"] = mat.Textures["g_tColor1"];
+                foreach (var name in namesToTry)
+                {
+                    if (mat.Textures.ContainsKey(name))
+                    {
+                        mat.Textures["g_tColor"] = mat.Textures[name];
+                        break;
+                    }
+                }
             }
 
             // Set default values for scale and positions
