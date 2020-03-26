@@ -107,7 +107,7 @@ namespace GUI.Forms
 
                 var filePath = Path.Combine(path, packageFile.GetFullPath());
 
-                package.ReadEntry(packageFile, out var output);
+                package.ReadEntry(packageFile, out var output, false);
 
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 

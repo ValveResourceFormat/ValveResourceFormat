@@ -42,7 +42,7 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from current vpk");
 #endif
 
-                guiContext.CurrentPackage.ReadEntry(entry, out var output);
+                guiContext.CurrentPackage.ReadEntry(entry, out var output, false);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
 
@@ -57,7 +57,7 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from parent vpk");
 #endif
 
-                guiContext.ParentPackage.ReadEntry(entry, out var output);
+                guiContext.ParentPackage.ReadEntry(entry, out var output, false);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
 
@@ -91,7 +91,7 @@ namespace GUI.Utils
                     {
                         Console.WriteLine($"Preloading vpk from parent vpk \"{searchPath}\"");
 
-                        guiContext.ParentPackage.ReadEntry(searchPath, out var vpk);
+                        guiContext.ParentPackage.ReadEntry(searchPath, out var vpk, false);
                         var ms = new MemoryStream(vpk);
                         package = new Package();
                         package.SetFileName(searchPath.GetFileName());
@@ -113,7 +113,7 @@ namespace GUI.Utils
                     Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
-                    package.ReadEntry(entry, out var output);
+                    package.ReadEntry(entry, out var output, false);
                     resource.Read(new MemoryStream(output));
                     CachedResources[file] = resource;
 
