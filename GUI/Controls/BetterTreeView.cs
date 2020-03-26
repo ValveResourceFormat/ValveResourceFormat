@@ -145,10 +145,8 @@ namespace GUI.Controls
         /// Adds a node to the tree based on the passed file information. This is useful when building a directory-based tree.
         /// </summary>
         /// <param name="file">File entry.</param>
-        public void AddFileNode(PackageEntry file)
+        public void AddFileNode(TreeNode currentNode, PackageEntry file)
         {
-            var currentNode = Nodes["root"];
-
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
                 var subPaths = file.DirectoryName.Split(Package.DirectorySeparatorChar);
