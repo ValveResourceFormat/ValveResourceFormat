@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -118,8 +119,9 @@ namespace GUI.Controls
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
+        /// <param name="fileName">File path to the package.</param>
         /// <param name="package">Package object.</param>
-        internal void InitializeTreeViewFromPackage(TreeViewPackageTag package)
+        internal void InitializeTreeViewFromPackage(string fileName, TreeViewPackageTag package)
         {
             mainListView.Tag = package;
 
@@ -131,8 +133,14 @@ namespace GUI.Controls
             control.Tag = package; //so we can access it later
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
+            control.ShowRootLines = false;
 
             control.GenerateIconList(package.Package.Entries.Keys.ToList());
+
+            var name = Path.GetFileName(fileName);
+            var root = control.Nodes.Add("root", name, @"vpk", @"vpk");
+            root.Tag = new TreeViewFolder(name, package.Package.Entries.Count);
+            root.Expand();
 
             foreach (var fileType in package.Package.Entries)
             {

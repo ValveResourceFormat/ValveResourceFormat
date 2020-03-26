@@ -405,7 +405,7 @@ namespace GUI
 
                 // create a TreeView with search capabilities, register its events, and add it to the tab
                 var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
-                treeViewWithSearch.InitializeTreeViewFromPackage(new TreeViewWithSearchResults.TreeViewPackageTag
+                treeViewWithSearch.InitializeTreeViewFromPackage(fileName, new TreeViewWithSearchResults.TreeViewPackageTag
                 {
                     Package = package,
                     ParentPackage = currentPackage?.Package,

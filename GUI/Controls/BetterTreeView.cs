@@ -147,7 +147,7 @@ namespace GUI.Controls
         /// <param name="file">File entry.</param>
         public void AddFileNode(PackageEntry file)
         {
-            TreeNode currentNode = null;
+            var currentNode = Nodes["root"];
 
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
@@ -155,15 +155,7 @@ namespace GUI.Controls
 
                 foreach (var subPath in subPaths)
                 {
-                    if (currentNode == null)
-                    {
-                        currentNode = Nodes[subPath] ?? Nodes.Add(subPath, subPath, @"_folder", @"_folder");
-                    }
-                    else
-                    {
-                        currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath, @"_folder", @"_folder");
-                    }
-
+                    currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath, @"_folder", @"_folder");
                     currentNode.Tag = new TreeViewFolder(file.DirectoryName, currentNode.Nodes.Count + 1); //is this enough?
                 }
             }
@@ -171,15 +163,7 @@ namespace GUI.Controls
             var fileName = file.GetFileName();
             var ext = ExtensionIconList[file.TypeName];
 
-            if (currentNode == null)
-            {
-                currentNode = Nodes.Add(fileName, fileName, ext, ext);
-            }
-            else
-            {
-                currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
-            }
-
+            currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
             currentNode.Tag = file; //so we can use it later
         }
     }
