@@ -318,8 +318,6 @@ namespace GUI.Types.Renderer
                     return "particle_sprite";
                 case "vrf.particle.trail":
                     return "particle_trail";
-                case "vr_standard.vfx":
-                    return "vr_standard";
                 case "vr_unlit.vfx":
                     return "vr_unlit";
                 case "water_dota.vfx":
@@ -330,6 +328,11 @@ namespace GUI.Types.Renderer
                 case "multiblend.vfx":
                     return "multiblend";
                 default:
+                    if (shaderName.StartsWith("vr_"))
+                    {
+                        return "vr_standard";
+                    }
+
                     //Console.WriteLine($"Unknown shader {shaderName}, defaulting to simple.");
                     //Shader names that are supposed to use this:
                     //vr_simple.vfx
