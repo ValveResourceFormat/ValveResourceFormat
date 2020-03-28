@@ -62,8 +62,8 @@ void main()
 #else
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);
-    illumination = illumination * 0.5 + 0.5;
-    illumination = illumination * illumination;
+    //illumination = illumination * 0.5 + 0.5;
+    //illumination = illumination * illumination;
     illumination = min(illumination + 0.3, 1.0);
 #endif
 
@@ -86,14 +86,14 @@ void main()
 #endif
 
 #if param_renderMode_Normals
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+	outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }

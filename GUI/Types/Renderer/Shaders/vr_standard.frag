@@ -74,9 +74,10 @@ void main()
 #else
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);
-    illumination = illumination * 0.5 + 0.5;
-    illumination = illumination * illumination;
-    illumination = min(illumination + 0.3, 1.0);
+    //illumination = illumination * 0.5 + 0.5;
+    //illumination = illumination * illumination;
+    //illumination = min(illumination + 0.3, 1.0);
+    illumination = illumination * 0.7 + 0.3;
 #endif
 
     //Simply multiply the color from the color texture with the illumination
@@ -91,18 +92,18 @@ void main()
 #endif
 
 #if param_renderMode_Tangents == 1
-	outputColor = vec4(vTangentOut.xyz, 1.0);
+	outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals == 1
-	outputColor = vec4(worldNormal, 1.0);
+	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+	outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }
