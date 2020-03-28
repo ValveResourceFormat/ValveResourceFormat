@@ -36,7 +36,7 @@ void main()
 
 	//Unpack normals
 #if param_fulltangent == 1
-	vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+	vNormalOut = normalize(normalTransform * vNORMAL.xyz);
 #else
     vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
 #endif
