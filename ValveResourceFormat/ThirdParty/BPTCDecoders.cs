@@ -513,7 +513,7 @@ namespace BPTC
         };
         private static readonly byte[] BC7IndLength = { 3, 3, 2, 2, 2, 2, 4, 2 };
 
-        public static void UncompressBC7(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h)
+        public static void UncompressBC7(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool hemiOctRB)
         {
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -747,6 +747,30 @@ namespace BPTC
                                     data[pixelIndex + 3] = data[pixelIndex + 3 - rb];
                                     data[pixelIndex + 3 - rb] = t;
                                 }
+                            }
+
+                            if (hemiOctRB)
+                            {
+                                float SignNotZero(float v)
+                                {
+                                    return (v >= 0.0f) ? +1.0f : -1.0f;
+                                }
+
+                                float nx = ((data[pixelIndex + 2] / 255.0f) * 2) - 1;
+                                float ny = ((data[pixelIndex + 1] / 255.0f) * 2) - 1;
+                                float nz = 1 - Math.Abs(nx) - Math.Abs(ny);
+                                if (nz < 0)
+                                {
+                                    float t = (1 - Math.Abs(ny)) * SignNotZero(nx);
+                                    ny = (1 - Math.Abs(nx)) * SignNotZero(ny);
+                                    nx = t;
+                                }
+
+                                float l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                data[pixelIndex + 3] = data[pixelIndex + 0]; //b to alpha
+                                data[pixelIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
+                                data[pixelIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
+                                data[pixelIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
                             }
                         }
                     }

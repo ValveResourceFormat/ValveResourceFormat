@@ -325,7 +325,14 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.BC7:
-                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height);
+                    bool hemiOctRB = false;
+                    if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                    {
+                        var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+                        hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+                    }
+
+                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height, hemiOctRB);
                     break;
 
                 case VTexFormat.ATI2N:
