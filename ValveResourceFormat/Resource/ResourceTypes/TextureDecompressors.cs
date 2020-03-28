@@ -313,7 +313,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     ulong block1 = r.ReadUInt64();
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
-                    Decompress8BitBlock(i * 4, w, ofs, block1, data, w);
+                    Decompress8BitBlock(i * 4, w, ofs, block1, data, w * 4);
 
                     for (int y = 0; y < 4; y++)
                     {
@@ -346,8 +346,8 @@ namespace ValveResourceFormat.ResourceTypes
                     ulong block1 = r.ReadUInt64();
                     ulong block2 = r.ReadUInt64();
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
-                    Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w); //r
-                    Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w); //g
+                    Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w * 4); //r
+                    Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w * 4); //g
                     for (int y = 0; y < 4; y++)
                     {
                         for (int x = 0; x < 4; x++)
