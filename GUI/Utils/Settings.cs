@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using ValveKeyValue;
@@ -25,7 +26,7 @@ namespace GUI.Utils
 
         public static void Load()
         {
-            SettingsFilePath = Path.Combine(Path.GetDirectoryName(typeof(Program).Assembly.Location), "settings.txt");
+            SettingsFilePath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");
 
             if (!File.Exists(SettingsFilePath))
             {

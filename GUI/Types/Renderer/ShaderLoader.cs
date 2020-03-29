@@ -365,7 +365,7 @@ namespace GUI.Types.Renderer
         // Reload shaders at runtime
         private static string GetShaderDiskPath(string name)
         {
-            return Path.Combine(Path.GetDirectoryName(typeof(MainForm).Assembly.Location), "../../../", ShaderDirectory.Replace('.', '/'), name);
+            return Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "../../../", ShaderDirectory.Replace('.', '/'), name);
         }
 #endif
     }
