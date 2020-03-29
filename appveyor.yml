@@ -19,6 +19,7 @@ build_script:
 
 after_build:
   - dotnet pack --configuration release ValveResourceFormat\ValveResourceFormat.csproj
+  - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 GUI\GUI.csproj
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler\Decompiler.csproj
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler\Decompiler.csproj
 
@@ -41,8 +42,8 @@ artifacts:
   name: Decompiler-win-x64
 - path: Decompiler\bin\Release\netcoreapp3.1\linux-x64\publish
   name: Decompiler-linux-x64
-- path: GUI\bin\Release
-  name: GUI
+- path: GUI\bin\Release\win-x64\publish
+  name: VRF_GUI
 - path: '**\*.nupkg'
   name: ValveResourceFormat
 
