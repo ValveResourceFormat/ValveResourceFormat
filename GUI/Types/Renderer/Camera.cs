@@ -182,6 +182,10 @@ namespace GUI.Types.Renderer
             {
                 speed *= 2;
             }
+            else if (KeyboardState.IsKeyDown(Key.F))
+            {
+                speed *= 10;
+            }
 
             if (KeyboardState.IsKeyDown(Key.W))
             {
