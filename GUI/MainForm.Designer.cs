@@ -40,8 +40,11 @@ namespace GUI
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.findToolStripButton = new System.Windows.Forms.ToolStripButton();
             this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
+            this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainTabs = new System.Windows.Forms.TabControl();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -54,9 +57,6 @@ namespace GUI
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.copyFileNameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openWithDefaultAppToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.contextMenuStrip1.SuspendLayout();
             this.vpkContextMenu.SuspendLayout();
@@ -149,43 +149,43 @@ namespace GUI
             this.contextMenuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.closeToolStripMenuItem,
-            this.closeToolStripMenuItemsToLeft,
             this.closeToolStripMenuItemsToRight,
+            this.closeToolStripMenuItemsToLeft,
             this.closeToolStripMenuItems});
             this.contextMenuStrip1.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(201, 124);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(194, 124);
             // 
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItem.Image")));
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(200, 30);
-            this.closeToolStripMenuItem.Text = "Close This Tab";
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(193, 30);
+            this.closeToolStripMenuItem.Text = "Close this &tab";
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.CloseToolStripMenuItem_Click);
             // 
             // closeToolStripMenuItemsToLeft
             // 
             this.closeToolStripMenuItemsToLeft.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItemsToLeft.Image")));
             this.closeToolStripMenuItemsToLeft.Name = "closeToolStripMenuItemsToLeft";
-            this.closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(200, 30);
-            this.closeToolStripMenuItemsToLeft.Text = "Close All Tabs To Left";
+            this.closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(193, 30);
+            this.closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
             this.closeToolStripMenuItemsToLeft.Click += new System.EventHandler(this.CloseToolStripMenuItemsToLeft_Click);
             // 
             // closeToolStripMenuItemsToRight
             // 
             this.closeToolStripMenuItemsToRight.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItemsToRight.Image")));
             this.closeToolStripMenuItemsToRight.Name = "closeToolStripMenuItemsToRight";
-            this.closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(200, 30);
-            this.closeToolStripMenuItemsToRight.Text = "Close All Tabs To Right";
+            this.closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(193, 30);
+            this.closeToolStripMenuItemsToRight.Text = "Close all tabs to &right";
             this.closeToolStripMenuItemsToRight.Click += new System.EventHandler(this.CloseToolStripMenuItemsToRight_Click);
             // 
             // closeToolStripMenuItems
             // 
             this.closeToolStripMenuItems.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItems.Image")));
             this.closeToolStripMenuItems.Name = "closeToolStripMenuItems";
-            this.closeToolStripMenuItems.Size = new System.Drawing.Size(200, 30);
-            this.closeToolStripMenuItems.Text = "Close All Tabs";
+            this.closeToolStripMenuItems.Size = new System.Drawing.Size(193, 30);
+            this.closeToolStripMenuItems.Text = "Close &all tabs";
             this.closeToolStripMenuItems.Click += new System.EventHandler(this.CloseToolStripMenuItems_Click);
             // 
             // vpkContextMenu
@@ -207,6 +207,14 @@ namespace GUI
             this.extractToolStripMenuItem.Text = "Export";
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
             // 
+            // decompileToolStripMenuItem
+            // 
+            this.decompileToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("decompileToolStripMenuItem.Image")));
+            this.decompileToolStripMenuItem.Name = "decompileToolStripMenuItem";
+            this.decompileToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            this.decompileToolStripMenuItem.Text = "Decompile && export";
+            this.decompileToolStripMenuItem.Click += new System.EventHandler(this.DecompileToolStripMenuItem_Click);
+            // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
@@ -214,6 +222,7 @@ namespace GUI
             // 
             // copyFileNameToolStripMenuItem
             // 
+            this.copyFileNameToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("copyFileNameToolStripMenuItem.Image")));
             this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
             this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
             this.copyFileNameToolStripMenuItem.Text = "Copy file name";
@@ -221,17 +230,11 @@ namespace GUI
             // 
             // openWithDefaultAppToolStripMenuItem
             // 
+            this.openWithDefaultAppToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("openWithDefaultAppToolStripMenuItem.Image")));
             this.openWithDefaultAppToolStripMenuItem.Name = "openWithDefaultAppToolStripMenuItem";
             this.openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
             this.openWithDefaultAppToolStripMenuItem.Text = "Open with default app";
             this.openWithDefaultAppToolStripMenuItem.Click += new System.EventHandler(this.OpenWithDefaultAppToolStripMenuIte_Click);
-            // 
-            // decompileToolStripMenuItem
-            // 
-            this.decompileToolStripMenuItem.Name = "decompileToolStripMenuItem";
-            this.decompileToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
-            this.decompileToolStripMenuItem.Text = "Decompile && Export";
-            this.decompileToolStripMenuItem.Click += new System.EventHandler(this.DecompileToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -247,7 +250,6 @@ namespace GUI
             this.MinimumSize = new System.Drawing.Size(300, 300);
             this.Name = "MainForm";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
-            this.Text = "VRF - Source 2 Resource Viewer v" + Application.ProductVersion;
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.MainForm_DragEnter);

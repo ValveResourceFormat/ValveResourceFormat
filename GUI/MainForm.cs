@@ -50,6 +50,8 @@ namespace GUI
             LoadAssetTypes();
             InitializeComponent();
 
+            Text = "VRF - Source 2 Resource Viewer v" + Application.ProductVersion;
+
             mainTabs.SelectedIndexChanged += (o, e) =>
             {
                 if (mainTabs.SelectedTab != null)
