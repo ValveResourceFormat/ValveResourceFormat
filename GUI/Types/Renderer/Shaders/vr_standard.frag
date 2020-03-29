@@ -92,12 +92,9 @@ void main()
 #if param_renderMode_FullBright == 1
     float illumination = 1.0;
 #else
-    //Calculate half-lambert lighting
+    //Calculate lambert lighting
     float illumination = max(0.0, dot(worldNormal, lightDirection));
-    //illumination = illumination * 0.5 + 0.5;
-    //illumination = illumination * illumination;
-    //illumination = min(illumination + 0.3, 1.0);
-    illumination = illumination * 0.7 + 0.3;
+    illumination = illumination * 0.7 + 0.3;//add ambient
 #endif
 
     //Simply multiply the color from the color texture with the illumination
