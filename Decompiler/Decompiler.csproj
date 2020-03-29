@@ -3,6 +3,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
+    <Version>999.9.9</Version>
     <Authors>Steam Database</Authors>
     <Copyright>Steam Database</Copyright>
     <Description>Source 2 resource decompiler and extractor</Description>

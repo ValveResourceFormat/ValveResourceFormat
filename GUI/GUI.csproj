@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Version>999.9.9</Version>
     <UseWindowsForms>true</UseWindowsForms>
     <RollForward>LatestMajor</RollForward>
     <OutputType>WinExe</OutputType>

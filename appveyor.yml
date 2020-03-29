@@ -1,12 +1,14 @@
 version: 0.1.2.{build}
 image: Visual Studio 2019
 
-assembly_info:
+dotnet_csproj:
   patch: true
-  file: '**\AssemblyInfo.*'
+  file: '**\*.csproj'
+  version: '{version}'
+  package_version: '{version}'
   assembly_version: '{version}'
-  assembly_file_version: '{version}'
-  assembly_informational_version: '{version}'
+  file_version: '{version}'
+  informational_version: '{version}'
 
 environment:
   COVERALLS_REPO_TOKEN:
@@ -43,7 +45,7 @@ artifacts:
 - path: Decompiler\bin\Release\netcoreapp3.1\linux-x64\publish
   name: Decompiler-linux-x64
 - path: GUI\bin\Release\win-x64\publish
-  name: VRF_GUI
+  name: GUI
 - path: '**\*.nupkg'
   name: ValveResourceFormat
 

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+    <Version>999.9.9</Version>
     <Authors>Steam Database</Authors>
     <Copyright>Steam Database</Copyright>
     <Description>Library to decompile Valve Source 2 files</Description>
