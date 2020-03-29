@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -144,8 +145,10 @@ namespace GUI.Controls
         /// <summary>
         /// Adds a node to the tree based on the passed file information. This is useful when building a directory-based tree.
         /// </summary>
+        /// <param name="currentNode">Root node.</param>
         /// <param name="file">File entry.</param>
-        public void AddFileNode(TreeNode currentNode, PackageEntry file)
+        /// <param name="vpkFileName">Name of the current vpk file.</param>
+        public void AddFileNode(TreeNode currentNode, PackageEntry file, string vpkFileName)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
@@ -163,6 +166,23 @@ namespace GUI.Controls
 
             currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
             currentNode.Tag = file; //so we can use it later
+
+            var tooltip = new StringBuilder();
+            tooltip.AppendLine($"Path: {file.GetFullPath()}");
+            tooltip.AppendLine($"Offset: {file.Offset}");
+            tooltip.AppendLine($"Size: {file.TotalLength}");
+
+            if (file.SmallData.Length > 0)
+            {
+                tooltip.AppendLine($"Small data length: {file.SmallData.Length}");
+            }
+
+            if (file.ArchiveIndex != 0x7FFF)
+            {
+                tooltip.AppendLine($"Archive: {vpkFileName}_{file.ArchiveIndex:000}.vpk");
+            }
+
+            currentNode.ToolTipText = tooltip.ToString();
         }
     }
 }

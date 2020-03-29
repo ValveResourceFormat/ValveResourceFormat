@@ -134,6 +134,7 @@ namespace GUI.Controls
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
             control.ShowRootLines = false;
+            control.ShowNodeToolTips = true;
 
             control.GenerateIconList(package.Package.Entries.Keys.ToList());
 
@@ -142,11 +143,13 @@ namespace GUI.Controls
             root.Tag = new TreeViewFolder(name, package.Package.Entries.Count);
             root.Expand();
 
+            var vpkName = Path.GetFileName(package.Package.FileName);
+
             foreach (var fileType in package.Package.Entries)
             {
                 foreach (var file in fileType.Value)
                 {
-                    control.AddFileNode(root, file);
+                    control.AddFileNode(root, file, vpkName);
                 }
             }
 

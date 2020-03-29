@@ -7,7 +7,8 @@
 
 Valve's Source 2 resource file format *(files that usually end with `_c` like `.vmdl_c`)* parser and decompiler. Contents of this repository are available under [MIT](LICENSE) license.
 
-**Interested in helping? Jump in `#steamdb` on [freenode](https://freenode.net/) and ask away!**
+**Interested in helping? Jump in [`#moddota` on chat.freenode.net](ircs://chat.freenode.net:6697/moddota) and ask away!**
+Prefer Discord? Join [ModDota on Discord](https://discord.gg/cUGwwWE)
 
 This repository is split into three components:
 - *CLI Decompiler* - File viewer, decompiler and a playground for testing new formats and features.

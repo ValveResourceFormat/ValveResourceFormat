@@ -136,7 +136,7 @@ namespace GUI.Forms
                         catch (Exception e)
                         {
                             Console.WriteLine($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}");
-                            return;
+                            continue;
                         }
                     }
                 }
