@@ -61,10 +61,11 @@ void main()
     float illumination = 1.0;
 #else
     //Calculate half-lambert lighting
-    float illumination = dot(worldNormal, lightDirection);
+    float illumination = max(0.0, dot(worldNormal, lightDirection));
     //illumination = illumination * 0.5 + 0.5;
     //illumination = illumination * illumination;
-    illumination = min(illumination + 0.3, 1.0);
+    //illumination = min(illumination + 0.3, 1.0);
+    illumination = illumination * 0.7 + 0.3;
 #endif
 
     //Calculate tint color

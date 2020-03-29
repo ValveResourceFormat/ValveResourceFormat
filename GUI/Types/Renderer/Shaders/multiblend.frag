@@ -222,11 +222,11 @@ void main()
 #endif
 
 #if param_renderMode_Normals == 1
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Tangents == 1 && param_F_NORMAL_MAP == 1
-	outputColor = vec4(tangent, 1.0);
+	outputColor = vec4(tangent * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpMap == 1 && param_F_NORMAL_MAP == 1
@@ -234,7 +234,7 @@ void main()
 #endif
 
 #if param_renderMode_BumpNormals == 1
-	outputColor = vec4(finalNormal, 1.0);
+	outputColor = vec4(finalNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1

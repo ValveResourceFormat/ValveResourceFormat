@@ -174,15 +174,15 @@ void main()
 #endif
 
 #if param_renderMode_Tangents == 1
-	outputColor = vec4(vTangentOut.xyz, 1.0);
+	outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals == 1
-	outputColor = vec4(worldNormal, 1.0);
+	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Metalness == 1
