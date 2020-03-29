@@ -24,6 +24,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ClosedCaptions;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ToolsAssetInfo;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI
@@ -389,7 +390,7 @@ namespace GUI
                 magic = Package.MAGIC;
             }
 
-            if (magic == Package.MAGIC || fileName.EndsWith(".vpk", StringComparison.Ordinal))
+            if (magic == Package.MAGIC)
             {
                 var package = new Package();
 
@@ -420,7 +421,7 @@ namespace GUI
                 // since we're in a separate thread, invoke to update the UI
                 Invoke((MethodInvoker)(() => findToolStripButton.Enabled = true));
             }
-            else if (magic == CompiledShader.MAGIC || fileName.EndsWith(".vcs", StringComparison.Ordinal))
+            else if (magic == CompiledShader.MAGIC)
             {
                 var shader = new CompiledShader();
 
@@ -448,7 +449,7 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
-            else if (magic == ClosedCaptions.MAGIC || (input == null && fileName.EndsWith(".dat", StringComparison.Ordinal)))
+            else if (magic == ClosedCaptions.MAGIC)
             {
                 var captions = new ClosedCaptions();
                 if (input != null)
@@ -471,6 +472,28 @@ namespace GUI
                     ScrollBars = ScrollBars.Both,
                 };
                 tab.Controls.Add(control);
+            }
+            else if (magic == ToolsAssetInfo.MAGIC)
+            {
+                var toolsAssetInfo = new ToolsAssetInfo();
+                if (input != null)
+                {
+                    toolsAssetInfo.Read(new MemoryStream(input));
+                }
+                else
+                {
+                    toolsAssetInfo.Read(fileName);
+                }
+
+                var text = new TextBox
+                {
+                    Dock = DockStyle.Fill,
+                    ScrollBars = ScrollBars.Vertical,
+                    Multiline = true,
+                    ReadOnly = true,
+                    Text = NormalizeLineEndings(toolsAssetInfo.ToString()),
+                };
+                tab.Controls.Add(text);
             }
             else if (magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2)
             {
@@ -503,7 +526,7 @@ namespace GUI
                 control.ScrollBars = ScrollBars.Both;
                 tab.Controls.Add(control);
             }
-            else if (magicResourceVersion == Resource.KnownHeaderVersion || (input == null && fileName.EndsWith("_c", StringComparison.Ordinal)))
+            else if (magicResourceVersion == Resource.KnownHeaderVersion)
             {
                 var resource = new Resource();
                 if (input != null)

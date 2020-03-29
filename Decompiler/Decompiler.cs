@@ -12,6 +12,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ToolsAssetInfo;
 
 namespace Decompiler
 {
@@ -195,32 +196,28 @@ namespace Decompiler
 
         private void ProcessFile(string path)
         {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+
+            var magicData = new byte[4];
+            fs.Read(magicData, 0, magicData.Length);
+            fs.Position = 0;
+
+            var magic = BitConverter.ToUInt32(magicData, 0);
+
+            switch (magic)
+            {
+                case Package.MAGIC: ParseVPK(path, fs); return;
+                case CompiledShader.MAGIC: ParseVCS(path, fs); return;
+                case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, fs); return;
+                case BinaryKV3.MAGIC2:
+                case BinaryKV3.MAGIC: ParseKV3(fs); return;
+            }
+
             var extension = Path.GetExtension(path);
-
-            if (extension == ".vpk")
-            {
-                ParseVPK(path);
-
-                return;
-            }
-
-            if (extension == ".vcs")
-            {
-                ParseVCS(path);
-
-                return;
-            }
 
             if (extension == ".vfont")
             {
                 ParseVFont(path);
-
-                return;
-            }
-
-            if (extension == ".kv3")
-            {
-                ParseKV3(path);
 
                 return;
             }
@@ -232,10 +229,7 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
-            {
-                ProcessFile(path, stream);
-            }
+            ProcessFile(path, fs);
         }
 
         private void ProcessFile(string path, Stream stream)
@@ -414,7 +408,38 @@ namespace Decompiler
             }
         }
 
-        private void ParseVCS(string path)
+        private void ParseToolsAssetInfo(string path, Stream stream)
+        {
+            var assetsInfo = new ToolsAssetInfo();
+
+            try
+            {
+                assetsInfo.Read(stream);
+
+                if (OutputFile != null)
+                {
+                    var fileName = Path.GetFileName(path);
+                    fileName = Path.ChangeExtension(fileName, "txt");
+
+                    DumpFile(fileName, assetsInfo.ToString(), true);
+                }
+                else
+                {
+                    Console.WriteLine(assetsInfo.ToString());
+                }
+            }
+            catch (Exception e)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
+            }
+        }
+
+        private void ParseVCS(string path, Stream stream)
         {
             lock (ConsoleWriterLock)
             {
@@ -427,7 +452,7 @@ namespace Decompiler
 
             try
             {
-                shader.Read(path);
+                shader.Read(path, stream);
             }
             catch (Exception e)
             {
@@ -476,16 +501,15 @@ namespace Decompiler
             }
         }
 
-        private void ParseKV3(string path)
+        private void ParseKV3(Stream stream)
         {
             var kv3 = new BinaryKV3();
 
             try
             {
-                using (var file = File.OpenRead(path))
-                using (var binaryReader = new BinaryReader(file))
+                using (var binaryReader = new BinaryReader(stream))
                 {
-                    kv3.Size = (uint)file.Length;
+                    kv3.Size = (uint)stream.Length;
                     kv3.Read(binaryReader, null);
                 }
 
@@ -502,7 +526,7 @@ namespace Decompiler
             }
         }
 
-        private void ParseVPK(string path)
+        private void ParseVPK(string path, Stream stream)
         {
             lock (ConsoleWriterLock)
             {
@@ -512,10 +536,11 @@ namespace Decompiler
             }
 
             var package = new Package();
+            package.SetFileName(path);
 
             try
             {
-                package.Read(path);
+                package.Read(stream);
             }
             catch (Exception e)
             {
@@ -584,9 +609,9 @@ namespace Decompiler
 
                             package.ReadEntry(file, out var output);
 
-                            using (var stream = new MemoryStream(output))
+                            using (var entryStream = new MemoryStream(output))
                             {
-                                ProcessFile(file.GetFullPath(), stream);
+                                ProcessFile(file.GetFullPath(), entryStream);
                             }
                         }
                     }
@@ -741,6 +766,17 @@ namespace Decompiler
             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
             File.WriteAllBytes(outputFile, data.ToArray());
+
+            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+        }
+
+        private void DumpFile(string path, string data, bool useOutputAsFullPath = false)
+        {
+            var outputFile = useOutputAsFullPath ? Path.GetFullPath(OutputFile) : Path.Combine(OutputFile, path);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
+
+            File.WriteAllText(outputFile, data);
 
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
