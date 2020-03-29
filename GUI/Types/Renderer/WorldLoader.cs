@@ -197,7 +197,7 @@ namespace GUI.Types.Renderer
 
                 if (isCamera)
                 {
-                    var name = entity.GetProperty<string>("name") ?? string.Empty;
+                    var name = entity.GetProperty<string>("targetname") ?? string.Empty;
                     var cameraName = name == string.Empty
                         ? classname
                         : name;
