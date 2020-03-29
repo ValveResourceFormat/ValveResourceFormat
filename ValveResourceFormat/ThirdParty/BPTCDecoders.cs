@@ -513,7 +513,7 @@ namespace BPTC
         };
         private static readonly byte[] BC7IndLength = { 3, 3, 2, 2, 2, 2, 4, 2 };
 
-        public static void UncompressBC7(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h)
+        public static void UncompressBC7(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool hemiOctRB)
         {
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -538,8 +538,7 @@ namespace BPTC
                     byte isb = 0;
                     byte[,] endpoints = new byte[6, 4];
                     byte epbits = 0;
-                    byte spb0 = 0;
-                    byte spb1 = 0;
+                    byte spbits = 0;
                     ulong ib = 0;
                     ulong ib2 = 0;
 
@@ -580,7 +579,18 @@ namespace BPTC
                             {
                                 int ofs = start + (cb * ((c * ns2) + s));
                                 endpoints[s, c] = GetVal(ofs, mask);
-                                endpoints[s, c] <<= 8 - cb;
+                                if (m == 1)
+                                {
+                                    endpoints[s, c] = (byte)(endpoints[s, c] << 2 | ((spbits >> (s >> 1) & 1) << 1) | (endpoints[s, c] >> 5));
+                                }
+                                else if (m == 0 || m == 3 || m == 6 || m == 7)
+                                {
+                                    endpoints[s, c] = (byte)(endpoints[s, c] << (8 - cb) | ((epbits >> s & 1) << (7 - cb)) | (endpoints[s, c] >> ((cb * 2) - 7)));
+                                }
+                                else
+                                {
+                                    endpoints[s, c] = (byte)(endpoints[s, c] << (8 - cb) | (endpoints[s, c] >> ((cb * 2) - 8)));
+                                }
                             }
                         }
 
@@ -591,22 +601,28 @@ namespace BPTC
                             {
                                 int ofs = astart + (ab * s);
                                 endpoints[s, 3] = GetVal(ofs, mask);
-                                endpoints[s, 3] <<= 8 - ab;
+                                if (m == 6 || m == 7)
+                                {
+                                    endpoints[s, 3] = (byte)((endpoints[s, 3] << (8 - ab)) | ((epbits >> s & 1) << (7 - ab)) | (endpoints[s, 3] >> ((ab * 2) - 7)));
+                                }
+                                else
+                                {
+                                    endpoints[s, 3] = (byte)((endpoints[s, 3] << (8 - ab)) | (endpoints[s, 3] >> ((ab * 2) - 8)));
+                                }
                             }
                         }
                     }
 
                     if (m == 0)
                     {
-                        ReadEndpoints(5, 6, 4, 0, 0);
                         epbits = (byte)(block64 >> 13 & 0x3F);
+                        ReadEndpoints(5, 6, 4, 0, 0);
                         ib = block64 >> 19;
                     }
                     else if (m == 1)
                     {
+                        spbits = (byte)((block64 >> 16 & 1) | ((block64 >> 17 & 1) << 1));
                         ReadEndpoints(8, 4, 6, 0, 0);
-                        spb0 = (byte)((block64 >> 16 & 1) << 1);
-                        spb1 = (byte)((block64 >> 17 & 1) << 1);
                         ib = block64 >> 18;
                     }
                     else if (m == 2)
@@ -616,8 +632,8 @@ namespace BPTC
                     }
                     else if (m == 3)
                     {
-                        ReadEndpoints(10, 4, 7, 0, 0);
                         epbits = (byte)(block64 >> 30 & 0xF);
+                        ReadEndpoints(10, 4, 7, 0, 0);
                         ib = block64 >> 34;
                     }
                     else if (m == 4)
@@ -637,18 +653,16 @@ namespace BPTC
                     }
                     else if (m == 6)
                     {
-                        ReadEndpoints(7, 2, 7, 49, 7);
                         epbits = (byte)((block0 >> 63) | ((block64 & 1) << 1));
+                        ReadEndpoints(7, 2, 7, 49, 7);
                         ib = block64 >> 1;
                     }
                     else if (m == 7)
                     {
-                        ReadEndpoints(14, 4, 5, 74, 5);
                         epbits = (byte)(block64 >> 30 & 0xF);
+                        ReadEndpoints(14, 4, 5, 74, 5);
                         ib = block64 >> 34;
                     }
-
-                    //TODO use epb and spb
 
                     int ib2l = (m == 4) ? 3 : 2;
                     for (int by = 0; by < 4; by++)
@@ -693,6 +707,28 @@ namespace BPTC
 
                             ib >>= BC7IndLength[m] - isAnchor;
 
+                            if (m == 4)
+                            {
+                                aweight = BPTCWeights3[ib2 & (0x7u >> isAnchor)];
+                                ib2 >>= ib2l - isAnchor;
+
+                                if (isb == 1)
+                                {
+                                    byte t = cweight;
+                                    cweight = aweight;
+                                    aweight = t;
+                                }
+                            }
+                            else if (m == 5)
+                            {
+                                aweight = BPTCWeights2[ib2 & (0x3u >> isAnchor)];
+                                ib2 >>= ib2l - isAnchor;
+                            }
+                            else if (m > 5)
+                            {
+                                aweight = cweight;
+                            }
+
                             data[pixelIndex] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 2], endpoints[subset + 1, 2]);
                             data[pixelIndex + 1] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 1], endpoints[subset + 1, 1]);
                             data[pixelIndex + 2] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 0], endpoints[subset + 1, 0]);
@@ -703,24 +739,6 @@ namespace BPTC
                             }
                             else
                             {
-                                if (m == 4)
-                                {
-                                    aweight = BPTCWeights3[ib2 & (0x7u >> isAnchor)];
-                                    ib2 >>= ib2l - isAnchor;
-
-                                    if (isb == 1)
-                                    {
-                                        byte t = cweight;
-                                        cweight = aweight;
-                                        aweight = t;
-                                    }
-                                }
-                                else if (m == 5)
-                                {
-                                    aweight = BPTCWeights2[ib2 & (0x3u >> isAnchor)];
-                                    ib2 >>= ib2l - isAnchor;
-                                }
-
                                 data[pixelIndex + 3] = (byte)BPTCInterpolateFactor(aweight, endpoints[subset, 3], endpoints[subset + 1, 3]);
 
                                 if ((m == 4 || m == 5) && rb != 0)
@@ -729,6 +747,30 @@ namespace BPTC
                                     data[pixelIndex + 3] = data[pixelIndex + 3 - rb];
                                     data[pixelIndex + 3 - rb] = t;
                                 }
+                            }
+
+                            if (hemiOctRB)
+                            {
+                                float SignNotZero(float v)
+                                {
+                                    return (v >= 0.0f) ? +1.0f : -1.0f;
+                                }
+
+                                float nx = ((data[pixelIndex + 2] / 255.0f) * 2) - 1;
+                                float ny = ((data[pixelIndex + 1] / 255.0f) * 2) - 1;
+                                float nz = 1 - Math.Abs(nx) - Math.Abs(ny);
+                                if (nz < 0)
+                                {
+                                    float t = (1 - Math.Abs(ny)) * SignNotZero(nx);
+                                    ny = (1 - Math.Abs(nx)) * SignNotZero(ny);
+                                    nx = t;
+                                }
+
+                                float l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                data[pixelIndex + 3] = data[pixelIndex + 0]; //b to alpha
+                                data[pixelIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
+                                data[pixelIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
+                                data[pixelIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
                             }
                         }
                     }

@@ -60,11 +60,9 @@ void main()
 #if param_renderMode_FullBright == 1 || param_F_FULLBRIGHT == 1
     float illumination = 1.0;
 #else
-    //Calculate half-lambert lighting
-    float illumination = dot(worldNormal, lightDirection);
-    illumination = illumination * 0.5 + 0.5;
-    illumination = illumination * illumination;
-    illumination = min(illumination + 0.3, 1.0);
+    //Calculate lambert lighting
+    float illumination = max(0.0, dot(worldNormal, lightDirection));
+    illumination = illumination * 0.7 + 0.3;//add ambient
 #endif
 
     //Calculate tint color
@@ -86,14 +84,14 @@ void main()
 #endif
 
 #if param_renderMode_Normals
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+	outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }

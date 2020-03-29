@@ -313,7 +313,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     ulong block1 = r.ReadUInt64();
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
-                    Decompress8BitBlock(i * 4, w, ofs, block1, data, w);
+                    Decompress8BitBlock(i * 4, w, ofs, block1, data, w * 4);
 
                     for (int y = 0; y < 4; y++)
                     {
@@ -346,8 +346,8 @@ namespace ValveResourceFormat.ResourceTypes
                     ulong block1 = r.ReadUInt64();
                     ulong block2 = r.ReadUInt64();
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
-                    Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w); //r
-                    Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w); //g
+                    Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w * 4); //r
+                    Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w * 4); //g
                     for (int y = 0; y < 4; y++)
                     {
                         for (int x = 0; x < 4; x++)
@@ -464,7 +464,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool yCoCg, bool normalize, bool invert)
+        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
         {
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -503,13 +503,39 @@ namespace ValveResourceFormat.ResourceTypes
 
                             if (normalize)
                             {
-                                var swizzleA = (data[dataIndex + 3] * 2) - 255;     // premul A
-                                var swizzleG = (data[dataIndex + 1] * 2) - 255;         // premul G
-                                var deriveB = (int)System.Math.Sqrt((255 * 255) - (swizzleA * swizzleA) - (swizzleG * swizzleG));
-                                data[dataIndex + 2] = ClampColor((swizzleA / 2) + 128); // unpremul A and normalize (128 = forward, or facing viewer)
-                                data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
-                                data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
-                                data[dataIndex + 3] = 255;
+                                if (hemiOct)
+                                {
+                                    float SignNotZero(float v)
+                                    {
+                                        return (v >= 0.0f) ? +1.0f : -1.0f;
+                                    }
+
+                                    float nx = ((data[dataIndex + 3] / 255.0f) * 2) - 1;
+                                    float ny = ((data[dataIndex + 1] / 255.0f) * 2) - 1;
+                                    float nz = 1 - Math.Abs(nx) - Math.Abs(ny);
+                                    if (nz < 0)
+                                    {
+                                        float t = (1 - Math.Abs(ny)) * SignNotZero(nx);
+                                        ny = (1 - Math.Abs(nx)) * SignNotZero(ny);
+                                        nx = t;
+                                    }
+
+                                    float l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                    data[dataIndex + 3] = data[dataIndex + 2]; //r to alpha
+                                    data[dataIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
+                                    data[dataIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
+                                    data[dataIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
+                                }
+                                else
+                                {
+                                    var swizzleA = (data[dataIndex + 3] * 2) - 255;     // premul A
+                                    var swizzleG = (data[dataIndex + 1] * 2) - 255;         // premul G
+                                    var deriveB = (int)System.Math.Sqrt((255 * 255) - (swizzleA * swizzleA) - (swizzleG * swizzleG));
+                                    data[dataIndex + 2] = ClampColor((swizzleA / 2) + 128); // unpremul A and normalize (128 = forward, or facing viewer)
+                                    data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
+                                    data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                                    data[dataIndex + 3] = 255;
+                                }
                             }
 
                             if (invert)

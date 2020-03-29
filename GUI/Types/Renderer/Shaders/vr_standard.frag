@@ -2,6 +2,7 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define param_F_ALPHA_TEST 0
+#define param_HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
 // Render modes -- Switched on/off by code
@@ -29,6 +30,20 @@ uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
 
+//Returns ±1
+vec2 signNotZero(vec2 v)
+{
+    return vec2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);
+}
+
+vec3 oct_to_float32x3(vec2 e)
+{
+    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    if (v.z < 0)
+    v.xy = (1.0 - abs(v.yx))*signNotZero(v.xy);
+    return normalize(v);
+}
+
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal()
 {
@@ -36,8 +51,13 @@ vec3 calculateWorldNormal()
     vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);
 
     //Reconstruct the tangent vector from the map
-    vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
-    vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
+#if param_HemiOctIsoRoughness_RG_B == 1
+    vec3 tangentNormal = oct_to_float32x3(bumpNormal.xy * 2 - 1);
+#else
+    //vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
+    //vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
+    vec3 tangentNormal = oct_to_float32x3(bumpNormal.wy * 2 - 1);
+#endif
 
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
@@ -72,11 +92,9 @@ void main()
 #if param_renderMode_FullBright == 1
     float illumination = 1.0;
 #else
-    //Calculate half-lambert lighting
-    float illumination = dot(worldNormal, lightDirection);
-    illumination = illumination * 0.5 + 0.5;
-    illumination = illumination * illumination;
-    illumination = min(illumination + 0.3, 1.0);
+    //Calculate lambert lighting
+    float illumination = max(0.0, dot(worldNormal, lightDirection));
+    illumination = illumination * 0.7 + 0.3;//add ambient
 #endif
 
     //Simply multiply the color from the color texture with the illumination
@@ -91,18 +109,18 @@ void main()
 #endif
 
 #if param_renderMode_Tangents == 1
-	outputColor = vec4(vTangentOut.xyz, 1.0);
+	outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
-	outputColor = vec4(vNormalOut, 1.0);
+	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals == 1
-	outputColor = vec4(worldNormal, 1.0);
+	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+	outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }

@@ -269,6 +269,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var yCoCg = false;
                     var normalize = false;
                     var invert = false;
+                    var hemiOct = false;
 
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {
@@ -277,9 +278,10 @@ namespace ValveResourceFormat.ResourceTypes
                         yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
                         normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
                         invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
+                        hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
                     }
 
-                    TextureDecompressors.UncompressDXT5(imageInfo, GetDecompressedBuffer(), data, Width, Height, yCoCg, normalize, invert);
+                    TextureDecompressors.UncompressDXT5(imageInfo, GetDecompressedBuffer(), data, Width, Height, yCoCg, normalize, invert, hemiOct);
                     break;
 
                 case VTexFormat.I8:
@@ -325,7 +327,14 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.BC7:
-                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height);
+                    bool hemiOctRB = false;
+                    if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                    {
+                        var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+                        hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+                    }
+
+                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height, hemiOctRB);
                     break;
 
                 case VTexFormat.ATI2N:

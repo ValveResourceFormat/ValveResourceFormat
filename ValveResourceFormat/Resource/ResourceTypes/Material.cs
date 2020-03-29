@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -91,6 +94,13 @@ namespace ValveResourceFormat.ResourceTypes
                 var value = intParam.GetIntegerProperty("m_nValue");
 
                 arguments.Add(name, value != 0);
+            }
+
+            var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+            bool hemiOctIsoRoughness_RG_B = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+            if (hemiOctIsoRoughness_RG_B)
+            {
+                arguments.Add("HemiOctIsoRoughness_RG_B", true);
             }
 
             return arguments;
