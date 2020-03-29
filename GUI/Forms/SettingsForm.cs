@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using GUI.Utils;
+using Ookii.Dialogs.WinForms;
 
 namespace GUI.Forms
 {
@@ -69,7 +70,7 @@ namespace GUI.Forms
 
         private void GamePathAddFolder(object sender, EventArgs e)
         {
-            using (var dlg = new FolderBrowserDialog
+            using (var dlg = new VistaFolderBrowserDialog
             {
                 SelectedPath = Settings.Config.OpenDirectory,
             })

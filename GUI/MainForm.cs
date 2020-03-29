@@ -16,6 +16,7 @@ using GUI.Types.Audio;
 using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using Ookii.Dialogs.WinForms;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
@@ -1112,7 +1113,7 @@ namespace GUI
             else
             {
                 //We are a folder
-                var dialog = new FolderBrowserDialog();
+                var dialog = new VistaFolderBrowserDialog();
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
                     var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath, decompile);
