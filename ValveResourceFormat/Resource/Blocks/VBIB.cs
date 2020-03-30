@@ -150,14 +150,31 @@ namespace ValveResourceFormat.Blocks
 
             offset = (int)(offset * vertexBuffer.Size) + (int)attribute.Offset;
 
+            // Useful reference: https://github.com/apitrace/dxsdk/blob/master/Include/d3dx_dxgiformatconvert.inl
             switch (attribute.Type)
             {
                 case DXGI_FORMAT.R32G32B32_FLOAT:
+                {
                     result = new float[3];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 12);
                     break;
+                }
+
+                case DXGI_FORMAT.R16G16_UNORM:
+                {
+                    var shorts = new ushort[2];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
+
+                    result = new[]
+                    {
+                        shorts[0] / 65535f,
+                        shorts[1] / 65535f,
+                    };
+                    break;
+                }
 
                 case DXGI_FORMAT.R16G16_FLOAT:
+                {
                     var shorts = new ushort[2];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
 
@@ -167,14 +184,19 @@ namespace ValveResourceFormat.Blocks
                         HalfTypeHelper.Convert(shorts[1]) * -1f,
                     };
                     break;
+                }
 
                 case DXGI_FORMAT.R32G32_FLOAT:
+                {
                     result = new float[2];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
                     result[1] *= -1f; // Flip texcoord
                     break;
+                }
+
                 case DXGI_FORMAT.R8G8B8A8_UINT:
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
+                {
                     var bytes = new byte[4];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, bytes, 0, 4);
 
@@ -187,6 +209,8 @@ namespace ValveResourceFormat.Blocks
                     }
 
                     break;
+                }
+
                 default:
                     throw new NotImplementedException($"Unsupported \"{attribute.Name}\" DXGI_FORMAT.{attribute.Type}");
             }
