@@ -42,6 +42,8 @@ namespace GUI.Types.Renderer
 
             InitializeControl();
 
+            ViewerControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+
             ViewerControl.GLLoad += OnLoad;
         }
 
