@@ -14,7 +14,6 @@ namespace GUI.Types.Renderer
     {
         private readonly Model model;
         private readonly Mesh mesh;
-        private Label drawCallsLabel;
         private ComboBox animationComboBox;
         private CheckedListBox meshGroupListBox;
         private ModelSceneNode modelSceneNode;
@@ -34,8 +33,6 @@ namespace GUI.Types.Renderer
 
         protected override void InitializeControl()
         {
-            drawCallsLabel = ViewerControl.AddLabel("Drawcalls: 0");
-
             AddRenderModeSelectionControl();
 
             animationComboBox = ViewerControl.AddSelection("Animation", (animation, _) =>
