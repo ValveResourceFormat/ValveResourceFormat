@@ -98,9 +98,15 @@ namespace ValveResourceFormat.ResourceTypes
 
             var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
             bool hemiOctIsoRoughness_RG_B = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+            bool invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
             if (hemiOctIsoRoughness_RG_B)
             {
                 arguments.Add("HemiOctIsoRoughness_RG_B", true);
+            }
+
+            if (invert)
+            {
+                arguments.Add("LegacySource1InvertNormals", true);
             }
 
             return arguments;
