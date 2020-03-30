@@ -94,17 +94,22 @@ namespace GUI.Forms
 
         private void Button1_Click(object sender, EventArgs e)
         {
-            var colorPicker = new ColorDialog
+            // Run the dialog on a separate thread, otherwise it will not work
+            // when opening settings while opentk is in focus
+            new System.Threading.Thread(() =>
             {
-                Color = Settings.BackgroundColor,
-            };
+                var colorPicker = new ColorDialog
+                {
+                    Color = Settings.BackgroundColor,
+                };
 
-            // Update the text box color if the user clicks OK
-            if (colorPicker.ShowDialog() == DialogResult.OK)
-            {
-                Settings.BackgroundColor = colorPicker.Color;
-                Settings.Save();
-            }
+                // Update the text box color if the user clicks OK
+                if (colorPicker.ShowDialog() == DialogResult.OK)
+                {
+                    Settings.BackgroundColor = colorPicker.Color;
+                    Settings.Save();
+                }
+            }).Start();
         }
     }
 }
