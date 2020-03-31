@@ -3,6 +3,7 @@
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define param_F_ALPHA_TEST 0
 #define param_HemiOctIsoRoughness_RG_B 0
+#define param_LegacySource1InvertNormals 0
 //End of parameter defines
 
 // Render modes -- Switched on/off by code
@@ -30,17 +31,9 @@ uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
 
-//Returns ±1
-vec2 signNotZero(vec2 v)
-{
-    return vec2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);
-}
-
 vec3 oct_to_float32x3(vec2 e)
 {
     vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    if (v.z < 0)
-    v.xy = (1.0 - abs(v.yx))*signNotZero(v.xy);
     return normalize(v);
 }
 
@@ -52,11 +45,16 @@ vec3 calculateWorldNormal()
 
     //Reconstruct the tangent vector from the map
 #if param_HemiOctIsoRoughness_RG_B == 1
-    vec3 tangentNormal = oct_to_float32x3(bumpNormal.xy * 2 - 1);
+    vec2 temp = vec2(bumpNormal.x + bumpNormal.y -1.003922, bumpNormal.x - bumpNormal.y);
+    vec3 tangentNormal = oct_to_float32x3(temp);
 #else
     //vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
     //vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
-    vec3 tangentNormal = oct_to_float32x3(bumpNormal.wy * 2 - 1);
+    vec2 temp = vec2(bumpNormal.w + bumpNormal.y -1.003922, bumpNormal.w - bumpNormal.y);
+    vec3 tangentNormal = oct_to_float32x3(temp);
+#endif
+#if param_LegacySource1InvertNormals == 1
+	tangentNormal.y *= -1.0;
 #endif
 
     vec3 normal = vNormalOut;

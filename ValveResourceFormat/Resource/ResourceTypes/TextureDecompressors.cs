@@ -505,20 +505,9 @@ namespace ValveResourceFormat.ResourceTypes
                             {
                                 if (hemiOct)
                                 {
-                                    float SignNotZero(float v)
-                                    {
-                                        return (v >= 0.0f) ? +1.0f : -1.0f;
-                                    }
-
-                                    float nx = ((data[dataIndex + 3] / 255.0f) * 2) - 1;
-                                    float ny = ((data[dataIndex + 1] / 255.0f) * 2) - 1;
+                                    float nx = ((data[dataIndex + 3] + data[dataIndex + 1]) / 255.0f) - 1.003922f;
+                                    float ny = (data[dataIndex + 3] - data[dataIndex + 1]) / 255.0f;
                                     float nz = 1 - Math.Abs(nx) - Math.Abs(ny);
-                                    if (nz < 0)
-                                    {
-                                        float t = (1 - Math.Abs(ny)) * SignNotZero(nx);
-                                        ny = (1 - Math.Abs(nx)) * SignNotZero(ny);
-                                        nx = t;
-                                    }
 
                                     float l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
                                     data[dataIndex + 3] = data[dataIndex + 2]; //r to alpha

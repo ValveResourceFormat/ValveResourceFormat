@@ -328,13 +328,15 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case VTexFormat.BC7:
                     bool hemiOctRB = false;
+                    invert = false;
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {
                         var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
                         hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+                        invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
                     }
 
-                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height, hemiOctRB);
+                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height, hemiOctRB, invert);
                     break;
 
                 case VTexFormat.ATI2N:
