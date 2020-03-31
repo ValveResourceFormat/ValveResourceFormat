@@ -41,7 +41,7 @@ namespace GUI
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.findToolStripButton = new System.Windows.Forms.ToolStripButton();
+            this.findToolStripButton = new System.Windows.Forms.ToolStripMenuItem();
             this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -87,7 +87,7 @@ namespace GUI
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
             this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
             this.openToolStripMenuItem.Size = new System.Drawing.Size(64, 23);
-            this.openToolStripMenuItem.Text = "Open";
+            this.openToolStripMenuItem.Text = "&Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.OpenToolStripMenuItem_Click);
             // 
             // findToolStripButton
@@ -99,7 +99,8 @@ namespace GUI
             this.findToolStripButton.Name = "findToolStripButton";
             this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.findToolStripButton.Size = new System.Drawing.Size(58, 20);
-            this.findToolStripButton.Text = "Find";
+            this.findToolStripButton.Text = "&Find";
+            this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.F)));
             this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
             // exportToolStripButton
@@ -162,6 +163,7 @@ namespace GUI
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
             this.closeToolStripMenuItem.Size = new System.Drawing.Size(193, 30);
             this.closeToolStripMenuItem.Text = "Close this &tab";
+            this.closeToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.W)));
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.CloseToolStripMenuItem_Click);
             // 
             // closeToolStripMenuItemsToLeft
@@ -178,6 +180,7 @@ namespace GUI
             this.closeToolStripMenuItemsToRight.Name = "closeToolStripMenuItemsToRight";
             this.closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(193, 30);
             this.closeToolStripMenuItemsToRight.Text = "Close all tabs to &right";
+            this.closeToolStripMenuItemsToRight.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.E)));
             this.closeToolStripMenuItemsToRight.Click += new System.EventHandler(this.CloseToolStripMenuItemsToRight_Click);
             // 
             // closeToolStripMenuItems
@@ -186,6 +189,7 @@ namespace GUI
             this.closeToolStripMenuItems.Name = "closeToolStripMenuItems";
             this.closeToolStripMenuItems.Size = new System.Drawing.Size(193, 30);
             this.closeToolStripMenuItems.Text = "Close &all tabs";
+            this.closeToolStripMenuItems.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Q)));
             this.closeToolStripMenuItems.Click += new System.EventHandler(this.CloseToolStripMenuItems_Click);
             // 
             // vpkContextMenu
@@ -274,7 +278,7 @@ namespace GUI
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToLeft;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToRight;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItems;
-        private System.Windows.Forms.ToolStripButton findToolStripButton;
+        private System.Windows.Forms.ToolStripMenuItem findToolStripButton;
         private System.Windows.Forms.ToolStripDropDownButton exportToolStripButton;
         private System.Windows.Forms.ToolStripMenuItem openWithDefaultAppToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem decompileToolStripMenuItem;
