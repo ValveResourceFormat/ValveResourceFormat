@@ -132,6 +132,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <param name="time">The time to get the transformation for.</param>
         private Frame GetTransformsAtTime(float time)
         {
+            // Create output frame
+            var frame = new Frame();
+
+            if (FrameCount == 0)
+            {
+                return frame;
+            }
+
             // Calculate the index of the current frame
             var frameIndex = (int)(time * Fps) % FrameCount;
             var t = ((time * Fps) - frameIndex) % 1;
@@ -139,9 +147,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Get current and next frame
             var frame1 = Frames[frameIndex];
             var frame2 = Frames[(frameIndex + 1) % FrameCount];
-
-            // Create output frame
-            var frame = new Frame();
 
             // Interpolate bone positions and angles
             foreach (var bonePair in frame1.Bones)
