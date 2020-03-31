@@ -89,12 +89,6 @@ namespace GUI
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            // if the user presses CTRL + F, show the search form
-            if (keyData == (Keys.Control | Keys.F))
-            {
-                findToolStripButton.PerformClick();
-            }
-
             //if the user presses CTRL + W, and there is a tab open, close the active tab
             if (keyData == (Keys.Control | Keys.W) && mainTabs.SelectedTab != null)
             {

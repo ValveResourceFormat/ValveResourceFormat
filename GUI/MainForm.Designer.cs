@@ -100,7 +100,7 @@ namespace GUI
             this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.findToolStripButton.Size = new System.Drawing.Size(58, 20);
             this.findToolStripButton.Text = "&Find";
-            this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.F)));
+            this.findToolStripButton.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.F)));
             this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
             // exportToolStripButton
