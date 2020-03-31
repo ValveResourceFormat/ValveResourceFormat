@@ -45,7 +45,7 @@ vec3 calculateWorldNormal()
 
     //Reconstruct the tangent vector from the map
 #if param_HemiOctIsoRoughness_RG_B == 1
-	vec2 temp = vec2(bumpNormal.x + bumpNormal.y -1.003922, bumpNormal.x - bumpNormal.y);
+    vec2 temp = vec2(bumpNormal.x + bumpNormal.y -1.003922, bumpNormal.x - bumpNormal.y);
     vec3 tangentNormal = oct_to_float32x3(temp);
 #else
     //vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
