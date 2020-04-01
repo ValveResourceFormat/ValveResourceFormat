@@ -1015,13 +1015,7 @@ namespace GUI
 
                 try
                 {
-                    new Process
-                    {
-                        StartInfo = new ProcessStartInfo(tempPath)
-                        {
-                            UseShellExecute = true,
-                        },
-                    }.Start();
+                    Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
                 }
                 catch (Exception ex)
                 {
