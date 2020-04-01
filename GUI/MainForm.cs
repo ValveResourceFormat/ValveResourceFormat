@@ -988,7 +988,7 @@ namespace GUI
             Clipboard.SetText(selectedNode.Name);
         }
 
-        private void OpenWithDefaultAppToolStripMenuIte_Click(object sender, EventArgs e)
+        private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
             TreeNode selectedNode = null;
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
@@ -1015,7 +1015,7 @@ namespace GUI
 
                 try
                 {
-                    Process.Start(tempPath);
+                    Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
                 }
                 catch (Exception ex)
                 {
