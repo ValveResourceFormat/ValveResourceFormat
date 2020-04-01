@@ -238,7 +238,7 @@ namespace GUI
             this.openWithDefaultAppToolStripMenuItem.Name = "openWithDefaultAppToolStripMenuItem";
             this.openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
             this.openWithDefaultAppToolStripMenuItem.Text = "Open with default app";
-            this.openWithDefaultAppToolStripMenuItem.Click += new System.EventHandler(this.OpenWithDefaultAppToolStripMenuIte_Click);
+            this.openWithDefaultAppToolStripMenuItem.Click += new System.EventHandler(this.OpenWithDefaultAppToolStripMenuItem_Click);
             // 
             // MainForm
             // 
