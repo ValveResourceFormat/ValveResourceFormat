@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace GUI.Forms
@@ -12,8 +12,10 @@ namespace GUI.Forms
 
         private void LinkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            var info = new ProcessStartInfo("https://github.com/SteamDatabase/ValveResourceFormat");
-            Process.Start(info);
+            Process.Start(new ProcessStartInfo("cmd", "/c start https://github.com/SteamDatabase/ValveResourceFormat")
+            {
+                CreateNoWindow = true,
+            });
         }
     }
 }
