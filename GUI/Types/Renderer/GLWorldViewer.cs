@@ -150,6 +150,8 @@ namespace GUI.Types.Renderer
             }
 
             ShowBaseGrid = false;
+
+            ViewerControl.Invoke((Action)savedCameraPositionsControl.RefreshSavedPositions);
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

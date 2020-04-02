@@ -12,8 +12,6 @@ namespace GUI.Controls
         public SavedCameraPositionsControl()
         {
             InitializeComponent();
-
-            RefreshSavedPositions();
         }
 
         private void BtnSave_Click(object sender, EventArgs e)
