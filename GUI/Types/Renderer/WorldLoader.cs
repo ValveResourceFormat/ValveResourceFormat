@@ -134,7 +134,6 @@ namespace GUI.Types.Renderer
                 var angles = entity.GetProperty<string>("angles");
                 var model = entity.GetProperty<string>("model");
                 var skin = entity.GetProperty<string>("skin");
-                var colour = entity.GetProperty<byte[]>("rendercolor");
                 var particle = entity.GetProperty<string>("effect_name");
                 var animation = entity.GetProperty<string>("defaultanim");
 
@@ -220,12 +219,17 @@ namespace GUI.Types.Renderer
                 var objColor = Vector4.One;
 
                 // Parse colour if present
-                if (colour != default && colour.Length == 4)
+                var colour = entity.GetProperty("rendercolor");
+
+                // HL Alyx has an entity that puts rendercolor as a string instead of color255
+                // TODO: Make an enum for these types
+                if (colour != default && colour.Type == 0x09)
                 {
-                    objColor.X = colour[0] / 255.0f;
-                    objColor.Y = colour[1] / 255.0f;
-                    objColor.Z = colour[2] / 255.0f;
-                    objColor.W = colour[3] / 255.0f;
+                    var colourBytes = (byte[])colour.Data;
+                    objColor.X = colourBytes[0] / 255.0f;
+                    objColor.Y = colourBytes[1] / 255.0f;
+                    objColor.Z = colourBytes[2] / 255.0f;
+                    objColor.W = colourBytes[3] / 255.0f;
                 }
 
                 var newEntity = guiContext.LoadFileByAnyMeansNecessary(model + "_c");

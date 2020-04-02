@@ -18,11 +18,24 @@ namespace ValveResourceFormat.ResourceTypes
             public T GetProperty<T>(string name)
                 => GetProperty<T>(EntityLumpKeyLookup.Get(name));
 
+            public EntityProperty GetProperty(string name)
+                => GetProperty(EntityLumpKeyLookup.Get(name));
+
             public T GetProperty<T>(uint hash)
             {
-                if (Properties.ContainsKey(hash))
+                if (Properties.TryGetValue(hash, out var property))
                 {
-                    return (T)Properties[hash].Data;
+                    return (T)property.Data;
+                }
+
+                return default;
+            }
+
+            public EntityProperty GetProperty(uint hash)
+            {
+                if (Properties.TryGetValue(hash, out var property))
+                {
+                    return property;
                 }
 
                 return default;
