@@ -558,7 +558,7 @@ namespace GUI
                             control.SetImage(tex.GenerateBitmap().ToBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
 
                             tab2.Controls.Add(control);
-                            Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as an image", fileName, new ExportData { Resource = resource });
+                            Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as an image", fileName, new ExportData { Resource = resource });
                         }
                         catch (Exception e)
                         {
@@ -595,13 +595,13 @@ namespace GUI
 
                         break;
                     case ResourceType.PanoramaLayout:
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as XML", fileName, new ExportData { Resource = resource });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as XML", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.PanoramaScript:
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as JS", fileName, new ExportData { Resource = resource });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as JS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.PanoramaStyle:
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as CSS", fileName, new ExportData { Resource = resource });
                         break;
                     case ResourceType.Particle:
                         var viewerControl = new GLParticleViewer(vrfGuiContext);
@@ -622,7 +622,7 @@ namespace GUI
                         var ap = new AudioPlayer(resource, soundTab);
                         resTabs.TabPages.Add(soundTab);
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).SoundType}", fileName, new ExportData { Resource = resource });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as {((Sound)resource.DataBlock).SoundType}", fileName, new ExportData { Resource = resource });
 
                         break;
                     case ResourceType.World:
@@ -650,7 +650,7 @@ namespace GUI
                             break;
                         }
 
-                        Invoke(new ExportDel(AddToExport), $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
 
                         var meshRendererTab = new TabPage("MESH");
                         meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Mesh(resource)).ViewerControl);
@@ -1141,9 +1141,9 @@ namespace GUI
             return NewLineRegex.Replace(input, Environment.NewLine);
         }
 
-        private delegate void ExportDel(string name, string filename, ExportData data);
+        private delegate void ExportDel(Control control, string name, string filename, ExportData data);
 
-        private void AddToExport(string name, string filename, ExportData data)
+        private void AddToExport(Control control, string name, string filename, ExportData data)
         {
             exportToolStripButton.Enabled = true;
 
@@ -1159,6 +1159,20 @@ namespace GUI
             ts.Click += ExportToolStripMenuItem_Click;
 
             exportToolStripButton.DropDownItems.Add(ts);
+
+            void ControlExposed(object sender, EventArgs e)
+            {
+                control.Disposed -= ControlExposed;
+                ts.Click -= ExportToolStripMenuItem_Click;
+                exportToolStripButton.DropDownItems.Remove(ts);
+
+                if (exportToolStripButton.DropDownItems.Count == 0)
+                {
+                    exportToolStripButton.Enabled = false;
+                }
+            }
+
+            control.Disposed += ControlExposed;
         }
 
         private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
