@@ -160,6 +160,13 @@ namespace ValveResourceFormat.Blocks
                     break;
                 }
 
+                case DXGI_FORMAT.R32G32B32A32_FLOAT:
+                {
+                    result = new float[4];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 16);
+                    break;
+                }
+
                 case DXGI_FORMAT.R16G16_UNORM:
                 {
                     var shorts = new ushort[2];
