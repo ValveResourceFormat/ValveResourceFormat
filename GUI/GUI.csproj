@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -9,7 +9,7 @@
     <Authors>Steam Database</Authors>
     <Copyright>Steam Database</Copyright>
     <Description>Source 2 resource viewer</Description>
-    <PackageProjectUrl>https://opensource.steamdb.info/ValveResourceFormat/</PackageProjectUrl>
+    <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
     <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
     <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>

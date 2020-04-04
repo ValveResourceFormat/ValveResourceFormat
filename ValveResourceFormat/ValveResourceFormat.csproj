@@ -5,7 +5,7 @@
     <Authors>Steam Database</Authors>
     <Copyright>Steam Database</Copyright>
     <Description>Library to decompile Valve Source 2 files</Description>
-    <PackageProjectUrl>https://opensource.steamdb.info/ValveResourceFormat/</PackageProjectUrl>
+    <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</PackageLicenseUrl>
