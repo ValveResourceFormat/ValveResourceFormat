@@ -55,6 +55,8 @@ namespace ValveResourceFormat.IO
                     objStream.WriteLine($"# Vertex Buffer {i}. Count: {vertexBuffer.Count}, Size: {vertexBuffer.Size}");
                     for (var j = 0; j < vertexBuffer.Count; j++)
                     {
+                        var hasTexcoord = false;
+
                         foreach (var attribute in vertexBuffer.Attributes)
                         {
                             var result = mesh.ReadVertexAttribute(j, vertexBuffer, attribute);
@@ -71,6 +73,12 @@ namespace ValveResourceFormat.IO
                                     break;
 
                                 case "TEXCOORD":
+                                    if (hasTexcoord)
+                                    {
+                                        continue;
+                                    }
+
+                                    hasTexcoord = true;
                                     objStream.WriteLine($"vt {result[0]:F6} {result[1]:F6}");
                                     break;
 #pragma warning restore SA1011 // ClosingSquareBracketsMustBeSpacedCorrectly
