@@ -13,10 +13,10 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Audio;
+using GUI.Types.Exporter;
 using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -31,12 +31,6 @@ namespace GUI
 {
     public partial class MainForm : Form
     {
-        private class ExportData
-        {
-            public Resource Resource { get; set; }
-            public VrfGuiContext VrfGuiContext { get; set; }
-        }
-
         private readonly Regex NewLineRegex;
         private SearchForm searchForm;
 #pragma warning disable CA2213
@@ -650,7 +644,7 @@ namespace GUI
                             break;
                         }
 
-                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as glTF", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
 
                         var meshRendererTab = new TabPage("MESH");
                         meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Mesh(resource)).ViewerControl);
@@ -1204,7 +1198,8 @@ namespace GUI
                     extensions = new[] { "css", "vcss" };
                     break;
                 case ResourceType.Mesh:
-                    extensions = new[] { "obj" };
+                case ResourceType.Model:
+                    extensions = new[] { "gltf" };
                     break;
             }
 
@@ -1234,36 +1229,16 @@ namespace GUI
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
                     Settings.Save();
 
-                    using (var stream = dialog.OpenFile())
+                    if (resource.ResourceType == ResourceType.Model || resource.ResourceType == ResourceType.Mesh)
                     {
-                        // TODO: move this to FileExtract/VRF too
-                        if (resource.ResourceType == ResourceType.Mesh)
-                        {
-                            using (var objStream = new StreamWriter(stream))
-                            using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
-                            {
-                                MeshWriter.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
-                            }
-
-                            foreach (var texture in tag.VrfGuiContext.MaterialLoader.LoadedTextures)
-                            {
-                                Console.WriteLine($"Exporting texture for mesh: {texture}");
-
-                                var textureResource = tag.VrfGuiContext.LoadFileByAnyMeansNecessary(texture + "_c");
-                                var textureImage = SKImage.FromBitmap(((Texture)textureResource.DataBlock).GenerateBitmap());
-
-                                using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
-                                using (var data = textureImage.Encode(SKEncodedImageFormat.Png, 100))
-                                {
-                                    data.SaveTo(texStream);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            var data = FileExtract.Extract(resource).ToArray();
-                            stream.Write(data, 0, data.Length);
-                        }
+                        var export = new ModelExporter();
+                        export.Export(dialog.FileName, tag);
+                    }
+                    else
+                    {
+                        var data = FileExtract.Extract(resource).ToArray();
+                        using var stream = dialog.OpenFile();
+                        stream.Write(data, 0, data.Length);
                     }
                 }
             }

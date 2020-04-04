@@ -1,17 +1,40 @@
 using System;
 using System.IO;
+using SkiaSharp;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.IO
+namespace GUI.Types.Exporter
 {
-    public static class MeshWriter
+    public class ModelExporter
     {
+        public void Export(string fileName, ExportData exportData)
+        {
+            using (var objStream = new StreamWriter(Path.ChangeExtension(fileName, "obj")))
+            {
+                using var mtlStream = new StreamWriter(Path.ChangeExtension(fileName, "mtl"));
+                WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(fileName), exportData.Resource);
+            }
+
+            foreach (var texture in exportData.VrfGuiContext.MaterialLoader.LoadedTextures)
+            {
+                Console.WriteLine($"Exporting texture for mesh: {texture}");
+
+                var textureResource = exportData.VrfGuiContext.LoadFileByAnyMeansNecessary(texture + "_c");
+                var textureImage = SKImage.FromBitmap(((Texture)textureResource.DataBlock).GenerateBitmap());
+
+                using var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(fileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write);
+                using var data = textureImage.Encode(SKEncodedImageFormat.Png, 100);
+                data.SaveTo(texStream);
+            }
+        }
+
         public static void WriteObject(StreamWriter objStream, StreamWriter mtlStream, string mtlFilename, Resource resource)
         {
             var mesh = resource.VBIB;
 
-            const string header = "# Written by VRF - https://opensource.steamdb.info/ValveResourceFormat/";
+            const string header = "# Written by VRF - https://vrf.steamdb.info/";
 
             mtlStream.WriteLine(header);
             objStream.WriteLine(header);
