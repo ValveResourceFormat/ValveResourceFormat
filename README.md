@@ -1,21 +1,47 @@
-# Valve Resource Format
+<h1 align="center">VRF / Valve Resource Format</h1>
 
-[![Build Status (Github)](https://github.com/SteamDatabase/ValveResourceFormat/workflows/.NET%20Core%20CI/badge.svg)](https://github.com/SteamDatabase/ValveResourceFormat/actions)
-[![Build Status (AppVeyor)](https://img.shields.io/appveyor/ci/xPaw/valveresourceformat/master.svg?label=AppVeyor)](https://ci.appveyor.com/project/xPaw/valveresourceformat)
-[![Coverage Status](https://img.shields.io/coveralls/SteamDatabase/ValveResourceFormat.svg?label=Test%20Coverage)](https://coveralls.io/github/SteamDatabase/ValveResourceFormat)
-[![NuGet](https://img.shields.io/nuget/v/ValveResourceFormat.svg?label=NuGet)](https://www.nuget.org/packages/ValveResourceFormat/)
+<p align="center">
+    <a href="https://github.com/SteamDatabase/ValveResourceFormat/actions">
+        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/SteamDatabase/ValveResourceFormat/.NET%20Core%20CI?logo=github&style=for-the-badge&logoColor=fff">
+    </a>
+    <a href="https://ci.appveyor.com/project/xPaw/ValveResourceFormat">
+        <img src="https://img.shields.io/appveyor/ci/xPaw/valveresourceformat/master.svg?label=AppVeyor&logo=appveyor&style=for-the-badge&logoColor=fff">
+    </a>
+    <a href="https://www.nuget.org/packages/ValveResourceFormat/">
+        <img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?label=NuGet&logo=nuget&style=for-the-badge&logoColor=fff&colorB=4c1">
+    </a>
+    <a href="https://coveralls.io/github/SteamDatabase/ValveResourceFormat">
+        <img src="https://img.shields.io/coveralls/SteamDatabase/ValveResourceFormat.svg?label=Tests&logo=coveralls&style=for-the-badge&logoColor=fff">
+    </a>
+</p>
 
-Valve's Source 2 resource file format *(files that usually end with `_c` like `.vmdl_c`)* parser and decompiler. Contents of this repository are available under [MIT](LICENSE) license.
-
-**Interested in helping? Jump in [`#moddota` on chat.freenode.net](ircs://chat.freenode.net:6697/moddota) and ask away!**
-Prefer Discord? Join [ModDota on Discord](https://discord.gg/cUGwwWE)
+Valve's Source 2 resource file format *(files that usually end with `_c` like `.vmdl_c`)* parser, decompiler, and exporter.
+Contents of this repository are available under [MIT](LICENSE) license, except for `Tests/Files` folders.
 
 This repository is split into three components:
-- *CLI Decompiler* - File viewer, decompiler and a playground for testing new formats and features.
-- *GUI Viewer* - A complete mess of winforms and other fun things.
-- *Library* - The only sane part of this repository, provides public API.
+- *CLI Decompiler* - File data viewer, decompiler and a playground for testing new formats and features.
+- *GUI Viewer* - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
+- *Library* - Provides public API to parse resource files and some helpers.
 
 ⚒ You can download latest unstable build [from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
+
+## Chat
+
+[![](https://discordapp.com/api/guilds/250160069549883392/embed.png?style=banner2)](https://discord.com)
+
+Prefer IRC? Join [`#steamdb-vrf` on chat.freenode.net](ircs://chat.freenode.net:6697/moddota)
+
+## Eye catchy screenshots
+<table>
+	<tr>
+		<td><img src="https://vrf.steamdb.info/static/screen_map.png"></td>
+		<td><img src="https://vrf.steamdb.info/static/screen_texture.png"></td>
+	</tr>
+	<tr>
+		<td><img src="https://vrf.steamdb.info/static/screen_package.png"></td>
+		<td><img src="https://vrf.steamdb.info/static/screen_cli.png"></td>
+	</tr>
+</table>
 
 ## What's supported?
 - Model viewer
@@ -29,51 +55,39 @@ This repository is split into three components:
 ### Supported resource types
 Ext      | Name                    | Support
 -------- | ----------------------- | -------
-vanim    | Animation               | No
-vagrp    | Animation Group         | No
+vanim    | Animation               | 👍
+vagrp    | Animation Group         | 👍
 vseq     | Sequence Group          | No
-vpcf     | Particle System         | :+1: NTRO, KV3
-vmat     | Material                | :+1: NTRO
+vpcf     | Particle System         | 👍 NTRO, KV3
+vmat     | Material                | 👍 NTRO
 vmks     | Sheet                   | No
-vmesh    | Mesh                    | Vertex and index buffers, vertex attributes
-vtex     | Compiled Texture        | :+1: DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, BC6H, BC7, IA88, PNG, JPG, ETC2, ETC2_EAC, BGRA8888, ATI1N, ATI2N
-vmdl     | Model                   | Started
+vmesh    | Mesh                    | 👍
+vtex     | Compiled Texture        | 👍 DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, BC6H, BC7, IA88, PNG, JPG, ETC2, ETC2_EAC, BGRA8888, ATI1N, ATI2N
+vmdl     | Model                   | 👍
 vphys    | Physics Collision Mesh  | No
-vsnd     | Sound                   | :+1: wav, mp3
+vsnd     | Sound                   | 👍 wav, mp3
 vmorf    | MorphSet                | No
-vrman    | ResourceManifest        | :+1:
-vwrld    | World                   | :+1:
-vwnod    | WorldNode               | :+1:
+vrman    | ResourceManifest        | 👍
+vwrld    | World                   | 👍
+vwnod    | WorldNode               | 👍
 vvis     | WorldVisibility         | No
-vents    | EntityLump              | No
+vents    | EntityLump              | 👍
 vsurf    | Surface Properties      | No
-vsndevts | Sound Event Script      | :+1: KV1, :-1: KV3
-vsndstck | Sound Stack Script      | :+1: KV1, :-1: KV3
+vsndevts | Sound Event Script      | 👍 KV1, :-1: KV3
+vsndstck | Sound Stack Script      | 👍 KV1, :-1: KV3
 vrmap    | Resource Remap Table    | No
-vcss     | Panorama Style          | :+1:
-vxml     | Panorama Layout         | :+1:
+vcss     | Panorama Style          | 👍
+vxml     | Panorama Layout         | 👍
 vpdi     | Panorama Dynamic Images | No
-vjs      | Panorama Script         | :+1:
-vsvg     | Panorama Vector Graphic | :+1:
+vjs      | Panorama Script         | 👍
+vsvg     | Panorama Vector Graphic | 👍
 vpsf     | Particle Snapshot       | No
-vmap     | Map                     | :+1:
-
-Ext      | Name                    | Support
--------- | ----------------------- | -------
-vpk      | Pak (package)           | :+1: Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
-vcs      | Compiled Shader         | Partially supported by `CompiledShader`
-vfont    | Bitmap Font             | :+1: Decrypts `VFONT1`, supported in Source 1 (CS:GO) and Source 2 (Dota 2).
+vmap     | Map                     | 👍
+&nbsp;   | &nbsp;                  | &nbsp;
+vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
+vcs      | Compiled Shader         | ❓ Started work in `CompiledShader`, see #151
+vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 (CS:GO) and Source 2 (Dota 2).
+dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
+bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`, see #226
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
-
-## Eye catchy screenshots
-<table>
-	<tr>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_map.png"></td>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_texture.png"></td>
-	</tr>
-	<tr>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_package.png"></td>
-		<td><img src="https://steamdatabase.github.io/ValveResourceFormat/static/screen_cli.png"></td>
-	</tr>
-</table>
