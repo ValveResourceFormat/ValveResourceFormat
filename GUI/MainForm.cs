@@ -632,6 +632,8 @@ namespace GUI
                         break;
 
                     case ResourceType.Model:
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as glTF", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+
                         var modelRendererTab = new TabPage("MODEL");
                         modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock).ViewerControl);
                         resTabs.TabPages.Add(modelRendererTab);
@@ -1238,10 +1240,13 @@ namespace GUI
 
                     if (resource.ResourceType == ResourceType.Mesh)
                     {
-                        //var export = new ObjModelExporter();
-                        //export.Export(dialog.FileName, tag);
                         var exporter = new GltfModelExporter();
                         exporter.ExportToFile(dialog.FileName, new Mesh(tag.Resource), tag.VrfGuiContext);
+                    }
+                    else if (resource.ResourceType == ResourceType.Model)
+                    {
+                        var exporter = new GltfModelExporter();
+                        exporter.ExportToFile(dialog.FileName, (Model)tag.Resource.DataBlock, tag.VrfGuiContext);
                     }
                     else
                     {

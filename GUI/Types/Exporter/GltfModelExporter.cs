@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using NAudio.SoundFont;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
@@ -16,9 +17,12 @@ namespace GUI.Types.Exporter
 
     public class GltfModelExporter
     {
+        private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
+
         public void ExportToFile(string fileName, VModel model, VrfGuiContext context)
         {
             var exportedModel = ModelRoot.CreateModel();
+            exportedModel.Asset.Generator = GENERATOR;
             var scene = exportedModel.UseScene("Default");
 
             foreach (var mesh in model.GetEmbeddedMeshes())
@@ -30,7 +34,14 @@ namespace GUI.Types.Exporter
 
             foreach (var meshReference in model.GetReferencedMeshNames())
             {
-                var mesh = new VMesh(context.LoadFileByAnyMeansNecessary(meshReference));
+                var meshResource = context.LoadFileByAnyMeansNecessary(meshReference + "_c");
+
+                if (meshResource == null)
+                {
+                    continue;
+                }
+
+                var mesh = new VMesh(meshResource);
                 var exportedMesh = CreateGltfMesh(mesh, exportedModel);
                 scene.CreateNode("Mesh")
                     .WithMesh(exportedMesh);
@@ -42,6 +53,7 @@ namespace GUI.Types.Exporter
         public void ExportToFile(string fileName, VMesh mesh, VrfGuiContext context)
         {
             var exportedModel = ModelRoot.CreateModel();
+            exportedModel.Asset.Generator = GENERATOR;
             var scene = exportedModel.UseScene("Default");
 
             var exportedMesh = CreateGltfMesh(mesh, exportedModel);
