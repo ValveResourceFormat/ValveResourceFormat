@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Exporter
 {
-    public class ModelExporter
+    public class ObjModelExporter
     {
         public void Export(string fileName, ExportData exportData)
         {

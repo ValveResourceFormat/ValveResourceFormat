@@ -1229,10 +1229,12 @@ namespace GUI
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
                     Settings.Save();
 
-                    if (resource.ResourceType == ResourceType.Model || resource.ResourceType == ResourceType.Mesh)
+                    if (resource.ResourceType == ResourceType.Mesh)
                     {
-                        var export = new ModelExporter();
-                        export.Export(dialog.FileName, tag);
+                        //var export = new ObjModelExporter();
+                        //export.Export(dialog.FileName, tag);
+                        var exporter = new GltfModelExporter();
+                        exporter.ExportToFile(dialog.FileName, new Mesh(tag.Resource), tag.VrfGuiContext);
                     }
                     else
                     {
