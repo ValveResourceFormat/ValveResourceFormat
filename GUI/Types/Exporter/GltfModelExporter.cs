@@ -5,7 +5,6 @@ using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SharpGLTF.Schema2;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
 
@@ -13,9 +12,33 @@ namespace GUI.Types.Exporter
 {
     using static ValveResourceFormat.Blocks.VBIB;
     using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
+    using VModel = ValveResourceFormat.ResourceTypes.Model;
 
     public class GltfModelExporter
     {
+        public void ExportToFile(string fileName, VModel model, VrfGuiContext context)
+        {
+            var exportedModel = ModelRoot.CreateModel();
+            var scene = exportedModel.UseScene("Default");
+
+            foreach (var mesh in model.GetEmbeddedMeshes())
+            {
+                var exportedMesh = CreateGltfMesh(mesh, exportedModel);
+                scene.CreateNode("Mesh")
+                    .WithMesh(exportedMesh);
+            }
+
+            foreach (var meshReference in model.GetReferencedMeshNames())
+            {
+                var mesh = new VMesh(context.LoadFileByAnyMeansNecessary(meshReference));
+                var exportedMesh = CreateGltfMesh(mesh, exportedModel);
+                scene.CreateNode("Mesh")
+                    .WithMesh(exportedMesh);
+            }
+
+            exportedModel.Save(fileName);
+        }
+
         public void ExportToFile(string fileName, VMesh mesh, VrfGuiContext context)
         {
             var exportedModel = ModelRoot.CreateModel();
