@@ -1187,49 +1187,23 @@ namespace GUI
 
             Console.WriteLine($"Export requested for {fileName}");
 
-            string[] extensions = null;
-            switch (resource.ResourceType)
+            var extension = FileExtract.GetExtension(resource);
+
+            if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
             {
-                case ResourceType.Sound:
-                    //WAV or MP3
-                    extensions = new[] { ((Sound)resource.DataBlock).SoundType.ToString().ToLower() };
-                    break;
-                case ResourceType.Texture:
-                    extensions = new[] { "png" };
-                    break;
-                case ResourceType.PanoramaLayout:
-                    extensions = new[] { "xml", "vxml" };
-                    break;
-                case ResourceType.PanoramaScript:
-                    extensions = new[] { "js", "vjs" };
-                    break;
-                case ResourceType.PanoramaStyle:
-                    extensions = new[] { "css", "vcss" };
-                    break;
-                case ResourceType.Mesh:
-                case ResourceType.Model:
-                    extensions = new[] { "gltf" };
-                    break;
+                extension = "gltf";
             }
 
             //Did we find a format we like?
-            if (extensions != null)
+            if (extension != null)
             {
                 var dialog = new SaveFileDialog
                 {
-                    FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0])),
+                    FileName = Path.GetFileName(Path.ChangeExtension(fileName, extension)),
                     InitialDirectory = Settings.Config.SaveDirectory,
-                    DefaultExt = extensions[0],
+                    DefaultExt = extension,
+                    Filter = $"{extension} files (*.{extension})|*.{extension}",
                 };
-
-                var filter = string.Empty;
-                foreach (var extension in extensions)
-                {
-                    filter += $"{extension} files (*.{extension})|*.{extension}|";
-                }
-
-                //Remove the last |
-                dialog.Filter = filter.Substring(0, filter.Length - 1);
 
                 var result = dialog.ShowDialog();
 
