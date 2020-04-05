@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SharpGLTF.Schema2;
@@ -69,12 +68,13 @@ namespace GUI.Types.Exporter
                             else if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
                             {
                                 var vectors = ToVector4Array(buffer);
-                                var normals = DecompressNormals(vectors);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, normals);
+                                var (normals, tangents) = DecompressNormalTangents(vectors);
+                                primitive.WithVertexAccessor("NORMAL", normals);
+                                primitive.WithVertexAccessor("TANGENT", tangents);
                             }
                             else if (accessorInfo.NumComponents == 3)
                             {
-                                var vectors = ToVector3Array(buffer, attribute.Type, true, accessorInfo.Resize);
+                                var vectors = ToVector3Array(buffer, true, accessorInfo.Resize);
                                 primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
                             }
                             else if (accessorInfo.NumComponents == 2)
@@ -153,68 +153,79 @@ namespace GUI.Types.Exporter
             return indices;
         }
 
-        private Vector3[] DecompressNormals(Vector4[] compressedNormalsTangents)
+        private (Vector3[] Normals, Vector3[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
         {
             var normals = new Vector3[compressedNormalsTangents.Length];
+            var tangents = new Vector3[compressedNormalsTangents.Length];
 
             for (var i = 0; i < normals.Length; i++)
             {
-                var inputNormal = compressedNormalsTangents[i];
+                // Undo-normalization
+                var compressedNormal = compressedNormalsTangents[i] * 255f;
+                var decompressedNormal = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
+                var decompressedTangent = DecompressNormal(new Vector2(compressedNormal.Z, compressedNormal.W));
 
-                // Ported from compression.incl shader
-                var ztSigns = new Vector2(-(float)Math.Floor((inputNormal.X - 0.5f) / 0.496f), -(float)Math.Floor((inputNormal.Y - 0.5f) / 0.496f));
-                var xyAbs = (new Vector2(Math.Abs(inputNormal.X - 0.5f), Math.Abs(inputNormal.Y - 0.5f)) - ztSigns) / 0.496f;
-                var xySigns = new Vector2(-(float)Math.Floor((xyAbs.X - 0.25f) / 0.246f), -(float)Math.Floor((xyAbs.Y - 0.25f) / 0.246f));
-
-                var outputXy = (new Vector2(Math.Abs(xyAbs.X - 0.25f), Math.Abs(xyAbs.Y - 0.25f)) - xySigns) / 0.246f;
-                var outputZ = 1f - outputXy.X - outputXy.Y;
-                var outputNormal = new Vector3(outputXy.X, outputZ, outputXy.Y);
-                outputNormal = outputNormal / outputNormal.Length();
-
-                outputNormal *= (new Vector3(xySigns.X, ztSigns.X, xySigns.Y) * -2f) + new Vector3(1);
-
-                normals[i] = outputNormal / outputNormal.Length();
-
-                //float fOne = 1.0f;
-                //Vector3 outputNormal = Vector3.Zero;
-
-                //Vector2 ztSigns = -floor((inputNormal.xy - 128.0f) / 127.0f);      // sign bits for zs and binormal (1 or 0)  set-less-than (slt) asm instruction
-                //Vector2 xyAbs = abs(inputNormal.xy - 128.0f) - ztSigns;     // 0..127
-                //Vector2 xySigns = -floor((xyAbs - 64.0f) / 63.0f);             // sign bits for xs and ys (1 or 0)
-                //outputNormal.xy = (abs(xyAbs - 64.0f) - xySigns) / 63.0f;   // abs({nX, nY})
-
-                //outputNormal.z = 1.0f - outputNormal.x - outputNormal.y;       // Project onto x+y+z=1
-                //outputNormal.xyz = normalize(outputNormal.xyz);                // Normalize onto unit sphere
-
-                //outputNormal.xy *= mix(vec2(fOne, fOne), vec2(-fOne, -fOne), xySigns);                // Restore x and y signs
-                //outputNormal.z *= mix(fOne, -fOne, ztSigns.x);                // Restore z sign
-
-                //return normalize(outputNormal);
+                // Swap Y and Z axes
+                normals[i] = new Vector3(decompressedNormal.X, decompressedNormal.Z, decompressedNormal.Y);
+                tangents[i] = new Vector3(decompressedTangent.X, decompressedTangent.Z, decompressedTangent.Y);
             }
 
-            return normals;
+            return (normals, tangents);
+        }
+
+        private Vector3 DecompressNormal(Vector2 compressedNormal)
+        {
+            var inputNormal = compressedNormal;
+            var outputNormal = Vector3.Zero;
+
+            float x = inputNormal.X - 128.0f;
+            float y = inputNormal.Y - 128.0f;
+            float z;
+
+            float zSignBit = x < 0 ? 1.0f : 0.0f;           // z and t negative bits (like slt asm instruction)
+            float tSignBit = y < 0 ? 1.0f : 0.0f;
+            float zSign = -((2 * zSignBit) - 1);          // z and t signs
+            float tSign = -((2 * tSignBit) - 1);
+
+            x = (x * zSign) - zSignBit;                           // 0..127
+            y = (y * tSign) - tSignBit;
+            x = x - 64;                                     // -64..63
+            y = y - 64;
+
+            float xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
+            float ySignBit = y < 0 ? 1.0f : 0.0f;
+            float xSign = -((2 * xSignBit) - 1);          // x and y signs
+            float ySign = -((2 * ySignBit) - 1);
+
+            x = ((x * xSign) - xSignBit) / 63.0f;             // 0..1 range
+            y = ((y * ySign) - ySignBit) / 63.0f;
+            z = 1.0f - x - y;
+
+            float oolen = 1.0f / (float)Math.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
+            x *= oolen * xSign;                 // Recover signs
+            y *= oolen * ySign;
+            z *= oolen * zSign;
+
+            outputNormal.X = x;
+            outputNormal.Y = y;
+            outputNormal.Z = z;
+
+            return outputNormal;
         }
 
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
-        private Vector3[] ToVector3Array(float[] buffer, DXGI_FORMAT originalType, bool swapAxes = true, bool resize = false)
+        private Vector3[] ToVector3Array(float[] buffer, bool swapAxes = true, bool resize = false)
         {
-            var stride = originalType == DXGI_FORMAT.R8G8B8A8_UNORM
-                ? 4
-                : 3;
-
-            var vectorArray = new Vector3[buffer.Length / stride];
+            var vectorArray = new Vector3[buffer.Length / 3];
 
             var yIndex = swapAxes ? 2 : 1;
             var zIndex = swapAxes ? 1 : 2;
 
             for (var i = 0; i < vectorArray.Length; i++)
             {
-                vectorArray[i] = new Vector3(
-                    buffer[i * stride],
-                    buffer[(i * stride) + yIndex],
-                    buffer[(i * stride) + zIndex]);
+                vectorArray[i] = new Vector3(buffer[i * 3], buffer[(i * 3) + yIndex], buffer[(i * 3) + zIndex]);
             }
 
             if (resize)
