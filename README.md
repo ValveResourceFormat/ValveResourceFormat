@@ -15,12 +15,13 @@
     </a>
 </p>
 
-Valve's Source 2 resource file format *(files that usually end with `_c` like `.vmdl_c`)* parser, decompiler, and exporter.
+Valve's Source 2 resource file format parser, decompiler, and exporter.
+Source 2 files usually files end with `_c`, for example `.vmdl_c`.
 
 This repository is split into three components:
-- *CLI Decompiler* - File data viewer, decompiler and a playground for testing new formats and features.
-- *GUI Viewer* - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
-- *Library* - Provides public API to parse resource files and some helpers.
+- **CLI Decompiler** - File data viewer, decompiler and a playground for testing new formats and features.
+- **GUI Viewer** - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
+- **Library** - Provides public API to parse resource files and some helpers.
 
 ⚒ [You can download latest unstable build from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
 
@@ -51,7 +52,7 @@ This repository is split into three components:
 - Binary KeyValues3 parser
 - NTRO support
 
-### Supported resource types
+## Supported resource types
 Ext      | Name                    | Support
 -------- | ----------------------- | -------
 vanim    | Animation               | 👍
@@ -91,6 +92,6 @@ bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`,
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
-### License
+## License
 
 Contents of this repository are available under [MIT license](LICENSE), except for `Tests/Files` folder contains files which have likely come from Valve's games.
