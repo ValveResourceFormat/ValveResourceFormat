@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using SharpGLTF.Schema2;
 using ValveResourceFormat;
@@ -65,7 +66,7 @@ namespace GUI.Types.Exporter
                                 var vectors = ToVector4Array(buffer);
                                 primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
                             }
-                            else if (attribute.Name == "NORMAL" && drawCall.GetProperty<bool>("m_bUseCompressedNormalTangent"))
+                            else if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
                             {
                                 var vectors = ToVector4Array(buffer);
                                 var normals = DecompressNormals(vectors);

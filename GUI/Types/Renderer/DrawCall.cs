@@ -1,5 +1,6 @@
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -21,6 +22,30 @@ namespace GUI.Types.Renderer
         public DrawBuffer VertexBuffer { get; set; }
         public DrawElementsType IndexType { get; set; }
         public DrawBuffer IndexBuffer { get; set; }
+
+        public static bool IsCompressedNormalTangent(IKeyValueCollection drawCall)
+        {
+            if (drawCall.ContainsKey("m_bUseCompressedNormalTangent"))
+            {
+                return drawCall.GetProperty<bool>("m_bUseCompressedNormalTangent");
+            }
+
+            if (drawCall.ContainsKey("m_nFlags"))
+            {
+                var flags = drawCall.GetProperty<object>("m_nFlags");
+
+                switch (flags)
+                {
+                    case string flagsString:
+                        return flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT");
+                    case long flagsLong:
+                        // TODO: enum
+                        return (flagsLong & 2) == 2;
+                }
+            }
+
+            return false;
+        }
     }
 
     internal struct DrawBuffer
