@@ -16,20 +16,19 @@
 </p>
 
 Valve's Source 2 resource file format *(files that usually end with `_c` like `.vmdl_c`)* parser, decompiler, and exporter.
-Contents of this repository are available under [MIT](LICENSE) license, except for `Tests/Files` folders.
 
 This repository is split into three components:
 - *CLI Decompiler* - File data viewer, decompiler and a playground for testing new formats and features.
 - *GUI Viewer* - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
 - *Library* - Provides public API to parse resource files and some helpers.
 
-⚒ You can download latest unstable build [from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
+⚒ [You can download latest unstable build from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
 
 ## Chat
 
 [![](https://discordapp.com/api/guilds/250160069549883392/embed.png?style=banner2)](https://discord.com)
 
-Prefer IRC? Join [`#steamdb-vrf` on chat.freenode.net](ircs://chat.freenode.net:6697/moddota)
+**Prefer IRC?** Join [<u>#steamdb-vrf on chat.freenode.net</u>](ircs://chat.freenode.net:6697/steamdb-vrf)
 
 ## Eye catchy screenshots
 <table>
@@ -91,3 +90,7 @@ dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
 bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`, see #226
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
+
+### License
+
+Contents of this repository are available under [MIT license](LICENSE), except for `Tests/Files` folder contains files which have likely come from Valve's games.
