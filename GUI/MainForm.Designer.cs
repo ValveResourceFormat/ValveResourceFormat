@@ -229,7 +229,7 @@ namespace GUI
             this.copyFileNameToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("copyFileNameToolStripMenuItem.Image")));
             this.copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
             this.copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
-            this.copyFileNameToolStripMenuItem.Text = "Copy file name";
+            this.copyFileNameToolStripMenuItem.Text = "Copy file path";
             this.copyFileNameToolStripMenuItem.Click += new System.EventHandler(this.CopyFileNameToolStripMenuItem_Click);
             // 
             // openWithDefaultAppToolStripMenuItem

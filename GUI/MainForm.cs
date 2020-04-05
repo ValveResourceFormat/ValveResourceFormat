@@ -985,7 +985,14 @@ namespace GUI
                 selectedNode = listView.SelectedItems[0].Tag as TreeNode;
             }
 
-            Clipboard.SetText(selectedNode.Name);
+            if (selectedNode.Tag is PackageEntry packageEntry)
+            {
+                Clipboard.SetText(packageEntry.GetFullPath());
+            }
+            else
+            {
+                Clipboard.SetText(selectedNode.Name);
+            }
         }
 
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
