@@ -176,21 +176,21 @@ namespace GUI.Types.Exporter
             return indices;
         }
 
-        private (Vector3[] Normals, Vector3[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
+        private (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
         {
             var normals = new Vector3[compressedNormalsTangents.Length];
-            var tangents = new Vector3[compressedNormalsTangents.Length];
+            var tangents = new Vector4[compressedNormalsTangents.Length];
 
             for (var i = 0; i < normals.Length; i++)
             {
                 // Undo-normalization
                 var compressedNormal = compressedNormalsTangents[i] * 255f;
                 var decompressedNormal = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
-                var decompressedTangent = DecompressNormal(new Vector2(compressedNormal.Z, compressedNormal.W));
+                var decompressedTangent = DecompressTangent(new Vector2(compressedNormal.Z, compressedNormal.W));
 
                 // Swap Y and Z axes
                 normals[i] = new Vector3(decompressedNormal.X, decompressedNormal.Z, decompressedNormal.Y);
-                tangents[i] = new Vector3(decompressedTangent.X, decompressedTangent.Z, decompressedTangent.Y);
+                tangents[i] = new Vector4(decompressedTangent.X, decompressedTangent.Z, decompressedTangent.Y, decompressedTangent.W);
             }
 
             return (normals, tangents);
@@ -234,6 +234,14 @@ namespace GUI.Types.Exporter
             outputNormal.Z = z;
 
             return outputNormal;
+        }
+
+        private Vector4 DecompressTangent(Vector2 compressedTangent)
+        {
+            var outputNormal = DecompressNormal(compressedTangent);
+            var tSign = compressedTangent.Y - 128.0f < 0 ? -1.0f : 1.0f;
+
+            return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
         }
 
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
