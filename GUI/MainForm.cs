@@ -1241,12 +1241,12 @@ namespace GUI
                     if (resource.ResourceType == ResourceType.Mesh)
                     {
                         var exporter = new GltfModelExporter();
-                        exporter.ExportToFile(dialog.FileName, new Mesh(tag.Resource), tag.VrfGuiContext);
+                        exporter.ExportToFile(fileName, dialog.FileName, new Mesh(tag.Resource), tag.VrfGuiContext);
                     }
                     else if (resource.ResourceType == ResourceType.Model)
                     {
                         var exporter = new GltfModelExporter();
-                        exporter.ExportToFile(dialog.FileName, (Model)tag.Resource.DataBlock, tag.VrfGuiContext);
+                        exporter.ExportToFile(fileName, dialog.FileName, (Model)tag.Resource.DataBlock, tag.VrfGuiContext);
                     }
                     else
                     {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using GUI.Types.Renderer;
@@ -19,16 +20,18 @@ namespace GUI.Types.Exporter
     {
         private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
 
-        public void ExportToFile(string fileName, VModel model, VrfGuiContext context)
+        public void ExportToFile(string resourceName, string fileName, VModel model, VrfGuiContext context)
         {
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
-            var scene = exportedModel.UseScene("Default");
+            var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
+            var embeddedMeshIndex = 0;
 
             foreach (var mesh in model.GetEmbeddedMeshes())
             {
-                var exportedMesh = CreateGltfMesh(mesh, exportedModel);
-                scene.CreateNode("Mesh")
+                var name = $"Embedded Mesh {++embeddedMeshIndex}";
+                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
+                scene.CreateNode(name)
                     .WithMesh(exportedMesh);
             }
 
@@ -41,34 +44,36 @@ namespace GUI.Types.Exporter
                     continue;
                 }
 
+                var name = Path.GetFileName(meshReference);
                 var mesh = new VMesh(meshResource);
-                var exportedMesh = CreateGltfMesh(mesh, exportedModel);
-                scene.CreateNode("Mesh")
+                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
+                scene.CreateNode(name)
                     .WithMesh(exportedMesh);
             }
 
             exportedModel.Save(fileName);
         }
 
-        public void ExportToFile(string fileName, VMesh mesh, VrfGuiContext context)
+        public void ExportToFile(string resourceName, string fileName, VMesh mesh, VrfGuiContext context)
         {
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
-            var scene = exportedModel.UseScene("Default");
+            var name = Path.GetFileName(resourceName);
+            var scene = exportedModel.UseScene(name);
 
-            var exportedMesh = CreateGltfMesh(mesh, exportedModel);
-            scene.CreateNode("Mesh")
+            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
+            scene.CreateNode(name)
                 .WithMesh(exportedMesh);
 
             exportedModel.Save(fileName);
         }
 
-        private Mesh CreateGltfMesh(VMesh vmesh, ModelRoot model)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model)
         {
             var data = vmesh.GetData();
             var vbib = vmesh.VBIB;
 
-            var mesh = model.CreateMesh("Mesh");
+            var mesh = model.CreateMesh(meshName);
 
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
