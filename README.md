@@ -27,7 +27,7 @@ This repository is split into three components:
 
 ## Chat
 
-[![](https://discordapp.com/api/guilds/250160069549883392/embed.png?style=banner2)](https://discord.com)
+[![](https://discordapp.com/api/guilds/250160069549883392/embed.png?style=banner2)](https://discord.gg/cj333A7)
 
 **Prefer IRC?** Join [<u>#steamdb-vrf on chat.freenode.net</u>](ircs://chat.freenode.net:6697/steamdb-vrf)
 
