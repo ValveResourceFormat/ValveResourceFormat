@@ -110,7 +110,7 @@ namespace GUI.Types.Renderer
 
                     var shaderArguments = new Dictionary<string, bool>();
 
-                    if (!DrawCall.IsCompressedNormalTangent(objectDrawCall))
+                    if (DrawCall.IsCompressedNormalTangent(objectDrawCall))
                     {
                         shaderArguments.Add("fulltangent", false);
                     }
