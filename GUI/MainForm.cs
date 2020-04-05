@@ -1067,24 +1067,18 @@ namespace GUI
 
                 if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    using (var resource = new Resource())
-                    using (var memory = new MemoryStream(output))
+                    using var resource = new Resource();
+                    using var memory = new MemoryStream(output);
+
+                    resource.Read(memory);
+
+                    ExportFile.Export(fileName, new ExportData
                     {
-                        resource.Read(memory);
+                        Resource = resource,
+                        VrfGuiContext = new VrfGuiContext(null, package),
+                    });
 
-                        var extension = FileExtract.GetExtension(resource);
-
-                        if (extension == null)
-                        {
-                            fileName = fileName.Substring(0, fileName.Length - 2);
-                        }
-                        else
-                        {
-                            fileName = Path.ChangeExtension(fileName, extension);
-                        }
-
-                        output = FileExtract.Extract(resource).ToArray();
-                    }
+                    return;
                 }
 
                 var dialog = new SaveFileDialog
@@ -1100,10 +1094,8 @@ namespace GUI
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
                     Settings.Save();
 
-                    using (var stream = dialog.OpenFile())
-                    {
-                        stream.Write(output, 0, output.Length);
-                    }
+                    using var stream = dialog.OpenFile();
+                    stream.Write(output, 0, output.Length);
                 }
             }
             else
@@ -1181,57 +1173,10 @@ namespace GUI
         private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //ToolTipText is the full filename
-            var fileName = ((ToolStripMenuItem)sender).ToolTipText;
-            var tag = ((ToolStripMenuItem)sender).Tag as ExportData;
-            var resource = tag.Resource;
+            var menuItem = (ToolStripMenuItem)sender;
+            var fileName = menuItem.ToolTipText;
 
-            Console.WriteLine($"Export requested for {fileName}");
-
-            var extension = FileExtract.GetExtension(resource);
-
-            if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
-            {
-                extension = "gltf";
-            }
-
-            //Did we find a format we like?
-            if (extension != null)
-            {
-                var dialog = new SaveFileDialog
-                {
-                    FileName = Path.GetFileName(Path.ChangeExtension(fileName, extension)),
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                    DefaultExt = extension,
-                    Filter = $"{extension} files (*.{extension})|*.{extension}",
-                };
-
-                var result = dialog.ShowDialog();
-
-                if (result == DialogResult.OK)
-                {
-                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
-                    Settings.Save();
-
-                    if (resource.ResourceType == ResourceType.Mesh)
-                    {
-                        var exporter = new GltfModelExporter();
-                        exporter.ExportToFile(fileName, dialog.FileName, new Mesh(tag.Resource), tag.VrfGuiContext);
-                    }
-                    else if (resource.ResourceType == ResourceType.Model)
-                    {
-                        var exporter = new GltfModelExporter();
-                        exporter.ExportToFile(fileName, dialog.FileName, (Model)tag.Resource.DataBlock, tag.VrfGuiContext);
-                    }
-                    else
-                    {
-                        var data = FileExtract.Extract(resource).ToArray();
-                        using var stream = dialog.OpenFile();
-                        stream.Write(data, 0, data.Length);
-                    }
-                }
-            }
-
-            Console.WriteLine($"Export requested for {fileName} Complete");
+            ExportFile.Export(fileName, menuItem.Tag as ExportData);
         }
     }
 }
