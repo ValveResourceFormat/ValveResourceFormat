@@ -47,10 +47,9 @@ namespace GUI.Types.Exporter
                 {
                     continue;
                 }
-                var nodeName = Path.GetFileName(meshReference);
+                var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                 var mesh = new VMesh(meshResource);
                 var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel, context);
-                var materials = exportedModel.LogicalMaterials;
 
                 scene.CreateNode(nodeName)
                     .WithMesh(exportedMesh);
@@ -152,7 +151,7 @@ namespace GUI.Types.Exporter
         private Material GenerateGLTFMaterialFromRenderMaterial(RenderMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
         {
             var material = model
-                    .CreateMaterial(materialName + "_material")
+                    .CreateMaterial(materialName)
                     .WithPBRMetallicRoughness();
             material.Alpha = AlphaMode.MASK;
 
@@ -187,13 +186,13 @@ namespace GUI.Types.Exporter
 
                 var image = model.UseImageWithContent(data.ToArray());
                 // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
-                image.Name = fileName + "_image";
+                image.Name = fileName;
 
                 var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
-                sampler.Name = fileName + "_sampler";
+                sampler.Name = fileName;
 
                 var tex = model.UseTexture(image);
-                tex.Name = fileName + "_texture";
+                tex.Name = fileName;
                 tex.Sampler = sampler;
 
                 if (fileName.Contains("color"))
