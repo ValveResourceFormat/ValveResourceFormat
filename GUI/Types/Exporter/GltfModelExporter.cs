@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using NAudio.SoundFont;
+using SharpGLTF.IO;
 using SharpGLTF.Schema2;
+using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
 
@@ -27,6 +30,40 @@ namespace GUI.Types.Exporter
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
             var embeddedMeshIndex = 0;
 
+
+            foreach (var texture in context.MaterialLoader.LoadedTextures)
+            {
+                var textureNameTrimmed = texture[(texture.LastIndexOf("/") + 1)..texture.IndexOf(".vtex")];
+
+                Console.WriteLine($"Exporting texture for mesh: {texture}");
+                var textureResource = context.LoadFileByAnyMeansNecessary(texture + "_c");
+
+                var textureImage = SKImage.FromBitmap(((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap());
+
+                using var data = textureImage.Encode(SKEncodedImageFormat.Png, 100);
+
+                var image = exportedModel.UseImageWithContent(data.ToArray());
+                // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
+                image.Name = textureNameTrimmed + "_image";
+
+                var sampler = exportedModel.UseTextureSampler(TextureWrapMode.CLAMP_TO_EDGE, TextureWrapMode.CLAMP_TO_EDGE, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
+                sampler.Name = textureNameTrimmed + "_sampler";
+
+                var tex = exportedModel.UseTexture(image);
+                tex.Name = textureNameTrimmed + "_texture";
+                tex.Sampler = sampler;
+
+                var material = exportedModel
+                    .CreateMaterial(textureNameTrimmed + "_material")
+                    .WithPBRMetallicRoughness();
+                var indexTexture = new JsonDictionary() { ["index"] = tex.LogicalIndex };
+
+                material.FindChannel("BaseColor")?.SetTexture(0, image);
+                var dict = material.TryUseExtrasAsDictionary(true);
+                dict["baseColorTexture"] = indexTexture;
+
+            }
+
             foreach (var mesh in model.GetEmbeddedMeshes())
             {
                 var name = $"Embedded Mesh {++embeddedMeshIndex}";
@@ -43,11 +80,12 @@ namespace GUI.Types.Exporter
                 {
                     continue;
                 }
-
-                var name = Path.GetFileName(meshReference);
+                var nodeName = Path.GetFileName(meshReference);
                 var mesh = new VMesh(meshResource);
-                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
-                scene.CreateNode(name)
+                var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel);
+                var materials = exportedModel.LogicalMaterials;
+
+                scene.CreateNode(nodeName)
                     .WithMesh(exportedMesh);
             }
 
@@ -130,10 +168,9 @@ namespace GUI.Types.Exporter
                     primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
 
                     // Add material
-                    //var primitive = mesh.CreatePrimitive()
-                    //    .WithVertexAccessor("POSITION", positions)
-                    //    .WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
-                    //.WithMaterial(material);
+                    // TODO match mesh with material name 
+                    var material = model.LogicalMaterials[0];
+                    primitive.WithMaterial(material);
                 }
             }
 
