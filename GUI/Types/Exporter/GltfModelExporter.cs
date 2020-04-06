@@ -140,7 +140,7 @@ namespace GUI.Types.Exporter
 
                     var renderMaterial = context.MaterialLoader.GetMaterial(materialPath);
 
-                    var materialNameTrimmed = materialPath[(materialPath.LastIndexOf("/") + 1)..materialPath.IndexOf(".vmat")];
+                    var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
                     var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, context, materialNameTrimmed);
                     primitive.WithMaterial(bestMaterial);
                 }
