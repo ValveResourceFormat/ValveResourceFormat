@@ -154,6 +154,7 @@ namespace GUI.Types.Exporter
             var material = model
                     .CreateMaterial(materialName + "_material")
                     .WithPBRMetallicRoughness();
+            material.Alpha = AlphaMode.MASK;
 
             foreach (var renderTexture in renderMaterial.Material.TextureParams)
             {
@@ -168,9 +169,20 @@ namespace GUI.Types.Exporter
                 {
                     continue;
                 }
+                var bitmap = ((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
 
-                var textureImage = SKImage.FromBitmap(((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap());
-
+                if (fileName.Contains("color"))
+                {
+                    // expensive transparency workaround for color maps 
+                    for (int row = 0; row < bitmap.Width; row++) {
+                        for (int col = 0; col < bitmap.Height; col++)
+                        {
+                            var pixelAt = bitmap.GetPixel(row, col);
+                            bitmap.SetPixel(col, row, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue,  255));
+                        }
+                    }
+                }
+                var textureImage = SKImage.FromBitmap(bitmap);
                 using var data = textureImage.Encode(SKEncodedImageFormat.Png, 100);
 
                 var image = model.UseImageWithContent(data.ToArray());
@@ -186,7 +198,8 @@ namespace GUI.Types.Exporter
 
                 if (fileName.Contains("color"))
                 {
-                    material.FindChannel("BaseColor")?.SetTexture(0, tex);
+                    var colorMat = material.FindChannel("BaseColor");
+                    colorMat?.SetTexture(0, tex);
 
                     var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
                     var dict = material.TryUseExtrasAsDictionary(true);
@@ -206,6 +219,12 @@ namespace GUI.Types.Exporter
                 if (fileName.ToLower().Contains("emissive"))
                 {
                     material.FindChannel("Emissive")?.SetTexture(0, tex);
+                }
+
+                if (fileName.ToLower().Contains("trans"))
+                {
+                    // TODO find transparency channel
+                    material.FindChannel("Transparency")?.SetTexture(0, tex);
                 }
             }
 
