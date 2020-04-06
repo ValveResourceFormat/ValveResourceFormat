@@ -151,8 +151,6 @@ namespace GUI.Types.Exporter
 
         private Material GenerateGLTFMaterialFromRenderMaterial(RenderMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
         {
-            //context.MaterialLoader.LoadedTextures
-
             var material = model
                     .CreateMaterial(materialName + "_material")
                     .WithPBRMetallicRoughness();
@@ -160,10 +158,16 @@ namespace GUI.Types.Exporter
             foreach (var renderTexture in renderMaterial.Material.TextureParams)
             {
                 var texturePath = renderTexture.Value;
-                var textureNameTrimmed = texturePath[(texturePath.LastIndexOf("/") + 1)..texturePath.IndexOf(".vtex")];
+
+                var fileName = Path.GetFileNameWithoutExtension(texturePath);
 
                 Console.WriteLine($"Exporting texture for mesh: {texturePath}");
                 var textureResource = context.LoadFileByAnyMeansNecessary(texturePath + "_c");
+
+                if (textureResource == null)
+                {
+                    continue;
+                }
 
                 var textureImage = SKImage.FromBitmap(((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap());
 
@@ -171,16 +175,16 @@ namespace GUI.Types.Exporter
 
                 var image = model.UseImageWithContent(data.ToArray());
                 // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
-                image.Name = textureNameTrimmed + "_image";
+                image.Name = fileName + "_image";
 
-                var sampler = model.UseTextureSampler(TextureWrapMode.CLAMP_TO_EDGE, TextureWrapMode.CLAMP_TO_EDGE, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
-                sampler.Name = textureNameTrimmed + "_sampler";
+                var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
+                sampler.Name = fileName + "_sampler";
 
                 var tex = model.UseTexture(image);
-                tex.Name = textureNameTrimmed + "_texture";
+                tex.Name = fileName + "_texture";
                 tex.Sampler = sampler;
 
-                if (textureNameTrimmed.Contains("color"))
+                if (fileName.Contains("color"))
                 {
                     material.FindChannel("BaseColor")?.SetTexture(0, tex);
 
@@ -189,17 +193,17 @@ namespace GUI.Types.Exporter
                     dict["baseColorTexture"] = indexTexture;
                 }
 
-                if (textureNameTrimmed.ToLower().Contains("normal"))
+                if (fileName.ToLower().Contains("normal"))
                 {
                     material.FindChannel("Normal")?.SetTexture(0, tex);
                 }
 
-                if (textureNameTrimmed.ToLower().Contains("ao"))
+                if (fileName.ToLower().Contains("ao"))
                 {
                     material.FindChannel("Occlusion")?.SetTexture(0, tex);
                 }
 
-                if (textureNameTrimmed.ToLower().Contains("emissive"))
+                if (fileName.ToLower().Contains("emissive"))
                 {
                     material.FindChannel("Emissive")?.SetTexture(0, tex);
                 }
