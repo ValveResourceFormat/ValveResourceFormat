@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using GUI.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SharpGLTF.IO;
@@ -22,7 +23,10 @@ namespace GUI.Types.Exporter
     {
         private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
 
-        public void ExportToFile(string resourceName, string fileName, VModel model, VrfGuiContext context)
+        public GenericProgressForm ProgressDialog { get; set; }
+        public VrfGuiContext GuiContext { get; set; }
+
+        public void ExportToFile(string resourceName, string fileName, VModel model)
         {
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
@@ -32,14 +36,14 @@ namespace GUI.Types.Exporter
             foreach (var mesh in model.GetEmbeddedMeshes())
             {
                 var name = $"Embedded Mesh {++embeddedMeshIndex}";
-                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, context);
+                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
                 scene.CreateNode(name)
                     .WithMesh(exportedMesh);
             }
 
             foreach (var meshReference in model.GetReferencedMeshNames())
             {
-                var meshResource = context.LoadFileByAnyMeansNecessary(meshReference + "_c");
+                var meshResource = GuiContext.LoadFileByAnyMeansNecessary(meshReference + "_c");
 
                 if (meshResource == null)
                 {
@@ -48,7 +52,7 @@ namespace GUI.Types.Exporter
 
                 var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                 var mesh = new VMesh(meshResource);
-                var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel, context);
+                var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel);
 
                 scene.CreateNode(nodeName)
                     .WithMesh(exportedMesh);
@@ -57,22 +61,24 @@ namespace GUI.Types.Exporter
             exportedModel.Save(fileName);
         }
 
-        public void ExportToFile(string resourceName, string fileName, VMesh mesh, VrfGuiContext context)
+        public void ExportToFile(string resourceName, string fileName, VMesh mesh)
         {
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
             var name = Path.GetFileName(resourceName);
             var scene = exportedModel.UseScene(name);
 
-            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, context);
+            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
             scene.CreateNode(name)
                 .WithMesh(exportedMesh);
 
             exportedModel.Save(fileName);
         }
 
-        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, VrfGuiContext context)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model)
         {
+            ProgressDialog.SetProgress($"Creating mesh: {meshName}");
+
             var data = vmesh.GetData();
             var vbib = vmesh.VBIB;
 
@@ -135,7 +141,10 @@ namespace GUI.Types.Exporter
 
                     // Add material
                     var materialPath = drawCall.GetProperty<string>("m_material");
-                    var materialResource = context.LoadFileByAnyMeansNecessary(materialPath + "_c");
+
+                    ProgressDialog.SetProgress($"Loading material: {materialPath}");
+
+                    var materialResource = GuiContext.LoadFileByAnyMeansNecessary(materialPath + "_c");
 
                     if (materialResource == null)
                     {
@@ -145,7 +154,7 @@ namespace GUI.Types.Exporter
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
 
                     var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
-                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, context, materialNameTrimmed);
+                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, materialNameTrimmed);
                     primitive.WithMaterial(bestMaterial);
                 }
             }
@@ -153,7 +162,7 @@ namespace GUI.Types.Exporter
             return mesh;
         }
 
-        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
+        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, string materialName)
         {
             var material = model
                     .CreateMaterial(materialName)
@@ -181,8 +190,9 @@ namespace GUI.Types.Exporter
 
                 var fileName = Path.GetFileNameWithoutExtension(texturePath);
 
-                Console.WriteLine($"Exporting texture for mesh: {texturePath}");
-                var textureResource = context.LoadFileByAnyMeansNecessary(texturePath + "_c");
+                ProgressDialog.SetProgress($"Exporting texture: {texturePath}");
+
+                var textureResource = GuiContext.LoadFileByAnyMeansNecessary(texturePath + "_c");
 
                 if (textureResource == null)
                 {

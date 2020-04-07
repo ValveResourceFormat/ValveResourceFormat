@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -50,24 +51,37 @@ namespace GUI.Types.Exporter
             Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
             Settings.Save();
 
-            if (resource.ResourceType == ResourceType.Mesh && dialog.FilterIndex == 1)
+            var extractDialog = new GenericProgressForm();
+            extractDialog.OnProcess += (_, __) =>
             {
-                var exporter = new GltfModelExporter();
-                exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource), exportData.VrfGuiContext);
-            }
-            else if (resource.ResourceType == ResourceType.Model && dialog.FilterIndex == 1)
-            {
-                var exporter = new GltfModelExporter();
-                exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock, exportData.VrfGuiContext);
-            }
-            else
-            {
-                var data = FileExtract.Extract(resource).ToArray();
-                using var stream = dialog.OpenFile();
-                stream.Write(data, 0, data.Length);
-            }
+                if (resource.ResourceType == ResourceType.Mesh && dialog.FilterIndex == 1)
+                {
+                    var exporter = new GltfModelExporter
+                    {
+                        ProgressDialog = extractDialog,
+                        GuiContext = exportData.VrfGuiContext,
+                    };
+                    exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource));
+                }
+                else if (resource.ResourceType == ResourceType.Model && dialog.FilterIndex == 1)
+                {
+                    var exporter = new GltfModelExporter
+                    {
+                        ProgressDialog = extractDialog,
+                        GuiContext = exportData.VrfGuiContext,
+                    };
+                    exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock);
+                }
+                else
+                {
+                    var data = FileExtract.Extract(resource).ToArray();
+                    using var stream = dialog.OpenFile();
+                    stream.Write(data, 0, data.Length);
+                }
 
-            Console.WriteLine($"Export for \"{fileName}\" completed");
+                Console.WriteLine($"Export for \"{fileName}\" completed");
+            };
+            extractDialog.ShowDialog();
         }
     }
 }
