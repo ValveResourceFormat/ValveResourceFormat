@@ -13,10 +13,10 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Exporter
 {
-    using static ValveResourceFormat.Blocks.VBIB;
+    using static VBIB;
+    using VMaterial = ValveResourceFormat.ResourceTypes.Material;
     using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
     using VModel = ValveResourceFormat.ResourceTypes.Model;
-    using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
     public class GltfModelExporter
     {
@@ -142,7 +142,7 @@ namespace GUI.Types.Exporter
                         continue;
                     }
 
-                    var renderMaterial = (VMaterial) materialResource.DataBlock;
+                    var renderMaterial = (VMaterial)materialResource.DataBlock;
 
                     var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
                     var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, context, materialNameTrimmed);
