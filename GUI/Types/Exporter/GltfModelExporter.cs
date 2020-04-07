@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using NAudio.SoundFont;
+using SharpGLTF.IO;
 using SharpGLTF.Schema2;
+using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
 
@@ -27,10 +30,11 @@ namespace GUI.Types.Exporter
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
             var embeddedMeshIndex = 0;
 
+
             foreach (var mesh in model.GetEmbeddedMeshes())
             {
                 var name = $"Embedded Mesh {++embeddedMeshIndex}";
-                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
+                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, context);
                 scene.CreateNode(name)
                     .WithMesh(exportedMesh);
             }
@@ -43,11 +47,11 @@ namespace GUI.Types.Exporter
                 {
                     continue;
                 }
-
-                var name = Path.GetFileName(meshReference);
+                var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                 var mesh = new VMesh(meshResource);
-                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
-                scene.CreateNode(name)
+                var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel, context);
+
+                scene.CreateNode(nodeName)
                     .WithMesh(exportedMesh);
             }
 
@@ -61,19 +65,20 @@ namespace GUI.Types.Exporter
             var name = Path.GetFileName(resourceName);
             var scene = exportedModel.UseScene(name);
 
-            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
+            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, context);
             scene.CreateNode(name)
                 .WithMesh(exportedMesh);
 
             exportedModel.Save(fileName);
         }
 
-        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, VrfGuiContext context)
         {
             var data = vmesh.GetData();
             var vbib = vmesh.VBIB;
 
             var mesh = model.CreateMesh(meshName);
+            mesh.Name = meshName;
 
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
@@ -130,15 +135,131 @@ namespace GUI.Types.Exporter
                     primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
 
                     // Add material
-                    //var primitive = mesh.CreatePrimitive()
-                    //    .WithVertexAccessor("POSITION", positions)
-                    //    .WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
-                    //.WithMaterial(material);
+                    var materialPath = drawCall.GetProperty<string>("m_material");
+
+                    var renderMaterial = context.MaterialLoader.GetMaterial(materialPath);
+
+                    var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
+                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, context, materialNameTrimmed);
+                    primitive.WithMaterial(bestMaterial);
                 }
             }
 
             return mesh;
         }
+
+        private Material GenerateGLTFMaterialFromRenderMaterial(RenderMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
+        {
+            var material = model
+                    .CreateMaterial(materialName)
+                    .WithDefault();
+
+            material.Alpha = renderMaterial.IsBlended ? AlphaMode.BLEND : AlphaMode.OPAQUE;
+
+            float metalValue = 0;
+            foreach (var floatParam in renderMaterial.Material.FloatParams)
+            {
+                if (floatParam.Key == "g_flMetalness")
+                {
+                    metalValue = floatParam.Value;
+                }
+            }
+            // assume non-metallic unless prompted
+            material.WithPBRMetallicRoughness(Vector4.One, null, metallicFactor: metalValue);
+
+            foreach (var renderTexture in renderMaterial.Material.TextureParams)
+            {
+                var texturePath = renderTexture.Value;
+
+                var fileName = Path.GetFileNameWithoutExtension(texturePath);
+
+                Console.WriteLine($"Exporting texture for mesh: {texturePath}");
+                var textureResource = context.LoadFileByAnyMeansNecessary(texturePath + "_c");
+
+                if (textureResource == null)
+                {
+                    continue;
+                }
+                var bitmap = ((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+
+                if (renderTexture.Key == "g_tColor" && material.Alpha == AlphaMode.OPAQUE)
+                {
+                    // expensive transparency workaround for color maps
+                    for (int row = 0; row < bitmap.Width; row++)
+                    {
+                            for (int col = 0; col < bitmap.Height; col++)
+                            {
+                                var pixelAt = bitmap.GetPixel(row, col);
+                                bitmap.SetPixel(row, col, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
+                            }
+                    }
+                }
+
+                var textureImage = SKImage.FromBitmap(bitmap);
+                using var data = textureImage.Encode(SKEncodedImageFormat.Png, 100);
+
+                var image = model.UseImageWithContent(data.ToArray());
+                // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
+                image.Name = fileName + $"_{model.LogicalImages.Count - 1}";
+
+                var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
+                sampler.Name = fileName;
+
+                var tex = model.UseTexture(image);
+                tex.Name = fileName + $"_{model.LogicalTextures.Count - 1}";
+                tex.Sampler = sampler;
+
+                switch (renderTexture.Key)
+                {
+                    case "g_tColor":
+
+                        material.FindChannel("BaseColor")?.SetTexture(0, tex);
+
+                        var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
+                        var dict = material.TryUseExtrasAsDictionary(true);
+                        dict["baseColorTexture"] = indexTexture;
+
+                        break;
+                    case "g_tNormal":
+                        material.FindChannel("Normal")?.SetTexture(0, tex);
+                        break;
+                    case "g_tAmbientOcclusion":
+                        material.FindChannel("Occlusion")?.SetTexture(0, tex);
+                        break;
+                    case "g_tEmissive":
+                        material.FindChannel("Emissive")?.SetTexture(0, tex);
+                        break;
+                    case "g_tShadowFalloff":
+                        // example: tongue_gman, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
+                    case "g_tCombinedMasks":
+                        // example: models/characters/gman/materials/gman_head_mouth_mask_tga_bb35dc38.vtex
+                    case "g_tDiffuseFalloff":
+                        // example: materials/default/default_skin_diffusewarp_tga_e58a9ed.vtex
+                    case "g_tIris":
+                        // example: 
+                    case "g_tIrisMask":
+                        // example: models/characters/gman/materials/gman_eye_iris_mask_tga_a5bb4a1e.vtex
+                    case "g_tTintColor":
+                        // example: models/characters/lazlo/eyemeniscus_vmat_g_ttintcolor_a00ef19e.vtex
+                    case "g_tAnisoGloss":
+                        // example: gordon_beard, models/characters/gordon/materials/gordon_hair_normal_tga_272a44e9.vtex
+                    case "g_tBentNormal":
+                        // example: gman_teeth, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
+                    case "g_tFresnelWarp":
+                        // example: brewmaster_color, materials/default/default_fresnelwarprim_tga_d9279d65.vtex
+                    case "g_tMasks1":
+                        // example: brewmaster_color, materials/models/heroes/brewmaster/brewmaster_base_metalnessmask_psd_58eaa40f.vtex
+                    case "g_tMasks2":
+                        // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
+                    default:
+                        Console.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
+                        break;
+                }
+            }
+
+            return material;
+        }
+
 
         private class AttributeExportInfo
         {
