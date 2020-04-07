@@ -114,10 +114,6 @@ namespace GUI.Types.Renderer
             GL.AttachShader(shader.Program, fragmentShader);
 
             GL.LinkProgram(shader.Program);
-
-            var programInfoLog = GL.GetProgramInfoLog(shader.Program);
-            Console.Write(programInfoLog);
-
             GL.ValidateProgram(shader.Program);
 
             GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
@@ -125,7 +121,7 @@ namespace GUI.Types.Renderer
             if (linkStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var linkInfo);
-                throw new Exception("Error linking shaders: " + linkInfo);
+                throw new Exception($"Error linking shaders: {linkInfo} (link status = {linkStatus}");
             }
 
             GL.DetachShader(shader.Program, vertexShader);
@@ -210,10 +206,6 @@ namespace GUI.Types.Renderer
             GL.AttachShader(shader.Program, fragmentShader);
 
             GL.LinkProgram(shader.Program);
-
-            var programInfoLog = GL.GetProgramInfoLog(shader.Program);
-            Console.Write(programInfoLog);
-
             GL.ValidateProgram(shader.Program);
 
             GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
@@ -221,7 +213,7 @@ namespace GUI.Types.Renderer
             if (linkStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var linkInfo);
-                throw new Exception("Error linking shaders: " + linkInfo);
+                throw new Exception($"Error linking shaders: {linkInfo} (link status = {linkStatus}");
             }
 
             GL.DetachShader(shader.Program, vertexShader);
