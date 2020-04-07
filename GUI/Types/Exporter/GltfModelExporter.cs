@@ -137,6 +137,15 @@ namespace GUI.Types.Exporter
 
                     // Set index buffer
                     var indices = ReadIndices(indexBuffer);
+
+                    // For triangle primitives, the front face has to be in counter-clockwise (CCW) winding order.
+                    for (var i = 0; i < indices.Length; i += 3)
+                    {
+                        var b = indices[i + 2];
+                        indices[i + 2] = indices[i + 1];
+                        indices[i + 1] = b;
+                    }
+
                     primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
 
                     // Add material
