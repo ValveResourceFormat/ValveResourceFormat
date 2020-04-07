@@ -11,7 +11,6 @@ namespace GUI.Types.Renderer
 {
     public class MaterialLoader
     {
-        public List<string> LoadedTextures { get; } = new List<string>();
         private readonly Dictionary<string, RenderMaterial> Materials = new Dictionary<string, RenderMaterial>();
         private readonly VrfGuiContext VrfGuiContext;
         private int ErrorTextureID;
@@ -111,8 +110,6 @@ namespace GUI.Types.Renderer
             {
                 return GetErrorTexture();
             }
-
-            LoadedTextures.Add(name);
 
             return LoadTexture(textureResource);
         }

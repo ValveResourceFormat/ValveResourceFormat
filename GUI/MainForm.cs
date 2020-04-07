@@ -13,10 +13,10 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Audio;
+using GUI.Types.Exporter;
 using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -31,12 +31,6 @@ namespace GUI
 {
     public partial class MainForm : Form
     {
-        private class ExportData
-        {
-            public Resource Resource { get; set; }
-            public VrfGuiContext VrfGuiContext { get; set; }
-        }
-
         private readonly Regex NewLineRegex;
         private SearchForm searchForm;
 #pragma warning disable CA2213
@@ -638,6 +632,8 @@ namespace GUI
                         break;
 
                     case ResourceType.Model:
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as glTF", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+
                         var modelRendererTab = new TabPage("MODEL");
                         modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock).ViewerControl);
                         resTabs.TabPages.Add(modelRendererTab);
@@ -650,7 +646,7 @@ namespace GUI
                             break;
                         }
 
-                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as OBJ", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+                        Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as glTF", fileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
 
                         var meshRendererTab = new TabPage("MESH");
                         meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Mesh(resource)).ViewerControl);
@@ -1071,24 +1067,18 @@ namespace GUI
 
                 if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    using (var resource = new Resource())
-                    using (var memory = new MemoryStream(output))
+                    using var resource = new Resource();
+                    using var memory = new MemoryStream(output);
+
+                    resource.Read(memory);
+
+                    ExportFile.Export(fileName, new ExportData
                     {
-                        resource.Read(memory);
+                        Resource = resource,
+                        VrfGuiContext = new VrfGuiContext(null, package),
+                    });
 
-                        var extension = FileExtract.GetExtension(resource);
-
-                        if (extension == null)
-                        {
-                            fileName = fileName.Substring(0, fileName.Length - 2);
-                        }
-                        else
-                        {
-                            fileName = Path.ChangeExtension(fileName, extension);
-                        }
-
-                        output = FileExtract.Extract(resource).ToArray();
-                    }
+                    return;
                 }
 
                 var dialog = new SaveFileDialog
@@ -1104,10 +1094,8 @@ namespace GUI
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
                     Settings.Save();
 
-                    using (var stream = dialog.OpenFile())
-                    {
-                        stream.Write(output, 0, output.Length);
-                    }
+                    using var stream = dialog.OpenFile();
+                    stream.Write(output, 0, output.Length);
                 }
             }
             else
@@ -1185,97 +1173,10 @@ namespace GUI
         private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //ToolTipText is the full filename
-            var fileName = ((ToolStripMenuItem)sender).ToolTipText;
-            var tag = ((ToolStripMenuItem)sender).Tag as ExportData;
-            var resource = tag.Resource;
+            var menuItem = (ToolStripMenuItem)sender;
+            var fileName = menuItem.ToolTipText;
 
-            Console.WriteLine($"Export requested for {fileName}");
-
-            string[] extensions = null;
-            switch (resource.ResourceType)
-            {
-                case ResourceType.Sound:
-                    //WAV or MP3
-                    extensions = new[] { ((Sound)resource.DataBlock).SoundType.ToString().ToLower() };
-                    break;
-                case ResourceType.Texture:
-                    extensions = new[] { "png" };
-                    break;
-                case ResourceType.PanoramaLayout:
-                    extensions = new[] { "xml", "vxml" };
-                    break;
-                case ResourceType.PanoramaScript:
-                    extensions = new[] { "js", "vjs" };
-                    break;
-                case ResourceType.PanoramaStyle:
-                    extensions = new[] { "css", "vcss" };
-                    break;
-                case ResourceType.Mesh:
-                    extensions = new[] { "obj" };
-                    break;
-            }
-
-            //Did we find a format we like?
-            if (extensions != null)
-            {
-                var dialog = new SaveFileDialog
-                {
-                    FileName = Path.GetFileName(Path.ChangeExtension(fileName, extensions[0])),
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                    DefaultExt = extensions[0],
-                };
-
-                var filter = string.Empty;
-                foreach (var extension in extensions)
-                {
-                    filter += $"{extension} files (*.{extension})|*.{extension}|";
-                }
-
-                //Remove the last |
-                dialog.Filter = filter.Substring(0, filter.Length - 1);
-
-                var result = dialog.ShowDialog();
-
-                if (result == DialogResult.OK)
-                {
-                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
-                    Settings.Save();
-
-                    using (var stream = dialog.OpenFile())
-                    {
-                        // TODO: move this to FileExtract/VRF too
-                        if (resource.ResourceType == ResourceType.Mesh)
-                        {
-                            using (var objStream = new StreamWriter(stream))
-                            using (var mtlStream = new StreamWriter(Path.ChangeExtension(dialog.FileName, "mtl")))
-                            {
-                                MeshWriter.WriteObject(objStream, mtlStream, Path.GetFileNameWithoutExtension(dialog.FileName), resource);
-                            }
-
-                            foreach (var texture in tag.VrfGuiContext.MaterialLoader.LoadedTextures)
-                            {
-                                Console.WriteLine($"Exporting texture for mesh: {texture}");
-
-                                var textureResource = tag.VrfGuiContext.LoadFileByAnyMeansNecessary(texture + "_c");
-                                var textureImage = SKImage.FromBitmap(((Texture)textureResource.DataBlock).GenerateBitmap());
-
-                                using (var texStream = new FileStream(Path.Combine(Path.GetDirectoryName(dialog.FileName), Path.GetFileNameWithoutExtension(texture) + ".png"), FileMode.Create, FileAccess.Write))
-                                using (var data = textureImage.Encode(SKEncodedImageFormat.Png, 100))
-                                {
-                                    data.SaveTo(texStream);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            var data = FileExtract.Extract(resource).ToArray();
-                            stream.Write(data, 0, data.Length);
-                        }
-                    }
-                }
-            }
-
-            Console.WriteLine($"Export requested for {fileName} Complete");
+            ExportFile.Export(fileName, menuItem.Tag as ExportData);
         }
     }
 }

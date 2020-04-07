@@ -188,7 +188,7 @@ namespace ValveResourceFormat.Blocks
                     result = new[]
                     {
                         HalfTypeHelper.Convert(shorts[0]),
-                        HalfTypeHelper.Convert(shorts[1]) * -1f,
+                        HalfTypeHelper.Convert(shorts[1]),
                     };
                     break;
                 }
@@ -197,7 +197,6 @@ namespace ValveResourceFormat.Blocks
                 {
                     result = new float[2];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
-                    result[1] *= -1f; // Flip texcoord
                     break;
                 }
 
