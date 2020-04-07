@@ -151,9 +151,21 @@ namespace GUI.Types.Exporter
         private Material GenerateGLTFMaterialFromRenderMaterial(RenderMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
         {
             var material = model
-                    .CreateMaterial(materialName);
+                    .CreateMaterial(materialName)
+                    .WithDefault();
 
             material.Alpha = renderMaterial.IsBlended ? AlphaMode.BLEND : AlphaMode.OPAQUE;
+
+            float metalValue = 0;
+            foreach (var floatParam in renderMaterial.Material.FloatParams)
+            {
+                if (floatParam.Key == "g_flMetalness")
+                {
+                    metalValue = floatParam.Value;
+                }
+            }
+            // assume non-metallic unless prompted
+            material.WithPBRMetallicRoughness(Vector4.One, null, metallicFactor: metalValue);
 
             foreach (var renderTexture in renderMaterial.Material.TextureParams)
             {
@@ -178,7 +190,7 @@ namespace GUI.Types.Exporter
                             for (int col = 0; col < bitmap.Height; col++)
                             {
                                 var pixelAt = bitmap.GetPixel(row, col);
-                                bitmap.SetPixel(col, row, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
+                                bitmap.SetPixel(row, col, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
                             }
                     }
                 }
@@ -188,27 +200,20 @@ namespace GUI.Types.Exporter
 
                 var image = model.UseImageWithContent(data.ToArray());
                 // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
-                image.Name = fileName;
+                image.Name = fileName + $"_{model.LogicalImages.Count - 1}";
 
                 var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
                 sampler.Name = fileName;
 
                 var tex = model.UseTexture(image);
-                tex.Name = fileName;
+                tex.Name = fileName + $"_{model.LogicalTextures.Count - 1}";
                 tex.Sampler = sampler;
 
                 switch (renderTexture.Key)
                 {
                     case "g_tColor":
 
-                        var colorChannel = material.FindChannel("BaseColor");
-                        if (!colorChannel.HasValue)
-                        {
-                            material.InitializePBRMetallicRoughness();
-                            colorChannel = material.FindChannel("BaseColor");
-                        }
-
-                        colorChannel.Value.SetTexture(0, tex);
+                        material.FindChannel("BaseColor")?.SetTexture(0, tex);
 
                         var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
                         var dict = material.TryUseExtrasAsDictionary(true);
@@ -247,7 +252,7 @@ namespace GUI.Types.Exporter
                     case "g_tMasks2":
                         // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
                     default:
-                        Console.WriteLine($"Unknown Texture Type: {renderTexture.Key}");
+                        Console.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
                         break;
                 }
             }
