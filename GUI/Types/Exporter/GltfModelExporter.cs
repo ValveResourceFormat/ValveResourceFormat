@@ -151,9 +151,9 @@ namespace GUI.Types.Exporter
         private Material GenerateGLTFMaterialFromRenderMaterial(RenderMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
         {
             var material = model
-                    .CreateMaterial(materialName)
-                    .WithPBRMetallicRoughness();
-            material.Alpha = AlphaMode.MASK;
+                    .CreateMaterial(materialName);
+
+            material.Alpha = renderMaterial.IsBlended ? AlphaMode.BLEND : AlphaMode.OPAQUE;
 
             foreach (var renderTexture in renderMaterial.Material.TextureParams)
             {
@@ -170,17 +170,19 @@ namespace GUI.Types.Exporter
                 }
                 var bitmap = ((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
 
-                if (fileName.Contains("color"))
+                if (renderTexture.Key == "g_tColor" && material.Alpha == AlphaMode.OPAQUE)
                 {
-                    // expensive transparency workaround for color maps 
-                    for (int row = 0; row < bitmap.Width; row++) {
-                        for (int col = 0; col < bitmap.Height; col++)
-                        {
-                            var pixelAt = bitmap.GetPixel(row, col);
-                            bitmap.SetPixel(col, row, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue,  255));
-                        }
+                    // expensive transparency workaround for color maps
+                    for (int row = 0; row < bitmap.Width; row++)
+                    {
+                            for (int col = 0; col < bitmap.Height; col++)
+                            {
+                                var pixelAt = bitmap.GetPixel(row, col);
+                                bitmap.SetPixel(col, row, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
+                            }
                     }
                 }
+
                 var textureImage = SKImage.FromBitmap(bitmap);
                 using var data = textureImage.Encode(SKEncodedImageFormat.Png, 100);
 
@@ -195,35 +197,58 @@ namespace GUI.Types.Exporter
                 tex.Name = fileName;
                 tex.Sampler = sampler;
 
-                if (fileName.Contains("color"))
+                switch (renderTexture.Key)
                 {
-                    var colorMat = material.FindChannel("BaseColor");
-                    colorMat?.SetTexture(0, tex);
+                    case "g_tColor":
 
-                    var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
-                    var dict = material.TryUseExtrasAsDictionary(true);
-                    dict["baseColorTexture"] = indexTexture;
-                }
+                        var colorChannel = material.FindChannel("BaseColor");
+                        if (!colorChannel.HasValue)
+                        {
+                            material.InitializePBRMetallicRoughness();
+                            colorChannel = material.FindChannel("BaseColor");
+                        }
 
-                if (fileName.ToLower().Contains("normal"))
-                {
-                    material.FindChannel("Normal")?.SetTexture(0, tex);
-                }
+                        colorChannel.Value.SetTexture(0, tex);
 
-                if (fileName.ToLower().Contains("ao"))
-                {
-                    material.FindChannel("Occlusion")?.SetTexture(0, tex);
-                }
+                        var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
+                        var dict = material.TryUseExtrasAsDictionary(true);
+                        dict["baseColorTexture"] = indexTexture;
 
-                if (fileName.ToLower().Contains("emissive"))
-                {
-                    material.FindChannel("Emissive")?.SetTexture(0, tex);
-                }
-
-                if (fileName.ToLower().Contains("trans"))
-                {
-                    // TODO find transparency channel
-                    material.FindChannel("Transparency")?.SetTexture(0, tex);
+                        break;
+                    case "g_tNormal":
+                        material.FindChannel("Normal")?.SetTexture(0, tex);
+                        break;
+                    case "g_tAmbientOcclusion":
+                        material.FindChannel("Occlusion")?.SetTexture(0, tex);
+                        break;
+                    case "g_tEmissive":
+                        material.FindChannel("Emissive")?.SetTexture(0, tex);
+                        break;
+                    case "g_tShadowFalloff":
+                        // example: tongue_gman, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
+                    case "g_tCombinedMasks":
+                        // example: models/characters/gman/materials/gman_head_mouth_mask_tga_bb35dc38.vtex
+                    case "g_tDiffuseFalloff":
+                        // example: materials/default/default_skin_diffusewarp_tga_e58a9ed.vtex
+                    case "g_tIris":
+                        // example: 
+                    case "g_tIrisMask":
+                        // example: models/characters/gman/materials/gman_eye_iris_mask_tga_a5bb4a1e.vtex
+                    case "g_tTintColor":
+                        // example: models/characters/lazlo/eyemeniscus_vmat_g_ttintcolor_a00ef19e.vtex
+                    case "g_tAnisoGloss":
+                        // example: gordon_beard, models/characters/gordon/materials/gordon_hair_normal_tga_272a44e9.vtex
+                    case "g_tBentNormal":
+                        // example: gman_teeth, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
+                    case "g_tFresnelWarp":
+                        // example: brewmaster_color, materials/default/default_fresnelwarprim_tga_d9279d65.vtex
+                    case "g_tMasks1":
+                        // example: brewmaster_color, materials/models/heroes/brewmaster/brewmaster_base_metalnessmask_psd_58eaa40f.vtex
+                    case "g_tMasks2":
+                        // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
+                    default:
+                        Console.WriteLine($"Unknown Texture Type: {renderTexture.Key}");
+                        break;
                 }
             }
 
