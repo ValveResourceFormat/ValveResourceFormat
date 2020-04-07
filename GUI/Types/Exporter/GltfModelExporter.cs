@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Text;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using NAudio.SoundFont;
 using SharpGLTF.IO;
 using SharpGLTF.Schema2;
 using SkiaSharp;
@@ -18,6 +16,7 @@ namespace GUI.Types.Exporter
     using static ValveResourceFormat.Blocks.VBIB;
     using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
     using VModel = ValveResourceFormat.ResourceTypes.Model;
+    using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
     public class GltfModelExporter
     {
@@ -29,7 +28,6 @@ namespace GUI.Types.Exporter
             exportedModel.Asset.Generator = GENERATOR;
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
             var embeddedMeshIndex = 0;
-
 
             foreach (var mesh in model.GetEmbeddedMeshes())
             {
@@ -47,6 +45,7 @@ namespace GUI.Types.Exporter
                 {
                     continue;
                 }
+
                 var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                 var mesh = new VMesh(meshResource);
                 var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel, context);
@@ -136,8 +135,14 @@ namespace GUI.Types.Exporter
 
                     // Add material
                     var materialPath = drawCall.GetProperty<string>("m_material");
+                    var materialResource = context.LoadFileByAnyMeansNecessary(materialPath + "_c");
 
-                    var renderMaterial = context.MaterialLoader.GetMaterial(materialPath);
+                    if (materialResource == null)
+                    {
+                        continue;
+                    }
+
+                    var renderMaterial = (VMaterial) materialResource.DataBlock;
 
                     var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
                     var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, context, materialNameTrimmed);
@@ -148,26 +153,29 @@ namespace GUI.Types.Exporter
             return mesh;
         }
 
-        private Material GenerateGLTFMaterialFromRenderMaterial(RenderMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
+        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, VrfGuiContext context, string materialName)
         {
             var material = model
                     .CreateMaterial(materialName)
                     .WithDefault();
 
-            material.Alpha = renderMaterial.IsBlended ? AlphaMode.BLEND : AlphaMode.OPAQUE;
+            renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
+            material.Alpha = isTranslucent > 0 ? AlphaMode.BLEND : AlphaMode.OPAQUE;
 
             float metalValue = 0;
-            foreach (var floatParam in renderMaterial.Material.FloatParams)
+
+            foreach (var floatParam in renderMaterial.FloatParams)
             {
                 if (floatParam.Key == "g_flMetalness")
                 {
                     metalValue = floatParam.Value;
                 }
             }
+
             // assume non-metallic unless prompted
             material.WithPBRMetallicRoughness(Vector4.One, null, metallicFactor: metalValue);
 
-            foreach (var renderTexture in renderMaterial.Material.TextureParams)
+            foreach (var renderTexture in renderMaterial.TextureParams)
             {
                 var texturePath = renderTexture.Value;
 
@@ -180,6 +188,7 @@ namespace GUI.Types.Exporter
                 {
                     continue;
                 }
+
                 var bitmap = ((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
 
                 if (renderTexture.Key == "g_tColor" && material.Alpha == AlphaMode.OPAQUE)
@@ -187,11 +196,11 @@ namespace GUI.Types.Exporter
                     // expensive transparency workaround for color maps
                     for (int row = 0; row < bitmap.Width; row++)
                     {
-                            for (int col = 0; col < bitmap.Height; col++)
-                            {
-                                var pixelAt = bitmap.GetPixel(row, col);
-                                bitmap.SetPixel(row, col, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
-                            }
+                        for (int col = 0; col < bitmap.Height; col++)
+                        {
+                            var pixelAt = bitmap.GetPixel(row, col);
+                            bitmap.SetPixel(row, col, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
+                        }
                     }
                 }
 
@@ -236,7 +245,7 @@ namespace GUI.Types.Exporter
                     case "g_tDiffuseFalloff":
                         // example: materials/default/default_skin_diffusewarp_tga_e58a9ed.vtex
                     case "g_tIris":
-                        // example: 
+                        // example:
                     case "g_tIrisMask":
                         // example: models/characters/gman/materials/gman_eye_iris_mask_tga_a5bb4a1e.vtex
                     case "g_tTintColor":
@@ -259,7 +268,6 @@ namespace GUI.Types.Exporter
 
             return material;
         }
-
 
         private class AttributeExportInfo
         {
