@@ -33,6 +33,15 @@ namespace GUI.Forms
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
                 {
+                    if (t.Exception != null)
+                    {
+                        Console.Error.WriteLine(t.Exception);
+                        SetProgress(t.Exception.Message);
+
+                        // TODO: Throwing doesn't actually display the exception ui
+                        throw t.Exception;
+                    }
+
                     if (!t.IsCanceled)
                     {
                         Invoke((Action)Close);
