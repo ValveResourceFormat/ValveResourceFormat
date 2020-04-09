@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Blocks
 
                     var attribute = default(VertexAttribute);
 
-                    attribute.Name = reader.ReadNullTermString(Encoding.UTF8);
+                    attribute.Name = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
 
                     // Offset is always 40 bytes from the start
                     reader.BaseStream.Position = previousPosition + 36;
