@@ -226,7 +226,33 @@ namespace ValveResourceFormat.Blocks
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.WriteLine("{0:X8}", Offset);
+            writer.WriteLine("Vertex buffers:");
+
+            foreach (var vertexBuffer in VertexBuffers)
+            {
+                writer.WriteLine($"Count: {vertexBuffer.Count}");
+                writer.WriteLine($"Size: {vertexBuffer.Size}");
+
+                for (var i = 0; i < vertexBuffer.Attributes.Count; i++)
+                {
+                    var vertexAttribute = vertexBuffer.Attributes[i];
+                    writer.WriteLine($"Attribute[{i}].Name = {vertexAttribute.Name}");
+                    writer.WriteLine($"Attribute[{i}].Offset = {vertexAttribute.Offset}");
+                    writer.WriteLine($"Attribute[{i}].Type = {vertexAttribute.Type}");
+                }
+
+                writer.WriteLine();
+            }
+
+            writer.WriteLine();
+            writer.WriteLine("Index buffers:");
+
+            foreach (var indexBuffer in IndexBuffers)
+            {
+                writer.WriteLine($"Count: {indexBuffer.Count}");
+                writer.WriteLine($"Size: {indexBuffer.Size}");
+                writer.WriteLine();
+            }
         }
     }
 }
