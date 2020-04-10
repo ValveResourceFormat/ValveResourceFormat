@@ -309,7 +309,11 @@ namespace GUI.Types.Exporter
             {
                 GltfAccessorName = "NORMAL",
                 NumComponents = 3,
-                Resize = false,
+            },
+            ["TANGENT"] = new AttributeExportInfo
+            {
+                GltfAccessorName = "TANGENT",
+                NumComponents = 4,
             },
             ["TEXCOORD"] = new AttributeExportInfo
             {
