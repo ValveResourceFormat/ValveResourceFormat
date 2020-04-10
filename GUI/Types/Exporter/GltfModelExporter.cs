@@ -101,37 +101,77 @@ namespace GUI.Types.Exporter
                     var primitive = mesh.CreatePrimitive();
 
                     // Avoid duplicate attribute names
-                    var uniqueAttributes = vertexBuffer.Attributes.GroupBy(a => a.Name).Select(g => g.First());
+                    var attributeCounters = new Dictionary<string, int>();
 
                     // Set vertex attributes
-                    foreach (var attribute in uniqueAttributes)
+                    foreach (var attribute in vertexBuffer.Attributes)
                     {
-                        if (AccessorInfo.TryGetValue(attribute.Name, out var accessorInfo))
-                        {
-                            var buffer = ReadAttributeBuffer(vbib, vertexBuffer, attribute);
+                        attributeCounters.TryGetValue(attribute.Name, out var attributeCounter);
+                        attributeCounters[attribute.Name] = attributeCounter + 1;
+                        var accessorName = GetAccessorName(attribute.Name, attributeCounter);
 
-                            if (accessorInfo.NumComponents == 4)
+                        var buffer = ReadAttributeBuffer(vbib, vertexBuffer, attribute);
+                        var numComponents = buffer.Length / vertexBuffer.Count;
+
+                        // TODO: These currently don't work correctly
+                        if (attribute.Name == "BLENDINDICES" || attribute.Name == "BLENDWEIGHT")
+                        {
+                            continue;
+                        }
+
+                        if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
+                        {
+                            var vectors = ToVector4Array(buffer);
+                            var (normals, tangents) = DecompressNormalTangents(vectors);
+                            primitive.WithVertexAccessor("NORMAL", normals);
+                            primitive.WithVertexAccessor("TANGENT", tangents);
+
+                            continue;
+                        }
+
+                        if (attribute.Name == "BLENDINDICES")
+                        {
+                            var byteBuffer = buffer.Select(f => (byte)f).ToArray();
+                            var bufferView = mesh.LogicalParent.UseBufferView(byteBuffer);
+                            var accessor = mesh.LogicalParent.CreateAccessor();
+                            accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
+
+                            primitive.SetVertexAccessor(accessorName, accessor);
+
+                            continue;
+                        }
+
+                        switch (numComponents)
+                        {
+                            case 4:
                             {
                                 var vectors = ToVector4Array(buffer);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
+                                primitive.WithVertexAccessor(accessorName, vectors);
+                                break;
                             }
-                            else if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
+
+                            case 3:
                             {
-                                var vectors = ToVector4Array(buffer);
-                                var (normals, tangents) = DecompressNormalTangents(vectors);
-                                primitive.WithVertexAccessor("NORMAL", normals);
-                                primitive.WithVertexAccessor("TANGENT", tangents);
+                                var vectors = ToVector3Array(buffer, true, attribute.Name == "POSITION");
+                                primitive.WithVertexAccessor(accessorName, vectors);
+                                break;
                             }
-                            else if (accessorInfo.NumComponents == 3)
-                            {
-                                var vectors = ToVector3Array(buffer, true, accessorInfo.Resize);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
-                            }
-                            else if (accessorInfo.NumComponents == 2)
+
+                            case 2:
                             {
                                 var vectors = ToVector2Array(buffer);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
+                                primitive.WithVertexAccessor(accessorName, vectors);
+                                break;
                             }
+
+                            case 1:
+                            {
+                                primitive.WithVertexAccessor(accessorName, buffer);
+                                break;
+                            }
+
+                            default:
+                                throw new NotImplementedException($"Attribute \"{attribute.Name}\" has {numComponents} components");
                         }
                     }
 
@@ -288,39 +328,23 @@ namespace GUI.Types.Exporter
             return material;
         }
 
-        private class AttributeExportInfo
+        public string GetAccessorName(string name, int index)
         {
-            public string GltfAccessorName { get; set; }
+            switch (name)
+            {
+                case "BLENDINDICES": return $"JOINTS_{index}";
+                case "BLENDWEIGHT": return $"WEIGHTS_{index}";
+                case "TEXCOORD": return $"TEXCOORD_{index}";
+                case "COLOR": return $"COLOR_{index}";
+            }
 
-            public int NumComponents { get; set; }
+            if (index > 0)
+            {
+                throw new InvalidDataException($"Got attribute \"{name}\" more than once, but that is not supported");
+            }
 
-            public bool Resize { get; set; }
+            return name;
         }
-
-        private static IDictionary<string, AttributeExportInfo> AccessorInfo = new Dictionary<string, AttributeExportInfo>
-        {
-            ["POSITION"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "POSITION",
-                NumComponents = 3,
-                Resize = true,
-            },
-            ["NORMAL"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "NORMAL",
-                NumComponents = 3,
-            },
-            ["TANGENT"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "TANGENT",
-                NumComponents = 4,
-            },
-            ["TEXCOORD"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "TEXCOORD_0",
-                NumComponents = 2,
-            },
-        };
 
         private float[] ReadAttributeBuffer(VBIB vbib, VertexBuffer buffer, VertexAttribute attribute)
             => Enumerable.Range(0, (int)buffer.Count)
