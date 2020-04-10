@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 
 namespace ValveResourceFormat.ClosedCaptions
@@ -87,8 +86,7 @@ namespace ValveResourceFormat.ClosedCaptions
             foreach (var caption in Captions)
             {
                 reader.BaseStream.Position = dataoffset + (caption.Blocknum * blocksize) + caption.Offset;
-                var bytes = reader.ReadBytes(caption.Length);
-                caption.Text = Encoding.Unicode.GetString(bytes);
+                caption.Text = reader.ReadNullTermString(Encoding.Unicode);
             }
         }
 
