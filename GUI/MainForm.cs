@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -415,7 +416,7 @@ namespace GUI
             {
                 var shader = new CompiledShader();
 
-                var buffer = new StringWriter();
+                var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 var oldOut = Console.Out;
                 Console.SetOut(buffer);
 

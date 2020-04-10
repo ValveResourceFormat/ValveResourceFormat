@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -75,7 +76,13 @@ namespace Decompiler
 
         // This decompiler is a test bed for our library,
         // don't expect to see any quality code in here
-        public static int Main(string[] args) => CommandLineApplication.Execute<Decompiler>(args);
+        public static int Main(string[] args)
+        {
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+            return CommandLineApplication.Execute<Decompiler>(args);
+        }
 
         private int OnExecute()
         {

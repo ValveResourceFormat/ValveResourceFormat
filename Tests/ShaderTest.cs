@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
@@ -17,7 +18,7 @@ namespace Tests
             {
                 var shader = new CompiledShader();
 
-                using var sw = new StringWriter();
+                using var sw = new StringWriter(CultureInfo.InvariantCulture);
                 var originalOutput = Console.Out;
                 Console.SetOut(sw);
 
