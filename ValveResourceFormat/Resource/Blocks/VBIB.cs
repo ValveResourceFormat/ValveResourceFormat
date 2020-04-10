@@ -193,6 +193,13 @@ namespace ValveResourceFormat.Blocks
                     break;
                 }
 
+                case DXGI_FORMAT.R32_FLOAT:
+                {
+                    result = new float[1];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 4);
+                    break;
+                }
+
                 case DXGI_FORMAT.R32G32_FLOAT:
                 {
                     result = new float[2];
