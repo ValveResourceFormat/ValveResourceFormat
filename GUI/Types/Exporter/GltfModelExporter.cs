@@ -201,6 +201,12 @@ namespace GUI.Types.Exporter
                             continue;
                         }
 
+                        if (attribute.Name == "TEXCOORD" && numComponents != 2)
+                        {
+                            // We are missing data, but non-2-component UVs are missing
+                            continue;
+                        }
+
                         switch (numComponents)
                         {
                             case 4:
@@ -236,7 +242,9 @@ namespace GUI.Types.Exporter
                     }
 
                     // Set index buffer
-                    var indices = ReadIndices(indexBuffer);
+                    var startIndex = (int)drawCall.GetIntegerProperty("m_nStartIndex");
+                    var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
+                    var indices = ReadIndices(indexBuffer, startIndex, indexCount);
                     primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
 
                     // Add material
@@ -271,10 +279,11 @@ namespace GUI.Types.Exporter
                 joints.AddRange(CreateBonesRecursive(root, skeletonNode));
             }
 
-            var numJoints = joints.Max(j => j.Indices.DefaultIfEmpty().Max());
+            var animationJoints = joints.Where(j => j.Indices.Any());
+            var numJoints = animationJoints.Max(j => j.Indices.Max());
             var result = new Node[numJoints + 1];
 
-            foreach (var joint in joints)
+            foreach (var joint in animationJoints)
             {
                 foreach (var index in joint.Indices)
                 {
@@ -436,18 +445,18 @@ namespace GUI.Types.Exporter
                 .SelectMany(i => vbib.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private int[] ReadIndices(IndexBuffer indexBuffer)
+        private int[] ReadIndices(IndexBuffer indexBuffer, int start, int count)
         {
-            var indices = new int[indexBuffer.Count];
+            var indices = new int[count];
 
             if (indexBuffer.Size == 4)
             {
-                System.Buffer.BlockCopy(indexBuffer.Buffer, 0, indices, 0, indexBuffer.Buffer.Length);
+                System.Buffer.BlockCopy(indexBuffer.Buffer, start, indices, 0, count * sizeof(uint));
             }
             else if (indexBuffer.Size == 2)
             {
-                var shortIndices = new short[indexBuffer.Count];
-                System.Buffer.BlockCopy(indexBuffer.Buffer, 0, shortIndices, 0, indexBuffer.Buffer.Length);
+                var shortIndices = new short[count];
+                System.Buffer.BlockCopy(indexBuffer.Buffer, start, shortIndices, 0, count * sizeof(ushort));
                 indices = Array.ConvertAll(shortIndices, i => (int)i);
             }
 
