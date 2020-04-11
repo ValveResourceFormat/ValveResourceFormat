@@ -45,23 +45,42 @@ namespace GUI.Types.Exporter
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
             var embeddedMeshIndex = 0;
 
-            // Add meshes
-            foreach (var mesh in model.GetEmbeddedMeshes())
+            void AddMeshNode(string name, VMesh mesh)
             {
-                var name = $"Embedded Mesh {++embeddedMeshIndex}";
                 var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, true);
 
                 // Add skeleton and skin
-                var skeleton = scene.CreateNode(name);
-                var joints = CreateGltfSkeleton(model.GetSkeleton(), skeleton);
+                var modelSkeleton = model.GetSkeleton();
 
-                scene.CreateNode(name)
-                    .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+                if (modelSkeleton.AnimationTextureSize > 0)
+                {
+                    var skeleton = scene.CreateNode(name);
+                    var joints = CreateGltfSkeleton(modelSkeleton, skeleton);
 
-                // Rotate upright, scale inches to meters.
-                skeleton.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                    scene.CreateNode(name)
+                        .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+
+                    // Rotate upright, scale inches to meters.
+                    skeleton.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                }
+                else
+                {
+                    var meshNode = scene.CreateNode(name)
+                        .WithMesh(exportedMesh);
+
+                    // Rotate upright, scale inches to meters.
+                    meshNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                }
             }
 
+            // Add embedded meshes
+            foreach (var mesh in model.GetEmbeddedMeshes())
+            {
+                var name = $"Embedded Mesh {++embeddedMeshIndex}";
+                AddMeshNode(name, mesh);
+            }
+
+            // Add external meshes
             foreach (var meshReference in model.GetReferencedMeshNames())
             {
                 var meshResource = GuiContext.LoadFileByAnyMeansNecessary(meshReference + "_c");
@@ -73,16 +92,7 @@ namespace GUI.Types.Exporter
                 var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                 var mesh = new VMesh(meshResource);
 
-                var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel, true);
-
-                var skeleton = scene.CreateNode(nodeName);
-                var joints = CreateGltfSkeleton(model.GetSkeleton(), skeleton);
-
-                scene.CreateNode(nodeName)
-                    .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
-
-                // Rotate upright, scale inches to meters.
-                skeleton.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                AddMeshNode(nodeName, mesh);
             }
 
             exportedModel.Save(fileName);
@@ -261,7 +271,7 @@ namespace GUI.Types.Exporter
                 joints.AddRange(CreateBonesRecursive(root, skeletonNode));
             }
 
-            var numJoints = joints.Max(j => j.Indices.Max());
+            var numJoints = joints.Max(j => j.Indices.DefaultIfEmpty().Max());
             var result = new Node[numJoints + 1];
 
             foreach (var joint in joints)
