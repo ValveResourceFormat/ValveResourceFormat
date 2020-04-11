@@ -203,7 +203,7 @@ namespace GUI.Types.Exporter
 
                         if (attribute.Name == "TEXCOORD" && numComponents != 2)
                         {
-                            // We are missing data, but non-2-component UVs are missing
+                            // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
                             continue;
                         }
 
@@ -239,6 +239,15 @@ namespace GUI.Types.Exporter
                             default:
                                 throw new NotImplementedException($"Attribute \"{attribute.Name}\" has {numComponents} components");
                         }
+                    }
+
+                    // For some reason soruce models can have joints but no weights, check if that is the case
+                    var jointAccessor = primitive.GetVertexAccessor("JOINTS_0");
+                    if (jointAccessor != null && primitive.GetVertexAccessor("WEIGHTS_0") == null)
+                    {
+                        // If this occurs, give default weights
+                        var defaultWeights = Enumerable.Repeat(Vector4.UnitX, jointAccessor.Count).ToList();
+                        primitive.WithVertexAccessor("WEIGHTS_0", defaultWeights);
                     }
 
                     // Set index buffer
@@ -449,14 +458,16 @@ namespace GUI.Types.Exporter
         {
             var indices = new int[count];
 
+            var byteCount = count * (int)indexBuffer.Size;
+
             if (indexBuffer.Size == 4)
             {
-                System.Buffer.BlockCopy(indexBuffer.Buffer, start, indices, 0, count * sizeof(uint));
+                System.Buffer.BlockCopy(indexBuffer.Buffer, start, indices, 0, byteCount);
             }
             else if (indexBuffer.Size == 2)
             {
                 var shortIndices = new short[count];
-                System.Buffer.BlockCopy(indexBuffer.Buffer, start, shortIndices, 0, count * sizeof(ushort));
+                System.Buffer.BlockCopy(indexBuffer.Buffer, start, shortIndices, 0, byteCount);
                 indices = Array.ConvertAll(shortIndices, i => (int)i);
             }
 
