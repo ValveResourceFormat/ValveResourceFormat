@@ -29,14 +29,14 @@
     <PackageReference Include="NAudio" Version="1.10.0" />
     <PackageReference Include="NLayer" Version="1.13.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.1.0" />
-    <PackageReference Include="OpenTK" Version="3.1.0">
+    <PackageReference Include="OpenTK" Version="3.2.0">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="OpenTK.GLControl" Version="3.1.0">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0016" />
-    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.2-preview.45" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.2-preview.50" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.164" PrivateAssets="all" />
     <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
