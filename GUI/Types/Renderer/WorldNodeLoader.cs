@@ -22,10 +22,15 @@ namespace GUI.Types.Renderer
         {
             var data = node.Data;
 
-            string[] worldLayers = new string[0];
+            string[] worldLayers;
+
             if (data.ContainsKey("m_layerNames"))
             {
                 worldLayers = data.GetArray<string>("m_layerNames");
+            }
+            else
+            {
+                worldLayers = Array.Empty<string>();
             }
 
             var sceneObjectLayerIndices = data.ContainsKey("m_sceneObjectLayerIndices") ? data.GetIntegerArray("m_sceneObjectLayerIndices") : null;

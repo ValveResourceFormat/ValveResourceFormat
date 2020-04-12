@@ -12,7 +12,6 @@
     <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
     <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
-    <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
@@ -26,6 +25,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.0.0-beta3.final">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NAudio" Version="1.10.0" />
     <PackageReference Include="NLayer" Version="1.13.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.1.0" />
@@ -37,7 +40,6 @@
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0016" />
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.2-preview.50" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.164" PrivateAssets="all" />
     <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>

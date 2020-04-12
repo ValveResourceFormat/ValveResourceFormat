@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int shaderProgram, int stride)
+        private static void BindVertexAttrib(VBIB.VertexAttribute attribute, string attributeName, int shaderProgram, int stride)
         {
             var attributeLocation = GL.GetAttribLocation(shaderProgram, attributeName);
 

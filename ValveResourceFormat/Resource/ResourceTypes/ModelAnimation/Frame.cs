@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -6,7 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Frame
     {
-        public Dictionary<string, FrameBone> Bones { get; set; }
+        public Dictionary<string, FrameBone> Bones { get; }
 
         public Frame()
         {

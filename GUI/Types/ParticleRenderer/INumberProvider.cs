@@ -20,9 +20,7 @@ namespace GUI.Types.ParticleRenderer
         public double NextNumber() => value;
     }
 
-#pragma warning disable SA1402 // File may only contain a single type
     public static class INumberProviderExtensions
-#pragma warning restore SA1402 // File may only contain a single type
     {
         public static INumberProvider GetNumberProvider(this IKeyValueCollection keyValues, string propertyName)
         {

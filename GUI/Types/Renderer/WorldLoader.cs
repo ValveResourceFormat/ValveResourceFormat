@@ -198,7 +198,7 @@ namespace GUI.Types.Renderer
                 if (isCamera)
                 {
                     var name = entity.GetProperty<string>("targetname") ?? string.Empty;
-                    var cameraName = name == string.Empty
+                    var cameraName = string.IsNullOrEmpty(name)
                         ? classname
                         : name;
 
@@ -284,7 +284,10 @@ namespace GUI.Types.Renderer
                     }
                     else if (body is string bodyGroupString)
                     {
-                        int.TryParse(bodyGroupString, out bodyGroup);
+                        if (!int.TryParse(bodyGroupString, out bodyGroup))
+                        {
+                            bodyGroup = -1;
+                        }
                     }
 
                     modelNode.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));

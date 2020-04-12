@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat
 {
+#pragma warning disable CA1822 // statics
     public class ValveFont
     {
         private const string MAGIC = "VFONT1";
@@ -76,4 +77,5 @@ namespace ValveResourceFormat
             return output;
         }
     }
+#pragma warning restore CA1822
 }

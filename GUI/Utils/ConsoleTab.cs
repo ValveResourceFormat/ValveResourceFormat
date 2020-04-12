@@ -37,7 +37,7 @@ namespace GUI.Utils
             }
         }
 
-        public TabPage CreateTab()
+        public static TabPage CreateTab()
         {
             var control = new TextBox
             {

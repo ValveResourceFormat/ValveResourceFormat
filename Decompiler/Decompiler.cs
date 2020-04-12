@@ -179,7 +179,7 @@ namespace Decompiler
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
-                    var info = stat.Value.Info != string.Empty ? string.Format(" ({0})", stat.Value.Info) : string.Empty;
+                    var info = string.IsNullOrEmpty(stat.Value.Info) ? string.Empty : $" ({stat.Value.Info})";
 
                     Console.WriteLine($"{stat.Value.Count,5} resources of version {stat.Value.Version} and type {stat.Value.Type}{info}");
 
@@ -277,7 +277,7 @@ namespace Decompiler
                             break;
                     }
 
-                    if (info != string.Empty)
+                    if (!string.IsNullOrEmpty(info))
                     {
                         id = string.Concat(id, "_", info);
                     }
@@ -788,7 +788,7 @@ namespace Decompiler
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
 
-        private string FixPathSlashes(string path)
+        private static string FixPathSlashes(string path)
         {
             path = path.Replace('\\', '/');
 

@@ -2,7 +2,6 @@ using System;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
 
-#pragma warning disable SA1402 // File may only contain a single type
 namespace GUI.Types.ParticleRenderer
 {
     public interface IVectorProvider
@@ -49,4 +48,3 @@ namespace GUI.Types.ParticleRenderer
         }
     }
 }
-#pragma warning restore SA1402 // File may only contain a single type

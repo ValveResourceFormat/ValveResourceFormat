@@ -5,43 +5,43 @@ namespace GUI.Types.ParticleRenderer
 {
     public struct Particle
     {
-        public int ParticleCount;
+        public int ParticleCount { get; set; }
 
         // Base properties
-        public float ConstantAlpha;
-        public Vector3 ConstantColor;
-        public float ConstantLifetime;
-        public float ConstantRadius;
+        public float ConstantAlpha { get; set; }
+        public Vector3 ConstantColor { get; set; }
+        public float ConstantLifetime { get; set; }
+        public float ConstantRadius { get; set; }
 
         // Variable fields
-        public float Alpha;
-        public float AlphaAlternate;
+        public float Alpha { get; set; }
+        public float AlphaAlternate { get; set; }
 
-        public Vector3 Color;
+        public Vector3 Color { get; set; }
 
-        public float Lifetime;
+        public float Lifetime { get; set; }
 
-        public Vector3 Position;
+        public Vector3 Position { get; set; }
 
-        public Vector3 PositionPrevious;
+        public Vector3 PositionPrevious { get; set; }
 
-        public float Radius;
+        public float Radius { get; set; }
 
-        public float TrailLength;
+        public float TrailLength { get; set; }
 
         /// <summary>
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles.
         /// </summary>
-        public Vector3 Rotation;
+        public Vector3 Rotation { get; set; }
 
         /// <summary>
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles rotation speed.
         /// </summary>
-        public Vector3 RotationSpeed;
+        public Vector3 RotationSpeed { get; set; }
 
-        public int Sequence;
+        public int Sequence { get; set; }
 
-        public Vector3 Velocity;
+        public Vector3 Velocity { get; set; }
 
         public Particle(IKeyValueCollection baseProperties)
         {

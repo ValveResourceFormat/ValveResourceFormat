@@ -8,7 +8,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Audio
 {
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     internal class AudioPlayer
+#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private readonly Button playButton;
         private WaveOutEvent waveOut;

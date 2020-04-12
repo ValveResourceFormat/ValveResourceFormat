@@ -7,7 +7,7 @@ using System.IO;
 
 namespace ValveResourceFormat.ThirdParty
 {
-    public class MeshOptimizerIndexDecoder
+    public static class MeshOptimizerIndexDecoder
     {
         private const byte IndexHeader = 0xe0;
 
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ThirdParty
             return result;
         }
 
-        private static uint DecodeIndex(BinaryReader data, uint next, uint last)
+        private static uint DecodeIndex(BinaryReader data, uint last)
         {
             var v = DecodeVByte(data);
             var d = (uint)((v >> 1) ^ -(v & 1));
@@ -147,7 +147,7 @@ namespace ValveResourceFormat.ThirdParty
                         }
                         else
                         {
-                            var c = last = DecodeIndex(dataReader, next, last);
+                            var c = last = DecodeIndex(dataReader, last);
 
                             WriteTriangle(destination, i, indexSize, a, b, c);
 
@@ -202,17 +202,17 @@ namespace ValveResourceFormat.ThirdParty
 
                             if (fea == 15)
                             {
-                                last = a = DecodeIndex(dataReader, next, last);
+                                last = a = DecodeIndex(dataReader, last);
                             }
 
                             if (feb == 15)
                             {
-                                last = b = DecodeIndex(dataReader, next, last);
+                                last = b = DecodeIndex(dataReader, last);
                             }
 
                             if (fec == 15)
                             {
-                                last = c = DecodeIndex(dataReader, next, last);
+                                last = c = DecodeIndex(dataReader, last);
                             }
 
                             WriteTriangle(destination, i, indexSize, a, b, c);

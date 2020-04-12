@@ -56,7 +56,7 @@ namespace GUI.Forms
                         extractProgressBar.Style = ProgressBarStyle.Continuous;
                     }));
 
-                    await ExtractFilesAsync();
+                    await ExtractFilesAsync().ConfigureAwait(false);
                 },
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
@@ -143,7 +143,7 @@ namespace GUI.Forms
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
-                    await stream.WriteAsync(output, 0, output.Length, cancellationTokenSource.Token);
+                    await stream.WriteAsync(output, 0, output.Length, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
             }
         }

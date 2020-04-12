@@ -10,7 +10,9 @@ namespace GUI.Types.Renderer
     /// GL Render control with material controls (render modes maybe at some point?).
     /// Renders a list of MatarialRenderers.
     /// </summary>
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     internal class GLMaterialViewer
+#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private ICollection<MaterialRenderer> Renderers { get; } = new HashSet<MaterialRenderer>();
 
@@ -24,13 +26,7 @@ namespace GUI.Types.Renderer
         {
             viewerControl = new GLViewerControl();
 
-            InitializeControl();
-
             viewerControl.GLLoad += OnLoad;
-        }
-
-        private void InitializeControl()
-        {
         }
 
         private void OnLoad(object sender, EventArgs e)

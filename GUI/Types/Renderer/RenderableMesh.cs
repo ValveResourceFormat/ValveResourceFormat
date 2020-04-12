@@ -116,7 +116,7 @@ namespace GUI.Types.Renderer
                     }
 
                     // TODO: Don't pass around so much shit
-                    var drawCall = CreateDrawCall(objectDrawCall, vbib, gpuMeshBuffers, shaderArguments, material);
+                    var drawCall = CreateDrawCall(objectDrawCall, vbib, shaderArguments, material);
 
                     if (drawCall.Material.IsBlended)
                     {
@@ -132,7 +132,7 @@ namespace GUI.Types.Renderer
             //drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, GPUMeshBuffers gpuMeshBuffers, IDictionary<string, bool> shaderArguments, RenderMaterial material)
+        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, IDictionary<string, bool> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
 

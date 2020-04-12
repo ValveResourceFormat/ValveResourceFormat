@@ -3,7 +3,6 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <CodeAnalysisRuleSet>..\ValveResourceFormat\ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>

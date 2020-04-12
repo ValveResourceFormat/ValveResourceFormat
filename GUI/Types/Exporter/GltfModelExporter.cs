@@ -108,7 +108,7 @@ namespace GUI.Types.Exporter
                     {
                         if (AccessorInfo.TryGetValue(attribute.Name, out var accessorInfo))
                         {
-                            var buffer = ReadAttributeBuffer(vbib, vertexBuffer, attribute);
+                            var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
 
                             if (accessorInfo.NumComponents == 4)
                             {
@@ -318,12 +318,12 @@ namespace GUI.Types.Exporter
             },
         };
 
-        private float[] ReadAttributeBuffer(VBIB vbib, VertexBuffer buffer, VertexAttribute attribute)
+        private static float[] ReadAttributeBuffer(VertexBuffer buffer, VertexAttribute attribute)
             => Enumerable.Range(0, (int)buffer.Count)
-                .SelectMany(i => vbib.ReadVertexAttribute(i, buffer, attribute))
+                .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private int[] ReadIndices(IndexBuffer indexBuffer)
+        private static int[] ReadIndices(IndexBuffer indexBuffer)
         {
             var indices = new int[indexBuffer.Count];
 
@@ -341,7 +341,7 @@ namespace GUI.Types.Exporter
             return indices;
         }
 
-        private (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
+        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
         {
             var normals = new Vector3[compressedNormalsTangents.Length];
             var tangents = new Vector4[compressedNormalsTangents.Length];
@@ -361,7 +361,7 @@ namespace GUI.Types.Exporter
             return (normals, tangents);
         }
 
-        private Vector3 DecompressNormal(Vector2 compressedNormal)
+        private static Vector3 DecompressNormal(Vector2 compressedNormal)
         {
             var inputNormal = compressedNormal;
             var outputNormal = Vector3.Zero;
@@ -401,7 +401,7 @@ namespace GUI.Types.Exporter
             return outputNormal;
         }
 
-        private Vector4 DecompressTangent(Vector2 compressedTangent)
+        private static Vector4 DecompressTangent(Vector2 compressedTangent)
         {
             var outputNormal = DecompressNormal(compressedTangent);
             var tSign = compressedTangent.Y - 128.0f < 0 ? -1.0f : 1.0f;
@@ -412,7 +412,7 @@ namespace GUI.Types.Exporter
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
-        private Vector3[] ToVector3Array(float[] buffer, bool swapAxes = true, bool resize = false)
+        private static Vector3[] ToVector3Array(float[] buffer, bool swapAxes = true, bool resize = false)
         {
             var vectorArray = new Vector3[buffer.Length / 3];
 
@@ -435,7 +435,7 @@ namespace GUI.Types.Exporter
             return vectorArray;
         }
 
-        private Vector2[] ToVector2Array(float[] buffer)
+        private static Vector2[] ToVector2Array(float[] buffer)
         {
             var vectorArray = new Vector2[buffer.Length / 2];
 
@@ -447,7 +447,7 @@ namespace GUI.Types.Exporter
             return vectorArray;
         }
 
-        private Vector4[] ToVector4Array(float[] buffer)
+        private static Vector4[] ToVector4Array(float[] buffer)
         {
             var vectorArray = new Vector4[buffer.Length / 4];
 

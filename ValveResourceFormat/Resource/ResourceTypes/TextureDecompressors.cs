@@ -161,14 +161,12 @@ namespace ValveResourceFormat.ResourceTypes
                 hg = (float)Math.Pow((y - (0.344f * u) - (0.714f * v)) * mul, 2.25f);
                 hb = (float)Math.Pow((y + (1.770f * u)) * mul, 2.25f);
 
-#pragma warning disable SA1503
                 if (hr < 0) hr = 0;
                 if (hr > 1) hr = 1;
                 if (hg < 0) hg = 0;
                 if (hg > 1) hg = 1;
                 if (hb < 0) hb = 0;
                 if (hb > 1) hb = 1;
-#pragma warning restore SA1503
 
                 data[j + 0] = (byte)(hr * 255); // r
                 data[j + 1] = (byte)(hg * 255); // g
@@ -212,14 +210,12 @@ namespace ValveResourceFormat.ResourceTypes
                 hg = (float)Math.Pow((y - (0.344f * u) - (0.714f * v)) * mul, 2.25f);
                 hb = (float)Math.Pow((y + (1.770f * u)) * mul, 2.25f);
 
-#pragma warning disable SA1503
                 if (hr < 0) hr = 0;
                 if (hr > 1) hr = 1;
                 if (hg < 0) hg = 0;
                 if (hg > 1) hg = 1;
                 if (hb < 0) hb = 0;
                 if (hb > 1) hb = 1;
-#pragma warning restore SA1503
 
                 data[j + 0] = (byte)(hr * 255); // r
                 data[j + 1] = (byte)(hg * 255); // g

@@ -46,7 +46,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        private void AddLine(List<float> vertices, Vector3 from, Vector3 to, float r, float g, float b, float a)
+        private static void AddLine(List<float> vertices, Vector3 from, Vector3 to, float r, float g, float b, float a)
         {
             vertices.Add(from.X);
             vertices.Add(from.Y);
@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
             vertices.Add(a);
         }
 
-        private void AddBox(List<float> vertices, AABB box, float r, float g, float b, float a)
+        private static void AddBox(List<float> vertices, AABB box, float r, float g, float b, float a)
         {
             AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), r, g, b, a);
             AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), r, g, b, a);

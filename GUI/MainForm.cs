@@ -55,7 +55,7 @@ namespace GUI
                 }
             };
 
-            mainTabs.TabPages.Add(new ConsoleTab().CreateTab());
+            mainTabs.TabPages.Add(ConsoleTab.CreateTab());
 
             Console.WriteLine($"VRF v{Application.ProductVersion}");
 
@@ -659,7 +659,7 @@ namespace GUI
                         materialViewerControl.Load += (_, __) =>
                         {
                             var material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
-                            var materialRenderer = new MaterialRenderer(material, vrfGuiContext);
+                            var materialRenderer = new MaterialRenderer(material);
 
                             materialViewerControl.AddRenderer(materialRenderer);
                         };
@@ -939,7 +939,7 @@ namespace GUI
             }
         }
 
-        private TabPage FetchToolstripTabContext(object sender)
+        private static TabPage FetchToolstripTabContext(object sender)
         {
             var contextMenu = ((ToolStripMenuItem)sender).Owner;
             var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TabControl;
@@ -1038,7 +1038,7 @@ namespace GUI
             ExtractFiles(sender, false);
         }
 
-        private void ExtractFiles(object sender, bool decompile)
+        private static void ExtractFiles(object sender, bool decompile)
         {
             TreeViewWithSearchResults.TreeViewPackageTag package = null;
             TreeNode selectedNode = null;

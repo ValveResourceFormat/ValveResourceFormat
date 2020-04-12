@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public class Entity
         {
-            public Dictionary<uint, EntityProperty> Properties { get; set; }
+            public Dictionary<uint, EntityProperty> Properties { get; } = new Dictionary<uint, EntityProperty>();
 
             public T GetProperty<T>(string name)
                 => GetProperty<T>(EntityLumpKeyLookup.Get(name));
@@ -76,7 +76,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var hashedFieldsCount = dataReader.ReadUInt32();
                 var stringFieldsCount = dataReader.ReadUInt32();
 
-                var properties = new Dictionary<uint, EntityProperty>();
+                var entity = new Entity();
 
                 void ReadTypedValue(uint keyHash, string keyName)
                 {
@@ -116,7 +116,7 @@ namespace ValveResourceFormat.ResourceTypes
                             throw new NotImplementedException($"Unknown type {type}");
                     }
 
-                    properties.Add(keyHash, entityProperty);
+                    entity.Properties.Add(keyHash, entityProperty);
                 }
 
                 for (var i = 0; i < hashedFieldsCount; i++)
@@ -135,10 +135,7 @@ namespace ValveResourceFormat.ResourceTypes
                     ReadTypedValue(keyHash, keyName);
                 }
 
-                return new Entity
-                {
-                    Properties = properties,
-                };
+                return entity;
             }
         }
 

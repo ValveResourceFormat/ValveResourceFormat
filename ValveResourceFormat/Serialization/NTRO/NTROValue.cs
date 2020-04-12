@@ -13,9 +13,7 @@ namespace ValveResourceFormat.Serialization.NTRO
         public abstract object ValueObject { get; }
     }
 
-#pragma warning disable SA1402 // File may only contain a single type
     public class NTROValue<T> : NTROValue
-#pragma warning restore SA1402
     {
         public T Value { get; private set; }
 

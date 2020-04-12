@@ -273,7 +273,7 @@ namespace GUI.Controls
             Draw();
         }
 
-        private void CheckOpenGL()
+        private static void CheckOpenGL()
         {
             if (hasCheckedOpenGL)
             {

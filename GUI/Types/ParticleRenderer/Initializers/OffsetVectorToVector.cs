@@ -59,7 +59,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             return particle;
         }
 
-        private float Lerp(float min, float max, float t)
+        private static float Lerp(float min, float max, float t)
             => min + (t * (max - min));
     }
 }

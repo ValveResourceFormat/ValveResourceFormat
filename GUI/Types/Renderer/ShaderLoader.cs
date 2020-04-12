@@ -142,7 +142,7 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        public Shader LoadPlaneShader(string shaderName, IDictionary<string, bool> arguments)
+        public static Shader LoadPlaneShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
 
