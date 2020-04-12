@@ -13,10 +13,10 @@ namespace GUI.Types.Renderer
 
         public AABB BoundingBox => new AABB(-1, -1, -1, 1, 1, 1);
 
-        public MaterialRenderer(RenderMaterial renderMaterial, VrfGuiContext vrfGuiContext)
+        public MaterialRenderer(RenderMaterial renderMaterial)
         {
             material = renderMaterial;
-            shader = vrfGuiContext.ShaderLoader.LoadPlaneShader(material.Material.ShaderName, material.Material.GetShaderArguments());
+            shader = ShaderLoader.LoadPlaneShader(material.Material.ShaderName, material.Material.GetShaderArguments());
             quadVao = SetupQuadBuffer();
         }
 

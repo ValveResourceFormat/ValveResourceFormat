@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -15,7 +16,8 @@ namespace GUI
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             //Application.ThreadException += WinFormsException;
             // Force proper culture so exported OBJ files use . instead of ,
-            System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
             Application.EnableVisualStyles();
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);

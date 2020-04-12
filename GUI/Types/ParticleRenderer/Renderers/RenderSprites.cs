@@ -92,7 +92,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        private (int TextureIndex, Texture TextureData) LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
+        private static (int TextureIndex, Texture TextureData) LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
         {
             var textureResource = vrfGuiContext.LoadFileByAnyMeansNecessary(textureName + "_c");
 

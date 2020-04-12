@@ -5,7 +5,7 @@ using System;
 
 namespace ValveResourceFormat.ThirdParty
 {
-    public class MeshOptimizerVertexDecoder
+    public static class MeshOptimizerVertexDecoder
     {
         private const byte VertexHeader = 0xa0;
 

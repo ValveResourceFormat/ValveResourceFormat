@@ -13,7 +13,9 @@ namespace GUI.Types.Renderer
     /// GL Render control with particle controls (control points? particle counts?).
     /// Renders a list of ParticleRenderers.
     /// </summary>
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     internal class GLParticleViewer
+#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private ICollection<ParticleRenderer.ParticleRenderer> Renderers { get; } = new HashSet<ParticleRenderer.ParticleRenderer>();
 
@@ -32,13 +34,7 @@ namespace GUI.Types.Renderer
 
             viewerControl = new GLViewerControl();
 
-            InitializeControl();
-
             viewerControl.GLLoad += OnLoad;
-        }
-
-        private void InitializeControl()
-        {
         }
 
         private void OnLoad(object sender, EventArgs e)

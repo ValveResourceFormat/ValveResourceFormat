@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Windows.Forms;
@@ -39,7 +39,7 @@ namespace GUI.Forms
             };
             saveFileDialog.ShowDialog(this);
 
-            if (saveFileDialog.FileName != string.Empty)
+            if (string.IsNullOrEmpty(saveFileDialog.FileName))
             {
                 var format = ImageFormat.Png;
 

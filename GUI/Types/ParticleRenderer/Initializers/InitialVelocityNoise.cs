@@ -46,7 +46,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         // Simple perlin noise implementation
 
-        private float Simplex1D(float t)
+        private static float Simplex1D(float t)
         {
             var previous = PseudoRandom((float)Math.Floor(t));
             var next = PseudoRandom((float)Math.Ceiling(t));
@@ -57,7 +57,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         /// <summary>
         /// Yes I know it's not actually a proper LCG but I need it to work without knowing the last value.
         /// </summary>
-        private float PseudoRandom(float t)
+        private static float PseudoRandom(float t)
             => ((1013904223517 * t) % 1664525) / 1664525f;
 
         private static float CosineInterpolate(float start, float end, float mu)

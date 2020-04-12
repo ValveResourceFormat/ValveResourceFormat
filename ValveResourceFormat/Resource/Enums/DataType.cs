@@ -4,7 +4,6 @@ namespace ValveResourceFormat
 {
     public enum DataType
     {
-#pragma warning disable 1591
         Struct = 1,
         Enum = 2, // TODO: not verified with resourceinfo
         ExternalReference = 3,
@@ -30,6 +29,5 @@ namespace ValveResourceFormat
         Matrix3x4a = 36,
         CTransform = 40,
         Vector4D_44 = 44,
-#pragma warning restore 1591
     }
 }

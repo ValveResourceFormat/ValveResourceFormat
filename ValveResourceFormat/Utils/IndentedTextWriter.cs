@@ -69,7 +69,7 @@ namespace ValveResourceFormat
         public IndentedTextWriter()
             : base(CultureInfo.InvariantCulture)
         {
-            writer = new StringWriter();
+            writer = new StringWriter(CultureInfo.InvariantCulture);
             indentLevel = 0;
             tabsPending = false;
         }

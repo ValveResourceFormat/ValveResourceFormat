@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -75,7 +76,13 @@ namespace Decompiler
 
         // This decompiler is a test bed for our library,
         // don't expect to see any quality code in here
-        public static int Main(string[] args) => CommandLineApplication.Execute<Decompiler>(args);
+        public static int Main(string[] args)
+        {
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+            return CommandLineApplication.Execute<Decompiler>(args);
+        }
 
         private int OnExecute()
         {
@@ -172,7 +179,7 @@ namespace Decompiler
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
-                    var info = stat.Value.Info != string.Empty ? string.Format(" ({0})", stat.Value.Info) : string.Empty;
+                    var info = string.IsNullOrEmpty(stat.Value.Info) ? string.Empty : $" ({stat.Value.Info})";
 
                     Console.WriteLine($"{stat.Value.Count,5} resources of version {stat.Value.Version} and type {stat.Value.Type}{info}");
 
@@ -270,7 +277,7 @@ namespace Decompiler
                             break;
                     }
 
-                    if (info != string.Empty)
+                    if (!string.IsNullOrEmpty(info))
                     {
                         id = string.Concat(id, "_", info);
                     }
@@ -781,7 +788,7 @@ namespace Decompiler
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
 
-        private string FixPathSlashes(string path)
+        private static string FixPathSlashes(string path)
         {
             path = path.Replace('\\', '/');
 

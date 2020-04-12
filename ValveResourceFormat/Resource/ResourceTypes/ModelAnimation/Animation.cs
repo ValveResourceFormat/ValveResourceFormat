@@ -25,7 +25,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             Name = string.Empty;
             Fps = 0;
-            Frames = new Frame[0];
+            Frames = Array.Empty<Frame>();
 
             ConstructFromDesc(animDesc, decodeKey, decoderArray, segmentArray);
         }
@@ -302,7 +302,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         /// <param name="reader">Binary ready.</param>
         /// <returns>float.</returns>
-        private float ReadHalfFloat(BinaryReader reader)
+        private static float ReadHalfFloat(BinaryReader reader)
         {
             return HalfTypeHelper.Convert(reader.ReadUInt16());
         }
@@ -367,7 +367,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Flatten an array of matrices to an array of floats.
         /// </summary>
-        private float[] Flatten(Matrix4x4[] matrices)
+        private static float[] Flatten(Matrix4x4[] matrices)
         {
             var returnArray = new float[matrices.Length * 16];
 

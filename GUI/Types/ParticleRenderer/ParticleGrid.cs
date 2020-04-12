@@ -79,7 +79,7 @@ namespace GUI.Types.ParticleRenderer
             GL.Disable(EnableCap.Blend);
         }
 
-        private float[] GenerateGridVertexBuffer(float cellWidth, int gridWidthInCells)
+        private static float[] GenerateGridVertexBuffer(float cellWidth, int gridWidthInCells)
         {
             var gridVertices = new List<float>();
 

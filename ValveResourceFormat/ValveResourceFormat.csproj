@@ -10,17 +10,17 @@
     <RepositoryType>git</RepositoryType>
     <PackageLicenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</PackageLicenseUrl>
     <Version Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(APPVEYOR_BUILD_VERSION)</Version>
-    <CodeAnalysisRuleSet>ValveResourceFormat.ruleset</CodeAnalysisRuleSet>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="K4os.Compression.LZ4" Version="1.1.11" />
-    <PackageReference Include="SkiaSharp" Version="1.68.2-preview.45" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="1.68.2-preview.45" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.164" PrivateAssets="All" />
-    <PackageReference Include="System.Memory" Version="4.5.3" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.0.0-beta3.final">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SkiaSharp" Version="1.68.2-preview.50" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="1.68.2-preview.50" />
   </ItemGroup>
 </Project>
