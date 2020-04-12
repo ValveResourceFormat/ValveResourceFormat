@@ -39,7 +39,7 @@ namespace GUI.Forms
             };
             saveFileDialog.ShowDialog(this);
 
-            if (string.IsNullOrEmpty(saveFileDialog.FileName))
+            if (!string.IsNullOrEmpty(saveFileDialog.FileName))
             {
                 var format = ImageFormat.Png;
 
