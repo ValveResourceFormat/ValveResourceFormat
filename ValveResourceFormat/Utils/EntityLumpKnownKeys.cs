@@ -2459,6 +2459,7 @@ namespace ValveResourceFormat.Utils
                 "style",
                 "subdiv",
                 "subject",
+                "subtleeffects",
                 "successconceptmodifier",
                 "successdistance",
                 "suddendeathtime",
