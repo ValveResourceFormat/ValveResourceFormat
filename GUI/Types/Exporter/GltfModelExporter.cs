@@ -10,6 +10,7 @@ using SharpGLTF.IO;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Exporter
@@ -23,9 +24,20 @@ namespace GUI.Types.Exporter
     {
         private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
 
+        // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
+        // Also divides by 100, gltf units are in meters, source engine units are in inches
+        // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
+        private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, (float)Math.PI / -2f, 0);
+
         public GenericProgressForm ProgressDialog { get; set; }
         public VrfGuiContext GuiContext { get; set; }
 
+        /// <summary>
+        /// Export a Valve VMDL to GLTF.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="model">The model resource to export.</param>
         public void ExportToFile(string resourceName, string fileName, VModel model)
         {
             var exportedModel = ModelRoot.CreateModel();
@@ -33,18 +45,45 @@ namespace GUI.Types.Exporter
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
             var embeddedMeshIndex = 0;
 
+            void AddMeshNode(string name, VMesh mesh)
+            {
+                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, true);
+
+                // Add skeleton and skin
+                var modelSkeleton = model.GetSkeleton();
+
+                if (modelSkeleton.AnimationTextureSize > 0)
+                {
+                    var skeleton = scene.CreateNode(name);
+                    var joints = CreateGltfSkeleton(modelSkeleton, skeleton);
+
+                    scene.CreateNode(name)
+                        .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+
+                    // Rotate upright, scale inches to meters.
+                    skeleton.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                }
+                else
+                {
+                    var meshNode = scene.CreateNode(name)
+                        .WithMesh(exportedMesh);
+
+                    // Rotate upright, scale inches to meters.
+                    meshNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                }
+            }
+
+            // Add embedded meshes
             foreach (var mesh in model.GetEmbeddedMeshes())
             {
                 var name = $"Embedded Mesh {++embeddedMeshIndex}";
-                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
-                scene.CreateNode(name)
-                    .WithMesh(exportedMesh);
+                AddMeshNode(name, mesh);
             }
 
+            // Add external meshes
             foreach (var meshReference in model.GetReferencedMeshNames())
             {
                 var meshResource = GuiContext.LoadFileByAnyMeansNecessary(meshReference + "_c");
-
                 if (meshResource == null)
                 {
                     continue;
@@ -52,15 +91,19 @@ namespace GUI.Types.Exporter
 
                 var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                 var mesh = new VMesh(meshResource);
-                var exportedMesh = CreateGltfMesh(nodeName, mesh, exportedModel);
 
-                scene.CreateNode(nodeName)
-                    .WithMesh(exportedMesh);
+                AddMeshNode(nodeName, mesh);
             }
 
             exportedModel.Save(fileName);
         }
 
+        /// <summary>
+        /// Export a Valve VMESH to Gltf.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="mesh">The mesh resource to export.</param>
         public void ExportToFile(string resourceName, string fileName, VMesh mesh)
         {
             var exportedModel = ModelRoot.CreateModel();
@@ -68,14 +111,17 @@ namespace GUI.Types.Exporter
             var name = Path.GetFileName(resourceName);
             var scene = exportedModel.UseScene(name);
 
-            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel);
-            scene.CreateNode(name)
+            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, false);
+            var meshNode = scene.CreateNode(name)
                 .WithMesh(exportedMesh);
+
+            // Swap Rotate upright, scale inches to meters.
+            meshNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
 
             exportedModel.Save(fileName);
         }
 
-        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints)
         {
             ProgressDialog.SetProgress($"Creating mesh: {meshName}");
 
@@ -101,51 +147,113 @@ namespace GUI.Types.Exporter
                     var primitive = mesh.CreatePrimitive();
 
                     // Avoid duplicate attribute names
-                    var uniqueAttributes = vertexBuffer.Attributes.GroupBy(a => a.Name).Select(g => g.First());
+                    var attributeCounters = new Dictionary<string, int>();
 
                     // Set vertex attributes
-                    foreach (var attribute in uniqueAttributes)
+                    foreach (var attribute in vertexBuffer.Attributes)
                     {
-                        if (AccessorInfo.TryGetValue(attribute.Name, out var accessorInfo))
-                        {
-                            var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                        attributeCounters.TryGetValue(attribute.Name, out var attributeCounter);
+                        attributeCounters[attribute.Name] = attributeCounter + 1;
+                        var accessorName = GetAccessorName(attribute.Name, attributeCounter);
 
-                            if (accessorInfo.NumComponents == 4)
+                        var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                        var numComponents = buffer.Length / vertexBuffer.Count;
+
+                        if (attribute.Name == "BLENDINDICES")
+                        {
+                            if (!includeJoints)
                             {
-                                var vectors = ToVector4Array(buffer);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
+                                continue;
                             }
-                            else if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
-                            {
-                                var vectors = ToVector4Array(buffer);
-                                var (normals, tangents) = DecompressNormalTangents(vectors);
-                                primitive.WithVertexAccessor("NORMAL", normals);
-                                primitive.WithVertexAccessor("TANGENT", tangents);
-                            }
-                            else if (accessorInfo.NumComponents == 3)
-                            {
-                                var vectors = ToVector3Array(buffer, true, accessorInfo.Resize);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
-                            }
-                            else if (accessorInfo.NumComponents == 2)
-                            {
-                                var vectors = ToVector2Array(buffer);
-                                primitive.WithVertexAccessor(accessorInfo.GltfAccessorName, vectors);
-                            }
+
+                            var byteBuffer = buffer.Select(f => (byte)f).ToArray();
+                            var rawBufferData = new byte[buffer.Length];
+                            System.Buffer.BlockCopy(byteBuffer, 0, rawBufferData, 0, rawBufferData.Length);
+
+                            var bufferView = mesh.LogicalParent.UseBufferView(rawBufferData);
+                            var accessor = mesh.LogicalParent.CreateAccessor();
+                            accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
+
+                            primitive.SetVertexAccessor(accessorName, accessor);
+
+                            continue;
+                        }
+
+                        if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
+                        {
+                            var vectors = ToVector4Array(buffer);
+                            var (normals, tangents) = DecompressNormalTangents(vectors);
+                            primitive.WithVertexAccessor("NORMAL", normals);
+                            primitive.WithVertexAccessor("TANGENT", tangents);
+
+                            continue;
+                        }
+
+                        if (attribute.Name == "BLENDINDICES")
+                        {
+                            var byteBuffer = buffer.Select(f => (byte)f).ToArray();
+                            var bufferView = mesh.LogicalParent.UseBufferView(byteBuffer);
+                            var accessor = mesh.LogicalParent.CreateAccessor();
+                            accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
+
+                            primitive.SetVertexAccessor(accessorName, accessor);
+
+                            continue;
+                        }
+
+                        if (attribute.Name == "TEXCOORD" && numComponents != 2)
+                        {
+                            // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
+                            continue;
+                        }
+
+                        switch (numComponents)
+                        {
+                            case 4:
+                                {
+                                    var vectors = ToVector4Array(buffer);
+                                    primitive.WithVertexAccessor(accessorName, vectors);
+                                    break;
+                                }
+
+                            case 3:
+                                {
+                                    var vectors = ToVector3Array(buffer);
+                                    primitive.WithVertexAccessor(accessorName, vectors);
+                                    break;
+                                }
+
+                            case 2:
+                                {
+                                    var vectors = ToVector2Array(buffer);
+                                    primitive.WithVertexAccessor(accessorName, vectors);
+                                    break;
+                                }
+
+                            case 1:
+                                {
+                                    primitive.WithVertexAccessor(accessorName, buffer);
+                                    break;
+                                }
+
+                            default:
+                                throw new NotImplementedException($"Attribute \"{attribute.Name}\" has {numComponents} components");
                         }
                     }
 
-                    // Set index buffer
-                    var indices = ReadIndices(indexBuffer);
-
-                    // For triangle primitives, the front face has to be in counter-clockwise (CCW) winding order.
-                    for (var i = 0; i < indices.Length; i += 3)
+                    // For some reason soruce models can have joints but no weights, check if that is the case
+                    var jointAccessor = primitive.GetVertexAccessor("JOINTS_0");
+                    if (jointAccessor != null && primitive.GetVertexAccessor("WEIGHTS_0") == null)
                     {
-                        var b = indices[i + 2];
-                        indices[i + 2] = indices[i + 1];
-                        indices[i + 1] = b;
+                        // If this occurs, give default weights
+                        var defaultWeights = Enumerable.Repeat(Vector4.UnitX, jointAccessor.Count).ToList();
+                        primitive.WithVertexAccessor("WEIGHTS_0", defaultWeights);
                     }
 
+                    // Set index buffer
+                    var startIndex = (int)drawCall.GetIntegerProperty("m_nStartIndex");
+                    var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
+                    var indices = ReadIndices(indexBuffer, startIndex, indexCount);
                     primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
 
                     // Add material
@@ -169,6 +277,41 @@ namespace GUI.Types.Exporter
             }
 
             return mesh;
+        }
+
+        private Node[] CreateGltfSkeleton(Skeleton skeleton, Node skeletonNode)
+        {
+            var joints = new List<(Node Node, List<int> Indices)>();
+
+            foreach (var root in skeleton.Roots)
+            {
+                joints.AddRange(CreateBonesRecursive(root, skeletonNode));
+            }
+
+            var animationJoints = joints.Where(j => j.Indices.Any());
+            var numJoints = animationJoints.Max(j => j.Indices.Max());
+            var result = new Node[numJoints + 1];
+
+            foreach (var joint in animationJoints)
+            {
+                foreach (var index in joint.Indices)
+                {
+                    result[index] = joint.Node;
+                }
+            }
+
+            return result;
+        }
+
+        private IEnumerable<(Node Node, List<int> Indices)> CreateBonesRecursive(Bone bone, Node parent)
+        {
+            var node = parent.CreateNode(bone.Name)
+                .WithLocalTransform(bone.BindPose);
+
+            // Recurse into children
+            return bone.Children
+                .SelectMany(child => CreateBonesRecursive(child, node))
+                .Append((node, bone.SkinIndices));
         }
 
         private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, string materialName)
@@ -258,27 +401,27 @@ namespace GUI.Types.Exporter
                         material.FindChannel("Emissive")?.SetTexture(0, tex);
                         break;
                     case "g_tShadowFalloff":
-                        // example: tongue_gman, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
+                    // example: tongue_gman, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
                     case "g_tCombinedMasks":
-                        // example: models/characters/gman/materials/gman_head_mouth_mask_tga_bb35dc38.vtex
+                    // example: models/characters/gman/materials/gman_head_mouth_mask_tga_bb35dc38.vtex
                     case "g_tDiffuseFalloff":
-                        // example: materials/default/default_skin_diffusewarp_tga_e58a9ed.vtex
+                    // example: materials/default/default_skin_diffusewarp_tga_e58a9ed.vtex
                     case "g_tIris":
-                        // example:
+                    // example:
                     case "g_tIrisMask":
-                        // example: models/characters/gman/materials/gman_eye_iris_mask_tga_a5bb4a1e.vtex
+                    // example: models/characters/gman/materials/gman_eye_iris_mask_tga_a5bb4a1e.vtex
                     case "g_tTintColor":
-                        // example: models/characters/lazlo/eyemeniscus_vmat_g_ttintcolor_a00ef19e.vtex
+                    // example: models/characters/lazlo/eyemeniscus_vmat_g_ttintcolor_a00ef19e.vtex
                     case "g_tAnisoGloss":
-                        // example: gordon_beard, models/characters/gordon/materials/gordon_hair_normal_tga_272a44e9.vtex
+                    // example: gordon_beard, models/characters/gordon/materials/gordon_hair_normal_tga_272a44e9.vtex
                     case "g_tBentNormal":
-                        // example: gman_teeth, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
+                    // example: gman_teeth, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
                     case "g_tFresnelWarp":
-                        // example: brewmaster_color, materials/default/default_fresnelwarprim_tga_d9279d65.vtex
+                    // example: brewmaster_color, materials/default/default_fresnelwarprim_tga_d9279d65.vtex
                     case "g_tMasks1":
-                        // example: brewmaster_color, materials/models/heroes/brewmaster/brewmaster_base_metalnessmask_psd_58eaa40f.vtex
+                    // example: brewmaster_color, materials/models/heroes/brewmaster/brewmaster_base_metalnessmask_psd_58eaa40f.vtex
                     case "g_tMasks2":
-                        // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
+                    // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
                     default:
                         Console.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
                         break;
@@ -288,53 +431,43 @@ namespace GUI.Types.Exporter
             return material;
         }
 
-        private class AttributeExportInfo
+        public static string GetAccessorName(string name, int index)
         {
-            public string GltfAccessorName { get; set; }
+            switch (name)
+            {
+                case "BLENDINDICES": return $"JOINTS_{index}";
+                case "BLENDWEIGHT": return $"WEIGHTS_{index}";
+                case "TEXCOORD": return $"TEXCOORD_{index}";
+                case "COLOR": return $"COLOR_{index}";
+            }
 
-            public int NumComponents { get; set; }
+            if (index > 0)
+            {
+                throw new InvalidDataException($"Got attribute \"{name}\" more than once, but that is not supported");
+            }
 
-            public bool Resize { get; set; }
+            return name;
         }
-
-        private static IDictionary<string, AttributeExportInfo> AccessorInfo = new Dictionary<string, AttributeExportInfo>
-        {
-            ["POSITION"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "POSITION",
-                NumComponents = 3,
-                Resize = true,
-            },
-            ["NORMAL"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "NORMAL",
-                NumComponents = 3,
-                Resize = false,
-            },
-            ["TEXCOORD"] = new AttributeExportInfo
-            {
-                GltfAccessorName = "TEXCOORD_0",
-                NumComponents = 2,
-            },
-        };
 
         private static float[] ReadAttributeBuffer(VertexBuffer buffer, VertexAttribute attribute)
             => Enumerable.Range(0, (int)buffer.Count)
                 .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private static int[] ReadIndices(IndexBuffer indexBuffer)
+        private static int[] ReadIndices(IndexBuffer indexBuffer, int start, int count)
         {
-            var indices = new int[indexBuffer.Count];
+            var indices = new int[count];
+
+            var byteCount = count * (int)indexBuffer.Size;
 
             if (indexBuffer.Size == 4)
             {
-                System.Buffer.BlockCopy(indexBuffer.Buffer, 0, indices, 0, indexBuffer.Buffer.Length);
+                System.Buffer.BlockCopy(indexBuffer.Buffer, start, indices, 0, byteCount);
             }
             else if (indexBuffer.Size == 2)
             {
-                var shortIndices = new short[indexBuffer.Count];
-                System.Buffer.BlockCopy(indexBuffer.Buffer, 0, shortIndices, 0, indexBuffer.Buffer.Length);
+                var shortIndices = new short[count];
+                System.Buffer.BlockCopy(indexBuffer.Buffer, start, shortIndices, 0, byteCount);
                 indices = Array.ConvertAll(shortIndices, i => (int)i);
             }
 
@@ -409,27 +542,13 @@ namespace GUI.Types.Exporter
             return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
         }
 
-        // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
-        // Also divides by 100, gltf units are in meters, source engine units are in inches
-        // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
-        private static Vector3[] ToVector3Array(float[] buffer, bool swapAxes = true, bool resize = false)
+        private static Vector3[] ToVector3Array(float[] buffer)
         {
             var vectorArray = new Vector3[buffer.Length / 3];
 
-            var yIndex = swapAxes ? 2 : 1;
-            var zIndex = swapAxes ? 1 : 2;
-
             for (var i = 0; i < vectorArray.Length; i++)
             {
-                vectorArray[i] = new Vector3(buffer[i * 3], buffer[(i * 3) + yIndex], buffer[(i * 3) + zIndex]);
-            }
-
-            if (resize)
-            {
-                for (var i = 0; i < vectorArray.Length; i++)
-                {
-                    vectorArray[i] = vectorArray[i] * 0.0254f;
-                }
+                vectorArray[i] = new Vector3(buffer[i * 3], buffer[(i * 3) + 1], buffer[(i * 3) + 2]);
             }
 
             return vectorArray;

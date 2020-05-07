@@ -82,7 +82,7 @@ namespace ValveResourceFormat.Blocks
 
                     var attribute = default(VertexAttribute);
 
-                    attribute.Name = reader.ReadNullTermString(Encoding.UTF8);
+                    attribute.Name = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
 
                     // Offset is always 40 bytes from the start
                     reader.BaseStream.Position = previousPosition + 36;
@@ -195,10 +195,31 @@ namespace ValveResourceFormat.Blocks
                     break;
                 }
 
+                case DXGI_FORMAT.R32_FLOAT:
+                {
+                    result = new float[1];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 4);
+                    break;
+                }
+
                 case DXGI_FORMAT.R32G32_FLOAT:
                 {
                     result = new float[2];
                     Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
+                    break;
+                }
+
+                case DXGI_FORMAT.R16G16B16A16_SINT:
+                {
+                    var shorts = new short[4];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 8);
+
+                    result = new float[4];
+                    for (var i = 0; i < 4; i++)
+                    {
+                        result[i] = shorts[i];
+                    }
+
                     break;
                 }
 
@@ -228,7 +249,33 @@ namespace ValveResourceFormat.Blocks
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.WriteLine("{0:X8}", Offset);
+            writer.WriteLine("Vertex buffers:");
+
+            foreach (var vertexBuffer in VertexBuffers)
+            {
+                writer.WriteLine($"Count: {vertexBuffer.Count}");
+                writer.WriteLine($"Size: {vertexBuffer.Size}");
+
+                for (var i = 0; i < vertexBuffer.Attributes.Count; i++)
+                {
+                    var vertexAttribute = vertexBuffer.Attributes[i];
+                    writer.WriteLine($"Attribute[{i}].Name = {vertexAttribute.Name}");
+                    writer.WriteLine($"Attribute[{i}].Offset = {vertexAttribute.Offset}");
+                    writer.WriteLine($"Attribute[{i}].Type = {vertexAttribute.Type}");
+                }
+
+                writer.WriteLine();
+            }
+
+            writer.WriteLine();
+            writer.WriteLine("Index buffers:");
+
+            foreach (var indexBuffer in IndexBuffers)
+            {
+                writer.WriteLine($"Count: {indexBuffer.Count}");
+                writer.WriteLine($"Size: {indexBuffer.Size}");
+                writer.WriteLine();
+            }
         }
     }
 }
