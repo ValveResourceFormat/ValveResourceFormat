@@ -34,12 +34,12 @@ This repository is split into three components:
 ## Eye catchy screenshots
 <table>
 	<tr>
-		<td><img src="https://vrf.steamdb.info/static/screen_map.png"></td>
-		<td><img src="https://vrf.steamdb.info/static/screen_texture.png"></td>
+		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_map.png"></td>
+		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_texture.png"></td>
 	</tr>
 	<tr>
-		<td><img src="https://vrf.steamdb.info/static/screen_package.png"></td>
-		<td><img src="https://vrf.steamdb.info/static/screen_cli.png"></td>
+		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_package.png"></td>
+		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_cli.png"></td>
 	</tr>
 </table>
 
