@@ -1925,7 +1925,7 @@ namespace ValveResourceFormat.Utils
                 "particletype",
                 "passthroughcaller",
                 "pathcornername",
-                "pathNodes",
+                "pathnodes",
                 "patrolspeed",
                 "pattern",
                 "pauseduration",
