@@ -1057,6 +1057,7 @@ namespace ValveResourceFormat.Utils
                 "group13",
                 "group14",
                 "group15",
+                "groupbyprefab",
                 "groupbyvolume",
                 "groupname",
                 "groupnames",
