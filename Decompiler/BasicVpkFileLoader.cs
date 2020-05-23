@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using SteamDatabase.ValvePak;
 
@@ -9,12 +10,12 @@ namespace ValveResourceFormat.IO
 
         public BasicVpkFileLoader(Package package)
         {
-            CurrentPackage = package;
+            CurrentPackage = package ?? throw new ArgumentNullException(nameof(package));
         }
 
         public Resource LoadFile(string file)
         {
-            var entry = CurrentPackage?.FindEntry(file);
+            var entry = CurrentPackage.FindEntry(file);
 
             if (entry == null)
             {
