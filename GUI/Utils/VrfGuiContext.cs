@@ -18,7 +18,7 @@ namespace GUI.Utils
         public ShaderLoader ShaderLoader { get; }
         public GPUMeshBufferCache MeshBufferCache { get; }
 
-        private readonly FileLoader FileLoader;
+        private readonly AdvancedGuiFileLoader FileLoader;
 
         public QuadIndexBuffer QuadIndices
         {
@@ -42,12 +42,12 @@ namespace GUI.Utils
             ParentPackage = package?.ParentPackage;
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();
-            FileLoader = new FileLoader();
+            FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
         }
 
         public Resource LoadFileByAnyMeansNecessary(string file) =>
-            FileLoader.LoadFileByAnyMeansNecessary(file, this);
+            FileLoader.LoadFile(file);
 
         public void ClearCache() => FileLoader.ClearCache();
     }

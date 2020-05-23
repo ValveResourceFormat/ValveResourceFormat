@@ -6,13 +6,20 @@ using System.IO;
 using System.Linq;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
-    internal class FileLoader
+    internal class AdvancedGuiFileLoader : IFileLoader
     {
         private static readonly Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
         private readonly Dictionary<string, Resource> CachedResources = new Dictionary<string, Resource>();
+        private readonly VrfGuiContext GuiContext;
+
+        public AdvancedGuiFileLoader(VrfGuiContext guiContext)
+        {
+            GuiContext = guiContext;
+        }
 
         public void ClearCache()
         {
@@ -24,7 +31,7 @@ namespace GUI.Utils
             CachedResources.Clear();
         }
 
-        public Resource LoadFileByAnyMeansNecessary(string file, VrfGuiContext guiContext)
+        public Resource LoadFile(string file)
         {
             // TODO: Might conflict where same file name is available in different paths
             if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
@@ -34,7 +41,7 @@ namespace GUI.Utils
 
             resource = new Resource();
 
-            var entry = guiContext.CurrentPackage?.FindEntry(file);
+            var entry = GuiContext.CurrentPackage?.FindEntry(file);
 
             if (entry != null)
             {
@@ -42,14 +49,14 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from current vpk");
 #endif
 
-                guiContext.CurrentPackage.ReadEntry(entry, out var output, false);
+                GuiContext.CurrentPackage.ReadEntry(entry, out var output, false);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
 
                 return resource;
             }
 
-            entry = guiContext.ParentPackage?.FindEntry(file);
+            entry = GuiContext.ParentPackage?.FindEntry(file);
 
             if (entry != null)
             {
@@ -57,7 +64,7 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from parent vpk");
 #endif
 
-                guiContext.ParentPackage.ReadEntry(entry, out var output, false);
+                GuiContext.ParentPackage.ReadEntry(entry, out var output, false);
                 resource.Read(new MemoryStream(output));
                 CachedResources[file] = resource;
 
@@ -83,15 +90,15 @@ namespace GUI.Utils
                 packages.Add(package);
             }
 
-            if (guiContext.ParentPackage != null && guiContext.ParentPackage.Entries.ContainsKey("vpk"))
+            if (GuiContext.ParentPackage != null && GuiContext.ParentPackage.Entries.ContainsKey("vpk"))
             {
-                foreach (var searchPath in guiContext.ParentPackage.Entries["vpk"])
+                foreach (var searchPath in GuiContext.ParentPackage.Entries["vpk"])
                 {
                     if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
                     {
                         Console.WriteLine($"Preloading vpk from parent vpk \"{searchPath}\"");
 
-                        guiContext.ParentPackage.ReadEntry(searchPath, out var vpk, false);
+                        GuiContext.ParentPackage.ReadEntry(searchPath, out var vpk, false);
                         var ms = new MemoryStream(vpk);
                         package = new Package();
                         package.SetFileName(searchPath.GetFileName());
@@ -121,7 +128,7 @@ namespace GUI.Utils
                 }
             }
 
-            var path = FindResourcePath(paths, file, guiContext.FileName);
+            var path = FindResourcePath(paths, file, GuiContext.FileName);
 
             if (path == null)
             {
