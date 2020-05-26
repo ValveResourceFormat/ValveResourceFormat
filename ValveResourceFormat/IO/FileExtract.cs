@@ -53,6 +53,10 @@ namespace ValveResourceFormat.IO
                     data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.DataBlock).GetKV3File().ToString());
                     break;
 
+                case ResourceType.Material:
+                    data = ((Material)resource.DataBlock).ToValveMaterial();
+                    break;
+
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
