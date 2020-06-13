@@ -32,45 +32,44 @@ jobs:
       run: dotnet test -v normal ./Tests/Tests.csproj
 
     - name: Pack nupkg
-      if: matrix.os == 'windows-latest'
       run: dotnet pack --configuration release ValveResourceFormat/ValveResourceFormat.csproj
+
+    - name: Publish GUI
+      if: matrix.os == 'windows-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 GUI/GUI.csproj
+
+    - name: Publish Decompiler (Windows)
+      if: matrix.os == 'windows-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler/Decompiler.csproj
+
+    - name: Publish Decompiler (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler/Decompiler.csproj
+
+    - name: Upload GUI
+      uses: actions/upload-artifact@v2
+      if: matrix.os == 'windows-latest'
+      with:
+        name: VRF GUI
+        path: GUI/bin/Release/win-x64/publish
 
     - name: Upload nupkg
       uses: actions/upload-artifact@v2
       if: matrix.os == 'windows-latest'
       with:
         name: nupkg
-        path: '**/*.nupkg'
-
-    - name: Publish GUI
-      if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 GUI/GUI.csproj
-
-    - name: Upload GUI
-      uses: actions/upload-artifact@v2
-      if: matrix.os == 'windows-latest'
-      with:
-        name: VRF
-        path: GUI/bin/Release/win-x64/publish
-
-    - name: Publish Decompiler (Windows)
-      if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler/Decompiler.csproj
+        path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
     - name: Upload Decompiler (Windows)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'windows-latest'
       with:
-        name: Decompiler-win-x64
+        name: Decompiler for Windows
         path: Decompiler/bin/Release/netcoreapp3.1/win-x64/publish
-
-    - name: Publish Decompiler (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler/Decompiler.csproj
 
     - name: Upload Decompiler (Linux)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux-x64
+        name: Decompiler for Linux
         path: Decompiler/bin/Release/netcoreapp3.1/linux-x64/publish
