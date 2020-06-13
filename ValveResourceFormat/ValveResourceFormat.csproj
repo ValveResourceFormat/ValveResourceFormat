@@ -8,7 +8,6 @@
     <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageLicenseUrl>https://github.com/SteamDatabase/ValveResourceFormat/blob/master/LICENSE</PackageLicenseUrl>
     <Version Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(APPVEYOR_BUILD_VERSION)</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>embedded</DebugType>
