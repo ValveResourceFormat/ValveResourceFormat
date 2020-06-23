@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <Version>999.9.9</Version>
-    <Authors>Steam Database</Authors>
-    <Copyright>Steam Database</Copyright>
+    <Authors>SteamDB</Authors>
+    <Copyright>Copyright © SteamDB</Copyright>
     <Description>Library to decompile Valve Source 2 files</Description>
     <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
@@ -12,6 +12,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <PackageReleaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</PackageReleaseNotes>
+    <PackageIcon>1455069708_api-code-window.png</PackageIcon>
+    <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="K4os.Compression.LZ4" Version="1.1.11" />
@@ -21,5 +25,11 @@
     </PackageReference>
     <PackageReference Include="SkiaSharp" Version="1.68.2.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="1.68.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Icons\Programs\1455069708_api-code-window.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 </Project>
