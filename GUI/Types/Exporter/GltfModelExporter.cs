@@ -459,15 +459,16 @@ namespace GUI.Types.Exporter
             var indices = new int[count];
 
             var byteCount = count * (int)indexBuffer.Size;
+            var byteStart = start * (int)indexBuffer.Size;
 
             if (indexBuffer.Size == 4)
             {
-                System.Buffer.BlockCopy(indexBuffer.Buffer, start, indices, 0, byteCount);
+                System.Buffer.BlockCopy(indexBuffer.Buffer, byteStart, indices, 0, byteCount);
             }
             else if (indexBuffer.Size == 2)
             {
                 var shortIndices = new short[count];
-                System.Buffer.BlockCopy(indexBuffer.Buffer, start, shortIndices, 0, byteCount);
+                System.Buffer.BlockCopy(indexBuffer.Buffer, byteStart, shortIndices, 0, byteCount);
                 indices = Array.ConvertAll(shortIndices, i => (int)i);
             }
 
