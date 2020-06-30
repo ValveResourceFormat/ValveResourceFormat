@@ -300,6 +300,15 @@ namespace GUI.Types.Exporter
                 }
             }
 
+            // Fill null indices with some dummy node
+            for (var i = 0; i < numJoints + 1; i++)
+            {
+                if (result[i] == null)
+                {
+                    result[i] = skeletonNode.CreateNode();
+                }
+            }
+
             return result;
         }
 
