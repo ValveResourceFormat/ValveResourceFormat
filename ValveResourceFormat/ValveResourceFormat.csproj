@@ -25,6 +25,7 @@
     </PackageReference>
     <PackageReference Include="SkiaSharp" Version="1.68.2.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="1.68.2.1" />
+    <PackageReference Include="ValveKeyValue" Version="0.3.1.152" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Icons\Programs\1455069708_api-code-window.png">

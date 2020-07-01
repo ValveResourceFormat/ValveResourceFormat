@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Serialization;
@@ -110,6 +112,62 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return arguments;
+        }
+
+        public byte[] ToValveMaterial()
+        {
+            var root = new KVObject("Layer0", new List<KVObject>());
+            
+            root.Add(new KVObject("shader", ShaderName));
+
+            foreach (var (key, value) in IntParams)
+            {
+                root.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in FloatParams)
+            {
+                root.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in VectorParams)
+            {
+                root.Add(new KVObject(key, $"[{value.X} {value.Y} {value.Z} {value.W}]"));
+            }
+
+            foreach (var (key, value) in TextureParams)
+            {
+                root.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in IntAttributes)
+            {
+                root.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in FloatAttributes)
+            {
+                root.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in FloatAttributes)
+            {
+                root.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in VectorAttributes)
+            {
+                root.Add(new KVObject(key, $"[{value.X} {value.Y} {value.Z} {value.W}]"));
+            }
+
+            foreach (var (key, value) in StringAttributes)
+            {
+                root.Add(new KVObject(key, value ?? string.Empty));
+            }
+
+            using var ms = new MemoryStream();
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
+            return ms.ToArray();
         }
     }
 }

@@ -40,7 +40,6 @@
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0016" />
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.2.1" />
-    <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
     <PackageReference Include="ValvePak" Version="1.0.2.29" />
   </ItemGroup>
   <ItemGroup>
