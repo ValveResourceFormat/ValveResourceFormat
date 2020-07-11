@@ -476,7 +476,7 @@ namespace GUI.Types.Exporter
             }
             else if (indexBuffer.Size == 2)
             {
-                var shortIndices = new short[count];
+                var shortIndices = new ushort[count];
                 System.Buffer.BlockCopy(indexBuffer.Buffer, byteStart, shortIndices, 0, byteCount);
                 indices = Array.ConvertAll(shortIndices, i => (int)i);
             }
