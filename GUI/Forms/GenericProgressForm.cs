@@ -20,6 +20,11 @@ namespace GUI.Forms
 
         public void SetProgress(string text)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Invoke((Action)(() =>
             {
                 extractStatusLabel.Text = text;
