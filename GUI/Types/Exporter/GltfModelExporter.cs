@@ -601,7 +601,10 @@ namespace GUI.Types.Exporter
 
                 if (Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) > UnitLengthThresholdVec3)
                 {
-                    vectorArray[i] = new Vector4(1f, 0f, 0f, vec.W);
+                    vectorArray[i] = -Vector4.UnitZ;
+                    vectorArray[i].W = vec.W;
+                    
+                    Console.Error.WriteLine($"The exported model contains a non-zero unit vector which was replaced with {vectorArray[i]} for exporting purposes.");
                 }
             }
 
@@ -614,7 +617,9 @@ namespace GUI.Types.Exporter
             {
                 if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
                 {
-                    vectorArray[i] = new Vector3(1f, 0f, 0f);
+                    vectorArray[i] = -Vector3.UnitZ;
+                    
+                    Console.Error.WriteLine($"The exported model contains a non-zero unit vector which was replaced with {vectorArray[i]} for exporting purposes.");
                 }
             }
 
