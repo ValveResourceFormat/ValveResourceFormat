@@ -28,8 +28,8 @@
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0016" />
-    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="1.68.2.1" />
-    <PackageReference Include="ValvePak" Version="1.0.2.29" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.80.0" />
+    <PackageReference Include="ValvePak" Version="1.0.2.35" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AssetTypes\*" />
