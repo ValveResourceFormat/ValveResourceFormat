@@ -4,7 +4,7 @@
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <Description>Source 2 resource decompiler and extractor</Description>
-    <ApplicationIcon>..\Icons\Programs\1444493670_window-api-coding-configuration.ico</ApplicationIcon>
+    <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>

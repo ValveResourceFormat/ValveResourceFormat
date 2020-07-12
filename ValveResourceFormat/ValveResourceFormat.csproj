@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Library to decompile Valve Source 2 files</Description>
     <PackageReleaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</PackageReleaseNotes>
-    <PackageIcon>1455069708_api-code-window.png</PackageIcon>
+    <PackageIcon>vrf_library.png</PackageIcon>
     <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
   </PropertyGroup>
   <ItemGroup>
@@ -17,7 +17,7 @@
     <PackageReference Include="ValveKeyValue" Version="0.3.1.152" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Icons\Programs\1455069708_api-code-window.png">
+    <None Include="..\Icons\vrf_library.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>

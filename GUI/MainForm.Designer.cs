@@ -48,8 +48,8 @@ namespace GUI
             this.mainTabs = new System.Windows.Forms.TabControl();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.closeToolStripMenuItemsToLeft = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItemsToRight = new System.Windows.Forms.ToolStripMenuItem();
+            this.closeToolStripMenuItemsToLeft = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItems = new System.Windows.Forms.ToolStripMenuItem();
             this.vpkContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.extractToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -74,9 +74,9 @@ namespace GUI
             this.aboutToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Padding = new System.Windows.Forms.Padding(4, 1, 0, 0);
+            this.menuStrip1.Padding = new System.Windows.Forms.Padding(5, 1, 0, 0);
             this.menuStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-            this.menuStrip1.Size = new System.Drawing.Size(944, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(1101, 24);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -97,10 +97,9 @@ namespace GUI
             this.findToolStripButton.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.findToolStripButton.Name = "findToolStripButton";
-            this.findToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.findToolStripButton.Size = new System.Drawing.Size(58, 20);
-            this.findToolStripButton.Text = "&Find";
             this.findToolStripButton.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.F)));
+            this.findToolStripButton.Size = new System.Drawing.Size(58, 23);
+            this.findToolStripButton.Text = "&Find";
             this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
             // exportToolStripButton
@@ -135,13 +134,13 @@ namespace GUI
             // mainTabs
             // 
             this.mainTabs.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
+            this.mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.mainTabs.Location = new System.Drawing.Point(0, 24);
             this.mainTabs.Margin = new System.Windows.Forms.Padding(0);
             this.mainTabs.Name = "mainTabs";
             this.mainTabs.Padding = new System.Drawing.Point(0, 0);
             this.mainTabs.SelectedIndex = 0;
-            this.mainTabs.Size = new System.Drawing.Size(944, 437);
+            this.mainTabs.Size = new System.Drawing.Size(1101, 508);
             this.mainTabs.TabIndex = 1;
             this.mainTabs.MouseClick += new System.Windows.Forms.MouseEventHandler(this.OnTabClick);
             // 
@@ -155,41 +154,41 @@ namespace GUI
             this.closeToolStripMenuItems});
             this.contextMenuStrip1.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(194, 124);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(234, 124);
             // 
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItem.Image")));
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(193, 30);
-            this.closeToolStripMenuItem.Text = "Close this &tab";
             this.closeToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.W)));
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            this.closeToolStripMenuItem.Text = "Close this &tab";
             this.closeToolStripMenuItem.Click += new System.EventHandler(this.CloseToolStripMenuItem_Click);
-            // 
-            // closeToolStripMenuItemsToLeft
-            // 
-            this.closeToolStripMenuItemsToLeft.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItemsToLeft.Image")));
-            this.closeToolStripMenuItemsToLeft.Name = "closeToolStripMenuItemsToLeft";
-            this.closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(193, 30);
-            this.closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
-            this.closeToolStripMenuItemsToLeft.Click += new System.EventHandler(this.CloseToolStripMenuItemsToLeft_Click);
             // 
             // closeToolStripMenuItemsToRight
             // 
             this.closeToolStripMenuItemsToRight.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItemsToRight.Image")));
             this.closeToolStripMenuItemsToRight.Name = "closeToolStripMenuItemsToRight";
-            this.closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(193, 30);
-            this.closeToolStripMenuItemsToRight.Text = "Close all tabs to &right";
             this.closeToolStripMenuItemsToRight.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.E)));
+            this.closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(233, 30);
+            this.closeToolStripMenuItemsToRight.Text = "Close all tabs to &right";
             this.closeToolStripMenuItemsToRight.Click += new System.EventHandler(this.CloseToolStripMenuItemsToRight_Click);
+            // 
+            // closeToolStripMenuItemsToLeft
+            // 
+            this.closeToolStripMenuItemsToLeft.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItemsToLeft.Image")));
+            this.closeToolStripMenuItemsToLeft.Name = "closeToolStripMenuItemsToLeft";
+            this.closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(233, 30);
+            this.closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
+            this.closeToolStripMenuItemsToLeft.Click += new System.EventHandler(this.CloseToolStripMenuItemsToLeft_Click);
             // 
             // closeToolStripMenuItems
             // 
             this.closeToolStripMenuItems.Image = ((System.Drawing.Image)(resources.GetObject("closeToolStripMenuItems.Image")));
             this.closeToolStripMenuItems.Name = "closeToolStripMenuItems";
-            this.closeToolStripMenuItems.Size = new System.Drawing.Size(193, 30);
-            this.closeToolStripMenuItems.Text = "Close &all tabs";
             this.closeToolStripMenuItems.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Q)));
+            this.closeToolStripMenuItems.Size = new System.Drawing.Size(233, 30);
+            this.closeToolStripMenuItems.Text = "Close &all tabs";
             this.closeToolStripMenuItems.Click += new System.EventHandler(this.CloseToolStripMenuItems_Click);
             // 
             // vpkContextMenu
@@ -243,15 +242,15 @@ namespace GUI
             // MainForm
             // 
             this.AllowDrop = true;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(944, 461);
+            this.ClientSize = new System.Drawing.Size(1101, 532);
             this.Controls.Add(this.mainTabs);
             this.Controls.Add(this.menuStrip1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.Margin = new System.Windows.Forms.Padding(2);
-            this.MinimumSize = new System.Drawing.Size(300, 300);
+            this.MinimumSize = new System.Drawing.Size(347, 340);
             this.Name = "MainForm";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
             this.Load += new System.EventHandler(this.MainForm_Load);
