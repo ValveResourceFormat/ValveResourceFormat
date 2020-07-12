@@ -200,6 +200,13 @@ namespace GUI.Types.Exporter
                             case 4:
                                 {
                                     var vectors = ToVector4Array(buffer);
+                                    
+                                    // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
+                                    if (attribute.Name == "NORMAL" || attribute.Name == "TANGENT")
+                                    {
+                                        vectors = FixZeroLengthVectors(vectors);
+                                    }
+
                                     primitive.WithVertexAccessor(accessorName, vectors);
                                     break;
                                 }
@@ -207,6 +214,13 @@ namespace GUI.Types.Exporter
                             case 3:
                                 {
                                     var vectors = ToVector3Array(buffer);
+
+                                    // dropship.vmdl in HL:A has a normal with value of <0, 0, 0>
+                                    if (attribute.Name == "NORMAL" || attribute.Name == "TANGENT")
+                                    {
+                                        vectors = FixZeroLengthVectors(vectors);
+                                    }
+
                                     primitive.WithVertexAccessor(accessorName, vectors);
                                     break;
                                 }
@@ -571,6 +585,37 @@ namespace GUI.Types.Exporter
             for (var i = 0; i < vectorArray.Length; i++)
             {
                 vectorArray[i] = new Vector4(buffer[i * 4], buffer[(i * 4) + 1], buffer[(i * 4) + 2], buffer[(i * 4) + 3]);
+            }
+
+            return vectorArray;
+        }
+
+        // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
+        private const float UnitLengthThresholdVec3 = 0.00674f;
+
+        private static Vector4[] FixZeroLengthVectors(Vector4[] vectorArray)
+        {
+            for (var i = 0; i < vectorArray.Length; i++)
+            {
+                var vec = vectorArray[i];
+
+                if (Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) > UnitLengthThresholdVec3)
+                {
+                    vectorArray[i] = new Vector4(1f, 0f, 0f, vec.W);
+                }
+            }
+
+            return vectorArray;
+        }
+
+        private static Vector3[] FixZeroLengthVectors(Vector3[] vectorArray)
+        {
+            for (var i = 0; i < vectorArray.Length; i++)
+            {
+                if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
+                {
+                    vectorArray[i] = new Vector3(1f, 0f, 0f);
+                }
             }
 
             return vectorArray;
