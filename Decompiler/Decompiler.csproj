@@ -3,19 +3,9 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
-    <Version>999.9.9</Version>
-    <Authors>Steam Database</Authors>
-    <Copyright>Steam Database</Copyright>
     <Description>Source 2 resource decompiler and extractor</Description>
-    <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <Version Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(APPVEYOR_BUILD_VERSION)</Version>
     <ApplicationIcon>..\Icons\Programs\1444493670_window-api-coding-configuration.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <DebugType>embedded</DebugType>
-    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="3.0.0" />

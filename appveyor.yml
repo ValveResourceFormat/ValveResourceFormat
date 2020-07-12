@@ -1,14 +1,4 @@
-version: 0.1.3.{build}
 image: Visual Studio 2019
-
-dotnet_csproj:
-  patch: true
-  file: '**\*.csproj'
-  version: '{version}'
-  package_version: '{version}'
-  assembly_version: '{version}'
-  file_version: '{version}'
-  informational_version: '{version}'
 
 environment:
   COVERALLS_REPO_TOKEN:

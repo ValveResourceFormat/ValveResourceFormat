@@ -2,27 +2,16 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <Version>999.9.9</Version>
     <UseWindowsForms>true</UseWindowsForms>
     <RollForward>LatestMajor</RollForward>
     <OutputType>WinExe</OutputType>
-    <Authors>Steam Database</Authors>
-    <Copyright>Steam Database</Copyright>
     <Description>Source 2 resource viewer</Description>
-    <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
     <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
     <StartupObject>GUI.Program</StartupObject>
     <AssemblyName>VRF</AssemblyName>
-    <NeutralLanguage>en</NeutralLanguage>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>embedded</DebugType>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.0.0">
