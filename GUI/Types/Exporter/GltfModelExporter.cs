@@ -43,25 +43,21 @@ namespace GUI.Types.Exporter
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
-            var embeddedMeshIndex = 0;
 
-            void AddMeshNode(string name, VMesh mesh)
+            void AddMeshNode(string name, VMesh mesh, Skeleton skeleton)
             {
                 var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, true);
 
-                // Add skeleton and skin
-                var modelSkeleton = model.GetSkeleton();
-
-                if (modelSkeleton.AnimationTextureSize > 0)
+                if (skeleton.AnimationTextureSize > 0)
                 {
-                    var skeleton = scene.CreateNode(name);
-                    var joints = CreateGltfSkeleton(modelSkeleton, skeleton);
+                    var skeletonNode = scene.CreateNode(name);
+                    var joints = CreateGltfSkeleton(skeleton, skeletonNode);
 
                     scene.CreateNode(name)
                         .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
 
                     // Rotate upright, scale inches to meters.
-                    skeleton.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                    skeletonNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
                 }
                 else
                 {
@@ -73,29 +69,53 @@ namespace GUI.Types.Exporter
                 }
             }
 
-            // Add embedded meshes
-            foreach (var mesh in model.GetEmbeddedMeshes())
+            // Add meshes and their skeletons
+            var meshes = LoadModelMeshes(model);
+            for (var i = 0; i < meshes.Length; i++)
             {
-                var name = $"Embedded Mesh {++embeddedMeshIndex}";
-                AddMeshNode(name, mesh);
-            }
-
-            // Add external meshes
-            foreach (var meshReference in model.GetReferencedMeshNames())
-            {
-                var meshResource = GuiContext.LoadFileByAnyMeansNecessary(meshReference + "_c");
-                if (meshResource == null)
-                {
-                    continue;
-                }
-
-                var nodeName = Path.GetFileNameWithoutExtension(meshReference);
-                var mesh = new VMesh(meshResource);
-
-                AddMeshNode(nodeName, mesh);
+                AddMeshNode(meshes[i].Name, meshes[i].Mesh, model.GetSkeleton(i));
             }
 
             exportedModel.Save(fileName);
+        }
+
+        /// <summary>
+        /// Create a combined list of referenced and embedded meshes. Importantly retains the
+        /// refMeshes order so it can be used for getting skeletons.
+        /// </summary>
+        /// <param name="model">The model to get the meshes from.</param>
+        /// <returns>A tuple of meshes and their names.</returns>
+        private (VMesh Mesh, string Name)[] LoadModelMeshes(VModel model)
+        {
+            var refMeshes = model.GetRefMeshes().ToArray();
+            var meshes = new (VMesh, string)[refMeshes.Length];
+
+            var embeddedMeshIndex = 0;
+            var embeddedMeshes = model.GetEmbeddedMeshes().ToArray();
+
+            for (var i = 0; i < meshes.Length; i++)
+            {
+                var meshReference = refMeshes[i];
+                if (meshReference == null)
+                {
+                    // If refmesh is null, take an embedded mesh
+                    meshes[i] = (embeddedMeshes[embeddedMeshIndex++], $"Embedded Mesh {embeddedMeshIndex}");
+                } else
+                {
+                    // Load mesh from file
+                    var meshResource = GuiContext.LoadFileByAnyMeansNecessary(meshReference + "_c");
+                    if (meshResource == null)
+                    {
+                        continue;
+                    }
+
+                    var nodeName = Path.GetFileNameWithoutExtension(meshReference);
+                    var mesh = new VMesh(meshResource);
+                    meshes[i] = (mesh, nodeName);
+                }
+            }
+
+            return meshes;
         }
 
         /// <summary>

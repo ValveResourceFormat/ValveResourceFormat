@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
-        public Skeleton(IKeyValueCollection modelData)
+        public static Skeleton FromModelData(IKeyValueCollection modelData, int meshIndex)
         {
             // Check if there is any skeleton data present at all
             if (!modelData.ContainsKey("m_modelSkeleton"))
@@ -27,41 +27,36 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Get the remap table and invert it for our construction method
             var remapTable = modelData.GetIntegerArray("m_remappingTable");
 
-            var start = 0;
-            var end = remapTable.Length;
-
             var remapTableStarts = modelData.GetIntegerArray("m_remappingTableStarts");
 
-            // we only use lod 1
-            if (remapTableStarts.Length > 1)
-            {
-                start = (int)remapTableStarts[0];
-                end = (int)remapTableStarts[1];
-            }
+            var start = (int)remapTableStarts[meshIndex];
+            var end = meshIndex < remapTableStarts.Length - 1
+                ? (int)remapTableStarts[meshIndex + 1]
+                : remapTable.Length;
 
             var invMapTable = remapTable.Skip(start).Take(end - start)
                 .Select((mapping, index) => (mapping, index))
                 .ToLookup(mi => mi.mapping, mi => mi.index);
 
-            if (invMapTable.Any())
-            {
-                AnimationTextureSize = invMapTable.Select(g => g.Max()).Max() + 1;
-            }
-
             // Construct the armature from the skeleton KV
-            ConstructFromNTRO(modelData.GetSubCollection("m_modelSkeleton"), invMapTable);
+            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"), invMapTable);
         }
 
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        private void ConstructFromNTRO(IKeyValueCollection skeletonData, ILookup<long, int> remapTable)
+        private Skeleton(IKeyValueCollection skeletonData, ILookup<long, int> remapTable)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
             var boneParents = skeletonData.GetIntegerArray("m_nParent");
             var boneFlags = skeletonData.GetIntegerArray("m_nFlag");
             var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
             var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
+
+            if (remapTable.Any())
+            {
+                AnimationTextureSize = remapTable.Select(g => g.Max()).Max() + 1;
+            }
 
             // Initialise bone array
             Bones = new Bone[boneNames.Length];

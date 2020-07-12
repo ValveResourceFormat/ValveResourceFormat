@@ -173,7 +173,9 @@ namespace GUI.Types.Renderer
 
         private void LoadSkeleton()
         {
-            skeleton = Model.GetSkeleton();
+            // Only load the first skeleton?
+            // TODO: Push mesh-specific skeleton handling into MeshSceneNode?
+            skeleton = Model.GetSkeleton(0);
         }
 
         private void SetupAnimationTexture()

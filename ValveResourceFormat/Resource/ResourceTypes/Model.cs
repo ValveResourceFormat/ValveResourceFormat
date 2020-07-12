@@ -11,13 +11,16 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private List<Animation> CachedEmbeddedAnimations;
 
-        public Skeleton GetSkeleton()
+        public Skeleton GetSkeleton(int meshIndex)
         {
-            return new Skeleton(Data);
+            return Skeleton.FromModelData(Data, meshIndex);
         }
 
+        public IEnumerable<string> GetRefMeshes()
+            => Data.GetArray<string>("m_refMeshes");
+
         public IEnumerable<string> GetReferencedMeshNames()
-            => Data.GetArray<string>("m_refMeshes").Where(m => m != null);
+            => GetRefMeshes().Where(m => m != null);
 
         public IEnumerable<(string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
             => GetReferencedMeshNames().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r));
