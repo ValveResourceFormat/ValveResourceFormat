@@ -2,8 +2,8 @@
   <PropertyGroup>
     <ProjectBaseVersion>0.1.4</ProjectBaseVersion>
     <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>
-    <ProjectVersion Condition="'$(APPVEYOR_BUILD_VERSION)' != ''">$(ProjectBaseVersion).$(APPVEYOR_BUILD_VERSION)</ProjectVersion>
-    <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' == '' And '$(APPVEYOR_BUILD_VERSION)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
+    <ProjectVersion Condition="'$(APPVEYOR_BUILD_NUMBER)' != ''">$(ProjectBaseVersion).$(APPVEYOR_BUILD_NUMBER)</ProjectVersion>
+    <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' == '' And '$(APPVEYOR_BUILD_NUMBER)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
 
     <AssemblyVersion>$(ProjectBaseVersion)</AssemblyVersion>
     <FileVersion>$(ProjectVersion)</FileVersion>
