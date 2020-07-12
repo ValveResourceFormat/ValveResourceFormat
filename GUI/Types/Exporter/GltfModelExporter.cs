@@ -189,18 +189,6 @@ namespace GUI.Types.Exporter
                             continue;
                         }
 
-                        if (attribute.Name == "BLENDINDICES")
-                        {
-                            var byteBuffer = buffer.Select(f => (byte)f).ToArray();
-                            var bufferView = mesh.LogicalParent.UseBufferView(byteBuffer);
-                            var accessor = mesh.LogicalParent.CreateAccessor();
-                            accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
-
-                            primitive.SetVertexAccessor(accessorName, accessor);
-
-                            continue;
-                        }
-
                         if (attribute.Name == "TEXCOORD" && numComponents != 2)
                         {
                             // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
