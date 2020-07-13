@@ -2,8 +2,11 @@
 // Not actually auto generated, but this makes StyleCop ignore this file
 // LzmaBase.cs
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace SevenZip.Compression.LZMA
 {
+	[ExcludeFromCodeCoverage]
 	internal abstract class Base
 	{
 		public const uint kNumRepDistances = 4;

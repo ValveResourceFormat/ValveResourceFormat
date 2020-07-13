@@ -2,8 +2,11 @@
 // Not actually auto generated, but this makes StyleCop ignore this file
 // LzOutWindow.cs
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace SevenZip.Compression.LZ
 {
+	[ExcludeFromCodeCoverage]
 	internal class OutWindow
 	{
 		byte[] _buffer = null;
@@ -37,7 +40,7 @@ namespace SevenZip.Compression.LZ
 				TrainSize = 0;
 			}
 		}
-	
+
 		public bool Train(System.IO.Stream stream)
 		{
 			long len = stream.Length;

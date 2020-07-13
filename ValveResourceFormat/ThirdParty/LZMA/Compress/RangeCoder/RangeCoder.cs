@@ -2,9 +2,11 @@
 // Not actually auto generated, but this makes StyleCop ignore this file
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.RangeCoder
 {
+	[ExcludeFromCodeCoverage]
 	internal class Decoder
 	{
 		public const uint kTopValue = (1 << 24);

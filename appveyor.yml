@@ -1,9 +1,5 @@
 image: Visual Studio 2019
 
-environment:
-  COVERALLS_REPO_TOKEN:
-    secure: WBUIkucQ46pEHPX6LbgX1WhSEKb8E7kdl7SMJjfMn+CxUvr/oij9IKuJlSLDBT0p
-
 cache: '%LocalAppData%\NuGet\Cache'
 
 build_script:
@@ -16,18 +12,7 @@ after_build:
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler\Decompiler.csproj
 
 test_script:
-- ps: >-
-    $opencover = (Resolve-Path "$ENV:USERPROFILE/.nuget/packages/OpenCover/*/tools/OpenCover.Console.exe").ToString();
-    & $opencover "-target:%ProgramFiles%\dotnet\dotnet.exe" "-targetargs:test -c debug Tests\Tests.csproj" -filter:"+[ValveResourceFormat*]* -[ValveResourceFormat]SevenZip*" -output:opencoverCoverage.xml -register:administrator -returntargetcode -oldStyle
-
-    if ($LastExitCode -ne 0) {
-      throw "Exec: $ErrorMessage`nExit code: $LastExitCode";
-    }
-
-    if ($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null) {
-      $coveralls = (Resolve-Path "$ENV:USERPROFILE/.nuget/packages/coveralls.net/*/tools/csmacnz.coveralls.exe").ToString();
-      & $coveralls --opencover -i opencoverCoverage.xml --repoToken $env:COVERALLS_REPO_TOKEN --commitId $env:APPVEYOR_REPO_COMMIT --commitBranch $env:APPVEYOR_REPO_BRANCH --commitAuthor $env:APPVEYOR_REPO_COMMIT_AUTHOR --commitEmail $env:APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL --commitMessage $env:APPVEYOR_REPO_COMMIT_MESSAGE --jobId $env:APPVEYOR_BUILD_NUMBER --serviceName appveyor
-    }
+- dotnet test
 
 artifacts:
 - path: Decompiler\bin\Release\win-x64\publish

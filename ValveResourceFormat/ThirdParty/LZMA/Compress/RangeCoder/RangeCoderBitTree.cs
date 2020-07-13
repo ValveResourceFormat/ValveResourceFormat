@@ -2,9 +2,11 @@
 // Not actually auto generated, but this makes StyleCop ignore this file
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.RangeCoder
 {
+	[ExcludeFromCodeCoverage]
 	internal struct BitTreeDecoder
 	{
 		BitDecoder[] Models;

@@ -3,11 +3,13 @@
 // LzmaDecoder.cs
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.LZMA
 {
 	using RangeCoder;
 
+	[ExcludeFromCodeCoverage]
 	internal class Decoder : ICoder, ISetDecoderProperties // ,System.IO.Stream
 	{
 		class LenDecoder
@@ -383,7 +385,7 @@ namespace SevenZip.Compression.LZMA
 			set { }
 		}
 		public override void Flush() { }
-		public override int Read(byte[] buffer, int offset, int count) 
+		public override int Read(byte[] buffer, int offset, int count)
 		{
 			return 0;
 		}

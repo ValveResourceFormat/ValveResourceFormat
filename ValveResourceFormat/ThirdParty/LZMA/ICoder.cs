@@ -3,12 +3,14 @@
 // ICoder.h
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip
 {
 	/// <summary>
 	/// The exception that is thrown when an error in input stream occurs during decoding.
 	/// </summary>
+	[ExcludeFromCodeCoverage]
 	internal class DataErrorException : ApplicationException
 	{
 		public DataErrorException(): base("Data Error") { }
@@ -17,6 +19,7 @@ namespace SevenZip
 	/// <summary>
 	/// The exception that is thrown when the value of an argument is outside the allowable range.
 	/// </summary>
+	[ExcludeFromCodeCoverage]
 	internal class InvalidParamException : ApplicationException
 	{
 		public InvalidParamException(): base("Invalid Parameter") { }

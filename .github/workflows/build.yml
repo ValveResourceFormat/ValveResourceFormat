@@ -29,7 +29,7 @@ jobs:
       run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Run tests
-      run: dotnet test -v normal ./Tests/Tests.csproj
+      run: dotnet test -v normal ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
     - name: Pack nupkg
       run: dotnet pack --configuration release ValveResourceFormat/ValveResourceFormat.csproj
@@ -73,3 +73,21 @@ jobs:
       with:
         name: Decompiler for Linux
         path: Decompiler/bin/Release/linux-x64/publish
+
+    - name: Upload test coverage
+      uses: coverallsapp/github-action@v1.1.1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./Tests/lcov.info
+        flag-name: run-${{ matrix.test_number }}
+        parallel: true
+
+  finish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@v1.1.1
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true
