@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
 using SteamDatabase.ValvePak;
@@ -158,11 +159,28 @@ namespace Decompiler
             {
                 Console.WriteLine("Will use {0} threads concurrently.", MaxParallelismThreads);
 
-                var partitioner = Partitioner.Create(paths, EnumerablePartitionerOptions.NoBuffering);
-                Parallel.ForEach(partitioner, new ParallelOptions { MaxDegreeOfParallelism = MaxParallelismThreads }, (path, state) =>
+                var queue = new ConcurrentQueue<string>(paths);
+                var tasks = new List<Task>();
+
+                ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
+
+                if (workerThreads < MaxParallelismThreads)
                 {
-                    ProcessFile(path);
-                });
+                    ThreadPool.SetMinThreads(MaxParallelismThreads, MaxParallelismThreads);
+                }
+
+                for (var n = 0; n < MaxParallelismThreads; n++)
+                {
+                    tasks.Add(Task.Run(() =>
+                    {
+                        while (queue.TryDequeue(out var path))
+                        {
+                            ProcessFile(path);
+                        }
+                    }));
+                }
+
+                Task.WhenAll(tasks).GetAwaiter().GetResult();
             }
             else
             {
