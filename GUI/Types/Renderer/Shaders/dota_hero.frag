@@ -18,6 +18,7 @@
 #define param_F_MASKS_1 0
 #define param_F_MASKS_2 0
 #define param_F_ALPHA_TEST 0
+#define param_F_SPECULAR_CUBE_MAP 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -39,6 +40,9 @@ uniform sampler2D g_tMasks2;
 
 uniform vec3 vLightPosition;
 uniform vec3 vEyePosition;
+
+// Material properties
+uniform float g_flSpecularExponent = 100.0;
 
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal()
@@ -122,9 +126,9 @@ void main()
     vec3 halfDir = normalize(lightDirection + viewDirection);
     float specularAngle = max(dot(halfDir, worldNormal), 0.0);
 
-#if param_F_MASKS_2
+#if param_F_MASKS_2 && !param_F_SPECULAR_CUBE_MAP
     //Calculate final specular based on specular exponent - mask 2 channel A
-    float specular = pow(specularAngle, mask2.a * 100);
+    float specular = pow(specularAngle, mask2.a * g_flSpecularExponent);
     //Multiply by mapped specular intensity - mask 2 channel R
     specular = illumination * specular * mask2.r;
 
