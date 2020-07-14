@@ -49,6 +49,11 @@ namespace ValveResourceFormat.IO
 
             void AddMeshNode(string name, VMesh mesh, Skeleton skeleton)
             {
+                if (mesh.GetData().GetArray("m_sceneObjects").Length == 0)
+                {
+                    return;
+                }
+
                 var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, true);
 
                 if (skeleton.AnimationTextureSize > 0)
