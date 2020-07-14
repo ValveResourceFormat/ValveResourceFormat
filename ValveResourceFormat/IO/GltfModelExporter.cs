@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using GUI.Forms;
-using GUI.Types.Renderer;
-using GUI.Utils;
 using SharpGLTF.IO;
 using SharpGLTF.Schema2;
 using SkiaSharp;
@@ -13,12 +10,12 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 
-namespace GUI.Types.Exporter
+namespace ValveResourceFormat.IO
 {
     using static VBIB;
-    using VMaterial = ValveResourceFormat.ResourceTypes.Material;
-    using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
-    using VModel = ValveResourceFormat.ResourceTypes.Model;
+    using VMaterial = ResourceTypes.Material;
+    using VMesh = ResourceTypes.Mesh;
+    using VModel = ResourceTypes.Model;
 
     public class GltfModelExporter
     {
@@ -29,8 +26,8 @@ namespace GUI.Types.Exporter
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
         private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, (float)Math.PI / -2f, 0);
 
-        public GenericProgressForm ProgressDialog { get; set; }
-        public VrfGuiContext GuiContext { get; set; }
+        public IProgressReporter ProgressReporter { get; set; }
+        public IFileLoader FileLoader { get; set; }
 
         /// <summary>
         /// Export a Valve VMDL to GLTF.
@@ -40,6 +37,11 @@ namespace GUI.Types.Exporter
         /// <param name="model">The model resource to export.</param>
         public void ExportToFile(string resourceName, string fileName, VModel model)
         {
+            if (FileLoader == null)
+            {
+                throw new NullReferenceException(nameof(FileLoader));
+            }
+
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
             var scene = exportedModel.UseScene(Path.GetFileName(resourceName));
@@ -103,7 +105,7 @@ namespace GUI.Types.Exporter
                 } else
                 {
                     // Load mesh from file
-                    var meshResource = GuiContext.LoadFileByAnyMeansNecessary(meshReference + "_c");
+                    var meshResource = FileLoader.LoadFile(meshReference + "_c");
                     if (meshResource == null)
                     {
                         continue;
@@ -143,7 +145,7 @@ namespace GUI.Types.Exporter
 
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints)
         {
-            ProgressDialog.SetProgress($"Creating mesh: {meshName}");
+            ProgressReporter?.SetProgress($"Creating mesh: {meshName}");
 
             var data = vmesh.GetData();
             var vbib = vmesh.VBIB;
@@ -199,7 +201,7 @@ namespace GUI.Types.Exporter
                             continue;
                         }
 
-                        if (attribute.Name == "NORMAL" && DrawCall.IsCompressedNormalTangent(drawCall))
+                        if (attribute.Name == "NORMAL" && VMesh.IsCompressedNormalTangent(drawCall))
                         {
                             var vectors = ToVector4Array(buffer);
                             var (normals, tangents) = DecompressNormalTangents(vectors);
@@ -281,9 +283,9 @@ namespace GUI.Types.Exporter
                     // Add material
                     var materialPath = drawCall.GetProperty<string>("m_material");
 
-                    ProgressDialog.SetProgress($"Loading material: {materialPath}");
+                    ProgressReporter?.SetProgress($"Loading material: {materialPath}");
 
-                    var materialResource = GuiContext.LoadFileByAnyMeansNecessary(materialPath + "_c");
+                    var materialResource = FileLoader.LoadFile(materialPath + "_c");
 
                     if (materialResource == null)
                     {
@@ -373,9 +375,9 @@ namespace GUI.Types.Exporter
 
                 var fileName = Path.GetFileNameWithoutExtension(texturePath);
 
-                ProgressDialog.SetProgress($"Exporting texture: {texturePath}");
+                ProgressReporter?.SetProgress($"Exporting texture: {texturePath}");
 
-                var textureResource = GuiContext.LoadFileByAnyMeansNecessary(texturePath + "_c");
+                var textureResource = FileLoader.LoadFile(texturePath + "_c");
 
                 if (textureResource == null)
                 {

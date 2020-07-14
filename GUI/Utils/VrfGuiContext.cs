@@ -17,8 +17,7 @@ namespace GUI.Utils
 
         public ShaderLoader ShaderLoader { get; }
         public GPUMeshBufferCache MeshBufferCache { get; }
-
-        private readonly AdvancedGuiFileLoader FileLoader;
+        public AdvancedGuiFileLoader FileLoader { get; }
 
         public QuadIndexBuffer QuadIndices
         {

@@ -10,7 +10,7 @@ using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
-    internal class AdvancedGuiFileLoader : IFileLoader
+    public class AdvancedGuiFileLoader : IFileLoader
     {
         private static readonly Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
         private readonly Dictionary<string, Resource> CachedResources = new Dictionary<string, Resource>();

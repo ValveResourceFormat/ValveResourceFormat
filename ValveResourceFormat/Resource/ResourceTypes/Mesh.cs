@@ -66,5 +66,29 @@ namespace ValveResourceFormat.ResourceTypes
             MinBounds = minBounds;
             MaxBounds = maxBounds;
         }
+
+        public static bool IsCompressedNormalTangent(IKeyValueCollection drawCall)
+        {
+            if (drawCall.ContainsKey("m_bUseCompressedNormalTangent"))
+            {
+                return drawCall.GetProperty<bool>("m_bUseCompressedNormalTangent");
+            }
+
+            if (!drawCall.ContainsKey("m_nFlags"))
+            {
+                return false;
+            }
+
+            var flags = drawCall.GetProperty<object>("m_nFlags");
+
+            return flags switch
+            {
+                string flagsString => flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture),
+                long flagsLong =>
+                // TODO: enum
+                (flagsLong & 2) == 2,
+                _ => false
+            };
+        }
     }
 }
