@@ -53,7 +53,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
             var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
 
-            if (remapTable.Any())
+            if (boneNames.Length > 0 && remapTable.Any())
             {
                 AnimationTextureSize = remapTable.Select(g => g.Max()).Max() + 1;
             }
