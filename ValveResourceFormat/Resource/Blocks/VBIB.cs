@@ -209,6 +209,20 @@ namespace ValveResourceFormat.Blocks
                     break;
                 }
 
+                case DXGI_FORMAT.R16G16_SINT:
+                {
+                    var shorts = new short[2];
+                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
+
+                    result = new float[2];
+                    for (var i = 0; i < 2; i++)
+                    {
+                        result[i] = shorts[i];
+                    }
+
+                    break;
+                }
+
                 case DXGI_FORMAT.R16G16B16A16_SINT:
                 {
                     var shorts = new short[4];
