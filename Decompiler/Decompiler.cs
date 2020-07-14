@@ -787,6 +787,8 @@ namespace Decompiler
                     }
                     catch (Exception e)
                     {
+                        File.AppendAllText("exceptions.txt", $"---------------\nFile: {filePath}\nException: {e}\n\n");
+
                         lock (ConsoleWriterLock)
                         {
                             Console.ForegroundColor = ConsoleColor.DarkRed;
