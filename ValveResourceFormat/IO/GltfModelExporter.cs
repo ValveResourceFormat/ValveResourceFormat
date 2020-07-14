@@ -28,6 +28,7 @@ namespace ValveResourceFormat.IO
 
         public IProgressReporter ProgressReporter { get; set; }
         public IFileLoader FileLoader { get; set; }
+        public bool ExportMaterials { get; set; } = true;
 
         /// <summary>
         /// Export a Valve VMDL to GLTF.
@@ -281,6 +282,11 @@ namespace ValveResourceFormat.IO
                     primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
 
                     // Add material
+                    if (!ExportMaterials)
+                    {
+                        continue;
+                    }
+
                     var materialPath = drawCall.GetProperty<string>("m_material");
 
                     ProgressReporter?.SetProgress($"Loading material: {materialPath}");
@@ -384,7 +390,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var bitmap = ((ValveResourceFormat.ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+                var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
 
                 if (renderTexture.Key == "g_tColor" && material.Alpha == AlphaMode.OPAQUE)
                 {

@@ -714,6 +714,7 @@ namespace Decompiler
                 return;
             }
 
+            var fileLoader = new BasicVpkFileLoader(package);
             var entries = package.Entries[type];
 
             foreach (var file in entries)
@@ -742,32 +743,55 @@ namespace Decompiler
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
-                    using (var resource = new Resource())
+                    using var resource = new Resource();
+                    using var memory = new MemoryStream(output);
+
+                    try
                     {
-                        using (var memory = new MemoryStream(output))
+                        resource.Read(memory);
+
+                        extension = FileExtract.GetExtension(resource);
+
+                        if (extension == null)
                         {
-                            try
+                            extension = type.Substring(0, type.Length - 2);
+                        }
+
+                        // TODO: Hook this up in FileExtract
+                        if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
+                        {
+                            var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, "gltf"));
+
+                            Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
+
+                            var exporter = new GltfModelExporter
                             {
-                                resource.Read(memory);
+                                ExportMaterials = false,
+                                ProgressReporter = new ConsoleProgressReporter(),
+                                FileLoader = fileLoader
+                            };
 
-                                extension = FileExtract.GetExtension(resource);
-
-                                if (extension == null)
-                                {
-                                    extension = type.Substring(0, type.Length - 2);
-                                }
-
-                                output = FileExtract.Extract(resource).ToArray();
-                            }
-                            catch (Exception e)
+                            if (resource.ResourceType == ResourceType.Mesh)
                             {
-                                lock (ConsoleWriterLock)
-                                {
-                                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                                    Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
-                                    Console.ResetColor();
-                                }
+                                exporter.ExportToFile(file.GetFileName(), outputFile, new Mesh(resource));
                             }
+                            else if (resource.ResourceType == ResourceType.Model)
+                            {
+                                exporter.ExportToFile(file.GetFileName(), outputFile, (Model)resource.DataBlock);
+                            }
+
+                            continue;
+                        }
+
+                        output = FileExtract.Extract(resource).ToArray();
+                    }
+                    catch (Exception e)
+                    {
+                        lock (ConsoleWriterLock)
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkRed;
+                            Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
+                            Console.ResetColor();
                         }
                     }
                 }
