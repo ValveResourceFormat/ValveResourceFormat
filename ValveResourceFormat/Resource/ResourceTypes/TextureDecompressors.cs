@@ -548,7 +548,7 @@ namespace ValveResourceFormat.ResourceTypes
                     uint index = (byte)(code & 0x07);
                     code >>= 3;
 
-                    if (bx + x > w || pixels.Length <= dataIndex)
+                    if (bx + x >= w || pixels.Length <= dataIndex)
                     {
                         continue;
                     }
