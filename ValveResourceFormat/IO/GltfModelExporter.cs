@@ -323,8 +323,10 @@ namespace ValveResourceFormat.IO
                 joints.AddRange(CreateBonesRecursive(root, skeletonNode));
             }
 
-            var animationJoints = joints.Where(j => j.Indices.Any());
-            var numJoints = animationJoints.Max(j => j.Indices.Max());
+            var animationJoints = joints.Where(j => j.Indices.Any()).ToList();
+            var numJoints = animationJoints.Any()
+                ? animationJoints.Where(j => j.Indices.Any()).Max(j => j.Indices.Max())
+                : 0;
             var result = new Node[numJoints + 1];
 
             foreach (var joint in animationJoints)
@@ -338,10 +340,7 @@ namespace ValveResourceFormat.IO
             // Fill null indices with some dummy node
             for (var i = 0; i < numJoints + 1; i++)
             {
-                if (result[i] == null)
-                {
-                    result[i] = skeletonNode.CreateNode();
-                }
+                result[i] ??= skeletonNode.CreateNode();
             }
 
             return result;
