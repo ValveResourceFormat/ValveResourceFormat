@@ -550,7 +550,7 @@ namespace GUI
                             {
                                 BackColor = Color.Black,
                             };
-                            control.SetImage(tex.GenerateBitmap().ToBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.Width, tex.Height);
+                            control.SetImage(tex.GenerateBitmap().ToBitmap(), Path.GetFileNameWithoutExtension(fileName), tex.ActualWidth, tex.ActualHeight);
 
                             tab2.Controls.Add(control);
                             Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(fileName)} as an image", fileName, new ExportData { Resource = resource });

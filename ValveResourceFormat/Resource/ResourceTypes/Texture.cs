@@ -68,6 +68,9 @@ namespace ValveResourceFormat.ResourceTypes
         private int[] CompressedMips;
         private bool IsActuallyCompressedMips;
 
+        public ushort ActualWidth => NonPow2Width > 0 ? NonPow2Width : Width;
+        public ushort ActualHeight => NonPow2Height > 0 ? NonPow2Height : Height;
+
         public Texture()
         {
             ExtraData = new Dictionary<VTexExtraData, byte[]>();
@@ -248,11 +251,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = DataOffset;
 
-            var width = NonPow2Width > 0 ? NonPow2Width : Width;
-            var height = NonPow2Height > 0 ? NonPow2Height : Height;
-
-            width >>= MipmapLevelToExtract;
-            height >>= MipmapLevelToExtract;
+            var width = ActualWidth >> MipmapLevelToExtract;
+            var height = ActualHeight >> MipmapLevelToExtract;
 
             var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             Span<byte> data = new byte[imageInfo.RowBytes * imageInfo.Height];
