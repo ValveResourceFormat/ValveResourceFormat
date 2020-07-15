@@ -37,6 +37,11 @@ namespace ValveResourceFormat.ResourceTypes
                 var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
                 var embeddedMeshes = ctrl.Data.GetArray("embedded_meshes");
 
+                if (embeddedMeshes == null)
+                {
+                    return meshes;
+                }
+
                 foreach (var embeddedMesh in embeddedMeshes)
                 {
                     var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
