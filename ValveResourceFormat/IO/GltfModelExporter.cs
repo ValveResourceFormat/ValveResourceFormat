@@ -54,9 +54,10 @@ namespace ValveResourceFormat.IO
                     return;
                 }
 
-                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, true);
+                var hasJoints = skeleton.AnimationTextureSize > 0;
+                var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints);
 
-                if (skeleton.AnimationTextureSize > 0)
+                if (hasJoints)
                 {
                     var skeletonNode = scene.CreateNode(name);
                     var joints = CreateGltfSkeleton(skeleton, skeletonNode);
