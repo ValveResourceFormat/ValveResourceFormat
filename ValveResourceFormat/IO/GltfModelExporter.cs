@@ -56,8 +56,9 @@ namespace ValveResourceFormat.IO
 
                 var hasJoints = skeleton.AnimationTextureSize > 0;
                 var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints);
+                var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-                if (hasJoints)
+                if (hasJoints && hasVertexJoints)
                 {
                     var skeletonNode = scene.CreateNode(name);
                     var joints = CreateGltfSkeleton(skeleton, skeletonNode);
