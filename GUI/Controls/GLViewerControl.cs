@@ -237,6 +237,12 @@ namespace GUI.Controls
             if (GLControl.Visible)
             {
                 var frameTime = stopwatch.ElapsedMilliseconds / 1000f;
+
+                if (!float.IsFinite(frameTime) || frameTime < 0.002)
+                {
+                    frameTime = 0.002f;
+                }
+
                 stopwatch.Restart();
 
                 Camera.Tick(frameTime);
