@@ -240,6 +240,8 @@ namespace GUI.Types.Renderer
                     return "particle_sprite";
                 case "vrf.particle.trail":
                     return "particle_trail";
+                case "tools_sprite.vfx":
+                    return "sprite";
                 case "vr_unlit.vfx":
                     return "vr_unlit";
                 case "vr_black_unlit.vfx":

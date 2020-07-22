@@ -38,6 +38,7 @@ namespace GUI.Types.Renderer
         public LoadResult Load(Scene scene)
         {
             var result = new LoadResult();
+            result.DefaultEnabledLayers.Add("Entities");
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -112,8 +113,6 @@ namespace GUI.Types.Renderer
                     {
                         result.DefaultEnabledLayers.Add(layername);
                     }
-
-                    continue;
                 }
                 else if (classname == "skybox_reference")
                 {
@@ -214,18 +213,10 @@ namespace GUI.Types.Renderer
                         : name;
 
                     result.CameraMatrices.Add(cameraName, transformationMatrix);
-
-                    continue;
                 }
                 else if (isGlobalLight)
                 {
                     result.GlobalLightPosition = positionVector;
-
-                    continue;
-                }
-                else if (model == null)
-                {
-                    continue;
                 }
 
                 var objColor = Vector4.One;
@@ -241,6 +232,12 @@ namespace GUI.Types.Renderer
                     objColor.Y = colourBytes[1] / 255.0f;
                     objColor.Z = colourBytes[2] / 255.0f;
                     objColor.W = colourBytes[3] / 255.0f;
+                }
+
+                if (!isTrigger && model == null)
+                {
+                    AddToolModel(scene, classname, transformationMatrix, positionVector);
+                    continue;
                 }
 
                 var newEntity = guiContext.LoadFileByAnyMeansNecessary(model + "_c");
@@ -330,6 +327,44 @@ namespace GUI.Types.Renderer
                     };
                     scene.Add(physSceneNode, false);
                 }
+            }
+        }
+
+        private void AddToolModel(Scene scene, string classname, Matrix4x4 transformationMatrix, Vector3 position)
+        {
+            var filename = HammerEntities.GetToolModel(classname);
+            var resource = guiContext.LoadFileByAnyMeansNecessary(filename + "_c");
+
+            if (resource == null)
+            {
+                resource = guiContext.LoadFileByAnyMeansNecessary("materials/editor/obsolete.vmat");
+
+                if (resource == null)
+                {
+                    return;
+                }
+            }
+
+            if (resource.ResourceType == ResourceType.Model)
+            {
+                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, false)
+                {
+                    Transform = transformationMatrix,
+                    LayerName = "Entities",
+                };
+                scene.Add(modelNode, false);
+            }
+            else if (resource.ResourceType == ResourceType.Material)
+            {
+                var spriteNode = new SpriteSceneNode(scene, guiContext, resource, position)
+                {
+                    LayerName = "Entities",
+                };
+                scene.Add(spriteNode, false);
+            }
+            else
+            {
+                throw new InvalidDataException($"Got resource {resource.ResourceType} for class \"{classname}\"");
             }
         }
     }
