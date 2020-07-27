@@ -234,24 +234,36 @@ namespace GUI.Controls
 
         private void Draw()
         {
-            if (GLControl.Visible)
+            if (!GLControl.Visible)
             {
-                var frameTime = stopwatch.ElapsedMilliseconds / 1000f;
-                stopwatch.Restart();
+                return;
+            }
 
-                Camera.Tick(frameTime);
-                Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
+            var elapsed = stopwatch.ElapsedMilliseconds;
 
-                SetFps(1f / frameTime);
-
-                GL.ClearColor(Settings.BackgroundColor);
-                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-                GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
-
+            if (elapsed < 1)
+            {
                 GLControl.SwapBuffers();
                 GLControl.Invalidate();
+
+                return;
             }
+
+            var frameTime = elapsed / 1000f;
+            stopwatch.Restart();
+
+            Camera.Tick(frameTime);
+            Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
+
+            SetFps(1f / frameTime);
+
+            GL.ClearColor(Settings.BackgroundColor);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
+
+            GLControl.SwapBuffers();
+            GLControl.Invalidate();
         }
 
         private void OnResize(object sender, EventArgs e)
