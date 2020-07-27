@@ -14,7 +14,7 @@
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0018" />
     <PackageReference Include="SkiaSharp" Version="2.80.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.1" />
     <PackageReference Include="ValveKeyValue" Version="0.3.1.152" />
   </ItemGroup>
   <ItemGroup>
