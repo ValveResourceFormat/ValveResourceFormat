@@ -15,6 +15,8 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
+        private static Regex RegexInclude = new Regex(@"^#include ""(?<IncludeName>[^""]+)""", RegexOptions.Multiline);
+        private static Regex RegexDefine = new Regex(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
 #if !DEBUG_SHADERS || !DEBUG
         private readonly Dictionary<uint, Shader> CachedShaders = new Dictionary<uint, Shader>();
@@ -241,17 +243,23 @@ namespace GUI.Types.Renderer
         private static string UpdateDefines(string source, IDictionary<string, bool> arguments)
         {
             //Find all #define param_(paramName) (paramValue) using regex
-            var defines = Regex.Matches(source, @"#define param_(\S*?) (\S*?)\s*?\n");
+            var defines = RegexDefine.Matches(source);
+
             foreach (Match define in defines)
             {
                 //Check if this parameter is in the arguments
-                if (arguments.TryGetValue(define.Groups[1].Value, out var value))
+                if (!arguments.TryGetValue(define.Groups["ParamName"].Value, out var value))
                 {
-                    //Overwrite default value
-                    var index = define.Groups[2].Index;
-                    var length = define.Groups[2].Length;
-                    source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, value ? "1" : "0");
+                    continue;
                 }
+
+                //Overwrite default value
+                var defaultValue = define.Groups["DefaultValue"];
+                var index = defaultValue.Index;
+                var length = defaultValue.Length;
+                var newValue = value ? "1" : "0";
+
+                source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, newValue);
             }
 
             return source;
@@ -262,15 +270,15 @@ namespace GUI.Types.Renderer
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            var includes = Regex.Matches(source, @"#include ""([^""]*?)"";?\s*\n");
+            var includes = RegexInclude.Matches(source);
 
             foreach (Match define in includes)
             {
                 //Read included code
 #if DEBUG_SHADERS  && DEBUG
-                using (var stream = File.Open(GetShaderDiskPath(define.Groups[1].Value), FileMode.Open))
+                using (var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open))
 #else
-                using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups[1].Value}"))
+                using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups["IncludeName"].Value}"))
 #endif
                 using (var reader = new StreamReader(stream))
                 {
@@ -278,10 +286,6 @@ namespace GUI.Types.Renderer
 
                     //Recursively resolve includes in the included code. (Watch out for cyclic dependencies!)
                     includedCode = ResolveIncludes(includedCode);
-                    if (!includedCode.EndsWith("\n"))
-                    {
-                        includedCode += "\n";
-                    }
 
                     //Replace the include with the code
                     source = source.Replace(define.Value, includedCode);
@@ -293,8 +297,8 @@ namespace GUI.Types.Renderer
 
         private static List<string> FindDefines(string source)
         {
-            var defines = Regex.Matches(source, @"#define param_(\S+)");
-            return defines.Cast<Match>().Select(_ => _.Groups[1].Value).ToList();
+            var defines = RegexDefine.Matches(source);
+            return defines.Select(match => match.Groups["ParamName"].Value).ToList();
         }
 
         // Map shader names to shader files
