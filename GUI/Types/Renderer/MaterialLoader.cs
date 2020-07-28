@@ -127,33 +127,39 @@ namespace GUI.Types.Renderer
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
 
-            InternalFormat format;
-
-            switch (tex.Format)
-            {
-                case VTexFormat.DXT1: format = InternalFormat.CompressedRgbaS3tcDxt1Ext; break;
-                case VTexFormat.DXT5: format = InternalFormat.CompressedRgbaS3tcDxt5Ext; break;
-                case VTexFormat.ETC2: format = InternalFormat.CompressedRgb8Etc2; break;
-                case VTexFormat.ETC2_EAC: format = InternalFormat.CompressedRgba8Etc2Eac; break;
-                case VTexFormat.ATI1N: format = InternalFormat.CompressedRedRgtc1; break;
-                case VTexFormat.ATI2N: format = InternalFormat.CompressedRgRgtc2; break;
-                case VTexFormat.BC6H: format = InternalFormat.CompressedRgbBptcUnsignedFloat; break;
-                case VTexFormat.BC7: format = InternalFormat.CompressedRgbaBptcUnorm; break;
-                case VTexFormat.RGBA8888: format = InternalFormat.Rgba8; break;
-                case VTexFormat.RGBA16161616F: format = InternalFormat.Rgba16f; break;
-                case VTexFormat.I8: format = InternalFormat.Intensity8; break;
-                default:
-                    Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
-                    return GetErrorTexture();
-            }
-
             for (var i = tex.NumMipLevels - 1; i >= 0; i--)
             {
                 var width = tex.Width >> i;
                 var height = tex.Height >> i;
                 var bytes = tex.GetDecompressedTextureAtMipLevel(i);
 
-                GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format, width, height, 0, bytes.Length, bytes);
+                if (IsCompressedTextureFormat(tex.Format))
+                {
+                    var format = GetInternalFormat(tex.Format);
+
+                    if (!format.HasValue)
+                    {
+                        Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
+                        return GetErrorTexture();
+                    }
+
+                    GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bytes.Length, bytes);
+                }
+                else
+                {
+                    var internalFormat = GetPixelInternalFormat(tex.Format);
+
+                    if (!internalFormat.HasValue)
+                    {
+                        Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
+                        return GetErrorTexture();
+                    }
+
+                    var pixelFormat = GetPixelFormat(tex.Format);
+                    var pixelType = GetPixelType(tex.Format);
+
+                    GL.TexImage2D(TextureTarget.Texture2D, i, internalFormat.Value, width, height, 0, pixelFormat, pixelType, bytes);
+                }
             }
 
             // Dispose texture otherwise we run out of memory
@@ -186,6 +192,51 @@ namespace GUI.Types.Renderer
 
             return id;
         }
+
+        private static bool IsCompressedTextureFormat(VTexFormat format)
+            => format != VTexFormat.RG1616
+                && format != VTexFormat.RG1616F;
+
+        private static InternalFormat? GetInternalFormat(VTexFormat vformat)
+            => vformat switch
+            {
+                VTexFormat.DXT1 => InternalFormat.CompressedRgbaS3tcDxt1Ext,
+                VTexFormat.DXT5 => InternalFormat.CompressedRgbaS3tcDxt5Ext,
+                VTexFormat.ETC2 => InternalFormat.CompressedRgb8Etc2,
+                VTexFormat.ETC2_EAC => InternalFormat.CompressedRgba8Etc2Eac,
+                VTexFormat.ATI1N => InternalFormat.CompressedRedRgtc1,
+                VTexFormat.ATI2N => InternalFormat.CompressedRgRgtc2,
+                VTexFormat.BC6H => InternalFormat.CompressedRgbBptcUnsignedFloat,
+                VTexFormat.BC7 => InternalFormat.CompressedRgbaBptcUnorm,
+                VTexFormat.RGBA8888 => InternalFormat.Rgba8,
+                VTexFormat.RGBA16161616 => InternalFormat.Rgba16f,
+                VTexFormat.I8 => InternalFormat.Intensity8,
+                _ => null // Unsupported texture format
+            };
+
+        private static PixelInternalFormat? GetPixelInternalFormat(VTexFormat vformat)
+            => vformat switch
+            {
+                VTexFormat.RG1616 => PixelInternalFormat.Rg16,
+                VTexFormat.RG1616F => PixelInternalFormat.Rg16f,
+                _ => null // Unsupported texture format
+            };
+
+        private static PixelFormat GetPixelFormat(VTexFormat vformat)
+            => vformat switch
+            {
+                VTexFormat.RG1616 => PixelFormat.Rg,
+                VTexFormat.RG1616F => PixelFormat.Rg,
+                _ => PixelFormat.Rgba
+            };
+
+        private static PixelType GetPixelType(VTexFormat vformat)
+            => vformat switch
+            {
+                VTexFormat.RG1616 => PixelType.UnsignedShort,
+                VTexFormat.RG1616F => PixelType.Float,
+                _ => PixelType.UnsignedByte
+            };
 
         public int GetErrorTexture()
         {
