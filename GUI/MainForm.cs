@@ -402,6 +402,7 @@ namespace GUI
                 {
                     Package = package,
                     ParentPackage = currentPackage?.Package,
+                    ParentFileLoader = vrfGuiContext.FileLoader,
                 });
                 treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
                 treeViewWithSearch.TreeNodeMouseClick += VPK_OnClick;
