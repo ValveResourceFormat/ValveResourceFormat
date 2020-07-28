@@ -348,7 +348,6 @@ namespace GUI
         private TabPage ProcessFile(string fileName, byte[] input, TreeViewWithSearchResults.TreeViewPackageTag currentPackage)
         {
             var tab = new TabPage();
-            var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
             uint magic = 0;
             ushort magicResourceVersion = 0;
@@ -380,6 +379,8 @@ namespace GUI
                 fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
                 magic = Package.MAGIC;
             }
+
+            var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
             if (magic == Package.MAGIC)
             {
