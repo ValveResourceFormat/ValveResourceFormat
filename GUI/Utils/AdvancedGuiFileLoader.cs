@@ -157,7 +157,15 @@ namespace GUI.Utils
 
             using (var stream = new FileStream(gameinfoPath, FileMode.Open, FileAccess.Read))
             {
-                gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+                try
+                {
+                    gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e);
+                    return;
+                }
             }
 
             Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
