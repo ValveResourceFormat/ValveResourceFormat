@@ -11,8 +11,6 @@ namespace GUI.Utils
 
         public Package CurrentPackage { get; }
 
-        public Package ParentPackage { get; }
-
         public MaterialLoader MaterialLoader { get; }
 
         public ShaderLoader ShaderLoader { get; }
@@ -39,7 +37,6 @@ namespace GUI.Utils
         {
             FileName = fileName;
             CurrentPackage = package?.Package;
-            ParentPackage = package?.ParentPackage;
             ParentFileLoader = package?.ParentFileLoader;
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();

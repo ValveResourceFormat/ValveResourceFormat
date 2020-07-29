@@ -59,21 +59,6 @@ namespace GUI.Utils
                 return resource;
             }
 
-            entry = GuiContext.ParentPackage?.FindEntry(file);
-
-            if (entry != null)
-            {
-#if DEBUG_FILE_LOAD
-                Console.WriteLine($"Loaded \"{file}\" from parent vpk");
-#endif
-
-                GuiContext.ParentPackage.ReadEntry(entry, out var output, false);
-                resource.Read(new MemoryStream(output));
-                CachedResources[file] = resource;
-
-                return resource;
-            }
-
             if (GuiContext.ParentFileLoader != null)
             {
                 return GuiContext.ParentFileLoader.LoadFile(file);
@@ -104,15 +89,15 @@ namespace GUI.Utils
                 packages.Add(package);
             }
 
-            if (GuiContext.ParentPackage != null && GuiContext.ParentPackage.Entries.ContainsKey("vpk"))
+            if (GuiContext.CurrentPackage != null && GuiContext.CurrentPackage.Entries.ContainsKey("vpk"))
             {
-                foreach (var searchPath in GuiContext.ParentPackage.Entries["vpk"])
+                foreach (var searchPath in GuiContext.CurrentPackage.Entries["vpk"])
                 {
                     if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
                     {
                         Console.WriteLine($"Preloading vpk from parent vpk \"{searchPath}\"");
 
-                        GuiContext.ParentPackage.ReadEntry(searchPath, out var vpk, false);
+                        GuiContext.CurrentPackage.ReadEntry(searchPath, out var vpk, false);
                         var ms = new MemoryStream(vpk);
                         package = new Package();
                         package.SetFileName(searchPath.GetFileName());

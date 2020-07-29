@@ -18,7 +18,6 @@ namespace GUI.Controls
         public class TreeViewPackageTag
         {
             public Package Package { get; set; }
-            public Package ParentPackage { get; set; }
             public AdvancedGuiFileLoader ParentFileLoader { get; set; }
         }
 

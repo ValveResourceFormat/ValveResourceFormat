@@ -401,7 +401,6 @@ namespace GUI
                 treeViewWithSearch.InitializeTreeViewFromPackage(fileName, new TreeViewWithSearchResults.TreeViewPackageTag
                 {
                     Package = package,
-                    ParentPackage = currentPackage?.Package,
                     ParentFileLoader = vrfGuiContext.FileLoader,
                 });
                 treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
