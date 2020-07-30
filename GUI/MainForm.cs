@@ -268,7 +268,7 @@ namespace GUI
 
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var openDialog = new OpenFileDialog
+            using var openDialog = new OpenFileDialog
             {
                 InitialDirectory = Settings.Config.OpenDirectory,
                 Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*",
@@ -296,6 +296,17 @@ namespace GUI
         private void OpenFile(string fileName, byte[] input = null, TreeViewWithSearchResults.TreeViewPackageTag currentPackage = null)
         {
             Console.WriteLine($"Opening {fileName}");
+
+            if (input == null && Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+            {
+                var fixedPackage = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
+
+                if (File.Exists(fixedPackage))
+                {
+                    Console.WriteLine($"You opened \"{Path.GetFileName(fileName)}\" but there is \"{Path.GetFileName(fixedPackage)}\"");
+                    fileName = fixedPackage;
+                }
+            }
 
             var tab = new TabPage(Path.GetFileName(fileName));
             tab.ToolTipText = fileName;
@@ -371,13 +382,6 @@ namespace GUI
 
                 magic = BitConverter.ToUInt32(magicData, 0);
                 magicResourceVersion = BitConverter.ToUInt16(magicData, 4);
-            }
-
-            if (magic != Package.MAGIC && input == null && Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
-            {
-                // TODO: Update tab name
-                fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
-                magic = Package.MAGIC;
             }
 
             var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
