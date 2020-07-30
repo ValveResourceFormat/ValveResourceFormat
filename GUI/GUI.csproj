@@ -27,7 +27,7 @@
     <PackageReference Include="OpenTK.GLControl" Version="3.1.0">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.80.0" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.80.1" />
     <PackageReference Include="ValvePak" Version="1.0.2.35" />
   </ItemGroup>
   <ItemGroup>
