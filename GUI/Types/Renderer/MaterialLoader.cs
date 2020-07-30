@@ -127,38 +127,31 @@ namespace GUI.Types.Renderer
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
 
+            var internalFormat = GetPixelInternalFormat(tex.Format);
+            var format = GetInternalFormat(tex.Format);
+
+            if (!format.HasValue && !internalFormat.HasValue)
+            {
+                Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
+                return GetErrorTexture();
+            }
+
             for (var i = tex.NumMipLevels - 1; i >= 0; i--)
             {
                 var width = tex.Width >> i;
                 var height = tex.Height >> i;
                 var bytes = tex.GetDecompressedTextureAtMipLevel(i);
 
-                if (IsCompressedTextureFormat(tex.Format))
+                if (internalFormat.HasValue)
                 {
-                    var format = GetInternalFormat(tex.Format);
-
-                    if (!format.HasValue)
-                    {
-                        Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
-                        return GetErrorTexture();
-                    }
-
-                    GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bytes.Length, bytes);
-                }
-                else
-                {
-                    var internalFormat = GetPixelInternalFormat(tex.Format);
-
-                    if (!internalFormat.HasValue)
-                    {
-                        Console.Error.WriteLine($"Don't support {tex.Format} but don't want to crash either. Using error texture!");
-                        return GetErrorTexture();
-                    }
-
                     var pixelFormat = GetPixelFormat(tex.Format);
                     var pixelType = GetPixelType(tex.Format);
 
                     GL.TexImage2D(TextureTarget.Texture2D, i, internalFormat.Value, width, height, 0, pixelFormat, pixelType, bytes);
+                }
+                else
+                {
+                    GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bytes.Length, bytes);
                 }
             }
 
@@ -193,10 +186,6 @@ namespace GUI.Types.Renderer
             return id;
         }
 
-        private static bool IsCompressedTextureFormat(VTexFormat format)
-            => format != VTexFormat.RG1616
-                && format != VTexFormat.RG1616F;
-
         private static InternalFormat? GetInternalFormat(VTexFormat vformat)
             => vformat switch
             {
@@ -217,6 +206,8 @@ namespace GUI.Types.Renderer
         private static PixelInternalFormat? GetPixelInternalFormat(VTexFormat vformat)
             => vformat switch
             {
+                VTexFormat.R16 => PixelInternalFormat.R16,
+                VTexFormat.R16F => PixelInternalFormat.R16f,
                 VTexFormat.RG1616 => PixelInternalFormat.Rg16,
                 VTexFormat.RG1616F => PixelInternalFormat.Rg16f,
                 _ => null // Unsupported texture format
@@ -225,6 +216,8 @@ namespace GUI.Types.Renderer
         private static PixelFormat GetPixelFormat(VTexFormat vformat)
             => vformat switch
             {
+                VTexFormat.R16 => PixelFormat.Red,
+                VTexFormat.R16F => PixelFormat.Red,
                 VTexFormat.RG1616 => PixelFormat.Rg,
                 VTexFormat.RG1616F => PixelFormat.Rg,
                 _ => PixelFormat.Rgba
@@ -233,6 +226,8 @@ namespace GUI.Types.Renderer
         private static PixelType GetPixelType(VTexFormat vformat)
             => vformat switch
             {
+                VTexFormat.R16 => PixelType.UnsignedShort,
+                VTexFormat.R16F => PixelType.Float,
                 VTexFormat.RG1616 => PixelType.UnsignedShort,
                 VTexFormat.RG1616F => PixelType.Float,
                 _ => PixelType.UnsignedByte
