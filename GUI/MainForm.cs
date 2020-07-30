@@ -408,7 +408,7 @@ namespace GUI
                     ParentFileLoader = vrfGuiContext.FileLoader,
                 });
                 treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
-                treeViewWithSearch.TreeNodeMouseClick += VPK_OnClick;
+                treeViewWithSearch.TreeNodeRightClick += VPK_OnClick;
                 treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
                 treeViewWithSearch.ListViewItemRightClick += VPK_OnClick;
                 treeViewWithSearch.Disposed += VPK_Disposed;
@@ -864,7 +864,7 @@ namespace GUI
             if (sender is TreeViewWithSearchResults treeViewWithSearch)
             {
                 treeViewWithSearch.TreeNodeMouseDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.TreeNodeMouseClick -= VPK_OnClick;
+                treeViewWithSearch.TreeNodeRightClick -= VPK_OnClick;
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
                 treeViewWithSearch.ListViewItemRightClick -= VPK_OnClick;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
@@ -905,11 +905,7 @@ namespace GUI
 
         private void VPK_OnClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            e.Node.TreeView.SelectedNode = e.Node; //To stop it spassing out
-            if (e.Button == MouseButtons.Right)
-            {
-                vpkContextMenu.Show(e.Node.TreeView, e.Location);
-            }
+            vpkContextMenu.Show(e.Node.TreeView, e.Location);
         }
 
         /// <summary>

@@ -24,7 +24,7 @@ namespace GUI.Controls
         private readonly ImageList imageList;
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
-        public event TreeNodeMouseClickEventHandler TreeNodeMouseClick; // when a TreeNode is single clicked
+        public event TreeNodeMouseClickEventHandler TreeNodeRightClick; // when a TreeNode is single clicked
         public event EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick; // when a ListViewItem is double clicked
         public event EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick; // when a ListViewItem is single clicked
 
@@ -51,11 +51,13 @@ namespace GUI.Controls
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
             mainListView.Resize += MainListView_Resize;
-            mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
-            mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
+
             mainTreeView.HideSelection = false;
+            mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
+            mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
+            mainTreeView.AfterSelect += MainTreeView_AfterSelect;
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
@@ -63,9 +65,11 @@ namespace GUI.Controls
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
             mainListView.Resize -= MainListView_Resize;
+            mainListView.Disposed -= MainListView_Disposed;
+
             mainTreeView.NodeMouseDoubleClick -= MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
-            mainListView.Disposed -= MainListView_Disposed;
+            mainTreeView.AfterSelect -= MainTreeView_AfterSelect;
 
             (mainTreeView.Tag as TreeViewPackageTag).Package.Dispose();
             mainTreeView.Tag = null;
@@ -78,27 +82,38 @@ namespace GUI.Controls
             TreeNodeMouseDoubleClick?.Invoke(sender, e);
         }
 
-        private void MainTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        private void MainTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (TreeNodeMouseClick != null)
+            // if user selected a folder, show the contents of that folder in the list view
+            if (e.Action != TreeViewAction.Unknown && e.Node.Tag is TreeViewFolder)
             {
-                // if user left clicked a folder, show the contents of that folder in the list view
-                if (e.Button == MouseButtons.Left && e.Node.Tag is TreeViewFolder)
+                mainListView.BeginUpdate();
+                mainListView.Items.Clear();
+
+                foreach (TreeNode node in e.Node.Nodes)
                 {
-                    mainListView.Items.Clear();
-                    foreach (TreeNode node in e.Node.Nodes)
-                    {
-                        AddNodeToListView(node);
-                    }
+                    AddNodeToListView(node);
                 }
 
-                TreeNodeMouseClick(sender, e);
+                mainListView.EndUpdate();
+            }
+        }
+
+        private void MainTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                mainTreeView.SelectedNode = e.Node;
+
+                TreeNodeRightClick?.Invoke(sender, e);
             }
         }
 
         private void MainListView_Resize(object sender, EventArgs e)
         {
+            mainListView.BeginUpdate();
             ResizeListViewColumns();
+            mainListView.EndUpdate();
         }
 
         private void ResizeListViewColumns()
@@ -107,11 +122,11 @@ namespace GUI.Controls
             {
                 if (col.Text == "Name")
                 {
-                    col.Width = mainListView.ClientSize.Width / 2;
+                    col.Width = mainListView.ClientSize.Width - (mainListView.Columns.Count - 1) * 100;
                 }
                 else
                 {
-                    col.Width = mainListView.ClientSize.Width / 4;
+                    col.Width = 100;
                 }
             }
         }
@@ -167,6 +182,7 @@ namespace GUI.Controls
         /// <param name="selectedSearchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
         internal void SearchAndFillResults(string searchText, SearchType selectedSearchType)
         {
+            mainListView.BeginUpdate();
             mainListView.Items.Clear();
 
             var results = mainTreeView.Search(searchText, selectedSearchType);
@@ -177,6 +193,8 @@ namespace GUI.Controls
             }
 
             ResizeListViewColumns();
+
+            mainListView.EndUpdate();
         }
 
         /// <summary>
@@ -232,11 +250,14 @@ namespace GUI.Controls
                     var node = info.Item.Tag as TreeNode;
                     if (node.Tag is TreeViewFolder)
                     {
+                        node.Expand();
+                        mainListView.BeginUpdate();
                         mainListView.Items.Clear();
                         foreach (TreeNode childNode in node.Nodes)
                         {
                             AddNodeToListView(childNode);
                         }
+                        mainListView.EndUpdate();
                     }
 
                     ListViewItemDoubleClick?.Invoke(sender, new ListViewItemClickEventArgs(info.Item.Tag));
