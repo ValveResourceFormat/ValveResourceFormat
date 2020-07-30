@@ -11,13 +11,12 @@ namespace GUI.Utils
 
         public Package CurrentPackage { get; }
 
-        public Package ParentPackage { get; }
-
         public MaterialLoader MaterialLoader { get; }
 
         public ShaderLoader ShaderLoader { get; }
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; }
+        public AdvancedGuiFileLoader ParentFileLoader { get; }
 
         public QuadIndexBuffer QuadIndices
         {
@@ -38,7 +37,7 @@ namespace GUI.Utils
         {
             FileName = fileName;
             CurrentPackage = package?.Package;
-            ParentPackage = package?.ParentPackage;
+            ParentFileLoader = package?.ParentFileLoader;
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();
             FileLoader = new AdvancedGuiFileLoader(this);
