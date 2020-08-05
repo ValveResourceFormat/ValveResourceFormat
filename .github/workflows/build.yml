@@ -1,10 +1,10 @@
-name: .NET Core CI
+name: CI
 
 on: [push, pull_request]
 
 jobs:
   build:
-    name: .NET on ${{ matrix.os }}
+    name: ${{ matrix.os }}
 
     strategy:
       matrix:
@@ -45,7 +45,7 @@ jobs:
     - name: Publish Decompiler (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler/Decompiler.csproj
-    
+
     - name: Publish Decompiler (Mac)
       if: matrix.os == 'macos-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime osx-x64 Decompiler/Decompiler.csproj
@@ -77,7 +77,7 @@ jobs:
       with:
         name: Decompiler for Linux
         path: Decompiler/bin/Release/linux-x64/publish
-    
+
     - name: Upload Decompiler (Mac)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'macos-latest'

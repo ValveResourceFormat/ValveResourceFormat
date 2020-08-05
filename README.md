@@ -2,7 +2,7 @@
 
 <p align="center">
     <a href="https://github.com/SteamDatabase/ValveResourceFormat/actions">
-        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/SteamDatabase/ValveResourceFormat/.NET%20Core%20CI?logo=github&style=for-the-badge&logoColor=fff">
+        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/SteamDatabase/ValveResourceFormat/CI?logo=github&style=for-the-badge&logoColor=fff">
     </a>
     <a href="https://ci.appveyor.com/project/xPaw/ValveResourceFormat">
         <img src="https://img.shields.io/appveyor/ci/xPaw/valveresourceformat/master.svg?label=AppVeyor&logo=appveyor&style=for-the-badge&logoColor=fff">
