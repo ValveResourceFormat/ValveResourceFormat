@@ -23,7 +23,6 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ClosedCaptions;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ToolsAssetInfo;
 using Texture = ValveResourceFormat.ResourceTypes.Texture;
@@ -812,6 +811,18 @@ namespace GUI
                 }
 
                 tab.Controls.Add(resTabs);
+            }
+            else if (magic == 0x474E5089 /* png */ || magic << 8 == 0xFFD8FF00 /* jpg */ || magic << 8 == 0x46494700 /* gif */)
+            {
+                var img = input != null ? Image.FromStream(new MemoryStream(input)) : Image.FromFile(fileName);
+
+                var control = new Forms.Texture
+                {
+                    BackColor = Color.Black,
+                };
+                control.SetImage(new Bitmap(img), Path.GetFileNameWithoutExtension(fileName), img.Width, img.Height);
+
+                tab.Controls.Add(control);
             }
             else
             {
