@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -45,6 +45,10 @@ jobs:
     - name: Publish Decompiler (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler/Decompiler.csproj
+    
+    - name: Publish Decompiler (Mac)
+      if: matrix.os == 'macos-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime osx-x64 Decompiler/Decompiler.csproj
 
     - name: Upload GUI
       uses: actions/upload-artifact@v2
@@ -73,6 +77,13 @@ jobs:
       with:
         name: Decompiler for Linux
         path: Decompiler/bin/Release/linux-x64/publish
+    
+    - name: Upload Decompiler (Mac)
+      uses: actions/upload-artifact@v2
+      if: matrix.os == 'macos-latest'
+      with:
+        name: Decompiler for macOS
+        path: Decompiler/bin/Release/osx-x64/publish
 
     - name: Upload test coverage
       uses: coverallsapp/github-action@v1.1.1
