@@ -11,6 +11,11 @@ namespace GUI.Types.Viewers
     {
         public ImageList ImageList { get; set; }
 
+        public static bool IsAccepted(uint magic)
+        {
+            return magic == SteamDatabase.ValvePak.Package.MAGIC;
+        }
+
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();

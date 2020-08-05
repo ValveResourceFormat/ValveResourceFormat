@@ -9,6 +9,11 @@ namespace GUI.Types.Viewers
 {
     public class CompiledShader : IViewer
     {
+        public static bool IsAccepted(uint magic)
+        {
+            return magic == ValveResourceFormat.CompiledShader.MAGIC;
+        }
+
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();

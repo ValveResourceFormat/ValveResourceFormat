@@ -1,6 +1,4 @@
 using System;
-using System.ComponentModel;
-using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -15,10 +13,7 @@ using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat;
-using ValveResourceFormat.ClosedCaptions;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ToolsAssetInfo;
+using Resource = ValveResourceFormat.Resource;
 
 namespace GUI
 {
@@ -375,8 +370,7 @@ namespace GUI
 
             var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
-            // TODO: Create a list of viewers and create interface method to check whether viewer accepts the input
-            if (magic == Package.MAGIC)
+            if (Types.Viewers.Package.IsAccepted(magic))
             {
                 var tab = new Types.Viewers.Package
                 {
@@ -388,85 +382,32 @@ namespace GUI
 
                 return tab;
             }
-            else if (magic == CompiledShader.MAGIC)
+            else if (Types.Viewers.CompiledShader.IsAccepted(magic))
             {
                 return new Types.Viewers.CompiledShader().Create(vrfGuiContext, input);
             }
-            else if (magic == ClosedCaptions.MAGIC)
+            else if (Types.Viewers.ClosedCaptions.IsAccepted(magic))
             {
                 return new Types.Viewers.ClosedCaptions().Create(vrfGuiContext, input);
             }
-            else if (magic == ToolsAssetInfo.MAGIC)
+            else if (Types.Viewers.ToolsAssetInfo.IsAccepted(magic))
             {
                 return new Types.Viewers.ToolsAssetInfo().Create(vrfGuiContext, input);
             }
-            else if (magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2)
+            else if (Types.Viewers.BinaryKeyValues.IsAccepted(magic))
             {
                 return new Types.Viewers.BinaryKeyValues().Create(vrfGuiContext, input);
             }
-            else if (magicResourceVersion == Resource.KnownHeaderVersion)
+            else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
                 return new Types.Viewers.Resource().Create(vrfGuiContext, input);
             }
-            else if (magic == 0x474E5089 /* png */ || magic << 8 == 0xFFD8FF00 /* jpg */ || magic << 8 == 0x46494700 /* gif */)
+            else if (Types.Viewers.Image.IsAccepted(magic))
             {
-                var img = input != null ? Image.FromStream(new MemoryStream(input)) : Image.FromFile(fileName);
-
-                var control = new Forms.Texture
-                {
-                    BackColor = Color.Black,
-                };
-                control.SetImage(new Bitmap(img), Path.GetFileNameWithoutExtension(fileName), img.Width, img.Height);
-
-                var tab = new TabPage();
-                tab.Controls.Add(control);
-                return tab;
+                return new Types.Viewers.Image().Create(vrfGuiContext, input);
             }
-            else
-            {
-                var tab = new TabPage();
-                var resTabs = new TabControl
-                {
-                    Dock = DockStyle.Fill,
-                };
-                tab.Controls.Add(resTabs);
 
-                var bvTab = new TabPage("Hex");
-                var bv = new ByteViewer
-                {
-                    Dock = DockStyle.Fill,
-                };
-                bvTab.Controls.Add(bv);
-                resTabs.TabPages.Add(bvTab);
-
-                if (input == null)
-                {
-                    input = File.ReadAllBytes(fileName);
-                }
-
-                if (!input.Contains<byte>(0x00))
-                {
-                    var textTab = new TabPage("Text");
-                    var text = new TextBox
-                    {
-                        Dock = DockStyle.Fill,
-                        ScrollBars = ScrollBars.Vertical,
-                        Multiline = true,
-                        ReadOnly = true,
-                        Text = System.Text.Encoding.UTF8.GetString(input),
-                    };
-                    textTab.Controls.Add(text);
-                    resTabs.TabPages.Add(textTab);
-                    resTabs.SelectedTab = textTab;
-                }
-
-                Invoke((MethodInvoker)(() =>
-                {
-                    bv.SetBytes(input);
-                }));
-
-                return tab;
-            }
+            return new Types.Viewers.ByteViewer().Create(vrfGuiContext, input);
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)

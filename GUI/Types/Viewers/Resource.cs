@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.ComponentModel.Design;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
@@ -17,6 +16,11 @@ namespace GUI.Types.Viewers
 {
     public class Resource : IViewer
     {
+        public static bool IsAccepted(uint magic)
+        {
+            return magic == ValveResourceFormat.Resource.KnownHeaderVersion;
+        }
+
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();
@@ -316,7 +320,7 @@ namespace GUI.Types.Viewers
                 {
                     Console.WriteLine(e);
 
-                    var bv = new ByteViewer();
+                    var bv = new System.ComponentModel.Design.ByteViewer();
                     bv.Dock = DockStyle.Fill;
                     tab2.Controls.Add(bv);
 

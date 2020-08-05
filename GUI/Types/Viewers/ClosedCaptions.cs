@@ -8,6 +8,11 @@ namespace GUI.Types.Viewers
 {
     public class ClosedCaptions : IViewer
     {
+        public static bool IsAccepted(uint magic)
+        {
+            return magic == ValveResourceFormat.ClosedCaptions.ClosedCaptions.MAGIC;
+        }
+
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();
