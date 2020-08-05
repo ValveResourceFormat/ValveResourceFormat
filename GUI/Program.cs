@@ -7,6 +7,8 @@ namespace GUI
 {
     internal static class Program
     {
+        public static MainForm MainForm { get; private set; }
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -22,7 +24,8 @@ namespace GUI
             Application.EnableVisualStyles();
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            MainForm = new MainForm();
+            Application.Run(MainForm);
         }
 
         private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
