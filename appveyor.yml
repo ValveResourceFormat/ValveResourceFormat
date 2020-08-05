@@ -10,6 +10,7 @@ after_build:
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 GUI\GUI.csproj
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler\Decompiler.csproj
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler\Decompiler.csproj
+  - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime osx-x64 Decompiler\Decompiler.csproj
 
 test_script:
 - dotnet test
@@ -19,6 +20,8 @@ artifacts:
   name: Decompiler-win-x64
 - path: Decompiler\bin\Release\linux-x64\publish
   name: Decompiler-linux-x64
+- path: Decompiler\bin\Release\osx-x64\publish
+  name: Decompiler-osx-x64
 - path: GUI\bin\Release\win-x64\publish
   name: GUI
 - path: '**\*.nupkg'
