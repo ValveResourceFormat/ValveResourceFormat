@@ -409,13 +409,7 @@ namespace GUI
             }
             else if (fileName.EndsWith(".wav") || fileName.EndsWith(".mp3")) // TODO: detect magic
             {
-                var tab = new TabPage();
-                var audio = new AudioPlaybackPanel
-                {
-                    WaveStream = new AudioFileReader(fileName)
-                };
-                tab.Controls.Add(audio);
-                return tab;
+                return new Types.Viewers.Audio().Create(vrfGuiContext, input);
             }
 
             return new Types.Viewers.ByteViewer().Create(vrfGuiContext, input);

@@ -27,10 +27,7 @@ namespace GUI.Types.Audio
                     default: throw new Exception($"Dont know how to play {soundData.SoundType}");
                 }
 
-                var audio = new AudioPlaybackPanel
-                {
-                    WaveStream = waveStream
-                };
+                var audio = new AudioPlaybackPanel(waveStream);
 
                 tab.Controls.Add(audio);
             }

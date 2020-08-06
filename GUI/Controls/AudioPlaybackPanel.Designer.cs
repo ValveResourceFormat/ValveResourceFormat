@@ -64,7 +64,7 @@ namespace GUI.Controls
             this.labelTotalTime});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(690, 25);
+            this.toolStrip1.Size = new System.Drawing.Size(626, 25);
             this.toolStrip1.TabIndex = 15;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -104,8 +104,8 @@ namespace GUI.Controls
             // labelCurrentTime
             // 
             this.labelCurrentTime.Name = "labelCurrentTime";
-            this.labelCurrentTime.Size = new System.Drawing.Size(34, 22);
-            this.labelCurrentTime.Text = "00:00";
+            this.labelCurrentTime.Size = new System.Drawing.Size(49, 22);
+            this.labelCurrentTime.Text = "00:00.00";
             // 
             // toolStripLabel3
             // 
@@ -116,21 +116,20 @@ namespace GUI.Controls
             // labelTotalTime
             // 
             this.labelTotalTime.Name = "labelTotalTime";
-            this.labelTotalTime.Size = new System.Drawing.Size(34, 22);
-            this.labelTotalTime.Text = "00:00";
+            this.labelTotalTime.Size = new System.Drawing.Size(49, 22);
+            this.labelTotalTime.Text = "00:00.00";
             // 
             // trackBarPosition
             // 
             this.trackBarPosition.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.trackBarPosition.LargeChange = 10;
-            this.trackBarPosition.Location = new System.Drawing.Point(21, 374);
+            this.trackBarPosition.Location = new System.Drawing.Point(21, 188);
             this.trackBarPosition.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.trackBarPosition.Maximum = 100;
             this.trackBarPosition.Name = "trackBarPosition";
-            this.trackBarPosition.Size = new System.Drawing.Size(664, 45);
+            this.trackBarPosition.Size = new System.Drawing.Size(600, 45);
             this.trackBarPosition.TabIndex = 16;
-            this.trackBarPosition.TickFrequency = 5;
             this.trackBarPosition.Scroll += new System.EventHandler(this.trackBarPosition_Scroll);
             // 
             // timer1
@@ -141,9 +140,8 @@ namespace GUI.Controls
             // 
             // label3
             // 
-            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(388, 66);
+            this.label3.Location = new System.Drawing.Point(26, 236);
             this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(50, 15);
@@ -156,10 +154,10 @@ namespace GUI.Controls
             | System.Windows.Forms.AnchorStyles.Right)));
             this.waveformPainter2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(192)))));
             this.waveformPainter2.ForeColor = System.Drawing.Color.SaddleBrown;
-            this.waveformPainter2.Location = new System.Drawing.Point(21, 237);
+            this.waveformPainter2.Location = new System.Drawing.Point(67, 113);
             this.waveformPainter2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.waveformPainter2.Name = "waveformPainter2";
-            this.waveformPainter2.Size = new System.Drawing.Size(657, 69);
+            this.waveformPainter2.Size = new System.Drawing.Size(554, 69);
             this.waveformPainter2.TabIndex = 19;
             this.waveformPainter2.Text = "waveformPainter1";
             // 
@@ -169,45 +167,42 @@ namespace GUI.Controls
             | System.Windows.Forms.AnchorStyles.Right)));
             this.waveformPainter1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(192)))));
             this.waveformPainter1.ForeColor = System.Drawing.Color.SaddleBrown;
-            this.waveformPainter1.Location = new System.Drawing.Point(21, 163);
+            this.waveformPainter1.Location = new System.Drawing.Point(67, 39);
             this.waveformPainter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.waveformPainter1.Name = "waveformPainter1";
-            this.waveformPainter1.Size = new System.Drawing.Size(657, 69);
+            this.waveformPainter1.Size = new System.Drawing.Size(554, 69);
             this.waveformPainter1.TabIndex = 19;
             this.waveformPainter1.Text = "waveformPainter1";
             // 
             // volumeMeter2
             // 
             this.volumeMeter2.Amplitude = 0F;
-            this.volumeMeter2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.volumeMeter2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(0)))));
-            this.volumeMeter2.Location = new System.Drawing.Point(662, 35);
+            this.volumeMeter2.Location = new System.Drawing.Point(43, 39);
             this.volumeMeter2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.volumeMeter2.MaxDb = 3F;
             this.volumeMeter2.MinDb = -60F;
             this.volumeMeter2.Name = "volumeMeter2";
-            this.volumeMeter2.Size = new System.Drawing.Size(16, 118);
+            this.volumeMeter2.Size = new System.Drawing.Size(16, 143);
             this.volumeMeter2.TabIndex = 18;
             this.volumeMeter2.Text = "volumeMeter1";
             // 
             // volumeMeter1
             // 
             this.volumeMeter1.Amplitude = 0F;
-            this.volumeMeter1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.volumeMeter1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(0)))));
-            this.volumeMeter1.Location = new System.Drawing.Point(640, 35);
+            this.volumeMeter1.Location = new System.Drawing.Point(21, 39);
             this.volumeMeter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.volumeMeter1.MaxDb = 3F;
             this.volumeMeter1.MinDb = -60F;
             this.volumeMeter1.Name = "volumeMeter1";
-            this.volumeMeter1.Size = new System.Drawing.Size(16, 118);
+            this.volumeMeter1.Size = new System.Drawing.Size(16, 143);
             this.volumeMeter1.TabIndex = 18;
             this.volumeMeter1.Text = "volumeMeter1";
             // 
             // volumeSlider1
             // 
-            this.volumeSlider1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.volumeSlider1.Location = new System.Drawing.Point(516, 62);
+            this.volumeSlider1.Location = new System.Drawing.Point(84, 233);
             this.volumeSlider1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.volumeSlider1.Name = "volumeSlider1";
             this.volumeSlider1.Size = new System.Drawing.Size(112, 18);
@@ -228,7 +223,7 @@ namespace GUI.Controls
             this.Controls.Add(this.volumeSlider1);
             this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.Name = "AudioPlaybackPanel";
-            this.Size = new System.Drawing.Size(690, 440);
+            this.Size = new System.Drawing.Size(626, 270);
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarPosition)).EndInit();
