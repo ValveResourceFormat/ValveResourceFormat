@@ -1,6 +1,6 @@
 using System;
-using System.Drawing;
 using System.Windows.Forms;
+using GUI.Controls;
 using NAudio.Wave;
 using NLayer.NAudioSupport;
 using ValveResourceFormat;
@@ -8,24 +8,17 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Audio
 {
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     internal class AudioPlayer
-#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
-        private readonly Button playButton;
-        private WaveOutEvent waveOut;
-        private WaveStream waveStream;
-
         public AudioPlayer(Resource resource, TabPage tab)
         {
             var soundData = (Sound)resource.DataBlock;
-
             var stream = soundData.GetSoundStream();
-            waveOut = new WaveOutEvent();
-            waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
 
             try
             {
+                WaveStream waveStream;
+
                 switch (soundData.SoundType)
                 {
                     case Sound.AudioFileType.WAV: waveStream = new WaveFileReader(stream); break;
@@ -34,16 +27,12 @@ namespace GUI.Types.Audio
                     default: throw new Exception($"Dont know how to play {soundData.SoundType}");
                 }
 
-                waveOut.Init(waveStream);
+                var audio = new AudioPlaybackPanel
+                {
+                    WaveStream = waveStream
+                };
 
-                playButton = new Button();
-                playButton.Text = "Play";
-                playButton.TabIndex = 1;
-                playButton.Size = new Size(100, 25);
-                playButton.Click += PlayButton_Click;
-                playButton.Disposed += PlayButton_Disposed;
-
-                tab.Controls.Add(playButton);
+                tab.Controls.Add(audio);
             }
             catch (Exception e)
             {
@@ -56,46 +45,6 @@ namespace GUI.Types.Audio
                 };
 
                 tab.Controls.Add(msg);
-            }
-        }
-
-        private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
-        {
-            playButton.Text = "Play";
-        }
-
-        private void PlayButton_Disposed(object sender, EventArgs e)
-        {
-            if (waveOut != null)
-            {
-                Console.WriteLine("Disposed sound");
-                waveOut.Dispose();
-                waveOut = null;
-            }
-
-            if (waveStream != null)
-            {
-                waveStream.Dispose();
-                waveStream = null;
-            }
-        }
-
-        private void PlayButton_Click(object sender, EventArgs e)
-        {
-            if (waveOut.PlaybackState == PlaybackState.Stopped)
-            {
-                waveStream.Position = 0;
-            }
-
-            if (waveOut.PlaybackState == PlaybackState.Playing)
-            {
-                waveOut.Pause();
-                playButton.Text = "Play";
-            }
-            else
-            {
-                waveOut.Play();
-                playButton.Text = "Pause";
             }
         }
     }
