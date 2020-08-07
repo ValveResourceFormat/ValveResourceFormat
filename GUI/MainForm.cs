@@ -12,7 +12,6 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Utils;
-using NAudio.Wave;
 using SteamDatabase.ValvePak;
 using Resource = ValveResourceFormat.Resource;
 
@@ -407,7 +406,7 @@ namespace GUI
             {
                 return new Types.Viewers.Image().Create(vrfGuiContext, input);
             }
-            else if (fileName.EndsWith(".wav") || fileName.EndsWith(".mp3")) // TODO: detect magic
+            else if (Types.Viewers.Audio.IsAccepted(magic, fileName))
             {
                 return new Types.Viewers.Audio().Create(vrfGuiContext, input);
             }
