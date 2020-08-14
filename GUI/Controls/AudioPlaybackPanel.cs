@@ -41,15 +41,9 @@ namespace GUI.Controls
                 return;
             }
 
-            if (waveOut.PlaybackState == PlaybackState.Paused)
-            {
-                waveOut.Play();
-                return;
-            }
-
-            timer1.Start();
             setVolumeDelegate(volumeSlider1.Volume);
             waveOut.Play();
+            playbackTimer.Enabled = true;
         }
 
         private ISampleProvider CreateInputStream()
@@ -86,6 +80,8 @@ namespace GUI.Controls
             {
                 waveStream.Position = 0;
             }
+
+            playbackTimer.Enabled = false;
         }
 
         private void CloseWaveOut()
@@ -112,6 +108,8 @@ namespace GUI.Controls
             {
                 waveOut.Pause();
             }
+
+            playbackTimer.Enabled = false;
         }
 
         private void OnVolumeSliderChanged(object sender, EventArgs e)
@@ -122,13 +120,12 @@ namespace GUI.Controls
         private void OnButtonStopClick(object sender, EventArgs e)
         {
             waveOut?.Stop();
+            playbackTimer.Enabled = false;
         }
 
         private void OnTimerTick(object sender, EventArgs e)
         {
-            var currentTime = waveOut.PlaybackState == PlaybackState.Stopped ? TimeSpan.Zero : waveStream.CurrentTime;
-            trackBarPosition.Value = Math.Min(trackBarPosition.Maximum, (int)(100 * currentTime.TotalSeconds / waveStream.TotalTime.TotalSeconds));
-            labelCurrentTime.Text = currentTime.ToString("mm\\:ss\\.ff");
+            UpdateTime();
         }
 
         private void trackBarPosition_Scroll(object sender, EventArgs e)
@@ -136,7 +133,15 @@ namespace GUI.Controls
             if (waveOut != null)
             {
                 waveStream.CurrentTime = TimeSpan.FromSeconds(waveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
+                UpdateTime();
             }
+        }
+
+        private void UpdateTime()
+        {
+            var currentTime = waveStream.CurrentTime;
+            trackBarPosition.Value = Math.Min(trackBarPosition.Maximum, (int)(100 * currentTime.TotalSeconds / waveStream.TotalTime.TotalSeconds));
+            labelCurrentTime.Text = currentTime.ToString("mm\\:ss\\.ff");
         }
     }
 }

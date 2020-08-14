@@ -40,7 +40,7 @@ namespace GUI.Controls
             this.toolStripLabel3 = new System.Windows.Forms.ToolStripLabel();
             this.labelTotalTime = new System.Windows.Forms.ToolStripLabel();
             this.trackBarPosition = new System.Windows.Forms.TrackBar();
-            this.timer1 = new System.Windows.Forms.Timer(this.components);
+            this.playbackTimer = new System.Windows.Forms.Timer(this.components);
             this.label3 = new System.Windows.Forms.Label();
             this.waveformPainter2 = new NAudio.Gui.WaveformPainter();
             this.waveformPainter1 = new NAudio.Gui.WaveformPainter();
@@ -132,11 +132,10 @@ namespace GUI.Controls
             this.trackBarPosition.TabIndex = 16;
             this.trackBarPosition.Scroll += new System.EventHandler(this.trackBarPosition_Scroll);
             // 
-            // timer1
+            // playbackTimer
             // 
-            this.timer1.Enabled = true;
-            this.timer1.Interval = 500;
-            this.timer1.Tick += new System.EventHandler(this.OnTimerTick);
+            this.playbackTimer.Interval = 500;
+            this.playbackTimer.Tick += new System.EventHandler(this.OnTimerTick);
             // 
             // label3
             // 
@@ -239,7 +238,6 @@ namespace GUI.Controls
         private System.Windows.Forms.ToolStripButton buttonPause;
         private System.Windows.Forms.ToolStripButton buttonStop;
         private System.Windows.Forms.TrackBar trackBarPosition;
-        private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.ToolStripLabel toolStripLabel1;
         private System.Windows.Forms.ToolStripLabel labelCurrentTime;
         private System.Windows.Forms.ToolStripLabel toolStripLabel3;
@@ -249,5 +247,6 @@ namespace GUI.Controls
         private NAudio.Gui.VolumeMeter volumeMeter2;
         private NAudio.Gui.WaveformPainter waveformPainter1;
         private NAudio.Gui.WaveformPainter waveformPainter2;
+        private System.Windows.Forms.Timer playbackTimer;
     }
 }
