@@ -22,6 +22,7 @@ namespace GUI.Controls
             try
             {
                 waveOut = new WaveOutEvent();
+                // TODO: This event does not actually fire.
                 waveOut.PlaybackStopped += OnPlaybackStopped;
                 waveOut.Init(CreateInputStream());
             }
@@ -44,6 +45,7 @@ namespace GUI.Controls
             setVolumeDelegate(volumeSlider1.Volume);
             waveOut.Play();
             playbackTimer.Enabled = true;
+            UpdateTime();
         }
 
         private ISampleProvider CreateInputStream()
@@ -82,6 +84,7 @@ namespace GUI.Controls
             }
 
             playbackTimer.Enabled = false;
+            UpdateTime();
         }
 
         private void CloseWaveOut()
@@ -120,7 +123,9 @@ namespace GUI.Controls
         private void OnButtonStopClick(object sender, EventArgs e)
         {
             waveOut?.Stop();
+            waveStream.Position = 0;
             playbackTimer.Enabled = false;
+            UpdateTime();
         }
 
         private void OnTimerTick(object sender, EventArgs e)
