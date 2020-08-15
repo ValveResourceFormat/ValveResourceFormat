@@ -18,25 +18,26 @@ namespace GUI.Controls
             InitializeComponent();
 
             waveStream = inputStream;
-
-            try
-            {
-                waveOut = new WaveOutEvent();
-                // TODO: This event does not actually fire.
-                waveOut.PlaybackStopped += OnPlaybackStopped;
-                waveOut.Init(CreateInputStream());
-            }
-            catch (Exception driverCreateException)
-            {
-                MessageBox.Show(driverCreateException.Message);
-                return;
-            }
-
             labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff");
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e)
         {
+            if (waveOut == null)
+            {
+                try
+                {
+                    waveOut = new WaveOutEvent();
+                    waveOut.PlaybackStopped += OnPlaybackStopped;
+                    waveOut.Init(CreateInputStream());
+                }
+                catch (Exception driverCreateException)
+                {
+                    MessageBox.Show(driverCreateException.Message);
+                    return;
+                }
+            }
+
             if (waveOut.PlaybackState == PlaybackState.Playing)
             {
                 return;
@@ -89,19 +90,18 @@ namespace GUI.Controls
 
         private void CloseWaveOut()
         {
-            waveOut?.Stop();
+            if (waveOut != null)
+            {
+                waveOut.Stop();
+                waveOut.Dispose();
+                waveOut = null;
+            }
 
             if (waveStream != null)
             {
                 waveStream.Dispose();
                 setVolumeDelegate = null;
                 waveStream = null;
-            }
-
-            if (waveOut != null)
-            {
-                waveOut.Dispose();
-                waveOut = null;
             }
         }
 
@@ -135,11 +135,8 @@ namespace GUI.Controls
 
         private void trackBarPosition_Scroll(object sender, EventArgs e)
         {
-            if (waveOut != null)
-            {
-                waveStream.CurrentTime = TimeSpan.FromSeconds(waveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
-                UpdateTime();
-            }
+            waveStream.CurrentTime = TimeSpan.FromSeconds(waveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
+            UpdateTime();
         }
 
         private void UpdateTime()
