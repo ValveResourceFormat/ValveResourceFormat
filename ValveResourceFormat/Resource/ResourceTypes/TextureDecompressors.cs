@@ -9,15 +9,12 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadI8(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var color = r.ReadByte();
-
-                    res.SetPixel(x, y, new SKColor(color, color, color, 255));
-                }
+                var color = r.ReadByte();
+                span[i] = new SKColor(color, color, color, 255);
             }
 
             return res;
@@ -26,16 +23,14 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadIA88(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var color = r.ReadByte();
-                    var alpha = r.ReadByte();
+                var color = r.ReadByte();
+                var alpha = r.ReadByte();
 
-                    res.SetPixel(x, y, new SKColor(color, color, color, alpha));
-                }
+                span[i] = new SKColor(color, color, color, alpha);
             }
 
             return res;
@@ -45,18 +40,15 @@ namespace ValveResourceFormat.ResourceTypes
         {
             // Rgba8888 color type is broken in Skia
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var colorR = r.ReadByte();
-                    var colorG = r.ReadByte();
-                    var colorB = r.ReadByte();
-                    var colorA = r.ReadByte();
-
-                    res.SetPixel(x, y, new SKColor(colorR, colorG, colorB, colorA));
-                }
+                var colorR = r.ReadByte();
+                var colorG = r.ReadByte();
+                var colorB = r.ReadByte();
+                var colorA = r.ReadByte();
+                span[i] = new SKColor(colorR, colorG, colorB, colorA);
             }
 
             return res;
@@ -65,13 +57,11 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadBGRA8888(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    res.SetPixel(x, y, new SKColor(r.ReadUInt32()));
-                }
+                span[i] = new SKColor(r.ReadUInt32());
             }
 
             return res;
@@ -80,15 +70,13 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadR16(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadUInt16() / 256);
+                var hr = (byte)(r.ReadUInt16() / 256);
 
-                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
-                }
+                span[i] = new SKColor(hr, 0, 0, 255);
             }
 
             return res;
@@ -97,16 +85,14 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRG1616(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadUInt16() / 256);
-                    var hg = (byte)(r.ReadUInt16() / 256);
+                var hr = (byte)(r.ReadUInt16() / 256);
+                var hg = (byte)(r.ReadUInt16() / 256);
 
-                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
-                }
+                span[i] = new SKColor(hr, hg, 0, 255);
             }
 
             return res;
@@ -115,15 +101,13 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadR16F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
 
-                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
-                }
+                span[i] = new SKColor(hr, 0, 0, 255);
             }
 
             return res;
@@ -132,16 +116,14 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRG1616F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
-                    var hg = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                var hg = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
 
-                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
-                }
+                span[i] = new SKColor(hr, hg, 0, 255);
             }
 
             return res;
@@ -248,15 +230,13 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadR32F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
+                var hr = (byte)(r.ReadSingle() * 255);
 
-                    res.SetPixel(x, y, new SKColor(hr, 0, 0, 255));
-                }
+                span[i] = new SKColor(hr, 0, 0, 255);
             }
 
             return res;
@@ -265,16 +245,14 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRG3232F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-                    var hg = (byte)(r.ReadSingle() * 255);
+                var hr = (byte)(r.ReadSingle() * 255);
+                var hg = (byte)(r.ReadSingle() * 255);
 
-                    res.SetPixel(x, y, new SKColor(hr, hg, 0, 255));
-                }
+                span[i] = new SKColor(hr, hg, 0, 255);
             }
 
             return res;
@@ -283,17 +261,15 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRGB323232F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-                    var hg = (byte)(r.ReadSingle() * 255);
-                    var hb = (byte)(r.ReadSingle() * 255);
+                var hr = (byte)(r.ReadSingle() * 255);
+                var hg = (byte)(r.ReadSingle() * 255);
+                var hb = (byte)(r.ReadSingle() * 255);
 
-                    res.SetPixel(x, y, new SKColor(hr, hg, hb, 255));
-                }
+                span[i] = new SKColor(hr, hg, hb, 255);
             }
 
             return res;
@@ -302,18 +278,16 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRGBA32323232F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var span = res.PeekPixels().GetPixelSpan<SKColor>();
 
-            for (var y = 0; y < h; y++)
+            for (var i = 0; i < span.Length; i++)
             {
-                for (var x = 0; x < w; x++)
-                {
-                    var hr = (byte)(r.ReadSingle() * 255);
-                    var hg = (byte)(r.ReadSingle() * 255);
-                    var hb = (byte)(r.ReadSingle() * 255);
-                    var ha = (byte)(r.ReadSingle() * 255);
+                var hr = (byte)(r.ReadSingle() * 255);
+                var hg = (byte)(r.ReadSingle() * 255);
+                var hb = (byte)(r.ReadSingle() * 255);
+                var ha = (byte)(r.ReadSingle() * 255);
 
-                    res.SetPixel(x, y, new SKColor(hr, hg, hb, ha));
-                }
+                span[i] = new SKColor(hr, hg, hb, ha);
             }
 
             return res;
