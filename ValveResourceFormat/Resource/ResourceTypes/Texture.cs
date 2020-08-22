@@ -262,8 +262,7 @@ namespace ValveResourceFormat.ResourceTypes
             switch (Format)
             {
                 case VTexFormat.DXT1:
-                    TextureDecompressors.UncompressDXT1(imageInfo, GetDecompressedBuffer(), data, Width >> MipmapLevelToExtract, Height >> MipmapLevelToExtract);
-                    break;
+                    return TextureDecompressors.UncompressDXT1(GetDecompressedBuffer(), width, height);
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -281,8 +280,7 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
                     }
 
-                    TextureDecompressors.UncompressDXT5(imageInfo, GetDecompressedBuffer(), data, Width, Height, yCoCg, normalize, invert, hemiOct);
-                    break;
+                    return TextureDecompressors.UncompressDXT5(GetDecompressedBuffer(), width, height, yCoCg, normalize, invert, hemiOct);
 
                 case VTexFormat.I8:
                     return TextureDecompressors.ReadI8(GetDecompressedBuffer(), Width, Height);
@@ -297,8 +295,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadRG1616(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA16161616:
-                    TextureDecompressors.ReadRGBA16161616(imageInfo, GetDecompressedBuffer(), data);
-                    break;
+                    return TextureDecompressors.ReadRGBA16161616(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.R16F:
                     return TextureDecompressors.ReadR16F(GetDecompressedBuffer(), Width, Height);
@@ -307,8 +304,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadRG1616F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA16161616F:
-                    TextureDecompressors.ReadRGBA16161616F(imageInfo, GetDecompressedBuffer(), data);
-                    break;
+                    return TextureDecompressors.ReadRGBA16161616F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.R32F:
                     return TextureDecompressors.ReadR32F(GetDecompressedBuffer(), Width, Height);
@@ -323,8 +319,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.BC6H:
-                    BPTC.BPTCDecoders.UncompressBC6H(imageInfo, GetDecompressedBuffer(), data, Width, Height);
-                    break;
+                    return BPTC.BPTCDecoders.UncompressBC6H(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.BC7:
                     bool hemiOctRB = false;
@@ -336,8 +331,7 @@ namespace ValveResourceFormat.ResourceTypes
                         invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
                     }
 
-                    BPTC.BPTCDecoders.UncompressBC7(imageInfo, GetDecompressedBuffer(), data, Width, Height, hemiOctRB, invert);
-                    break;
+                    return BPTC.BPTCDecoders.UncompressBC7(GetDecompressedBuffer(), Width, Height, hemiOctRB, invert);
 
                 case VTexFormat.ATI2N:
                     normalize = false;
@@ -347,15 +341,13 @@ namespace ValveResourceFormat.ResourceTypes
                         normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
                     }
 
-                    TextureDecompressors.UncompressATI2N(GetDecompressedBuffer(), data, Width, Height, normalize);
-                    break;
+                    return TextureDecompressors.UncompressATI2N(GetDecompressedBuffer(), Width, Height, normalize);
 
                 case VTexFormat.IA88:
                     return TextureDecompressors.ReadIA88(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.ATI1N:
-                    TextureDecompressors.UncompressATI1N(GetDecompressedBuffer(), data, Width, Height);
-                    break;
+                    return TextureDecompressors.UncompressATI1N(GetDecompressedBuffer(), Width, Height);
 
                 // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:

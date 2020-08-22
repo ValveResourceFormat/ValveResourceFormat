@@ -106,8 +106,10 @@ namespace BPTC
             return (short)v;
         }
 
-        public static void UncompressBC6H(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h)
+        public static SKBitmap UncompressBC6H(BinaryReader r, int w, int h)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             for (var j = 0; j < blockCountY; j++)
@@ -420,6 +422,8 @@ namespace BPTC
                     }
                 }
             }
+
+            return imageInfo;
         }
 
         private static readonly byte[,] BC7PartitionTable3 = new byte[64, 16]
@@ -513,8 +517,10 @@ namespace BPTC
         };
         private static readonly byte[] BC7IndLength = { 3, 3, 2, 2, 2, 2, 4, 2 };
 
-        public static void UncompressBC7(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool hemiOctRB, bool invert)
+        public static SKBitmap UncompressBC7(BinaryReader r, int w, int h, bool hemiOctRB, bool invert)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
@@ -770,6 +776,8 @@ namespace BPTC
                     }
                 }
             }
+
+            return imageInfo;
         }
     }
 }

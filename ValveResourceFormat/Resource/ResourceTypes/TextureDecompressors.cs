@@ -129,8 +129,10 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static void ReadRGBA16161616(SKImageInfo imageInfo, BinaryReader r, Span<byte> data)
+        public static SKBitmap ReadRGBA16161616(BinaryReader r, int w, int h)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
             var bytes = r.ReadBytes(imageInfo.Width * imageInfo.Height * 8);
             var log = 0d;
 
@@ -176,10 +178,15 @@ namespace ValveResourceFormat.ResourceTypes
                 data[j + 2] = (byte)(hb * 255); // b
                 data[j + 3] = (byte)(ha * 255); // a
             }
+
+            return imageInfo;
         }
 
-        public static void ReadRGBA16161616F(SKImageInfo imageInfo, BinaryReader r, Span<byte> data)
+        public static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+
             var bytes = r.ReadBytes(imageInfo.Width * imageInfo.Height * 8);
             var log = 0d;
 
@@ -225,6 +232,8 @@ namespace ValveResourceFormat.ResourceTypes
                 data[j + 2] = (byte)(hb * 255); // b
                 data[j + 3] = (byte)(ha * 255); // a
             }
+
+            return imageInfo;
         }
 
         public static SKBitmap ReadR32F(BinaryReader r, int w, int h)
@@ -293,8 +302,11 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static void UncompressATI1N(BinaryReader r, Span<byte> data, int w, int h)
+        public static SKBitmap UncompressATI1N(BinaryReader r, int w, int h)
         {
+            var bitmap = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = bitmap.PeekPixels().GetPixelSpan<byte>();
+
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
@@ -323,10 +335,14 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
             }
+
+            return bitmap;
         }
 
-        public static void UncompressATI2N(BinaryReader r, Span<byte> data, int w, int h, bool normalize)
+        public static SKBitmap UncompressATI2N(BinaryReader r, int w, int h, bool normalize)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
@@ -364,10 +380,15 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
             }
+
+            return imageInfo;
         }
 
-        public static void UncompressDXT1(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h)
+        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
@@ -379,6 +400,8 @@ namespace ValveResourceFormat.ResourceTypes
                     DecompressBlockDXT1(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes);
                 }
             }
+
+            return imageInfo;
         }
 
         private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride)
@@ -455,8 +478,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static void UncompressDXT5(SKImageInfo imageInfo, BinaryReader r, Span<byte> data, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
+        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
         {
+            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 
@@ -526,6 +552,8 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
             }
+
+            return imageInfo;
         }
 
         private static void Decompress8BitBlock(int bx, int w, int offset, ulong block, Span<byte> pixels, int stride)
