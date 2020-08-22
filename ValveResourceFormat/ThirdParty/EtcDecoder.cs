@@ -19,7 +19,7 @@ namespace Etc
                 {
                     DecodeEtc1Block(input, d);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -39,7 +39,7 @@ namespace Etc
                 {
                     DecodeEtc2Block(input, d);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -59,7 +59,7 @@ namespace Etc
                 {
                     DecodeEtc2a1Block(input, d);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -80,7 +80,7 @@ namespace Etc
                     DecodeEtc2Block(input, d + 8);
                     DecodeEtc2a8Block(input, d);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -107,7 +107,7 @@ namespace Etc
                 {
                     DecodeEacUnsignedBlock(input, d, 2);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf8, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -134,7 +134,7 @@ namespace Etc
                 {
                     DecodeEacSignedBlock(input, d, 2);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf8, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -162,7 +162,7 @@ namespace Etc
                     DecodeEacUnsignedBlock(input, d + 0, 2);
                     DecodeEacUnsignedBlock(input, d + 8, 1);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf8, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
@@ -190,7 +190,7 @@ namespace Etc
                     DecodeEacSignedBlock(input, d + 0, 2);
                     DecodeEacSignedBlock(input, d + 8, 1);
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
-                    for (int i = 0, y = height - t * 4 - 1; i < 4 && y >= 0; i++, y--)
+                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         Buffer.BlockCopy(m_buf8, i * 4 * 4, output, y * 4 * width + s * 4 * 4, clen);
                     }
