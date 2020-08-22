@@ -84,12 +84,22 @@ namespace GUI.Controls
                 waveStream.Position = 0;
             }
 
-            playbackTimer.Enabled = false;
-            UpdateTime();
+            if (playbackTimer != null)
+            {
+                playbackTimer.Enabled = false;
+                UpdateTime();
+            }
         }
 
         private void CloseWaveOut()
         {
+            if (playbackTimer != null)
+            {
+                playbackTimer.Enabled = false;
+                playbackTimer.Dispose();
+                playbackTimer = null;
+            }
+
             if (waveOut != null)
             {
                 waveOut.Stop();
