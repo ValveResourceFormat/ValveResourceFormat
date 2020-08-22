@@ -230,7 +230,7 @@ namespace ValveResourceFormat.IO
                             case 4:
                                 {
                                     var vectors = ToVector4Array(buffer);
-                                    
+
                                     // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
                                     if (attribute.Name == "NORMAL" || attribute.Name == "TANGENT")
                                     {
@@ -400,14 +400,12 @@ namespace ValveResourceFormat.IO
 
                 if (renderTexture.Key == "g_tColor" && material.Alpha == AlphaMode.OPAQUE)
                 {
+                    var bitmapSpan = bitmap.PeekPixels().GetPixelSpan<SKColor>();
+
                     // expensive transparency workaround for color maps
-                    for (int row = 0; row < bitmap.Width; row++)
+                    for (var i = 0; i < bitmapSpan.Length; i++)
                     {
-                        for (int col = 0; col < bitmap.Height; col++)
-                        {
-                            var pixelAt = bitmap.GetPixel(row, col);
-                            bitmap.SetPixel(row, col, new SKColor(pixelAt.Red, pixelAt.Green, pixelAt.Blue, 255));
-                        }
+                        bitmapSpan[i] = bitmapSpan[i].WithAlpha(255);
                     }
                 }
 
@@ -637,7 +635,7 @@ namespace ValveResourceFormat.IO
                 {
                     vectorArray[i] = -Vector4.UnitZ;
                     vectorArray[i].W = vec.W;
-                    
+
                     Console.Error.WriteLine($"The exported model contains a non-zero unit vector which was replaced with {vectorArray[i]} for exporting purposes.");
                 }
             }
@@ -652,7 +650,7 @@ namespace ValveResourceFormat.IO
                 if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
                 {
                     vectorArray[i] = -Vector3.UnitZ;
-                    
+
                     Console.Error.WriteLine($"The exported model contains a non-zero unit vector which was replaced with {vectorArray[i]} for exporting purposes.");
                 }
             }
