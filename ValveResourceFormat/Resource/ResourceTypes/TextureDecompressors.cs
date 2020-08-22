@@ -36,18 +36,19 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap ReadRGBA8888(BinaryReader r, int w, int h)
+        public static SKBitmap ReadRGBA8888(Span<byte> input, int w, int h)
         {
             // Rgba8888 color type is broken in Skia
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
             {
-                var colorR = r.ReadByte();
-                var colorG = r.ReadByte();
-                var colorB = r.ReadByte();
-                var colorA = r.ReadByte();
+                var colorR = input[offset++];
+                var colorG = input[offset++];
+                var colorB = input[offset++];
+                var colorA = input[offset++];
                 span[i] = new SKColor(colorR, colorG, colorB, colorA);
             }
 

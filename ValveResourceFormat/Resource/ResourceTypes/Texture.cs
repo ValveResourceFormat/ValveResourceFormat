@@ -286,7 +286,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadI8(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA8888:
-                    return TextureDecompressors.ReadRGBA8888(GetDecompressedBuffer(), Width, Height);
+                    return TextureDecompressors.ReadRGBA8888(GetTextureSpan(), Width, Height);
 
                 case VTexFormat.R16:
                     return TextureDecompressors.ReadR16(GetDecompressedBuffer(), Width, Height);
@@ -470,28 +470,35 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
+        private Span<byte> GetTextureSpan(int mipLevel = MipmapLevelToExtract)
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+            var output = new Span<byte>(new byte[uncompressedSize]);
 
             if (!IsActuallyCompressedMips)
             {
-                return Reader.ReadBytes(uncompressedSize);
+                Reader.Read(output);
+                return output;
             }
 
             var compressedSize = CompressedMips[mipLevel];
 
             if (compressedSize >= uncompressedSize)
             {
-                return Reader.ReadBytes(uncompressedSize);
+                Reader.Read(output);
+                return output;
             }
 
             var input = Reader.ReadBytes(compressedSize);
-            var output = new Span<byte>(new byte[uncompressedSize]);
 
             LZ4Codec.Decode(input, output);
 
-            return output.ToArray();
+            return output;
+        }
+
+        public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
+        {
+            return GetTextureSpan(mipLevel).ToArray();
         }
 
         private BinaryReader GetDecompressedBuffer()
