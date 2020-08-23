@@ -385,10 +385,10 @@ namespace ValveResourceFormat.ResourceTypes
             return imageInfo;
         }
 
-        public static SKBitmap UncompressDXT1(SKBitmap imageInfo, BinaryReader r, int w, int h)
+        public static SKBitmap UncompressDXT1(SKBitmap imageInfo, Span<byte> input, int w, int h)
         {
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
-
+            var offset = 0;
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var imageWidth = imageInfo.Width;
@@ -398,7 +398,8 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    var blockStorage = r.ReadBytes(8);
+                    var blockStorage = input.Slice(offset, 8);
+                    offset += 8;
                     DecompressBlockDXT1(i * 4, j * 4, imageWidth, blockStorage, data, rowBytes);
                 }
             }
@@ -406,7 +407,7 @@ namespace ValveResourceFormat.ResourceTypes
             return imageInfo;
         }
 
-        private static void DecompressBlockDXT1(int x, int y, int width, byte[] blockStorage, Span<byte> pixels, int stride)
+        private static void DecompressBlockDXT1(int x, int y, int width, Span<byte> blockStorage, Span<byte> pixels, int stride)
         {
             var color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
             var color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
@@ -480,10 +481,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static SKBitmap UncompressDXT5(SKBitmap imageInfo, BinaryReader r, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
+        public static SKBitmap UncompressDXT5(SKBitmap imageInfo, Span<byte> input, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
         {
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
-
+            var offset = 0;
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var imageWidth = imageInfo.Width;
@@ -493,8 +494,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong blockAlpha = r.ReadUInt64();
-                    var blockStorage = r.ReadBytes(8);
+                    var blockAlpha = BitConverter.ToUInt64(input.Slice(offset, 8)); // TODO: Can we work on bytes directly here?
+                    offset += 8;
+                    var blockStorage = input.Slice(offset, 8);
+                    offset += 8;
                     int ofs = (i * 16) + (j * 4 * rowBytes);
                     DecompressBlockDXT1(i * 4, j * 4, imageWidth, blockStorage, data, rowBytes);
                     Decompress8BitBlock(i * 4, imageWidth, ofs + 3, blockAlpha, data, rowBytes);

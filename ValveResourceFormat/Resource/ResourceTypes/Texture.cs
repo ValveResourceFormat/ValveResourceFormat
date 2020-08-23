@@ -263,7 +263,7 @@ namespace ValveResourceFormat.ResourceTypes
             switch (Format)
             {
                 case VTexFormat.DXT1:
-                    return TextureDecompressors.UncompressDXT1(skiaBitmap, GetDecompressedBuffer(), blockWidth, blockHeight);
+                    return TextureDecompressors.UncompressDXT1(skiaBitmap, GetTextureSpan(), blockWidth, blockHeight);
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -281,7 +281,7 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
                     }
 
-                    return TextureDecompressors.UncompressDXT5(skiaBitmap, GetDecompressedBuffer(), blockWidth, blockHeight, yCoCg, normalize, invert, hemiOct);
+                    return TextureDecompressors.UncompressDXT5(skiaBitmap, GetTextureSpan(), blockWidth, blockHeight, yCoCg, normalize, invert, hemiOct);
 
                 case VTexFormat.I8:
                     return TextureDecompressors.ReadI8(GetDecompressedBuffer(), Width, Height);
