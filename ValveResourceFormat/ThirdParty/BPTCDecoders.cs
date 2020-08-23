@@ -112,6 +112,8 @@ namespace BPTC
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
+            var rowBytes = imageInfo.RowBytes;
+
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
@@ -389,7 +391,7 @@ namespace BPTC
                     {
                         for (int bx = 0; bx < 4; bx++)
                         {
-                            var pixelIndex = (((j * 4) + by) * imageInfo.RowBytes) + (((i * 4) + bx) * 4);
+                            var pixelIndex = (((j * 4) + by) * rowBytes) + (((i * 4) + bx) * 4);
                             int io = (by * 4) + bx;
 
                             int isAnchor = 0;

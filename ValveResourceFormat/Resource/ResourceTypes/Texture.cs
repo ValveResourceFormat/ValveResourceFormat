@@ -253,16 +253,17 @@ namespace ValveResourceFormat.ResourceTypes
 
             var width = ActualWidth >> MipmapLevelToExtract;
             var height = ActualHeight >> MipmapLevelToExtract;
+            var blockWidth = Width >> MipmapLevelToExtract;
+            var blockHeight = Height >> MipmapLevelToExtract;
 
-            var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            Span<byte> data = new byte[imageInfo.RowBytes * imageInfo.Height];
+            var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             SkipMipmaps();
 
             switch (Format)
             {
                 case VTexFormat.DXT1:
-                    return TextureDecompressors.UncompressDXT1(GetDecompressedBuffer(), width, height);
+                    return TextureDecompressors.UncompressDXT1(skiaBitmap, GetDecompressedBuffer(), blockWidth, blockHeight);
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -280,7 +281,7 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
                     }
 
-                    return TextureDecompressors.UncompressDXT5(GetDecompressedBuffer(), width, height, yCoCg, normalize, invert, hemiOct);
+                    return TextureDecompressors.UncompressDXT5(skiaBitmap, GetDecompressedBuffer(), blockWidth, blockHeight, yCoCg, normalize, invert, hemiOct);
 
                 case VTexFormat.I8:
                     return TextureDecompressors.ReadI8(GetDecompressedBuffer(), Width, Height);
@@ -357,17 +358,21 @@ namespace ValveResourceFormat.ResourceTypes
                     return ReadBuffer();
 
                 case VTexFormat.ETC2:
+                    // TODO: Rewrite EtcDecoder to work on skia span directly
                     var etc = new Etc.EtcDecoder();
-                    var rewriteMeProperlyPlease = new byte[data.Length]; // TODO
-                    etc.DecompressETC2(GetDecompressedTextureAtMipLevel(0), width, height, rewriteMeProperlyPlease);
-                    data = rewriteMeProperlyPlease;
+                    var data = new byte[skiaBitmap.RowBytes * skiaBitmap.Height];
+                    etc.DecompressETC2(GetDecompressedTextureAtMipLevel(0), width, height, data);
+                    var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
+                    skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle.Free(); }, null);
                     break;
 
                 case VTexFormat.ETC2_EAC:
+                    // TODO: Rewrite EtcDecoder to work on skia span directly
                     var etc2 = new Etc.EtcDecoder();
-                    var rewriteMeProperlyPlease2 = new byte[data.Length]; // TODO
-                    etc2.DecompressETC2A8(GetDecompressedTextureAtMipLevel(0), width, height, rewriteMeProperlyPlease2);
-                    data = rewriteMeProperlyPlease2;
+                    var data2 = new byte[skiaBitmap.RowBytes * skiaBitmap.Height];
+                    etc2.DecompressETC2A8(GetDecompressedTextureAtMipLevel(0), width, height, data2);
+                    var gcHandle2 = GCHandle.Alloc(data2, GCHandleType.Pinned);
+                    skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle2.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle2.Free(); }, null);
                     break;
 
                 case VTexFormat.BGRA8888:
@@ -377,15 +382,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
             }
 
-            // pin the managed array so that the GC doesn't move it
-            // TODO: There's probably a better way of handling this with Span<byte>
-            var gcHandle = GCHandle.Alloc(data.ToArray(), GCHandleType.Pinned);
-
-            // install the pixels with the color type of the pixel data
-            var bitmap = new SKBitmap();
-            bitmap.InstallPixels(imageInfo, gcHandle.AddrOfPinnedObject(), imageInfo.RowBytes, (address, context) => { gcHandle.Free(); }, null);
-
-            return bitmap;
+            return skiaBitmap;
         }
 
         private int CalculateBufferSizeForMipLevel(int mipLevel)

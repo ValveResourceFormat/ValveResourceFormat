@@ -385,20 +385,21 @@ namespace ValveResourceFormat.ResourceTypes
             return imageInfo;
         }
 
-        public static SKBitmap UncompressDXT1(BinaryReader r, int w, int h)
+        public static SKBitmap UncompressDXT1(SKBitmap imageInfo, BinaryReader r, int w, int h)
         {
-            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
+            var imageWidth = imageInfo.Width;
+            var rowBytes = imageInfo.RowBytes;
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
                     var blockStorage = r.ReadBytes(8);
-                    DecompressBlockDXT1(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes);
+                    DecompressBlockDXT1(i * 4, j * 4, imageWidth, blockStorage, data, rowBytes);
                 }
             }
 
@@ -479,13 +480,14 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static SKBitmap UncompressDXT5(BinaryReader r, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
+        public static SKBitmap UncompressDXT5(SKBitmap imageInfo, BinaryReader r, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
         {
-            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
+            var imageWidth = imageInfo.Width;
+            var rowBytes = imageInfo.RowBytes;
 
             for (var j = 0; j < blockCountY; j++)
             {
@@ -493,16 +495,16 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     ulong blockAlpha = r.ReadUInt64();
                     var blockStorage = r.ReadBytes(8);
-                    int ofs = (i * 16) + (j * 4 * imageInfo.RowBytes);
-                    DecompressBlockDXT1(i * 4, j * 4, imageInfo.Width, blockStorage, data, imageInfo.RowBytes);
-                    Decompress8BitBlock(i * 4, imageInfo.Width, ofs + 3, blockAlpha, data, imageInfo.RowBytes);
+                    int ofs = (i * 16) + (j * 4 * rowBytes);
+                    DecompressBlockDXT1(i * 4, j * 4, imageWidth, blockStorage, data, rowBytes);
+                    Decompress8BitBlock(i * 4, imageWidth, ofs + 3, blockAlpha, data, rowBytes);
 
                     for (int y = 0; y < 4; y++)
                     {
                         for (int x = 0; x < 4; x++)
                         {
-                            int dataIndex = ofs + ((x * 4) + (y * imageInfo.RowBytes));
-                            if ((i * 4) + x >= imageInfo.Width || data.Length < dataIndex + 3)
+                            int dataIndex = ofs + ((x * 4) + (y * rowBytes));
+                            if ((i * 4) + x >= imageWidth || data.Length < dataIndex + 3)
                             {
                                 break;
                             }
