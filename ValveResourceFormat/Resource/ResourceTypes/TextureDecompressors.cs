@@ -6,40 +6,37 @@ namespace ValveResourceFormat.ResourceTypes
 {
     internal static class TextureDecompressors
     {
-        public static SKBitmap ReadI8(BinaryReader r, int w, int h)
+        public static SKBitmap ReadI8(SKBitmap res, Span<byte> input)
         {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
             {
-                var color = r.ReadByte();
+                var color = input[offset++];
                 span[i] = new SKColor(color, color, color, 255);
             }
 
             return res;
         }
 
-        public static SKBitmap ReadIA88(BinaryReader r, int w, int h)
+        public static SKBitmap ReadIA88(SKBitmap res, Span<byte> input)
         {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
             {
-                var color = r.ReadByte();
-                var alpha = r.ReadByte();
-
+                var color = input[offset++];
+                var alpha = input[offset++];
                 span[i] = new SKColor(color, color, color, alpha);
             }
 
             return res;
         }
 
-        public static SKBitmap ReadRGBA8888(Span<byte> input, int w, int h)
+        public static SKBitmap ReadRGBA8888(SKBitmap res, Span<byte> input)
         {
-            // Rgba8888 color type is broken in Skia
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var span = res.PeekPixels().GetPixelSpan<SKColor>();
             var offset = 0;
 
@@ -55,14 +52,18 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap ReadBGRA8888(BinaryReader r, int w, int h)
+        public static SKBitmap ReadBGRA8888(SKBitmap res, Span<byte> input)
         {
-            var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
             {
-                span[i] = new SKColor(r.ReadUInt32());
+                var colorB = input[offset++];
+                var colorG = input[offset++];
+                var colorR = input[offset++];
+                var colorA = input[offset++];
+                span[i] = new SKColor(colorR, colorG, colorB, colorA);
             }
 
             return res;
@@ -130,18 +131,16 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap ReadRGBA16161616(BinaryReader r, int w, int h)
+        public static SKBitmap ReadRGBA16161616(SKBitmap imageInfo, Span<byte> bytes)
         {
-            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
-            var bytes = r.ReadBytes(imageInfo.Width * imageInfo.Height * 8);
             var log = 0d;
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
-                var hr = BitConverter.ToUInt16(bytes, i + 0) / 256f;
-                var hg = BitConverter.ToUInt16(bytes, i + 2) / 256f;
-                var hb = BitConverter.ToUInt16(bytes, i + 4) / 256f;
+                var hr = BitConverter.ToUInt16(bytes.Slice(i, 2)) / 256f;
+                var hg = BitConverter.ToUInt16(bytes.Slice(i + 2, 2)) / 256f;
+                var hb = BitConverter.ToUInt16(bytes.Slice(i + 2, 4)) / 256f;
                 var lum = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 log += Math.Log(0.0000000001d + lum);
             }
@@ -150,10 +149,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
-                var hr = BitConverter.ToUInt16(bytes, i + 0) / 256f;
-                var hg = BitConverter.ToUInt16(bytes, i + 2) / 256f;
-                var hb = BitConverter.ToUInt16(bytes, i + 4) / 256f;
-                var ha = BitConverter.ToUInt16(bytes, i + 6) / 256f;
+                var hr = BitConverter.ToUInt16(bytes.Slice(i, 2)) / 256f;
+                var hg = BitConverter.ToUInt16(bytes.Slice(i + 2, 2)) / 256f;
+                var hb = BitConverter.ToUInt16(bytes.Slice(i + 4, 2)) / 256f;
+                var ha = BitConverter.ToUInt16(bytes.Slice(i + 6, 2)) / 256f;
 
                 var y = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 var u = (hb - y) * 0.565f;
@@ -183,19 +182,16 @@ namespace ValveResourceFormat.ResourceTypes
             return imageInfo;
         }
 
-        public static SKBitmap ReadRGBA16161616F(BinaryReader r, int w, int h)
+        public static SKBitmap ReadRGBA16161616F(SKBitmap imageInfo, Span<byte> bytes)
         {
-            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
-
-            var bytes = r.ReadBytes(imageInfo.Width * imageInfo.Height * 8);
             var log = 0d;
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
-                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 0));
-                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 2));
-                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 4));
+                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i, 2)));
+                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 2, 2)));
+                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 4, 2)));
                 var lum = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 log += Math.Log(0.0000000001d + lum);
             }
@@ -204,10 +200,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
-                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 0));
-                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 2));
-                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 4));
-                var ha = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes, i + 6));
+                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i, 2)));
+                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 2, 2)));
+                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 4, 2)));
+                var ha = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 6, 2)));
 
                 var y = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 var u = (hb - y) * 0.565f;
@@ -303,19 +299,20 @@ namespace ValveResourceFormat.ResourceTypes
             return res;
         }
 
-        public static SKBitmap UncompressATI1N(BinaryReader r, int w, int h)
+        public static SKBitmap UncompressATI1N(SKBitmap bitmap, Span<byte> input, int w, int h)
         {
-            var bitmap = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var data = bitmap.PeekPixels().GetPixelSpan<byte>();
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
+            var offset = 0;
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong block1 = r.ReadUInt64();
+                    ulong block1 = BitConverter.ToUInt64(input.Slice(offset, 8));
+                    offset += 8;
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
                     Decompress8BitBlock(i * 4, w, ofs, block1, data, w * 4);
 
@@ -340,19 +337,20 @@ namespace ValveResourceFormat.ResourceTypes
             return bitmap;
         }
 
-        public static SKBitmap UncompressATI2N(BinaryReader r, int w, int h, bool normalize)
+        public static SKBitmap UncompressATI2N(SKBitmap imageInfo, Span<byte> input, int w, int h, bool normalize)
         {
-            var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
+            var offset = 0;
 
             for (var j = 0; j < blockCountY; j++)
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong block1 = r.ReadUInt64();
-                    ulong block2 = r.ReadUInt64();
+                    ulong block1 = BitConverter.ToUInt64(input.Slice(offset, 8));
+                    ulong block2 = BitConverter.ToUInt64(input.Slice(offset + 8, 8));
+                    offset += 16;
                     int ofs = ((i * 4) + (j * 4 * w)) * 4;
                     Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w * 4); //r
                     Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w * 4); //g
