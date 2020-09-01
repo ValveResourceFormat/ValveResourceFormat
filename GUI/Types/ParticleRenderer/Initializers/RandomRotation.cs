@@ -10,11 +10,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly Random random;
 
-        private readonly float degreesMin = 0f;
+        private readonly float degreesMin;
         private readonly float degreesMax = 360f;
-        private readonly float degreesOffset = 0f;
+        private readonly float degreesOffset;
         private readonly long fieldOutput = 4;
-        private readonly bool randomlyFlipDirection = false;
+        private readonly bool randomlyFlipDirection;
 
         public RandomRotation(IKeyValueCollection keyValues)
         {

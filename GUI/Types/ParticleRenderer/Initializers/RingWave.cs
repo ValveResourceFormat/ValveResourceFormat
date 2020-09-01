@@ -6,14 +6,14 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class RingWave : IParticleInitializer
     {
-        private readonly bool evenDistribution = false;
-        private readonly float initialRadius = 0f;
-        private readonly float thickness = 0f;
+        private readonly bool evenDistribution;
+        private readonly float initialRadius;
+        private readonly float thickness;
         private readonly float particlesPerOrbit = -1f;
 
         private readonly Random random = new Random();
 
-        private float orbitCount = 0f;
+        private float orbitCount;
 
         public RingWave(IKeyValueCollection keyValues)
         {

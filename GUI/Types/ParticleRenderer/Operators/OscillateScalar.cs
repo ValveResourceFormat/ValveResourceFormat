@@ -7,8 +7,8 @@ namespace GUI.Types.ParticleRenderer.Operators
     public class OscillateScalar : IParticleOperator
     {
         private ParticleField outputField = ParticleField.Alpha;
-        private float rateMin = 0f;
-        private float rateMax = 0f;
+        private float rateMin;
+        private float rateMax;
         private float frequencyMin = 1f;
         private float frequencyMax = 1f;
         private float oscillationMultiplier = 2f;

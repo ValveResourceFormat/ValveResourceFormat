@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
         public int? AnimationTexture { get; private set; }
         public int AnimationTextureSize { get; private set; }
 
-        public float Time { get; private set; } = 0f;
+        public float Time { get; private set; }
 
         private Mesh mesh;
 

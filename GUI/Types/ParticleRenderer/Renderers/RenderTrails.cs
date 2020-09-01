@@ -20,13 +20,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private readonly bool additive;
         private readonly float overbrightFactor = 1;
-        private readonly long orientationType = 0;
+        private readonly long orientationType;
 
         private readonly float finalTextureScaleU = 1f;
         private readonly float finalTextureScaleV = 1f;
 
         private readonly float maxLength = 2000f;
-        private readonly float lengthFadeInTime = 0f;
+        private readonly float lengthFadeInTime;
 
         public RenderTrails(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {

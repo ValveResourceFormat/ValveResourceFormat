@@ -11,7 +11,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public List<Bone> Roots { get; private set; } = new List<Bone>();
         public Bone[] Bones { get; private set; } = Array.Empty<Bone>();
-        public int AnimationTextureSize { get; } = 0;
+        public int AnimationTextureSize { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.

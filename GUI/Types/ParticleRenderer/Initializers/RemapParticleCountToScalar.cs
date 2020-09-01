@@ -6,11 +6,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
     public class RemapParticleCountToScalar : IParticleInitializer
     {
         private readonly long fieldOutput = 3;
-        private readonly long inputMin = 0;
+        private readonly long inputMin;
         private readonly long inputMax = 10;
-        private readonly float outputMin = 0f;
+        private readonly float outputMin;
         private readonly float outputMax = 1f;
-        private readonly bool scaleInitialRange = false;
+        private readonly bool scaleInitialRange;
 
         public RemapParticleCountToScalar(IKeyValueCollection keyValues)
         {

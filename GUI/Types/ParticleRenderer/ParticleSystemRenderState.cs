@@ -5,7 +5,7 @@ namespace GUI.Types.ParticleRenderer
 {
     public class ParticleSystemRenderState
     {
-        public float Lifetime { get; set; } = 0f;
+        public float Lifetime { get; set; }
 
         private readonly Dictionary<int, Vector3> controlPoints = new Dictionary<int, Vector3>();
 

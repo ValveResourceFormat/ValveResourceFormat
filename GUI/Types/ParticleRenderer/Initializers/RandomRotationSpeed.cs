@@ -10,8 +10,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly ParticleField fieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection = true;
-        private readonly float degrees = 0f;
-        private readonly float degreesMin = 0f;
+        private readonly float degrees;
+        private readonly float degreesMin;
         private readonly float degreesMax = 360f;
 
         private readonly Random random = new Random();

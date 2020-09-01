@@ -7,8 +7,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private readonly Random random;
 
-        private readonly float lifetimeMin = 0f;
-        private readonly float lifetimeMax = 0f;
+        private readonly float lifetimeMin;
+        private readonly float lifetimeMax;
 
         public RandomLifeTime(IKeyValueCollection keyValues)
         {

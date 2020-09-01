@@ -29,8 +29,8 @@ namespace Decompiler
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
 
         private readonly object ConsoleWriterLock = new object();
-        private int CurrentFile = 0;
-        private int TotalFiles = 0;
+        private int CurrentFile;
+        private int TotalFiles;
 
         [Required]
         [Option("-i|--input", "Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.", CommandOptionType.SingleValue)]

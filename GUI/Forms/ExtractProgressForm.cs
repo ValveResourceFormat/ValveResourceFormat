@@ -141,10 +141,8 @@ namespace GUI.Forms
                     }
                 }
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await stream.WriteAsync(output, 0, output.Length, cancellationTokenSource.Token).ConfigureAwait(false);
-                }
+                await using var stream = new FileStream(filePath, FileMode.Create);
+                await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
             }
         }
 

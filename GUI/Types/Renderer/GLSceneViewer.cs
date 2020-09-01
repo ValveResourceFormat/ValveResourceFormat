@@ -24,8 +24,8 @@ namespace GUI.Types.Renderer
         protected float SkyboxScale { get; set; } = 1.0f;
         protected Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
 
-        private bool showStaticOctree = false;
-        private bool showDynamicOctree = false;
+        private bool showStaticOctree;
+        private bool showDynamicOctree;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;

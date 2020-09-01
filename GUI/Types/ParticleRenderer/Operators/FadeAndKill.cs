@@ -5,13 +5,13 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class FadeAndKill : IParticleOperator
     {
-        private readonly float startFadeInTime = 0f;
+        private readonly float startFadeInTime;
         private readonly float endFadeInTime = 0.5f;
         private readonly float startFadeOutTime = 0.5f;
         private readonly float endFadeOutTime = 1f;
 
         private readonly float startAlpha = 1f;
-        private readonly float endAlpha = 0f;
+        private readonly float endAlpha;
 
         public FadeAndKill(IKeyValueCollection keyValues)
         {

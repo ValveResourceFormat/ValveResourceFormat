@@ -5,7 +5,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class InterpolateRadius : IParticleOperator
     {
-        private readonly float startTime = 0;
+        private readonly float startTime;
         private readonly float endTime = 1;
         private readonly float startScale = 1;
         private readonly float endScale = 1;

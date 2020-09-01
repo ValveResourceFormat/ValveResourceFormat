@@ -5,13 +5,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class RandomSequence : IParticleInitializer
     {
-        private readonly int sequenceMin = 0;
-        private readonly int sequenceMax = 0;
-        private readonly bool shuffle = false;
+        private readonly int sequenceMin;
+        private readonly int sequenceMax;
+        private readonly bool shuffle;
 
         private readonly Random random = new Random();
 
-        private int counter = 0;
+        private int counter;
 
         public RandomSequence(IKeyValueCollection keyValues)
         {

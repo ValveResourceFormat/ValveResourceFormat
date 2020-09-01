@@ -82,13 +82,13 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 if (addonIndex != 0x1FF)
                 {
                     path.Append(Mods[addonIndex]);
-                    path.Append("/");
+                    path.Append('/');
                 }
 
                 if (directoryIndex != 0x7FFFF)
                 {
                     path.Append(Directories[directoryIndex]);
-                    path.Append("/");
+                    path.Append('/');
                 }
 
                 if (filenameIndex != 0x7FFFFF)
@@ -98,7 +98,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                 if (extensionIndex != 0x3FF)
                 {
-                    path.Append(".");
+                    path.Append('.');
                     path.Append(Extensions[extensionIndex]);
                 }
 

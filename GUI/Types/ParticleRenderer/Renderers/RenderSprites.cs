@@ -22,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private readonly bool additive;
         private readonly float overbrightFactor = 1;
-        private readonly long orientationType = 0;
+        private readonly long orientationType;
 
         private float[] rawVertices;
         private QuadIndexBuffer quadIndices;

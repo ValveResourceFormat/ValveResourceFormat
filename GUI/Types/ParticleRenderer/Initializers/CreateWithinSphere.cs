@@ -6,10 +6,10 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class CreateWithinSphere : IParticleInitializer
     {
-        private readonly float radiusMin = 0f;
-        private readonly float radiusMax = 0f;
-        private readonly float speedMin = 0f;
-        private readonly float speedMax = 0f;
+        private readonly float radiusMin;
+        private readonly float radiusMax;
+        private readonly float speedMin;
+        private readonly float speedMax;
         private readonly Vector3 localCoordinateSystemSpeedMin;
         private readonly Vector3 localCoordinateSystemSpeedMax;
 

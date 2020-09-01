@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     public class ColorInterpolate : IParticleOperator
     {
         private readonly Vector3 colorFade = Vector3.One;
-        private readonly float fadeStartTime = 0f;
+        private readonly float fadeStartTime;
         private readonly float fadeEndTime = 1f;
 
         public ColorInterpolate(IKeyValueCollection keyValues)

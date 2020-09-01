@@ -40,10 +40,10 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly VrfGuiContext vrfGuiContext;
-        private bool hasStarted = false;
+        private bool hasStarted;
 
         private ParticleBag particleBag;
-        private int particlesEmitted = 0;
+        private int particlesEmitted;
         private ParticleSystemRenderState systemRenderState;
 
         // TODO: Passing in position here was for testing, do it properly
