@@ -86,7 +86,7 @@ jobs:
         path: Decompiler/bin/Release/osx-x64/publish
 
     - name: Upload test coverage
-      uses: coverallsapp/github-action@v1.1.1
+      uses: coverallsapp/github-action@v1.1.2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: ./Tests/lcov.info
@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Coveralls Finished
-      uses: coverallsapp/github-action@v1.1.1
+      uses: coverallsapp/github-action@v1.1.2
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true
