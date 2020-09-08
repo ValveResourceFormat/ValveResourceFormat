@@ -224,7 +224,10 @@ namespace GUI.Types.Renderer
             foreach (var animGroupPath in animGroupPaths)
             {
                 var animGroup = Scene.GuiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
-                animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, Scene.GuiContext));
+                if (animGroup != default)
+                {
+                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, Scene.GuiContext));
+                }
             }
 
             // Get embedded animations
