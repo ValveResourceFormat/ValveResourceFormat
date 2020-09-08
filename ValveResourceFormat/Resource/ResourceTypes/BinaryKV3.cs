@@ -56,7 +56,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (magic != MAGIC)
             {
-                throw new InvalidDataException($"Invalid KV3 signature {magic}");
+                throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
 
             Encoding = new Guid(reader.ReadBytes(16));
@@ -82,7 +82,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                throw new InvalidDataException($"Unrecognised KV3 Encoding: {Encoding.ToString()}");
+                throw new UnexpectedMagicException("Unrecognised KV3 Encoding", Encoding.ToString(), nameof(Encoding));
             }
 
             var stringCount = outRead.ReadUInt32();
@@ -108,9 +108,9 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var length = reader.ReadInt32();
 
-                var buffer = new byte[length];
-                reader.Read(buffer, 0, length);
-                outWrite.Write(buffer);
+                var output = new Span<byte>(new byte[length]);
+                reader.Read(output);
+                outWrite.Write(output);
             }
             else if (compressionMethod == 1)
             {
@@ -118,7 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                throw new Exception($"Unknown KV3 compression method: {compressionMethod}");
+                throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
             }
 
             currentBinaryBytesOffset = 0;
@@ -243,7 +243,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             LZ4Codec.Decode(input, output);
 
-            outWrite.Write(output.ToArray()); // TODO: Write as span
+            outWrite.Write(output);
             outWrite.BaseStream.Position = 0;
         }
 
@@ -448,7 +448,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     break;
                 default:
-                    throw new InvalidDataException($"Unknown KVType {datatype} for field '{name}' on byte {reader.BaseStream.Position - 1}");
+                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position - 1}", (int)datatype, nameof(datatype));
             }
 
             return parent;
