@@ -10,7 +10,7 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2;
+            return magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2 || magic == BinaryKV3.MAGIC3;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
