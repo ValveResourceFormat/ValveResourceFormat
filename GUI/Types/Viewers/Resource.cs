@@ -294,9 +294,9 @@ namespace GUI.Types.Viewers
                                     control.Text =
                                         Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
                                 }
-                                else if (block is NTRO blockNTRO)
+                                else
                                 {
-                                    control.Text = Utils.Utils.NormalizeLineEndings(blockNTRO.ToString());
+                                    control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
                                 }
 
                                 break;
