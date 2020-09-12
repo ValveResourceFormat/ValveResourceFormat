@@ -97,6 +97,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     var byteArray = (byte[])Value;
                     var count = 0;
 
+                    writer.WriteLine();
                     writer.WriteLine("#[");
                     writer.Indent++;
 
