@@ -24,8 +24,13 @@ namespace ValveResourceFormat.ResourceTypes
         public Guid Encoding { get; private set; }
         public Guid Format { get; private set; }
 
+        private BinaryReader RawBinaryReader;
         private string[] stringArray;
         private byte[] typesArray;
+        private uint[] uncompressedBlockLengthArray;
+        private ushort[] compressedBlockLengthArray;
+        private long currentCompressedBlockIndex;
+        private long currentCompressedBlockOffset;
         private long currentTypeIndex;
         private long currentEightBytesOffset;
         private long currentBinaryBytesOffset = -1;
@@ -58,7 +63,9 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (magic == MAGIC3)
             {
+                RawBinaryReader = reader;
                 ReadVersion3(reader, outWrite, outRead);
+                RawBinaryReader = null;
 
                 return;
             }
@@ -113,21 +120,17 @@ namespace ValveResourceFormat.ResourceTypes
             var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
             var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
             var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
-            var d = reader.ReadInt32();
-            var e = reader.ReadInt32(); // is this two shorts instead?
 
-            Console.WriteLine($"d = {d}");
-            Console.WriteLine($"e = {e}");
+            // TODO: what is this?
+            var a = reader.ReadInt32();
+            var b = reader.ReadInt16();
+            var c = reader.ReadInt16();
+            Console.WriteLine($"KV3 unknown values: a={a} b={b} c={c}");
 
             var uncompressedSize = reader.ReadInt32();
-            var compressedSize = reader.ReadInt32(); // this might be off with the next 2 ints
-
-            var f = reader.ReadInt32(); // count of m_segmentArray in anim blocks/files?
-            // there's data after compressed lz4, which would indicate there's extra stuff that can be read out of it
-            var g = reader.ReadInt32();
-
-            Console.WriteLine($"f = {f}");
-            Console.WriteLine($"g = {g}");
+            var compressedSize = reader.ReadInt32();
+            var blockCount = reader.ReadInt32();
+            reader.ReadInt32(); // total size of decompressed lz4 blocks
 
             if (compressionMethod == 0)
             {
@@ -158,11 +161,6 @@ namespace ValveResourceFormat.ResourceTypes
             else
             {
                 throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-            }
-
-            if (f > 0)
-            {
-                throw new NotImplementedException("Unsupported new binary KV3. Join moddota discord if you can help with reverse engineering :)");
             }
 
             currentBinaryBytesOffset = 0;
@@ -197,13 +195,40 @@ namespace ValveResourceFormat.ResourceTypes
                 stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
             }
 
-            // bytes after the string table is kv types, minus 4 static bytes at the end
-            var typesLength = outRead.BaseStream.Length - 4 - outRead.BaseStream.Position;
+            // 0xFFEEDD00 trailer + size of lz4 compressed block sizes (short) + size of lz4 decompressed block sizes (int)
+            var typesArrayEnd = 4 + (blockCount * 2) + (blockCount * 4);
+            var typesLength = outRead.BaseStream.Length - outRead.BaseStream.Position - typesArrayEnd;
             typesArray = new byte[typesLength];
 
             for (var i = 0; i < typesLength; i++)
             {
                 typesArray[i] = outRead.ReadByte();
+            }
+            
+            if (blockCount > 0)
+            {
+                uncompressedBlockLengthArray = new uint[blockCount];
+
+                for (var i = 0; i < blockCount; i++)
+                {
+                    uncompressedBlockLengthArray[i] = outRead.ReadUInt32();
+                }
+            }
+
+            if (outRead.ReadUInt32() != 0xFFEEDD00)
+            {
+                throw new InvalidDataException("Invalid trailer");
+            }
+
+            if (blockCount > 0)
+            {
+                currentCompressedBlockOffset = reader.BaseStream.Position;
+                compressedBlockLengthArray = new ushort[blockCount];
+
+                for (var i = 0; i < blockCount; i++)
+                {
+                    compressedBlockLengthArray[i] = outRead.ReadUInt16();
+                }
             }
 
             // Move back to the start of the KV data for reading.
@@ -508,6 +533,24 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
                 case KVType.BINARY_BLOB:
+                    if (compressedBlockLengthArray != null)
+                    {
+                        var compressedSize = compressedBlockLengthArray[currentCompressedBlockIndex];
+                        RawBinaryReader.BaseStream.Position = currentCompressedBlockOffset;
+
+                        var input = RawBinaryReader.ReadBytes(compressedSize);
+                        var output = new byte[uncompressedBlockLengthArray[currentCompressedBlockIndex]];
+
+                        LZ4Codec.Decode(input, output);
+                        
+                        currentCompressedBlockOffset = RawBinaryReader.BaseStream.Position;
+                        currentCompressedBlockIndex++;
+
+                        parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
+
+                        break;
+                    }
+
                     var length = reader.ReadInt32();
 
                     if (currentBinaryBytesOffset > -1)
