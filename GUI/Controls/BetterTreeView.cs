@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -36,7 +37,16 @@ namespace GUI.Controls
         {
             IReadOnlyCollection<TreeNode> results = new List<TreeNode>().AsReadOnly();
 
-            value = value.ToLower();
+            if (searchType != SearchType.FileNameExactMatch)
+            {
+                value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
+            }
+
+            // If only file name search is selected, but entered text contains a slash, search full path
+            if (searchType == SearchType.FileNamePartialMatch && value.Contains(Package.DirectorySeparatorChar, StringComparison.InvariantCulture))
+            {
+                searchType = SearchType.FullPath;
+            }
 
             if (searchType == SearchType.FileNameExactMatch)
             {
@@ -44,14 +54,12 @@ namespace GUI.Controls
             }
             else if (searchType == SearchType.FileNamePartialMatch)
             {
-                bool MatchFunction(TreeNode node) => node.Text.Contains(value);
+                bool MatchFunction(TreeNode node) => node.Text.Contains(value, StringComparison.InvariantCultureIgnoreCase);
                 results = Search(MatchFunction);
             }
             else if (searchType == SearchType.FullPath)
             {
-                value = value.Replace('\\', Package.DirectorySeparatorChar);
-
-                bool MatchFunction(TreeNode node) => node.FullPath.Contains(value);
+                bool MatchFunction(TreeNode node) => node.FullPath.Contains(value, StringComparison.InvariantCultureIgnoreCase);
                 results = Search(MatchFunction);
             }
             else if (searchType == SearchType.Regex)
