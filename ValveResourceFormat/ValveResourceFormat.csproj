@@ -8,14 +8,14 @@
     <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="K4os.Compression.LZ4" Version="1.2.5" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.2.6" />
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0019" />
-    <PackageReference Include="SkiaSharp" Version="2.80.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.1" />
+    <PackageReference Include="SkiaSharp" Version="2.80.2" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.2" />
     <PackageReference Include="ValveKeyValue" Version="0.4.2" />
   </ItemGroup>
   <ItemGroup>
