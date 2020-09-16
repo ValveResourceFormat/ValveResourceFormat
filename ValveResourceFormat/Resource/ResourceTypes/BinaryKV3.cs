@@ -121,11 +121,8 @@ namespace ValveResourceFormat.ResourceTypes
             var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
             var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
 
-            // TODO: what is this?
-            var a = reader.ReadInt32();
-            var b = reader.ReadInt16();
-            var c = reader.ReadInt16();
-            Console.WriteLine($"KV3 unknown values: a={a} b={b} c={c}");
+            // 8 bytes that help valve preallocate, useless for us
+            reader.BaseStream.Position += 8;
 
             var uncompressedSize = reader.ReadInt32();
             var compressedSize = reader.ReadInt32();
