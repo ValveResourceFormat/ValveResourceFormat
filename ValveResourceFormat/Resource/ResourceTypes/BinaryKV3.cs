@@ -1,13 +1,16 @@
 using System;
 using System.IO;
 using K4os.Compression.LZ4;
+using K4os.Compression.LZ4.Encoders;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     public class BinaryKV3 : ResourceData
+#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
@@ -27,10 +30,9 @@ namespace ValveResourceFormat.ResourceTypes
         private BinaryReader RawBinaryReader;
         private string[] stringArray;
         private byte[] typesArray;
-        private uint[] uncompressedBlockLengthArray;
-        private ushort[] compressedBlockLengthArray;
+        private BinaryReader uncompressedBlockDataReader;
+        private int[] uncompressedBlockLengthArray;
         private long currentCompressedBlockIndex;
-        private long currentCompressedBlockOffset;
         private long currentTypeIndex;
         private long currentEightBytesOffset;
         private long currentBinaryBytesOffset = -1;
@@ -127,7 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
             var uncompressedSize = reader.ReadInt32();
             var compressedSize = reader.ReadInt32();
             var blockCount = reader.ReadInt32();
-            reader.ReadInt32(); // total size of decompressed lz4 blocks
+            var blockTotalSize = reader.ReadInt32();
 
             if (compressionMethod == 0)
             {
@@ -201,15 +203,27 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 typesArray[i] = outRead.ReadByte();
             }
-            
-            if (blockCount > 0)
-            {
-                uncompressedBlockLengthArray = new uint[blockCount];
 
-                for (var i = 0; i < blockCount; i++)
+            if (blockCount == 0)
+            {
+                if (outRead.ReadUInt32() != 0xFFEEDD00)
                 {
-                    uncompressedBlockLengthArray[i] = outRead.ReadUInt32();
+                    throw new InvalidDataException("Invalid trailer");
                 }
+
+                // Move back to the start of the KV data for reading.
+                outRead.BaseStream.Position = kvDataOffset;
+
+                Data = ParseBinaryKV3(outRead, null, true);
+
+                return;
+            }
+
+            uncompressedBlockLengthArray = new int[blockCount];
+
+            for (var i = 0; i < blockCount; i++)
+            {
+                uncompressedBlockLengthArray[i] = outRead.ReadInt32();
             }
 
             if (outRead.ReadUInt32() != 0xFFEEDD00)
@@ -217,21 +231,39 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new InvalidDataException("Invalid trailer");
             }
 
-            if (blockCount > 0)
+            try
             {
-                currentCompressedBlockOffset = reader.BaseStream.Position;
-                compressedBlockLengthArray = new ushort[blockCount];
+                using var uncompressedBlocks = new MemoryStream(blockTotalSize);
+                using var uncompressedBlockDataWriter = new BinaryWriter(uncompressedBlocks);
+                uncompressedBlockDataReader = new BinaryReader(uncompressedBlocks);
+
+                // TODO: Do we need to pass blockTotalSize here?
+                var lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
 
                 for (var i = 0; i < blockCount; i++)
                 {
-                    compressedBlockLengthArray[i] = outRead.ReadUInt16();
+                    var compressedBlockLength = outRead.ReadUInt16();
+
+                    var input = new Span<byte>(new byte[compressedBlockLength]);
+                    var output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
+                    
+                    RawBinaryReader.Read(input);
+                    lz4decoder.DecodeAndDrain(input, output, out _);
+
+                    uncompressedBlockDataWriter.Write(output);
                 }
+
+                uncompressedBlocks.Position = 0;
+
+                // Move back to the start of the KV data for reading.
+                outRead.BaseStream.Position = kvDataOffset;
+
+                Data = ParseBinaryKV3(outRead, null, true);
             }
-
-            // Move back to the start of the KV data for reading.
-            outRead.BaseStream.Position = kvDataOffset;
-
-            Data = ParseBinaryKV3(outRead, null, true);
+            finally
+            {
+                uncompressedBlockDataReader.Dispose();
+            }
         }
 
         private void ReadVersion2(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
@@ -530,21 +562,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
                 case KVType.BINARY_BLOB:
-                    if (compressedBlockLengthArray != null)
+                    if (uncompressedBlockDataReader != null)
                     {
-                        var compressedSize = compressedBlockLengthArray[currentCompressedBlockIndex];
-                        RawBinaryReader.BaseStream.Position = currentCompressedBlockOffset;
-
-                        var input = RawBinaryReader.ReadBytes(compressedSize);
-                        var output = new byte[uncompressedBlockLengthArray[currentCompressedBlockIndex]];
-
-                        LZ4Codec.Decode(input, output);
-                        
-                        currentCompressedBlockOffset = RawBinaryReader.BaseStream.Position;
-                        currentCompressedBlockIndex++;
-
+                        var output = uncompressedBlockDataReader.ReadBytes(uncompressedBlockLengthArray[currentCompressedBlockIndex++]);
                         parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
-
                         break;
                     }
 
