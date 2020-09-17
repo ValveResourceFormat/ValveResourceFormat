@@ -217,6 +217,10 @@ namespace ValveResourceFormat
                     {
                         block = new BinaryKV3();
                     }
+                    else if (magic == BinaryKV1.MAGIC)
+                    {
+                        block = new BinaryKV1();
+                    }
 
                     Reader.BaseStream.Position = position;
                 }

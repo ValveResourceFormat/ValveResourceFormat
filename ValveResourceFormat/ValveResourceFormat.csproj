@@ -16,7 +16,7 @@
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0019" />
     <PackageReference Include="SkiaSharp" Version="2.80.2" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.2" />
-    <PackageReference Include="ValveKeyValue" Version="0.4.2" />
+    <PackageReference Include="ValveKeyValue" Version="0.5.0.4" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Icons\vrf_library.png">
