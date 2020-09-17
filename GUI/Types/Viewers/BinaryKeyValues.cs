@@ -38,7 +38,7 @@ namespace GUI.Types.Viewers
 
             var control = new TextBox();
             control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-            control.Text = kv3.ToString();
+            control.Text = Utils.Utils.NormalizeLineEndings(kv3.ToString());
             control.Dock = DockStyle.Fill;
             control.Multiline = true;
             control.ReadOnly = true;

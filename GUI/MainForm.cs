@@ -398,6 +398,10 @@ namespace GUI
             {
                 return new Types.Viewers.BinaryKeyValues().Create(vrfGuiContext, input);
             }
+            else if (Types.Viewers.BinaryKeyValues1.IsAccepted(magic))
+            {
+                return new Types.Viewers.BinaryKeyValues1().Create(vrfGuiContext, input);
+            }
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
                 return new Types.Viewers.Resource().Create(vrfGuiContext, input);
