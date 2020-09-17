@@ -97,7 +97,7 @@ vcs      | Compiled Shader         | ❓ Started work in `CompiledShader`, see #
 vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 (CS:GO) and Source 2 (Dota 2).
 dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
 bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`, see #226
-vdpn     | Dota Patch Notes        | No
+vdpn     | Dota Patch Notes        | 👍
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
