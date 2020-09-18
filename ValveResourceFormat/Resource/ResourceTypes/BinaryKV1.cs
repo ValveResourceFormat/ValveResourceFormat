@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class BinaryKV1 : ResourceData
     {
-        public const int MAGIC = 0x564B4256; // BVKV
+        public const int MAGIC = 0x564B4256; // VBKV
 
         public override BlockType Type => BlockType.DATA;
 

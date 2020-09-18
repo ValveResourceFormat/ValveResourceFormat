@@ -65,6 +65,7 @@ Ext      | Name                    | Support
 -------- | ----------------------- | -------
 vanim    | Animation               | 👍
 vagrp    | Animation Group         | 👍
+vanmgrph | Animation Graph         | No
 vseq     | Sequence Group          | No
 vpcf     | Particle System         | 👍 NTRO, KV3
 vmat     | Material                | 👍 NTRO
@@ -73,23 +74,25 @@ vmesh    | Mesh                    | 👍
 vtex     | Compiled Texture        | 👍 DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, BC6H, BC7, IA88, PNG, JPG, ETC2, ETC2_EAC, BGRA8888, ATI1N, ATI2N
 vmdl     | Model                   | 👍
 vphys    | Physics Collision Mesh  | No
-vsnd     | Sound                   | 👍 wav, mp3
+vsnd     | Sound                   | 👍
 vmorf    | MorphSet                | No
-vrman    | ResourceManifest        | 👍
+vrman    | ResourceManifest        | No, see #193
 vwrld    | World                   | 👍
 vwnod    | WorldNode               | 👍
 vvis     | WorldVisibility         | No
 vents    | EntityLump              | 👍
 vsurf    | Surface Properties      | No
-vsndevts | Sound Event Script      | 👍 KV1, :-1: KV3
-vsndstck | Sound Stack Script      | 👍 KV1, :-1: KV3
+vsndevts | Sound Event Script      | 👍
+vsndstck | Sound Stack Script      | 👍
+vpost    | Postprocessing Settings | No
 vrmap    | Resource Remap Table    | No
 vcss     | Panorama Style          | 👍
 vxml     | Panorama Layout         | 👍
 vpdi     | Panorama Dynamic Images | No
 vjs      | Panorama Script         | 👍
 vsvg     | Panorama Vector Graphic | 👍
-vpsf     | Particle Snapshot       | No
+vsnap    | Particle Snapshot       | No, see #131
+~~vpsf~~ | ~~Particle Snapshot~~   | No
 vmap     | Map                     | 👍
 &nbsp;   | &nbsp;                  | &nbsp;
 vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
@@ -98,6 +101,24 @@ vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source
 dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
 bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`, see #226
 vdpn     | Dota Patch Notes        | 👍
+vdacdefs | DAC Game Defs Data      | No
+vfe      | Face poser              | No, see #142
+vcd      | VCD                     | No
+vcdlist  | VCD list                | No, see #160
+
+List of supported magics:
+Magic      | Description
+---------- | ------------
+`0x03564B56` | VKV\x03 - First binary keyvalues 3 encoding with custom block compression
+`0x4B563301` | KV3\x01 - LZ4 compressed
+`0x4B563302` | KV3\x02 - LZ4 compressed and binary blobs are compressed separately
+`0x564B4256` | VBKV - binary keyvalues 1 (handled by ValveKeyvalue)
+`0x55AA1234` | VPK - valve package (handled by ValvePak)
+`0x44434356` | VCCD - closed captions
+`0xC4CCACE8` | tools asset info
+`0x32736376` | vcs2 - compiled shader
+`0x31415926` | murmurhash2 seed used in various places (like entity keys)
+`VFONT1`     | "encrypted" font file
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
