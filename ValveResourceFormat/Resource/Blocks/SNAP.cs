@@ -114,7 +114,15 @@ namespace ValveResourceFormat.Blocks
 
             for (var i = 0; i < count; i++)
             {
-                result[i] = stringList[reader.ReadInt16()];
+                var index = reader.ReadInt32();
+                if (stringList != null && index < stringList.Length)
+                {
+                    result[i] = stringList[index];
+                }
+                else
+                {
+                    result[i] = $"{index} <INVALID: string not in DATA string list>";
+                }
             }
 
             return result;
