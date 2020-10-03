@@ -64,6 +64,7 @@ namespace ValveResourceFormat.Blocks
                 {
                     "skinning" => ReadSkinningData(reader, numParticles, stringList),
                     "string" => ReadStringArray(reader, numParticles, stringList),
+                    "bone" => ReadStringArray(reader, numParticles, stringList),
                     _ => ReadArrayOfType(reader, numParticles, attributeType),
                 };
 
@@ -94,8 +95,17 @@ namespace ValveResourceFormat.Blocks
                 }
                 return array;
             }
+            else if (type == "int")
+            {
+                var array = new int[count];
+                for (var i = 0; i < count; i++)
+                {
+                    array[i] = reader.ReadInt32();
+                }
+                return array;
+            }
 
-            throw new UnexpectedMagicException($"Unsupported SNAP array type '{type}'.", type, nameof(type));
+            throw new UnexpectedMagicException("Unsupported SNAP array type.", type, nameof(type));
         }
 
         private static string[] ReadStringArray(BinaryReader reader, long count, string[] stringList)
