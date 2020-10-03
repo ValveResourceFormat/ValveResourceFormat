@@ -91,7 +91,7 @@ vxml     | Panorama Layout         | 👍
 vpdi     | Panorama Dynamic Images | No
 vjs      | Panorama Script         | 👍
 vsvg     | Panorama Vector Graphic | 👍
-vsnap    | Particle Snapshot       | No, see #131
+vsnap    | Particle Snapshot       | 👍
 ~~vpsf~~ | ~~Particle Snapshot~~   | No
 vmap     | Map                     | 👍
 &nbsp;   | &nbsp;                  | &nbsp;

@@ -50,19 +50,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             => FromData(GetAnimationData(resource), decodeKey);
 
         private static IKeyValueCollection GetAnimationData(Resource resource)
-        {
-            var dataBlock = resource.DataBlock;
-            if (dataBlock is NTRO ntro)
-            {
-                return ntro.Output;
-            }
-            else if (dataBlock is BinaryKV3 kv)
-            {
-                return kv.Data;
-            }
-
-            return default;
-        }
+            => resource.DataBlock.AsKeyValueCollection();
 
         /// <summary>
         /// Get animation matrices as an array.

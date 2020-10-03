@@ -3,6 +3,7 @@ using System.IO;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
@@ -87,7 +88,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_COMPRESSED) == 0)
             {
-                BlockDecompress(reader, outWrite, outRead);
+                BlockCompress.FastDecompress(reader, outWrite, outRead);
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_LZ4) == 0)
             {
@@ -337,71 +338,6 @@ namespace ValveResourceFormat.ResourceTypes
             outRead.BaseStream.Position = kvDataOffset;
 
             Data = ParseBinaryKV3(outRead, null, true);
-        }
-
-        private static void BlockDecompress(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
-        {
-            // It is flags, right?
-            var flags = reader.ReadBytes(4); // TODO: Figure out what this is
-
-            // outWrite.Write(flags);
-            if ((flags[3] & 0x80) > 0)
-            {
-                outWrite.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
-            }
-            else
-            {
-                var running = true;
-                while (reader.BaseStream.Position != reader.BaseStream.Length && running)
-                {
-                    try
-                    {
-                        var blockMask = reader.ReadUInt16();
-                        for (var i = 0; i < 16; i++)
-                        {
-                            // is the ith bit 1
-                            if ((blockMask & (1 << i)) > 0)
-                            {
-                                var offsetSize = reader.ReadUInt16();
-                                var offset = ((offsetSize & 0xFFF0) >> 4) + 1;
-                                var size = (offsetSize & 0x000F) + 3;
-
-                                var lookupSize = (offset < size) ? offset : size; // If the offset is larger or equal to the size, use the size instead.
-
-                                // Kill me now
-                                var p = outRead.BaseStream.Position;
-                                outRead.BaseStream.Position = p - offset;
-                                var data = outRead.ReadBytes(lookupSize);
-                                outWrite.BaseStream.Position = p;
-
-                                while (size > 0)
-                                {
-                                    outWrite.Write(data, 0, (lookupSize < size) ? lookupSize : size);
-                                    size -= lookupSize;
-                                }
-                            }
-                            else
-                            {
-                                var data = reader.ReadByte();
-                                outWrite.Write(data);
-                            }
-
-                            //TODO: is there a better way of making an unsigned 12bit number?
-                            if (outWrite.BaseStream.Length == (flags[2] << 16) + (flags[1] << 8) + flags[0])
-                            {
-                                running = false;
-                                break;
-                            }
-                        }
-                    }
-                    catch (EndOfStreamException)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            outRead.BaseStream.Position = 0;
         }
 
         private void DecompressLZ4(BinaryReader reader, BinaryWriter outWrite)
