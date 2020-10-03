@@ -5,7 +5,7 @@ using System;
 using System.Buffers.Binary;
 using System.IO;
 
-namespace ValveResourceFormat.ThirdParty
+namespace ValveResourceFormat.Compression
 {
     public static class MeshOptimizerIndexDecoder
     {

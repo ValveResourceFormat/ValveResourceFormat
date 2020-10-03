@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Serialization
 {
@@ -13,6 +15,17 @@ namespace ValveResourceFormat.Serialization
         T[] GetArray<T>(string name);
 
         T GetProperty<T>(string name);
+    }
+
+    public static class ResourceDataExtensions
+    {
+        public static IKeyValueCollection AsKeyValueCollection(this ResourceData data) =>
+            data switch
+            {
+                BinaryKV3 kv => kv.Data,
+                ResourceTypes.NTRO ntro => ntro.Output,
+                _ => throw new InvalidOperationException($"Cannot use {data.GetType().Name} as key-value collection")
+            };
     }
 
     public static class IKeyValueCollectionExtensions

@@ -3,7 +3,7 @@
  */
 using System;
 
-namespace ValveResourceFormat.ThirdParty
+namespace ValveResourceFormat.Compression
 {
     public static class MeshOptimizerVertexDecoder
     {

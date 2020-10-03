@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using ValveResourceFormat.ThirdParty;
+using ValveResourceFormat.Compression;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Blocks
 
         public List<VertexBuffer> VertexBuffers { get; }
         public List<IndexBuffer> IndexBuffers { get; }
-        
+
 #pragma warning disable CA1051 // Do not declare visible instance fields
         public struct VertexBuffer
         {
