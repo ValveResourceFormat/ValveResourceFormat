@@ -8,11 +8,28 @@ namespace GUI.Forms
         public AboutForm()
         {
             InitializeComponent();
+
+            this.label2.Text = $"Version: {Application.ProductVersion}";
         }
 
-        private void LinkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        private void website_Click(object sender, System.EventArgs e)
         {
-            Process.Start(new ProcessStartInfo("cmd", "/c start https://github.com/SteamDatabase/ValveResourceFormat")
+            OpenUrl("https://vrf.steamdb.info");
+        }
+
+        private void github_Click(object sender, System.EventArgs e)
+        {
+            OpenUrl("https://github.com/SteamDatabase/ValveResourceFormat");
+        }
+
+        private void releases_Click(object sender, System.EventArgs e)
+        {
+            OpenUrl("https://github.com/SteamDatabase/ValveResourceFormat/releases");
+        }
+
+        private static void OpenUrl(string url)
+        {
+            Process.Start(new ProcessStartInfo("cmd", $"/c start {url}")
             {
                 CreateNoWindow = true,
             });
