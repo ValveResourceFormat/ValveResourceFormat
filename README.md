@@ -27,7 +27,7 @@ This repository is split into three components:
 
 ## Chat
 
-[![](https://discordapp.com/api/guilds/250160069549883392/embed.png?style=banner2)](https://discord.gg/3XPWU2c)
+[![Join our Discord](https://discordapp.com/api/guilds/467730051622764565/embed.png?style=banner2)](https://discord.gg/7pnDrtEPCJ)
 
 **Prefer IRC?** Join [<u>#steamdb-vrf on chat.freenode.net</u>](https://demo.thelounge.chat/?join=%23steamdb-vrf)
 
