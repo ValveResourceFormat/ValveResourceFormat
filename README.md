@@ -25,11 +25,9 @@ This repository is split into three components:
 
 ⚒ [You can download latest unstable build from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
 
-## Chat
+## Join our Discord
 
 [![Join our Discord](https://discordapp.com/api/guilds/467730051622764565/embed.png?style=banner2)](https://discord.gg/7pnDrtEPCJ)
-
-**Prefer IRC?** Join [<u>#steamdb-vrf on chat.freenode.net</u>](https://demo.thelounge.chat/?join=%23steamdb-vrf)
 
 ## Eye catchy screenshots
 <table>
