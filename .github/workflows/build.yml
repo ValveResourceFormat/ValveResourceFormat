@@ -17,6 +17,8 @@ jobs:
 
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
 
     - name: Build CLI
       run: dotnet build -c Release ./Decompiler/Decompiler.csproj
