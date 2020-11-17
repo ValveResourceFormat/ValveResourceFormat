@@ -74,7 +74,7 @@ vmdl     | Model                   | 👍
 vphys    | Physics Collision Mesh  | No
 vsnd     | Sound                   | 👍
 vmorf    | MorphSet                | No
-vrman    | ResourceManifest        | No, see #193
+vrman    | ResourceManifest        | Yes
 vwrld    | World                   | 👍
 vwnod    | WorldNode               | 👍
 vvis     | WorldVisibility         | No

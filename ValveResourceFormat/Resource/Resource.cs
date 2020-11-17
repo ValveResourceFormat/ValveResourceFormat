@@ -396,6 +396,9 @@ namespace ValveResourceFormat
                 case ResourceType.Particle:
                     return new ParticleSystem();
 
+                case ResourceType.ResourceManifest:
+                    return new ResourceManifest();
+
                 case ResourceType.Mesh:
                     if (Version == 0)
                     {
