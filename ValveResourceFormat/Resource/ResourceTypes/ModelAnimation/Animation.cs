@@ -12,9 +12,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public string Name { get; private set; }
         public float Fps { get; private set; }
-        public long FrameCount { get; private set; }
-
-        public Frame[] Frames { get; private set; }
+        public int FrameCount { get; private set; }
+        public IReadOnlyList<Frame> Frames { get; set; }
 
         private Animation(
             IKeyValueCollection animDesc,
@@ -165,14 +164,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 : pDataObject as IKeyValueCollection;
             var frameBlockArray = pData.GetArray("m_frameblockArray");
 
-            FrameCount = pData.GetIntegerProperty("m_nFrames");
-            Frames = new Frame[FrameCount];
+            FrameCount = (int)pData.GetIntegerProperty("m_nFrames");
+            var frameArray = new Frame[FrameCount];
+            Frames = frameArray;
 
             // Figure out each frame
             for (var frame = 0; frame < FrameCount; frame++)
             {
                 // Create new frame object
-                Frames[frame] = new Frame();
+                frameArray[frame] = new Frame();
 
                 // Read all frame blocks
                 foreach (var frameBlock in frameBlockArray)
@@ -188,7 +188,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                         foreach (var segmentIndex in segmentIndexArray)
                         {
                             var segment = segmentArray[segmentIndex];
-                            ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref Frames[frame]);
+                            ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref frameArray[frame]);
                         }
                     }
                 }

@@ -101,8 +101,8 @@ namespace ValveResourceFormat.IO
                             var node = joints.FirstOrDefault(n => n.Name == bone);
                             if (node != null)
                             {
-                                anim.CreateRotationChannel(node, rotationDict[bone]);
-                                anim.CreateTranslationChannel(node, translationDict[bone]);
+                                anim.CreateRotationChannel(node, rotationDict[bone], true);
+                                anim.CreateTranslationChannel(node, translationDict[bone], true);
                             }
                         }
                     }
