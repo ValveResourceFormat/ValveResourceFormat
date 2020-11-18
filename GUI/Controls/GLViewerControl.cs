@@ -158,11 +158,15 @@ namespace GUI.Controls
             return selectionControl.CheckedListBox;
         }
 
-        public TrackBar AddTrackBar(string name, Action<int> changeCallback)
+        public GLViewerTrackBarControl AddTrackBar(string name, Action<int> changeCallback)
         {
             var trackBar = new GLViewerTrackBarControl(name);
             trackBar.TrackBar.ValueChanged += (_, __) =>
             {
+                if (trackBar.IgnoreValueChanged)
+                {
+                    return;
+                }
                 changeCallback(trackBar.TrackBar.Value);
 
                 GLControl.Focus();
@@ -173,7 +177,7 @@ namespace GUI.Controls
 
             RecalculatePositions();
 
-            return trackBar.TrackBar;
+            return trackBar;
         }
 
         public void RecalculatePositions()

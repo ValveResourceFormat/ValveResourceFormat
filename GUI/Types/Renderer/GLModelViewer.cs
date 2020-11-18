@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
@@ -16,7 +17,7 @@ namespace GUI.Types.Renderer
         private readonly Mesh mesh;
         private ComboBox animationComboBox;
         private CheckBox animationPlayPause;
-        private TrackBar animationTrackBar; 
+        private GLViewerTrackBarControl animationTrackBar; 
         private CheckedListBox meshGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
@@ -52,7 +53,6 @@ namespace GUI.Types.Renderer
             {
                 if (modelSceneNode != null)
                 {
-                    // Have thing here to prevent setting this from in code
                     modelSceneNode.AnimationController.Frame = frame;
                 }
             });
@@ -86,13 +86,14 @@ namespace GUI.Types.Renderer
 
                 modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>
                 {
-                    if (animationTrackBar.Value != frame)
+                    if (animationTrackBar.TrackBar.Value != frame)
                     {
-                        animationTrackBar.Value = frame;
+                        animationTrackBar.UpdateValueSilently(frame);
                     }
-                    if (animationTrackBar.Maximum != animation.FrameCount - 1)
+                    var maximum = animation == null ? 1 : animation.FrameCount - 1;
+                    if (animationTrackBar.TrackBar.Maximum != maximum)
                     {
-                        animationTrackBar.Maximum = animation.FrameCount - 1;
+                        animationTrackBar.TrackBar.Maximum = maximum;
                     }
                     animationTrackBar.Enabled = animation != null;
                     animationPlayPause.Enabled = animation != null;

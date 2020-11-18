@@ -53,6 +53,7 @@ namespace GUI.Controls
             this.trackBar.TabIndex = 0;
             this.trackBar.Minimum = 0;
             this.trackBar.Maximum = 1;
+            this.trackBar.MouseDown += trackVolume_MouseDown;
             // 
             // GLViewerCheckboxControl
             // 
@@ -65,7 +66,6 @@ namespace GUI.Controls
             this.Size = new System.Drawing.Size(180, 41);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
