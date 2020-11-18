@@ -23,6 +23,12 @@ namespace GUI.Types.Renderer
 
         public RenderMaterial GetMaterial(string name)
         {
+            // HL:VR has a world node that has a draw call with no material
+            if (name == null)
+            {
+                return GetErrorMaterial();
+            }
+
             if (Materials.ContainsKey(name))
             {
                 return Materials[name];
@@ -40,11 +46,7 @@ namespace GUI.Types.Renderer
         {
             if (resource == null)
             {
-                var errorMat = new RenderMaterial(new VrfMaterial());
-                errorMat.Textures["g_tColor"] = GetErrorTexture();
-                errorMat.Material.ShaderName = "vrf.error";
-
-                return errorMat;
+                return GetErrorMaterial();
             }
 
             var mat = new RenderMaterial((VrfMaterial)resource.DataBlock);
@@ -232,6 +234,17 @@ namespace GUI.Types.Renderer
                 VTexFormat.RG1616F => PixelType.Float,
                 _ => PixelType.UnsignedByte
             };
+
+        
+        public RenderMaterial GetErrorMaterial()
+        {
+            var errorMat = new RenderMaterial(new VrfMaterial());
+            errorMat.Textures["g_tColor"] = GetErrorTexture();
+            errorMat.Material.ShaderName = "vrf.error";
+
+            return errorMat;
+        }
+
 
         public int GetErrorTexture()
         {
