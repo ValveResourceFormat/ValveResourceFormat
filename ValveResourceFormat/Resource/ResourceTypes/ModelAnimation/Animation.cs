@@ -12,10 +12,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public string Name { get; private set; }
         public float Fps { get; private set; }
+        public long FrameCount { get; private set; }
 
-        private long FrameCount;
-
-        private Frame[] Frames;
+        public Frame[] Frames { get; private set; }
 
         private Animation(
             IKeyValueCollection animDesc,

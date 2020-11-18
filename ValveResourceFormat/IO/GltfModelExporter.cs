@@ -16,6 +16,7 @@ namespace ValveResourceFormat.IO
     using VMaterial = ResourceTypes.Material;
     using VMesh = ResourceTypes.Mesh;
     using VModel = ResourceTypes.Model;
+    using VAnimation = ResourceTypes.ModelAnimation.Animation;
 
     public class GltfModelExporter
     {
@@ -57,7 +58,7 @@ namespace ValveResourceFormat.IO
                 var hasJoints = skeleton.AnimationTextureSize > 0;
                 var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints);
                 var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
-
+                
                 if (hasJoints && hasVertexJoints)
                 {
                     var skeletonNode = scene.CreateNode(name);
@@ -68,6 +69,43 @@ namespace ValveResourceFormat.IO
 
                     // Rotate upright, scale inches to meters.
                     skeletonNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
+
+
+                    // Add animations
+                    var vanimations = GetAllAnimations(model);
+                    foreach (var vanimation in vanimations)
+                    {
+                        var anim = exportedModel.CreateAnimation(vanimation.Name);
+                        var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
+                        var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
+
+                        var t = (float)0;
+                        foreach (var frame in vanimation.Frames)
+                        {
+                            foreach (var boneFrame in frame.Bones)
+                            {
+                                var bone = boneFrame.Key;
+                                if (!rotationDict.ContainsKey(bone))
+                                {
+                                    rotationDict[bone] = new Dictionary<float, Quaternion>();
+                                    translationDict[bone] = new Dictionary<float, Vector3>();
+                                }
+                                rotationDict[bone].Add(t, boneFrame.Value.Angle);
+                                translationDict[bone].Add(t, boneFrame.Value.Position);
+                            }
+                            t += 1 / vanimation.Fps;
+                        }
+
+                        foreach (var bone in rotationDict.Keys)
+                        {
+                            var node = joints.FirstOrDefault(n => n.Name == bone);
+                            if (node != null)
+                            {
+                                anim.CreateRotationChannel(node, rotationDict[bone]);
+                                anim.CreateTranslationChannel(node, translationDict[bone]);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -85,6 +123,8 @@ namespace ValveResourceFormat.IO
             {
                 AddMeshNode(meshes[i].Name, meshes[i].Mesh, model.GetSkeleton(i));
             }
+
+
 
             exportedModel.Save(fileName);
         }
@@ -313,7 +353,47 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+
             return mesh;
+        }
+
+        /// <summary>
+        /// Gets a list of animations from the given model
+        /// </summary>
+        /// <param name="model">The model to get animations from</param>
+        /// <returns>The list of animations</returns>
+        private List<VAnimation> GetAllAnimations(VModel model)
+        {
+            var animGroupPaths = model.GetReferencedAnimationGroupNames();
+            var animations = model.GetEmbeddedAnimations().ToList();
+
+            // Load animations from referenced animation groups
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
+                if (animGroup != default)
+                {
+                    var data = animGroup.DataBlock is ResourceTypes.NTRO ntro
+                        ? ntro.Output as IKeyValueCollection
+                        : ((ResourceTypes.BinaryKV3)animGroup.DataBlock).Data;
+
+                    // Get the list of animation files
+                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
+                    // Get the key to decode the animations
+                    var decodeKey = data.GetSubCollection("m_decodeKey");
+
+                    // Load animation files
+                    foreach (var animationFile in animArray)
+                    {
+                        var animResource = FileLoader.LoadFile(animationFile + "_c");
+
+                        // Build animation classes
+                        animations.AddRange(VAnimation.FromResource(animResource, decodeKey));
+                    }
+                }
+            }
+
+            return animations.ToList();
         }
 
         private Node[] CreateGltfSkeleton(Skeleton skeleton, Node skeletonNode)
