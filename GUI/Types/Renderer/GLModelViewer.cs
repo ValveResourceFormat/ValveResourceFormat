@@ -15,6 +15,8 @@ namespace GUI.Types.Renderer
         private readonly Model model;
         private readonly Mesh mesh;
         private ComboBox animationComboBox;
+        private CheckBox animationPlayPause;
+        private TrackBar animationTrackBar; 
         private CheckedListBox meshGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
@@ -39,6 +41,23 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode?.SetAnimation(animation);
             });
+            animationPlayPause = ViewerControl.AddCheckBox("Autoplay", true, isChecked =>
+            {
+                if (modelSceneNode != null)
+                {
+                    modelSceneNode.AnimationController.IsPaused = !isChecked;
+                }
+            });
+            animationTrackBar = ViewerControl.AddTrackBar("Animation Frame", frame =>
+            {
+                if (modelSceneNode != null)
+                {
+                    // Have thing here to prevent setting this from in code
+                    modelSceneNode.AnimationController.Frame = frame;
+                }
+            });
+            animationPlayPause.Enabled = false;
+            animationTrackBar.Enabled = false;
         }
 
         protected override void LoadScene()
@@ -64,6 +83,20 @@ namespace GUI.Types.Renderer
                         meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
                     }
                 }
+
+                modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>
+                {
+                    if (animationTrackBar.Value != frame)
+                    {
+                        animationTrackBar.Value = frame;
+                    }
+                    if (animationTrackBar.Maximum != animation.FrameCount - 1)
+                    {
+                        animationTrackBar.Maximum = animation.FrameCount - 1;
+                    }
+                    animationTrackBar.Enabled = animation != null;
+                    animationPlayPause.Enabled = animation != null;
+                });
             }
             else
             {

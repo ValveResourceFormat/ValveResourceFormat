@@ -40,4 +40,9 @@
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Controls\GLViewerTrackBarControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+  </ItemGroup>
 </Project>
