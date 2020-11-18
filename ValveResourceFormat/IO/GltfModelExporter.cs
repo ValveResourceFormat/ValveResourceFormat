@@ -70,17 +70,16 @@ namespace ValveResourceFormat.IO
                     // Rotate upright, scale inches to meters.
                     skeletonNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
 
-
                     // Add animations
-                    var vanimations = GetAllAnimations(model);
-                    foreach (var vanimation in vanimations)
+                    var animations = GetAllAnimations(model);
+                    foreach (var animation in animations)
                     {
-                        var anim = exportedModel.CreateAnimation(vanimation.Name);
+                        var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
                         var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
                         var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
 
-                        var t = (float)0;
-                        foreach (var frame in vanimation.Frames)
+                        var time = (float)0;
+                        foreach (var frame in animation.Frames)
                         {
                             foreach (var boneFrame in frame.Bones)
                             {
@@ -90,10 +89,10 @@ namespace ValveResourceFormat.IO
                                     rotationDict[bone] = new Dictionary<float, Quaternion>();
                                     translationDict[bone] = new Dictionary<float, Vector3>();
                                 }
-                                rotationDict[bone].Add(t, boneFrame.Value.Angle);
-                                translationDict[bone].Add(t, boneFrame.Value.Position);
+                                rotationDict[bone].Add(time, boneFrame.Value.Angle);
+                                translationDict[bone].Add(time, boneFrame.Value.Position);
                             }
-                            t += 1 / vanimation.Fps;
+                            time += 1 / animation.Fps;
                         }
 
                         foreach (var bone in rotationDict.Keys)
@@ -101,8 +100,8 @@ namespace ValveResourceFormat.IO
                             var node = joints.FirstOrDefault(n => n.Name == bone);
                             if (node != null)
                             {
-                                anim.CreateRotationChannel(node, rotationDict[bone], true);
-                                anim.CreateTranslationChannel(node, translationDict[bone], true);
+                                exportedAnimation.CreateRotationChannel(node, rotationDict[bone], true);
+                                exportedAnimation.CreateTranslationChannel(node, translationDict[bone], true);
                             }
                         }
                     }
@@ -357,45 +356,6 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        /// <summary>
-        /// Gets a list of animations from the given model
-        /// </summary>
-        /// <param name="model">The model to get animations from</param>
-        /// <returns>The list of animations</returns>
-        private List<VAnimation> GetAllAnimations(VModel model)
-        {
-            var animGroupPaths = model.GetReferencedAnimationGroupNames();
-            var animations = model.GetEmbeddedAnimations().ToList();
-
-            // Load animations from referenced animation groups
-            foreach (var animGroupPath in animGroupPaths)
-            {
-                var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
-                if (animGroup != default)
-                {
-                    var data = animGroup.DataBlock is ResourceTypes.NTRO ntro
-                        ? ntro.Output as IKeyValueCollection
-                        : ((ResourceTypes.BinaryKV3)animGroup.DataBlock).Data;
-
-                    // Get the list of animation files
-                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
-                    // Get the key to decode the animations
-                    var decodeKey = data.GetSubCollection("m_decodeKey");
-
-                    // Load animation files
-                    foreach (var animationFile in animArray)
-                    {
-                        var animResource = FileLoader.LoadFile(animationFile + "_c");
-
-                        // Build animation classes
-                        animations.AddRange(VAnimation.FromResource(animResource, decodeKey));
-                    }
-                }
-            }
-
-            return animations.ToList();
-        }
-
         private Node[] CreateGltfSkeleton(Skeleton skeleton, Node skeletonNode)
         {
             var joints = new List<(Node Node, List<int> Indices)>();
@@ -552,6 +512,40 @@ namespace ValveResourceFormat.IO
             }
 
             return material;
+        }
+
+        private List<VAnimation> GetAllAnimations(VModel model)
+        {
+            var animGroupPaths = model.GetReferencedAnimationGroupNames();
+            var animations = model.GetEmbeddedAnimations().ToList();
+
+            // Load animations from referenced animation groups
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
+                if (animGroup != default)
+                {
+                    var data = animGroup.DataBlock is ResourceTypes.NTRO ntro
+                        ? ntro.Output as IKeyValueCollection
+                        : ((ResourceTypes.BinaryKV3)animGroup.DataBlock).Data;
+
+                    // Get the list of animation files
+                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
+                    // Get the key to decode the animations
+                    var decodeKey = data.GetSubCollection("m_decodeKey");
+
+                    // Load animation files
+                    foreach (var animationFile in animArray)
+                    {
+                        var animResource = FileLoader.LoadFile(animationFile + "_c");
+
+                        // Build animation classes
+                        animations.AddRange(VAnimation.FromResource(animResource, decodeKey));
+                    }
+                }
+            }
+
+            return animations.ToList();
         }
 
         public static string GetAccessorName(string name, int index)
