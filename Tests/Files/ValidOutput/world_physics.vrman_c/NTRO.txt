@@ -1,0 +1,37 @@
+CResourceIntrospectionManifest
+{
+	uint32 m_nIntrospectionVersion = 0x00000004
+	Struct m_ReferencedStructs[1] =
+	[
+		CResourceDiskStruct
+		{
+			uint32 m_nIntrospectionVersion = 0x00000004
+			uint32 m_nId = 0x57ACC9A2
+			CResourceString m_pName = "ResourceManifest_t"
+			uint32 m_nDiskCrc = 0xEA44730D
+			int32 m_nUserVersion = 0
+			uint16 m_nDiskSize = 0x0008
+			uint16 m_nAlignment = 0x0004
+			uint32 m_nBaseStructId = 0x00000000
+			Struct m_FieldIntrospection[1] =
+			[
+				CResourceDiskStructField
+				{
+					CResourceString m_pFieldName = "m_ResourceFileNameList"
+					int16 m_nCount = 0
+					int16 m_nOnDiskOffset = 0
+					uint8[1] m_Indirection =
+					[
+						04
+					]
+					uint32 m_nTypeData = 0x00000000
+					int16 m_nType = 31
+				}
+			]
+			uint8 m_nStructFlags = 0x00
+		}
+	]
+	Struct m_ReferencedEnums[0] =
+	[
+	]
+}

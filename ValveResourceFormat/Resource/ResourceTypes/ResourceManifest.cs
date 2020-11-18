@@ -15,13 +15,31 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
+            if (resource.ContainsBlockType(BlockType.NTRO))
+            {
+                var ntro = new NTRO
+                {
+                    StructName = "ResourceManifest_t",
+                    Offset = Offset,
+                    Size = Size,
+                };
+                ntro.Read(reader, resource);
+
+                Resources = new List<List<string>>
+                {
+                    new List<string>(ntro.Output.GetArray<string>("m_ResourceFileNameList")),
+                };
+
+                return;
+            }
+
             var version = reader.ReadInt32();
 
             if (version != 8)
             {
                 throw new UnexpectedMagicException("Unknown version", version, nameof(version));
             }
-
+            
             Resources = new List<List<string>>();
 
             var blockCount = reader.ReadInt32();
