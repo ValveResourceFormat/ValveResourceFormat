@@ -58,7 +58,7 @@ namespace ValveResourceFormat.IO
                 var hasJoints = skeleton.AnimationTextureSize > 0;
                 var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints);
                 var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
-                
+
                 if (hasJoints && hasVertexJoints)
                 {
                     var skeletonNode = scene.CreateNode(name);
@@ -78,7 +78,7 @@ namespace ValveResourceFormat.IO
                         var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
                         var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
 
-                        var time = (float)0;
+                        var time = 0f;
                         foreach (var frame in animation.Frames)
                         {
                             foreach (var boneFrame in frame.Bones)
@@ -122,8 +122,6 @@ namespace ValveResourceFormat.IO
             {
                 AddMeshNode(meshes[i].Name, meshes[i].Mesh, model.GetSkeleton(i));
             }
-
-
 
             exportedModel.Save(fileName);
         }
@@ -352,7 +350,6 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-
             return mesh;
         }
 
@@ -525,9 +522,7 @@ namespace ValveResourceFormat.IO
                 var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
                 if (animGroup != default)
                 {
-                    var data = animGroup.DataBlock is ResourceTypes.NTRO ntro
-                        ? ntro.Output as IKeyValueCollection
-                        : ((ResourceTypes.BinaryKV3)animGroup.DataBlock).Data;
+                    var data = animGroup.DataBlock.AsKeyValueCollection();
 
                     // Get the list of animation files
                     var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);

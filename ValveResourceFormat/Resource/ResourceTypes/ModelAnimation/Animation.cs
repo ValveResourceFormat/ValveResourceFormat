@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public string Name { get; private set; }
         public float Fps { get; private set; }
         public int FrameCount { get; private set; }
-        public IReadOnlyList<Frame> Frames { get; set; }
+        public IReadOnlyList<Frame> Frames { get; private set; }
 
         private Animation(
             IKeyValueCollection animDesc,
@@ -166,7 +166,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             FrameCount = (int)pData.GetIntegerProperty("m_nFrames");
             var frameArray = new Frame[FrameCount];
-            Frames = frameArray;
 
             // Figure out each frame
             for (var frame = 0; frame < FrameCount; frame++)
@@ -193,6 +192,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     }
                 }
             }
+            Frames = frameArray;
         }
 
         /// <summary>
