@@ -33,8 +33,16 @@ namespace GUI.Types.Exporter
 
             if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
             {
-                extension = "gltf";
-                filter = $"glTF file|*.gltf|{filter}";
+                if (exportData.FileType == ExportFileType.GLB)
+                {
+                    extension = "glb";
+                    filter = $"GLB file|*.glb|{filter}";
+                }
+                else
+                {
+                    extension = "gltf";
+                    filter = $"glTF file|*.gltf|{filter}";
+                }
             }
 
             var dialog = new SaveFileDialog

@@ -16,6 +16,7 @@ namespace ValveResourceFormat.IO
     using VMaterial = ResourceTypes.Material;
     using VMesh = ResourceTypes.Mesh;
     using VModel = ResourceTypes.Model;
+    using VAnimation = ResourceTypes.ModelAnimation.Animation;
 
     public class GltfModelExporter
     {
@@ -68,6 +69,42 @@ namespace ValveResourceFormat.IO
 
                     // Rotate upright, scale inches to meters.
                     skeletonNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
+
+                    // Add animations
+                    var animations = GetAllAnimations(model);
+                    foreach (var animation in animations)
+                    {
+                        var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
+                        var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
+                        var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
+
+                        var time = 0f;
+                        foreach (var frame in animation.Frames)
+                        {
+                            foreach (var boneFrame in frame.Bones)
+                            {
+                                var bone = boneFrame.Key;
+                                if (!rotationDict.ContainsKey(bone))
+                                {
+                                    rotationDict[bone] = new Dictionary<float, Quaternion>();
+                                    translationDict[bone] = new Dictionary<float, Vector3>();
+                                }
+                                rotationDict[bone].Add(time, boneFrame.Value.Angle);
+                                translationDict[bone].Add(time, boneFrame.Value.Position);
+                            }
+                            time += 1 / animation.Fps;
+                        }
+
+                        foreach (var bone in rotationDict.Keys)
+                        {
+                            var node = joints.FirstOrDefault(n => n.Name == bone);
+                            if (node != null)
+                            {
+                                exportedAnimation.CreateRotationChannel(node, rotationDict[bone], true);
+                                exportedAnimation.CreateTranslationChannel(node, translationDict[bone], true);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -472,6 +509,38 @@ namespace ValveResourceFormat.IO
             }
 
             return material;
+        }
+
+        private List<VAnimation> GetAllAnimations(VModel model)
+        {
+            var animGroupPaths = model.GetReferencedAnimationGroupNames();
+            var animations = model.GetEmbeddedAnimations().ToList();
+
+            // Load animations from referenced animation groups
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
+                if (animGroup != default)
+                {
+                    var data = animGroup.DataBlock.AsKeyValueCollection();
+
+                    // Get the list of animation files
+                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
+                    // Get the key to decode the animations
+                    var decodeKey = data.GetSubCollection("m_decodeKey");
+
+                    // Load animation files
+                    foreach (var animationFile in animArray)
+                    {
+                        var animResource = FileLoader.LoadFile(animationFile + "_c");
+
+                        // Build animation classes
+                        animations.AddRange(VAnimation.FromResource(animResource, decodeKey));
+                    }
+                }
+            }
+
+            return animations.ToList();
         }
 
         public static string GetAccessorName(string name, int index)

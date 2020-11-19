@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
@@ -15,6 +16,8 @@ namespace GUI.Types.Renderer
         private readonly Model model;
         private readonly Mesh mesh;
         private ComboBox animationComboBox;
+        private CheckBox animationPlayPause;
+        private GLViewerTrackBarControl animationTrackBar; 
         private CheckedListBox meshGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
@@ -39,6 +42,22 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode?.SetAnimation(animation);
             });
+            animationPlayPause = ViewerControl.AddCheckBox("Autoplay", true, isChecked =>
+            {
+                if (modelSceneNode != null)
+                {
+                    modelSceneNode.AnimationController.IsPaused = !isChecked;
+                }
+            });
+            animationTrackBar = ViewerControl.AddTrackBar("Animation Frame", frame =>
+            {
+                if (modelSceneNode != null)
+                {
+                    modelSceneNode.AnimationController.Frame = frame;
+                }
+            });
+            animationPlayPause.Enabled = false;
+            animationTrackBar.Enabled = false;
         }
 
         protected override void LoadScene()
@@ -64,6 +83,21 @@ namespace GUI.Types.Renderer
                         meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
                     }
                 }
+
+                modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>
+                {
+                    if (animationTrackBar.TrackBar.Value != frame)
+                    {
+                        animationTrackBar.UpdateValueSilently(frame);
+                    }
+                    var maximum = animation == null ? 1 : animation.FrameCount - 1;
+                    if (animationTrackBar.TrackBar.Maximum != maximum)
+                    {
+                        animationTrackBar.TrackBar.Maximum = maximum;
+                    }
+                    animationTrackBar.Enabled = animation != null;
+                    animationPlayPause.Enabled = animation != null;
+                });
             }
             else
             {

@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
     {
         public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, VrfGuiContext vrfGuiContext)
         {
-            var data = GetData(resource);
+            var data = resource.DataBlock.AsKeyValueCollection();
 
             // Get the list of animation files
             var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
@@ -33,7 +33,7 @@ namespace GUI.Types.Renderer
 
         public static IEnumerable<Animation> TryLoadSingleAnimationFileFromGroup(Resource resource, string animationName, VrfGuiContext vrfGuiContext)
         {
-            var data = GetData(resource);
+            var data = resource.DataBlock.AsKeyValueCollection();
 
             // Get the list of animation files
             var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
@@ -51,11 +51,6 @@ namespace GUI.Types.Renderer
                 return null;
             }
         }
-
-        private static IKeyValueCollection GetData(Resource resource)
-            => resource.DataBlock is NTRO ntro
-                ? ntro.Output as IKeyValueCollection
-                : ((BinaryKV3)resource.DataBlock).Data;
 
         private static IEnumerable<Animation> LoadAnimationFile(string animationFile, IKeyValueCollection decodeKey, VrfGuiContext vrfGuiContext)
         {

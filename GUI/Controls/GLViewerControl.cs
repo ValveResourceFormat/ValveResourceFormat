@@ -158,6 +158,28 @@ namespace GUI.Controls
             return selectionControl.CheckedListBox;
         }
 
+        public GLViewerTrackBarControl AddTrackBar(string name, Action<int> changeCallback)
+        {
+            var trackBar = new GLViewerTrackBarControl(name);
+            trackBar.TrackBar.ValueChanged += (_, __) =>
+            {
+                if (trackBar.IgnoreValueChanged)
+                {
+                    return;
+                }
+                changeCallback(trackBar.TrackBar.Value);
+
+                GLControl.Focus();
+            };
+
+            controlsPanel.Controls.Add(trackBar);
+            otherControls.Add(trackBar);
+
+            RecalculatePositions();
+
+            return trackBar;
+        }
+
         public void RecalculatePositions()
         {
             var y = 25;

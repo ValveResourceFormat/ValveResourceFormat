@@ -33,20 +33,20 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public AnimationController AnimationController => animationController;
         public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
 
         private readonly List<RenderableMesh> meshRenderers = new List<RenderableMesh>();
         private readonly List<Animation> animations = new List<Animation>();
         private Dictionary<string, string> skinMaterials;
 
+        private AnimationController animationController;
         private Animation activeAnimation;
         private int[] animationTextures;
         private Skeleton[] skeletons;
 
         private ICollection<string> activeMeshGroups = new HashSet<string>();
         private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
-
-        private float time;
 
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool loadAnimations = true)
             : base(scene)
@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            time += context.Timestep;
+            animationController.Update(context.Timestep);
 
             for (var i = 0; i < skeletons.Length; i++)
             {
@@ -94,7 +94,7 @@ namespace GUI.Types.Renderer
                     animationMatrices[(j * 16) + 15] = 1.0f;
                 }
 
-                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(time, skeleton);
+                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(animationController.Time, skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -210,6 +210,7 @@ namespace GUI.Types.Renderer
 
         private void LoadAnimations()
         {
+            animationController = new AnimationController();
             var animGroupPaths = Model.GetReferencedAnimationGroupNames();
             var emebeddedAnims = Model.GetEmbeddedAnimations();
 
@@ -276,8 +277,8 @@ namespace GUI.Types.Renderer
 
         public void SetAnimation(string animationName)
         {
-            time = 0f;
             activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+            animationController.SetAnimation(activeAnimation);
 
             if (activeAnimation != default)
             {

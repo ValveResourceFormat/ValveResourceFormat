@@ -160,6 +160,8 @@ namespace GUI.Types.Viewers
                 case ResourceType.Model:
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF",
                         vrfGuiContext.FileName, new ExportData {Resource = resource, VrfGuiContext = vrfGuiContext});
+                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as GLB",
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
 
                     var modelRendererTab = new TabPage("MODEL");
                     modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model) resource.DataBlock)
@@ -176,6 +178,8 @@ namespace GUI.Types.Viewers
 
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF",
                         vrfGuiContext.FileName, new ExportData {Resource = resource, VrfGuiContext = vrfGuiContext});
+                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as GLB",
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
 
                     var meshRendererTab = new TabPage("MESH");
                     meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Mesh(resource)).ViewerControl);
