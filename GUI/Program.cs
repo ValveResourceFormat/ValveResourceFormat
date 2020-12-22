@@ -21,7 +21,8 @@ namespace GUI
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
-            Application.EnableVisualStyles();
+            // See https://github.com/dotnet/winforms/issues/4397#issuecomment-749782104
+            // Application.EnableVisualStyles();
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetCompatibleTextRenderingDefault(false);
             MainForm = new MainForm();
