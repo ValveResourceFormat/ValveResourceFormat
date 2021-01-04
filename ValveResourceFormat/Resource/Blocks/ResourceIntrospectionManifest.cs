@@ -198,15 +198,17 @@ namespace ValveResourceFormat.Blocks
 
             for (var i = 0; i < entriesCount; i++)
             {
-                var diskStruct = new ResourceDiskStruct();
-                diskStruct.IntrospectionVersion = reader.ReadUInt32();
-                diskStruct.Id = reader.ReadUInt32();
-                diskStruct.Name = reader.ReadOffsetString(Encoding.UTF8);
-                diskStruct.DiskCrc = reader.ReadUInt32();
-                diskStruct.UserVersion = reader.ReadInt32();
-                diskStruct.DiskSize = reader.ReadUInt16();
-                diskStruct.Alignment = reader.ReadUInt16();
-                diskStruct.BaseStructId = reader.ReadUInt32();
+                var diskStruct = new ResourceDiskStruct
+                {
+                    IntrospectionVersion = reader.ReadUInt32(),
+                    Id = reader.ReadUInt32(),
+                    Name = reader.ReadOffsetString(Encoding.UTF8),
+                    DiskCrc = reader.ReadUInt32(),
+                    UserVersion = reader.ReadInt32(),
+                    DiskSize = reader.ReadUInt16(),
+                    Alignment = reader.ReadUInt16(),
+                    BaseStructId = reader.ReadUInt32()
+                };
 
                 var fieldsOffset = reader.ReadUInt32();
                 var fieldsSize = reader.ReadUInt32();
@@ -219,11 +221,12 @@ namespace ValveResourceFormat.Blocks
 
                     for (var y = 0; y < fieldsSize; y++)
                     {
-                        var field = new ResourceDiskStruct.Field();
-
-                        field.FieldName = reader.ReadOffsetString(Encoding.UTF8);
-                        field.Count = reader.ReadInt16();
-                        field.OnDiskOffset = reader.ReadInt16();
+                        var field = new ResourceDiskStruct.Field
+                        {
+                            FieldName = reader.ReadOffsetString(Encoding.UTF8),
+                            Count = reader.ReadInt16(),
+                            OnDiskOffset = reader.ReadInt16()
+                        };
 
                         var indirectionOffset = reader.ReadUInt32();
                         var indirectionSize = reader.ReadUInt32();
@@ -275,12 +278,14 @@ namespace ValveResourceFormat.Blocks
 
             for (var i = 0; i < entriesCount; i++)
             {
-                var diskEnum = new ResourceDiskEnum();
-                diskEnum.IntrospectionVersion = reader.ReadUInt32();
-                diskEnum.Id = reader.ReadUInt32();
-                diskEnum.Name = reader.ReadOffsetString(Encoding.UTF8);
-                diskEnum.DiskCrc = reader.ReadUInt32();
-                diskEnum.UserVersion = reader.ReadInt32();
+                var diskEnum = new ResourceDiskEnum
+                {
+                    IntrospectionVersion = reader.ReadUInt32(),
+                    Id = reader.ReadUInt32(),
+                    Name = reader.ReadOffsetString(Encoding.UTF8),
+                    DiskCrc = reader.ReadUInt32(),
+                    UserVersion = reader.ReadInt32()
+                };
 
                 var fieldsOffset = reader.ReadUInt32();
                 var fieldsSize = reader.ReadUInt32();
@@ -293,10 +298,11 @@ namespace ValveResourceFormat.Blocks
 
                     for (var y = 0; y < fieldsSize; y++)
                     {
-                        var field = new ResourceDiskEnum.Value();
-
-                        field.EnumValueName = reader.ReadOffsetString(Encoding.UTF8);
-                        field.EnumValue = reader.ReadInt32();
+                        var field = new ResourceDiskEnum.Value
+                        {
+                            EnumValueName = reader.ReadOffsetString(Encoding.UTF8),
+                            EnumValue = reader.ReadInt32()
+                        };
 
                         diskEnum.EnumValueIntrospection.Add(field);
                     }

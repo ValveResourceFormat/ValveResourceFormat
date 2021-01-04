@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemRenderState)
+        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var distance = offsetMax - offsetMin;
             var offset = offsetMin + (distance * new Vector3((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble()));

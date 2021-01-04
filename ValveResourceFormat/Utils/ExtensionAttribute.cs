@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 
 namespace ValveResourceFormat
 {
     [AttributeUsage(AttributeTargets.Field)]
-    public class ExtensionAttribute : Attribute
+    public sealed class ExtensionAttribute : Attribute
     {
         public string Extension { get; }
 

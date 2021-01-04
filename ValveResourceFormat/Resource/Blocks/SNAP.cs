@@ -38,13 +38,13 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override void Read(BinaryReader resourceReader, Resource resource)
+        public override void Read(BinaryReader reader, Resource resource)
         {
-            resourceReader.BaseStream.Position = Offset;
+            reader.BaseStream.Position = Offset;
 
             // Decompress SNAP block compression
-            using var decompressedStream = BlockCompress.Decompress(resourceReader, Size);
-            using var reader = new BinaryReader(decompressedStream);
+            using var decompressedStream = BlockCompress.Decompress(reader, Size);
+            using var innerReader = new BinaryReader(decompressedStream);
 
             // Get DATA block to know how to read SNAP data
             var data = resource.DataBlock.AsKeyValueCollection();
@@ -62,10 +62,10 @@ namespace ValveResourceFormat.Blocks
 
                 var attributeArray = attributeType switch
                 {
-                    "skinning" => ReadSkinningData(reader, numParticles, stringList),
-                    "string" => ReadStringArray(reader, numParticles, stringList),
-                    "bone" => ReadStringArray(reader, numParticles, stringList),
-                    _ => ReadArrayOfType(reader, numParticles, attributeType),
+                    "skinning" => ReadSkinningData(innerReader, numParticles, stringList),
+                    "string" => ReadStringArray(innerReader, numParticles, stringList),
+                    "bone" => ReadStringArray(innerReader, numParticles, stringList),
+                    _ => ReadArrayOfType(innerReader, numParticles, attributeType),
                 };
 
                 attributeData.Add(attributeName, attributeArray);

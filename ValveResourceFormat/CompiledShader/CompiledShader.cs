@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using Decoder = SevenZip.Compression.LZMA.Decoder;
@@ -545,7 +545,7 @@ namespace ValveResourceFormat
                                 chunkReader.BaseStream.Position -= 2;
                             }
                         }
-                        else if (modeAndCount == 20)
+                        else 
                         {
                             // Read 40 byte 0xFF chunk
                             chunkReader.ReadBytes(40);

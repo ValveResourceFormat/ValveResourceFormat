@@ -22,9 +22,9 @@ namespace GUI.Controls
             InitializeComponent();
         }
 
-        protected override void OnPaint(PaintEventArgs pe)
+        protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(pe);
+            base.OnPaint(e);
         }
 
         /// <summary>

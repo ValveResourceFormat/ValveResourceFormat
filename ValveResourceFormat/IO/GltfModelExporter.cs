@@ -41,7 +41,7 @@ namespace ValveResourceFormat.IO
         {
             if (FileLoader == null)
             {
-                throw new NullReferenceException(nameof(FileLoader));
+                throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
             }
 
             var exportedModel = ModelRoot.CreateModel();
@@ -623,8 +623,8 @@ namespace ValveResourceFormat.IO
 
             x = (x * zSign) - zSignBit;                           // 0..127
             y = (y * tSign) - tSignBit;
-            x = x - 64;                                     // -64..63
-            y = y - 64;
+            x -= 64;                                     // -64..63
+            y -= 64;
 
             float xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
             float ySignBit = y < 0 ? 1.0f : 0.0f;

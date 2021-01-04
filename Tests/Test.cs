@@ -83,7 +83,7 @@ namespace Tests
             Assert.Multiple(() => VerifyResources(resources));
         }
 
-        private void VerifyResources(Dictionary<string, Resource> resources)
+        static void VerifyResources(Dictionary<string, Resource> resources)
         {
             SoundWavCorrectlyExports(resources["beep.vsnd_c"]);
 
@@ -137,17 +137,19 @@ namespace Tests
             }
         }
 
-        private void SoundWavCorrectlyExports(Resource resource)
+        static void SoundWavCorrectlyExports(Resource resource)
         {
             Assert.AreEqual(ResourceType.Sound, resource.ResourceType);
 
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             using (var sha1 = new SHA1CryptoServiceProvider())
             {
                 var sound = ((Sound)resource.DataBlock).GetSound();
-                var actualHash = BitConverter.ToString(sha1.ComputeHash(sound)).Replace("-", "");
+                var actualHash = BitConverter.ToString(sha1.ComputeHash(sound)).Replace("-", "", StringComparison.Ordinal);
 
                 Assert.AreEqual("59AC27F1A4395D8D02E4B3ADAA99023F243C8B41", actualHash);
             }
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
 
         [Test]
