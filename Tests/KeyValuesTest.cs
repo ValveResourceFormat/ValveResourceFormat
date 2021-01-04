@@ -18,6 +18,7 @@ namespace Tests
 
             TestKeyValues3(file);
         }
+
         [Test]
         public void TestKeyValues3_CRLF()
         {
@@ -30,7 +31,7 @@ namespace Tests
             TestKeyValues3(file);
         }
 
-        public void TestKeyValues3(KV3File file)
+        static void TestKeyValues3(KV3File file)
         {
             Assert.AreEqual("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}", file.Encoding);
             Assert.AreEqual("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}", file.Format);

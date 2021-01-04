@@ -105,8 +105,7 @@ namespace ValveResourceFormat.Blocks
 
             for (var i = 0; i < size; i++)
             {
-                var resInfo = new ResourceReferenceInfo();
-                resInfo.Id = reader.ReadUInt64();
+                var resInfo = new ResourceReferenceInfo { Id = reader.ReadUInt64() };
 
                 var previousPosition = reader.BaseStream.Position;
 

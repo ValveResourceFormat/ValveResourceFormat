@@ -73,8 +73,7 @@ namespace ValveResourceFormat.ClosedCaptions
 
             for (uint i = 0; i < directorysize; i++)
             {
-                var caption = new ClosedCaption();
-                caption.Hash = reader.ReadUInt32();
+                var caption = new ClosedCaption { Hash = reader.ReadUInt32() };
 
                 if (version >= 2)
                 {

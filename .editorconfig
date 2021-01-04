@@ -8,6 +8,15 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 
 [*.cs]
+# CA1002: Do not expose generic lists.
+dotnet_diagnostic.CA1002.severity = none
+
+# CA1003: Use generic event handler instances
+dotnet_diagnostic.CA1003.severity = suggestion
+
+# CA1008: Enums should have zero value
+dotnet_diagnostic.CA1008.severity = none
+
 # CA1010: Type directly or indirectly inherits 'ICollection' without implementing 'ICollection<T>'
 dotnet_diagnostic.CA1010.severity = none
 
@@ -35,11 +44,17 @@ dotnet_diagnostic.CA1307.severity = suggestion
 # CA1310: Specify StringComparison for correctness
 dotnet_diagnostic.CA1310.severity = suggestion
 
+# CA1508: Avoid dead conditional code
+dotnet_diagnostic.CA1508.severity = none
+
 # CA1707: Remove the underscores from member name
 dotnet_diagnostic.CA1707.severity = none
 
 # CA1710: Rename to end in 'Dictionary'.
 dotnet_diagnostic.CA1710.severity = none
+
+# CA1711: Identifiers should not have incorrect suffix
+dotnet_diagnostic.CA1711.severity = suggestion
 
 # CA1720: Identifier contains type name
 dotnet_diagnostic.CA1720.severity = none
@@ -65,5 +80,14 @@ dotnet_diagnostic.CA2000.severity = none
 # CA2008: Do not create tasks without passing a TaskScheduler
 dotnet_diagnostic.CA2008.severity = none
 
+# CA2119: Seal methods that satisfy private interfaces
+dotnet_diagnostic.CA2119.severity = none
+
+# CA2201: Do not raise reserved exception types
+dotnet_diagnostic.CA2201.severity = suggestion
+
 # CA2214: Do not call overridable methods in constructors
 dotnet_diagnostic.CA2214.severity = none
+
+# CA5394: Do not use insecure randomness
+dotnet_diagnostic.CA5394.severity = suggestion
