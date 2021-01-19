@@ -8,7 +8,8 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC;
+            return magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC ||
+                   magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC2;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)

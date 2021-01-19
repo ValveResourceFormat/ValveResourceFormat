@@ -233,6 +233,7 @@ namespace Decompiler
             {
                 case Package.MAGIC: ParseVPK(path, fs); return;
                 case CompiledShader.MAGIC: ParseVCS(path, fs); return;
+                case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, fs); return;
                 case BinaryKV3.MAGIC3:
                 case BinaryKV3.MAGIC2:

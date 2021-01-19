@@ -8,6 +8,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
     public class ToolsAssetInfo
     {
         public const uint MAGIC = 0xC4CCACE8;
+        public const uint MAGIC2 = 0xC4CCACE9; // TODO: Versioning
         public const uint GUARD = 0x049A48B2;
 
         public List<string> Mods { get; } = new List<string>();
@@ -37,15 +38,17 @@ namespace ValveResourceFormat.ToolsAssetInfo
         public void Read(Stream input)
         {
             var reader = new BinaryReader(input);
+            var magic = reader.ReadUInt32();
 
-            if (reader.ReadUInt32() != MAGIC)
+            // TODO: Versioning
+            if (magic != MAGIC && magic != MAGIC2)
             {
                 throw new InvalidDataException("Given file is not tools_asset_info.");
             }
 
             var version = reader.ReadUInt32();
 
-            if (version != 10)
+            if (version != 10 && version != 11)
             {
                 throw new InvalidDataException($"Unsupported version: {version}");
             }
