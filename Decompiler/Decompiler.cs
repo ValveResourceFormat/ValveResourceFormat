@@ -72,6 +72,9 @@ namespace Decompiler
         [Option("-f|--vpk_filepath", "File path filter, example: panorama\\ or \"panorama\\\\\"", CommandOptionType.SingleValue)]
         public string FileFilter { get; private set; }
 
+        [Option("-l|--vpk_list", "Lists all resources in given VPK. File extension and path filters apply.", CommandOptionType.NoValue)]
+        public bool ListResources { get; }
+
         private string[] ExtFilterList;
         private bool IsInputFolder;
 
@@ -610,6 +613,21 @@ namespace Decompiler
                 if (ExtFilterList != null)
                 {
                     orderedEntries = orderedEntries.Where(x => ExtFilterList.Contains(x.Key)).ToList();
+                }
+
+                if (ListResources)
+                {
+                    var listEntries = orderedEntries.SelectMany(x => x.Value);
+                    foreach (var entry in listEntries)
+                    {
+                        var filePath = FixPathSlashes(entry.GetFullPath());
+                        if (FileFilter != null && !filePath.StartsWith(FileFilter, StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+                        Console.WriteLine("\t{0}", filePath);
+                    }
+                    return;
                 }
 
                 if (CollectStats)
