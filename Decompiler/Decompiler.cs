@@ -75,6 +75,12 @@ namespace Decompiler
         [Option("-l|--vpk_list", "Lists all resources in given VPK. File extension and path filters apply.", CommandOptionType.NoValue)]
         public bool ListResources { get; }
 
+        [Option("--gltf_export_format", "Exports meshes/models in given glTF format. Must be either 'gltf' (default) or 'glb'", CommandOptionType.SingleValue)]
+        public string GltfExportFormat { get; } = "gltf";
+
+        [Option("--gltf_export_materials", "Whether to export materials during glTF exports (warning: slow!)", CommandOptionType.NoValue)]
+        public bool GltfExportMaterials { get; }
+
         private string[] ExtFilterList;
         private bool IsInputFolder;
 
@@ -106,6 +112,13 @@ namespace Decompiler
             if (ExtFilter != null)
             {
                 ExtFilterList = ExtFilter.Split(',');
+            }
+
+            if (GltfExportFormat != "gltf" && GltfExportFormat != "glb")
+            {
+                Console.Error.WriteLine("glTF export format must be either 'gltf' or 'glb'.");
+
+                return 1;
             }
 
             var paths = new List<string>();
@@ -780,13 +793,14 @@ namespace Decompiler
                         // TODO: Hook this up in FileExtract
                         if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
                         {
-                            var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, "gltf"));
+                            var outputExtension = GltfExportFormat;
+                            var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
 
                             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
                             var exporter = new GltfModelExporter
                             {
-                                ExportMaterials = false,
+                                ExportMaterials = GltfExportMaterials,
                                 ProgressReporter = new ConsoleProgressReporter(),
                                 FileLoader = fileLoader
                             };
