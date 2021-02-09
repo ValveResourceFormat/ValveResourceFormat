@@ -72,7 +72,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = worldLayers[layerIndex],
+                        LayerName = layerIndex > -1 ? worldLayers[layerIndex] : "No layer",
                     };
 
                     scene.Add(modelNode, false);
@@ -93,7 +93,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = worldLayers[layerIndex],
+                        LayerName = layerIndex > -1 ? worldLayers[layerIndex] : "No layer",
                     };
 
                     scene.Add(meshNode, false);
