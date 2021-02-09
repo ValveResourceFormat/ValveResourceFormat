@@ -48,7 +48,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             var version = reader.ReadUInt32();
 
-            if (version != 10 && version != 11)
+            if (version != 9 && version != 10 && version != 11)
             {
                 throw new InvalidDataException($"Unsupported version: {version}");
             }
