@@ -513,6 +513,11 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
+            {
+                material.WithChannelParameter("BaseColor", vColorTint);
+            }
+
             return material;
         }
 
