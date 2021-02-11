@@ -92,12 +92,7 @@ namespace GUI.Types.Renderer
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
-                    var materialName = objectDrawCall.GetProperty<string>("m_material");
-
-                    if(materialName == null)
-                    {
-                        materialName = objectDrawCall.GetProperty<string>("m_pMaterial");
-                    }
+                    var materialName = objectDrawCall.GetProperty<string>("m_material") ?? objectDrawCall.GetProperty<string>("m_pMaterial");
 
                     if (skinMaterials != null && skinMaterials.ContainsKey(materialName))
                     {

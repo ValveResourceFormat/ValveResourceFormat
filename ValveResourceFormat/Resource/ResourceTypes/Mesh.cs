@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Compression;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -20,11 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Mesh(Resource resource)
         {
             Data = resource.DataBlock;
-            VBIB = resource.VBIB;
-            if (VBIB == null)
-            {
-                VBIB = VBIBFromDATA(GetData());
-            }
+            VBIB = resource.VBIB ?? new VBIB(GetData());
             GetBounds();
         }
 
@@ -90,68 +83,6 @@ namespace ValveResourceFormat.ResourceTypes
                 (flagsByte & 2) == 2,
                 _ => false
             };
-        }
-
-        private static VBIB VBIBFromDATA(IKeyValueCollection data)
-        {
-            var VBIB = new VBIB();
-
-            var vertexBuffers = data.GetArray("m_vertexBuffers");
-            foreach (var vb in vertexBuffers)
-            {
-                var vertexBuffer = BufferDataFromDATA(vb);
-                
-                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
-                if (vertexBuffer.Data.Length != decompressedSize)
-                {
-                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
-                }
-                VBIB.VertexBuffers.Add(vertexBuffer);
-            }
-            var indexBuffers = data.GetArray("m_indexBuffers");
-            foreach (var ib in indexBuffers)
-            {
-                var indexBuffer = BufferDataFromDATA(ib);
-
-                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
-                if (indexBuffer.Data.Length != decompressedSize)
-                {
-                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
-                }
-
-                VBIB.IndexBuffers.Add(indexBuffer);
-            }
-
-            return VBIB;
-        }
-
-        private static VBIB.OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
-        {
-            VBIB.OnDiskBufferData buffer = default(VBIB.OnDiskBufferData);
-            buffer.ElementCount = Convert.ToUInt32(data.GetProperty<object>("m_nElementCount"));
-            buffer.ElementSizeInBytes = Convert.ToUInt32(data.GetProperty<object>("m_nElementSizeInBytes"));
-            buffer.InputLayoutFields = new List<VBIB.RenderInputLayoutField>();
-            var inputLayoutFields = data.GetArray("m_inputLayoutFields");
-            foreach (var il in inputLayoutFields)
-            {
-                VBIB.RenderInputLayoutField attrib = default(VBIB.RenderInputLayoutField);
-
-                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<object>("m_pSemanticName").
-                    Select(Convert.ToByte).ToArray()).TrimEnd((char)0);
-                attrib.SemanticIndex = Convert.ToInt32(il.GetProperty<object>("m_nSemanticIndex"));
-                attrib.Format = (DXGI_FORMAT)Convert.ToUInt32(il.GetProperty<object>("m_Format"));
-                attrib.Offset = Convert.ToUInt32(il.GetProperty<object>("m_nOffset"));
-                attrib.Slot = Convert.ToInt32(il.GetProperty<object>("m_nSlot"));
-                attrib.SlotType = (RenderSlotType)Convert.ToUInt32(il.GetProperty<object>("m_nSlotType"));
-                attrib.InstanceStepRate = Convert.ToInt32(il.GetProperty<object>("m_nInstanceStepRate"));
-
-                buffer.InputLayoutFields.Add(attrib);
-            }
-            buffer.Data = data.GetArray<object>("m_pData")
-                .Select(Convert.ToByte)
-                .ToArray();
-
-            return buffer;
         }
     }
 }

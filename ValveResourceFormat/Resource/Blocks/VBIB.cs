@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Compression;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -41,6 +42,35 @@ namespace ValveResourceFormat.Blocks
         {
             VertexBuffers = new List<OnDiskBufferData>();
             IndexBuffers = new List<OnDiskBufferData>();
+        }
+
+        public VBIB(IKeyValueCollection data) : this()
+        {
+            var vertexBuffers = data.GetArray("m_vertexBuffers");
+            foreach (var vb in vertexBuffers)
+            {
+                var vertexBuffer = BufferDataFromDATA(vb);
+
+                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
+                if (vertexBuffer.Data.Length != decompressedSize)
+                {
+                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
+                }
+                VertexBuffers.Add(vertexBuffer);
+            }
+            var indexBuffers = data.GetArray("m_indexBuffers");
+            foreach (var ib in indexBuffers)
+            {
+                var indexBuffer = BufferDataFromDATA(ib);
+
+                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
+                if (indexBuffer.Data.Length != decompressedSize)
+                {
+                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
+                }
+
+                IndexBuffers.Add(indexBuffer);
+            }
         }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -123,6 +153,35 @@ namespace ValveResourceFormat.Blocks
             buffer.Data = reader.ReadBytes((int)totalSize);
 
             reader.BaseStream.Position = refB + 8; //Go back to the index array to read the next iteration.
+
+            return buffer;
+        }
+
+        private static OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
+        {
+            OnDiskBufferData buffer = new OnDiskBufferData();
+            buffer.ElementCount = data.GetUInt32Property("m_nElementCount");
+            buffer.ElementSizeInBytes = data.GetUInt32Property("m_nElementSizeInBytes");
+
+            buffer.InputLayoutFields = new List<RenderInputLayoutField>();
+
+            var inputLayoutFields = data.GetArray("m_inputLayoutFields");
+            foreach (var il in inputLayoutFields)
+            {
+                RenderInputLayoutField attrib = new RenderInputLayoutField();
+
+                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetProperty<byte[]>("m_pSemanticName")).TrimEnd((char)0);
+                attrib.SemanticIndex = il.GetInt32Property("m_nSemanticIndex");
+                attrib.Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format");
+                attrib.Offset = il.GetUInt32Property("m_nOffset");
+                attrib.Slot = il.GetInt32Property("m_nSlot");
+                attrib.SlotType = (RenderSlotType)il.GetUInt32Property("m_nSlotType");
+                attrib.InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate");
+
+                buffer.InputLayoutFields.Add(attrib);
+            }
+
+            buffer.Data = data.GetArray<byte>("m_pData");
 
             return buffer;
         }

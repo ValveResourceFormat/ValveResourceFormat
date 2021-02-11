@@ -56,6 +56,12 @@ namespace ValveResourceFormat.Serialization
             return Convert.ToUInt64(value);
         }
 
+        public static int GetInt32Property(this IKeyValueCollection collection, string name)
+            => Convert.ToInt32(collection.GetProperty<object>(name));
+
+        public static uint GetUInt32Property(this IKeyValueCollection collection, string name)
+            => Convert.ToUInt32(collection.GetProperty<object>(name));
+
         public static double GetDoubleProperty(this IKeyValueCollection collection, string name)
             => Convert.ToDouble(collection.GetProperty<object>(name));
 

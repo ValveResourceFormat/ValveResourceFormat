@@ -331,12 +331,7 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    var materialPath = drawCall.GetProperty<string>("m_material");
-
-                    if (materialPath == null)
-                    {
-                        materialPath = drawCall.GetProperty<string>("m_pMaterial");
-                    }
+                    var materialPath = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
                     ProgressReporter?.SetProgress($"Loading material: {materialPath}");
 
