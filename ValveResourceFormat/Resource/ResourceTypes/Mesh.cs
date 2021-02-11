@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Compression;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -97,43 +99,59 @@ namespace ValveResourceFormat.ResourceTypes
             var vertexBuffers = data.GetArray("m_vertexBuffers");
             foreach (var vb in vertexBuffers)
             {
-                VBIB.VertexBuffer vbOut = new VBIB.VertexBuffer();
-                vbOut.Count = Convert.ToUInt32(vb.GetProperty<object>("m_nElementCount"));
-                vbOut.Size = Convert.ToUInt32(vb.GetProperty<object>("m_nElementSizeInBytes"));
-                vbOut.Attributes = new System.Collections.Generic.List<VBIB.VertexAttribute>();
-                var inputLayoutFields = vb.GetArray("m_inputLayoutFields");
-                foreach (var il in inputLayoutFields)
+                var vertexBuffer = BufferDataFromDATA(vb);
+                
+                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
+                if (vertexBuffer.Data.Length != decompressedSize)
                 {
-                    VBIB.VertexAttribute attrib = new VBIB.VertexAttribute();
-                    attrib.Name = System.Text.Encoding.UTF8.GetString(il.GetArray<object>("m_pSemanticName").
-                        Select(Convert.ToByte).ToArray()).TrimEnd((char)0);
-                    //"m_nSemanticIndex"
-                    attrib.Type = (DXGI_FORMAT)Convert.ToUInt32(il.GetProperty<object>("m_Format"));
-                    attrib.Offset = Convert.ToUInt32(il.GetProperty<object>("m_nOffset"));
-                    //"m_nSlot"
-                    //"m_nSlotType"
-                    //"m_nInstanceStepRate"
-                    vbOut.Attributes.Add(attrib);
+                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
                 }
-                vbOut.Buffer = vb.GetArray<object>("m_pData")
-                    .Select(Convert.ToByte)
-                    .ToArray();
-
-                VBIB.VertexBuffers.Add(vbOut);
+                VBIB.VertexBuffers.Add(vertexBuffer);
             }
             var indexBuffers = data.GetArray("m_indexBuffers");
             foreach (var ib in indexBuffers)
             {
-                VBIB.IndexBuffer ibOut = new VBIB.IndexBuffer();
-                ibOut.Count = Convert.ToUInt32(ib.GetProperty<object>("m_nElementCount"));
-                ibOut.Size = Convert.ToUInt32(ib.GetProperty<object>("m_nElementSizeInBytes"));
-                ibOut.Buffer = ib.GetArray<object>("m_pData")
-                    .Select(Convert.ToByte)
-                    .ToArray();
-                VBIB.IndexBuffers.Add(ibOut);
+                var indexBuffer = BufferDataFromDATA(ib);
+
+                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
+                if (indexBuffer.Data.Length != decompressedSize)
+                {
+                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
+                }
+
+                VBIB.IndexBuffers.Add(indexBuffer);
             }
 
             return VBIB;
+        }
+
+        private static VBIB.OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
+        {
+            VBIB.OnDiskBufferData buffer = default(VBIB.OnDiskBufferData);
+            buffer.ElementCount = Convert.ToUInt32(data.GetProperty<object>("m_nElementCount"));
+            buffer.ElementSizeInBytes = Convert.ToUInt32(data.GetProperty<object>("m_nElementSizeInBytes"));
+            buffer.InputLayoutFields = new List<VBIB.RenderInputLayoutField>();
+            var inputLayoutFields = data.GetArray("m_inputLayoutFields");
+            foreach (var il in inputLayoutFields)
+            {
+                VBIB.RenderInputLayoutField attrib = default(VBIB.RenderInputLayoutField);
+
+                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<object>("m_pSemanticName").
+                    Select(Convert.ToByte).ToArray()).TrimEnd((char)0);
+                attrib.SemanticIndex = Convert.ToInt32(il.GetProperty<object>("m_nSemanticIndex"));
+                attrib.Format = (DXGI_FORMAT)Convert.ToUInt32(il.GetProperty<object>("m_Format"));
+                attrib.Offset = Convert.ToUInt32(il.GetProperty<object>("m_nOffset"));
+                attrib.Slot = Convert.ToInt32(il.GetProperty<object>("m_nSlot"));
+                attrib.SlotType = (RenderSlotType)Convert.ToUInt32(il.GetProperty<object>("m_nSlotType"));
+                attrib.InstanceStepRate = Convert.ToInt32(il.GetProperty<object>("m_nInstanceStepRate"));
+
+                buffer.InputLayoutFields.Add(attrib);
+            }
+            buffer.Data = data.GetArray<object>("m_pData")
+                .Select(Convert.ToByte)
+                .ToArray();
+
+            return buffer;
         }
     }
 }

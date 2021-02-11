@@ -177,7 +177,7 @@ namespace GUI.Types.Renderer
             indexBuffer.Offset = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_nBindOffsetBytes"));
             drawCall.IndexBuffer = indexBuffer;
 
-            var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
+            var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
             //drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
             //drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
             drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * indexElementSize;
