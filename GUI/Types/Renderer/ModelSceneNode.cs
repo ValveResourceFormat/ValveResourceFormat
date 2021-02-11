@@ -166,12 +166,6 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                if (!newResource.ContainsBlockType(BlockType.VBIB))
-                {
-                    Console.WriteLine("Old style model, no VBIB!");
-                    continue;
-                }
-
                 meshRenderers.Add(new RenderableMesh(new Mesh(newResource), Scene.GuiContext, skinMaterials));
             }
 

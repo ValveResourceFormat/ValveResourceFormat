@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
 
@@ -18,6 +19,10 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Data = resource.DataBlock;
             VBIB = resource.VBIB;
+            if (VBIB == null)
+            {
+                VBIB = VBIBFromDATA(GetData());
+            }
             GetBounds();
         }
 
@@ -79,8 +84,56 @@ namespace ValveResourceFormat.ResourceTypes
                 long flagsLong =>
                 // TODO: enum
                 (flagsLong & 2) == 2,
+                byte flagsByte =>
+                (flagsByte & 2) == 2,
                 _ => false
             };
+        }
+
+        private static VBIB VBIBFromDATA(IKeyValueCollection data)
+        {
+            var VBIB = new VBIB();
+
+            var vertexBuffers = data.GetArray("m_vertexBuffers");
+            foreach (var vb in vertexBuffers)
+            {
+                VBIB.VertexBuffer vbOut = new VBIB.VertexBuffer();
+                vbOut.Count = Convert.ToUInt32(vb.GetProperty<object>("m_nElementCount"));
+                vbOut.Size = Convert.ToUInt32(vb.GetProperty<object>("m_nElementSizeInBytes"));
+                vbOut.Attributes = new System.Collections.Generic.List<VBIB.VertexAttribute>();
+                var inputLayoutFields = vb.GetArray("m_inputLayoutFields");
+                foreach (var il in inputLayoutFields)
+                {
+                    VBIB.VertexAttribute attrib = new VBIB.VertexAttribute();
+                    attrib.Name = System.Text.Encoding.UTF8.GetString(il.GetArray<object>("m_pSemanticName").
+                        Select(Convert.ToByte).ToArray()).TrimEnd((char)0);
+                    //"m_nSemanticIndex"
+                    attrib.Type = (DXGI_FORMAT)Convert.ToUInt32(il.GetProperty<object>("m_Format"));
+                    attrib.Offset = Convert.ToUInt32(il.GetProperty<object>("m_nOffset"));
+                    //"m_nSlot"
+                    //"m_nSlotType"
+                    //"m_nInstanceStepRate"
+                    vbOut.Attributes.Add(attrib);
+                }
+                vbOut.Buffer = vb.GetArray<object>("m_pData")
+                    .Select(Convert.ToByte)
+                    .ToArray();
+
+                VBIB.VertexBuffers.Add(vbOut);
+            }
+            var indexBuffers = data.GetArray("m_indexBuffers");
+            foreach (var ib in indexBuffers)
+            {
+                VBIB.IndexBuffer ibOut = new VBIB.IndexBuffer();
+                ibOut.Count = Convert.ToUInt32(ib.GetProperty<object>("m_nElementCount"));
+                ibOut.Size = Convert.ToUInt32(ib.GetProperty<object>("m_nElementSizeInBytes"));
+                ibOut.Buffer = ib.GetArray<object>("m_pData")
+                    .Select(Convert.ToByte)
+                    .ToArray();
+                VBIB.IndexBuffers.Add(ibOut);
+            }
+
+            return VBIB;
         }
     }
 }

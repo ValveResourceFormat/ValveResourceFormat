@@ -323,7 +323,7 @@ namespace ValveResourceFormat.IO
                     var startIndex = (int)drawCall.GetIntegerProperty("m_nStartIndex");
                     var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
                     var indices = ReadIndices(indexBuffer, startIndex, indexCount);
-                    primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
+                    primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);//TODO use m_nPrimitiveType
 
                     // Add material
                     if (!ExportMaterials)
@@ -332,6 +332,11 @@ namespace ValveResourceFormat.IO
                     }
 
                     var materialPath = drawCall.GetProperty<string>("m_material");
+
+                    if (materialPath == null)
+                    {
+                        materialPath = drawCall.GetProperty<string>("m_pMaterial");
+                    }
 
                     ProgressReporter?.SetProgress($"Loading material: {materialPath}");
 
