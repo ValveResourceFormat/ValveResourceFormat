@@ -181,7 +181,21 @@ namespace ValveResourceFormat.Serialization.NTRO
         {
             if (Contents.TryGetValue(name, out var value))
             {
-                return ((NTROArray)value).Select(v => (T)v.ValueObject).ToArray();
+                if (value.Type == DataType.Byte)
+                {
+                    if (typeof(T) == typeof(byte))
+                    {
+                        return (T[])value.ValueObject;
+                    }
+                    else
+                    {
+                        return ((byte[])value.ValueObject).Select(v => (T)(object)v).ToArray();
+                    }
+                }
+                else
+                {
+                    return ((NTROArray)value).Select(v => (T)v.ValueObject).ToArray();
+                }
             }
             else
             {
