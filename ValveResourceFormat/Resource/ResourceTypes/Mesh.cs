@@ -17,6 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Mesh(Resource resource)
         {
             Data = resource.DataBlock;
+            //new format has VBIB block, for old format we can get it from NTRO DATA block
             VBIB = resource.VBIB ?? new VBIB(GetData());
             GetBounds();
         }

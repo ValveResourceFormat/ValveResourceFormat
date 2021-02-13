@@ -323,7 +323,23 @@ namespace ValveResourceFormat.IO
                     var startIndex = (int)drawCall.GetIntegerProperty("m_nStartIndex");
                     var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
                     var indices = ReadIndices(indexBuffer, startIndex, indexCount);
-                    primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);//TODO use m_nPrimitiveType
+
+                    string primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
+                    {
+                        string primitiveTypeString => primitiveTypeString,
+                        byte primitiveTypeByte =>
+                        (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : ("UNKNOWN_" + primitiveTypeByte),
+                        _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
+                    };
+
+                    switch (primitiveType)
+                    {
+                        case "RENDER_PRIM_TRIANGLES":
+                            primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
+                            break;
+                        default:
+                            throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
+                    }
 
                     // Add material
                     if (!ExportMaterials)

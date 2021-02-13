@@ -21,7 +21,9 @@ namespace ValveResourceFormat.Blocks
         public struct OnDiskBufferData
         {
             public uint ElementCount;
+            //stride for vertices. Type for indices
             public uint ElementSizeInBytes;
+            //Vertex attribs. Empty for index buffers
             public List<RenderInputLayoutField> InputLayoutFields;
             public byte[] Data;
         }
@@ -122,10 +124,9 @@ namespace ValveResourceFormat.Blocks
             var attributeOffset = reader.ReadUInt32();  //8
             var attributeCount = reader.ReadUInt32();   //12
 
-            //TODO: Read attributes in the future
             var refB = reader.BaseStream.Position;
             var dataOffset = reader.ReadUInt32();       //16
-            var totalSize = reader.ReadUInt32();        //20
+            var totalSize = reader.ReadInt32();        //20
 
             buffer.InputLayoutFields = new List<RenderInputLayoutField>();
 
@@ -136,7 +137,7 @@ namespace ValveResourceFormat.Blocks
 
                 var previousPosition = reader.BaseStream.Position;
                 attribute.SemanticName = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
-                reader.BaseStream.Position = previousPosition + 32;
+                reader.BaseStream.Position = previousPosition + 32; //32 bytes long null-terminated string
 
                 attribute.SemanticIndex = reader.ReadInt32();
                 attribute.Format = (DXGI_FORMAT)reader.ReadUInt32();
@@ -150,7 +151,7 @@ namespace ValveResourceFormat.Blocks
 
             reader.BaseStream.Position = refB + dataOffset;
 
-            buffer.Data = reader.ReadBytes((int)totalSize);
+            buffer.Data = reader.ReadBytes(totalSize); //can be compressed
 
             reader.BaseStream.Position = refB + 8; //Go back to the index array to read the next iteration.
 
@@ -170,7 +171,8 @@ namespace ValveResourceFormat.Blocks
             {
                 RenderInputLayoutField attrib = new RenderInputLayoutField();
 
-                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetProperty<byte[]>("m_pSemanticName")).TrimEnd((char)0);
+                //null-terminated string
+                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0);
                 attrib.SemanticIndex = il.GetInt32Property("m_nSemanticIndex");
                 attrib.Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format");
                 attrib.Offset = il.GetUInt32Property("m_nOffset");
@@ -313,13 +315,16 @@ namespace ValveResourceFormat.Blocks
                 for (var i = 0; i < vertexBuffer.InputLayoutFields.Count; i++)
                 {
                     var vertexAttribute = vertexBuffer.InputLayoutFields[i];
-                    writer.WriteLine($"Attribute[{i}].SemanticName = {vertexAttribute.SemanticName}");
-                    writer.WriteLine($"Attribute[{i}].SemanticIndex = {vertexAttribute.SemanticIndex}");
-                    writer.WriteLine($"Attribute[{i}].Offset = {vertexAttribute.Offset}");
-                    writer.WriteLine($"Attribute[{i}].Format = {vertexAttribute.Format}");
-                    writer.WriteLine($"Attribute[{i}].Slot = {vertexAttribute.Slot}");
-                    writer.WriteLine($"Attribute[{i}].SlotType = {vertexAttribute.SlotType}");
-                    writer.WriteLine($"Attribute[{i}].InstanceStepRate = {vertexAttribute.InstanceStepRate}");
+                    writer.WriteLine($"Attribute[{ i}]");
+                    writer.Indent++;
+                    writer.WriteLine($"SemanticName = {vertexAttribute.SemanticName}");
+                    writer.WriteLine($"SemanticIndex = {vertexAttribute.SemanticIndex}");
+                    writer.WriteLine($"Offset = {vertexAttribute.Offset}");
+                    writer.WriteLine($"Format = {vertexAttribute.Format}");
+                    writer.WriteLine($"Slot = {vertexAttribute.Slot}");
+                    writer.WriteLine($"SlotType = {vertexAttribute.SlotType}");
+                    writer.WriteLine($"InstanceStepRate = {vertexAttribute.InstanceStepRate}");
+                    writer.Indent--;
                 }
 
                 writer.WriteLine();

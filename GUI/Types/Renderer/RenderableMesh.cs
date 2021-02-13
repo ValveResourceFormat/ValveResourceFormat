@@ -140,8 +140,8 @@ namespace GUI.Types.Renderer
             {
                 string primitiveTypeString => primitiveTypeString,
                 byte primitiveTypeByte =>
-                (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : "UNKNOWN",
-                _ => throw new Exception("Unknown PrimitiveType in drawCall!")
+                (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : ("UNKNOWN_" + primitiveTypeByte),
+                _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
             };
 
             switch (primitiveType)
@@ -150,7 +150,7 @@ namespace GUI.Types.Renderer
                     drawCall.PrimitiveType = PrimitiveType.Triangles;
                     break;
                 default:
-                    throw new Exception("Unknown PrimitiveType in drawCall! (" + objectDrawCall.GetProperty<string>("m_nPrimitiveType") + ")");
+                    throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
             }
 
             drawCall.Material = material;

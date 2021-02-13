@@ -140,6 +140,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 if (field.Type == DataType.Byte)
                 {
+                    //special case for byte arrays for faster access
                     var ntroValues = new NTROValue<byte[]>(field.Type, Reader.ReadBytes((int)count), pointer);
                     structEntry.Add(field.FieldName, ntroValues);
                 }

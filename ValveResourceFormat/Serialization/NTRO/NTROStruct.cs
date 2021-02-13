@@ -183,12 +183,14 @@ namespace ValveResourceFormat.Serialization.NTRO
             {
                 if (value.Type == DataType.Byte)
                 {
+                    //special case for byte arrays for faster access
                     if (typeof(T) == typeof(byte))
                     {
                         return (T[])value.ValueObject;
                     }
                     else
                     {
+                        //still have to do a slow conversion if the requested type is different
                         return ((byte[])value.ValueObject).Select(v => (T)(object)v).ToArray();
                     }
                 }
