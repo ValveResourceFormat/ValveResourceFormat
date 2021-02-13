@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Compression;
+using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -13,37 +14,65 @@ namespace ValveResourceFormat.Blocks
     {
         public override BlockType Type => BlockType.VBIB;
 
-        public List<VertexBuffer> VertexBuffers { get; }
-        public List<IndexBuffer> IndexBuffers { get; }
+        public List<OnDiskBufferData> VertexBuffers { get; }
+        public List<OnDiskBufferData> IndexBuffers { get; }
 
 #pragma warning disable CA1051 // Do not declare visible instance fields
-        public struct VertexBuffer
+        public struct OnDiskBufferData
         {
-            public uint Count;
-            public uint Size;
-            public List<VertexAttribute> Attributes;
-            public byte[] Buffer;
+            public uint ElementCount;
+            //stride for vertices. Type for indices
+            public uint ElementSizeInBytes;
+            //Vertex attribs. Empty for index buffers
+            public List<RenderInputLayoutField> InputLayoutFields;
+            public byte[] Data;
         }
 
-        public struct VertexAttribute
+        public struct RenderInputLayoutField
         {
-            public string Name;
-            public DXGI_FORMAT Type;
+            public string SemanticName;
+            public int SemanticIndex;
+            public DXGI_FORMAT Format;
             public uint Offset;
-        }
-
-        public struct IndexBuffer
-        {
-            public uint Count;
-            public uint Size;
-            public byte[] Buffer;
+            public int Slot;
+            public RenderSlotType SlotType;
+            public int InstanceStepRate;
         }
 #pragma warning restore CA1051 // Do not declare visible instance fields
 
         public VBIB()
         {
-            VertexBuffers = new List<VertexBuffer>();
-            IndexBuffers = new List<IndexBuffer>();
+            VertexBuffers = new List<OnDiskBufferData>();
+            IndexBuffers = new List<OnDiskBufferData>();
+        }
+
+        public VBIB(IKeyValueCollection data) : this()
+        {
+            var vertexBuffers = data.GetArray("m_vertexBuffers");
+            foreach (var vb in vertexBuffers)
+            {
+                var vertexBuffer = BufferDataFromDATA(vb);
+
+                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
+                if (vertexBuffer.Data.Length != decompressedSize)
+                {
+                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
+                }
+                VertexBuffers.Add(vertexBuffer);
+            }
+            var indexBuffers = data.GetArray("m_indexBuffers");
+            foreach (var ib in indexBuffers)
+            {
+                var indexBuffer = BufferDataFromDATA(ib);
+
+                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
+                if (indexBuffer.Data.Length != decompressedSize)
+                {
+                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
+                }
+
+                IndexBuffers.Add(indexBuffer);
+            }
         }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -58,121 +87,134 @@ namespace ValveResourceFormat.Blocks
             reader.BaseStream.Position = Offset + vertexBufferOffset;
             for (var i = 0; i < vertexBufferCount; i++)
             {
-                var vertexBuffer = default(VertexBuffer);
+                var vertexBuffer = ReadOnDiskBufferData(reader);
 
-                vertexBuffer.Count = reader.ReadUInt32();            //0
-                vertexBuffer.Size = reader.ReadUInt32();             //4
-                var decompressedSize = vertexBuffer.Count * vertexBuffer.Size;
-
-                var refA = reader.BaseStream.Position;
-                var attributeOffset = reader.ReadUInt32();  //8
-                var attributeCount = reader.ReadUInt32();   //12
-
-                //TODO: Read attributes in the future
-                var refB = reader.BaseStream.Position;
-                var dataOffset = reader.ReadUInt32();       //16
-                var totalSize = reader.ReadUInt32();        //20
-
-                vertexBuffer.Attributes = new List<VertexAttribute>();
-
-                reader.BaseStream.Position = refA + attributeOffset;
-                for (var j = 0; j < attributeCount; j++)
+                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
+                if (vertexBuffer.Data.Length != decompressedSize)
                 {
-                    var previousPosition = reader.BaseStream.Position;
-
-                    var attribute = default(VertexAttribute);
-
-                    attribute.Name = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
-
-                    // Offset is always 40 bytes from the start
-                    reader.BaseStream.Position = previousPosition + 36;
-
-                    attribute.Type = (DXGI_FORMAT)reader.ReadUInt32();
-                    attribute.Offset = reader.ReadUInt32();
-
-                    // There's unusual amount of padding in attributes
-                    reader.BaseStream.Position = previousPosition + 56;
-
-                    vertexBuffer.Attributes.Add(attribute);
-                }
-
-                reader.BaseStream.Position = refB + dataOffset;
-
-                var vertexBufferBytes = reader.ReadBytes((int)totalSize);
-                if (totalSize == decompressedSize)
-                {
-                    vertexBuffer.Buffer = vertexBufferBytes;
-                }
-                else
-                {
-                    vertexBuffer.Buffer = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.Count, (int)vertexBuffer.Size, vertexBufferBytes);
+                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
                 }
 
                 VertexBuffers.Add(vertexBuffer);
-
-                reader.BaseStream.Position = refB + 4 + 4; //Go back to the vertex array to read the next iteration
             }
 
             reader.BaseStream.Position = Offset + 8 + indexBufferOffset; //8 to take into account vertexOffset / count
             for (var i = 0; i < indexBufferCount; i++)
             {
-                var indexBuffer = default(IndexBuffer);
+                var indexBuffer = ReadOnDiskBufferData(reader);
 
-                indexBuffer.Count = reader.ReadUInt32();        //0
-                indexBuffer.Size = reader.ReadUInt32();         //4
-                var decompressedSize = indexBuffer.Count * indexBuffer.Size;
-
-                var unknown1 = reader.ReadUInt32();     //8
-                var unknown2 = reader.ReadUInt32();     //12
-
-                var refC = reader.BaseStream.Position;
-                var dataOffset = reader.ReadUInt32();   //16
-                var dataSize = reader.ReadUInt32();     //20
-
-                reader.BaseStream.Position = refC + dataOffset;
-
-                if (dataSize == decompressedSize)
+                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
+                if (indexBuffer.Data.Length != decompressedSize)
                 {
-                    indexBuffer.Buffer = reader.ReadBytes((int)dataSize);
-                }
-                else
-                {
-                    indexBuffer.Buffer = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.Count, (int)indexBuffer.Size, reader.ReadBytes((int)dataSize));
+                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
                 }
 
                 IndexBuffers.Add(indexBuffer);
-
-                reader.BaseStream.Position = refC + 4 + 4; //Go back to the index array to read the next iteration.
             }
         }
 
-        public static float[] ReadVertexAttribute(int offset, VertexBuffer vertexBuffer, VertexAttribute attribute)
+        private static OnDiskBufferData ReadOnDiskBufferData(BinaryReader reader)
+        {
+            var buffer = default(OnDiskBufferData);
+
+            buffer.ElementCount = reader.ReadUInt32();            //0
+            buffer.ElementSizeInBytes = reader.ReadUInt32();      //4
+
+            var refA = reader.BaseStream.Position;
+            var attributeOffset = reader.ReadUInt32();  //8
+            var attributeCount = reader.ReadUInt32();   //12
+
+            var refB = reader.BaseStream.Position;
+            var dataOffset = reader.ReadUInt32();       //16
+            var totalSize = reader.ReadInt32();        //20
+
+            buffer.InputLayoutFields = new List<RenderInputLayoutField>();
+
+            reader.BaseStream.Position = refA + attributeOffset;
+            for (var j = 0; j < attributeCount; j++)
+            {
+                var attribute = default(RenderInputLayoutField);
+
+                var previousPosition = reader.BaseStream.Position;
+                attribute.SemanticName = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
+                reader.BaseStream.Position = previousPosition + 32; //32 bytes long null-terminated string
+
+                attribute.SemanticIndex = reader.ReadInt32();
+                attribute.Format = (DXGI_FORMAT)reader.ReadUInt32();
+                attribute.Offset = reader.ReadUInt32();
+                attribute.Slot = reader.ReadInt32();
+                attribute.SlotType = (RenderSlotType)reader.ReadUInt32();
+                attribute.InstanceStepRate = reader.ReadInt32();
+
+                buffer.InputLayoutFields.Add(attribute);
+            }
+
+            reader.BaseStream.Position = refB + dataOffset;
+
+            buffer.Data = reader.ReadBytes(totalSize); //can be compressed
+
+            reader.BaseStream.Position = refB + 8; //Go back to the index array to read the next iteration.
+
+            return buffer;
+        }
+
+        private static OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
+        {
+            OnDiskBufferData buffer = new OnDiskBufferData();
+            buffer.ElementCount = data.GetUInt32Property("m_nElementCount");
+            buffer.ElementSizeInBytes = data.GetUInt32Property("m_nElementSizeInBytes");
+
+            buffer.InputLayoutFields = new List<RenderInputLayoutField>();
+
+            var inputLayoutFields = data.GetArray("m_inputLayoutFields");
+            foreach (var il in inputLayoutFields)
+            {
+                RenderInputLayoutField attrib = new RenderInputLayoutField();
+
+                //null-terminated string
+                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0);
+                attrib.SemanticIndex = il.GetInt32Property("m_nSemanticIndex");
+                attrib.Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format");
+                attrib.Offset = il.GetUInt32Property("m_nOffset");
+                attrib.Slot = il.GetInt32Property("m_nSlot");
+                attrib.SlotType = (RenderSlotType)il.GetUInt32Property("m_nSlotType");
+                attrib.InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate");
+
+                buffer.InputLayoutFields.Add(attrib);
+            }
+
+            buffer.Data = data.GetArray<byte>("m_pData");
+
+            return buffer;
+        }
+
+        public static float[] ReadVertexAttribute(int offset, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             float[] result;
 
-            offset = (int)(offset * vertexBuffer.Size) + (int)attribute.Offset;
+            offset = (int)(offset * vertexBuffer.ElementSizeInBytes) + (int)attribute.Offset;
 
             // Useful reference: https://github.com/apitrace/dxsdk/blob/master/Include/d3dx_dxgiformatconvert.inl
-            switch (attribute.Type)
+            switch (attribute.Format)
             {
                 case DXGI_FORMAT.R32G32B32_FLOAT:
                 {
                     result = new float[3];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 12);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 12);
                     break;
                 }
 
                 case DXGI_FORMAT.R32G32B32A32_FLOAT:
                 {
                     result = new float[4];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 16);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 16);
                     break;
                 }
 
                 case DXGI_FORMAT.R16G16_UNORM:
                 {
                     var shorts = new ushort[2];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
 
                     result = new[]
                     {
@@ -185,7 +227,7 @@ namespace ValveResourceFormat.Blocks
                 case DXGI_FORMAT.R16G16_FLOAT:
                 {
                     var shorts = new ushort[2];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
 
                     result = new[]
                     {
@@ -198,21 +240,21 @@ namespace ValveResourceFormat.Blocks
                 case DXGI_FORMAT.R32_FLOAT:
                 {
                     result = new float[1];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 4);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 4);
                     break;
                 }
 
                 case DXGI_FORMAT.R32G32_FLOAT:
                 {
                     result = new float[2];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, result, 0, 8);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 8);
                     break;
                 }
 
                 case DXGI_FORMAT.R16G16_SINT:
                 {
                     var shorts = new short[2];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 4);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
 
                     result = new float[2];
                     for (var i = 0; i < 2; i++)
@@ -226,7 +268,7 @@ namespace ValveResourceFormat.Blocks
                 case DXGI_FORMAT.R16G16B16A16_SINT:
                 {
                     var shorts = new short[4];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, shorts, 0, 8);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 8);
 
                     result = new float[4];
                     for (var i = 0; i < 4; i++)
@@ -241,12 +283,12 @@ namespace ValveResourceFormat.Blocks
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
                 {
                     var bytes = new byte[4];
-                    Buffer.BlockCopy(vertexBuffer.Buffer, offset, bytes, 0, 4);
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, bytes, 0, 4);
 
                     result = new float[4];
                     for (var i = 0; i < 4; i++)
                     {
-                        result[i] = attribute.Type == DXGI_FORMAT.R8G8B8A8_UNORM
+                        result[i] = attribute.Format == DXGI_FORMAT.R8G8B8A8_UNORM
                             ? bytes[i] / 255f
                             : bytes[i];
                     }
@@ -255,7 +297,7 @@ namespace ValveResourceFormat.Blocks
                 }
 
                 default:
-                    throw new NotImplementedException($"Unsupported \"{attribute.Name}\" DXGI_FORMAT.{attribute.Type}");
+                    throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}");
             }
 
             return result;
@@ -267,15 +309,22 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var vertexBuffer in VertexBuffers)
             {
-                writer.WriteLine($"Count: {vertexBuffer.Count}");
-                writer.WriteLine($"Size: {vertexBuffer.Size}");
+                writer.WriteLine($"Count: {vertexBuffer.ElementCount}");
+                writer.WriteLine($"Size: {vertexBuffer.ElementSizeInBytes}");
 
-                for (var i = 0; i < vertexBuffer.Attributes.Count; i++)
+                for (var i = 0; i < vertexBuffer.InputLayoutFields.Count; i++)
                 {
-                    var vertexAttribute = vertexBuffer.Attributes[i];
-                    writer.WriteLine($"Attribute[{i}].Name = {vertexAttribute.Name}");
-                    writer.WriteLine($"Attribute[{i}].Offset = {vertexAttribute.Offset}");
-                    writer.WriteLine($"Attribute[{i}].Type = {vertexAttribute.Type}");
+                    var vertexAttribute = vertexBuffer.InputLayoutFields[i];
+                    writer.WriteLine($"Attribute[{ i}]");
+                    writer.Indent++;
+                    writer.WriteLine($"SemanticName = {vertexAttribute.SemanticName}");
+                    writer.WriteLine($"SemanticIndex = {vertexAttribute.SemanticIndex}");
+                    writer.WriteLine($"Offset = {vertexAttribute.Offset}");
+                    writer.WriteLine($"Format = {vertexAttribute.Format}");
+                    writer.WriteLine($"Slot = {vertexAttribute.Slot}");
+                    writer.WriteLine($"SlotType = {vertexAttribute.SlotType}");
+                    writer.WriteLine($"InstanceStepRate = {vertexAttribute.InstanceStepRate}");
+                    writer.Indent--;
                 }
 
                 writer.WriteLine();
@@ -286,8 +335,8 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var indexBuffer in IndexBuffers)
             {
-                writer.WriteLine($"Count: {indexBuffer.Count}");
-                writer.WriteLine($"Size: {indexBuffer.Size}");
+                writer.WriteLine($"Count: {indexBuffer.ElementCount}");
+                writer.WriteLine($"Size: {indexBuffer.ElementSizeInBytes}");
                 writer.WriteLine();
             }
         }

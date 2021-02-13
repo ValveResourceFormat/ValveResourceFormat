@@ -138,14 +138,23 @@ namespace ValveResourceFormat.ResourceTypes
             //}
             if (field.Count > 0 || field.Indirections.Count > 0)
             {
-                var ntroValues = new NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
-
-                for (var i = 0; i < count; i++)
+                if (field.Type == DataType.Byte)
                 {
-                    ntroValues[i] = ReadField(field, pointer);
+                    //special case for byte arrays for faster access
+                    var ntroValues = new NTROValue<byte[]>(field.Type, Reader.ReadBytes((int)count), pointer);
+                    structEntry.Add(field.FieldName, ntroValues);
                 }
+                else
+                {
+                    var ntroValues = new NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
 
-                structEntry.Add(field.FieldName, ntroValues);
+                    for (var i = 0; i < count; i++)
+                    {
+                        ntroValues[i] = ReadField(field, pointer);
+                    }
+
+                    structEntry.Add(field.FieldName, ntroValues);
+                }
             }
             else
             {

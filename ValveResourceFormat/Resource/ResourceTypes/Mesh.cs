@@ -17,7 +17,8 @@ namespace ValveResourceFormat.ResourceTypes
         public Mesh(Resource resource)
         {
             Data = resource.DataBlock;
-            VBIB = resource.VBIB;
+            //new format has VBIB block, for old format we can get it from NTRO DATA block
+            VBIB = resource.VBIB ?? new VBIB(GetData());
             GetBounds();
         }
 
@@ -79,6 +80,8 @@ namespace ValveResourceFormat.ResourceTypes
                 long flagsLong =>
                 // TODO: enum
                 (flagsLong & 2) == 2,
+                byte flagsByte =>
+                (flagsByte & 2) == 2,
                 _ => false
             };
         }

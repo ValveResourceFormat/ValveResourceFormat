@@ -217,16 +217,16 @@ namespace ValveResourceFormat.IO
                     var attributeCounters = new Dictionary<string, int>();
 
                     // Set vertex attributes
-                    foreach (var attribute in vertexBuffer.Attributes)
+                    foreach (var attribute in vertexBuffer.InputLayoutFields)
                     {
-                        attributeCounters.TryGetValue(attribute.Name, out var attributeCounter);
-                        attributeCounters[attribute.Name] = attributeCounter + 1;
-                        var accessorName = GetAccessorName(attribute.Name, attributeCounter);
+                        attributeCounters.TryGetValue(attribute.SemanticName, out var attributeCounter);
+                        attributeCounters[attribute.SemanticName] = attributeCounter + 1;
+                        var accessorName = GetAccessorName(attribute.SemanticName, attributeCounter);
 
                         var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                        var numComponents = buffer.Length / vertexBuffer.Count;
+                        var numComponents = buffer.Length / vertexBuffer.ElementCount;
 
-                        if (attribute.Name == "BLENDINDICES")
+                        if (attribute.SemanticName == "BLENDINDICES")
                         {
                             if (!includeJoints)
                             {
@@ -246,7 +246,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        if (attribute.Name == "NORMAL" && VMesh.IsCompressedNormalTangent(drawCall))
+                        if (attribute.SemanticName == "NORMAL" && VMesh.IsCompressedNormalTangent(drawCall))
                         {
                             var vectors = ToVector4Array(buffer);
                             var (normals, tangents) = DecompressNormalTangents(vectors);
@@ -256,7 +256,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        if (attribute.Name == "TEXCOORD" && numComponents != 2)
+                        if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
                         {
                             // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
                             continue;
@@ -269,7 +269,7 @@ namespace ValveResourceFormat.IO
                                     var vectors = ToVector4Array(buffer);
 
                                     // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
-                                    if (attribute.Name == "NORMAL" || attribute.Name == "TANGENT")
+                                    if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
                                     {
                                         vectors = FixZeroLengthVectors(vectors);
                                     }
@@ -283,7 +283,7 @@ namespace ValveResourceFormat.IO
                                     var vectors = ToVector3Array(buffer);
 
                                     // dropship.vmdl in HL:A has a normal with value of <0, 0, 0>
-                                    if (attribute.Name == "NORMAL" || attribute.Name == "TANGENT")
+                                    if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
                                     {
                                         vectors = FixZeroLengthVectors(vectors);
                                     }
@@ -306,7 +306,7 @@ namespace ValveResourceFormat.IO
                                 }
 
                             default:
-                                throw new NotImplementedException($"Attribute \"{attribute.Name}\" has {numComponents} components");
+                                throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {numComponents} components");
                         }
                     }
 
@@ -323,7 +323,23 @@ namespace ValveResourceFormat.IO
                     var startIndex = (int)drawCall.GetIntegerProperty("m_nStartIndex");
                     var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
                     var indices = ReadIndices(indexBuffer, startIndex, indexCount);
-                    primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
+
+                    string primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
+                    {
+                        string primitiveTypeString => primitiveTypeString,
+                        byte primitiveTypeByte =>
+                        (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : ("UNKNOWN_" + primitiveTypeByte),
+                        _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
+                    };
+
+                    switch (primitiveType)
+                    {
+                        case "RENDER_PRIM_TRIANGLES":
+                            primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
+                            break;
+                        default:
+                            throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
+                    }
 
                     // Add material
                     if (!ExportMaterials)
@@ -331,7 +347,7 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    var materialPath = drawCall.GetProperty<string>("m_material");
+                    var materialPath = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
                     ProgressReporter?.SetProgress($"Loading material: {materialPath}");
 
@@ -508,6 +524,11 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
+            {
+                material.WithChannelParameter("BaseColor", vColorTint);
+            }
+
             return material;
         }
 
@@ -561,26 +582,26 @@ namespace ValveResourceFormat.IO
             return name;
         }
 
-        private static float[] ReadAttributeBuffer(VertexBuffer buffer, VertexAttribute attribute)
-            => Enumerable.Range(0, (int)buffer.Count)
+        private static float[] ReadAttributeBuffer(OnDiskBufferData buffer, RenderInputLayoutField attribute)
+            => Enumerable.Range(0, (int)buffer.ElementCount)
                 .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private static int[] ReadIndices(IndexBuffer indexBuffer, int start, int count)
+        private static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count)
         {
             var indices = new int[count];
 
-            var byteCount = count * (int)indexBuffer.Size;
-            var byteStart = start * (int)indexBuffer.Size;
+            var byteCount = count * (int)indexBuffer.ElementSizeInBytes;
+            var byteStart = start * (int)indexBuffer.ElementSizeInBytes;
 
-            if (indexBuffer.Size == 4)
+            if (indexBuffer.ElementSizeInBytes == 4)
             {
-                System.Buffer.BlockCopy(indexBuffer.Buffer, byteStart, indices, 0, byteCount);
+                System.Buffer.BlockCopy(indexBuffer.Data, byteStart, indices, 0, byteCount);
             }
-            else if (indexBuffer.Size == 2)
+            else if (indexBuffer.ElementSizeInBytes == 2)
             {
                 var shortIndices = new ushort[count];
-                System.Buffer.BlockCopy(indexBuffer.Buffer, byteStart, shortIndices, 0, byteCount);
+                System.Buffer.BlockCopy(indexBuffer.Data, byteStart, shortIndices, 0, byteCount);
                 indices = Array.ConvertAll(shortIndices, i => (int)i);
             }
 

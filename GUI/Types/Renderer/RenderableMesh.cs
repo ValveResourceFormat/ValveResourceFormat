@@ -92,7 +92,7 @@ namespace GUI.Types.Renderer
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
-                    var materialName = objectDrawCall.GetProperty<string>("m_material");
+                    var materialName = objectDrawCall.GetProperty<string>("m_material") ?? objectDrawCall.GetProperty<string>("m_pMaterial");
 
                     if (skinMaterials != null && skinMaterials.ContainsKey(materialName))
                     {
@@ -135,14 +135,22 @@ namespace GUI.Types.Renderer
         private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, IDictionary<string, bool> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
+ 
+            string primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType") switch
+            {
+                string primitiveTypeString => primitiveTypeString,
+                byte primitiveTypeByte =>
+                (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : ("UNKNOWN_" + primitiveTypeByte),
+                _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
+            };
 
-            switch (objectDrawCall.GetProperty<string>("m_nPrimitiveType"))
+            switch (primitiveType)
             {
                 case "RENDER_PRIM_TRIANGLES":
                     drawCall.PrimitiveType = PrimitiveType.Triangles;
                     break;
                 default:
-                    throw new Exception("Unknown PrimitiveType in drawCall! (" + objectDrawCall.GetProperty<string>("m_nPrimitiveType") + ")");
+                    throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
             }
 
             drawCall.Material = material;
@@ -164,7 +172,7 @@ namespace GUI.Types.Renderer
             indexBuffer.Offset = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_nBindOffsetBytes"));
             drawCall.IndexBuffer = indexBuffer;
 
-            var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].Size;
+            var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
             //drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
             //drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
             drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * indexElementSize;
@@ -201,8 +209,7 @@ namespace GUI.Types.Renderer
                 throw new Exception("Unsupported index type");
             }
 
-            var m_vertexBuffers = objectDrawCall.GetSubCollection("m_vertexBuffers");
-            var m_vertexBuffer = m_vertexBuffers.GetSubCollection("0"); // TODO: Not just 0
+            var m_vertexBuffer = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
 
             var vertexBuffer = default(DrawBuffer);
             vertexBuffer.Id = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_hBuffer"));
