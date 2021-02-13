@@ -34,6 +34,7 @@ namespace ValveResourceFormat.Serialization.NTRO
             foreach (var entry in Contents)
             {
                 var array = entry.Value as NTROArray;
+                var byteArray = (entry.Value as NTROValue<byte[]>)?.Value;
 
                 if (entry.Value.Pointer)
                 {
@@ -42,29 +43,28 @@ namespace ValveResourceFormat.Serialization.NTRO
                 }
                 else if (array != null)
                 {
-                    // TODO: This is matching Valve's incosistency
-                    if (array.Type == DataType.Byte && array.IsIndirection)
-                    {
-                        writer.WriteLine("{0}[{2}] {1} =", ValveDataType(array.Type), entry.Key, array.Count);
-                    }
-                    else
-                    {
-                        writer.WriteLine("{0} {1}[{2}] =", ValveDataType(array.Type), entry.Key, array.Count);
-                    }
+                    writer.WriteLine("{0} {1}[{2}] =", ValveDataType(array.Type), entry.Key, array.Count);
 
                     writer.WriteLine("[");
                     writer.Indent++;
 
                     foreach (var innerEntry in array)
                     {
-                        if (array.Type == DataType.Byte && array.IsIndirection)
-                        {
-                            writer.WriteLine("{0:X2}", (innerEntry as NTROValue<byte>).Value);
-                        }
-                        else
-                        {
-                            innerEntry.WriteText(writer);
-                        }
+                        innerEntry.WriteText(writer);
+                    }
+
+                    writer.Indent--;
+                    writer.WriteLine("]");
+                }
+                else if (byteArray != null)
+                {
+                    writer.WriteLine("{0}[{2}] {1} =", ValveDataType(entry.Value.Type), entry.Key, byteArray.Length);
+                    writer.WriteLine("[");
+                    writer.Indent++;
+
+                    foreach (var val in byteArray)
+                    {
+                        writer.WriteLine("{0:X2}", val);
                     }
 
                     writer.Indent--;
