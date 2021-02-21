@@ -30,6 +30,7 @@ uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
+uniform vec4 g_vColorTint;
 
 vec3 oct_to_float32x3(vec2 e)
 {
@@ -96,7 +97,7 @@ void main()
 #endif
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb, color.a);
+    outputColor = vec4(illumination * color.rgb * g_vColorTint.rgb, color.a);
 
 #if param_renderMode_Color == 1
 	outputColor = vec4(color.rgb, 1.0);
