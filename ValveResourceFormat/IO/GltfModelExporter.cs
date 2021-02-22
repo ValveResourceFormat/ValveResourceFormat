@@ -31,6 +31,8 @@ namespace ValveResourceFormat.IO
         public IFileLoader FileLoader { get; set; }
         public bool ExportMaterials { get; set; } = true;
 
+        private string DstDir;
+
         /// <summary>
         /// Export a Valve VMDL to GLTF.
         /// </summary>
@@ -43,6 +45,8 @@ namespace ValveResourceFormat.IO
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
             }
+
+            DstDir = Path.GetDirectoryName(fileName);
 
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
@@ -123,7 +127,11 @@ namespace ValveResourceFormat.IO
                 AddMeshNode(meshes[i].Name, meshes[i].Mesh, model.GetSkeleton(i));
             }
 
-            exportedModel.Save(fileName);
+            var settings = new WriteSettings();
+            settings.ImageWriting = ResourceWriteMode.SatelliteFile;
+            settings.ImageWriteCallback = ImageWriteCallback;
+
+            exportedModel.Save(fileName, settings);
         }
 
         /// <summary>
@@ -173,6 +181,8 @@ namespace ValveResourceFormat.IO
         /// <param name="mesh">The mesh resource to export.</param>
         public void ExportToFile(string resourceName, string fileName, VMesh mesh)
         {
+            DstDir = Path.GetDirectoryName(fileName);
+
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
             var name = Path.GetFileName(resourceName);
@@ -185,7 +195,35 @@ namespace ValveResourceFormat.IO
             // Swap Rotate upright, scale inches to meters.
             meshNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
 
-            exportedModel.Save(fileName);
+            var settings = new WriteSettings();
+            settings.ImageWriting = ResourceWriteMode.SatelliteFile;
+            settings.ImageWriteCallback = ImageWriteCallback;
+
+            exportedModel.Save(fileName, settings);
+        }
+
+        private static string ImageWriteCallback(SharpGLTF.IO.WriteContext ctx, string uri, SharpGLTF.Memory.MemoryImage image)
+        {
+            if (File.Exists(image.SourcePath))
+            {
+                // image.SourcePath is an absolute path, we must make it relative to ctx.CurrentDirectory
+
+                var currDir = ctx.CurrentDirectory.FullName + "\\";
+
+                // if the shared texture can be reached by the model in its directory, reuse the texture.
+                if (image.SourcePath.StartsWith(currDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    // we've found the shared texture!, return the uri relative to the model:
+                    return image.SourcePath.Substring(currDir.Length);
+                }
+            }
+
+            // we were unable to reuse the shared texture,
+            // default to write our own texture.
+
+            image.SaveToFile(Path.Combine(ctx.CurrentDirectory.FullName, uri));
+
+            return uri;
         }
 
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints)
@@ -446,6 +484,9 @@ namespace ValveResourceFormat.IO
 
             material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
 
+            //share sampler for all textures
+            var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
+
             foreach (var renderTexture in renderMaterial.TextureParams)
             {
                 var texturePath = renderTexture.Value;
@@ -474,14 +515,16 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                var data = bitmap.PeekPixels().Encode(SKEncodedImageFormat.Png, 100);
+                string exportedTexturePath = Path.Join(DstDir, fileName);
+                exportedTexturePath = Path.ChangeExtension(exportedTexturePath, "png");
 
-                var image = model.UseImageWithContent(data.ToArray());
-                // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
+                using (var fs = File.Open(exportedTexturePath, FileMode.Create))
+                {
+                    bitmap.PeekPixels().Encode(fs, SKEncodedImageFormat.Png, 100);
+                }
+
+                var image = model.UseImage(exportedTexturePath);
                 image.Name = fileName + $"_{model.LogicalImages.Count - 1}";
-
-                var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
-                sampler.Name = fileName;
 
                 var tex = model.UseTexture(image);
                 tex.Name = fileName + $"_{model.LogicalTextures.Count - 1}";
