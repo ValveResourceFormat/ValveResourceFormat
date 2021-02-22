@@ -462,8 +462,7 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                var textureImage = SKImage.FromBitmap(bitmap);
-                using var data = textureImage.Encode(SKEncodedImageFormat.Png, 100);
+                var data = bitmap.PeekPixels().Encode(SKEncodedImageFormat.Png, 100);
 
                 var image = model.UseImageWithContent(data.ToArray());
                 // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....

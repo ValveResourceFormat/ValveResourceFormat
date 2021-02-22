@@ -20,14 +20,10 @@ namespace Tests
                 resource.Read(file);
 
                 var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-                var image = SKImage.FromBitmap(bitmap);
 
                 using (var ms = new MemoryStream())
                 {
-                    using (var imageData = image.Encode(SKEncodedImageFormat.Png, 100))
-                    {
-                        imageData.SaveTo(ms);
-                    }
+                    bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
 
                     // TODO: Comparing images as bytes doesn't work
 #if false
