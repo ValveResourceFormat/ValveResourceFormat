@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
                 flAlphaTestReference = material.FloatParams["g_flAlphaTestReference"];
             }
 
-            isTranslucent = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1) || material.IntAttributes.ContainsKey("mapbuilder.water");
+            isTranslucent = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1) || material.IntAttributes.ContainsKey("mapbuilder.water") || material.ShaderName == "vr_glass.vfx";
             isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
         }

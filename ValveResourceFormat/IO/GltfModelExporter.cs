@@ -419,20 +419,32 @@ namespace ValveResourceFormat.IO
                     .WithDefault();
 
             renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
-            material.Alpha = isTranslucent > 0 ? AlphaMode.BLEND : AlphaMode.OPAQUE;
-
-            float metalValue = 0;
-
-            foreach (var floatParam in renderMaterial.FloatParams)
+            renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
+            if (renderMaterial.ShaderName == "vr_glass.vfx")
+                isTranslucent = 1;
+            material.Alpha = isTranslucent > 0 ? AlphaMode.BLEND : (isAlphaTest > 0 ? AlphaMode.MASK : AlphaMode.OPAQUE);
+            if (isAlphaTest > 0 && renderMaterial.FloatParams.ContainsKey("g_flAlphaTestReference"))
             {
-                if (floatParam.Key == "g_flMetalness")
-                {
-                    metalValue = floatParam.Value;
-                }
+                material.AlphaCutoff = renderMaterial.FloatParams["g_flAlphaTestReference"];
             }
 
             // assume non-metallic unless prompted
-            material.WithPBRMetallicRoughness(Vector4.One, null, metallicFactor: metalValue);
+            float metalValue = 0;
+
+            if(renderMaterial.FloatParams.TryGetValue("g_flMetalness",out var flMetalness))
+            {
+                metalValue = flMetalness;
+            }
+
+            Vector4 baseColor = Vector4.One;
+
+            if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
+            {
+                baseColor = vColorTint;
+                baseColor.W = 1; //Tint only affects color
+            }
+
+            material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
 
             foreach (var renderTexture in renderMaterial.TextureParams)
             {
@@ -451,7 +463,7 @@ namespace ValveResourceFormat.IO
 
                 var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
 
-                if (renderTexture.Key == "g_tColor" && material.Alpha == AlphaMode.OPAQUE)
+                if (renderTexture.Key.StartsWith("g_tColor") && material.Alpha == AlphaMode.OPAQUE)
                 {
                     var bitmapSpan = bitmap.PeekPixels().GetPixelSpan<SKColor>();
 
@@ -468,7 +480,7 @@ namespace ValveResourceFormat.IO
                 // TODO find a way to change the image's URI to be the image name, right now it turns into (model)_0, (model)_1....
                 image.Name = fileName + $"_{model.LogicalImages.Count - 1}";
 
-                var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.NEAREST, TextureInterpolationFilter.DEFAULT);
+                var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
                 sampler.Name = fileName;
 
                 var tex = model.UseTexture(image);
@@ -478,9 +490,16 @@ namespace ValveResourceFormat.IO
                 switch (renderTexture.Key)
                 {
                     case "g_tColor":
+                    case "g_tColor1":
+                    case "g_tColor2":
+                    case "g_tColorA":
+                    case "g_tColorB":
+                    case "g_tColorC":
+                        MaterialChannel? channel = material.FindChannel("BaseColor");
+                        if (channel?.Texture != null && renderTexture.Key != "g_tColor")
+                            break;
 
-                        material.FindChannel("BaseColor")?.SetTexture(0, tex);
-
+                        channel?.SetTexture(0, tex);
                         var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
                         var dict = material.TryUseExtrasAsDictionary(true);
                         dict["baseColorTexture"] = indexTexture;
@@ -521,11 +540,6 @@ namespace ValveResourceFormat.IO
                         Console.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
                         break;
                 }
-            }
-
-            if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
-            {
-                material.WithChannelParameter("BaseColor", vColorTint);
             }
 
             return material;
