@@ -17,8 +17,9 @@ namespace GUI.Types.Renderer
         private readonly Mesh mesh;
         private ComboBox animationComboBox;
         private CheckBox animationPlayPause;
-        private GLViewerTrackBarControl animationTrackBar; 
+        private GLViewerTrackBarControl animationTrackBar;
         private CheckedListBox meshGroupListBox;
+        private ComboBox materialGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
 
@@ -82,6 +83,19 @@ namespace GUI.Types.Renderer
                     {
                         meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
                     }
+                }
+
+                var materialGroups = model.GetMaterialGroups();
+
+                if (materialGroups.Count() > 1)
+                {
+                    materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup,_) =>
+                    {
+                        modelSceneNode?.SetSkin(selectedGroup);
+                    });
+
+                    materialGroupListBox.Items.AddRange(materialGroups.ToArray<object>());
+                    materialGroupListBox.SelectedIndex = 0;
                 }
 
                 modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>

@@ -93,6 +93,9 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<string> GetMeshGroups()
             => Data.GetArray<string>("m_meshGroups");
 
+        public IEnumerable<string> GetMaterialGroups()
+           => Data.GetArray<IKeyValueCollection>("m_materialGroups").Select(group => group.GetProperty<string>("m_name"));
+
         public IEnumerable<string> GetDefaultMeshGroups()
         {
             var defaultGroupMask = Data.GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
