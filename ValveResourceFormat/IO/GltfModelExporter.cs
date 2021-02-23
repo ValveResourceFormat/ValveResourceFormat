@@ -130,6 +130,7 @@ namespace ValveResourceFormat.IO
             var settings = new WriteSettings();
             settings.ImageWriting = ResourceWriteMode.SatelliteFile;
             settings.ImageWriteCallback = ImageWriteCallback;
+            settings.JsonIndented = true;
 
             exportedModel.Save(fileName, settings);
         }
@@ -198,6 +199,7 @@ namespace ValveResourceFormat.IO
             var settings = new WriteSettings();
             settings.ImageWriting = ResourceWriteMode.SatelliteFile;
             settings.ImageWriteCallback = ImageWriteCallback;
+            settings.JsonIndented = true;
 
             exportedModel.Save(fileName, settings);
         }
@@ -207,20 +209,18 @@ namespace ValveResourceFormat.IO
             if (File.Exists(image.SourcePath))
             {
                 // image.SourcePath is an absolute path, we must make it relative to ctx.CurrentDirectory
-
-                var currDir = ctx.CurrentDirectory.FullName + "\\";
+                var currDir = ctx.CurrentDirectory.FullName;
 
                 // if the shared texture can be reached by the model in its directory, reuse the texture.
                 if (image.SourcePath.StartsWith(currDir, StringComparison.OrdinalIgnoreCase))
                 {
                     // we've found the shared texture!, return the uri relative to the model:
-                    return image.SourcePath.Substring(currDir.Length);
+                    return Path.GetFileName(image.SourcePath);
                 }
             }
 
             // we were unable to reuse the shared texture,
             // default to write our own texture.
-
             image.SaveToFile(Path.Combine(ctx.CurrentDirectory.FullName, uri));
 
             return uri;
