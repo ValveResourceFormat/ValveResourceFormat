@@ -54,6 +54,25 @@ namespace ValveResourceFormat.ResourceTypes
             return meshes;
         }
 
+        public PhysAggregateData GetEmbeddedPhys()
+        {
+            if (!Resource.ContainsBlockType(BlockType.CTRL))
+            {
+                return null;
+            }
+
+            var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+            var embeddedPhys = ctrl.Data.GetSubCollection("embedded_physics");
+
+            if (embeddedPhys == null)
+            {
+                return null;
+            }
+
+            var physBlockIndex = (int)embeddedPhys.GetIntegerProperty("phys_data_block");
+            return ((PhysAggregateData)Resource.GetBlockByIndex(physBlockIndex));
+        }
+
         public IEnumerable<string> GetReferencedAnimationGroupNames()
             => Data.GetArray<string>("m_refAnimGroups");
 

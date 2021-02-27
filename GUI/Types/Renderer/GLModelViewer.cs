@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
     {
         private readonly Model model;
         private readonly Mesh mesh;
+        private PhysAggregateData phys;
         private ComboBox animationComboBox;
         private CheckBox animationPlayPause;
         private GLViewerTrackBarControl animationTrackBar;
@@ -22,6 +23,7 @@ namespace GUI.Types.Renderer
         private ComboBox materialGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
+        private PhysSceneNode physSceneNode;
 
         public GLModelViewer(VrfGuiContext guiContext, Model model)
             : base(guiContext, Frustum.CreateEmpty())
@@ -33,6 +35,12 @@ namespace GUI.Types.Renderer
            : base(guiContext, Frustum.CreateEmpty())
         {
             this.mesh = mesh;
+        }
+
+        public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys)
+           : base(guiContext, Frustum.CreateEmpty())
+        {
+            this.phys = phys;
         }
 
         protected override void InitializeControl()
@@ -69,6 +77,8 @@ namespace GUI.Types.Renderer
                 SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
                 Scene.Add(modelSceneNode, false);
 
+                phys = model.GetEmbeddedPhys();
+
                 var meshGroups = modelSceneNode.GetMeshGroups();
 
                 if (meshGroups.Count() > 1)
@@ -89,7 +99,7 @@ namespace GUI.Types.Renderer
 
                 if (materialGroups.Count() > 1)
                 {
-                    materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup,_) =>
+                    materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         modelSceneNode?.SetSkin(selectedGroup);
                     });
@@ -122,6 +132,12 @@ namespace GUI.Types.Renderer
             {
                 meshSceneNode = new MeshSceneNode(Scene, mesh);
                 Scene.Add(meshSceneNode, false);
+            }
+
+            if (phys != null)
+            {
+                physSceneNode = new PhysSceneNode(Scene, phys);
+                Scene.Add(physSceneNode, false);
             }
         }
 
