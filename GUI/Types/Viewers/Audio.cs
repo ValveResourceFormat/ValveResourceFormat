@@ -13,7 +13,7 @@ namespace GUI.Types.Viewers
         public static bool IsAccepted(uint magic, string fileName)
         {
             return (magic == 0x46464952 /* RIFF */ && fileName.EndsWith(".wav", StringComparison.InvariantCultureIgnoreCase)) ||
-                    (magic << 8 == 0x33444900 /* ID3 */ && fileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase));
+                    fileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase);
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
