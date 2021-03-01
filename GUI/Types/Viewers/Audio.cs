@@ -26,7 +26,7 @@ namespace GUI.Types.Viewers
             }
             else if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
             {
-                waveStream = new Mp3FileReader(new MemoryStream(input), wf => new Mp3FrameDecompressor(wf));
+                waveStream = new Mp3FileReaderBase(new MemoryStream(input), wf => new Mp3FrameDecompressor(wf));
             }
             else
             {

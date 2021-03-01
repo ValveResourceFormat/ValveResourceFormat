@@ -22,7 +22,7 @@ namespace GUI.Types.Audio
                 switch (soundData.SoundType)
                 {
                     case Sound.AudioFileType.WAV: waveStream = new WaveFileReader(stream); break;
-                    case Sound.AudioFileType.MP3: waveStream = new Mp3FileReader(stream, wf => new Mp3FrameDecompressor(wf)); break;
+                    case Sound.AudioFileType.MP3: waveStream = new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf)); break;
                     case Sound.AudioFileType.AAC: waveStream = new StreamMediaFoundationReader(stream); break;
                     default: throw new Exception($"Dont know how to play {soundData.SoundType}");
                 }
