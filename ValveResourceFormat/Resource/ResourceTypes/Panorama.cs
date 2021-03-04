@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
@@ -48,7 +48,9 @@ namespace ValveResourceFormat.ResourceTypes
 
             Data = reader.ReadBytes((int)Size - (int)headerSize);
 
-            if (Crc32.Compute(Data) != CRC32)
+            // Valve seemingly screwed up when they started minifying vcss and the crc no longer matches
+            // See core/pak01 in Artifact Foundry for such files
+            if (!resource.ContainsBlockType(BlockType.SrMa) && Crc32.Compute(Data) != CRC32)
             {
                 throw new InvalidDataException("CRC32 mismatch for read data.");
             }
