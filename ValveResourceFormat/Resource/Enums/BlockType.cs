@@ -19,5 +19,6 @@ namespace ValveResourceFormat
         ASEQ,
         AGRP,
         PHYS,
+        SrMa,
     }
 }

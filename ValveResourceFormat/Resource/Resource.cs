@@ -335,6 +335,9 @@ namespace ValveResourceFormat
                 case "MDAT":
                     return new BinaryKV3(BlockType.MDAT);
 
+                case "SrMa": // SourceMap
+                    return new BinaryKV3(BlockType.SrMa);
+
                 case "MRPH":
                     return new KeyValuesOrNTRO(BlockType.MRPH, "MorphSetData_t");
 
