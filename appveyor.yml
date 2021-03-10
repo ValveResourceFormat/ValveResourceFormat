@@ -9,7 +9,9 @@ after_build:
   - dotnet pack --configuration release ValveResourceFormat\ValveResourceFormat.csproj
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 GUI\GUI.csproj
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler\Decompiler.csproj
+  - Remove-Item 'Decompiler/obj' -Recurse
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler\Decompiler.csproj
+  - Remove-Item 'Decompiler/obj' -Recurse
   - dotnet publish --configuration Release -p:PublishSingleFile=true --runtime osx-x64 Decompiler\Decompiler.csproj
 
 test_script:
