@@ -87,7 +87,8 @@ namespace GUI.Types.Renderer
             if (Scene.AllNodes.Any())
             {
                 var bbox = Scene.AllNodes.First().BoundingBox;
-                var location = new Vector3(bbox.Max.Z, 0, bbox.Max.Z) * 1.5f;
+                //if first node has no bbox, LookAt will break camera, so +1 to location.x
+                var location = new Vector3(bbox.Max.Z + 1, 0, bbox.Max.Z) * 1.5f;
 
                 ViewerControl.Camera.SetLocation(location);
                 ViewerControl.Camera.LookAt(bbox.Center);

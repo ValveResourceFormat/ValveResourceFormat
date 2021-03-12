@@ -73,6 +73,9 @@ namespace ValveResourceFormat.ResourceTypes
             return ((PhysAggregateData)Resource.GetBlockByIndex(physBlockIndex));
         }
 
+        public IEnumerable<string> GetReferencedPhysNames()
+            => Data.GetArray<string>("m_refPhysicsData");
+
         public IEnumerable<string> GetReferencedAnimationGroupNames()
             => Data.GetArray<string>("m_refAnimGroups");
 

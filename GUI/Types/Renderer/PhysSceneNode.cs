@@ -6,12 +6,14 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace GUI.Types.Renderer
 {
     internal class PhysSceneNode : SceneNode
     {
-        public bool enabled = true;
+        public bool Enabled { get; set; }
         PhysAggregateData phys;
         Shader shader;
         int indexCount;
@@ -83,7 +85,65 @@ namespace GUI.Types.Renderer
                     //m_Faces
                     //m_Bounds
                 }
-                //m_meshes
+                var meshes = shape.GetArray("m_meshes");
+                foreach (var m in meshes)
+                {
+                    var mesh = m.GetSubCollection("m_Mesh");
+                    //m_Nodes
+
+                    var vertOffset = verts.Count / 7;
+                    Vector3[] vertices = null;
+                    try
+                    {
+                        //NTRO has vertcices as array of structs
+                        var verticesArr = mesh.GetArray("m_Vertices");
+                        vertices = verticesArr.Select(v => v.ToVector3()).ToArray();
+                    }
+                    catch
+                    {
+                        //KV3 has vertices as blob
+                        var verticesBlob = mesh.GetArray<byte>("m_Vertices");
+                        vertices = new Vector3[verticesBlob.Length/12];
+                        verticesBlob.AsSpan().TryCopyTo(MemoryMarshal.AsBytes(vertices.AsSpan()));
+                    }
+
+                    foreach (var v in vertices)
+                    {
+                        verts.Add(v.X);
+                        verts.Add(v.Y);
+                        verts.Add(v.Z);
+                        //color red
+                        verts.Add(0);
+                        verts.Add(1);
+                        verts.Add(0);
+                        verts.Add(1);
+                    }
+
+                    int[] triangles = null;
+                    try
+                    {
+                        //NTRO has triangles as array of structs
+                        var trianglesArr = mesh.GetArray("m_Triangles");
+                        triangles = trianglesArr.SelectMany(t => t.GetArray<int>("m_nIndex")).ToArray();
+                    }
+                    catch
+                    {
+                        //KV3 has triangles as blob
+                        var trianglesBlob = mesh.GetArray<byte>("m_Triangles");
+                        triangles = new int[trianglesBlob.Length / 4];
+                        trianglesBlob.AsSpan().TryCopyTo(MemoryMarshal.AsBytes(triangles.AsSpan()));
+                    }
+
+                    for (int i = 0; i < triangles.Length; i+=3)
+                    {
+                        inds.Add((ushort)(vertOffset + triangles[i]));
+                        inds.Add((ushort)(vertOffset + triangles[i+1]));
+                        inds.Add((ushort)(vertOffset + triangles[i+1]));
+                        inds.Add((ushort)(vertOffset + triangles[i+2]));
+                        inds.Add((ushort)(vertOffset + triangles[i+2]));
+                        inds.Add((ushort)(vertOffset + triangles[i]));
+                    }
+                }
                 //m_CollisionAttributeIndices
             }
 
@@ -193,7 +253,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (!enabled)
+            if (!Enabled)
                 return;
 
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
