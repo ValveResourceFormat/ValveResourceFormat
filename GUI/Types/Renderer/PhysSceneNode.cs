@@ -2,11 +2,9 @@ using System;
 using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL;
 using GUI.Utils;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Linq;
 
 namespace GUI.Types.Renderer
@@ -27,7 +25,7 @@ namespace GUI.Types.Renderer
             this.phys = phys;
 
             var verts = new List<float>();
-            var inds = new List<ushort>();
+            var inds = new List<int>();
 
             var parts = phys.Data.GetArray("m_parts");
             foreach (var p in parts)
@@ -78,9 +76,9 @@ namespace GUI.Types.Renderer
                     var edges = hull.GetArray("m_Edges");
                     foreach (var e in edges)
                     {
-                        inds.Add((ushort)(vertOffset + e.GetIntegerProperty("m_nOrigin")));
+                        inds.Add((int)(vertOffset + e.GetIntegerProperty("m_nOrigin")));
                         var next = edges[e.GetIntegerProperty("m_nNext")];
-                        inds.Add((ushort)(vertOffset + next.GetIntegerProperty("m_nOrigin")));
+                        inds.Add((int)(vertOffset + next.GetIntegerProperty("m_nOrigin")));
                     }
                     //m_Faces
                     //m_Bounds
@@ -103,8 +101,11 @@ namespace GUI.Types.Renderer
                     {
                         //KV3 has vertices as blob
                         var verticesBlob = mesh.GetArray<byte>("m_Vertices");
-                        vertices = new Vector3[verticesBlob.Length/12];
-                        verticesBlob.AsSpan().TryCopyTo(MemoryMarshal.AsBytes(vertices.AsSpan()));
+                        vertices = Enumerable.Range(0, verticesBlob.Length / 12)
+                            .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
+                                BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
+                                BitConverter.ToSingle(verticesBlob, (i * 12) + 8)))
+                            .ToArray();
                     }
 
                     foreach (var v in vertices)
@@ -131,20 +132,22 @@ namespace GUI.Types.Renderer
                         //KV3 has triangles as blob
                         var trianglesBlob = mesh.GetArray<byte>("m_Triangles");
                         triangles = new int[trianglesBlob.Length / 4];
-                        trianglesBlob.AsSpan().TryCopyTo(MemoryMarshal.AsBytes(triangles.AsSpan()));
+                        System.Buffer.BlockCopy(trianglesBlob, 0, triangles, 0, trianglesBlob.Length);
                     }
 
-                    for (int i = 0; i < triangles.Length; i+=3)
+                    for (int i = 0; i < triangles.Length; i += 3)
                     {
-                        inds.Add((ushort)(vertOffset + triangles[i]));
-                        inds.Add((ushort)(vertOffset + triangles[i+1]));
-                        inds.Add((ushort)(vertOffset + triangles[i+1]));
-                        inds.Add((ushort)(vertOffset + triangles[i+2]));
-                        inds.Add((ushort)(vertOffset + triangles[i+2]));
-                        inds.Add((ushort)(vertOffset + triangles[i]));
+                        inds.Add(vertOffset + triangles[i]);
+                        inds.Add(vertOffset + triangles[i + 1]);
+                        inds.Add(vertOffset + triangles[i + 1]);
+                        inds.Add(vertOffset + triangles[i + 2]);
+                        inds.Add(vertOffset + triangles[i + 2]);
+                        inds.Add(vertOffset + triangles[i]);
                     }
                 }
                 //m_CollisionAttributeIndices
+
+                //Console.WriteLine($"Phys mesh verts {verts.Count} inds {inds.Count}");
             }
 
             LocalBoundingBox = new AABB(-10, -10, -10, 10, 10, 10);
@@ -162,7 +165,7 @@ namespace GUI.Types.Renderer
             iboHandle = GL.GenBuffer();
             indexCount = inds.Count;
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, inds.Count * sizeof(ushort), inds.ToArray(), BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
 
             const int stride = sizeof(float) * 7;
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
@@ -176,7 +179,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        private static void AddCapsule(List<float> verts, List<ushort> inds, Vector3 c0, Vector3 c1, float radius)
+        private static void AddCapsule(List<float> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
         {
             Matrix4x4 mtx = Matrix4x4.CreateLookAt(c0, c1, Vector3.UnitY);
             mtx.Translation = Vector3.Zero;
@@ -214,19 +217,19 @@ namespace GUI.Types.Renderer
                 verts.Add(0);
                 verts.Add(1);
 
-                inds.Add((ushort)(vertOffset + i * 2));
-                inds.Add((ushort)(vertOffset + i * 2 + 1));
+                inds.Add(vertOffset + i * 2);
+                inds.Add(vertOffset + i * 2 + 1);
             }
         }
 
-        private static void AddSphere(List<float> verts, List<ushort> inds, Vector3 center, float radius)
+        private static void AddSphere(List<float> verts, List<int> inds, Vector3 center, float radius)
         {
             AddCircle(verts, inds, center, radius, Matrix4x4.Identity);
             AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationX(MathF.PI * 0.5f));
             AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationY(MathF.PI * 0.5f));
         }
 
-        private static void AddCircle(List<float> verts, List<ushort> inds, Vector3 center, float radius, Matrix4x4 mtx)
+        private static void AddCircle(List<float> verts, List<int> inds, Vector3 center, float radius, Matrix4x4 mtx)
         {
             var vertOffset = verts.Count / 7;
             for (int i = 0; i < 16; i++)
@@ -246,8 +249,8 @@ namespace GUI.Types.Renderer
                 verts.Add(0);
                 verts.Add(1);
 
-                inds.Add((ushort)(vertOffset + i));
-                inds.Add((ushort)(vertOffset + (i + 1) % 16));
+                inds.Add(vertOffset + i);
+                inds.Add(vertOffset + (i + 1) % 16);
             }
         }
 
@@ -264,7 +267,7 @@ namespace GUI.Types.Renderer
             GL.DepthMask(false);
 
             GL.BindVertexArray(vaoHandle);
-            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
             GL.BindVertexArray(0);
 
             GL.DepthMask(true);
