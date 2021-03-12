@@ -138,6 +138,11 @@ namespace GUI.Types.Renderer
             {
                 physSceneNode = new PhysSceneNode(Scene, phys);
                 Scene.Add(physSceneNode, false);
+
+                //disabled by dafault. Enable if viewing only phys
+                physSceneNode.enabled = (model == null);
+
+                ViewerControl.AddCheckBox("Show Physics", physSceneNode.enabled, (v) => { physSceneNode.enabled = v; });
             }
         }
 

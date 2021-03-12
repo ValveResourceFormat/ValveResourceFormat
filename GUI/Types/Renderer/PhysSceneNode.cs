@@ -11,9 +11,9 @@ namespace GUI.Types.Renderer
 {
     internal class PhysSceneNode : SceneNode
     {
+        public bool enabled = true;
         PhysAggregateData phys;
         Shader shader;
-        int vertexCount;
         int indexCount;
         int vboHandle;
         int iboHandle;
@@ -96,7 +96,6 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(vaoHandle);
 
             vboHandle = GL.GenBuffer();
-            vertexCount = verts.Count / 7;
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
             GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * sizeof(float), verts.ToArray(), BufferUsageHint.StaticDraw);
 
@@ -194,6 +193,9 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
+            if (!enabled)
+                return;
+
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
 
             GL.UseProgram(shader.Program);
@@ -202,7 +204,6 @@ namespace GUI.Types.Renderer
             GL.DepthMask(false);
 
             GL.BindVertexArray(vaoHandle);
-            //GL.DrawArrays(PrimitiveType.Points, 0, vertexCount);
             GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedShort, 0);
             GL.BindVertexArray(0);
 
