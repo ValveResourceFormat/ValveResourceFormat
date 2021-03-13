@@ -12,6 +12,7 @@ namespace GUI.Types.Renderer
     internal class PhysSceneNode : SceneNode
     {
         public bool Enabled { get; set; }
+        public bool IsTrigger { get; set; }
         PhysAggregateData phys;
         Shader shader;
         int indexCount;
@@ -27,10 +28,19 @@ namespace GUI.Types.Renderer
             var verts = new List<float>();
             var inds = new List<int>();
 
+            var bindPose = phys.Data.GetArray("m_bindPose")
+                 .Select(v => Matrix4x4FromArray(v
+                    .Select(m => Convert.ToSingle(m.Value))
+                    .ToArray()))
+                 .ToArray();
+            //m_boneParents
+
+            bool firstBbox = true;
+
             var parts = phys.Data.GetArray("m_parts");
-            foreach (var p in parts)
+            for (int p = 0; p < parts.Length; p++)
             {
-                var shape = p.GetSubCollection("m_rnShape");
+                var shape = parts[p].GetSubCollection("m_rnShape");
 
                 var spheres = shape.GetArray("m_spheres");
                 foreach (var s in spheres)
@@ -39,17 +49,35 @@ namespace GUI.Types.Renderer
                     var center = sphere.GetSubCollection("m_vCenter").ToVector3();
                     var radius = sphere.GetFloatProperty("m_flRadius");
 
+                    if (bindPose.Any())
+                        center = Vector3.Transform(center, bindPose[p]);
+
                     AddSphere(verts, inds, center, radius);
+
+                    AABB bbox = new AABB(center + new Vector3(radius),
+                                         center - new Vector3(radius));
+                    LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
+                    firstBbox = false;
                 }
 
                 var capsules = shape.GetArray("m_capsules");
                 foreach (var c in capsules)
                 {
                     var capsule = c.GetSubCollection("m_Capsule");
-                    var center = capsule.GetArray("m_vCenter");
+                    var center = capsule.GetArray("m_vCenter").Select(v => v.ToVector3()).ToArray();
                     var radius = capsule.GetFloatProperty("m_flRadius");
 
-                    AddCapsule(verts, inds, center[0].ToVector3(), center[1].ToVector3(), radius);
+                    center[0] = Vector3.Transform(center[0], bindPose[p]);
+                    center[1] = Vector3.Transform(center[1], bindPose[p]);
+
+                    AddCapsule(verts, inds, center[0], center[1], radius);
+                    foreach (var cn in center)
+                    {
+                        AABB bbox = new AABB(cn + new Vector3(radius),
+                                             cn - new Vector3(radius));
+                        LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
+                        firstBbox = false;
+                    }
                 }
                 var hulls = shape.GetArray("m_hulls");
                 foreach (var h in hulls)
@@ -63,6 +91,8 @@ namespace GUI.Types.Renderer
                     foreach (var v in vertices)
                     {
                         var vec = v.ToVector3();
+                        if (bindPose.Any())
+                            vec = Vector3.Transform(vec, bindPose[p]);
                         verts.Add(vec.X);
                         verts.Add(vec.Y);
                         verts.Add(vec.Z);
@@ -81,7 +111,12 @@ namespace GUI.Types.Renderer
                         inds.Add((int)(vertOffset + next.GetIntegerProperty("m_nOrigin")));
                     }
                     //m_Faces
-                    //m_Bounds
+                    var bounds = hull.GetSubCollection("m_Bounds");
+                    AABB bbox = new AABB(bounds.GetSubCollection("m_vMinBounds").ToVector3(),
+                                         bounds.GetSubCollection("m_vMaxBounds").ToVector3());
+
+                    LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
+                    firstBbox = false;
                 }
                 var meshes = shape.GetArray("m_meshes");
                 foreach (var m in meshes)
@@ -108,8 +143,11 @@ namespace GUI.Types.Renderer
                             .ToArray();
                     }
 
-                    foreach (var v in vertices)
+                    foreach (var vec in vertices)
                     {
+                        var v = vec;
+                        if (bindPose.Any())
+                            v = Vector3.Transform(vec, bindPose[p]);
                         verts.Add(v.X);
                         verts.Add(v.Y);
                         verts.Add(v.Z);
@@ -123,13 +161,14 @@ namespace GUI.Types.Renderer
                     int[] triangles = null;
                     try
                     {
-                        //NTRO has triangles as array of structs
+                        //NTRO and SOME KV3 has triangles as array of structs
                         var trianglesArr = mesh.GetArray("m_Triangles");
-                        triangles = trianglesArr.SelectMany(t => t.GetArray<int>("m_nIndex")).ToArray();
+                        triangles = trianglesArr.SelectMany(t => t.GetArray<object>("m_nIndex").
+                                                            Select(Convert.ToInt32)).ToArray();
                     }
                     catch
                     {
-                        //KV3 has triangles as blob
+                        //some KV3 has triangles as blob
                         var trianglesBlob = mesh.GetArray<byte>("m_Triangles");
                         triangles = new int[trianglesBlob.Length / 4];
                         System.Buffer.BlockCopy(trianglesBlob, 0, triangles, 0, trianglesBlob.Length);
@@ -144,13 +183,16 @@ namespace GUI.Types.Renderer
                         inds.Add(vertOffset + triangles[i + 2]);
                         inds.Add(vertOffset + triangles[i]);
                     }
+
+                    AABB bbox = new AABB(mesh.GetSubCollection("m_vMin").ToVector3(),
+                                         mesh.GetSubCollection("m_vMax").ToVector3());
+                    LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
+                    firstBbox = false;
                 }
                 //m_CollisionAttributeIndices
 
                 //Console.WriteLine($"Phys mesh verts {verts.Count} inds {inds.Count}");
             }
-
-            LocalBoundingBox = new AABB(-10, -10, -10, 10, 10, 10);
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
             GL.UseProgram(shader.Program);
@@ -177,6 +219,14 @@ namespace GUI.Types.Renderer
             GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
 
             GL.BindVertexArray(0);
+        }
+
+        static Matrix4x4 Matrix4x4FromArray(float[] a)
+        {
+            return new Matrix4x4(a[0], a[4], a[8], 0,
+                a[1], a[5], a[9], 0,
+                a[2], a[6], a[10], 0,
+                a[3], a[7], a[11], 1);
         }
 
         private static void AddCapsule(List<float> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
@@ -259,7 +309,7 @@ namespace GUI.Types.Renderer
             if (!Enabled)
                 return;
 
-            var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
+            var viewProjectionMatrix = (Transform * context.Camera.ViewProjectionMatrix).ToOpenTK();
 
             GL.UseProgram(shader.Program);
 

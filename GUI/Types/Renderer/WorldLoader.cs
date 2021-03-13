@@ -147,6 +147,9 @@ namespace GUI.Types.Renderer
                     classname == "sky_camera" ||
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
+                var isTrigger =
+                    classname.Contains("trigger") ||
+                    classname == "post_processing_volume";
 
                 var positionVector = EntityTransformHelper.ParseVector(position);
 
@@ -284,6 +287,31 @@ namespace GUI.Types.Renderer
                 }
 
                 scene.Add(modelNode, false);
+
+                var phys = newModel.GetEmbeddedPhys();
+                if (phys == null)
+                {
+                    var refPhysicsPaths = newModel.GetReferencedPhysNames();
+                    if (refPhysicsPaths.Any())
+                    {
+                        var newResource = guiContext.LoadFileByAnyMeansNecessary(refPhysicsPaths.First() + "_c");
+                        if (newResource != null)
+                        {
+                            phys = (PhysAggregateData)newResource.DataBlock;
+                        }
+                    }
+                }
+
+                if (phys != null)
+                {
+                    var physSceneNode = new PhysSceneNode(scene, phys)
+                    {
+                        Transform = transformationMatrix,
+                        IsTrigger = isTrigger,
+                        LayerName = layerName
+                    };
+                    scene.Add(physSceneNode, false);
+                }
             }
         }
     }
