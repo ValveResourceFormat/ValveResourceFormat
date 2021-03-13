@@ -156,7 +156,8 @@ namespace ValveResourceFormat.IO
                 {
                     // If refmesh is null, take an embedded mesh
                     meshes[i] = (embeddedMeshes[embeddedMeshIndex++], $"Embedded Mesh {embeddedMeshIndex}");
-                } else
+                }
+                else
                 {
                     // Load mesh from file
                     var meshResource = FileLoader.LoadFile(meshReference + "_c");
@@ -204,7 +205,7 @@ namespace ValveResourceFormat.IO
             exportedModel.Save(fileName, settings);
         }
 
-        private static string ImageWriteCallback(SharpGLTF.IO.WriteContext ctx, string uri, SharpGLTF.Memory.MemoryImage image)
+        private static string ImageWriteCallback(WriteContext ctx, string uri, SharpGLTF.Memory.MemoryImage image)
         {
             if (File.Exists(image.SourcePath))
             {
@@ -469,7 +470,7 @@ namespace ValveResourceFormat.IO
             // assume non-metallic unless prompted
             float metalValue = 0;
 
-            if(renderMaterial.FloatParams.TryGetValue("g_flMetalness",out var flMetalness))
+            if (renderMaterial.FloatParams.TryGetValue("g_flMetalness", out var flMetalness))
             {
                 metalValue = flMetalness;
             }
@@ -504,7 +505,7 @@ namespace ValveResourceFormat.IO
 
                 var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
 
-                if (renderTexture.Key.StartsWith("g_tColor") && material.Alpha == AlphaMode.OPAQUE)
+                if (renderTexture.Key.StartsWith("g_tColor", StringComparison.Ordinal) && material.Alpha == AlphaMode.OPAQUE)
                 {
                     var bitmapSpan = bitmap.PeekPixels().GetPixelSpan<SKColor>();
 
@@ -543,9 +544,14 @@ namespace ValveResourceFormat.IO
                             break;
 
                         channel?.SetTexture(0, tex);
-                        var indexTexture = new JsonDictionary() { ["index"] = image.LogicalIndex };
-                        var dict = material.TryUseExtrasAsDictionary(true);
-                        dict["baseColorTexture"] = indexTexture;
+                        
+                        material.Extras = JsonContent.CreateFrom(new Dictionary<string, object>
+                        {
+                            ["baseColorTexture"] = new Dictionary<string, object>
+                            {
+                                { "index", image.LogicalIndex },
+                            },
+                        });
 
                         break;
                     case "g_tNormal":
