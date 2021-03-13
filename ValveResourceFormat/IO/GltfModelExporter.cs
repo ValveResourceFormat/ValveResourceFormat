@@ -27,7 +27,7 @@ namespace ValveResourceFormat.IO
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
         private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, (float)Math.PI / -2f, 0);
 
-        public IProgressReporter ProgressReporter { get; set; }
+        public IProgress<string> ProgressReporter { get; set; }
         public IFileLoader FileLoader { get; set; }
         public bool ExportMaterials { get; set; } = true;
 
@@ -229,7 +229,7 @@ namespace ValveResourceFormat.IO
 
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints)
         {
-            ProgressReporter?.SetProgress($"Creating mesh: {meshName}");
+            ProgressReporter?.Report($"Creating mesh: {meshName}");
 
             var data = vmesh.GetData();
             var vbib = vmesh.VBIB;
@@ -388,7 +388,7 @@ namespace ValveResourceFormat.IO
 
                     var materialPath = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
-                    ProgressReporter?.SetProgress($"Loading material: {materialPath}");
+                    ProgressReporter?.Report($"Loading material: {materialPath}");
 
                     var materialResource = FileLoader.LoadFile(materialPath + "_c");
 
@@ -494,7 +494,7 @@ namespace ValveResourceFormat.IO
 
                 var fileName = Path.GetFileNameWithoutExtension(texturePath);
 
-                ProgressReporter?.SetProgress($"Exporting texture: {texturePath}");
+                ProgressReporter?.Report($"Exporting texture: {texturePath}");
 
                 var textureResource = FileLoader.LoadFile(texturePath + "_c");
 

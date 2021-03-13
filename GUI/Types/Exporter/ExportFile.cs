@@ -11,13 +11,6 @@ namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
-        public class ProgressReporterDialog : IProgressReporter
-        {
-            public GenericProgressForm Form { get; } = new GenericProgressForm();
-
-            public void SetProgress(string progress) => Form.SetProgress(progress);
-        }
-
         public static void Export(string fileName, ExportData exportData)
         {
             var resource = exportData.Resource;
@@ -66,14 +59,14 @@ namespace GUI.Types.Exporter
             Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
             Settings.Save();
 
-            var extractDialog = new ProgressReporterDialog();
-            extractDialog.Form.OnProcess += (_, __) =>
+            var extractDialog = new GenericProgressForm();
+            extractDialog.OnProcess += (_, __) =>
             {
                 if (resource.ResourceType == ResourceType.Mesh && dialog.FilterIndex == 1)
                 {
                     var exporter = new GltfModelExporter
                     {
-                        ProgressReporter = extractDialog,
+                        ProgressReporter = new Progress<string>(extractDialog.SetProgress),
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
                     exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource));
@@ -82,7 +75,7 @@ namespace GUI.Types.Exporter
                 {
                     var exporter = new GltfModelExporter
                     {
-                        ProgressReporter = extractDialog,
+                        ProgressReporter = new Progress<string>(extractDialog.SetProgress),
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
                     exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock);
@@ -96,7 +89,7 @@ namespace GUI.Types.Exporter
 
                 Console.WriteLine($"Export for \"{fileName}\" completed");
             };
-            extractDialog.Form.ShowDialog();
+            extractDialog.ShowDialog();
         }
     }
 }

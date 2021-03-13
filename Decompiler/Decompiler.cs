@@ -801,7 +801,7 @@ namespace Decompiler
                             var exporter = new GltfModelExporter
                             {
                                 ExportMaterials = GltfExportMaterials,
-                                ProgressReporter = new ConsoleProgressReporter(),
+                                ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
                                 FileLoader = fileLoader
                             };
 
