@@ -447,6 +447,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     case "deferred_resource":
                         flag = KVFlag.DeferredResource;
                         break;
+                    case "soundevent":
+                        flag = KVFlag.SoundEvent;
+                        break;
                     default:
                         throw new InvalidDataException("Unknown flag " + strings[0]);
                 }

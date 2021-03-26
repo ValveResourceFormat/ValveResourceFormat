@@ -8,7 +8,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
     {
         None,
         Resource,
-        DeferredResource
+        DeferredResource,
+        SoundEvent = 16,
     }
 
     public class KVFlaggedValue : KVValue
