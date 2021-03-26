@@ -54,11 +54,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     case KVFlag.Resource:
                         writer.Write("resource:");
                         break;
-                    case KVFlag.DeferredResource:
-                        writer.Write("deferred_resource:");
+                    case KVFlag.ResourceName:
+                        writer.Write("resource_name:");
+                        break;
+                    case KVFlag.Panorama:
+                        writer.Write("panorama:");
                         break;
                     case KVFlag.SoundEvent:
                         writer.Write("soundevent:");
+                        break;
+                    case KVFlag.SubClass:
+                        writer.Write("subclass:");
                         break;
                     default:
                         throw new InvalidOperationException($"Trying to print unknown keyvalues flag ({flagValue.Flag})");

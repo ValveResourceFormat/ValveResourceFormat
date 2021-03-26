@@ -6,10 +6,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
 {
     public enum KVFlag
     {
-        None,
-        Resource,
-        DeferredResource,
+        None = 0,
+        Resource = 1,
+        ResourceName = 2,
+        Panorama = 8,
         SoundEvent = 16,
+        SubClass = 32,
     }
 
     public class KVFlaggedValue : KVValue

@@ -444,11 +444,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     case "resource":
                         flag = KVFlag.Resource;
                         break;
-                    case "deferred_resource":
-                        flag = KVFlag.DeferredResource;
+                    case "resource_name":
+                        flag = KVFlag.ResourceName;
+                        break;
+                    case "panorama":
+                        flag = KVFlag.Panorama;
                         break;
                     case "soundevent":
                         flag = KVFlag.SoundEvent;
+                        break;
+                    case "subclass":
+                        flag = KVFlag.SubClass;
                         break;
                     default:
                         throw new InvalidDataException("Unknown flag " + strings[0]);
