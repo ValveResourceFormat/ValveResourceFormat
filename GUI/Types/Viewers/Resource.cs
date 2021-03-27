@@ -340,7 +340,12 @@ namespace GUI.Types.Viewers
                 || resource.ResourceType == ResourceType.SoundStackScript
                 || resource.ResourceType == ResourceType.EntityLump)
             {
-                resTabs.SelectTab(resTabs.TabCount - 1);
+                foreach (TabPage tab2 in resTabs.TabPages) {
+                    if (tab2.Text == "DATA") {
+                        resTabs.SelectTab(tab2);
+                        break;
+                    }
+                }
             }
 
             tab.Controls.Add(resTabs);
