@@ -32,7 +32,7 @@ artifacts:
 deploy:
 - provider: GitHub
   auth_token:
-    secure: nK1ZJwyjxiXhpKYZ8AjsgEqtvTYJR9A4hc5KDseSNi/CO+9scXnuc1A/ZODoAja4
+    secure: hnDOlho1DI06VB/xFX6uvqoBUxo41/jV/186OLIMxOzFfsBaPoTavjVSqQdVrebT
   draft: false
   prerelease: true
   on:
