@@ -152,7 +152,7 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < meshes.Length; i++)
             {
                 var meshReference = refMeshes[i];
-                if (meshReference == null)
+                if (string.IsNullOrEmpty(meshReference))
                 {
                     // If refmesh is null, take an embedded mesh
                     meshes[i] = (embeddedMeshes[embeddedMeshIndex++], $"Embedded Mesh {embeddedMeshIndex}");
