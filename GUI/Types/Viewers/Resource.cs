@@ -144,6 +144,11 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.World:
+                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF",
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as GLB",
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
+
                     var worldmeshTab = new TabPage("MAP");
                     worldmeshTab.Controls.Add(
                         new GLWorldViewer(vrfGuiContext, (World) resource.DataBlock).ViewerControl);
@@ -151,6 +156,11 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.WorldNode:
+                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF",
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
+                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as GLB",
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
+
                     var nodemeshTab = new TabPage("WORLD NODE");
                     nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode) resource.DataBlock)
                         .ViewerControl);
