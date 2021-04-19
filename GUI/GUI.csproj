@@ -22,7 +22,7 @@
     <PackageReference Include="NAudio" Version="2.0.0" />
     <PackageReference Include="NLayer" Version="1.13.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.2.0" />
-    <PackageReference Include="OpenTK" Version="3.3.0">
+    <PackageReference Include="OpenTK" Version="4.6.3">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="OpenTK.GLControl" Version="3.1.0">
