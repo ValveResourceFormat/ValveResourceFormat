@@ -149,12 +149,12 @@ namespace ValveResourceFormat.IO
                     }
                     var node = AddMeshNode(exportedModel, scene, model,
                         meshName, meshes[i].Mesh, model.GetSkeleton(i),
-                        skinName != null ? GetSkinPathFromModel(model, skinName) : null );
+                        skinName != null ? GetSkinPathFromModel(model, skinName) : null);
 
                     if (node == null)
                     {
-						continue;
-					}
+                        continue;
+                    }
                     // Swap Rotate upright, scale inches to meters.
                     node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
                 }
@@ -235,7 +235,7 @@ namespace ValveResourceFormat.IO
         {
             var sceneObjects = worldNode.Data.GetArray("m_sceneObjects");
             var models = new List<(VModel, string, Matrix4x4)>();
-            foreach(var sceneObject in sceneObjects)
+            foreach (var sceneObject in sceneObjects)
             {
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
                 if (renderableModel == null)
@@ -638,7 +638,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
-                    
+
                     var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
 
                     // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
@@ -804,14 +804,14 @@ namespace ValveResourceFormat.IO
                     case "g_tColorA":
                     case "g_tColorB":
                     case "g_tColorC":
-                        MaterialChannel? channel = material.FindChannel("BaseColor");
+                        var channel = material.FindChannel("BaseColor");
                         if (channel?.Texture != null && renderTexture.Key != "g_tColor")
                         {
                             break;
                         }
 
                         channel?.SetTexture(0, tex);
-                        
+
                         material.Extras = JsonContent.CreateFrom(new Dictionary<string, object>
                         {
                             ["baseColorTexture"] = new Dictionary<string, object>
@@ -897,10 +897,14 @@ namespace ValveResourceFormat.IO
         {
             switch (name)
             {
-                case "BLENDINDICES": return $"JOINTS_{index}";
-                case "BLENDWEIGHT": return $"WEIGHTS_{index}";
-                case "TEXCOORD": return $"TEXCOORD_{index}";
-                case "COLOR": return $"COLOR_{index}";
+                case "BLENDINDICES":
+                    return $"JOINTS_{index}";
+                case "BLENDWEIGHT":
+                    return $"WEIGHTS_{index}";
+                case "TEXCOORD":
+                    return $"TEXCOORD_{index}";
+                case "COLOR":
+                    return $"COLOR_{index}";
             }
 
             if (index > 0)
