@@ -10,6 +10,7 @@ using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO
 {
@@ -39,7 +40,7 @@ namespace ValveResourceFormat.IO
         private readonly IDictionary<string, short> MeshNameCounterDict = new Dictionary<string, short>();
 
         /// <summary>
-        /// Export a Valve VWNOD to GLTF.
+        /// Export a Valve VWRLD to GLTF.
         /// </summary>
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
@@ -57,9 +58,15 @@ namespace ValveResourceFormat.IO
             // First the WorldNodes
             foreach (var worldNodeName in world.GetWorldNodeNames())
             {
-                if (worldNodeName == null) continue;
+                if (worldNodeName == null)
+                {
+                    continue;
+                }
                 var worldResource = FileLoader.LoadFile(worldNodeName + ".vwnod_c");
-                if (worldResource == null) continue;
+                if (worldResource == null)
+                {
+                    continue;
+                }
 
                 var worldNode = (VWorldNode)worldResource.DataBlock;
                 var worldNodeModels = LoadWorldNodeModels(worldNode);
@@ -72,7 +79,10 @@ namespace ValveResourceFormat.IO
                         var node = AddMeshNode(exportedModel, scene, Model,
                             meshes[i].Name, meshes[i].Mesh, Model.GetSkeleton(i));
 
-                        if (node == null) continue;
+                        if (node == null)
+                        {
+                            continue;
+                        }
                         // Swap Rotate upright, scale inches to meters.
                         node.WorldMatrix = Transform * TRANSFORMSOURCETOGLTF;
                     }
@@ -82,9 +92,15 @@ namespace ValveResourceFormat.IO
             // Then the Entities
             foreach (var lumpName in world.GetEntityLumpNames())
             {
-                if (lumpName == null) continue;
+                if (lumpName == null)
+                {
+                    continue;
+                }
                 var entityLumpResource = FileLoader.LoadFile(lumpName + "_c");
-                if (entityLumpResource == null) continue;
+                if (entityLumpResource == null)
+                {
+                    continue;
+                }
 
                 var entityLump = (VEntityLump)entityLumpResource.DataBlock;
 
@@ -105,14 +121,12 @@ namespace ValveResourceFormat.IO
                     continue;
                     // TODO: Think about adding lights with KHR_lights_punctual
                 }
-                var className = entity.GetProperty<string>("classname");
-                if (className == "vr_teleport_area" || className == "trigger_multiple")
+
+                var modelResource = FileLoader.LoadFile(modelName + "_c");
+                if (modelResource == null)
                 {
-                    // No need to export these
                     continue;
                 }
-                var modelResource = FileLoader.LoadFile(modelName + "_c");
-                if (modelResource == null) continue;
 
                 // TODO: skybox/skydome
 
@@ -123,7 +137,7 @@ namespace ValveResourceFormat.IO
                     skinName = null;
                 }
 
-                var transform = CalculateTransformationMatrix(entity);
+                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 // Add meshes and their skeletons
                 var meshes = LoadModelMeshes(model, Path.GetFileNameWithoutExtension(modelName));
                 for (var i = 0; i < meshes.Length; i++)
@@ -137,7 +151,10 @@ namespace ValveResourceFormat.IO
                         meshName, meshes[i].Mesh, model.GetSkeleton(i),
                         skinName != null ? GetSkinPathFromModel(model, skinName) : null );
 
-                    if (node == null) continue;
+                    if (node == null)
+                    {
+						continue;
+					}
                     // Swap Rotate upright, scale inches to meters.
                     node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
                 }
@@ -145,9 +162,15 @@ namespace ValveResourceFormat.IO
 
             foreach (var childEntityName in entityLump.GetChildEntityNames())
             {
-                if (childEntityName == null) continue;
+                if (childEntityName == null)
+                {
+                    continue;
+                }
                 var childEntityLumpResource = FileLoader.LoadFile(childEntityName + "_c");
-                if (childEntityLumpResource == null) continue;
+                if (childEntityLumpResource == null)
+                {
+                    continue;
+                }
 
                 var childEntityLump = (VEntityLump)childEntityLumpResource.DataBlock;
                 LoadEntityMeshes(exportedModel, scene, childEntityLump);
@@ -158,10 +181,12 @@ namespace ValveResourceFormat.IO
         {
             var materialGroupForSkin = model.Data.GetArray<IKeyValueCollection>("m_materialGroups")
                 .ToList()
-                .Where(m => m.GetProperty<string>("m_name") == skinName)
-                .SingleOrDefault();
+                .SingleOrDefault(m => m.GetProperty<string>("m_name") == skinName);
 
-            if (materialGroupForSkin == null) return null;
+            if (materialGroupForSkin == null)
+            {
+                return null;
+            }
 
             // Given these are at the model level, and otherwise pull materials from drawcalls
             // on the mesh, not sure how they correlate if there's more than one here
@@ -169,42 +194,6 @@ namespace ValveResourceFormat.IO
             return materialGroupForSkin.GetArray<string>("m_materials")[0];
         }
 
-        private static Matrix4x4 CalculateTransformationMatrix(VEntityLump.Entity entity)
-        {
-            var scale = entity.GetProperty<string>("scales");
-            var position = entity.GetProperty<string>("origin");
-            var angles = entity.GetProperty<string>("angles");
-            if (scale == null || position == null || angles == null)
-            {
-                return default;
-            }
-
-            var scaleMatrix = Matrix4x4.CreateScale(ParseVector(scale));
-
-            var positionVector = ParseVector(position);
-            var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
-
-            var pitchYawRoll = ParseVector(angles);
-            var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * ((float)Math.PI / 180f)); // Roll
-            var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X * ((float)Math.PI / 180f)); // Pitch
-            var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * ((float)Math.PI / 180f)); // Yaw
-
-            var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
-            return scaleMatrix * rotationMatrix * positionMatrix;
-        }
-
-        private static Vector3 ParseVector(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return default;
-            var split = input.Split(' ');
-
-            if (split.Length != 3) return default;
-
-            return new Vector3(
-                float.Parse(split[0], CultureInfo.InvariantCulture),
-                float.Parse(split[1], CultureInfo.InvariantCulture),
-                float.Parse(split[2], CultureInfo.InvariantCulture));
-        }
         /// <summary>
         /// Export a Valve VWNOD to GLTF.
         /// </summary>
@@ -230,7 +219,10 @@ namespace ValveResourceFormat.IO
                     var node = AddMeshNode(exportedModel, scene, Model,
                         meshes[i].Name, meshes[i].Mesh, Model.GetSkeleton(i));
 
-                    if (node == null) continue;
+                    if (node == null)
+                    {
+                        continue;
+                    }
                     // Swap Rotate upright, scale inches to meters, after local transform.
                     node.WorldMatrix = Transform * TRANSFORMSOURCETOGLTF;
                 }
@@ -246,10 +238,16 @@ namespace ValveResourceFormat.IO
             foreach(var sceneObject in sceneObjects)
             {
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
-                if (renderableModel == null) continue;
+                if (renderableModel == null)
+                {
+                    continue;
+                }
 
                 var modelResource = FileLoader.LoadFile(renderableModel + "_c");
-                if (modelResource == null) continue;
+                if (modelResource == null)
+                {
+                    continue;
+                }
 
                 var model = (VModel)modelResource.DataBlock;
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
@@ -284,7 +282,10 @@ namespace ValveResourceFormat.IO
                 var node = AddMeshNode(exportedModel, scene, model,
                     meshes[i].Name, meshes[i].Mesh, model.GetSkeleton(i));
 
-                if (node == null) continue;
+                if (node == null)
+                {
+                    continue;
+                }
                 // Swap Rotate upright, scale inches to meters.
                 node.WorldMatrix = TRANSFORMSOURCETOGLTF;
             }
@@ -369,7 +370,8 @@ namespace ValveResourceFormat.IO
             {
                 // Give it a unique name regardless
                 var existingNode = scene.FindNode(n => n.Name == name);
-                name = $"{name}.{counter++:000}";
+                name = $"{name}.{counter:000}";
+                MeshNameCounterDict[name] = ++counter;
                 // Make a new node that uses the existing mesh
                 if (!hasJoints && existingNode.Skin == null)
                 {
@@ -767,7 +769,8 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                string exportedTexturePath;
+                var exportedTexturePath = Path.Join(DstDir, fileName);
+                exportedTexturePath = Path.ChangeExtension(exportedTexturePath, "png");
 
                 using (var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap())
                 {
@@ -781,9 +784,6 @@ namespace ValveResourceFormat.IO
                             bitmapSpan[i] = bitmapSpan[i].WithAlpha(255);
                         }
                     }
-
-                    exportedTexturePath = Path.Join(DstDir, fileName);
-                    exportedTexturePath = Path.ChangeExtension(exportedTexturePath, "png");
 
                     using var fs = File.Open(exportedTexturePath, FileMode.Create);
                     bitmap.PeekPixels().Encode(fs, SKEncodedImageFormat.Png, 100);
@@ -806,7 +806,9 @@ namespace ValveResourceFormat.IO
                     case "g_tColorC":
                         MaterialChannel? channel = material.FindChannel("BaseColor");
                         if (channel?.Texture != null && renderTexture.Key != "g_tColor")
+                        {
                             break;
+                        }
 
                         channel?.SetTexture(0, tex);
                         
