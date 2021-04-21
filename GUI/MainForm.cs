@@ -565,7 +565,10 @@ namespace GUI
 
                 if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    using var resource = new Resource();
+                    using var resource = new Resource
+                    {
+                        FileName = fileName,
+                    };
                     using var memory = new MemoryStream(output);
 
                     resource.Read(memory);

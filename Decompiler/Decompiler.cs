@@ -277,7 +277,10 @@ namespace Decompiler
 
         private void ProcessFile(string path, Stream stream)
         {
-            var resource = new Resource();
+            var resource = new Resource
+            {
+                FileName = path,
+            };
 
             try
             {
@@ -776,7 +779,10 @@ namespace Decompiler
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
-                    using var resource = new Resource();
+                    using var resource = new Resource
+                    {
+                        FileName = filePath,
+                    };
                     using var memory = new MemoryStream(output);
 
                     try

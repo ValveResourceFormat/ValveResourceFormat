@@ -27,6 +27,11 @@ namespace ValveResourceFormat
         public BinaryReader Reader { get; private set; }
 
         /// <summary>
+        /// Gets or sets the file name this resource was parsed from.
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
         /// Gets the resource size.
         /// </summary>
         public uint FileSize { get; private set; }
@@ -150,6 +155,7 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
+            FileName = filename;
             FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             Read(FileStream);
@@ -207,7 +213,7 @@ namespace ValveResourceFormat
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
                 // TODO: Find a better way without checking against resource type
-                if (size >= 4 && blockType == "DATA" && !IshandledResourceType(ResourceType))
+                if (size >= 4 && blockType == "DATA" && !IsHandledResourceType(ResourceType))
                 {
                     Reader.BaseStream.Position = offset;
 
@@ -275,6 +281,11 @@ namespace ValveResourceFormat
                 }
 
                 Reader.BaseStream.Position = position + 8;
+            }
+
+            if (ResourceType == ResourceType.Unknown && FileName != null)
+            {
+                ResourceType = DetermineResourceTypeByFileExtension();
             }
 
             foreach (var block in Blocks)
@@ -419,7 +430,31 @@ namespace ValveResourceFormat
             return new ResourceData();
         }
 
-        private static bool IshandledResourceType(ResourceType type)
+        private ResourceType DetermineResourceTypeByFileExtension()
+        {
+            var extension = Path.GetExtension(FileName) ?? string.Empty;
+            extension = extension.EndsWith("_c", StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
+
+            foreach (ResourceType typeValue in Enum.GetValues(typeof(ResourceType)))
+            {
+                if (typeValue == ResourceType.Unknown)
+                {
+                    continue;
+                }
+
+                var type = typeof(ResourceType).GetMember(typeValue.ToString())[0];
+                var typeExt = (ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0];
+
+                if (typeExt.Extension == extension)
+                {
+                    return typeValue;
+                }
+            }
+
+            return ResourceType.Unknown;
+        }
+
+        private static bool IsHandledResourceType(ResourceType type)
         {
             return type == ResourceType.Model
                    || type == ResourceType.World
@@ -441,22 +476,32 @@ namespace ValveResourceFormat
             // Special mappings and otherwise different identifiers
             switch (identifier)
             {
-                case "Psf": return ResourceType.ParticleSnapshot;
-                case "AnimGroup": return ResourceType.AnimationGroup;
-                case "VPhysXData": return ResourceType.PhysicsCollisionMesh;
-                case "Font": return ResourceType.BitmapFont;
-                case "RenderMesh": return ResourceType.Mesh;
+                case "Psf":
+                    return ResourceType.ParticleSnapshot;
+                case "AnimGroup":
+                    return ResourceType.AnimationGroup;
+                case "VPhysXData":
+                    return ResourceType.PhysicsCollisionMesh;
+                case "Font":
+                    return ResourceType.BitmapFont;
+                case "RenderMesh":
+                    return ResourceType.Mesh;
                 case "Panorama":
                     switch (input.String)
                     {
-                        case "Panorama Style Compiler Version": return ResourceType.PanoramaStyle;
-                        case "Panorama Script Compiler Version": return ResourceType.PanoramaScript;
-                        case "Panorama Layout Compiler Version": return ResourceType.PanoramaLayout;
-                        case "Panorama Dynamic Images Compiler Version": return ResourceType.PanoramaDynamicImages;
+                        case "Panorama Style Compiler Version":
+                            return ResourceType.PanoramaStyle;
+                        case "Panorama Script Compiler Version":
+                            return ResourceType.PanoramaScript;
+                        case "Panorama Layout Compiler Version":
+                            return ResourceType.PanoramaLayout;
+                        case "Panorama Dynamic Images Compiler Version":
+                            return ResourceType.PanoramaDynamicImages;
                     }
 
                     return ResourceType.Panorama;
-                case "VectorGraphic": return ResourceType.PanoramaVectorGraphic;
+                case "VectorGraphic":
+                    return ResourceType.PanoramaVectorGraphic;
             }
 
             if (Enum.TryParse(identifier, false, out ResourceType resourceType))

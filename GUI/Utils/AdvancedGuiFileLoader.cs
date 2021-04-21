@@ -42,7 +42,10 @@ namespace GUI.Utils
                 return resource;
             }
 
-            resource = new Resource();
+            resource = new Resource
+            {
+                FileName = file,
+            };
 
             var entry = GuiContext.CurrentPackage?.FindEntry(file);
 

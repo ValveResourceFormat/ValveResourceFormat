@@ -24,7 +24,10 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();
-            var resource = new ValveResourceFormat.Resource();
+            var resource = new ValveResourceFormat.Resource
+            {
+                FileName = vrfGuiContext.FileName,
+            };
 
             if (input != null)
             {
