@@ -100,7 +100,6 @@ dotnet_diagnostic.CA5394.severity = suggestion
 dotnet_diagnostic.IDE0055.severity = warning
 
 # Sort using and Import directives with System.* appearing first
-dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
 # Avoid "this." and "Me." if not necessary
 dotnet_style_qualification_for_field = false:suggestion
@@ -136,7 +135,7 @@ csharp_new_line_between_query_expression_clauses = true
 csharp_indent_block_contents = true
 csharp_indent_braces = false
 csharp_indent_case_contents = true
-csharp_indent_case_contents_when_block = true
+csharp_indent_case_contents_when_block = false
 csharp_indent_switch_labels = true
 csharp_indent_labels = flush_left
 
@@ -190,7 +189,7 @@ csharp_space_between_square_brackets = false
 csharp_using_directive_placement = outside_namespace:suggestion
 dotnet_sort_system_directives_first = true
 csharp_prefer_braces = true:suggestion
-csharp_preserve_single_line_blocks = false
+csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = false
 csharp_prefer_static_local_function = true:suggestion
 csharp_prefer_simple_using_statement = true:suggestion
