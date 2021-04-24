@@ -37,7 +37,7 @@ namespace ValveResourceFormat.IO
         public bool ExportMaterials { get; set; } = true;
 
         private string DstDir;
-        private readonly IDictionary<string, short> MeshNameCounterDict = new Dictionary<string, short>();
+        private readonly IDictionary<string, Node> LoadedUnskinnedMeshDictionary = new Dictionary<string, Node>();
 
         /// <summary>
         /// Export a Valve VWRLD to GLTF.
@@ -364,28 +364,15 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var hasJoints = skeleton != null && skeleton.AnimationTextureSize > 0;
-
-            if (MeshNameCounterDict.TryGetValue(name, out var counter))
+            if (LoadedUnskinnedMeshDictionary.TryGetValue(name, out var existingNode))
             {
-                // Give it a unique name regardless
-                var existingNode = scene.FindNode(n => n.Name == name);
-                name = $"{name}.{counter:000}";
-                MeshNameCounterDict[name] = ++counter;
                 // Make a new node that uses the existing mesh
-                if (!hasJoints && existingNode.Skin == null)
-                {
-                    var newNode = scene.CreateNode(name);
-                    newNode.Mesh = existingNode.Mesh;
-                    return newNode;
-                }
-                // If the existing mesh is skinned, don't take the shortcut
-            }
-            else
-            {
-                MeshNameCounterDict.Add(name, 0);
+                var newNode = scene.CreateNode(name);
+                newNode.Mesh = existingNode.Mesh;
+                return newNode;
             }
 
+            var hasJoints = skeleton != null && skeleton.AnimationTextureSize > 0;
             var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
@@ -424,17 +411,19 @@ namespace ValveResourceFormat.IO
 
                     foreach (var bone in rotationDict.Keys)
                     {
-                        var node = joints.FirstOrDefault(n => n.Name == bone);
-                        if (node != null)
+                        var jointNode = joints.FirstOrDefault(n => n.Name == bone);
+                        if (jointNode != null)
                         {
-                            exportedAnimation.CreateRotationChannel(node, rotationDict[bone], true);
-                            exportedAnimation.CreateTranslationChannel(node, translationDict[bone], true);
+                            exportedAnimation.CreateRotationChannel(jointNode, rotationDict[bone], true);
+                            exportedAnimation.CreateTranslationChannel(jointNode, translationDict[bone], true);
                         }
                     }
                 }
                 return skeletonNode;
             }
-            return scene.CreateNode(name).WithMesh(exportedMesh);
+            var node = scene.CreateNode(name).WithMesh(exportedMesh);
+            LoadedUnskinnedMeshDictionary.Add(name, node);
+            return node;
         }
 
         private static ModelRoot CreateModelRoot(string resourceName, out Scene scene)
