@@ -113,7 +113,10 @@ namespace GUI.Forms
 
                 if (decompile && filePath.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    using (var resource = new Resource())
+                    using (var resource = new Resource
+                    {
+                        FileName = filePath,
+                    })
                     using (var memory = new MemoryStream(output))
                     {
                         try

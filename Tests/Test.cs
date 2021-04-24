@@ -30,7 +30,10 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var resource = new Resource();
+                var resource = new Resource
+                {
+                    FileName = file,
+                };
                 resource.Read(file);
 
                 resources.Add(Path.GetFileName(file), resource);
@@ -68,7 +71,10 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var resource = new Resource();
+                var resource = new Resource
+                {
+                    FileName = file,
+                };
 
                 var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
                 var ms = new MemoryStream();

@@ -24,7 +24,10 @@ namespace ValveResourceFormat.IO
 
             CurrentPackage.ReadEntry(entry, out var output, false);
 
-            var resource = new Resource();
+            var resource = new Resource
+            {
+                FileName = file,
+            };
             resource.Read(new MemoryStream(output));
 
             return resource;
