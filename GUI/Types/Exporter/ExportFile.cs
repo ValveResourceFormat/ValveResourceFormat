@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -11,6 +12,9 @@ namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
+        static ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
+        { ResourceType.Mesh, ResourceType.Model, ResourceType.WorldNode, ResourceType.World };
+
         public static void Export(string fileName, ExportData exportData)
         {
             var resource = exportData.Resource;
@@ -24,7 +28,7 @@ namespace GUI.Types.Exporter
 
             var filter = $"{extension} file|*.{extension}";
 
-            if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
+            if (ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
             {
                 if (exportData.FileType == ExportFileType.GLB)
                 {
@@ -62,23 +66,30 @@ namespace GUI.Types.Exporter
             var extractDialog = new GenericProgressForm();
             extractDialog.OnProcess += (_, __) =>
             {
-                if (resource.ResourceType == ResourceType.Mesh && dialog.FilterIndex == 1)
+                if (dialog.FilterIndex == 1 && ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
                 {
                     var exporter = new GltfModelExporter
                     {
                         ProgressReporter = new Progress<string>(extractDialog.SetProgress),
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
-                    exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource));
-                }
-                else if (resource.ResourceType == ResourceType.Model && dialog.FilterIndex == 1)
-                {
-                    var exporter = new GltfModelExporter
+                    switch(resource.ResourceType)
                     {
-                        ProgressReporter = new Progress<string>(extractDialog.SetProgress),
-                        FileLoader = exportData.VrfGuiContext.FileLoader,
-                    };
-                    exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock);
+                        case ResourceType.Mesh:
+                            exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource));
+                            break;
+                        case ResourceType.Model:
+                            exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock);
+                            break;
+                        case ResourceType.WorldNode:
+                            exporter.ExportToFile(fileName, dialog.FileName, (WorldNode)resource.DataBlock);
+                            break;
+                        case ResourceType.World:
+                            exporter.ExportToFile(fileName, dialog.FileName, (World)resource.DataBlock);
+                            break;
+                        default:
+                            break;
+                    }
                 }
                 else
                 {

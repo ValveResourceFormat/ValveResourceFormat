@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -149,18 +148,9 @@ namespace GUI.Types.Renderer
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
 
-                var scaleMatrix = Matrix4x4.CreateScale(VectorExtensions.ParseVector(scale));
+                var positionVector = EntityTransformHelper.ParseVector(position);
 
-                var positionVector = VectorExtensions.ParseVector(position);
-                var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
-
-                var pitchYawRoll = VectorExtensions.ParseVector(angles);
-                var rollMatrix = Matrix4x4.CreateRotationX(OpenTK.MathHelper.DegreesToRadians(pitchYawRoll.Z)); // Roll
-                var pitchMatrix = Matrix4x4.CreateRotationY(OpenTK.MathHelper.DegreesToRadians(pitchYawRoll.X)); // Pitch
-                var yawMatrix = Matrix4x4.CreateRotationZ(OpenTK.MathHelper.DegreesToRadians(pitchYawRoll.Y)); // Yaw
-
-                var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
-                var transformationMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
                 if (classname == "sky_camera")
                 {
