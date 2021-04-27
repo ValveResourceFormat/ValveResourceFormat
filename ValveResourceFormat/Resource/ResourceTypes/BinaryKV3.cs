@@ -207,9 +207,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (blockCount == 0)
             {
-                if (outRead.ReadUInt32() != 0xFFEEDD00)
+                var noBlocksTrailer = outRead.ReadUInt32();
+                if (noBlocksTrailer != 0xFFEEDD00)
                 {
-                    throw new InvalidDataException("Invalid trailer");
+                    throw new UnexpectedMagicException("Invalid trailer", noBlocksTrailer, nameof(noBlocksTrailer));
                 }
 
                 // Move back to the start of the KV data for reading.
@@ -227,9 +228,10 @@ namespace ValveResourceFormat.ResourceTypes
                 uncompressedBlockLengthArray[i] = outRead.ReadInt32();
             }
 
-            if (outRead.ReadUInt32() != 0xFFEEDD00)
+            var trailer = outRead.ReadUInt32();
+            if (trailer != 0xFFEEDD00)
             {
-                throw new InvalidDataException("Invalid trailer");
+                throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
             }
 
             try
@@ -247,7 +249,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     var input = new Span<byte>(new byte[compressedBlockLength]);
                     var output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
-                    
+
                     RawBinaryReader.Read(input);
                     lz4decoder.DecodeAndDrain(input, output, out _);
 
