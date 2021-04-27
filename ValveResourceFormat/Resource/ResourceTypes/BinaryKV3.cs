@@ -118,25 +118,33 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Format = new Guid(reader.ReadBytes(16));
 
-            var compressionMethod = reader.ReadInt32();
-            var something = reader.ReadInt32();
-            var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
-            var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
-            var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
+            var compressionMethod = reader.ReadUInt32();
+            var compressionDictionaryId = reader.ReadUInt16();
+            var compressionFrameSize = reader.ReadUInt16();
+            var countOfBinaryBytes = reader.ReadUInt32(); // how many bytes (binary blobs)
+            var countOfIntegers = reader.ReadUInt32(); // how many 4 byte values (ints)
+            var countOfEightByteValues = reader.ReadUInt32(); // how many 8 byte values (doubles)
 
             // 8 bytes that help valve preallocate, useless for us
-            reader.BaseStream.Position += 8;
+            var stringAndTypesBufferSize = reader.ReadUInt32();
+            var b = reader.ReadUInt16();
+            var c = reader.ReadUInt16();
 
-            var uncompressedSize = reader.ReadInt32();
-            var compressedSize = reader.ReadInt32();
-            var blockCount = reader.ReadInt32();
-            var blockTotalSize = reader.ReadInt32();
+            var uncompressedSize = reader.ReadUInt32();
+            var compressedSize = reader.ReadInt32(); // uint32
+            var blockCount = reader.ReadUInt32();
+            var blockTotalSize = reader.ReadInt32(); // uint32
 
             if (compressionMethod == 0)
             {
-                if (something != 0)
+                if (compressionDictionaryId != 0)
                 {
-                    throw new UnexpectedMagicException("Unhandled", something, nameof(something));
+                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                }
+
+                if (compressionFrameSize != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
                 var output = new Span<byte>(new byte[compressedSize]);
@@ -145,9 +153,14 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else if (compressionMethod == 1)
             {
-                if (something != 0x40000000)
+                if (compressionDictionaryId != 0)
                 {
-                    throw new UnexpectedMagicException("Unhandled", something, nameof(something));
+                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                }
+
+                if (compressionFrameSize != 16384)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
                 var input = reader.ReadBytes(compressedSize);
@@ -187,6 +200,7 @@ namespace ValveResourceFormat.ResourceTypes
             currentEightBytesOffset = outRead.BaseStream.Position;
 
             outRead.BaseStream.Position += countOfEightByteValues * 8;
+            var stringArrayStartPosition = outRead.BaseStream.Position;
 
             stringArray = new string[countOfStrings];
 
@@ -195,9 +209,7 @@ namespace ValveResourceFormat.ResourceTypes
                 stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
             }
 
-            // 0xFFEEDD00 trailer + size of lz4 compressed block sizes (short) + size of lz4 decompressed block sizes (int)
-            var typesArrayEnd = 4 + (blockCount * 2) + (blockCount * 4);
-            var typesLength = outRead.BaseStream.Length - outRead.BaseStream.Position - typesArrayEnd;
+            var typesLength = stringAndTypesBufferSize - (outRead.BaseStream.Position - stringArrayStartPosition);
             typesArray = new byte[typesLength];
 
             for (var i = 0; i < typesLength; i++)
