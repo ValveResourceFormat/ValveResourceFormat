@@ -39,6 +39,7 @@ namespace GUI.Utils
 
         public static TabPage CreateTab()
         {
+            var bgColor = Color.FromArgb(37, 37, 37);
             var control = new TextBox
             {
                 Dock = DockStyle.Fill,
@@ -47,11 +48,15 @@ namespace GUI.Utils
                 WordWrap = true,
                 ScrollBars = ScrollBars.Vertical,
                 BorderStyle = BorderStyle.None,
-                BackColor = Color.Black,
-                ForeColor = Color.WhiteSmoke,
+                BackColor = bgColor,
+                ForeColor = Color.FromArgb(240, 240, 240),
             };
 
-            var tab = new TabPage("Console");
+            var tab = new TabPage("Console")
+            {
+                BackColor = bgColor,
+                Padding = new Padding(10, 10, 0, 10),
+            };
             tab.Controls.Add(control);
 
             var logger = new MyLogger(control);
