@@ -41,7 +41,8 @@ namespace GUI.Forms
                     if (t.Exception != null)
                     {
                         Console.Error.WriteLine(t.Exception);
-                        SetProgress(t.Exception.Message);
+                        Console.Error.WriteLine("Search existing issues or create a new one here: https://github.com/SteamDatabase/ValveResourceFormat/issues");
+                        SetProgress($"An exception occured, view console tab for more information. ({t.Exception.Message})");
 
                         // TODO: Throwing doesn't actually display the exception ui
                         throw t.Exception;
