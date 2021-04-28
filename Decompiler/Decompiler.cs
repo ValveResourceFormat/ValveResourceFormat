@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
@@ -24,11 +25,11 @@ namespace Decompiler
     {
         private static string GetVersion() => typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 
-        private readonly Dictionary<string, uint> OldPakManifest = new Dictionary<string, uint>();
-        private readonly Dictionary<string, ResourceStat> stats = new Dictionary<string, ResourceStat>();
-        private readonly Dictionary<string, string> uniqueSpecialDependancies = new Dictionary<string, string>();
+        private readonly Dictionary<string, uint> OldPakManifest = new();
+        private readonly Dictionary<string, ResourceStat> stats = new();
+        private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
 
-        private readonly object ConsoleWriterLock = new object();
+        private readonly object ConsoleWriterLock = new();
         private int CurrentFile;
         private int TotalFiles;
 
@@ -48,7 +49,7 @@ namespace Decompiler
         [Option("-b|--block", "Print the content of a specific block. Specify the block via its 4CC name - case matters! (eg. DATA, RERL, REDI, NTRO).", CommandOptionType.SingleValue)]
         public string BlockToPrint { get; }
 
-        [Option("--stats", "Collect stats on all input files and then print them.", CommandOptionType.NoValue)]
+        [Option("--stats", "Collect stats on all input files and then print them. (This is testing VRF over all files at once)", CommandOptionType.NoValue)]
         public bool CollectStats { get; }
 
         [Option("--threads", "If more than 1, files will be processed concurrently.", CommandOptionType.SingleValue)]
@@ -136,7 +137,18 @@ namespace Decompiler
 
                 var dirs = Directory
                     .EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                    .Where(s => s.EndsWith("_c") || s.EndsWith(".vcs"));
+                    .Where(s => s.EndsWith("_c", StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal))
+                    .ToList();
+
+                if (RecursiveSearch && CollectStats)
+                {
+                    var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
+                    var vpks = Directory
+                        .EnumerateFiles(InputFile, "*.vpk", SearchOption.AllDirectories)
+                        .Where(s => !vpkRegex.IsMatch(s));
+
+                    dirs.AddRange(vpks);
+                }
 
                 if (!dirs.Any())
                 {
@@ -294,14 +306,14 @@ namespace Decompiler
 
                     if (extension.EndsWith("_c", StringComparison.Ordinal))
                     {
-                        extension = extension.Substring(0, extension.Length - 2);
+                        extension = extension[..^2];
                     }
                 }
 
                 if (CollectStats)
                 {
-                    string id = string.Format("{0}_{1}", resource.ResourceType, resource.Version);
-                    string info = string.Empty;
+                    var id = $"{resource.ResourceType}_{resource.Version}";
+                    var info = string.Empty;
 
                     switch (resource.ResourceType)
                     {
@@ -342,7 +354,7 @@ namespace Decompiler
                         {
                             foreach (var dep in ((ValveResourceFormat.Blocks.ResourceEditInfoStructs.SpecialDependencies)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies]).List)
                             {
-                                uniqueSpecialDependancies[string.Format("{0} \"{1}\"", dep.CompilerIdentifier, dep.String)] = path;
+                                uniqueSpecialDependancies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
                             }
                         }
                     }
@@ -374,7 +386,7 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                File.AppendAllText("exceptions.txt", string.Format("---------------\nFile: {0}\nException: {1}\n\n", path, e));
+                File.AppendAllText("exceptions.txt", $"---------------\nFile: {path}\nException: {e}\n\n");
 
                 lock (ConsoleWriterLock)
                 {
@@ -670,10 +682,8 @@ namespace Decompiler
 
                             package.ReadEntry(file, out var output);
 
-                            using (var entryStream = new MemoryStream(output))
-                            {
-                                ProcessFile(file.GetFullPath(), entryStream);
-                            }
+                            using var entryStream = new MemoryStream(output);
+                            ProcessFile(file.GetFullPath(), entryStream);
                         }
                     }
                 }
@@ -695,7 +705,7 @@ namespace Decompiler
 
                         if (split.Length == 2)
                         {
-                            OldPakManifest.Add(split[1], uint.Parse(split[0]));
+                            OldPakManifest.Add(split[1], uint.Parse(split[0], CultureInfo.InvariantCulture));
                         }
                     }
 
@@ -709,17 +719,16 @@ namespace Decompiler
 
                 if (CachedManifest)
                 {
-                    using (var file = new StreamWriter(manifestPath))
-                    {
-                        foreach (var hash in OldPakManifest)
-                        {
-                            if (package.FindEntry(hash.Key) == null)
-                            {
-                                Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
-                            }
+                    using var file = new StreamWriter(manifestPath);
 
-                            file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                    foreach (var hash in OldPakManifest)
+                    {
+                        if (package.FindEntry(hash.Key) == null)
+                        {
+                            Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
                         }
+
+                        file.WriteLine("{0} {1}", hash.Value, hash.Key);
                     }
                 }
             }
@@ -789,12 +798,7 @@ namespace Decompiler
                     {
                         resource.Read(memory);
 
-                        extension = FileExtract.GetExtension(resource);
-
-                        if (extension == null)
-                        {
-                            extension = type.Substring(0, type.Length - 2);
-                        }
+                        extension = FileExtract.GetExtension(resource) ?? type[..^2];
 
                         // TODO: Hook this up in FileExtract
                         if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
