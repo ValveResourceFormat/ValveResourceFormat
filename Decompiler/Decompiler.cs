@@ -386,10 +386,12 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                File.AppendAllText("exceptions.txt", $"---------------\nFile: {path}\nException: {e}\n\n");
+                var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
 
                 lock (ConsoleWriterLock)
                 {
+                    File.AppendAllText(exceptionsFileName, $"---------------\nFile: {path}\nException: {e}\n\n");
+
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(e);
                     Console.ResetColor();
@@ -831,10 +833,12 @@ namespace Decompiler
                     }
                     catch (Exception e)
                     {
-                        File.AppendAllText("exceptions.txt", $"---------------\nFile: {filePath}\nException: {e}\n\n");
+                        var exceptionsFileName = CollectStats ? $"exceptions.{file.TypeName}.txt" : "exceptions.txt";
 
                         lock (ConsoleWriterLock)
                         {
+                            File.AppendAllText(exceptionsFileName, $"---------------\nFile: {filePath}\nException: {e}\n\n");
+
                             Console.ForegroundColor = ConsoleColor.DarkRed;
                             Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
                             Console.ResetColor();
