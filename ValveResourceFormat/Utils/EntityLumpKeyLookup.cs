@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Utils
@@ -7,19 +7,11 @@ namespace ValveResourceFormat.Utils
     {
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
-        private static Dictionary<string, uint> Lookup = new Dictionary<string, uint>();
+        private static readonly ConcurrentDictionary<string, uint> Lookup = new();
 
         public static uint Get(string key)
         {
-            if (Lookup.ContainsKey(key))
-            {
-                return Lookup[key];
-            }
-
-            var hash = MurmurHash2.Hash(key, MURMUR2SEED);
-            Lookup[key] = hash;
-
-            return hash;
+            return Lookup.GetOrAdd(key, s => MurmurHash2.Hash(s, MURMUR2SEED));
         }
     }
 }
