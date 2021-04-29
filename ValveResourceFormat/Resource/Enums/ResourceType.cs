@@ -105,6 +105,9 @@ namespace ValveResourceFormat
 
         [Extension("item")]
         ArtifactItem,
+
+        [Extension("sbox")] // TODO: Specify each type individually when sbox ships (sound, decal, surface, etc)
+        SboxData,
 #pragma warning restore 1591
     }
 }

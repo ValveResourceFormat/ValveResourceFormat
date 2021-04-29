@@ -413,6 +413,7 @@ namespace ValveResourceFormat
                 case ResourceType.ResourceManifest:
                     return new ResourceManifest();
 
+                case ResourceType.SboxData:
                 case ResourceType.ArtifactItem:
                     return new Plaintext();
 
@@ -507,6 +508,8 @@ namespace ValveResourceFormat
                     return ResourceType.PanoramaVectorGraphic;
                 case "DotaItem":
                     return ResourceType.ArtifactItem;
+                case "SBData":
+                    return ResourceType.SboxData;
             }
 
             if (Enum.TryParse(identifier, false, out ResourceType resourceType))
