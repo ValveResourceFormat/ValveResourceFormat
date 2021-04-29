@@ -43,7 +43,7 @@ namespace ValveResourceFormat
         public static string ReadOffsetString(this BinaryReader stream, Encoding encoding)
         {
             var currentOffset = stream.BaseStream.Position;
-            var offset = stream.ReadUInt32();
+            var offset = stream.ReadInt32();
 
             if (offset == 0)
             {
