@@ -287,7 +287,7 @@ namespace Decompiler
             ProcessFile(path, fs);
         }
 
-        private void ProcessFile(string path, Stream stream)
+        private void ProcessFile(string path, Stream stream, string originalPath = null)
         {
             var resource = new Resource
             {
@@ -390,7 +390,14 @@ namespace Decompiler
 
                 lock (ConsoleWriterLock)
                 {
-                    File.AppendAllText(exceptionsFileName, $"---------------\nFile: {path}\nException: {e}\n\n");
+                    if (originalPath == null)
+                    {
+                        File.AppendAllText(exceptionsFileName, $"---------------\nFile: {path}\nException: {e}\n\n");
+                    }
+                    else
+                    {
+                        File.AppendAllText(exceptionsFileName, $"---------------\nParent file: {originalPath}\nFile: {path}\nException: {e}\n\n");
+                    }
 
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(e);
@@ -685,7 +692,7 @@ namespace Decompiler
                             package.ReadEntry(file, out var output);
 
                             using var entryStream = new MemoryStream(output);
-                            ProcessFile(file.GetFullPath(), entryStream);
+                            ProcessFile(file.GetFullPath(), entryStream, path);
                         }
                     }
                 }
