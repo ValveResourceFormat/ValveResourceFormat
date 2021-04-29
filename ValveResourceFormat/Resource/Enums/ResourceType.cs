@@ -102,6 +102,9 @@ namespace ValveResourceFormat
 
         [Extension("vmap")]
         Map,
+
+        [Extension("item")]
+        ArtifactItem,
 #pragma warning restore 1591
     }
 }

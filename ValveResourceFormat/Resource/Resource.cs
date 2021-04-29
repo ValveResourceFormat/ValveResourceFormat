@@ -413,6 +413,9 @@ namespace ValveResourceFormat
                 case ResourceType.ResourceManifest:
                     return new ResourceManifest();
 
+                case ResourceType.ArtifactItem:
+                    return new Plaintext();
+
                 case ResourceType.Mesh:
                     if (Version == 0)
                     {
@@ -502,6 +505,8 @@ namespace ValveResourceFormat
                     return ResourceType.Panorama;
                 case "VectorGraphic":
                     return ResourceType.PanoramaVectorGraphic;
+                case "DotaItem":
+                    return ResourceType.ArtifactItem;
             }
 
             if (Enum.TryParse(identifier, false, out ResourceType resourceType))
