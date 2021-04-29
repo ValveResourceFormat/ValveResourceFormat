@@ -257,13 +257,23 @@ namespace ValveResourceFormat.ResourceTypes
 
                 for (var i = 0; i < blockCount; i++)
                 {
-                    var compressedBlockLength = outRead.ReadUInt16();
+                    Span<byte> output = null;
 
-                    var input = new Span<byte>(new byte[compressedBlockLength]);
-                    var output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
+                    if (compressionMethod == 0)
+                    {
+                        output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
 
-                    RawBinaryReader.Read(input);
-                    lz4decoder.DecodeAndDrain(input, output, out _);
+                        RawBinaryReader.Read(output);
+                    }
+                    else if (compressionMethod == 1)
+                    {
+                        var compressedBlockLength = outRead.ReadUInt16();
+                        var input = new Span<byte>(new byte[compressedBlockLength]);
+                        output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
+
+                        RawBinaryReader.Read(input);
+                        lz4decoder.DecodeAndDrain(input, output, out _);
+                    }
 
                     uncompressedBlockDataWriter.Write(output);
                 }
