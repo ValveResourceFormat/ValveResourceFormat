@@ -34,8 +34,9 @@ namespace GUI.Types.Renderer
                     .ToArray()))
                  .ToArray();
 
-            if (bindPose.Length == 0){
-                bindPose = new Matrix4x4[] {Matrix4x4.Identity };
+            if (bindPose.Length == 0)
+            {
+                bindPose = new Matrix4x4[] { Matrix4x4.Identity };
             }
             //m_boneParents
 
@@ -132,7 +133,7 @@ namespace GUI.Types.Renderer
                     Vector3[] vertices = null;
                     try
                     {
-                        //NTRO has vertcices as array of structs
+                        //NTRO has vertices as array of structs
                         var verticesArr = mesh.GetArray("m_Vertices");
                         vertices = verticesArr.Select(v => v.ToVector3()).ToArray();
                     }
@@ -155,7 +156,7 @@ namespace GUI.Types.Renderer
                         verts.Add(v.X);
                         verts.Add(v.Y);
                         verts.Add(v.Z);
-                        //color red
+                        //color green
                         verts.Add(0);
                         verts.Add(1);
                         verts.Add(0);
