@@ -208,6 +208,11 @@ namespace GUI.Types.Viewers
                     materialRendererTab.Controls.Add(materialViewerControl.Control);
                     resTabs.TabPages.Add(materialRendererTab);
                     break;
+                case ResourceType.PhysicsCollisionMesh:
+                    var physRendererTab = new TabPage("PHYSICS");
+                    physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext,(PhysAggregateData) resource.DataBlock).ViewerControl);
+                    resTabs.TabPages.Add(physRendererTab);
+                    break;
             }
 
             foreach (var block in resource.Blocks)

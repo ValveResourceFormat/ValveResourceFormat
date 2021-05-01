@@ -18,6 +18,8 @@ namespace GUI.Types.Renderer
     {
         private readonly World world;
         private readonly WorldNode worldNode;
+        private IEnumerable<PhysSceneNode> triggerNodes;
+        private IEnumerable<PhysSceneNode> colliderNodes;
         private CheckedListBox worldLayersComboBox;
         private ComboBox cameraComboBox;
         private SavedCameraPositionsControl savedCameraPositionsControl;
@@ -47,6 +49,21 @@ namespace GUI.Types.Renderer
             savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
             savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
             ViewerControl.AddControl(savedCameraPositionsControl);
+
+            ViewerControl.AddCheckBox("Show triggers", false, v =>
+            {
+                foreach (var n in triggerNodes)
+                {
+                    n.Enabled = v;
+                }
+            });
+            ViewerControl.AddCheckBox("Show entity colliders", false, v =>
+            {
+                foreach (var n in colliderNodes)
+                {
+                    n.Enabled = v;
+                }
+            });
         }
 
         private void OnRestoreCameraRequest(object sender, string e)
@@ -132,6 +149,10 @@ namespace GUI.Types.Renderer
 
                     cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray<object>());
                 }
+
+                var physNodes = Scene.AllNodes.OfType<PhysSceneNode>().Distinct();
+                triggerNodes = physNodes.Where(n => n.IsTrigger);
+                colliderNodes = physNodes.Where(n => !n.IsTrigger);
             }
 
             if (worldNode != null)

@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
     {
         private readonly Model model;
         private readonly Mesh mesh;
+        private PhysAggregateData phys;
         private ComboBox animationComboBox;
         private CheckBox animationPlayPause;
         private GLViewerTrackBarControl animationTrackBar;
@@ -22,6 +23,7 @@ namespace GUI.Types.Renderer
         private ComboBox materialGroupListBox;
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
+        private PhysSceneNode physSceneNode;
 
         public GLModelViewer(VrfGuiContext guiContext, Model model)
             : base(guiContext, Frustum.CreateEmpty())
@@ -33,6 +35,12 @@ namespace GUI.Types.Renderer
            : base(guiContext, Frustum.CreateEmpty())
         {
             this.mesh = mesh;
+        }
+
+        public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys)
+           : base(guiContext, Frustum.CreateEmpty())
+        {
+            this.phys = phys;
         }
 
         protected override void InitializeControl()
@@ -69,6 +77,27 @@ namespace GUI.Types.Renderer
                 SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
                 Scene.Add(modelSceneNode, false);
 
+                phys = model.GetEmbeddedPhys();
+                if (phys == null)
+                {
+                    var refPhysicsPaths = model.GetReferencedPhysNames();
+                    if (refPhysicsPaths.Any())
+                    {
+                        //TODO are there any models with more than one vphys?
+                        if (refPhysicsPaths.Count() != 1)
+                        {
+                            Console.WriteLine($"Model has more than 1 vphys ({refPhysicsPaths.Count()})." +
+                                " Please report this on https://github.com/SteamDatabase/ValveResourceFormat and provide the file that caused this.");
+                        }
+
+                        var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refPhysicsPaths.First() + "_c");
+                        if (newResource != null)
+                        {
+                            phys = (PhysAggregateData)newResource.DataBlock;
+                        }
+                    }
+                }
+
                 var meshGroups = modelSceneNode.GetMeshGroups();
 
                 if (meshGroups.Count() > 1)
@@ -89,7 +118,7 @@ namespace GUI.Types.Renderer
 
                 if (materialGroups.Count() > 1)
                 {
-                    materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup,_) =>
+                    materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         modelSceneNode?.SetSkin(selectedGroup);
                     });
@@ -122,6 +151,17 @@ namespace GUI.Types.Renderer
             {
                 meshSceneNode = new MeshSceneNode(Scene, mesh);
                 Scene.Add(meshSceneNode, false);
+            }
+
+            if (phys != null)
+            {
+                physSceneNode = new PhysSceneNode(Scene, phys);
+                Scene.Add(physSceneNode, false);
+
+                //disabled by default. Enable if viewing only phys or model without meshes
+                physSceneNode.Enabled = (modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any());
+
+                ViewerControl.AddCheckBox("Show Physics", physSceneNode.Enabled, (v) => { physSceneNode.Enabled = v; });
             }
         }
 
