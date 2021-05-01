@@ -84,6 +84,12 @@ namespace GUI.Types.Renderer
                     if (refPhysicsPaths.Any())
                     {
                         //TODO are there any models with more than one vphys?
+                        if (refPhysicsPaths.Count() != 1)
+                        {
+                            Console.WriteLine($"Model has more than 1 vphys ({refPhysicsPaths.Count()})." +
+                                " Please report this on https://github.com/SteamDatabase/ValveResourceFormat and provide the file that caused this.");
+                        }
+
                         var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refPhysicsPaths.First() + "_c");
                         if (newResource != null)
                         {
