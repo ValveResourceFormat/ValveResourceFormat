@@ -33,6 +33,10 @@ namespace GUI.Types.Renderer
                     .Select(m => Convert.ToSingle(m.Value))
                     .ToArray()))
                  .ToArray();
+
+            if (bindPose.Length == 0){
+                bindPose = new Matrix4x4[] {Matrix4x4.Identity };
+            }
             //m_boneParents
 
             bool firstBbox = true;
