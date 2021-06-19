@@ -15,10 +15,6 @@
     <AssemblyName>VRF</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="5.0.3">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="NAudio" Version="2.0.0" />
     <PackageReference Include="NLayer" Version="1.13.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.2.0" />
