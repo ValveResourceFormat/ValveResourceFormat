@@ -147,15 +147,11 @@ namespace Tests
         {
             Assert.AreEqual(ResourceType.Sound, resource.ResourceType);
 
-#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
-            using (var sha1 = new SHA1CryptoServiceProvider())
-            {
-                var sound = ((Sound)resource.DataBlock).GetSound();
-                var actualHash = BitConverter.ToString(sha1.ComputeHash(sound)).Replace("-", "", StringComparison.Ordinal);
+            using var hash = SHA256.Create();
+            var sound = ((Sound)resource.DataBlock).GetSound();
+            var actualHash = BitConverter.ToString(hash.ComputeHash(sound)).Replace("-", "", StringComparison.Ordinal);
 
-                Assert.AreEqual("59AC27F1A4395D8D02E4B3ADAA99023F243C8B41", actualHash);
-            }
-#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
+            Assert.AreEqual("1F8BF83F3E827A3C02C6AE6B6BD23BBEBD4E18C4F877D092CF0C5B800DAAB2B7", actualHash);
         }
 
         [Test]
