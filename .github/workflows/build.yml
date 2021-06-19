@@ -23,7 +23,7 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 5.0.x
+        dotnet-version: 6.0.x
 
     - name: Build CLI
       run: dotnet build -c Release ./Decompiler/Decompiler.csproj
@@ -43,19 +43,19 @@ jobs:
 
     - name: Publish GUI
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 GUI/GUI.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime win-x64 GUI/GUI.csproj
 
     - name: Publish Decompiler (Windows)
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime win-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (Linux)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime linux-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (Mac)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --runtime osx-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
 
     - name: Upload GUI
       uses: actions/upload-artifact@v2
