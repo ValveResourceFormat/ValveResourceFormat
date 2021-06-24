@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             public string String { get; set; }
             public string CompilerIdentifier { get; set; }
-            public uint Fingerprint { get; set; }
-            public uint UserData { get; set; }
+            public long Fingerprint { get; set; }
+            public long UserData { get; set; }
 
             public void WriteText(IndentedTextWriter writer)
             {

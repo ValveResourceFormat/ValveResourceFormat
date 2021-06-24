@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -28,6 +30,24 @@ namespace ValveResourceFormat.Blocks
             };
             kv3.Read(reader, resource);
             BackingData = kv3;
+
+            var specialDependenciesRedi = new SpecialDependencies();
+            var specialDependencies = kv3.AsKeyValueCollection().GetArray("m_SpecialDependencies");
+
+            foreach (var specialDependency in specialDependencies)
+            {
+                var specialDependencyRedi = new SpecialDependencies.SpecialDependency
+                {
+                    String = specialDependency.GetProperty<string>("m_String"),
+                    CompilerIdentifier = specialDependency.GetProperty<string>("m_CompilerIdentifier"),
+                    Fingerprint = specialDependency.GetIntegerProperty("m_nFingerprint"),
+                    UserData = specialDependency.GetIntegerProperty("m_nUserData"),
+                };
+
+                specialDependenciesRedi.List.Add(specialDependencyRedi);
+            }
+
+            Structs.Add(REDIStruct.SpecialDependencies, specialDependenciesRedi);
 
             foreach (var kv in kv3.Data)
             {
