@@ -20,6 +20,7 @@ namespace ValveResourceFormat
         ASEQ,
         AGRP,
         PHYS,
+        INSG,
         SrMa,
     }
 }

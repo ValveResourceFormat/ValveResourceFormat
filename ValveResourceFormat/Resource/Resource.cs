@@ -321,6 +321,7 @@ namespace ValveResourceFormat
                 nameof(BlockType.MBUF) => new MBUF(),
                 nameof(BlockType.CTRL) => new BinaryKV3(BlockType.CTRL),
                 nameof(BlockType.MDAT) => new BinaryKV3(BlockType.MDAT),
+                nameof(BlockType.INSG) => new BinaryKV3(BlockType.INSG),
                 nameof(BlockType.SrMa) => new BinaryKV3(BlockType.SrMa), // SourceMap
                 nameof(BlockType.MRPH) => new KeyValuesOrNTRO(BlockType.MRPH, "MorphSetData_t"),
                 nameof(BlockType.ANIM) => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
