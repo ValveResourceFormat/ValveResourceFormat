@@ -171,6 +171,25 @@ namespace ValveResourceFormat.ResourceTypes
                 outWrite.Write(output);
                 outWrite.BaseStream.Position = 0;
             }
+            else if (compressionMethod == 2)
+            {
+                if (compressionDictionaryId != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                }
+
+                if (compressionFrameSize != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                }
+
+                var input = reader.ReadBytes(compressedSize);
+                var zstd = new ZstdSharp.Decompressor();
+                var output = zstd.Unwrap(input);
+
+                outWrite.Write(output);
+                outWrite.BaseStream.Position = 0;
+            }
             else
             {
                 throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
