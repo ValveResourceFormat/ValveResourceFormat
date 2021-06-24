@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat
 {
@@ -71,13 +69,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the ResourceEditInfo block.
         /// </summary>
-        public ResourceEditInfo EditInfo
-        {
-            get
-            {
-                return (ResourceEditInfo)GetBlockByType(BlockType.REDI);
-            }
-        }
+        public ResourceEditInfo EditInfo { get; private set; }
 
         /// <summary>
         /// Gets the ResourceIntrospectionManifest block.
@@ -213,7 +205,7 @@ namespace ValveResourceFormat
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
                 // TODO: Find a better way without checking against resource type
-                if (size >= 4 && blockType == "DATA" && !IsHandledResourceType(ResourceType))
+                if (size >= 4 && blockType == nameof(BlockType.DATA) && !IsHandledResourceType(ResourceType))
                 {
                     Reader.BaseStream.Position = offset;
 
@@ -239,16 +231,16 @@ namespace ValveResourceFormat
                 block.Offset = offset;
                 block.Size = size;
 
-                if (blockType == "REDI" || blockType == "NTRO")
-                {
-                    block.Read(Reader, this);
-                }
-
                 Blocks.Add(block);
 
                 switch (block.Type)
                 {
                     case BlockType.REDI:
+                    case BlockType.RED2:
+                        block.Read(Reader, this);
+
+                        EditInfo = (ResourceEditInfo)block;
+
                         // Try to determine resource type by looking at first compiler indentifier
                         if (ResourceType == ResourceType.Unknown && EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                         {
@@ -263,6 +255,8 @@ namespace ValveResourceFormat
                         break;
 
                     case BlockType.NTRO:
+                        block.Read(Reader, this);
+
                         if (ResourceType == ResourceType.Unknown && IntrospectionManifest.ReferencedStructs.Count > 0)
                         {
                             switch (IntrospectionManifest.ReferencedStructs[0].Name)
@@ -290,7 +284,7 @@ namespace ValveResourceFormat
 
             foreach (var block in Blocks)
             {
-                if (block.Type != BlockType.REDI && block.Type != BlockType.NTRO)
+                if (block.Type is not BlockType.REDI and not BlockType.RED2 and not BlockType.NTRO)
                 {
                     block.Read(Reader, this);
                 }
@@ -314,58 +308,27 @@ namespace ValveResourceFormat
 
         private Block ConstructFromType(string input)
         {
-            switch (input)
+            return input switch
             {
-                case "DATA":
-                    return ConstructResourceType();
-
-                case "REDI":
-                    return new ResourceEditInfo();
-
-                case "RERL":
-                    return new ResourceExtRefList();
-
-                case "NTRO":
-                    return new ResourceIntrospectionManifest();
-
-                case "VBIB":
-                    return new VBIB();
-
-                case "VXVS":
-                    return new VXVS();
-
-                case "SNAP":
-                    return new SNAP();
-
-                case "MBUF":
-                    return new MBUF();
-
-                case "CTRL":
-                    return new BinaryKV3(BlockType.CTRL);
-
-                case "MDAT":
-                    return new BinaryKV3(BlockType.MDAT);
-
-                case "SrMa": // SourceMap
-                    return new BinaryKV3(BlockType.SrMa);
-
-                case "MRPH":
-                    return new KeyValuesOrNTRO(BlockType.MRPH, "MorphSetData_t");
-
-                case "ANIM":
-                    return new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t");
-
-                case "ASEQ":
-                    return new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t");
-
-                case "AGRP":
-                    return new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t");
-
-                case "PHYS":
-                    return new PhysAggregateData(BlockType.PHYS);
-            }
-
-            throw new ArgumentException(string.Format("Unrecognized block type '{0}'", input));
+                nameof(BlockType.DATA) => ConstructResourceType(),
+                nameof(BlockType.REDI) => new ResourceEditInfo(),
+                nameof(BlockType.RED2) => new ResourceEditInfo2(),
+                nameof(BlockType.RERL) => new ResourceExtRefList(),
+                nameof(BlockType.NTRO) => new ResourceIntrospectionManifest(),
+                nameof(BlockType.VBIB) => new VBIB(),
+                nameof(BlockType.VXVS) => new VXVS(),
+                nameof(BlockType.SNAP) => new SNAP(),
+                nameof(BlockType.MBUF) => new MBUF(),
+                nameof(BlockType.CTRL) => new BinaryKV3(BlockType.CTRL),
+                nameof(BlockType.MDAT) => new BinaryKV3(BlockType.MDAT),
+                nameof(BlockType.SrMa) => new BinaryKV3(BlockType.SrMa), // SourceMap
+                nameof(BlockType.MRPH) => new KeyValuesOrNTRO(BlockType.MRPH, "MorphSetData_t"),
+                nameof(BlockType.ANIM) => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
+                nameof(BlockType.ASEQ) => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
+                nameof(BlockType.AGRP) => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
+                nameof(BlockType.PHYS) => new PhysAggregateData(BlockType.PHYS),
+                _ => throw new ArgumentException($"Unrecognized block type '{input}'"),
+            };
         }
 
         private ResourceData ConstructResourceType()

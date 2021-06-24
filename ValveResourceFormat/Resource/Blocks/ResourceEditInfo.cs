@@ -74,31 +74,20 @@ namespace ValveResourceFormat.Blocks
 
         private static REDIBlock ConstructStruct(REDIStruct id)
         {
-            switch (id)
+            return id switch
             {
-                case REDIStruct.InputDependencies:
-                    return new InputDependencies();
-                case REDIStruct.AdditionalInputDependencies:
-                    return new AdditionalInputDependencies();
-                case REDIStruct.ArgumentDependencies:
-                    return new ArgumentDependencies();
-                case REDIStruct.SpecialDependencies:
-                    return new SpecialDependencies();
-                case REDIStruct.CustomDependencies:
-                    return new CustomDependencies();
-                case REDIStruct.AdditionalRelatedFiles:
-                    return new AdditionalRelatedFiles();
-                case REDIStruct.ChildResourceList:
-                    return new ChildResourceList();
-                case REDIStruct.ExtraIntData:
-                    return new ExtraIntData();
-                case REDIStruct.ExtraFloatData:
-                    return new ExtraFloatData();
-                case REDIStruct.ExtraStringData:
-                    return new ExtraStringData();
-            }
-
-            throw new InvalidDataException("Unknown struct in REDI block.");
+                REDIStruct.InputDependencies => new InputDependencies(),
+                REDIStruct.AdditionalInputDependencies => new AdditionalInputDependencies(),
+                REDIStruct.ArgumentDependencies => new ArgumentDependencies(),
+                REDIStruct.SpecialDependencies => new SpecialDependencies(),
+                REDIStruct.CustomDependencies => new CustomDependencies(),
+                REDIStruct.AdditionalRelatedFiles => new AdditionalRelatedFiles(),
+                REDIStruct.ChildResourceList => new ChildResourceList(),
+                REDIStruct.ExtraIntData => new ExtraIntData(),
+                REDIStruct.ExtraFloatData => new ExtraFloatData(),
+                REDIStruct.ExtraStringData => new ExtraStringData(),
+                _ => throw new InvalidDataException($"Unknown struct in REDI block: {id}"),
+            };
         }
     }
 }

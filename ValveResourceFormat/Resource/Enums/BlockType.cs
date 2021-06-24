@@ -6,6 +6,7 @@ namespace ValveResourceFormat
     {
         RERL = 1,
         REDI,
+        RED2,
         NTRO,
         DATA,
         VBIB,
