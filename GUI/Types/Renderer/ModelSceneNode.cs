@@ -33,14 +33,13 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public AnimationController AnimationController => animationController;
+        public AnimationController AnimationController { get; } = new();
         public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
 
         private readonly List<RenderableMesh> meshRenderers = new List<RenderableMesh>();
         private readonly List<Animation> animations = new List<Animation>();
         private Dictionary<string, string> skinMaterials;
 
-        private AnimationController animationController;
         private Animation activeAnimation;
         private int[] animationTextures;
         private Skeleton[] skeletons;
@@ -76,7 +75,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            animationController.Update(context.Timestep);
+            AnimationController.Update(context.Timestep);
 
             for (var i = 0; i < skeletons.Length; i++)
             {
@@ -94,7 +93,7 @@ namespace GUI.Types.Renderer
                     animationMatrices[(j * 16) + 15] = 1.0f;
                 }
 
-                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(animationController.Time, skeleton);
+                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(AnimationController.Time, skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -212,7 +211,6 @@ namespace GUI.Types.Renderer
 
         private void LoadAnimations()
         {
-            animationController = new AnimationController();
             var animGroupPaths = Model.GetReferencedAnimationGroupNames();
             var emebeddedAnims = Model.GetEmbeddedAnimations();
 
@@ -280,7 +278,7 @@ namespace GUI.Types.Renderer
         public void SetAnimation(string animationName)
         {
             activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
-            animationController.SetAnimation(activeAnimation);
+            AnimationController.SetAnimation(activeAnimation);
 
             if (activeAnimation != default)
             {
