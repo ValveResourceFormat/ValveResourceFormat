@@ -5,7 +5,7 @@ body:
 - type: textarea
   attributes:
     label: Describe the bug
-    description: A clear and concise description of what the bug is.
+    description: A clear and concise description of what the bug is. Include the full error details and the log if possible.
   validations:
     required: true
 
@@ -18,8 +18,8 @@ body:
 
 - type: textarea
   attributes:
-    label: Reference file in a Valve game
-    description: Give a filename that causes this behavior.
+    label: Reference file in a Source 2 game
+    description: Give a filename (and path to it) that causes this behavior.
   validations:
     required: true
 
