@@ -56,7 +56,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: matrix.os == 'windows-latest'
       with:
-        name: VRF GUI
+        name: VRF-GUI
         path: GUI/bin/Release/win-x64/publish
 
     - name: Upload nupkg
@@ -70,21 +70,21 @@ jobs:
       uses: actions/upload-artifact@v2
       if: matrix.os == 'windows-latest'
       with:
-        name: Decompiler for Windows
+        name: Decompiler-windows
         path: Decompiler/bin/Release/win-x64/publish
 
     - name: Upload Decompiler (Linux)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler for Linux
+        name: Decompiler-linux
         path: Decompiler/bin/Release/linux-x64/publish
 
     - name: Upload Decompiler (Mac)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'macos-latest'
       with:
-        name: Decompiler for macOS
+        name: Decompiler-macos
         path: Decompiler/bin/Release/osx-x64/publish
 
     - name: Upload test coverage
@@ -104,3 +104,45 @@ jobs:
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts
+
+    - name: Display artifacts folder structure
+      run: ls -Rl
+      working-directory: artifacts
+
+    - name: Create release files
+      run: |
+       mkdir release
+       chmod +x artifacts/Decompiler-linux/Decompiler
+       chmod +x artifacts/Decompiler-macos/Decompiler
+       zip -9j release/Decompiler-windows.zip artifacts/Decompiler-windows/*
+       zip -9j release/Decompiler-linux.zip artifacts/Decompiler-linux/*
+       zip -9j release/Decompiler-macos.zip artifacts/Decompiler-macos/*
+       mv artifacts/VRF-GUI/VRF.exe release/
+       mv artifacts/nupkg/*.nupkg release/
+
+    - name: Display structure of archived files
+      run: ls -Rl
+      working-directory: release
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: Release-folder-test
+        path: release/Decompiler-linux.zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: true
+        files: release/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
