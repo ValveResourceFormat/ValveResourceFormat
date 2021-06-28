@@ -28,12 +28,3 @@ artifacts:
   name: GUI
 - path: '**\*.nupkg'
   name: ValveResourceFormat
-
-deploy:
-- provider: GitHub
-  auth_token:
-    secure: hnDOlho1DI06VB/xFX6uvqoBUxo41/jV/186OLIMxOzFfsBaPoTavjVSqQdVrebT
-  draft: false
-  prerelease: true
-  on:
-    APPVEYOR_REPO_TAG: true
