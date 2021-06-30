@@ -4,9 +4,6 @@
     <a href="https://github.com/SteamDatabase/ValveResourceFormat/actions">
         <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/SteamDatabase/ValveResourceFormat/CI?logo=github&style=for-the-badge&logoColor=fff">
     </a>
-    <a href="https://ci.appveyor.com/project/xPaw/ValveResourceFormat">
-        <img src="https://img.shields.io/appveyor/ci/xPaw/valveresourceformat/master.svg?label=AppVeyor&logo=appveyor&style=for-the-badge&logoColor=fff">
-    </a>
     <a href="https://www.nuget.org/packages/ValveResourceFormat/">
         <img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?label=NuGet&logo=nuget&style=for-the-badge&logoColor=fff&colorB=4c1">
     </a>
