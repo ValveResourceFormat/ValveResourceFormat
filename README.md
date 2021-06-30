@@ -20,7 +20,7 @@ This repository is split into three components:
 - **GUI Viewer** - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
 - **Library** - Provides public API to parse resource files and some helpers.
 
-⚒ [You can download latest unstable build from AppVeyor](https://ci.appveyor.com/project/xPaw/valveresourceformat/branch/master/artifacts).
+⚒ [View the official website for downloads](https://vrf.steamdb.info/).
 
 ## Join our Discord
 
