@@ -33,7 +33,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (!resource.ContainsBlockType(BlockType.NTRO))
             {
-                var kv3 = new BinaryKV3
+                var kv3 = new BinaryKV3(KVBlockType)
                 {
                     Offset = Offset,
                     Size = Size,
