@@ -268,42 +268,43 @@ namespace ValveResourceFormat.ResourceTypes
             try
             {
                 using var uncompressedBlocks = new MemoryStream(blockTotalSize);
-                using var uncompressedBlockDataWriter = new BinaryWriter(uncompressedBlocks);
                 uncompressedBlockDataReader = new BinaryReader(uncompressedBlocks);
 
-                LZ4ChainDecoder lz4decoder = null;
-
-                if (compressionMethod == 1)
+                if (compressionMethod == 0)
+                {
+                    for (var i = 0; i < blockCount; i++)
+                    {
+                        RawBinaryReader.BaseStream.CopyTo(uncompressedBlocks, uncompressedBlockLengthArray[i]);
+                    }
+                }
+                else if (compressionMethod == 1)
                 {
                     // TODO: Do we need to pass blockTotalSize here?
-                    lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
-                }
+                    using var lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
 
-                for (var i = 0; i < blockCount; i++)
-                {
-                    Span<byte> output = null;
-
-                    if (compressionMethod == 0)
-                    {
-                        output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
-
-                        RawBinaryReader.Read(output);
-                    }
-                    else if (compressionMethod == 1)
+                    for (var i = 0; i < blockCount; i++)
                     {
                         var compressedBlockLength = outRead.ReadUInt16();
                         var input = new Span<byte>(new byte[compressedBlockLength]);
-                        output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
+                        var output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
 
                         RawBinaryReader.Read(input);
                         lz4decoder.DecodeAndDrain(input, output, out _);
-                    }
-                    else
-                    {
-                        throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
-                    }
 
-                    uncompressedBlockDataWriter.Write(output);
+                        uncompressedBlocks.Write(output);
+                    }
+                }
+                else if (compressionMethod == 2)
+                {
+                    // This is supposed to be a streaming decompress using ZSTD_decompressStream,
+                    // but as it turns out, zstd unwrap above already decompressed all of the blocks for us,
+                    // so all we need to do is just copy the buffer.
+                    // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
+                    outRead.BaseStream.CopyTo(uncompressedBlocks);
+                }
+                else
+                {
+                    throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
                 }
 
                 uncompressedBlocks.Position = 0;
