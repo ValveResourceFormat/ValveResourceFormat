@@ -41,7 +41,26 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var decoderArray = MakeDecoderArray(animationData.GetArray("m_decoderArray"));
             var segmentArray = animationData.GetArray("m_segmentArray");
 
-            return animArray.Select(anim => new Animation(anim, decodeKey, decoderArray, segmentArray));
+            var animations = new List<Animation>();
+
+            foreach (var anim in animArray)
+            {
+                // Here be dragons. Animation decoding is complicated, and we have not
+                // fully figured it out, especially all of the decoder types.
+                // If an animation decoder throws, this prevents the model from loading or exporting,
+                // so we catch all exceptions here and skip over the animation.
+                // Obviously we want to properly support animation decoding, but we are not there yet.
+                try
+                {
+                    animations.Add(new Animation(anim, decodeKey, decoderArray, segmentArray));
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e);
+                }
+            }
+
+            return animations;
         }
 
         public static IEnumerable<Animation> FromResource(Resource resource, IKeyValueCollection decodeKey)
