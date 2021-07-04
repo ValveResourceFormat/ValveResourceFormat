@@ -271,8 +271,13 @@ namespace ValveResourceFormat.ResourceTypes
                 using var uncompressedBlockDataWriter = new BinaryWriter(uncompressedBlocks);
                 uncompressedBlockDataReader = new BinaryReader(uncompressedBlocks);
 
-                // TODO: Do we need to pass blockTotalSize here?
-                var lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
+                LZ4ChainDecoder lz4decoder = null;
+
+                if (compressionMethod == 1)
+                {
+                    // TODO: Do we need to pass blockTotalSize here?
+                    lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
+                }
 
                 for (var i = 0; i < blockCount; i++)
                 {
@@ -292,6 +297,10 @@ namespace ValveResourceFormat.ResourceTypes
 
                         RawBinaryReader.Read(input);
                         lz4decoder.DecodeAndDrain(input, output, out _);
+                    }
+                    else
+                    {
+                        throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
                     }
 
                     uncompressedBlockDataWriter.Write(output);
