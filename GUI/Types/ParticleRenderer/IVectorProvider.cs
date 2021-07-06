@@ -40,6 +40,12 @@ namespace GUI.Types.ParticleRenderer
                     case "PVEC_TYPE_LITERAL":
                         return new LiteralVectorProvider(numberProviderParameters.GetArray<double>("m_vLiteralValue"));
                     default:
+                        if (numberProviderParameters.ContainsKey("m_vLiteralValue"))
+                        {
+                            Console.Error.WriteLine($"Vector provider of type {type} is not directly supported, but it has m_vLiteralValue.");
+                            return new LiteralVectorProvider(numberProviderParameters.GetArray<double>("m_vLiteralValue"));
+                        }
+
                         throw new InvalidCastException($"Could not create vector provider of type {type}.");
                 }
             }
