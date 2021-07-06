@@ -34,6 +34,12 @@ namespace GUI.Types.ParticleRenderer
                     case "PF_TYPE_LITERAL":
                         return new LiteralNumberProvider(numberProviderParameters.GetDoubleProperty("m_flLiteralValue"));
                     default:
+                        if (numberProviderParameters.ContainsKey("m_flLiteralValue"))
+                        {
+                            Console.Error.WriteLine($"Number provider of type {type} is not directly supported, but it has m_flLiteralValue.");
+                            return new LiteralNumberProvider(numberProviderParameters.GetDoubleProperty("m_flLiteralValue"));
+                        }
+
                         throw new InvalidCastException($"Could not create number provider of type {type}.");
                 }
             }
