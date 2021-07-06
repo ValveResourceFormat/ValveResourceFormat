@@ -8,6 +8,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             switch (t)
             {
+                case AnimDecoderType.CCompressedFullQuaternion:
+                    return 16;
                 case AnimDecoderType.CCompressedFullVector3:
                     return 12;
                 case AnimDecoderType.CCompressedStaticVector3:
