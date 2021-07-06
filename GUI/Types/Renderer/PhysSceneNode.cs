@@ -6,6 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using System.Numerics;
 using System.Linq;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace GUI.Types.Renderer
 {
@@ -131,13 +132,13 @@ namespace GUI.Types.Renderer
 
                     var vertOffset = verts.Count / 7;
                     Vector3[] vertices = null;
-                    try
+                    if (mesh is NTROStruct)
                     {
                         //NTRO has vertices as array of structs
                         var verticesArr = mesh.GetArray("m_Vertices");
                         vertices = verticesArr.Select(v => v.ToVector3()).ToArray();
                     }
-                    catch
+                    else
                     {
                         //KV3 has vertices as blob
                         var verticesBlob = mesh.GetArray<byte>("m_Vertices");
@@ -164,14 +165,14 @@ namespace GUI.Types.Renderer
                     }
 
                     int[] triangles = null;
-                    try
+                    if (mesh is NTROStruct)
                     {
                         //NTRO and SOME KV3 has triangles as array of structs
                         var trianglesArr = mesh.GetArray("m_Triangles");
                         triangles = trianglesArr.SelectMany(t => t.GetArray<object>("m_nIndex").
                                                             Select(Convert.ToInt32)).ToArray();
                     }
-                    catch
+                    else
                     {
                         //some KV3 has triangles as blob
                         var trianglesBlob = mesh.GetArray<byte>("m_Triangles");
