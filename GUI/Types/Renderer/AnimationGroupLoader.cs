@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
 
             if (animResource == null)
             {
-                throw new FileNotFoundException($"Failed to load {animationFile}_c. Did you configure game paths correctly?");
+                return null;
             }
 
             // Build animation classes
