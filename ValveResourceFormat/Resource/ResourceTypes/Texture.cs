@@ -68,6 +68,8 @@ namespace ValveResourceFormat.ResourceTypes
         private int[] CompressedMips;
         private bool IsActuallyCompressedMips;
 
+        private float[] RadianceCoefficients;
+
         public ushort ActualWidth => NonPow2Width > 0 ? NonPow2Width : Width;
         public ushort ActualHeight => NonPow2Height > 0 ? NonPow2Height : Height;
 
@@ -124,6 +126,8 @@ namespace ValveResourceFormat.ResourceTypes
                     var prevOffset = reader.BaseStream.Position;
 
                     reader.BaseStream.Position += offset;
+                    ExtraData.Add(type, reader.ReadBytes((int)size));
+                    reader.BaseStream.Position -= size;
 
                     if (type == VTexExtraData.FILL_TO_POWER_OF_TWO)
                     {
@@ -135,18 +139,11 @@ namespace ValveResourceFormat.ResourceTypes
                             NonPow2Width = nw;
                             NonPow2Height = nh;
                         }
-
-                        reader.BaseStream.Position -= 6;
                     }
-
-                    ExtraData.Add(type, reader.ReadBytes((int)size));
-
-                    if (type == VTexExtraData.COMPRESSED_MIP_SIZE)
+                    else if (type == VTexExtraData.COMPRESSED_MIP_SIZE)
                     {
-                        reader.BaseStream.Position -= size;
-
                         var int1 = reader.ReadUInt32(); // 1?
-                        var int2 = reader.ReadUInt32(); // 8?
+                        var mipsOffset = reader.ReadUInt32();
                         var mips = reader.ReadUInt32();
 
                         if (int1 != 1 && int1 != 0)
@@ -154,18 +151,30 @@ namespace ValveResourceFormat.ResourceTypes
                             throw new InvalidDataException($"int1 got: {int1}");
                         }
 
-                        if (int2 != 8)
-                        {
-                            throw new InvalidDataException($"int2 expected 8 but got: {int2}");
-                        }
-
                         IsActuallyCompressedMips = int1 == 1; // TODO: Verify whether this int is the one that actually controls compression
 
                         CompressedMips = new int[mips];
 
+                        reader.BaseStream.Position += mipsOffset - 8;
+
                         for (var mip = 0; mip < mips; mip++)
                         {
                             CompressedMips[mip] = reader.ReadInt32();
+                        }
+                    }
+                    else if (type == VTexExtraData.CUBEMAP_RADIANCE_SH)
+                    {
+                        var coeffsOffset = reader.ReadUInt32();
+                        var coeffs = reader.ReadUInt32();
+
+                        //Spherical Harmonics
+                        RadianceCoefficients = new float[coeffs];
+
+                        reader.BaseStream.Position += coeffsOffset - 8;
+
+                        for (var c = 0; c < coeffs; c++)
+                        {
+                            RadianceCoefficients[c] = reader.ReadSingle();
                         }
                     }
 
@@ -571,6 +580,10 @@ namespace ValveResourceFormat.ResourceTypes
                 if (b.Key == VTexExtraData.COMPRESSED_MIP_SIZE)
                 {
                     writer.WriteLine("{0,-16}   [ {1} mips, sized: {2} ]", string.Empty, CompressedMips.Length, string.Join(", ", CompressedMips));
+                }
+                else if (b.Key == VTexExtraData.CUBEMAP_RADIANCE_SH)
+                {
+                    writer.WriteLine("{0,-16}   [ {1} coefficients: {2} ]", string.Empty, RadianceCoefficients.Length, string.Join(", ", RadianceCoefficients));
                 }
             }
 
