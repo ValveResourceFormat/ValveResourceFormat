@@ -252,8 +252,15 @@ namespace Decompiler
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
 
             var magicData = new byte[4];
-            fs.Read(magicData, 0, magicData.Length);
-            fs.Position = 0;
+
+            int bytesRead;
+            var totalRead = 0;
+            while ((bytesRead = fs.Read(magicData, totalRead, magicData.Length - totalRead)) != 0)
+            {
+                totalRead += bytesRead;
+            }
+
+            fs.Seek(0, SeekOrigin.Begin);
 
             var magic = BitConverter.ToUInt32(magicData, 0);
 

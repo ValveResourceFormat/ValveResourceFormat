@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat
@@ -15,23 +15,28 @@ namespace ValveResourceFormat
         {
             var characterSize = encoding.GetByteCount("e");
 
-            using (var ms = new MemoryStream())
+            using var ms = new MemoryStream();
+
+            while (true)
             {
-                while (true)
+                var data = new byte[characterSize];
+
+                int bytesRead;
+                var totalRead = 0;
+                while ((bytesRead = stream.Read(data, totalRead, characterSize - totalRead)) != 0)
                 {
-                    var data = new byte[characterSize];
-                    stream.Read(data, 0, characterSize);
-
-                    if (encoding.GetString(data, 0, characterSize) == "\0")
-                    {
-                        break;
-                    }
-
-                    ms.Write(data, 0, data.Length);
+                    totalRead += bytesRead;
                 }
 
-                return encoding.GetString(ms.ToArray());
+                if (encoding.GetString(data, 0, characterSize) == "\0")
+                {
+                    break;
+                }
+
+                ms.Write(data, 0, data.Length);
             }
+
+            return encoding.GetString(ms.ToArray());
         }
 
         /// <summary>
