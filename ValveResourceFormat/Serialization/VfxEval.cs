@@ -96,6 +96,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // when we do we should combine expressions on the stack
         private readonly Stack<uint> OffsetAtBranchExits = new();
 
+        // build a dictionary of the external variables seen, passed as 'renderAttributesUsed'
+        private static readonly Dictionary<uint, string> ExternalVarsReference = new();
+
         public VfxEval(byte[] binaryBlob)
         {
             ParseExpression(binaryBlob, Array.Empty<string>());
@@ -107,11 +110,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private void ParseExpression(byte[] binaryBlob, string[] renderAttributesUsed)
         {
-            if (ExternalVarsReference.Count == 0)
-            {
-                BuildExternalVarsReference();
-            }
-
             uint MURMUR2SEED = 0x31415926; // pi!
             foreach (var externalVarName in renderAttributesUsed)
             {
@@ -501,128 +499,5 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return varName;
         }
 
-        private static readonly Dictionary<uint, string> ExternalVarsReference = new();
-        public static void BuildExternalVarsReference()
-        {
-            // Dota 2
-            ExternalVarsReference.Add(0xd24b982f, "uiTexture");
-            ExternalVarsReference.Add(0x8c954a0d, "fontTexture");
-            ExternalVarsReference.Add(0xbaf50224, "scale1");
-            ExternalVarsReference.Add(0x3b48bcd3, "scale2");
-            ExternalVarsReference.Add(0x7dd532ad, "speed");
-            ExternalVarsReference.Add(0x1ecf71e1, "a");
-            ExternalVarsReference.Add(0xb7fdb72a, "b");
-            ExternalVarsReference.Add(0x1df1849c, "intensity");
-            ExternalVarsReference.Add(0x964485cc, "time");
-            ExternalVarsReference.Add(0x336a0f0c, "$AGE");
-            ExternalVarsReference.Add(0x1527c91c, "$ALPHA");
-            ExternalVarsReference.Add(0xd772913d, "$TRANS_OFFSET_V");
-            ExternalVarsReference.Add(0xa37a3e54, "$TRANS_SCALE_V");
-            ExternalVarsReference.Add(0x25339664, "$OPACITY");
-            ExternalVarsReference.Add(0x69e2f05e, "$TEX_COORD_OFFSET_U");
-            ExternalVarsReference.Add(0x0a5b7f24, "$TEX_COORD_OFFSET_V");
-            ExternalVarsReference.Add(0x7716a69a, "$PA_ARCANA_SPECULAR_BLOOM_SCALE");
-            ExternalVarsReference.Add(0xd73c9c2f, "$PA_ARCANA_DETAIL1BLENDFACTOR");
-            ExternalVarsReference.Add(0x287263fc, "$PA_ARCANA_DETAIL1SCALE");
-            ExternalVarsReference.Add(0xd4147a1f, "$PA_ARCANA_DETAIL1TINT");
-            ExternalVarsReference.Add(0xa58452dc, "$PA_ARCANA_SPECULAR_BLOOM_COLOR");
-            ExternalVarsReference.Add(0x514616e6, "$GemColor");
-            ExternalVarsReference.Add(0x9eac976a, "$overbright");
-            ExternalVarsReference.Add(0xab2163a4, "$TEX_COLOR");
-            ExternalVarsReference.Add(0x3225af29, "y");
-            ExternalVarsReference.Add(0x84321e5f, "$DETAILBLEND");
-            ExternalVarsReference.Add(0x276085fb, "FadeOut");
-            ExternalVarsReference.Add(0xc4a1f8f7, "$COLOR");
-            ExternalVarsReference.Add(0xf588a3d3, "$CLOAKINT");
-            ExternalVarsReference.Add(0xda4e0212, "$SPIN");
-            ExternalVarsReference.Add(0xb57746a1, "panoramaTexCoordOffset");
-            ExternalVarsReference.Add(0xe244f4af, "panoramaTexCoordScale");
-            ExternalVarsReference.Add(0x341f4361, "panoramaLayer");
-            ExternalVarsReference.Add(0x1b927481, "avatarTexture");
-            ExternalVarsReference.Add(0x57b2b714, "$ent_Health");
-            ExternalVarsReference.Add(0x546a87df, "proceduralSprayTexture");
-            ExternalVarsReference.Add(0x9d389d79, "alive");
-            ExternalVarsReference.Add(0x46ec689a, "zz");
-            ExternalVarsReference.Add(0x7068cf59, "aa");
-            ExternalVarsReference.Add(0xff492a3a, "bb");
-            ExternalVarsReference.Add(0xcb9a78d4, "cc");
-            ExternalVarsReference.Add(0xde117c4a, "dd");
-            ExternalVarsReference.Add(0xeb075669, "ee");
-            ExternalVarsReference.Add(0x285fc55e, "ff");
-            ExternalVarsReference.Add(0x39de2fbd, "FadeOut_blade");
-
-            // HL Alyx
-            ExternalVarsReference.Add(0xe7dc4bd6, "$BaseTexture");
-            ExternalVarsReference.Add(0x30ee22ba, "colorAttrMovie");
-            ExternalVarsReference.Add(0x98a42c96, "$DISSOLVE");
-            ExternalVarsReference.Add(0x13e5d925, "$BRIGHTNESS");
-            ExternalVarsReference.Add(0x097ad797, "logo_draw");
-            ExternalVarsReference.Add(0xbad34216, "$SELFILLUM");
-            ExternalVarsReference.Add(0xf8d95bff, "$SCROLLX");
-            ExternalVarsReference.Add(0xfd912b88, "$SCROLLY");
-            ExternalVarsReference.Add(0x0b2a3d85, "$EMISSIVEBRIGHTNESS");
-            ExternalVarsReference.Add(0x41b948dc, "$EMISSIVESCALE");
-            ExternalVarsReference.Add(0x8f3e65c3, "$NOISE");
-            ExternalVarsReference.Add(0xd4db18d9, "$Emissive");
-            ExternalVarsReference.Add(0x2797e0f8, "$Time");
-            ExternalVarsReference.Add(0xa359c3d2, "$Enabled");
-            ExternalVarsReference.Add(0x0a7ef0bc, "colorAttr");
-            ExternalVarsReference.Add(0x52d9cda7, "$SPEED");
-            ExternalVarsReference.Add(0x26b36985, "$FRESNEL");
-            ExternalVarsReference.Add(0xd7d9c882, "$LINEWIDTH");
-            ExternalVarsReference.Add(0x09e85963, "$COLOR2");
-            ExternalVarsReference.Add(0xb4f6068c, "$EMISSIVE_COLOR");
-            ExternalVarsReference.Add(0x9c865576, "$EyeBrightness");
-            ExternalVarsReference.Add(0x626b58e4, "$TRANS");
-            ExternalVarsReference.Add(0x99ed5df3, "gmanEyeGlow");
-            ExternalVarsReference.Add(0xcba2f3ed, "$jawOpen");
-            ExternalVarsReference.Add(0xe1ea5a51, "$ILLUMDEATH");
-            ExternalVarsReference.Add(0xac2455ce, "$EmSpeed");
-            ExternalVarsReference.Add(0x354cd34e, "useglow");
-            ExternalVarsReference.Add(0xc2a33a98, "$IconCoordOffset");
-            ExternalVarsReference.Add(0x64001e52, "$IconCoordScale");
-            ExternalVarsReference.Add(0xfb2f9805, "$CounterIcon");
-            ExternalVarsReference.Add(0x256a1960, "$CounterDigitHundreds");
-            ExternalVarsReference.Add(0x4373b9f9, "$CounterDigitTens");
-            ExternalVarsReference.Add(0x90c26f54, "$CounterDigitOnes");
-            ExternalVarsReference.Add(0xbaeebc0b, "$HealthLights");
-            ExternalVarsReference.Add(0xdea79565, "$FrameNumber1");
-            ExternalVarsReference.Add(0x66a9e338, "$FrameNumber2");
-            ExternalVarsReference.Add(0xcd41b4b8, "$FrameNumber3");
-            ExternalVarsReference.Add(0xe4200216, "origin");
-            ExternalVarsReference.Add(0x9550cca8, "value1");
-            ExternalVarsReference.Add(0x7f787303, "$POSITION");
-            ExternalVarsReference.Add(0xcb9c152d, "advisorMovie");
-            ExternalVarsReference.Add(0xa55cfdd3, "$ANIM");
-            ExternalVarsReference.Add(0xfac4270a, "$LightValue");
-            ExternalVarsReference.Add(0xb5e34aab, "$PercentAwake");
-            ExternalVarsReference.Add(0x435a062f, "$ENERGY");
-            ExternalVarsReference.Add(0xe813cc7e, "$FLOW");
-            ExternalVarsReference.Add(0x38b70d43, "$SCALE");
-            ExternalVarsReference.Add(0x5a8f66c4, "$COLORA");
-            ExternalVarsReference.Add(0x0f09ee7b, "$AnimatePipes");
-            ExternalVarsReference.Add(0xbf319cc2, "$IlluminatePipes");
-            ExternalVarsReference.Add(0x8715f68f, "$PistolChamberReadout");
-            ExternalVarsReference.Add(0x98e238a9, "$PistolClipReadoutOffset");
-            ExternalVarsReference.Add(0x90259463, "$PistolClipReadoutScale");
-            ExternalVarsReference.Add(0xa58adf84, "$PistolHopperReadout");
-            ExternalVarsReference.Add(0xc803a08e, "$InjectedPercent");
-            ExternalVarsReference.Add(0x3666c43e, "$FrameNumber");
-            ExternalVarsReference.Add(0x65f09c96, "$GrenadeLEDBrightness");
-            ExternalVarsReference.Add(0x84e355f4, "$GrenadeLEDFuse");
-            ExternalVarsReference.Add(0xc858079b, "$CableBrightness");
-            ExternalVarsReference.Add(0x507c31f7, "$ChamberBrightness");
-            ExternalVarsReference.Add(0x4f60e501, "$EnergyBallCharged");
-            ExternalVarsReference.Add(0x47940a69, "$ReadyToExplode");
-            ExternalVarsReference.Add(0x3cf1f4a5, "$AmmoColor");
-            ExternalVarsReference.Add(0xefe71421, "$BulletCount");
-            ExternalVarsReference.Add(0x79530848, "$MaxBulletCount");
-            ExternalVarsReference.Add(0x71ee8c47, "$SlideLight");
-            ExternalVarsReference.Add(0xe399c3c7, "$ShotgunHandleLight");
-            ExternalVarsReference.Add(0x5260e007, "$QuickFireLight");
-            ExternalVarsReference.Add(0x72711be3, "$LaserEmitterBrightness");
-            ExternalVarsReference.Add(0x386b35f0, "$LaserEmitterFlowSpeed");
-            ExternalVarsReference.Add(0x73119842, "$LightColor");
-        }
     }
 }
