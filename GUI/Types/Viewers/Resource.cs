@@ -198,8 +198,7 @@ namespace GUI.Types.Viewers
                     var materialViewerControl = new GLMaterialViewer();
                     materialViewerControl.Load += (_, __) =>
                     {
-                        var material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
-                        var materialRenderer = new MaterialRenderer(material);
+                        var materialRenderer = new MaterialRenderer(vrfGuiContext, resource);
 
                         materialViewerControl.AddRenderer(materialRenderer);
                     };

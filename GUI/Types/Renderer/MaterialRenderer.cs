@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat;
 
 namespace GUI.Types.Renderer
 {
@@ -13,10 +16,10 @@ namespace GUI.Types.Renderer
 
         public AABB BoundingBox => new AABB(-1, -1, -1, 1, 1, 1);
 
-        public MaterialRenderer(RenderMaterial renderMaterial)
+        public MaterialRenderer(VrfGuiContext vrfGuiContext, Resource resource)
         {
-            material = renderMaterial;
-            shader = ShaderLoader.LoadPlaneShader(material.Material.ShaderName, material.Material.GetShaderArguments());
+            material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
+            shader = vrfGuiContext.ShaderLoader.LoadShader(material.Material.ShaderName, material.Material.GetShaderArguments());
             quadVao = SetupQuadBuffer();
         }
 
@@ -33,37 +36,39 @@ namespace GUI.Types.Renderer
 
             var vertices = new[]
             {
-                // position       ; normal          ; texcoord  ; tangent
-                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-                // position      ; normal          ; texcoord  ; tangent
-                -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                // position      ; normal          ; texcoord  ; tangent
-                1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-                // position     ; normal          ; texcoord  ; tangent
-                1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
+                -1.0f, -1.0f, 0.0f,  0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+                // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
+                -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+                // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
+                1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+                // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
+                1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
             };
 
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
 
             GL.EnableVertexAttribArray(0);
 
-            var stride = sizeof(float) * 11;
+            var attributes = new List<(string Name, int Size)>
+            {
+                ("vPOSITION", 3),
+                ("vNORMAL", 4),
+                ("vTEXCOORD", 2),
+                ("vTANGENT", 4),
+                ("vBLENDINDICES", 4),
+                ("vBLENDWEIGHT", 4),
+            };
+            var stride = sizeof(float) * attributes.Sum(x => x.Size);
+            var offset = 0;
 
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "vPOSITION");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
-
-            var normalAttributeLocation = GL.GetAttribLocation(shader.Program, "vNORMAL");
-            GL.EnableVertexAttribArray(normalAttributeLocation);
-            GL.VertexAttribPointer(normalAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
-
-            var texCoordAttributeLocation = GL.GetAttribLocation(shader.Program, "vTEXCOORD");
-            GL.EnableVertexAttribArray(texCoordAttributeLocation);
-            GL.VertexAttribPointer(texCoordAttributeLocation, 2, VertexAttribPointerType.Float, false, stride, sizeof(float) * 6);
-
-            var tangentAttributeLocation = GL.GetAttribLocation(shader.Program, "vTANGENT");
-            GL.EnableVertexAttribArray(tangentAttributeLocation);
-            GL.VertexAttribPointer(tangentAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, sizeof(float) * 8);
+            foreach (var (Name, Size) in attributes)
+            {
+                var attributeLocation = GL.GetAttribLocation(shader.Program, Name);
+                GL.EnableVertexAttribArray(attributeLocation);
+                GL.VertexAttribPointer(attributeLocation, Size, VertexAttribPointerType.Float, false, stride, offset);
+                offset += sizeof(float) * Size;
+            }
 
             GL.BindVertexArray(0); // Unbind VAO
 
@@ -90,11 +95,17 @@ namespace GUI.Types.Renderer
 
             var identity = Matrix4.Identity;
 
-            uniformLocation = shader.GetUniformLocation("projection");
-            GL.UniformMatrix4(uniformLocation, false, ref identity);
+            uniformLocation = shader.GetUniformLocation("uProjectionViewMatrix");
+            if (uniformLocation > -1)
+            {
+                GL.UniformMatrix4(uniformLocation, false, ref identity);
+            }
 
-            uniformLocation = shader.GetUniformLocation("modelview");
-            GL.UniformMatrix4(uniformLocation, false, ref identity);
+            uniformLocation = shader.GetUniformLocation("transform");
+            if (uniformLocation > -1)
+            {
+                GL.UniformMatrix4(uniformLocation, false, ref identity);
+            }
 
             material.Render(shader);
 
