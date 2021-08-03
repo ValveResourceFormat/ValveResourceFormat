@@ -121,7 +121,7 @@ namespace GUI.Types.Renderer
             if (linkStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {programLog} (link status = {linkStatus}");
+                throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {programLog}");
             }
 
             GL.ValidateProgram(shader.Program);
@@ -130,7 +130,7 @@ namespace GUI.Types.Renderer
             if (validateStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error validating shader \"{shaderName}\": {programLog} (link status = {validateStatus}");
+                throw new InvalidProgramException($"Error validating shader \"{shaderName}\": {programLog}");
             }
 
             GL.DetachShader(shader.Program, vertexShader);
@@ -220,7 +220,7 @@ namespace GUI.Types.Renderer
             if (linkStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error linking plane shader \"{shaderName}\": {programLog} (link status = {linkStatus}");
+                throw new InvalidProgramException($"Error linking plane shader \"{shaderName}\": {programLog}");
             }
 
             GL.ValidateProgram(shader.Program);
@@ -229,7 +229,7 @@ namespace GUI.Types.Renderer
             if (validateStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error validating plane shader \"{shaderName}\": {programLog} (link status = {validateStatus}");
+                throw new InvalidProgramException($"Error validating plane shader \"{shaderName}\": {programLog}");
             }
 
             GL.DetachShader(shader.Program, vertexShader);
