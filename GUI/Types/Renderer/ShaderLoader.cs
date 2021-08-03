@@ -68,7 +68,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(vertexShader, out var vsInfo);
 
-                throw new Exception($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
+                throw new InvalidProgramException($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
             }
 
             /* Fragment shader */
@@ -96,7 +96,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
 
-                throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
+                throw new InvalidProgramException($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
 
             const string renderMode = "renderMode_";
@@ -123,7 +123,7 @@ namespace GUI.Types.Renderer
             if (linkStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var linkInfo);
-                throw new Exception($"Error linking shaders: {linkInfo} (link status = {linkStatus}");
+                throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {linkInfo} (link status = {linkStatus}");
             }
 
             GL.DetachShader(shader.Program, vertexShader);
@@ -171,7 +171,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(vertexShader, out var vsInfo);
 
-                throw new Exception($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
+                throw new InvalidProgramException($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
             }
 
             /* Fragment shader */
@@ -196,7 +196,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
 
-                throw new Exception($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
+                throw new InvalidProgramException($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
             }
 
             var shader = new Shader
@@ -215,7 +215,7 @@ namespace GUI.Types.Renderer
             if (linkStatus != 1)
             {
                 GL.GetProgramInfoLog(shader.Program, out var linkInfo);
-                throw new Exception($"Error linking shaders: {linkInfo} (link status = {linkStatus}");
+                throw new InvalidProgramException($"Error linking plane shader \"{shaderName}\": {linkInfo} (link status = {linkStatus}");
             }
 
             GL.DetachShader(shader.Program, vertexShader);
@@ -350,8 +350,6 @@ namespace GUI.Types.Renderer
                 shaderCacheHashString.AppendLine(key);
                 shaderCacheHashString.AppendLine(arguments[key] ? "t" : "f");
             }
-
-            var test = shaderCacheHashString.ToString();
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
         }

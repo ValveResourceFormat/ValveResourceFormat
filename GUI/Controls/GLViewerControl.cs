@@ -318,6 +318,7 @@ namespace GUI.Controls
 
             Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));
             Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
+            Console.WriteLine("OpenGL renderer: " + GL.GetString(StringName.Renderer));
             Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
 
             var extensions = new HashSet<string>();
