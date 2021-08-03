@@ -176,7 +176,7 @@ namespace GUI.Types.Renderer
         private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, IDictionary<string, bool> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
- 
+
             string primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType") switch
             {
                 string primitiveTypeString => primitiveTypeString,
