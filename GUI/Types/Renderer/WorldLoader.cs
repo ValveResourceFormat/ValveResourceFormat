@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
                     var newResource = guiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
                     if (newResource == null)
                     {
-                        throw new Exception("WTF");
+                        continue;
                     }
 
                     var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock);
@@ -59,14 +59,14 @@ namespace GUI.Types.Renderer
             {
                 if (lumpName == null)
                 {
-                    return result;
+                    continue;
                 }
 
                 var newResource = guiContext.LoadFileByAnyMeansNecessary(lumpName + "_c");
 
                 if (newResource == null)
                 {
-                    return result;
+                    continue;
                 }
 
                 var entityLump = (EntityLump)newResource.DataBlock;
@@ -240,10 +240,6 @@ namespace GUI.Types.Renderer
                             LayerName = layerName,
                         };
                         scene.Add(errorModel, false);
-                    }
-                    else
-                    {
-                        Console.WriteLine("Unable to load error.vmdl_c. Did you add \"core/pak_001.dir\" to your game paths?");
                     }
 
                     continue;
