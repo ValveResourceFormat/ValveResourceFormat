@@ -289,12 +289,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 var funcName = FUNCTION_REF[funcId].Item1;
                 var nrArguments = FUNCTION_REF[funcId].Item2;
 
-                if (nrArguments == -1)
-                {
-                    ErrorWhileParsing = true;
-                    ErrorMessage = $"Parsing error - unknown function ID = {funcId:x}";
-                    return;
-                }
                 if (nrArguments > Expressions.Count)
                 {
                     ErrorWhileParsing = true;
