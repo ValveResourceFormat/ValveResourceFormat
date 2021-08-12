@@ -67,40 +67,40 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private enum OPCODE
         {
-            ENDOFDATA = 0x00,
-            // unknown = 0x01
-            BRANCH_SEP = 0x02,
-            // unknown = 0x03
-            BRANCH = 0x04,
-            // unknown = 0x05
-            FUNC = 0x06,
-            FLOAT = 0x07,
-            ASSIGN = 0x08,
-            LOCALVAR = 0x09,
-            // unknown = 0x0A
-            // unknown = 0x0B
-            NOT = 0x0C,
-            EQUALS = 0x0D,               // 0D		==					13
-            NEQUALS = 0x0E,              // 0E		!=					14
-            GT = 0x0F,                   // 0F		> 					15
-            GTE = 0x10,                  // 10		>=					16
-            LT = 0x11,                   // 11		< 					17
-            LTE = 0x12,                  // 12		<=					18
-            ADD = 0x13,                  // 13		+					19
-            SUB = 0x14,                  // 14		-					20
-            MUL = 0x15,                  // 15		*					21
-            DIV = 0x16,                  // 16		/					22
-            MODULO = 0x17,               // 17		%					23
-            NEGATE = 0x18,
-            EXTVAR = 0x19,
-            // unknown = 0x1A
-            // unknown = 0x1B
-            // unknown = 0x1C
-            // unknown = 0x1D
-            SWIZZLE = 0x1E,
-            EXISTS = 0x1F,
-            // unknown = 0x20
-            // unknown = 0x21
+            ENDOFDATA,          // 00
+            UNKNOWN01,
+            BRANCH_SEP,         // 02
+            UNKNOWN03,
+            BRANCH,             // 04
+            UNKNOWN05,
+            FUNC,               // 06
+            FLOAT,              // 07
+            ASSIGN,             // 08
+            LOCALVAR,           // 09
+            UNKNOWN0A,
+            UNKNOWN0B,
+            NOT,                // 0C
+            EQUALS,             // 0D (13)  ==
+            NEQUALS,            // 0E (14)	!=
+            GT,                 // 0F (15)	>
+            GTE,                // 10 (16)	>=
+            LT,                 // 11 (17)	<
+            LTE,                // 12 (18)	<=
+            ADD,                // 13 (19)	+
+            SUB,                // 14 (10)	-
+            MUL,                // 15 (21)	*
+            DIV,                // 16 (22)	/
+            MODULO,             // 17 (23)	%
+            NEGATE,             // 18
+            EXTVAR,             // 19
+            UNKNOWN1A,
+            UNKNOWN1B,
+            UNKNOWN1C,
+            UNKNOWN1D,
+            SWIZZLE,            // 1E,
+            EXISTS,             // 1F,
+            UNKNOWN20,
+            UNKNOWN21,
             // NOT_AN_OPS = 0xff,
         };
 
