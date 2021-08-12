@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             LT,                 // 11 (17)	<
             LTE,                // 12 (18)	<=
             ADD,                // 13 (19)	+
-            SUB,                // 14 (10)	-
+            SUB,                // 14 (20)	-
             MUL,                // 15 (21)	*
             DIV,                // 16 (22)	/
             MODULO,             // 17 (23)	%
@@ -451,7 +451,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 i--;
             }
-            return swizzle.Substring(0, i + 1);
+            return swizzle[0..(i + 1)];
         }
 
         private static string Trimb(string exp)
