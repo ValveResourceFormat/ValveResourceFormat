@@ -97,8 +97,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             UNKNOWN1B,
             UNKNOWN1C,
             UNKNOWN1D,
-            SWIZZLE,            // 1E,
-            EXISTS,             // 1F,
+            SWIZZLE,            // 1E
+            EXISTS,             // 1F
             UNKNOWN20,
             UNKNOWN21,
             // NOT_AN_OPS = 0xff,
