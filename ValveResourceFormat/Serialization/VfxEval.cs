@@ -401,10 +401,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
                 var finalExp = Expressions.Pop();
-                while (finalExp.Length > 2 && finalExp[0] == '(' && finalExp[^1] == ')')
-                {
-                    finalExp = Trimb(finalExp);
-                }
+                finalExp = Trimb(finalExp);
                 DynamicExpressionList.Add($"return {finalExp};");
                 return;
             }
