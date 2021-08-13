@@ -128,14 +128,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         public VfxEval(byte[] binaryBlob)
         {
-            ParseExpression(binaryBlob, Array.Empty<string>());
+            ParseExpression(binaryBlob);
         }
         public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed)
-        {
-            ParseExpression(binaryBlob, renderAttributesUsed);
-        }
-
-        private void ParseExpression(byte[] binaryBlob, string[] renderAttributesUsed)
         {
             uint MURMUR2SEED = 0x31415926; // pi!
 
@@ -146,6 +141,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 ExternalVarsReference.AddOrUpdate(murmur32, externalVarName, (k, v) => externalVarName);
             }
 
+            ParseExpression(binaryBlob);
+        }
+
+        private void ParseExpression(byte[] binaryBlob)
+        {
             using var dataReader = new BinaryReader(new MemoryStream(binaryBlob));
             OffsetAtBranchExits.Push(0);
 

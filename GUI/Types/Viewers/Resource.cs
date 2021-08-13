@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Audio;
 using GUI.Types.Exporter;
@@ -53,7 +54,7 @@ namespace GUI.Types.Viewers
 
                     try
                     {
-                        var tex = (Texture) resource.DataBlock;
+                        var tex = (Texture)resource.DataBlock;
 
                         var control = new Forms.Texture
                         {
@@ -65,7 +66,7 @@ namespace GUI.Types.Viewers
                         tab2.Controls.Add(control);
                         Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs,
                             $"Export {Path.GetFileName(vrfGuiContext.FileName)} as an image", vrfGuiContext.FileName,
-                            new ExportData {Resource = resource});
+                            new ExportData { Resource = resource });
                     }
                     catch (Exception e)
                     {
@@ -85,7 +86,7 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Panorama:
-                    if (((Panorama) resource.DataBlock).Names.Count > 0)
+                    if (((Panorama)resource.DataBlock).Names.Count > 0)
                     {
                         var nameTab = new TabPage("PANORAMA NAMES");
                         var nameControl = new DataGridView
@@ -97,7 +98,7 @@ namespace GUI.Types.Viewers
                             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                             DataSource =
                                 new BindingSource(
-                                    new BindingList<Panorama.NameEntry>(((Panorama) resource.DataBlock).Names), null),
+                                    new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
                         };
                         nameTab.Controls.Add(nameControl);
                         resTabs.TabPages.Add(nameTab);
@@ -107,24 +108,24 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.PanoramaLayout:
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as XML",
-                        vrfGuiContext.FileName, new ExportData {Resource = resource});
+                        vrfGuiContext.FileName, new ExportData { Resource = resource });
                     break;
 
                 case ResourceType.PanoramaScript:
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as JS",
-                        vrfGuiContext.FileName, new ExportData {Resource = resource});
+                        vrfGuiContext.FileName, new ExportData { Resource = resource });
                     break;
 
                 case ResourceType.PanoramaStyle:
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as CSS",
-                        vrfGuiContext.FileName, new ExportData {Resource = resource});
+                        vrfGuiContext.FileName, new ExportData { Resource = resource });
                     break;
 
                 case ResourceType.Particle:
                     var viewerControl = new GLParticleViewer(vrfGuiContext);
                     viewerControl.Load += (_, __) =>
                     {
-                        var particleSystem = (ParticleSystem) resource.DataBlock;
+                        var particleSystem = (ParticleSystem)resource.DataBlock;
                         var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext);
 
                         viewerControl.AddRenderer(particleRenderer);
@@ -141,8 +142,8 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(soundTab);
 
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs,
-                        $"Export {Path.GetFileName(vrfGuiContext.FileName)} as {((Sound) resource.DataBlock).SoundType}", vrfGuiContext.FileName,
-                        new ExportData {Resource = resource});
+                        $"Export {Path.GetFileName(vrfGuiContext.FileName)} as {((Sound)resource.DataBlock).SoundType}", vrfGuiContext.FileName,
+                        new ExportData { Resource = resource });
 
                     break;
 
@@ -154,7 +155,7 @@ namespace GUI.Types.Viewers
 
                     var worldmeshTab = new TabPage("MAP");
                     worldmeshTab.Controls.Add(
-                        new GLWorldViewer(vrfGuiContext, (World) resource.DataBlock).ViewerControl);
+                        new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock).ViewerControl);
                     resTabs.TabPages.Add(worldmeshTab);
                     break;
 
@@ -165,19 +166,19 @@ namespace GUI.Types.Viewers
                         vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
 
                     var nodemeshTab = new TabPage("WORLD NODE");
-                    nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode) resource.DataBlock)
+                    nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock)
                         .ViewerControl);
                     resTabs.TabPages.Add(nodemeshTab);
                     break;
 
                 case ResourceType.Model:
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF",
-                        vrfGuiContext.FileName, new ExportData {Resource = resource, VrfGuiContext = vrfGuiContext});
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as GLB",
                         vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
 
                     var modelRendererTab = new TabPage("MODEL");
-                    modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model) resource.DataBlock)
+                    modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock)
                         .ViewerControl);
                     resTabs.TabPages.Add(modelRendererTab);
                     break;
@@ -185,7 +186,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Mesh:
 
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF",
-                        vrfGuiContext.FileName, new ExportData {Resource = resource, VrfGuiContext = vrfGuiContext});
+                        vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
                     Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as GLB",
                         vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext, FileType = ExportFileType.GLB });
 
@@ -196,20 +197,23 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Material:
                     var materialViewerControl = new GLMaterialViewer();
+
                     materialViewerControl.Load += (_, __) =>
                     {
                         var materialRenderer = new MaterialRenderer(vrfGuiContext, resource);
 
                         materialViewerControl.AddRenderer(materialRenderer);
+
                     };
 
                     var materialRendererTab = new TabPage("MATERIAL");
                     materialRendererTab.Controls.Add(materialViewerControl.Control);
                     resTabs.TabPages.Add(materialRendererTab);
+
                     break;
                 case ResourceType.PhysicsCollisionMesh:
                     var physRendererTab = new TabPage("PHYSICS");
-                    physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext,(PhysAggregateData) resource.DataBlock).ViewerControl);
+                    physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock).ViewerControl);
                     resTabs.TabPages.Add(physRendererTab);
                     break;
             }
@@ -243,7 +247,7 @@ namespace GUI.Types.Viewers
 
                 if (block.Type == BlockType.NTRO)
                 {
-                    if (((ResourceIntrospectionManifest) block).ReferencedStructs.Count > 0)
+                    if (((ResourceIntrospectionManifest)block).ReferencedStructs.Count > 0)
                     {
                         var externalRefsTab = new TabPage("Introspection Manifest: Structs");
 
@@ -258,14 +262,14 @@ namespace GUI.Types.Viewers
                             DataSource =
                                 new BindingSource(
                                     new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(
-                                        ((ResourceIntrospectionManifest) block).ReferencedStructs), null),
+                                        ((ResourceIntrospectionManifest)block).ReferencedStructs), null),
                         };
 
                         externalRefsTab.Controls.Add(externalRefs);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
 
-                    if (((ResourceIntrospectionManifest) block).ReferencedEnums.Count > 0)
+                    if (((ResourceIntrospectionManifest)block).ReferencedEnums.Count > 0)
                     {
                         var externalRefsTab = new TabPage("Introspection Manifest: Enums");
                         var externalRefs2 = new DataGridView
@@ -279,14 +283,12 @@ namespace GUI.Types.Viewers
                             DataSource =
                                 new BindingSource(
                                     new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(
-                                        ((ResourceIntrospectionManifest) block).ReferencedEnums), null),
+                                        ((ResourceIntrospectionManifest)block).ReferencedEnums), null),
                         };
 
                         externalRefsTab.Controls.Add(externalRefs2);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
-
-                    //continue;
                 }
 
                 var tab2 = new TabPage(block.Type.ToString());
@@ -300,7 +302,7 @@ namespace GUI.Types.Viewers
                         switch (resource.ResourceType)
                         {
                             case ResourceType.Sound:
-                                control.Text = Utils.Utils.NormalizeLineEndings(((Sound) block).ToString());
+                                control.Text = Utils.Utils.NormalizeLineEndings(((Sound)block).ToString());
                                 break;
                             case ResourceType.Particle:
                             case ResourceType.Mesh:
@@ -340,14 +342,28 @@ namespace GUI.Types.Viewers
                     bv.Dock = DockStyle.Fill;
                     tab2.Controls.Add(bv);
 
-                    Program.MainForm.Invoke((MethodInvoker) (() =>
+                    Program.MainForm.Invoke((MethodInvoker)(() =>
                     {
                         resource.Reader.BaseStream.Position = block.Offset;
-                        bv.SetBytes(resource.Reader.ReadBytes((int) block.Size));
+                        bv.SetBytes(resource.Reader.ReadBytes((int)block.Size));
                     }));
                 }
 
                 resTabs.TabPages.Add(tab2);
+
+                if (block.Type == BlockType.DATA && resource.ResourceType == ResourceType.Material)
+                {
+                    var control = new TextBox();
+                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                    control.Text = Utils.Utils.NormalizeLineEndings(Encoding.UTF8.GetString(((Material)block).ToValveMaterial()));
+                    control.Dock = DockStyle.Fill;
+                    control.Multiline = true;
+                    control.ReadOnly = true;
+                    control.ScrollBars = ScrollBars.Both;
+                    var tabVmat = new TabPage("vmat");
+                    tabVmat.Controls.Add(control);
+                    resTabs.TabPages.Add(tabVmat);
+                }
             }
 
             if (resource.ResourceType == ResourceType.PanoramaLayout
@@ -357,8 +373,10 @@ namespace GUI.Types.Viewers
                 || resource.ResourceType == ResourceType.SoundStackScript
                 || resource.ResourceType == ResourceType.EntityLump)
             {
-                foreach (TabPage tab2 in resTabs.TabPages) {
-                    if (tab2.Text == "DATA") {
+                foreach (TabPage tab2 in resTabs.TabPages)
+                {
+                    if (tab2.Text == "DATA")
+                    {
                         resTabs.SelectTab(tab2);
                         break;
                     }
