@@ -640,6 +640,8 @@ namespace Decompiler
                     Console.WriteLine(e);
                     Console.ResetColor();
                 }
+
+                return;
             }
 
             if (VerifyVPKChecksums)
