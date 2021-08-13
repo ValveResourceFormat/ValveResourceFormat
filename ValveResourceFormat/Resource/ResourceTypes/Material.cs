@@ -77,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes
             // This is zero-length for all vmat files in Dota2 and HL archives
             var textureAttributes = Data.GetArray<string>("m_textureAttributes");
             if (textureAttributes.Length > 0) {
-                // Console.WriteLine("unexpected textureAttributes length");
+                Console.WriteLine("unexpected textureAttributes length");
             }
 
             var renderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed");

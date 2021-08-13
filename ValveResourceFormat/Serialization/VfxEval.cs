@@ -16,7 +16,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         public bool ErrorWhileParsing { get; private set; }
         public string ErrorMessage { get; private set; }
 
-
         // function reference, name and number of arguments
         private readonly (string, int)[] FUNCTION_REF = {
             ("sin",        1),     // 00
@@ -61,10 +60,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("sincos",     1),     // 27
         };
 
-        private static readonly string[] OperatorSymbols = {
-            "","","","","","","","","","","","","",
-            "==","!=",">",">=","<","<=","+","-","*","/","%"};
-
         private enum OPCODE
         {
             ENDOFDATA,          // 00
@@ -80,17 +75,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
             UNKNOWN0A,
             UNKNOWN0B,
             NOT,                // 0C
-            EQUALS,             // 0D (13)  ==
-            NEQUALS,            // 0E (14)	!=
-            GT,                 // 0F (15)	>
-            GTE,                // 10 (16)	>=
-            LT,                 // 11 (17)	<
-            LTE,                // 12 (18)	<=
-            ADD,                // 13 (19)	+
-            SUB,                // 14 (20)	-
-            MUL,                // 15 (21)	*
-            DIV,                // 16 (22)	/
-            MODULO,             // 17 (23)	%
+            EQUALS,             // 0D
+            NEQUALS,            // 0E
+            GT,                 // 0F
+            GTE,                // 10
+            LT,                 // 11
+            LTE,                // 12
+            ADD,                // 13
+            SUB,                // 14
+            MUL,                // 15
+            DIV,                // 16
+            MODULO,             // 17
             NEGATE,             // 18
             EXTVAR,             // 19
             UNKNOWN1A,
@@ -102,6 +97,21 @@ namespace ValveResourceFormat.Serialization.VfxEval
             UNKNOWN20,
             UNKNOWN21,
             // NOT_AN_OPS = 0xff,
+        };
+
+        private readonly Dictionary<OPCODE, string> OpCodeToSymbol = new()
+        {
+            { OPCODE.EQUALS, "==" },
+            { OPCODE.NEQUALS, "!=" },
+            { OPCODE.GT, ">" },
+            { OPCODE.GTE, ">=" },
+            { OPCODE.LT, "<" },
+            { OPCODE.LTE, "<=" },
+            { OPCODE.ADD, "+" },
+            { OPCODE.SUB, "-" },
+            { OPCODE.MUL, "*" },
+            { OPCODE.DIV, "/" },
+            { OPCODE.MODULO, "%" },
         };
 
         private readonly Stack<string> Expressions = new();
@@ -349,8 +359,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
                 var exp2 = Expressions.Pop();
                 var exp1 = Expressions.Pop();
-                var opSymbol = OperatorSymbols[(int)op];
-                Expressions.Push($"({exp1}{opSymbol}{exp2})");
+                Expressions.Push($"({exp1}{OpCodeToSymbol[op]}{exp2})");
                 return;
             }
 
