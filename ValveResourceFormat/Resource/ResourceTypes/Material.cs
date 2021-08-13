@@ -76,7 +76,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             // This is zero-length for all vmat files in Dota2 and HL archives
             var textureAttributes = Data.GetArray<string>("m_textureAttributes");
-            if (textureAttributes.Length > 0) {
+            if (textureAttributes.Length > 0)
+            {
                 Console.WriteLine("unexpected textureAttributes length");
             }
 
@@ -87,13 +88,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var dynamicParamName = kvp.GetProperty<string>("m_name");
                 var dynamicParamBytes = kvp.GetProperty<byte[]>("m_value");
                 var vfxEval = new VfxEval(dynamicParamBytes, renderAttributesUsed);
-                if (vfxEval.ErrorWhileParsing)
-                {
-                    Console.WriteLine($"Error while parsing dynamic expression. {vfxEval.ErrorMessage}");
-                } else
-                {
-                    DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n"));
-                }
+                DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
 
             foreach (var kvp in Data.GetArray("m_dynamicTextureParams"))
@@ -101,12 +96,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var dynamicTextureParamName = kvp.GetProperty<string>("m_name");
                 var dynamicTextureParamBytes = kvp.GetProperty<byte[]>("m_value");
                 var vfxEval = new VfxEval(dynamicTextureParamBytes, renderAttributesUsed);
-                if (vfxEval.ErrorWhileParsing)
-                {
-                    Console.WriteLine($"Error while parsing dynamic expression. {vfxEval.ErrorMessage}");
-                } else {
-                    DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n"));
-                }
+                DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
         }
 

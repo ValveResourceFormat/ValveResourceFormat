@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -284,11 +285,10 @@ namespace Tests
         public void TestDynamicExpression18()
         {
             var exampleStr1 = "1A 11 04 07 00 0F 00 07 00 00 80 3F 02 14 00 07 00 00 00 00 00";
-            var vfxEval = new VfxEval(ParseString(exampleStr1));
-            Assert.AreEqual(null, vfxEval.DynamicExpressionResult);
-            Assert.IsTrue(vfxEval.ErrorWhileParsing);
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr1)));
+
             var exampleStr2 = "1D 3C 13 92 A3 1E A4 06 1F 00 00";
-            Assert.AreEqual(null, new VfxEval(ParseString(exampleStr2)).DynamicExpressionResult);
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr2)));
         }
 
         /*
@@ -328,6 +328,17 @@ namespace Tests
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
+        /*
+         * malformed expression, reader will throw System.IO.EndOfStreamException (which is caught)
+         *
+         */
+        [Test]
+        public void TestDynamicExpression21()
+        {
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 13 07 00 00 40 40 13 07 00";
+            Assert.Throws<EndOfStreamException>(() => new VfxEval(ParseString(exampleStr)));
+        }
+
 
         static byte[] ParseString(string bytestring)
         {
@@ -339,6 +350,5 @@ namespace Tests
             }
             return databytes;
         }
-
     }
 }
