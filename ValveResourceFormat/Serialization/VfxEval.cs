@@ -427,9 +427,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
             var exp3 = Expressions.Pop();
             if (nrArguments == 3)
             {
-                // trim or not to trim ...
+                // Trimming the brackets here because it's always safe to remove these from functions
+                // (as they always carry their own brackets)
                 Expressions.Push($"{funcName}({Trimb(exp3)},{Trimb(exp2)},{Trimb(exp1)})");
-                // expressions.Push($"{funcName}({exp3},{exp2},{exp1})");
                 return;
             }
             var exp4 = Expressions.Pop();
@@ -439,7 +439,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 return;
             }
 
-            throw new Exception("this cannot happen!");
+            throw new Exception($"Dynamic expression: Unexpected number of arguments ({nrArguments}) for function ${funcName}");
         }
 
         private static string GetSwizzle(byte b)
@@ -454,6 +454,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return swizzle[0..(i + 1)];
         }
 
+        // The decompiler has a tendency to accumulate brackets so we trim them in places where
+        // it is safe (which is just done for readability).
+        // The approach to removing brackets is not optimised in any way, arithmetic expressions
+        // will accumulate brackets and it's not trivial to know when it's safe to remove them
+        // For example 1+2+3+4 will decompile as ((1+2)+3)+4
         private static string Trimb(string exp)
         {
             return exp[0] == '(' && exp[^1] == ')' ? exp[1..^1] : exp;

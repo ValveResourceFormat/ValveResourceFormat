@@ -311,6 +311,23 @@ namespace Tests
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
+        /*
+         * 1+2+3+4
+         *
+         * is decompiled as
+         *
+         * ((1+2)+3)+4
+         *
+         */
+        [Test]
+        public void TestDynamicExpression20()
+        {
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 13 07 00 00 40 40 13 07 00 00 80 40 13 00";
+            var expectedResult =
+                "return ((1+2)+3)+4;";
+            Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
+        }
+
 
         static byte[] ParseString(string bytestring)
         {
