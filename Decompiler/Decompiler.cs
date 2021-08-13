@@ -137,7 +137,23 @@ namespace Decompiler
 
                 var dirs = Directory
                     .EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                    .Where(s => s.EndsWith("_c", StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal))
+                    .Where(s =>
+                    {
+                        if (ExtFilterList != null)
+                        {
+                            foreach (var ext in ExtFilterList)
+                            {
+                                if (s.EndsWith(ext, StringComparison.Ordinal))
+                                {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        }
+
+                        return s.EndsWith("_c", StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
+                    })
                     .ToList();
 
                 if (RecursiveSearch && CollectStats)
