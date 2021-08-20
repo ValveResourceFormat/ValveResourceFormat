@@ -266,34 +266,38 @@ namespace Decompiler
         private void ProcessFile(string path)
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+            ProcessFile(path, fs);
+        }
 
+        private void ProcessFile(string path, Stream stream, string originalPath = null)
+        {
             var magicData = new byte[4];
 
             int bytesRead;
             var totalRead = 0;
-            while ((bytesRead = fs.Read(magicData, totalRead, magicData.Length - totalRead)) != 0)
+            while ((bytesRead = stream.Read(magicData, totalRead, magicData.Length - totalRead)) != 0)
             {
                 totalRead += bytesRead;
             }
 
-            fs.Seek(0, SeekOrigin.Begin);
+            stream.Seek(-totalRead, SeekOrigin.Current);
 
             var magic = BitConverter.ToUInt32(magicData, 0);
 
             switch (magic)
             {
-                case Package.MAGIC: ParseVPK(path, fs); return;
-                case CompiledShader.MAGIC: ParseVCS(path, fs); return;
+                case Package.MAGIC: ParseVPK(path, stream); return;
+                case CompiledShader.MAGIC: ParseVCS(path, stream); return;
                 case ToolsAssetInfo.MAGIC2:
-                case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, fs); return;
+                case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
                 case BinaryKV3.MAGIC3:
                 case BinaryKV3.MAGIC2:
-                case BinaryKV3.MAGIC: ParseKV3(fs); return;
+                case BinaryKV3.MAGIC: ParseKV3(stream); return;
             }
 
-            var extension = Path.GetExtension(path);
+            var pathExtension = Path.GetExtension(path);
 
-            if (extension == ".vfont")
+            if (pathExtension == ".vfont")
             {
                 ParseVFont(path);
 
@@ -307,11 +311,6 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            ProcessFile(path, fs);
-        }
-
-        private void ProcessFile(string path, Stream stream, string originalPath = null)
-        {
             var resource = new Resource
             {
                 FileName = path,
@@ -557,7 +556,7 @@ namespace Decompiler
             shader.Dispose();
         }
 
-        private void ParseVFont(string path)
+        private void ParseVFont(string path) // TODO: Accept Stream
         {
             lock (ConsoleWriterLock)
             {
@@ -676,6 +675,10 @@ namespace Decompiler
                 {
                     orderedEntries = orderedEntries.Where(x => ExtFilterList.Contains(x.Key)).ToList();
                 }
+                else if (CollectStats)
+                {
+                    orderedEntries = orderedEntries.Where(x => x.Key.EndsWith("_c", StringComparison.Ordinal)).ToList();
+                }
 
                 if (ListResources)
                 {
@@ -694,26 +697,17 @@ namespace Decompiler
 
                 if (CollectStats)
                 {
-                    TotalFiles += orderedEntries
-                        .Where(entry => entry.Key.EndsWith("_c", StringComparison.Ordinal))
-                        .Sum(x => x.Value.Count);
+                    TotalFiles += orderedEntries.Sum(x => x.Value.Count);
                 }
 
                 foreach (var entry in orderedEntries)
                 {
                     Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
 
-                    if (CollectStats && entry.Key.EndsWith("_c", StringComparison.Ordinal))
+                    if (CollectStats)
                     {
                         foreach (var file in entry.Value)
                         {
-                            lock (ConsoleWriterLock)
-                            {
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine("[{0}/{1}] {2}", ++CurrentFile, TotalFiles, file.GetFullPath());
-                                Console.ResetColor();
-                            }
-
                             package.ReadEntry(file, out var output);
 
                             using var entryStream = new MemoryStream(output);
