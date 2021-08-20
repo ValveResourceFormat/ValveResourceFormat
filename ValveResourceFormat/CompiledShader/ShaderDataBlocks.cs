@@ -136,8 +136,8 @@ namespace ValveResourceFormat.ShaderParser
                 }
             }
             datareader.BreakLine();
-            datareader.ShowByteCount("Editor stack used for generating the file");
-            datareader.ShowBytes(16, "Editor ref. ID0");
+            datareader.ShowByteCount("Editor/Shader stack for generating the file");
+            datareader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
             datareader.ShowBytes(16, breakLine: false);
             datareader.TabComment("Editor ref. ID1 - usually a ref to the vs file");
             datareader.ShowBytes(16, breakLine: false);
@@ -149,13 +149,13 @@ namespace ValveResourceFormat.ShaderParser
             if (has_psrs_file == 0)
             {
                 datareader.ShowBytes(16, "Editor ref. ID7 - this ID is shared widely");
-                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", 51);
+                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", tabLen: 51);
             }
             if (has_psrs_file == 1)
             {
                 datareader.ShowBytes(16, "Editor ref. ID7 - reference to psrs file");
                 datareader.ShowBytes(16, "Editor ref. ID8 - this ID is shared widely");
-                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", 51);
+                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", tabLen: 51);
             }
         }
     }
@@ -197,10 +197,10 @@ namespace ValveResourceFormat.ShaderParser
             int has_psrs_file = datareader.ReadIntAtPosition();
             datareader.ShowBytes(4, $"has_psrs_file = {(has_psrs_file > 0 ? "True" : "False")}");
             datareader.BreakLine();
-            datareader.ShowByteCount("Editor stack used for generating the file");
-            datareader.ShowBytes(16, "Editor ref. ID0");
+            datareader.ShowByteCount("Editor/Shader stack for generating the file");
+            datareader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
             datareader.ShowBytes(16, "Editor ref. ID1 - this ID is shared widely");
-                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", 51);
+                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", tabLen: 51);
         }
     }
 

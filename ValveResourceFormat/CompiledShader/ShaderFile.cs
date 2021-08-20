@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ShaderParser
         public VcsSourceType vcsSourceType { get; }
         public FeaturesHeaderBlock featuresHeader { get; }
         public VsPsHeaderBlock vspsHeader { get; }
-        public int possibleSubVersion { get; } // 17 for all up to date files. 14 seen in old test files
+        public int possibleMinorVersion { get; } // 17 for all up to date files. 14 seen in old test files
         public List<SfBlock> sfBlocks { get; } = new();
         public List<SfConstraintsBlock> sfConstraintsBlocks { get; } = new();
         public List<DBlock> dBlocks { get; } = new();
@@ -49,14 +49,14 @@ namespace ValveResourceFormat.ShaderParser
             {
                 featuresHeader = new FeaturesHeaderBlock(datareader, datareader.GetOffset());
             } else if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.PixelShader
-                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PotentialShadowReciever)
+                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState)
             {
                 vspsHeader = new VsPsHeaderBlock(datareader, datareader.GetOffset());
             } else
             {
                 throw new ShaderParserException($"Can't parse this filetype: {vcsFileType}");
             }
-            possibleSubVersion = datareader.ReadInt();
+            possibleMinorVersion = datareader.ReadInt();
             int sfBlockCount = datareader.ReadInt();
             for (int i = 0; i < sfBlockCount; i++)
             {
@@ -217,13 +217,13 @@ namespace ValveResourceFormat.ShaderParser
             {
                 featuresHeader.PrintAnnotatedBytestream();
             } else if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.PixelShader
-                  || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PotentialShadowReciever)
+                  || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState)
             {
                 vspsHeader.PrintAnnotatedBytestream();
             }
             datareader.ShowByteCount();
             int unknown_val = datareader.ReadIntAtPosition();
-            datareader.ShowBytes(4, $"({unknown_val}) unknown significance, possibly the sub-version");
+            datareader.ShowBytes(4, $"({unknown_val}) unknown significance, possibly a minor-version");
             int lastEditorRef = vcsFileType == VcsFileType.Features ? featuresHeader.fileIDs.Count - 1 : 1;
             datareader.TabComment($"the value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
             datareader.ShowByteCount();

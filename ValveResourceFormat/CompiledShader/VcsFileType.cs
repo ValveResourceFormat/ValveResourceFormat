@@ -2,14 +2,16 @@ namespace ValveResourceFormat.ShaderParser
 {
     public enum VcsFileType
     {
-        Undetermined,
-        Any,
         Features,                   // features.vcs
         VertexShader,               // vs.vcs
         PixelShader,                // ps.vcs
         GeometryShader,             // gs.vcs
-        // TODO - ComputeShader needs implementation
+        HullShader,                 // hs.vcs
+        DomainShader,               // ds.vcs
+        // todo - ComputeShader needs implementation
+        // (HullShader, DomainShader and RaytracingShader also need implementation, but examples of these are limited)
         ComputeShader,              // cs.vcs
-        PotentialShadowReciever,    // psrs.vcs
+        PixelShaderRenderState,     // psrs.vcs
+        RaytracingShader,           // rtx.vcs
     };
 }

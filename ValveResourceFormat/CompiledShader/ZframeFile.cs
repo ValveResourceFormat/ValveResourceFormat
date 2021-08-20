@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ShaderParser
         public int nonZeroDataBlockCount { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsFileType vcsFileType,
-            VcsSourceType vcsSourceType, Boolean omitParsing = false)
+            VcsSourceType vcsSourceType, bool omitParsing = false)
         {
             this.filenamepath = filenamepath;
             this.vcsFileType = vcsFileType;
@@ -494,7 +494,7 @@ namespace ValveResourceFormat.ShaderParser
                 datareader.BreakLine();
             }
             //  End blocks for ps and psrs files
-            if (vcsFileType == VcsFileType.PixelShader || vcsFileType == VcsFileType.PotentialShadowReciever)
+            if (vcsFileType == VcsFileType.PixelShader || vcsFileType == VcsFileType.PixelShaderRenderState)
             {
                 datareader.ShowByteCount();
                 int nrEndBlocks = datareader.ReadIntAtPosition();
@@ -666,7 +666,7 @@ namespace ValveResourceFormat.ShaderParser
             }
         }
 
-        const int SOURCE_BYTES_TO_SHOW = 96; // %32==0 for best formatting
+        const int SOURCE_BYTES_TO_SHOW = 96;
         private void ShowDxilSources(int dxilSourceCount)
         {
             for (int i = 0; i < dxilSourceCount; i++)
@@ -748,10 +748,7 @@ namespace ValveResourceFormat.ShaderParser
             }
         }
 
-
-        const int VULKAN_SOURCE_BYTES_TO_SHOW = 992; // %32==0 for best formatting
-
-        // todo - Vulkan parsing needs more testing, need to run it against a complete archive
+        const int VULKAN_SOURCE_BYTES_TO_SHOW = 192;
         private void ShowVulkanSources(int vulkanSourceCount)
         {
             for (int i = 0; i < vulkanSourceCount; i++)
@@ -762,41 +759,31 @@ namespace ValveResourceFormat.ShaderParser
                     datareader.OutputWriteLine("// no source present");
                 } else
                 {
-                    int endOfSourceOffset = datareader.GetOffset() + offsetToEditorId;
                     datareader.ShowByteCount();
                     datareader.ShowBytes(4, $"({offsetToEditorId}) offset to Editor ref. ID ");
+                    int endOfSourceOffset = datareader.GetOffset() + offsetToEditorId;
                     int arg0 = datareader.ReadIntAtPosition();
-                    datareader.ShowBytes(4, $"({arg0}) this is probably 2 for all Vulkan sources, needs confirm");
+                    datareader.ShowBytes(4, $"({arg0}) values seen for Vulkan sources are (2,3)");
                     int offset2 = datareader.ReadIntAtPosition();
-                    datareader.ShowBytes(4, $"({offset2}) this value appears to be the offset value less 28, this implies there");
-                    datareader.TabComment("are 20 bytes unaccounted for, current guess is the following 20 bytes are header data", 15);
-                    datareader.ShowBytes(4, "headerData0");
-                    datareader.ShowBytes(4, "headerData1");
-                    datareader.ShowBytes(4, "headerData2");
-                    datareader.ShowBytes(4, "headerData3");
-                    datareader.ShowBytes(4, "headerData4");
+                    datareader.ShowBytes(4, $"({offset2}) - looks like an offset, unknown significance");
                     datareader.BreakLine();
-                    datareader.ShowByteCount("Possible start of Vulkan source");
-                    int sourceSize = offsetToEditorId - 28;
+                    datareader.ShowByteCount($"VULKAN-SOURCE[{i}]");
+                    int sourceSize = offsetToEditorId - 8;
                     int bytesToShow = VULKAN_SOURCE_BYTES_TO_SHOW > sourceSize ? sourceSize : VULKAN_SOURCE_BYTES_TO_SHOW;
                     datareader.ShowBytes(bytesToShow);
-                    int remainingBytes = sourceSize - bytesToShow;
-                    if (remainingBytes > 50)
+                    int bytesNotShown = sourceSize - bytesToShow;
+                    if (bytesNotShown > 0)
                     {
-                        datareader.Comment($"... {remainingBytes} bytes of data not shown)");
-                        datareader.MoveOffset(remainingBytes);
-                    } else if (remainingBytes > 0)
-                    {
-                        datareader.ShowBytes(remainingBytes);
+                        datareader.Comment($"... {bytesNotShown} bytes of data not shown)");
                     }
                     datareader.BreakLine();
-                    datareader.ShowByteCount();
+                    datareader.SetOffset(endOfSourceOffset);
+
                     datareader.ShowBytes(16, "Vulkan Editor ref. ID");
                     datareader.BreakLine();
                 }
             }
         }
-
 
         private void ShowGlslSources(int glslSourceCount)
         {

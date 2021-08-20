@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ShaderParser
             }
             if (filenamepath.EndsWith("psrs.vcs"))
             {
-                return VcsFileType.PotentialShadowReciever;
+                return VcsFileType.PixelShaderRenderState;
             }
             if (filenamepath.EndsWith("gs.vcs"))
             {

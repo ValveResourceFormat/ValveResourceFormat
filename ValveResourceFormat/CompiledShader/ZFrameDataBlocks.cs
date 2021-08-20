@@ -113,15 +113,19 @@ namespace ValveResourceFormat.ShaderParser
         }
     }
 
-    // todo - complete the implementation
     public class VulkanSource : GpuSource
     {
+        public int arg0 { get; } = -1;
+        public int offset2 { get; } = -1;
+
         public VulkanSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start, sourceId)
         {
             this.offset = datareader.ReadInt();
             if (offset > 0)
             {
-                sourcebytes = datareader.ReadBytes(offset);
+                this.arg0 = datareader.ReadInt();
+                this.offset2 = datareader.ReadInt();
+                sourcebytes = datareader.ReadBytes(offset - 8);
             }
             editorRefId = datareader.ReadBytes(16);
         }
