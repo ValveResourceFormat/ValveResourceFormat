@@ -4,5 +4,6 @@ namespace ValveResourceFormat.ShaderParser
         Glsl,
         DXIL,
         DXBC,
+        Vulkan,
     }
 }

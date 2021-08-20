@@ -148,14 +148,15 @@ namespace ValveResourceFormat.ShaderParser
             datareader.ShowBytes(16, "Editor ref. ID6");
             if (has_psrs_file == 0)
             {
-                datareader.ShowBytes(16, "Editor ref. ID7 - shared by all Valve v64 vcs files");
+                datareader.ShowBytes(16, "Editor ref. ID7 - this ID is shared widely");
+                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", 51);
             }
             if (has_psrs_file == 1)
             {
                 datareader.ShowBytes(16, "Editor ref. ID7 - reference to psrs file");
-                datareader.ShowBytes(16, "Editor ref. ID8 - shared by all Valve v64 vcs files");
+                datareader.ShowBytes(16, "Editor ref. ID8 - this ID is shared widely");
+                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", 51);
             }
-            datareader.BreakLine();
         }
     }
 
@@ -198,8 +199,8 @@ namespace ValveResourceFormat.ShaderParser
             datareader.BreakLine();
             datareader.ShowByteCount("Editor stack used for generating the file");
             datareader.ShowBytes(16, "Editor ref. ID0");
-            datareader.ShowBytes(16, "Editor ref. ID1 - shared by all Valve v64 vcs files");
-            datareader.BreakLine();
+            datareader.ShowBytes(16, "Editor ref. ID1 - this ID is shared widely");
+                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", 51);
         }
     }
 

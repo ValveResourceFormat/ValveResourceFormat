@@ -55,8 +55,18 @@ namespace ValveResourceFormat
             shaderFile.PrintByteAnalysis();
 
 
-            // shaderFile.GetDecompressedZFrame(0); // retrieve a decompressed zframe
-            // shaderFile.GetZFrameFile(0).PrintByteAnalysis();  // print a zframe
+
+            // todo - let the user select their own zframe, that might be nice
+
+            // print a few zframes, if there are any
+            for (int i = 0; i < Math.Min(3, shaderFile.GetZFrameCount()); i++)
+            {
+                string headerText = $"Byte printout of zframe[{shaderFile.GetZFrameIdByIndex(i):x08}], {Path.GetFileName(filenamepath)}";
+                Console.WriteLine($"\n\n{headerText}");
+                Console.WriteLine($"{new string('-', headerText.Length)}");
+                Console.WriteLine($"{new string('-', headerText.Length)}\n");
+                shaderFile.GetZFrameFile(0).PrintByteAnalysis();
+            }
         }
     }
 }

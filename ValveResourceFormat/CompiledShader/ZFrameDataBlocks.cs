@@ -94,7 +94,7 @@ namespace ValveResourceFormat.ShaderParser
     }
 
     /*
-     * The DXBC sources only has one header, the offset (which happens to be equal to their source size)
+     * The DXBC sources only have one header, the offset (which happens to be equal to their source size)
      */
     public class DxbcSource : GpuSource
     {
@@ -111,6 +111,24 @@ namespace ValveResourceFormat.ShaderParser
         {
             return $"DXBC-SOURCE[{sourceId}]";
         }
-
     }
+
+    // todo - complete the implementation
+    public class VulkanSource : GpuSource
+    {
+        public VulkanSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start, sourceId)
+        {
+            this.offset = datareader.ReadInt();
+            if (offset > 0)
+            {
+                sourcebytes = datareader.ReadBytes(offset);
+            }
+            editorRefId = datareader.ReadBytes(16);
+        }
+        public override string GetBlockName()
+        {
+            return $"VULKAN-SOURCE[{sourceId}]";
+        }
+    }
+
 }

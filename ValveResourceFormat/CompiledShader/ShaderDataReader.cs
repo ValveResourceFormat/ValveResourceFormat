@@ -283,8 +283,8 @@ namespace ValveResourceFormat.ShaderParser
         }
 
 
-        private bool WriteToConsole;
-        private bool WriteToDebug;
+        public bool WriteToConsole { get; set; }
+        public bool WriteToDebug { get; set; }
         public void DisableOutput()
         {
             WriteToConsole = false;

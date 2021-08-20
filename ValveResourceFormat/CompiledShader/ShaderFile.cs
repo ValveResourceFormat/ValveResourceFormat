@@ -16,6 +16,7 @@ namespace ValveResourceFormat.ShaderParser
         public VcsSourceType vcsSourceType { get; }
         public FeaturesHeaderBlock featuresHeader { get; }
         public VsPsHeaderBlock vspsHeader { get; }
+        public int possibleSubVersion { get; } // 17 for all up to date files. 14 seen in old test files
         public List<SfBlock> sfBlocks { get; } = new();
         public List<SfConstraintsBlock> sfConstraintsBlocks { get; } = new();
         public List<DBlock> dBlocks { get; } = new();
@@ -38,6 +39,12 @@ namespace ValveResourceFormat.ShaderParser
             vcsSourceType = GetVcsSourceType(filenamepath);
             this.datareader = datareader;
 
+            if (vcsFileType == VcsFileType.ComputeShader)
+            {
+                Console.WriteLine("Parsing cs.vcs files (compute shaders) is not yet implemented");
+                return;
+            }
+
             if (vcsFileType == VcsFileType.Features)
             {
                 featuresHeader = new FeaturesHeaderBlock(datareader, datareader.GetOffset());
@@ -49,11 +56,7 @@ namespace ValveResourceFormat.ShaderParser
             {
                 throw new ShaderParserException($"Can't parse this filetype: {vcsFileType}");
             }
-            int block_delim = datareader.ReadInt();
-            if (block_delim != 17)
-            {
-                throw new ShaderParserException($"Unexpected value for block_delim = {block_delim}, expecting 17");
-            }
+            possibleSubVersion = datareader.ReadInt();
             int sfBlockCount = datareader.ReadInt();
             for (int i = 0; i < sfBlockCount; i++)
             {
@@ -184,9 +187,10 @@ namespace ValveResourceFormat.ShaderParser
             return zframesLookup[zframeId].GetDecompressedZFrame();
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId)
+        public ZFrameFile GetZFrameFile(long zframeId, bool omitParsing = false)
         {
-            return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId, vcsFileType, vcsSourceType);
+            return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
+                vcsFileType, vcsSourceType, omitParsing);
         }
 
         public ZFrameFile GetZFrameFileByIndex(int zframeIndex)
@@ -202,6 +206,12 @@ namespace ValveResourceFormat.ShaderParser
 
         public void PrintByteAnalysis(bool shortenOutput = true)
         {
+            // todo - implement
+            if (vcsFileType == VcsFileType.ComputeShader)
+            {
+                return;
+            }
+
             datareader.SetOffset(0);
             if (vcsFileType == VcsFileType.Features)
             {
@@ -211,14 +221,11 @@ namespace ValveResourceFormat.ShaderParser
             {
                 vspsHeader.PrintAnnotatedBytestream();
             }
-            uint blockDelim = datareader.ReadUIntAtPosition();
-            if (blockDelim != 17)
-            {
-                throw new ShaderParserException($"unexpected block delim value! {blockDelim}");
-            }
             datareader.ShowByteCount();
-            datareader.ShowBytes(4, $"block DELIM always 17");
-            datareader.BreakLine();
+            int unknown_val = datareader.ReadIntAtPosition();
+            datareader.ShowBytes(4, $"({unknown_val}) unknown significance, possibly the sub-version");
+            int lastEditorRef = vcsFileType == VcsFileType.Features ? featuresHeader.fileIDs.Count - 1 : 1;
+            datareader.TabComment($"the value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
             datareader.ShowByteCount();
             uint sfBlockCount = datareader.ReadUIntAtPosition();
             datareader.ShowBytes(4, $"{sfBlockCount} SF blocks (usually 152 bytes each)");
@@ -409,7 +416,7 @@ namespace ValveResourceFormat.ShaderParser
                 datareader.MoveOffset(12);
                 byte[] compressedZframe = datareader.ReadBytes(compressedLength);
                 using var zstdDecoder = new Decompressor();
-                zstdDecoder.LoadDictionary(GetZFrameDictionary());
+                zstdDecoder.LoadDictionary(ZstdDictionary.GetDictionary());
                 Span<byte> zframeUncompressed = zstdDecoder.Unwrap(compressedZframe);
                 if (zframeUncompressed.Length != uncompressedLength)
                 {

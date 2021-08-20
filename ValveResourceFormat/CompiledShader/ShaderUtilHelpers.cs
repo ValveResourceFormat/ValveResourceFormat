@@ -7,16 +7,6 @@ namespace ValveResourceFormat.ShaderParser
     {
         public const uint PI_MURMUR_SEED = 0x31415926;
 
-        private static byte[] zstdDictionary;
-        public static byte[] GetZFrameDictionary()
-        {
-            if (zstdDictionary == null)
-            {
-                zstdDictionary = File.ReadAllBytes("../../CompiledShader/zstdictionary_2bc2fa87.dat");
-            }
-            return zstdDictionary;
-        }
-
         public static VcsFileType GetVcsFileType(string filenamepath)
         {
             if (filenamepath.EndsWith("features.vcs"))
@@ -39,6 +29,10 @@ namespace ValveResourceFormat.ShaderParser
             {
                 return VcsFileType.GeometryShader;
             }
+            if (filenamepath.EndsWith("cs.vcs"))
+            {
+                return VcsFileType.ComputeShader;
+            }
             throw new ShaderParserException($"don't know what this file is {filenamepath}");
         }
 
@@ -55,8 +49,9 @@ namespace ValveResourceFormat.ShaderParser
                     return VcsSourceType.DXBC;
                 }
             }
-
-            // todo - needs implementation: Vulkan (+ any other known types?)
+            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("vulkan")) {
+                return VcsSourceType.Vulkan;
+            }
             throw new ShaderParserException($"Source type unknown or not supported {filenamepath}");
         }
 
