@@ -168,7 +168,7 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("Use ValvePak library to parse VPK files.\nSee https://github.com/SteamDatabase/ValvePak");
             }
 
-            if (FileSize == CompiledShader.MAGIC_VCS2)
+            if (FileSize == CompiledShader.MAGIC)
             {
                 throw new InvalidDataException("Use CompiledShader() class to parse compiled shader files.");
             }

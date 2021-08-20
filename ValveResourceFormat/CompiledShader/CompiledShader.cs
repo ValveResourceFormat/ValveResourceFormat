@@ -6,7 +6,7 @@ namespace ValveResourceFormat
 {
     public class CompiledShader : IDisposable
     {
-        public const int MAGIC_VCS2 = 0x32736376; // "vcs2"
+        public const int MAGIC = 0x32736376; // "vcs2"
         public const uint ZSTD_DELIM = 0xFFFFFFFD;
         public const uint LZMA_DELIM = 0x414D5A4C;
         public const int ZSTD_COMPRESSION = 1;

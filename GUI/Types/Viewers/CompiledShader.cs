@@ -11,7 +11,7 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == ValveResourceFormat.CompiledShader.MAGIC_VCS2;
+            return magic == ValveResourceFormat.CompiledShader.MAGIC;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
