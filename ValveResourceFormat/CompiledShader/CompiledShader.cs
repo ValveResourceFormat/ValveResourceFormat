@@ -1,17 +1,17 @@
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
 using ValveResourceFormat.ShaderParser;
 
-#pragma warning disable CA1051 // Do not declare visible instance fields
 namespace ValveResourceFormat
 {
     public class CompiledShader : IDisposable
     {
-        public const int MAGIC = 0x32736376; // "vcs2"
-
-        private BinaryReader Reader;
+        public const int MAGIC_VCS2 = 0x32736376; // "vcs2"
+        public const uint ZSTD_DELIM = 0xFFFFFFFD;
+        public const uint LZMA_DELIM = 0x414D5A4C;
+        public const int ZSTD_COMPRESSION = 1;
+        public const int LZMA_COMPRESSION = 2;
+        public const uint PI_MURMURSEED = 0x31415926;
         private ShaderDataReader datareader;
 
         /// <summary>
@@ -23,14 +23,12 @@ namespace ValveResourceFormat
             GC.SuppressFinalize(this);
         }
 
-
-
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && Reader != null)
+            if (disposing && datareader != null)
             {
-                Reader.Dispose();
-                Reader = null;
+                datareader.Dispose();
+                datareader = null;
             }
         }
 
@@ -38,11 +36,11 @@ namespace ValveResourceFormat
         /// Opens and reads the given filename.
         /// The file is held open until the object is disposed.
         /// </summary>
-        /// <param name="filename">The file to open and read.</param>
-        public void Read(string filename)
+        /// <param name="filenamepath">The file to open and read.</param>
+        public void Read(string filenamepath)
         {
-            var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            Read(filename, fs);
+            var fs = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            Read(filenamepath, fs);
         }
 
         /// <summary>
@@ -52,13 +50,13 @@ namespace ValveResourceFormat
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filenamepath, Stream input)
         {
-            Reader = new BinaryReader(input);
-            datareader = new ShaderDataReader(Reader);
+            datareader = new ShaderDataReader(input);
             ShaderFile shaderFile = new ShaderFile(filenamepath, datareader);
             shaderFile.PrintByteAnalysis();
 
 
-            // shaderFile.GetDecompressedZFrame(0); // retrieves a decompressed zframe
+            // shaderFile.GetDecompressedZFrame(0); // retrieve a decompressed zframe
+            // shaderFile.GetZFrameFile(0).PrintByteAnalysis();  // print a zframe
         }
     }
 }
