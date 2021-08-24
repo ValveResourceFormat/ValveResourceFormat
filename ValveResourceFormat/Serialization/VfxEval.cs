@@ -119,32 +119,24 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // check on each OPS if we are exiting a branch,
         // when we do we should combine expressions on the stack
         private readonly Stack<uint> OffsetAtBranchExits = new();
-
-        private readonly Dictionary<uint, string> ExternalVariablesPlaceholderNames = new();
         private readonly Dictionary<uint, string> LocalVariableNames = new();
 
         // build a dictionary of the external variables seen, passed as 'renderAttributesUsed'
         private static readonly ConcurrentDictionary<uint, string> ExternalVarsReference = new();
 
         // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
-        // omitReturnStatement controls whether it is shown
-        private readonly bool omitReturnStatement;
+        // OmitReturnStatement controls whether it is shown
+        private readonly bool OmitReturnStatement;
 
-        // controls whether unknown external variables should be shown with its murmur32
-        // E.g. UNKNOWN instead shown as UNKNOWN[e46d252d]
-        private readonly bool showMurmurForUnknowns;
-
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, bool showMurmurForUnknowns = false)
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false)
         {
-            this.omitReturnStatement = omitReturnStatement;
-            this.showMurmurForUnknowns = showMurmurForUnknowns;
+            this.OmitReturnStatement = omitReturnStatement;
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false, bool showMurmurForUnknowns = false)
+        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false)
         {
-            this.omitReturnStatement = omitReturnStatement;
-            this.showMurmurForUnknowns = showMurmurForUnknowns;
+            this.OmitReturnStatement = omitReturnStatement;
             uint MURMUR2SEED = 0x31415926; // pi!
 
             foreach (var externalVarName in renderAttributesUsed)
@@ -400,9 +392,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
                 var finalExp = Expressions.Pop();
                 finalExp = Trimb(finalExp);
-                if (omitReturnStatement)
+                if (OmitReturnStatement)
                 {
-                    DynamicExpressionList.Add($"{finalExp}");
+                    DynamicExpressionList.Add(finalExp);
                 } else
                 {
                     DynamicExpressionList.Add($"return {finalExp};");
@@ -472,33 +464,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return exp[0] == '(' && exp[^1] == ')' ? exp[1..^1] : exp;
         }
 
-        // naming external variables UNKNOWN, UNKNOWN2, UNKNOWN3,.. where not found
-        // if showMurmurForUnknowns is enabled return them in the form UNKNOWN[e46d252d]
-        private string GetExternalVarName(uint varId)
+        // if the variable reference is unknown return in the form UNKNOWN[e46d252d] (showing the murmur32)
+        private static string GetExternalVarName(uint varId)
         {
             ExternalVarsReference.TryGetValue(varId, out var varKnownName);
             if (varKnownName != null)
             {
                 return varKnownName;
-            }
-            if (showMurmurForUnknowns)
+            } else
             {
                 return $"UNKNOWN[{varId:x08}]";
             }
-            ExternalVariablesPlaceholderNames.TryGetValue(varId, out var varName);
-            if (varName == null)
-            {
-                if (ExternalVariablesPlaceholderNames.Count == 0)
-                {
-                    varName = "UNKNOWN";
-                }
-                else
-                {
-                    varName = string.Format("UNKNOWN{0}", ExternalVariablesPlaceholderNames.Count + 1);
-                }
-                ExternalVariablesPlaceholderNames.Add(varId, varName);
-            }
-            return varName;
         }
 
         // naming local variables v0,v1,v2,..

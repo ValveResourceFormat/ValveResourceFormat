@@ -47,12 +47,12 @@ namespace Tests
                 "19 38 AE 48 52 19 31 FB FD 02 0E 08 00 " +
                 "09 00 06 03 00 00";
             var expectedResult =
-                "v0 = UNKNOWN>UNKNOWN2;\n" +
-                "v0 = UNKNOWN<UNKNOWN2;\n" +
-                "v0 = UNKNOWN==UNKNOWN2;\n" +
-                "v0 = UNKNOWN>=UNKNOWN2;\n" +
-                "v0 = UNKNOWN<=UNKNOWN2;\n" +
-                "v0 = UNKNOWN!=UNKNOWN2;\n" +
+                "v0 = UNKNOWN[5248ae38]>UNKNOWN[02fdfb31];\n" +
+                "v0 = UNKNOWN[5248ae38]<UNKNOWN[02fdfb31];\n" +
+                "v0 = UNKNOWN[5248ae38]==UNKNOWN[02fdfb31];\n" +
+                "v0 = UNKNOWN[5248ae38]>=UNKNOWN[02fdfb31];\n" +
+                "v0 = UNKNOWN[5248ae38]<=UNKNOWN[02fdfb31];\n" +
+                "v0 = UNKNOWN[5248ae38]!=UNKNOWN[02fdfb31];\n" +
                 "return frac(v0);";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
@@ -131,7 +131,7 @@ namespace Tests
         {
             var exampleStr = "19 38 AE 48 52 04 12 00 0A 00 07 00 00 00 00 02 17 00 19 31 FB FD 02 04 1C 00 27 00 07 00 00 20 " +
                "41 06 03 00 02 32 00 07 00 00 C8 42 07 00 00 C8 42 15 00";
-            var expectedResult = "return (UNKNOWN && UNKNOWN2) ? frac(10) : (100*100);";
+            var expectedResult = "return (UNKNOWN[5248ae38] && UNKNOWN[02fdfb31]) ? frac(10) : (100*100);";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
@@ -145,7 +145,9 @@ namespace Tests
         {
             var exampleStr = "07 00 00 20 41 07 00 00 20 41 13 08 00 19 38 AE 48 52 04 17 00 1F 00 07 00 00 80 3F 02 24 00 19 " +
                 "31 FB FD 02 04 29 00 34 00 07 00 00 80 3F 06 00 00 02 39 00 07 00 00 E0 40 00";
-            var expectedResult = "v0 = 10+10;\nreturn (UNKNOWN || UNKNOWN2) ? sin(1) : 7;";
+            var expectedResult =
+                "v0 = 10+10;\n"+
+                "return (UNKNOWN[5248ae38] || UNKNOWN[02fdfb31]) ? sin(1) : 7;";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
@@ -166,7 +168,8 @@ namespace Tests
             "00 00 00 07 00 00 80 3F 06 20 00 08 02 09 02 07 CD CC CC 3D 0F 04 3A 00 3F 00 09 00 02 41 00 09 " +
             "01 08 03 07 00 00 80 3F 09 03 15 07 00 00 80 3F 09 03 15 07 00 00 80 3F 09 03 15 06 19 00 08 04 " +
             "09 04 07 00 00 80 3F 15 00";
-            var expectedResult = "v0 = random(.8,1);\n" +
+            var expectedResult =
+                "v0 = random(.8,1);\n" +
                 "v1 = random(1,2);\n" +
                 "v2 = random(0,1);\n" +
                 "v3 = (v2>.1) ? v0 : v1;\n" +
@@ -190,10 +193,10 @@ namespace Tests
             "00 40 40 07 00 00 80 40 06 18 00 02 45 00 07 00 00 A0 40 07 00 00 C0 40 07 00 00 E0 40 07 00 00 " +
             "00 41 06 18 00 08 01 09 00 06 01 00 08 02 09 00 09 01 19 15 D1 7D 0F 1E A4 06 09 00 09 02 15 13 00";
             var expectedResult =
-                "v0 = sin(UNKNOWN);\n" +
-                "v1 = exists(UNKNOWN2) ? float4(1,2,3,4) : float4(5,6,7,8);\n" +
+                "v0 = sin(UNKNOWN[2ce4aad6]);\n" +
+                "v1 = exists(UNKNOWN[3928f139]) ? float4(1,2,3,4) : float4(5,6,7,8);\n" +
                 "v2 = cos(v0);\n" +
-                "return v0+(dot4(v1,UNKNOWN3.xyz)*v2);";
+                "return v0+(dot4(v1,UNKNOWN[0f7dd115].xyz)*v2);";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
@@ -214,9 +217,10 @@ namespace Tests
         public void TestDynamicExpression12()
         {
             var exampleStr = "07 00 00 20 41 19 51 A2 54 EA 15 08 00 07 00 00 30 41 08 01 1F 51 A2 54 EA 00";
-            var expectedResult = "v0 = 10*UNKNOWN;\n" +
+            var expectedResult =
+                "v0 = 10*UNKNOWN[ea54a251];\n" +
                 "v1 = 11;\n" +
-                "return exists(UNKNOWN);";
+                "return exists(UNKNOWN[ea54a251]);";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
@@ -234,8 +238,8 @@ namespace Tests
             "44 00 07 00 00 20 41 07 00 00 20 41 15 06 03 00 02 4C 00 07 00 00 80 3F 02 54 " +
             "00 07 00 00 80 3F 00";
             var expectedResult =
-                "v0 = 10*UNKNOWN;\n" +
-                "return sin(exists(UNKNOWN)) ? (1 ? (0 ? 10 : frac(10*10)) : 1) : 1;";
+                "v0 = 10*UNKNOWN[ea54a251];\n" +
+                "return sin(exists(UNKNOWN[ea54a251])) ? (1 ? (0 ? 10 : frac(10*10)) : 1) : 1;";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
@@ -276,7 +280,12 @@ namespace Tests
             var exampleStr =
              "07 00 00 20 41 08 00 07 00 00 30 41 08 01 07 00 00 A0 40 08 02 09 01 09 00 0F 04 1F 00 27 00 07 " +
              "00 00 80 3F 02 2C 00 09 02 09 00 0F 04 31 00 39 00 07 00 00 C8 42 02 3E 00 07 00 00 48 43 08 03 09 03 00";
-            var expectedResult = "v0 = 10;\nv1 = 11;\nv2 = 5;\nv3 = ((v1>v0) || (v2>v0)) ? 100 : 200;\nreturn v3;";
+            var expectedResult =
+                "v0 = 10;\n"+
+                "v1 = 11;\n"+
+                "v2 = 5;\n"+
+                "v3 = ((v1>v0) || (v2>v0)) ? 100 : 200;\n"+
+                "return v3;";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
 
@@ -333,7 +342,7 @@ namespace Tests
         }
 
         /*
-         * malformed expression, reader will throw System.IO.EndOfStreamException (which is caught)
+         * malformed expression, reader will throw System.IO.EndOfStreamException
          *
          */
         [Test]
@@ -349,7 +358,7 @@ namespace Tests
             var testInput = ParseString(
                 "1A 13 04 0F 00 07 00 07 00 00 00 00 02 14 00 1F 28 A6 90 70 04 19 00 21 00 19 A1 D0 52 1E 02 26 00 1D 6F 89 29 B8 00");
             var expectedResult = "(COND[19] && exists(UNKNOWN[7090a628])) ? UNKNOWN[1e52d0a1] : EVAL[b829896f]";
-            VfxEval vfxEval = new VfxEval(testInput, omitReturnStatement: true, showMurmurForUnknowns: true);
+            VfxEval vfxEval = new VfxEval(testInput, omitReturnStatement: true);
             Assert.AreEqual(expectedResult, vfxEval.DynamicExpressionResult);
         }
 
