@@ -85,10 +85,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
             MODULO,             // 17
             NEGATE,             // 18
             EXTVAR,             // 19
-            UNKNOWN1A,
+            COND,               // 1A (inferred from the shader code)
             UNKNOWN1B,
             UNKNOWN1C,
-            UNKNOWN1D,
+            EVAL,               // 1D (inferred from the shader code)
             SWIZZLE,            // 1E
             EXISTS,             // 1F
             UNKNOWN20,
@@ -119,19 +119,24 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // check on each OPS if we are exiting a branch,
         // when we do we should combine expressions on the stack
         private readonly Stack<uint> OffsetAtBranchExits = new();
-
-        private readonly Dictionary<uint, string> ExternalVariablesPlaceholderNames = new();
         private readonly Dictionary<uint, string> LocalVariableNames = new();
 
         // build a dictionary of the external variables seen, passed as 'renderAttributesUsed'
         private static readonly ConcurrentDictionary<uint, string> ExternalVarsReference = new();
 
-        public VfxEval(byte[] binaryBlob)
+        // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
+        // OmitReturnStatement controls whether it is shown
+        private readonly bool OmitReturnStatement;
+
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false)
         {
+            this.OmitReturnStatement = omitReturnStatement;
             ParseExpression(binaryBlob);
         }
-        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed)
+
+        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false)
         {
+            this.OmitReturnStatement = omitReturnStatement;
             uint MURMUR2SEED = 0x31415926; // pi!
 
             foreach (var externalVarName in renderAttributesUsed)
@@ -346,6 +351,22 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 return;
             }
 
+            if (op == OPCODE.COND)
+            {
+                uint expressionId = dataReader.ReadByte();
+                Expressions.Push($"COND[{expressionId}]");
+                return;
+            }
+
+            if (op == OPCODE.EVAL)
+            {
+                uint intval = dataReader.ReadUInt32();
+                // if this reference exists in the vars-reference, then show it
+                string murmurString = ExternalVarsReference.GetValueOrDefault(intval, $"{intval:x08}");
+                Expressions.Push($"EVAL[{murmurString}]");
+                return;
+            }
+
             if (op == OPCODE.SWIZZLE)
             {
                 var exp = Expressions.Pop();
@@ -371,7 +392,13 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
                 var finalExp = Expressions.Pop();
                 finalExp = Trimb(finalExp);
-                DynamicExpressionList.Add($"return {finalExp};");
+                if (OmitReturnStatement)
+                {
+                    DynamicExpressionList.Add(finalExp);
+                } else
+                {
+                    DynamicExpressionList.Add($"return {finalExp};");
+                }
                 return;
             }
 
@@ -437,28 +464,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return exp[0] == '(' && exp[^1] == ')' ? exp[1..^1] : exp;
         }
 
-        // naming external variables UNKNOWN, UNKNOWN2, UNKNOWN3,.. where not found
-        private string GetExternalVarName(uint varId)
+        // if the variable reference is unknown return in the form UNKNOWN[e46d252d] (showing the murmur32)
+        private static string GetExternalVarName(uint varId)
         {
             ExternalVarsReference.TryGetValue(varId, out var varKnownName);
             if (varKnownName != null)
             {
                 return varKnownName;
-            }
-            ExternalVariablesPlaceholderNames.TryGetValue(varId, out var varName);
-            if (varName == null)
+            } else
             {
-                if (ExternalVariablesPlaceholderNames.Count == 0)
-                {
-                    varName = "UNKNOWN";
-                }
-                else
-                {
-                    varName = string.Format("UNKNOWN{0}", ExternalVariablesPlaceholderNames.Count + 1);
-                }
-                ExternalVariablesPlaceholderNames.Add(varId, varName);
+                return $"UNKNOWN[{varId:x08}]";
             }
-            return varName;
         }
 
         // naming local variables v0,v1,v2,..
