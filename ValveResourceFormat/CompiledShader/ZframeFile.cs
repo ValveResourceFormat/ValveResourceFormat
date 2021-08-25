@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using ValveResourceFormat.Serialization.VfxEval;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
 
@@ -85,6 +83,7 @@ namespace ValveResourceFormat.ShaderParser
             switch (vcsSourceType)
             {
                 case VcsSourceType.Glsl:
+                case VcsSourceType.MobileGles:
                     ReadGlslSources(gpuSourceCount);
                     break;
                 case VcsSourceType.DXIL:
@@ -94,6 +93,8 @@ namespace ValveResourceFormat.ShaderParser
                     ReadDxbcSources(gpuSourceCount);
                     break;
                 case VcsSourceType.Vulkan:
+                case VcsSourceType.AndroidVulkan:
+                case VcsSourceType.IosVulkan:
                     ReadVulkanSources(gpuSourceCount);
                     break;
             }
@@ -114,7 +115,7 @@ namespace ValveResourceFormat.ShaderParser
             }
             if (!datareader.CheckPositionIsAtEOF())
             {
-                throw new ShaderParserException("End of file not reached!");
+                throw new ShaderParserException("End of file expected");
             }
         }
 
@@ -349,7 +350,6 @@ namespace ValveResourceFormat.ShaderParser
                 {
                     return $"{name0,-40} 0x{murmur32:x08}     {ShaderDataReader.BytesToString(code)}   {(operatorVal != int.MinValue ? $"{operatorVal}" : "")}";
                 }
-
             }
         }
 
@@ -460,7 +460,7 @@ namespace ValveResourceFormat.ShaderParser
             datareader.ShowBytes(1, "unknown boolean, values seen 0,1", tabLen: 13);
             datareader.BreakLine();
 
-            if (vcsSourceType == VcsSourceType.Glsl)
+            if (vcsSourceType == VcsSourceType.Glsl || vcsSourceType == VcsSourceType.MobileGles)
             {
                 ShowGlslSources(gpuSourceCount);
             }
@@ -472,7 +472,7 @@ namespace ValveResourceFormat.ShaderParser
             {
                 ShowDxbcSources(gpuSourceCount);
             }
-            if (vcsSourceType == VcsSourceType.Vulkan)
+            if (vcsSourceType == VcsSourceType.Vulkan || vcsSourceType == VcsSourceType.AndroidVulkan || vcsSourceType == VcsSourceType.IosVulkan)
             {
                 ShowVulkanSources(gpuSourceCount);
             }
@@ -857,6 +857,6 @@ namespace ValveResourceFormat.ShaderParser
             datareader.OutputWriteLine($"// {dynExp}");
             datareader.ShowBytes(dynExpLen);
         }
-
     }
+
 }

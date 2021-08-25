@@ -550,7 +550,6 @@ namespace ValveResourceFormat.ShaderParser
             if (val == 999999999) return "+";
             return "" + val; ;
         }
-
-
     }
+
 }

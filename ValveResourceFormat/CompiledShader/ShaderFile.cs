@@ -198,22 +198,18 @@ namespace ValveResourceFormat.ShaderParser
 
 
         private uint zFrameCount;
-        const int SKIP_ZFRAMES_IFMORETHAN = 10;
+        const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
 
         public void PrintByteAnalysis(bool shortenOutput = true)
         {
-            // todo - implement
-            if (vcsFileType == VcsFileType.ComputeShader)
-            {
-                return;
-            }
-
             datareader.SetOffset(0);
             if (vcsFileType == VcsFileType.Features)
             {
                 featuresHeader.PrintAnnotatedBytestream();
             } else if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.PixelShader
-                  || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState)
+                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState
+                   || vcsFileType == VcsFileType.ComputeShader || vcsFileType == VcsFileType.HullShader
+                   || vcsFileType == VcsFileType.DomainShader || vcsFileType == VcsFileType.RaytracingShader)
             {
                 vspsHeader.PrintAnnotatedBytestream();
             }
@@ -292,7 +288,7 @@ namespace ValveResourceFormat.ShaderParser
             }
 
             PrintZframes(shortenOutput);
-            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IFMORETHAN)
+            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
             {
                 datareader.Comment("rest of data contains compressed zframes");
                 datareader.BreakLine();
@@ -327,7 +323,7 @@ namespace ValveResourceFormat.ShaderParser
                 zFrameIndexes.Add(zframeId);
             }
             datareader.BreakLine();
-            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IFMORETHAN)
+            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
             {
                 return;
             }
@@ -450,7 +446,7 @@ namespace ValveResourceFormat.ShaderParser
             return $"zframeId[0x{zframeId:x08}] {comprDesc} offset={offsetToZFrameHeader,8} " +
                 $"compressedLength={compressedLength,7} uncompressedLength={uncompressedLength,9}";
         }
+
+
     }
-
-
 }

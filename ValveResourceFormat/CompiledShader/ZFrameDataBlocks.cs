@@ -54,7 +54,8 @@ namespace ValveResourceFormat.ShaderParser
             {
                 arg0 = datareader.ReadInt();
                 offset2 = datareader.ReadInt();
-                sourcebytes = datareader.ReadBytes(offset2);
+                sourcebytes = datareader.ReadBytes(offset2-1); // -1 because the sourcebytes are null-term
+                datareader.MoveOffset(1);
             }
             editorRefId = datareader.ReadBytes(16);
         }

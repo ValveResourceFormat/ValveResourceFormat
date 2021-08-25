@@ -52,15 +52,14 @@ namespace ValveResourceFormat.ShaderParser
 
         public static VcsSourceType GetVcsSourceType(string filenamepath)
         {
-            string[] nameTokens = filenamepath.Split("_");
-
-            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("pcgl"))
+            string filename = Path.GetFileName(filenamepath);
+            if (filename.Contains("pcgl_"))
             {
                 return VcsSourceType.Glsl;
             }
-            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("pc"))
+            if (filename.Contains("pc_"))
             {
-                if (nameTokens[^2].EndsWith("30"))
+                if (filename.Contains("30_"))
                 {
                     return VcsSourceType.DXIL;
                 } else
@@ -68,7 +67,19 @@ namespace ValveResourceFormat.ShaderParser
                     return VcsSourceType.DXBC;
                 }
             }
-            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("vulkan"))
+            if (filename.Contains("mobile_gles_"))
+            {
+                return VcsSourceType.MobileGles;
+            }
+            if (filename.Contains("android_vulkan_"))
+            {
+                return VcsSourceType.AndroidVulkan;
+            }
+            if (filename.Contains("ios_vulkan_"))
+            {
+                return VcsSourceType.IosVulkan;
+            }
+            if (filename.Contains("vulkan_"))
             {
                 return VcsSourceType.Vulkan;
             }

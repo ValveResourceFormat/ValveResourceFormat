@@ -11,9 +11,9 @@ namespace ValveResourceFormat.ShaderParser
      * "IOS_VULKAN"
      * "ANDROID_VULKAN"
      *
-     * PCGL is implemented
-     * PC and VULKAN are correctly parsed, but lack support for exporting source (source may be viewed as bytecode)
-     * The rest are not implementated (and have not been attempted)
+     * PCGL and MOBILE_GLES work well
+     * PC, VULKAN, IOS_VULKAN, ANDROID_VULKAN parse without error, but lack decompiling source (source may be viewed as bytecode)
+     * X360, MAC are not implemented
      *
      *
      */
@@ -21,6 +21,11 @@ namespace ValveResourceFormat.ShaderParser
         Glsl,       // "PCGL"
         DXIL,       // "PC" is seen as two sub-types, DXIL and DXBC (all v.30 files are DXIL encoded, all v.40+ are DXBC)
         DXBC,
+        X360,
+        Mac,
         Vulkan,
+        MobileGles,
+        IosVulkan,
+        AndroidVulkan,
     }
 }
