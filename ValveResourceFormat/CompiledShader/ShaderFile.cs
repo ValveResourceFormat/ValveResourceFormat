@@ -10,7 +10,7 @@ namespace ValveResourceFormat.ShaderParser
 {
     public class ShaderFile
     {
-        private ShaderDataReader datareader { get; }
+        public ShaderDataReader datareader { get; }
         public string filenamepath { get; }
         public VcsFileType vcsFileType { get; }
         public VcsSourceType vcsSourceType { get; }
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ShaderParser
         // their Id (which is different) is the dictionary key
         // both their index and Id are used in different contexts
         public SortedDictionary<long, ZFrameDataDescription> zframesLookup { get; } = new();
-        private DBlockConfigurationMapping dBlockConfigGen;
+        private ConfigMappingDParams dBlockConfigGen;
 
         public ShaderFile(string filenamepath, ShaderDataReader datareader)
         {
@@ -38,18 +38,14 @@ namespace ValveResourceFormat.ShaderParser
             vcsFileType = GetVcsFileType(filenamepath);
             vcsSourceType = GetVcsSourceType(filenamepath);
             this.datareader = datareader;
-
-            if (vcsFileType == VcsFileType.ComputeShader)
-            {
-                Console.WriteLine("Parsing cs.vcs files (compute shaders) is not yet implemented");
-                return;
-            }
-
+            // There's a chance HullShader, DomainShader and RaytracingShader work but they haven't been tested
             if (vcsFileType == VcsFileType.Features)
             {
                 featuresHeader = new FeaturesHeaderBlock(datareader, datareader.GetOffset());
             } else if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.PixelShader
-                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState)
+                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState
+                   || vcsFileType == VcsFileType.ComputeShader || vcsFileType == VcsFileType.HullShader
+                   || vcsFileType == VcsFileType.DomainShader || vcsFileType == VcsFileType.RaytracingShader)
             {
                 vspsHeader = new VsPsHeaderBlock(datareader, datareader.GetOffset());
             } else
@@ -84,7 +80,7 @@ namespace ValveResourceFormat.ShaderParser
 
             // This is needed for the zframes to determine their source mapping
             // it must be instantiated after the D-blocks have been read
-            dBlockConfigGen = new DBlockConfigurationMapping(this);
+            dBlockConfigGen = new ConfigMappingDParams(this);
 
             int paramBlockCount = datareader.ReadInt();
             for (int i = 0; i < paramBlockCount; i++)
@@ -224,7 +220,7 @@ namespace ValveResourceFormat.ShaderParser
             datareader.ShowByteCount();
             int unknown_val = datareader.ReadIntAtPosition();
             datareader.ShowBytes(4, $"({unknown_val}) unknown significance, possibly a minor-version");
-            int lastEditorRef = vcsFileType == VcsFileType.Features ? featuresHeader.fileIDs.Count - 1 : 1;
+            int lastEditorRef = vcsFileType == VcsFileType.Features ? featuresHeader.editorIDs.Count - 1 : 1;
             datareader.TabComment($"the value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
             datareader.ShowByteCount();
             uint sfBlockCount = datareader.ReadUIntAtPosition();
@@ -304,6 +300,11 @@ namespace ValveResourceFormat.ShaderParser
             }
 
             datareader.ShowEndOfFile();
+        }
+
+        public int[] GetDBlockConfig(int blockId)
+        {
+            return dBlockConfigGen.GetConfigState(blockId);
         }
 
         private void PrintZframes(bool shortenOutput)

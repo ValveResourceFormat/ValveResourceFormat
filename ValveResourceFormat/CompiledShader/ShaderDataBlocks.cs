@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.ShaderParser
 {
     public class FeaturesHeaderBlock : ShaderDataBlock
     {
+        public int vcsFileVersion { get; }
         public bool has_psrs_file { get; }
         public int unknown_val { get; }
         public string file_description { get; }
@@ -19,7 +19,7 @@ namespace ValveResourceFormat.ShaderParser
         public int arg6 { get; }
         public int arg7 { get; }
         public List<(string, string)> mainParams { get; } = new();
-        public List<string> fileIDs { get; } = new();
+        public List<(string, string)> editorIDs { get; } = new();
         public FeaturesHeaderBlock(ShaderDataReader datareader, int start) : base(datareader, start)
         {
             int vcsMagicId = datareader.ReadInt();
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ShaderParser
             {
                 throw new ShaderParserException($"Wrong file id {vcsMagicId:x}");
             }
-            int vcsFileVersion = datareader.ReadInt();
+            vcsFileVersion = datareader.ReadInt();
             if (vcsFileVersion != 64)
             {
                 throw new ShaderParserException($"Wrong version {vcsFileVersion}, only version 64 supported");
@@ -67,15 +67,25 @@ namespace ValveResourceFormat.ShaderParser
                 }
                 mainParams.Add((string_arg0, string_arg1));
             }
-            for (int i = 0; i < 8; i++)
-            {
-                fileIDs.Add(datareader.ReadBytesAsString(16).Replace(" ", "").ToLower());
-            }
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID0 (produces this file)"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID1 - usually a ref to the vs file (VertexShader)"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID2 - usually a ref to the ps file (PixelShader)"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID3"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID4"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID5"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID6"));
             if (has_psrs_file)
             {
-                fileIDs.Add(datareader.ReadBytesAsString(16).Replace(" ", "").ToLower());
+                editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID7 - ref to psrs file (PixelShaderRenderState)"));
+                editorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
+                    $"// Editor ref. ID8 - this ID is shared across archives for vcs files with the same minor-version"));
+            } else
+            {
+                editorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
+                    "// Editor ref. ID7 - this ID is shared across archives for vcs files with the same minor-version"));
             }
         }
+
         public void PrintAnnotatedBytestream()
         {
             datareader.SetOffset(start);
@@ -139,29 +149,30 @@ namespace ValveResourceFormat.ShaderParser
             datareader.ShowByteCount("Editor/Shader stack for generating the file");
             datareader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
             datareader.ShowBytes(16, breakLine: false);
-            datareader.TabComment("Editor ref. ID1 - usually a ref to the vs file");
+            datareader.TabComment("Editor ref. ID1 - usually a ref to the vs file (VertexShader)");
             datareader.ShowBytes(16, breakLine: false);
-            datareader.TabComment("Editor ref. ID2 - usually a ref to the ps file");
+            datareader.TabComment("Editor ref. ID2 - usually a ref to the ps file (PixelShader)");
             datareader.ShowBytes(16, "Editor ref. ID3");
             datareader.ShowBytes(16, "Editor ref. ID4");
             datareader.ShowBytes(16, "Editor ref. ID5");
             datareader.ShowBytes(16, "Editor ref. ID6");
             if (has_psrs_file == 0)
             {
-                datareader.ShowBytes(16, "Editor ref. ID7 - this ID is shared widely");
-                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", tabLen: 51);
+                datareader.ShowBytes(16,
+                    "Editor ref. ID7 - this ID is shared across archives for vcs files with the same minor-version");
             }
             if (has_psrs_file == 1)
             {
-                datareader.ShowBytes(16, "Editor ref. ID7 - reference to psrs file");
-                datareader.ShowBytes(16, "Editor ref. ID8 - this ID is shared widely");
-                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", tabLen: 51);
+                datareader.ShowBytes(16, "Editor ref. ID7 - reference to psrs file (PixelShaderRenderState)");
+                datareader.ShowBytes(16,
+                    "Editor ref. ID7 - this ID is shared across archives for vcs files with the same minor-version");
             }
         }
     }
 
     public class VsPsHeaderBlock : ShaderDataBlock
     {
+        public int vcsFileVersion { get; }
         public bool hasPsrsFile { get; }
         public string fileID0 { get; }
         public string fileID1 { get; }
@@ -170,12 +181,12 @@ namespace ValveResourceFormat.ShaderParser
             int magic = datareader.ReadInt();
             if (magic != CompiledShader.MAGIC)
             {
-                throw new ShaderParserException($"wrong file id {magic:x}");
+                throw new ShaderParserException($"Wrong file id {magic:x} (not a vcs2 file)");
             }
-            int vcsFileVersion = datareader.ReadInt();
+            vcsFileVersion = datareader.ReadInt();
             if (vcsFileVersion != 64)
             {
-                throw new ShaderParserException($"Wrong version {vcsFileVersion}, only version 64 supported");
+                throw new ShaderParserException($"Unsupported version {vcsFileVersion}, only version 64 is supported");
             }
             int psrs_arg = datareader.ReadInt();
             if (psrs_arg != 0 && psrs_arg != 1)
@@ -183,8 +194,8 @@ namespace ValveResourceFormat.ShaderParser
                 throw new ShaderParserException($"Unexpected value psrs_arg = {psrs_arg}");
             }
             hasPsrsFile = psrs_arg > 0;
-            fileID0 = datareader.ReadBytesAsString(16).Replace(" ", "").ToLower();
-            fileID1 = datareader.ReadBytesAsString(16).Replace(" ", "").ToLower();
+            fileID0 = datareader.ReadBytesAsString(16);
+            fileID1 = datareader.ReadBytesAsString(16);
         }
         public void PrintAnnotatedBytestream()
         {
@@ -199,8 +210,8 @@ namespace ValveResourceFormat.ShaderParser
             datareader.BreakLine();
             datareader.ShowByteCount("Editor/Shader stack for generating the file");
             datareader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
-            datareader.ShowBytes(16, "Editor ref. ID1 - this ID is shared widely");
-                datareader.TabComment("all vcs files from up-to date archives seem to have the same value here", tabLen: 51);
+            datareader.ShowBytes(16,
+                    "Editor ref. ID1 - this ID is shared across archives for vcs files with the same minor-version");
         }
     }
 
@@ -410,7 +421,7 @@ namespace ValveResourceFormat.ShaderParser
     {
         public int blockIndex { get; }
         public int relRule { get; }  // 2 = dependency-rule (other files), 3 = exclusion (1 not present, as in the compat-blocks)
-        public int arg0 { get; } // ALWAYS 3 (for sf-constraint-blocks, this value is 1 for features files and 2 for all other files)
+        public int arg0 { get; } // ALWAYS 3 (for sf-constraint-blocks this value is 1 for features files and 2 for all other files)
         public int arg1 { get; } // arg1 at (88) sometimes has a value > -1 (in compat-blocks this value is always seen to be -1)
         public int[] flags { get; }
         public int[] range0 { get; }
@@ -620,33 +631,6 @@ namespace ValveResourceFormat.ShaderParser
             datareader.MoveOffset(32);
         }
 
-        public void ShowBlock()
-        {
-            Debug.WriteLine($"name0 {new string(' ', 20)} {name0}");
-            Debug.WriteLine($"name1 {new string(' ', 20)} {name1}");
-            Debug.WriteLine($"lead0,lead1 {new string(' ', 24)} ({type},{res0})");
-            Debug.WriteLine($"name2 {new string(' ', 20)} {name2}");
-            Debug.WriteLine($"paramType {new string(' ', 16)} {lead0}");
-            Debug.WriteLine($"dynExp {new string(' ', 1)} {ShaderDataReader.BytesToString(dynExp)}");
-            Debug.WriteLine($"arg0 {new string(' ', 21)} {arg0,9}");
-            Debug.WriteLine($"arg1 {new string(' ', 21)} {arg1,9}");
-            Debug.WriteLine($"arg2 {new string(' ', 21)} {arg2,9}");
-            Debug.WriteLine($"arg3 {new string(' ', 21)} {arg3,9}");
-            Debug.WriteLine($"arg4 {new string(' ', 21)} {arg4,9}");
-            Debug.WriteLine($"arg5 {new string(' ', 21)} {arg5,9}");
-            Debug.WriteLine($"fileref {new string(' ', 17)} {fileref}");
-            Debug.WriteLine($"ranges0 {new string(' ', 17)} {CombineIntArray(ranges0)}");
-            Debug.WriteLine($"ranges1 {new string(' ', 17)} {CombineIntArray(ranges1)}");
-            Debug.WriteLine($"ranges2 {new string(' ', 17)} {CombineIntArray(ranges2)}");
-            Debug.WriteLine($"ranges3 {new string(' ', 17)} {ranges3[0]},{ranges3[1]},{ranges3[2]},{ranges3[3]}");
-            Debug.WriteLine($"ranges4 {new string(' ', 17)} {ranges4[0]},{ranges4[1]},{ranges4[2]},{ranges4[3]}");
-            Debug.WriteLine($"ranges5 {new string(' ', 17)} {ranges5[0]},{ranges5[1]},{ranges5[2]},{ranges5[3]}");
-            Debug.WriteLine($"ranges6 {new string(' ', 17)} {CombineIntArray(ranges6)}");
-            Debug.WriteLine($"ranges7 {new string(' ', 17)} {CombineIntArray(ranges7)}");
-            Debug.WriteLine($"command0 {new string(' ', 16)} {command0}");
-            Debug.WriteLine($"command1 {new string(' ', 16)} {command1}");
-        }
-
         public void PrintAnnotatedBytestream()
         {
             datareader.SetOffset(start);
@@ -675,8 +659,8 @@ namespace ValveResourceFormat.ShaderParser
                 int dynLength = datareader.ReadIntAtPosition();
                 datareader.ShowBytes(4, breakLine: false);
                 datareader.TabComment("dyn-exp len", 1);
-                datareader.ShowBytes(dynLength, breakLine: false);
-                datareader.TabComment("dynamic expression", 1);
+                datareader.TabComment("dynamic expression");
+                datareader.ShowBytes(dynLength);
             }
             // 6 int parameters follow here
             datareader.ShowBytes(24, 4);
@@ -769,12 +753,25 @@ namespace ValveResourceFormat.ShaderParser
     public class MipmapBlock : ShaderDataBlock
     {
         public int blockIndex { get; }
+        public string name { get; }
+        public byte[] arg0 { get; }
+        public int arg1 { get; }
+        public int arg2 { get; }
+        public int arg3 { get; }
+        public int arg4 { get; }
+        public int arg5 { get; }
 
-        // TODO needs implementation
         public MipmapBlock(ShaderDataReader datareader, int start, int blockIndex) : base(datareader, start)
         {
             this.blockIndex = blockIndex;
-            datareader.MoveOffset(280);
+            arg0 = datareader.ReadBytes(4);
+            arg1 = datareader.ReadInt();
+            arg2 = datareader.ReadInt();
+            arg3 = datareader.ReadInt();
+            arg4 = datareader.ReadInt();
+            arg5 = datareader.ReadInt();
+            name = datareader.ReadNullTermStringAtPosition();
+            datareader.MoveOffset(256);
         }
         public void PrintAnnotatedBytestream()
         {
@@ -793,6 +790,8 @@ namespace ValveResourceFormat.ShaderParser
         public int blockIndex { get; }
         public string name { get; }
         public int bufferSize { get; }
+        public int arg0 { get; }
+        public int paramCount { get; }
         public List<(string, int, int, int, int)> bufferParams { get; } = new();
         public uint blockCrc { get; }
         public BufferBlock(ShaderDataReader datareader, int start, int blockIndex) : base(datareader, start)
@@ -801,8 +800,9 @@ namespace ValveResourceFormat.ShaderParser
             name = datareader.ReadNullTermStringAtPosition();
             datareader.MoveOffset(64);
             bufferSize = datareader.ReadInt();
-            datareader.MoveOffset(4); // these 4 bytes are always 0
-            int paramCount = datareader.ReadInt();
+            // datareader.MoveOffset(4); // these 4 bytes are always 0
+            arg0 = datareader.ReadInt();
+            paramCount = datareader.ReadInt();
             for (int i = 0; i < paramCount; i++)
             {
                 string paramName = datareader.ReadNullTermStringAtPosition();
@@ -849,20 +849,20 @@ namespace ValveResourceFormat.ShaderParser
     public class VertexSymbolsBlock : ShaderDataBlock
     {
         public int blockIndex { get; }
-        public string name { get; }
-        public string type { get; }
-        public string option { get; }
-        public int semanticIndex { get; }
+        public int symbolsCount { get; }
+        public List<(string, string, string, int)> symbolsDefinition { get; } = new();
+
         public VertexSymbolsBlock(ShaderDataReader datareader, int start, int blockIndex) : base(datareader, start)
         {
             this.blockIndex = blockIndex;
-            int namesCount = datareader.ReadInt();
-            for (int i = 0; i < namesCount; i++)
+            symbolsCount = datareader.ReadInt();
+            for (int i = 0; i < symbolsCount; i++)
             {
-                name = datareader.ReadNullTermString();
-                type = datareader.ReadNullTermString();
-                option = datareader.ReadNullTermString();
-                semanticIndex = datareader.ReadInt();
+                string name = datareader.ReadNullTermString();
+                string type = datareader.ReadNullTermString();
+                string option = datareader.ReadNullTermString();
+                int semanticIndex = datareader.ReadInt();
+                symbolsDefinition.Add((name, type, option, semanticIndex));
             }
         }
         public void PrintAnnotatedBytestream()

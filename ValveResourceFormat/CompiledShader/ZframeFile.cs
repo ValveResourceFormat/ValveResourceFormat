@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using ValveResourceFormat.Serialization.VfxEval;
 using ValveResourceFormat.ThirdParty;
+using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.ShaderParser
 {
@@ -277,17 +278,6 @@ namespace ValveResourceFormat.ShaderParser
                         Debug.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[11..75])}");
                     }
                 }
-            }
-        }
-
-        private static string ParseDynamicExpression(byte[] dynExpDatabytes)
-        {
-            try
-            {
-                return new VfxEval(dynExpDatabytes).DynamicExpressionResult;
-            } catch (InvalidDataException)
-            {
-                return "[error parsing dynamic-exp]";
             }
         }
 

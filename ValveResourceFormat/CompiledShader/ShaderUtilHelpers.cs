@@ -1,11 +1,13 @@
-using System.Collections.Generic;
+using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Diagnostics;
+using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.ShaderParser
 {
     public static class ShaderUtilHelpers
     {
-        public const uint PI_MURMUR_SEED = 0x31415926;
 
         public static VcsFileType GetVcsFileType(string filenamepath)
         {
@@ -33,23 +35,41 @@ namespace ValveResourceFormat.ShaderParser
             {
                 return VcsFileType.ComputeShader;
             }
+            if (filenamepath.EndsWith("hs.vcs"))
+            {
+                return VcsFileType.HullShader;
+            }
+            if (filenamepath.EndsWith("ds.vcs"))
+            {
+                return VcsFileType.DomainShader;
+            }
+            if (filenamepath.EndsWith("rtx.vcs"))
+            {
+                return VcsFileType.RaytracingShader;
+            }
             throw new ShaderParserException($"don't know what this file is {filenamepath}");
         }
 
-        public static VcsSourceType GetVcsSourceType(string filenamepath) {
+        public static VcsSourceType GetVcsSourceType(string filenamepath)
+        {
             string[] nameTokens = filenamepath.Split("_");
 
-            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("pcgl")) {
+            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("pcgl"))
+            {
                 return VcsSourceType.Glsl;
             }
-            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("pc")) {
-                if (nameTokens[^2].EndsWith("30")) {
+            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("pc"))
+            {
+                if (nameTokens[^2].EndsWith("30"))
+                {
                     return VcsSourceType.DXIL;
-                } else {
+                } else
+                {
                     return VcsSourceType.DXBC;
                 }
             }
-            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("vulkan")) {
+            if (nameTokens.Length >= 3 && nameTokens[^3].ToLower().EndsWith("vulkan"))
+            {
                 return VcsSourceType.Vulkan;
             }
             throw new ShaderParserException($"Source type unknown or not supported {filenamepath}");
@@ -165,6 +185,147 @@ namespace ValveResourceFormat.ShaderParser
             }
             return stringCollection.ToArray(); ;
         }
+
+        public static void ShowIntArray(int[] ints0, int padding = 5, string label = null, bool hex = false)
+        {
+            string intsString = "";
+            foreach (int v in ints0)
+            {
+                string val = hex ? $"{v:x}" : $"{v}";
+                intsString += $"{(v != 0 ? val : "_")}".PadLeft(padding);
+            }
+            string labelstr = (label != null && hex) ? $"{label}(0x)" : $"{label}";
+            labelstr = label != null ? $"{labelstr,12} = " : "";
+            Debug.WriteLine($"{labelstr}{intsString.Trim()}");
+        }
+
+        public static string ParseDynamicExpression(byte[] dynExpDatabytes)
+        {
+            try
+            {
+                return new VfxEval(dynExpDatabytes).DynamicExpressionResult.Replace("UNKNOWN", "VAR"); ;
+            } catch (Exception)
+            {
+                return "[error in dyn-exp]";
+            }
+        }
+
+        public class OutputFormatterTabulatedData
+        {
+            private bool WriteToConsole;
+            private bool WriteToDebug;
+            public OutputFormatterTabulatedData(bool WriteToConsole = true, bool WriteToDebug = false)
+            {
+                this.WriteToConsole = WriteToConsole;
+                this.WriteToDebug = WriteToDebug;
+            }
+            public void Write(string text)
+            {
+                if (WriteToConsole)
+                {
+                    Console.Write(text);
+                }
+                if (WriteToDebug)
+                {
+                    Debug.Write(text);
+                }
+            }
+            public void WriteLine(string text)
+            {
+                Write(text + "\n");
+            }
+
+            public void BreakLine()
+            {
+                Write("\n");
+            }
+            private List<string> headerValues;
+            private List<List<string>> tabulatedValues;
+            private List<int> columnWidths;
+
+            public void DefineHeaders(string[] headers)
+            {
+                headerValues = new();
+                tabulatedValues = new();
+                columnWidths = new();
+                foreach (string s in headers)
+                {
+                    headerValues.Add(s);
+                    columnWidths.Add(s.Length);
+                }
+                tabulatedValues.Add(headerValues);
+            }
+            public void AddTabulatedRow(string[] rowMembers)
+            {
+                if (headerValues.Count != rowMembers.Length)
+                {
+                    throw new ShaderParserException("wrong number of columns");
+                }
+                List<string> newRow = new();
+                List<List<string>> additionalRows = new();
+                for (int i = 0; i < rowMembers.Length; i++)
+                {
+                    string[] multipleLines = rowMembers[i].Split("\n");
+                    if (multipleLines.Length > 1)
+                    {
+                        addExtraLines(additionalRows, multipleLines, i);
+                    }
+
+                    newRow.Add(multipleLines[0]);
+                    if (multipleLines[0].Length > columnWidths[i])
+                    {
+                        columnWidths[i] = multipleLines[0].Length;
+                    }
+                }
+                tabulatedValues.Add(newRow);
+                foreach (var additionalRow in additionalRows)
+                {
+                    tabulatedValues.Add(additionalRow);
+                }
+            }
+            private void addExtraLines(List<List<string>> additionalRows, string[] multipleLines, int ind)
+            {
+                for (int i = 1; i < multipleLines.Length; i++)
+                {
+                    if (additionalRows.Count < i)
+                    {
+                        additionalRows.Add(emptyRow());
+                    }
+                    additionalRows[i - 1][ind] = multipleLines[i];
+
+                    if (multipleLines[i].Length > columnWidths[ind])
+                    {
+                        columnWidths[ind] = multipleLines[i].Length;
+                    }
+                }
+            }
+            private List<string> emptyRow()
+            {
+                List<string> newRow = new();
+                for (int i = 0; i < headerValues.Count; i++)
+                {
+                    newRow.Add("");
+                }
+                return newRow;
+            }
+            public void printTabulatedValues(int spacing = 2)
+            {
+                if (tabulatedValues.Count == 1 && tabulatedValues[0].Count == 0)
+                {
+                    return;
+                }
+                foreach (var row in tabulatedValues)
+                {
+                    for (int i = 0; i < row.Count; i++)
+                    {
+                        int pad = columnWidths[i] + spacing;
+                        Write($"{row[i].PadRight(pad)}");
+                    }
+                    Write("\n");
+                }
+            }
+        }
+
 
     }
 }

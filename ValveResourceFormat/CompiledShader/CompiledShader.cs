@@ -52,21 +52,23 @@ namespace ValveResourceFormat
         {
             datareader = new ShaderDataReader(input);
             ShaderFile shaderFile = new ShaderFile(filenamepath, datareader);
-            shaderFile.PrintByteAnalysis();
+
+            // todo - let the user switch between byte printout and summary
+            // shaderFile.PrintByteAnalysis();
+            PrintSingleFileSummary fileSummary = new PrintSingleFileSummary(shaderFile);
 
 
 
-            // todo - let the user select their own zframe, that might be nice
-
+            // todo - let the user select their own zframe
             // print a few zframes, if there are any
-            for (int i = 0; i < Math.Min(3, shaderFile.GetZFrameCount()); i++)
-            {
-                string headerText = $"Byte printout of zframe[{shaderFile.GetZFrameIdByIndex(i):x08}], {Path.GetFileName(filenamepath)}";
-                Console.WriteLine($"\n\n{headerText}");
-                Console.WriteLine($"{new string('-', headerText.Length)}");
-                Console.WriteLine($"{new string('-', headerText.Length)}\n");
-                shaderFile.GetZFrameFile(0).PrintByteAnalysis();
-            }
+            //for (int i = 0; i < Math.Min(3, shaderFile.GetZFrameCount()); i++)
+            //{
+            //    string headerText = $"Byte printout of zframe[{shaderFile.GetZFrameIdByIndex(i):x08}], {Path.GetFileName(filenamepath)}";
+            //    Console.WriteLine($"\n\n{headerText}");
+            //    Console.WriteLine($"{new string('-', headerText.Length)}");
+            //    Console.WriteLine($"{new string('-', headerText.Length)}\n");
+            //    shaderFile.GetZFrameFile(0).PrintByteAnalysis();
+            //}
         }
     }
 }

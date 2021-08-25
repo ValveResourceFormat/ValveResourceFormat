@@ -2,11 +2,11 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.ShaderParser
 {
-    public class DBlockConfigurationMapping
+    public class ConfigMappingDParams
     {
         private ShaderFile shaderfile;
 
-        public DBlockConfigurationMapping(ShaderFile shaderfile)
+        public ConfigMappingDParams(ShaderFile shaderfile)
         {
             this.shaderfile = shaderfile;
             GenerateOffsetAndLayers(shaderfile);
