@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Diagnostics;
 
 namespace ValveResourceFormat.ShaderParser
 {
@@ -8,18 +7,14 @@ namespace ValveResourceFormat.ShaderParser
     {
         private BinaryReader BinReader;
 
-        public ShaderDataReader(Stream input, bool writeToConsole = true, bool writeToDebug = false)
+        public ShaderDataReader(Stream input)
         {
             BinReader = new BinaryReader(input);
-            WriteToConsole = writeToConsole;
-            WriteToDebug = writeToDebug;
         }
 
-        public ShaderDataReader(byte[] databytes, bool writeToConsole = true, bool writeToDebug = false)
+        public ShaderDataReader(byte[] databytes)
         {
             BinReader = new BinaryReader(new MemoryStream(databytes));
-            WriteToConsole = writeToConsole;
-            WriteToDebug = writeToDebug;
         }
 
         #pragma warning disable CA1024 // Use properties where appropriate
@@ -284,11 +279,9 @@ namespace ValveResourceFormat.ShaderParser
 
 
         public bool WriteToConsole { get; set; }
-        public bool WriteToDebug { get; set; }
         public void DisableOutput()
         {
             WriteToConsole = false;
-            WriteToDebug = false;
         }
 
         private StreamWriter sw;
@@ -306,10 +299,6 @@ namespace ValveResourceFormat.ShaderParser
             if (WriteToConsole)
             {
                 Console.Write(text);
-            }
-            if (WriteToDebug)
-            {
-                Debug.Write(text);
             }
             if (sw != null)
             {

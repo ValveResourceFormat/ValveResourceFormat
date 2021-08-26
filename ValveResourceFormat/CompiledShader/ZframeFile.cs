@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
 
@@ -169,8 +168,8 @@ namespace ValveResourceFormat.ShaderParser
 
         public void ShowLeadSummary()
         {
-            Debug.WriteLine(GetLeadSummary());
-            Debug.WriteLine($"");
+            Console.WriteLine(GetLeadSummary());
+            Console.WriteLine($"");
         }
 
         public string GetLeadSummary()
@@ -195,20 +194,20 @@ namespace ValveResourceFormat.ShaderParser
         {
             foreach (ZDataBlock dataBlock in dataBlocks)
             {
-                Debug.WriteLine($"// data-block[{dataBlock.blockId}]");
-                Debug.WriteLine($"{dataBlock.h0},{dataBlock.h1},{dataBlock.h2}");
+                Console.WriteLine($"// data-block[{dataBlock.blockId}]");
+                Console.WriteLine($"{dataBlock.h0},{dataBlock.h1},{dataBlock.h2}");
                 if (dataBlock.dataload != null)
                 {
-                    Debug.WriteLine($"{ShaderDataReader.BytesToString(dataBlock.dataload)}");
-                    Debug.WriteLine("");
+                    Console.WriteLine($"{ShaderDataReader.BytesToString(dataBlock.dataload)}");
+                    Console.WriteLine("");
                 }
             }
         }
 
         public void ShowTailSummary()
         {
-            Debug.WriteLine(GetTailSummary());
-            Debug.WriteLine($"");
+            Console.WriteLine(GetTailSummary());
+            Console.WriteLine($"");
         }
 
         public string GetTailSummary()
@@ -229,16 +228,16 @@ namespace ValveResourceFormat.ShaderParser
         {
             foreach (GpuSource gpuSource in gpuSources)
             {
-                Debug.WriteLine(gpuSource.GetBlockName());
+                Console.WriteLine(gpuSource.GetBlockName());
                 if (gpuSource.sourcebytes.Length > 0)
                 {
-                    Debug.WriteLine($"{gpuSource.sourcebytes.Length}");
-                    // Debug.WriteLine($"{DataReader.BytesToString(glslSource.sourcebytes)}");
+                    Console.WriteLine($"{gpuSource.sourcebytes.Length}");
+                    // Console.WriteLine($"{DataReader.BytesToString(glslSource.sourcebytes)}");
                 } else
                 {
-                    Debug.WriteLine($"// empty source");
+                    Console.WriteLine($"// empty source");
                 }
-                Debug.WriteLine($"{ShaderDataReader.BytesToString(gpuSource.editorRefId)}  // File ID");
+                Console.WriteLine($"{ShaderDataReader.BytesToString(gpuSource.editorRefId)}  // File ID");
             }
         }
 
@@ -246,37 +245,37 @@ namespace ValveResourceFormat.ShaderParser
         {
             if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.GeometryShader)
             {
-                Debug.WriteLine($"{vsEndBlocks.Count:X02} 00 00 00   // nr of end blocks ({vsEndBlocks.Count})");
+                Console.WriteLine($"{vsEndBlocks.Count:X02} 00 00 00   // nr of end blocks ({vsEndBlocks.Count})");
                 foreach (VsEndBlock vsEndBlock in vsEndBlocks)
                 {
-                    Debug.WriteLine($"{ShaderDataReader.BytesToString(vsEndBlock.databytes)}");
+                    Console.WriteLine($"{ShaderDataReader.BytesToString(vsEndBlock.databytes)}");
                 }
             } else
             {
-                Debug.WriteLine($"{psEndBlocks.Count:X02} 00 00 00   // nr of end blocks ({vsEndBlocks.Count})");
+                Console.WriteLine($"{psEndBlocks.Count:X02} 00 00 00   // nr of end blocks ({vsEndBlocks.Count})");
                 foreach (PsEndBlock psEndBlock in psEndBlocks)
                 {
-                    Debug.WriteLine($"blockId Ref {psEndBlock.blockIdRef}");
-                    Debug.WriteLine($"arg0 {psEndBlock.arg0}");
-                    Debug.WriteLine($"source ref {psEndBlock.sourceRef}");
-                    Debug.WriteLine($"source pointer {psEndBlock.sourcePointer}");
-                    Debug.WriteLine($"has data ({psEndBlock.hasData0},{psEndBlock.hasData1},{psEndBlock.hasData2})");
+                    Console.WriteLine($"blockId Ref {psEndBlock.blockIdRef}");
+                    Console.WriteLine($"arg0 {psEndBlock.arg0}");
+                    Console.WriteLine($"source ref {psEndBlock.sourceRef}");
+                    Console.WriteLine($"source pointer {psEndBlock.sourcePointer}");
+                    Console.WriteLine($"has data ({psEndBlock.hasData0},{psEndBlock.hasData1},{psEndBlock.hasData2})");
                     if (psEndBlock.hasData0)
                     {
-                        Debug.WriteLine("// data-section 0");
-                        Debug.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data0)}");
+                        Console.WriteLine("// data-section 0");
+                        Console.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data0)}");
                     }
                     if (psEndBlock.hasData1)
                     {
-                        Debug.WriteLine("// data-section 1");
-                        Debug.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data1)}");
+                        Console.WriteLine("// data-section 1");
+                        Console.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data1)}");
                     }
                     if (psEndBlock.hasData2)
                     {
-                        Debug.WriteLine("// data-section 2");
-                        Debug.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[0..3])}");
-                        Debug.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[3..11])}");
-                        Debug.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[11..75])}");
+                        Console.WriteLine("// data-section 2");
+                        Console.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[0..3])}");
+                        Console.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[3..11])}");
+                        Console.WriteLine($"{ShaderDataReader.BytesToString(psEndBlock.data2[11..75])}");
                     }
                 }
             }

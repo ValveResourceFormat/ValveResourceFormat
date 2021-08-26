@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Diagnostics;
 using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.ShaderParser
@@ -207,7 +206,7 @@ namespace ValveResourceFormat.ShaderParser
             }
             string labelstr = (label != null && hex) ? $"{label}(0x)" : $"{label}";
             labelstr = label != null ? $"{labelstr,12} = " : "";
-            Debug.WriteLine($"{labelstr}{intsString.Trim()}");
+            Console.WriteLine($"{labelstr}{intsString.Trim()}");
         }
 
         public static string ParseDynamicExpression(byte[] dynExpDatabytes)
@@ -223,24 +222,17 @@ namespace ValveResourceFormat.ShaderParser
 
         public class OutputFormatterTabulatedData
         {
-            private bool WriteToConsole;
-            private bool WriteToDebug;
-            public OutputFormatterTabulatedData(bool WriteToConsole = true, bool WriteToDebug = false)
-            {
-                this.WriteToConsole = WriteToConsole;
-                this.WriteToDebug = WriteToDebug;
-            }
+            private bool WriteToConsole = true;
+
+            public OutputFormatterTabulatedData() { }
             public void Write(string text)
             {
                 if (WriteToConsole)
                 {
                     Console.Write(text);
                 }
-                if (WriteToDebug)
-                {
-                    Debug.Write(text);
-                }
             }
+
             public void WriteLine(string text)
             {
                 Write(text + "\n");
@@ -279,7 +271,7 @@ namespace ValveResourceFormat.ShaderParser
                     string[] multipleLines = rowMembers[i].Split("\n");
                     if (multipleLines.Length > 1)
                     {
-                        addExtraLines(additionalRows, multipleLines, i);
+                        AddExtraLines(additionalRows, multipleLines, i);
                     }
 
                     newRow.Add(multipleLines[0]);
@@ -294,13 +286,13 @@ namespace ValveResourceFormat.ShaderParser
                     tabulatedValues.Add(additionalRow);
                 }
             }
-            private void addExtraLines(List<List<string>> additionalRows, string[] multipleLines, int ind)
+            private void AddExtraLines(List<List<string>> additionalRows, string[] multipleLines, int ind)
             {
                 for (int i = 1; i < multipleLines.Length; i++)
                 {
                     if (additionalRows.Count < i)
                     {
-                        additionalRows.Add(emptyRow());
+                        additionalRows.Add(EmptyRow());
                     }
                     additionalRows[i - 1][ind] = multipleLines[i];
 
@@ -310,7 +302,7 @@ namespace ValveResourceFormat.ShaderParser
                     }
                 }
             }
-            private List<string> emptyRow()
+            private List<string> EmptyRow()
             {
                 List<string> newRow = new();
                 for (int i = 0; i < headerValues.Count; i++)
@@ -319,7 +311,7 @@ namespace ValveResourceFormat.ShaderParser
                 }
                 return newRow;
             }
-            public void printTabulatedValues(int spacing = 2)
+            public void PrintTabulatedValues(int spacing = 2)
             {
                 if (tabulatedValues.Count == 1 && tabulatedValues[0].Count == 0)
                 {

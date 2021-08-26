@@ -7,8 +7,10 @@ namespace ValveResourceFormat.ShaderParser
      * ZFrameId to static-configuration mapping
      * ----------------------------------------
      *
-     * The basic idea for mapping zframe-indexes to static configurations is by
-     * enumerating all possible legal states and writing them (in that order) next to the zframes.
+     * During parsing, the configuration mapping is applied to all vcs files that contain zframes
+     * to identify the configuration that each zframes belongs to.
+     * The basic idea for mapping zframe-Ids to static configurations is by enumerating all possible
+     * legal states and writing them (in order) next to the zframes.
      *
      * For example if there are 3 static-params (S1,S2,S2) that can each take two configurations (on or off)
      * they combine to give 8 possible configurations, the zframe mapping will be
@@ -23,7 +25,7 @@ namespace ValveResourceFormat.ShaderParser
      *  6        0  1  1
      *  7        1  1  1
      *
-     * Some static-param can have more than two states, for example S_DETAIL_2 from the Dota-2 file
+     * Sometimes static-params have more than two states, for example S_DETAIL_2 from the Dota2 file
      * hero_pcgl_30_vs.vcs can be assigned to one of three (None, Add, Add Self Illum). In our example,
      * if S2 is expanded to take the values (0,1,2) the number of possible configurations becomes 12 and a new
      * mapping can be written as
@@ -42,14 +44,14 @@ namespace ValveResourceFormat.ShaderParser
      * 10        0  2  1
      * 11        1  2  1
      *
-     * In most files some static-combinations are not allowed. These are described by constraints specified
-     * in the the Sf-constraints blocks. The most common type of constraint are exclusion or inclusion (dependency)
-     * rules between pairs of parameters.
+     * In most shader files some static-combinations are not allowed. These are described by constraints specified
+     * in the the Sf-constraints blocks. The most common types of constraints are mutual-exclusion and dependencies
+     * between pairs of parameters.
      *
      * EXC(S1,S2) means S1 and S2 are mutually exclusive and cannot appear together
      * INC(S2,S3) means S2 is dependent on S3 and cannot appear without it (but S3 can still appear without S2).
      *
-     * To achieve a configuration mapping where constraints are defined; the constraints are applied to the
+     * To determine the configuration mapping where constraints are defined; the constraints are applied to the
      * mapping by deleting the rows that are disallowed. Importantly, the values of the zframeId's are left
      * unaltered. Applying this idea below, rows where S1 and S2 appeared together have been removed
      * and rows where S2 appeared without S3 have been removed.
@@ -62,12 +64,10 @@ namespace ValveResourceFormat.ShaderParser
      *  8        0  1  1
      * 10        0  2  1
      *
-     * This describes the approach to the configuration mapping in general, it is applied to all files to map the
-     * zframes to the configurations they belong to.
      *
-     * To calculate a configuration state from a zframeId note (before any constraints are applied) that
+     * To calculate a configuration state from a zframeId observe (before any constraints are applied) that
      * S1 changes every 1 frame, S2 changes every 2 frames and S3 changes every 6 frames. The values (1,2,6) are the
-     * number of successive frames that a state's digits are held constant, it is also equivalent to the offset where
+     * number of successive frames that a state's digit is held constant, it is also equivalent to the offset where
      * a given state changes for the first time. (S1 first changes from 0 to 1 at offset=1, S2 first changes
      * from 0 to 1 at offset=2, and S3 first changes from 0 to 1 at offset=6). We collect these offsets together with
      * the number of states that each configuration can assume.
@@ -80,7 +80,7 @@ namespace ValveResourceFormat.ShaderParser
      *
      *       state[i] = zframeId / offset[i] % nr_states[i]
      *
-     * (zframeId / offset[i] is an integer division - the remainder is discarded)
+     * (where zframeId / offset[i] is an integer division - the remainder is discarded)
      *
      *
      * Substituting zframeId = 10

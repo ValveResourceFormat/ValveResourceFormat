@@ -73,7 +73,7 @@ namespace ValveResourceFormat.ShaderParser
                 string configs = mainParam.Item2.Length == 0 ? "(implicit)" : "0,1";
                 output.AddTabulatedRow(new string[] { $"{mainParam.Item1}", $"{arg2}", $"{configs}" });
             }
-            output.printTabulatedValues();
+            output.PrintTabulatedValues();
             output.BreakLine();
         }
 
@@ -121,7 +121,7 @@ namespace ValveResourceFormat.ShaderParser
                 output.AddTabulatedRow(new string[] {$"[{item.blockIndex,2}]", $"{item.name0}", $"{item.arg2+1}",
                     $"{configStates}", $"{configStates2}"});
             }
-            output.printTabulatedValues();
+            output.PrintTabulatedValues();
             output.BreakLine();
         }
 
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.ShaderParser
             {
                 output.AddTabulatedRow(new string[] { $"[{item.blockIndex,2}]", $"{item.name0}", $"{item.arg2}", $"{item.arg3}", $"{item.arg4,2}" });
             }
-            output.printTabulatedValues();
+            output.PrintTabulatedValues();
             output.BreakLine();
         }
 
@@ -310,7 +310,7 @@ namespace ValveResourceFormat.ShaderParser
                     $"{Pow2Rep(param.arg3),4}", $"{param.arg4,2}", $"{BlankNegOne(param.arg5),2}",
                     $"{dynExpExists}", $"{c0}", $"{param.fileref}"});
             }
-            output.printTabulatedValues(spacing: 1);
+            output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
             if (dynExpCount == 0)
             {
@@ -332,7 +332,7 @@ namespace ValveResourceFormat.ShaderParser
                         $"{param.type,2},{param.lead0,2},{BlankNegOne(param.arg0),2},{param.arg1,2},{param.arg2,2},{param.arg4,2},{BlankNegOne(param.arg5),2}",
                         $"{dynExpstring}" });
                 }
-                output.printTabulatedValues();
+                output.PrintTabulatedValues();
             }
             output.BreakLine();
             output.WriteLine("PARAMETERS - Default values and limits    (type0,type1,arg0,arg1,arg2,arg4,arg5,command0 reprinted)");
@@ -357,7 +357,7 @@ namespace ValveResourceFormat.ShaderParser
                     $"{Comb(r0)}", $"{Comb(r1)}", $"{Comb(r2)}", $"{Comb(r3)}", $"{Comb(r4)}",
                     $"{Comb(r5)}", $"{Comb(r6)}", $"{Comb(r7)}", $"{param.command0}", $"{hasFileRef}", $"{hasDynExp}"});
             }
-            output.printTabulatedValues(spacing: 1);
+            output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
         }
 
@@ -378,7 +378,7 @@ namespace ValveResourceFormat.ShaderParser
                     $"{ShaderDataReader.BytesToString(mipmap.arg0),-14}", $"{mipmap.arg1,2}", $"{BlankNegOne(mipmap.arg2),2}",
                     $"{BlankNegOne(mipmap.arg3),2}", $"{BlankNegOne(mipmap.arg4),2}", $"{mipmap.arg5,2}" });
             }
-            output.printTabulatedValues();
+            output.PrintTabulatedValues();
             output.BreakLine();
         }
 
@@ -407,7 +407,7 @@ namespace ValveResourceFormat.ShaderParser
                     output.AddTabulatedRow(new string[] { "", $"{name}", $"{bOffset,3}", $"{nrVertices,3}", $"{nrAttribs,3}", $"{length,3}" });
 
                 }
-                output.printTabulatedValues();
+                output.PrintTabulatedValues();
                 output.BreakLine();
             }
         }
@@ -447,7 +447,7 @@ namespace ValveResourceFormat.ShaderParser
                     int semanticIndex = symbolsDef.Item4;
                     output.AddTabulatedRow(new string[] { "", $"{name}", $"{type}", $"{option}", $"{semanticIndex,2}" });
                 }
-                output.printTabulatedValues();
+                output.PrintTabulatedValues();
                 output.BreakLine();
             }
             output.BreakLine();

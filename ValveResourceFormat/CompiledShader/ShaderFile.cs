@@ -26,9 +26,13 @@ namespace ValveResourceFormat.ShaderParser
         public List<BufferBlock> bufferBlocks { get; } = new();
         public List<VertexSymbolsBlock> symbolBlocks { get; } = new();
 
-        // zframe data is sorted by the order they appear in the file
-        // their Id (which is different) is the dictionary key
-        // both their index and Id are used in different contexts
+        // Zframe data assigned to the ZFrameDataDescription class are key pieces of
+        // information needed to decompress and retrieve zframes (to save processing zframes are only
+        // decompressed on request). This information is organised in zframesLookup by their zframeId's.
+        // Because the zframes appear in the file in ascending order, storing their data in a
+        // sorted dictionary enables retrieval based on the order they are seen; by calling
+        // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
+        // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
         public SortedDictionary<long, ZFrameDataDescription> zframesLookup { get; } = new();
         private ConfigMappingDParams dBlockConfigGen;
 
