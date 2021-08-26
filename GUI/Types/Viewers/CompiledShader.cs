@@ -12,13 +12,13 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == ShaderCollection.MAGIC;
+            return magic == ShaderFile.MAGIC;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();
-            var shader = new ShaderCollection();
+            var shader = new ShaderFile();
 
             var buffer = new StringWriter(CultureInfo.InvariantCulture);
             var oldOut = Console.Out;

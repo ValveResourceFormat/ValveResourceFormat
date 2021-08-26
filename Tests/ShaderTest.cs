@@ -17,7 +17,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var shader = new ShaderCollection();
+                var shader = new ShaderFile();
 
                 using var sw = new StringWriter(CultureInfo.InvariantCulture);
                 var originalOutput = Console.Out;

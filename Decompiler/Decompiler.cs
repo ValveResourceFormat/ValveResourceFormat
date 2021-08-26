@@ -305,7 +305,7 @@ namespace Decompiler
             switch (magic)
             {
                 case Package.MAGIC: ParseVPK(path, stream); return;
-                case ShaderCollection.MAGIC: ParseVCS(path, stream); return;
+                case ShaderFile.MAGIC: ParseVCS(path, stream); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
                 case BinaryKV3.MAGIC3:
@@ -528,7 +528,7 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            var shader = new ShaderCollection();
+            var shader = new ShaderFile();
 
             try
             {
