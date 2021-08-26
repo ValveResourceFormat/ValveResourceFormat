@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
@@ -33,7 +34,7 @@ namespace ValveResourceFormat.ShaderParser
             this.filenamepath = filenamepath;
             this.vcsFileType = vcsFileType;
             this.vcsSourceType = vcsSourceType;
-            datareader = new ShaderDataReader(databytes);
+            datareader = new ShaderDataReader(new MemoryStream(databytes));
             this.zframeId = zframeId;
 
             // in case of failure; enable omitParsing and use the datareader directly

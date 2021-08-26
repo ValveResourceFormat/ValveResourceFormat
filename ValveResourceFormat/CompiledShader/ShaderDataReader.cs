@@ -6,18 +6,17 @@ namespace ValveResourceFormat.ShaderParser
     public class ShaderDataReader : IDisposable
     {
         private BinaryReader BinReader;
+        public HandleOutputWrite OutputWriter { get; set; }
+        public delegate void HandleOutputWrite(string s);
 
-        public ShaderDataReader(Stream input)
+        // pass an OutputWriter to direct output somewhere else, Console.Write is used by default
+        public ShaderDataReader(Stream input, HandleOutputWrite OutputWriter = null)
         {
             BinReader = new BinaryReader(input);
+            this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
         }
 
-        public ShaderDataReader(byte[] databytes)
-        {
-            BinReader = new BinaryReader(new MemoryStream(databytes));
-        }
-
-        #pragma warning disable CA1024 // Use properties where appropriate
+#pragma warning disable CA1024 // Use properties where appropriate
         public int GetOffset()
         {
             return (int)BinReader.BaseStream.Position;
@@ -32,7 +31,7 @@ namespace ValveResourceFormat.ShaderParser
         {
             return (int)BinReader.BaseStream.Length;
         }
-        #pragma warning restore CA1024
+#pragma warning restore CA1024
 
         private long savedPosition;
         public void SavePosition()
@@ -277,33 +276,9 @@ namespace ValveResourceFormat.ShaderParser
             return bytestring.Trim();
         }
 
-
-        public bool WriteToConsole { get; set; }
-        public void DisableOutput()
-        {
-            WriteToConsole = false;
-        }
-
-        private StreamWriter sw;
-        public void ConfigureWriteToFile(StreamWriter sw, bool disableOutput = false)
-        {
-            this.sw = sw;
-            if (disableOutput)
-            {
-                DisableOutput();
-            }
-        }
-
         public void OutputWrite(string text)
         {
-            if (WriteToConsole)
-            {
-                Console.Write(text);
-            }
-            if (sw != null)
-            {
-                sw.Write(text);
-            }
+            OutputWriter(text);
         }
 
         public void OutputWriteLine(string text)
@@ -325,8 +300,6 @@ namespace ValveResourceFormat.ShaderParser
                 BinReader = null;
             }
         }
-
-
 
     }
 }
