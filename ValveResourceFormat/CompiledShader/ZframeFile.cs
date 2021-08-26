@@ -11,7 +11,8 @@ namespace ValveResourceFormat.CompiledShader
         public ShaderDataReader datareader { get; private set; }
         public string filenamepath { get; }
         public VcsFileType vcsFileType { get; }
-        public VcsSourceType vcsSourceType { get; }
+        public VcsPlatformType vcsPlatformType { get; }
+        public VcsModelType vcsModelType { get; }
         public long zframeId { get; }
         public ZDataBlock leadingData { get; }
         public List<ZFrameParam> zframeParams { get; }
@@ -29,11 +30,13 @@ namespace ValveResourceFormat.CompiledShader
         public int nonZeroDataBlockCount { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsFileType vcsFileType,
-            VcsSourceType vcsSourceType, bool omitParsing = false)
+            VcsPlatformType vcsSourceType, VcsModelType vcsModelType, bool omitParsing = false)
         {
             this.filenamepath = filenamepath;
             this.vcsFileType = vcsFileType;
-            this.vcsSourceType = vcsSourceType;
+            this.vcsPlatformType = vcsSourceType;
+            this.vcsPlatformType = vcsSourceType;
+            this.vcsModelType = vcsModelType;
             datareader = new ShaderDataReader(new MemoryStream(databytes));
             this.zframeId = zframeId;
 
@@ -80,27 +83,44 @@ namespace ValveResourceFormat.CompiledShader
             flagbyte0 = datareader.ReadByte();
             gpuSourceCount = datareader.ReadInt();
             flagbyte1 = datareader.ReadByte();
-            switch (vcsSourceType)
+
+            if (vcsSourceType == VcsPlatformType.PC)
             {
-                case VcsSourceType.Glsl:
-                case VcsSourceType.MobileGles:
-                    ReadGlslSources(gpuSourceCount);
-                    break;
-                case VcsSourceType.DXIL:
-                    ReadDxilSources(gpuSourceCount);
-                    break;
-                case VcsSourceType.DXBC:
-                    ReadDxbcSources(gpuSourceCount);
-                    break;
-                case VcsSourceType.Vulkan:
-                case VcsSourceType.AndroidVulkan:
-                case VcsSourceType.IosVulkan:
-                    ReadVulkanSources(gpuSourceCount);
-                    break;
+                switch (vcsModelType)
+                {
+                    case VcsModelType._20:
+                    case VcsModelType._2b:
+                    case VcsModelType._30:
+                    case VcsModelType._31:
+                        ReadDxilSources(gpuSourceCount);
+                        break;
+                    case VcsModelType._40:
+                    case VcsModelType._41:
+                    case VcsModelType._50:
+                        ReadDxbcSources(gpuSourceCount);
+                        break;
+                    default:
+                        throw new ShaderParserException($"Unknown or unsupported model type {vcsSourceType} {vcsModelType}");
+                }
+            } else
+            {
+                switch (vcsSourceType)
+                {
+                    case VcsPlatformType.PCGL:
+                    case VcsPlatformType.MOBILE_GLES:
+                        ReadGlslSources(gpuSourceCount);
+                        break;
+                    case VcsPlatformType.VULKAN:
+                    case VcsPlatformType.ANDROID_VULKAN:
+                    case VcsPlatformType.IOS_VULKAN:
+                        ReadVulkanSources(gpuSourceCount);
+                        break;
+                    default:
+                        throw new ShaderParserException($"Unknown or unsupported source type {vcsSourceType}");
+                }
             }
 
             nrEndBlocks = datareader.ReadInt();
-
             for (int i = 0; i < nrEndBlocks; i++)
             {
                 if (this.vcsFileType == VcsFileType.VertexShader || this.vcsFileType == VcsFileType.GeometryShader)
@@ -456,25 +476,44 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             datareader.ShowByteCount($"Start of source section, {datareader.GetOffset()} is the base offset for end-section source pointers");
             int gpuSourceCount = datareader.ReadIntAtPosition();
-            datareader.ShowBytes(4, $"{vcsSourceType} source files ({gpuSourceCount})");
+            datareader.ShowBytes(4, $"{vcsPlatformType} source files ({gpuSourceCount})");
             datareader.ShowBytes(1, "unknown boolean, values seen 0,1", tabLen: 13);
             datareader.BreakLine();
 
-            if (vcsSourceType == VcsSourceType.Glsl || vcsSourceType == VcsSourceType.MobileGles)
+            if (vcsPlatformType == VcsPlatformType.PC)
             {
-                ShowGlslSources(gpuSourceCount);
-            }
-            if (vcsSourceType == VcsSourceType.DXIL)
+                switch (vcsModelType)
+                {
+                    case VcsModelType._20:
+                    case VcsModelType._2b:
+                    case VcsModelType._30:
+                    case VcsModelType._31:
+                        ShowDxilSources(gpuSourceCount);
+                        break;
+                    case VcsModelType._40:
+                    case VcsModelType._41:
+                    case VcsModelType._50:
+                        ShowDxbcSources(gpuSourceCount);
+                        break;
+                    default:
+                        throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsModelType}");
+                }
+            } else
             {
-                ShowDxilSources(gpuSourceCount);
-            }
-            if (vcsSourceType == VcsSourceType.DXBC)
-            {
-                ShowDxbcSources(gpuSourceCount);
-            }
-            if (vcsSourceType == VcsSourceType.Vulkan || vcsSourceType == VcsSourceType.AndroidVulkan || vcsSourceType == VcsSourceType.IosVulkan)
-            {
-                ShowVulkanSources(gpuSourceCount);
+                switch (vcsPlatformType)
+                {
+                    case VcsPlatformType.PCGL:
+                    case VcsPlatformType.MOBILE_GLES:
+                        ShowGlslSources(gpuSourceCount);
+                        break;
+                    case VcsPlatformType.VULKAN:
+                    case VcsPlatformType.ANDROID_VULKAN:
+                    case VcsPlatformType.IOS_VULKAN:
+                        ShowVulkanSources(gpuSourceCount);
+                        break;
+                    default:
+                        throw new ShaderParserException($"Unknown or unsupported source type {vcsPlatformType}");
+                }
             }
 
             //  End blocks for vs and gs files

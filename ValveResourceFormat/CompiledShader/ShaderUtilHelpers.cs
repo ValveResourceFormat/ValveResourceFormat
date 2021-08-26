@@ -7,90 +7,68 @@ namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
     {
-
-        public static VcsFileType GetVcsFileType(string filenamepath)
+        public static (VcsFileType, VcsPlatformType, VcsModelType) ComputeVCSFileName(string filenamepath)
         {
-            if (filenamepath.EndsWith("features.vcs"))
-            {
-                return VcsFileType.Features;
-            }
-            if (filenamepath.EndsWith("vs.vcs"))
-            {
-                return VcsFileType.VertexShader;
-            }
-            if (filenamepath.EndsWith("ps.vcs"))
-            {
-                return VcsFileType.PixelShader;
-            }
-            if (filenamepath.EndsWith("psrs.vcs"))
-            {
-                return VcsFileType.PixelShaderRenderState;
-            }
-            if (filenamepath.EndsWith("gs.vcs"))
-            {
-                return VcsFileType.GeometryShader;
-            }
-            if (filenamepath.EndsWith("cs.vcs"))
-            {
-                return VcsFileType.ComputeShader;
-            }
-            if (filenamepath.EndsWith("hs.vcs"))
-            {
-                return VcsFileType.HullShader;
-            }
-            if (filenamepath.EndsWith("ds.vcs"))
-            {
-                return VcsFileType.DomainShader;
-            }
-            if (filenamepath.EndsWith("rtx.vcs"))
-            {
-                return VcsFileType.RaytracingShader;
-            }
-            throw new ShaderParserException($"don't know what this file is {filenamepath}");
-        }
+            VcsFileType vcsFileType = VcsFileType.Undetermined;
+            VcsPlatformType vcsPlatformType = VcsPlatformType.Undetermined;
+            VcsModelType vcsModelType = VcsModelType.Undetermined;
 
-        public static VcsSourceType GetVcsSourceType(string filenamepath)
-        {
             string[] fileTokens = Path.GetFileName(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
-                throw new ShaderParserException($"Source type unknown or not supported {filenamepath}");
+                throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
             }
-            if (String.Compare(fileTokens[^3], "pcgl", StringComparison.OrdinalIgnoreCase) == 0)
+            vcsFileType = fileTokens[^1].ToLower() switch
             {
-                return VcsSourceType.Glsl;
-            }
-
-            if (String.Compare(fileTokens[^3], "pc", StringComparison.OrdinalIgnoreCase) == 0)
+                "features.vcs" => VcsFileType.Features,
+                "vs.vcs" => VcsFileType.VertexShader,
+                "ps.vcs" => VcsFileType.PixelShader,
+                "psrs.vcs" => VcsFileType.PixelShaderRenderState,
+                "gs.vcs" => VcsFileType.GeometryShader,
+                "cs.vcs" => VcsFileType.ComputeShader,
+                "hs.vcs" => VcsFileType.HullShader,
+                "ds.vcs" => VcsFileType.DomainShader,
+                "rtx.vcs" => VcsFileType.RaytracingShader,
+                _ => VcsFileType.Undetermined
+            };
+            vcsPlatformType = fileTokens[^3].ToLower() switch
             {
-                if (String.Compare(fileTokens[^2], "30", StringComparison.OrdinalIgnoreCase) == 0)
+                "pc" => VcsPlatformType.PC,
+                "pcgl" => VcsPlatformType.PCGL,
+                "gles" => VcsPlatformType.MOBILE_GLES,
+                "vulkan" => VcsPlatformType.VULKAN,
+                _ => VcsPlatformType.Undetermined
+            };
+            if (vcsPlatformType == VcsPlatformType.VULKAN)
+            {
+                vcsPlatformType = fileTokens[^4].ToLower() switch
                 {
-                    return VcsSourceType.DXIL;
-                } else
-                {
-                    return VcsSourceType.DXBC;
-                }
+                    "android" => VcsPlatformType.ANDROID_VULKAN,
+                    "ios" => VcsPlatformType.IOS_VULKAN,
+                    _ => VcsPlatformType.VULKAN
+                };
             }
-            if (String.Compare(fileTokens[^4], "mobile", StringComparison.OrdinalIgnoreCase) == 0 &&
-                String.Compare(fileTokens[^3], "gles", StringComparison.OrdinalIgnoreCase) == 0)
+            vcsModelType = fileTokens[^2].ToLower() switch
             {
-                return VcsSourceType.MobileGles;
-            }
-            if (String.Compare(fileTokens[^4], "android", StringComparison.OrdinalIgnoreCase) == 0 &&
-                String.Compare(fileTokens[^3], "vulkan", StringComparison.OrdinalIgnoreCase) == 0)
+                "20" => VcsModelType._20,
+                "2b" => VcsModelType._2b,
+                "30" => VcsModelType._30,
+                "31" => VcsModelType._31,
+                "40" => VcsModelType._40,
+                "41" => VcsModelType._41,
+                "50" => VcsModelType._50,
+                "60" => VcsModelType._60,
+                _ => VcsModelType.Undetermined
+            };
+            if (vcsFileType == VcsFileType.Undetermined ||
+                vcsPlatformType == VcsPlatformType.Undetermined ||
+                vcsModelType == VcsModelType.Undetermined)
             {
-                return VcsSourceType.AndroidVulkan;
-            }
-            if (String.Compare(fileTokens[^4], "ios", StringComparison.OrdinalIgnoreCase) == 0 &&
-                String.Compare(fileTokens[^3], "vulkan", StringComparison.OrdinalIgnoreCase) == 0)
+                throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
+            } else
             {
-                return VcsSourceType.IosVulkan;
+                return (vcsFileType, vcsPlatformType, vcsModelType);
             }
-            if (String.Compare(fileTokens[^3], "vulkan", StringComparison.OrdinalIgnoreCase) == 0)
-            {
-                return VcsSourceType.Vulkan;
-            }
-            throw new ShaderParserException($"Source type unknown or not supported {filenamepath}");
         }
 
         public static string ShortenShaderParam(string shaderParam)
