@@ -3,198 +3,119 @@ using System.IO;
 
 namespace ValveResourceFormat.CompiledShader
 {
-    public class ShaderDataReader : IDisposable
+    public class ShaderDataReader : BinaryReader
     {
-        private BinaryReader BinReader;
         public HandleOutputWrite OutputWriter { get; set; }
         public delegate void HandleOutputWrite(string s);
 
-        // pass an OutputWriter to direct output somewhere else, Console.Write is used by default
-        public ShaderDataReader(Stream input, HandleOutputWrite OutputWriter = null)
+        // pass an OutputWriter to direct output somewhere else, Console.Write is assigned by default
+        public ShaderDataReader(Stream input, HandleOutputWrite OutputWriter = null) : base(input)
         {
-            BinReader = new BinaryReader(input);
             this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
-        }
-
-#pragma warning disable CA1024 // Use properties where appropriate
-        public int GetOffset()
-        {
-            return (int)BinReader.BaseStream.Position;
-        }
-
-        public void SetOffset(long offset)
-        {
-            BinReader.BaseStream.Position = offset;
-        }
-
-        public int GetFileSize()
-        {
-            return (int)BinReader.BaseStream.Length;
-        }
-#pragma warning restore CA1024
-
-        private long savedPosition;
-        public void SavePosition()
-        {
-            savedPosition = BinReader.BaseStream.Position;
-        }
-
-        public void RestorePosition()
-        {
-            BinReader.BaseStream.Position = savedPosition;
-        }
-
-        public void MoveOffset(int delta)
-        {
-            BinReader.BaseStream.Position += delta;
-        }
-
-        public bool CheckPositionIsAtEOF()
-        {
-            return BinReader.BaseStream.Position == BinReader.BaseStream.Length;
-        }
-
-        public byte ReadByte()
-        {
-            return BinReader.ReadByte();
         }
 
         public byte ReadByteAtPosition(long ind = 0, bool rel = true)
         {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            byte b0 = BinReader.ReadByte();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            byte b0 = ReadByte();
+            BaseStream.Position = savedPosition;
             return b0;
-        }
-
-        public uint ReadUInt16()
-        {
-            return BinReader.ReadUInt16();
         }
 
         public uint ReadUInt16AtPosition(long ind = 0, bool rel = true)
         {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            uint uint0 = BinReader.ReadUInt16();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            uint uint0 = ReadUInt16();
+            BaseStream.Position = savedPosition;
             return uint0;
-        }
-
-        public int ReadInt16()
-        {
-            return BinReader.ReadInt16();
         }
 
         public int ReadInt16AtPosition(long ind = 0, bool rel = true)
         {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            short s0 = BinReader.ReadInt16();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            short s0 = ReadInt16();
+            BaseStream.Position = savedPosition;
             return s0;
         }
 
-        public uint ReadUInt()
+        public uint ReadUInt32AtPosition(long ind = 0, bool rel = true)
         {
-            return BinReader.ReadUInt32();
-        }
-
-        public uint ReadUIntAtPosition(long ind = 0, bool rel = true)
-        {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            uint uint0 = BinReader.ReadUInt32();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            uint uint0 = ReadUInt32();
+            BaseStream.Position = savedPosition;
             return uint0;
         }
 
-        public int ReadInt()
+        public int ReadInt32AtPosition(long ind = 0, bool rel = true)
         {
-            return BinReader.ReadInt32();
-        }
-
-        public int ReadIntAtPosition(long ind = 0, bool rel = true)
-        {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            int int0 = BinReader.ReadInt32();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            int int0 = ReadInt32();
+            BaseStream.Position = savedPosition;
             return int0;
         }
 
-        public long ReadLong()
+        public float ReadSingleAtPosition(long ind = 0, bool rel = true)
         {
-            return BinReader.ReadInt64();
-        }
-
-        public float ReadFloat()
-        {
-            return BinReader.ReadSingle();
-        }
-
-        public float ReadFloatAtPosition(long ind = 0, bool rel = true)
-        {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            BinReader.BaseStream.Position = fromInd;
-            float float0 = BinReader.ReadSingle();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            BaseStream.Position = fromInd;
+            float float0 = ReadSingle();
+            BaseStream.Position = savedPosition;
             return float0;
-        }
-
-        public byte[] ReadBytes(int len)
-        {
-            return BinReader.ReadBytes(len);
         }
 
         public byte[] ReadBytesAtPosition(long ind, int len, bool rel = true)
         {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            byte[] bytes0 = BinReader.ReadBytes(len);
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            byte[] bytes0 = ReadBytes(len);
+            BaseStream.Position = savedPosition;
             return bytes0;
         }
+
         public string ReadBytesAsString(int len)
         {
-            byte[] bytes0 = BinReader.ReadBytes(len);
-            return BytesToString(bytes0);
+            byte[] bytes0 = ReadBytes(len);
+            return ShaderUtilHelpers.BytesToString(bytes0);
         }
 
         public string ReadNullTermString()
         {
             string str = "";
-            byte b0 = BinReader.ReadByte();
+            byte b0 = ReadByte();
             while (b0 > 0)
             {
                 str += (char)b0;
-                b0 = BinReader.ReadByte();
+                b0 = ReadByte();
             }
             return str;
         }
 
         public string ReadNullTermStringAtPosition(long ind = 0, bool rel = true)
         {
-            SavePosition();
-            long fromInd = rel ? GetOffset() + ind : ind;
-            SetOffset(fromInd);
-            String str = ReadNullTermString();
-            RestorePosition();
+            long savedPosition = BaseStream.Position;
+            long fromInd = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position = fromInd;
+            string str = ReadNullTermString();
+            BaseStream.Position = savedPosition;
             return str;
         }
 
         public void ShowEndOfFile()
         {
-            if (!CheckPositionIsAtEOF())
+            if (BaseStream.Position != BaseStream.Length)
             {
                 throw new ShaderParserException("End of file not reached");
             }
@@ -205,14 +126,14 @@ namespace ValveResourceFormat.CompiledShader
 
         public void ShowBytesWithIntValue()
         {
-            int intval = ReadIntAtPosition();
+            int intval = ReadInt32AtPosition();
             ShowBytes(4, breakLine: false);
-            TabComment($"{intval}");
+            TabComment(intval.ToString());
         }
 
         public void ShowByteCount(string message = null)
         {
-            OutputWrite($"[{GetOffset()}]{(message != null ? " " + message : "")}\n");
+            OutputWrite($"[{BaseStream.Position}]{(message != null ? " " + message : "")}\n");
         }
 
         public void ShowBytes(int len, string message = null, int tabLen = 4, bool use_slashes = true, bool breakLine = true)
@@ -223,7 +144,7 @@ namespace ValveResourceFormat.CompiledShader
         public void ShowBytes(int len, int breakLen, string message = null, int tabLen = 4, bool use_slashes = true, bool breakLine = true)
         {
             byte[] bytes0 = ReadBytes(len);
-            string byteString = BytesToString(bytes0, breakLen);
+            string byteString = ShaderUtilHelpers.BytesToString(bytes0, breakLen);
             OutputWrite(byteString);
             if (message != null)
             {
@@ -238,8 +159,8 @@ namespace ValveResourceFormat.CompiledShader
         public void ShowBytesAtPosition(int ind, int len, int breakLen = 32, bool rel = true)
         {
             byte[] bytes0 = ReadBytesAtPosition(ind, len, rel);
-            string bytestr = BytesToString(bytes0, breakLen);
-            OutputWriteLine($"{bytestr}");
+            string bytestr = ShaderUtilHelpers.BytesToString(bytes0, breakLen);
+            OutputWriteLine(bytestr);
         }
 
         public void BreakLine()
@@ -257,25 +178,6 @@ namespace ValveResourceFormat.CompiledShader
             OutputWrite($"{"".PadLeft(tabLen)}{(useSlashes ? "// " : "")}{message}\n");
         }
 
-        public static string BytesToString(byte[] databytes, int breakLen = 32)
-        {
-            if (breakLen == -1)
-            {
-                breakLen = int.MaxValue;
-            }
-            int count = 0;
-            string bytestring = "";
-            for (int i = 0; i < databytes.Length; i++)
-            {
-                bytestring += $"{databytes[i]:X02} ";
-                if (++count % breakLen == 0)
-                {
-                    bytestring += "\n";
-                }
-            }
-            return bytestring.Trim();
-        }
-
         public void OutputWrite(string text)
         {
             OutputWriter(text);
@@ -285,22 +187,5 @@ namespace ValveResourceFormat.CompiledShader
         {
             OutputWrite(text + "\n");
         }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing && BinReader != null)
-            {
-                BinReader.Dispose();
-                BinReader = null;
-            }
-        }
-
     }
 }
-

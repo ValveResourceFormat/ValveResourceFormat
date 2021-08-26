@@ -9,12 +9,12 @@ namespace ValveResourceFormat.CompiledShader
         public int h1 { get; }
         public int h2 { get; }
         public byte[] dataload { get; }
-        public ZDataBlock(ShaderDataReader datareader, int start, int blockId) : base(datareader, start)
+        public ZDataBlock(ShaderDataReader datareader, int blockId) : base(datareader)
         {
             this.blockId = blockId;
-            h0 = datareader.ReadInt();
-            h1 = datareader.ReadInt();
-            h2 = datareader.ReadInt();
+            h0 = datareader.ReadInt32();
+            h1 = datareader.ReadInt32();
+            h2 = datareader.ReadInt32();
             if (h0 > 0)
             {
                 dataload = datareader.ReadBytes(h0 * 4);
@@ -28,13 +28,13 @@ namespace ValveResourceFormat.CompiledShader
         public int offset { get; protected set; }
         public byte[] sourcebytes { get; protected set; } = Array.Empty<byte>();
         public byte[] editorRefId { get; protected set; }
-        protected GpuSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start)
+        protected GpuSource(ShaderDataReader datareader, int sourceId) : base(datareader)
         {
             this.sourceId = sourceId;
         }
         public string GetEditorRefIdAsString()
         {
-            string stringId = ShaderDataReader.BytesToString(editorRefId);
+            string stringId = ShaderUtilHelpers.BytesToString(editorRefId);
             stringId = stringId.Replace(" ", "").ToLower();
             return stringId;
         }
@@ -47,15 +47,15 @@ namespace ValveResourceFormat.CompiledShader
         // offset2, if present, always observes offset2 == offset + 8
         // offset2 can also be interpreted as the source-size
         public int offset2 { get; } = -1;
-        public GlslSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start, sourceId)
+        public GlslSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            offset = datareader.ReadInt();
+            offset = datareader.ReadInt32();
             if (offset > 0)
             {
-                arg0 = datareader.ReadInt();
-                offset2 = datareader.ReadInt();
+                arg0 = datareader.ReadInt32();
+                offset2 = datareader.ReadInt32();
                 sourcebytes = datareader.ReadBytes(offset2-1); // -1 because the sourcebytes are null-term
-                datareader.MoveOffset(1);
+                datareader.BaseStream.Position += 1;
             }
             editorRefId = datareader.ReadBytes(16);
         }
@@ -70,9 +70,9 @@ namespace ValveResourceFormat.CompiledShader
         public int arg0 { get; } // always 3
         public int arg1 { get; } // always 0xFFFF or 0xFFFE
         public int headerBytes { get; }
-        public DxilSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start, sourceId)
+        public DxilSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            offset = datareader.ReadInt();
+            offset = datareader.ReadInt32();
             if (offset > 0)
             {
                 arg0 = datareader.ReadInt16();
@@ -99,9 +99,9 @@ namespace ValveResourceFormat.CompiledShader
      */
     public class DxbcSource : GpuSource
     {
-        public DxbcSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start, sourceId)
+        public DxbcSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            this.offset = datareader.ReadInt();
+            this.offset = datareader.ReadInt32();
             if (offset > 0)
             {
                 sourcebytes = datareader.ReadBytes(offset);
@@ -119,13 +119,13 @@ namespace ValveResourceFormat.CompiledShader
         public int arg0 { get; } = -1;
         public int offset2 { get; } = -1;
 
-        public VulkanSource(ShaderDataReader datareader, int start, int sourceId) : base(datareader, start, sourceId)
+        public VulkanSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            this.offset = datareader.ReadInt();
+            this.offset = datareader.ReadInt32();
             if (offset > 0)
             {
-                this.arg0 = datareader.ReadInt();
-                this.offset2 = datareader.ReadInt();
+                this.arg0 = datareader.ReadInt32();
+                this.offset2 = datareader.ReadInt32();
                 sourcebytes = datareader.ReadBytes(offset - 8);
             }
             editorRefId = datareader.ReadBytes(16);

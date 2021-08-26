@@ -182,6 +182,25 @@ namespace ValveResourceFormat.CompiledShader
             return stringCollection.ToArray(); ;
         }
 
+        public static string BytesToString(byte[] databytes, int breakLen = 32)
+        {
+            if (breakLen == -1)
+            {
+                breakLen = int.MaxValue;
+            }
+            int count = 0;
+            string bytestring = "";
+            for (int i = 0; i < databytes.Length; i++)
+            {
+                bytestring += $"{databytes[i]:X02} ";
+                if (++count % breakLen == 0)
+                {
+                    bytestring += "\n";
+                }
+            }
+            return bytestring.Trim();
+        }
+
         public static void ShowIntArray(int[] ints0, int padding = 5, string label = null, bool hex = false)
         {
             string intsString = "";
