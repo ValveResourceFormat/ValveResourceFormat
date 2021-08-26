@@ -15,6 +15,7 @@ using McMaster.Extensions.CommandLineUtils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ToolsAssetInfo;
@@ -304,7 +305,7 @@ namespace Decompiler
             switch (magic)
             {
                 case Package.MAGIC: ParseVPK(path, stream); return;
-                case CompiledShader.MAGIC: ParseVCS(path, stream); return;
+                case ShaderCollection.MAGIC: ParseVCS(path, stream); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
                 case BinaryKV3.MAGIC3:
@@ -527,7 +528,7 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            var shader = new CompiledShader();
+            var shader = new ShaderCollection();
 
             try
             {
