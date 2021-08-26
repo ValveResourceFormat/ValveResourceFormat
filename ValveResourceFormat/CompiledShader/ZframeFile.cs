@@ -10,9 +10,9 @@ namespace ValveResourceFormat.CompiledShader
     {
         public ShaderDataReader datareader { get; private set; }
         public string filenamepath { get; }
-        public VcsFileType vcsFileType { get; }
+        public VcsProgramType vcsProgramType { get; }
         public VcsPlatformType vcsPlatformType { get; }
-        public VcsModelType vcsModelType { get; }
+        public VcsShaderModelType vcsShaderModelType { get; }
         public long zframeId { get; }
         public ZDataBlock leadingData { get; }
         public List<ZFrameParam> zframeParams { get; }
@@ -29,14 +29,13 @@ namespace ValveResourceFormat.CompiledShader
         public int nrEndBlocks { get; }
         public int nonZeroDataBlockCount { get; }
 
-        public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsFileType vcsFileType,
-            VcsPlatformType vcsSourceType, VcsModelType vcsModelType, bool omitParsing = false)
+        public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false)
         {
             this.filenamepath = filenamepath;
-            this.vcsFileType = vcsFileType;
-            this.vcsPlatformType = vcsSourceType;
-            this.vcsPlatformType = vcsSourceType;
-            this.vcsModelType = vcsModelType;
+            this.vcsProgramType = vcsProgramType;
+            this.vcsPlatformType = vcsPlatformType;
+            this.vcsShaderModelType = vcsShaderModelType;
             datareader = new ShaderDataReader(new MemoryStream(databytes));
             this.zframeId = zframeId;
 
@@ -54,7 +53,7 @@ namespace ValveResourceFormat.CompiledShader
                 ZFrameParam zParam = new(datareader);
                 zframeParams.Add(zParam);
             }
-            if (this.vcsFileType == VcsFileType.VertexShader)
+            if (this.vcsProgramType == VcsProgramType.VertexShader)
             {
                 int summaryLength = datareader.ReadInt16();
                 leadSummary = new int[summaryLength];
@@ -84,27 +83,27 @@ namespace ValveResourceFormat.CompiledShader
             gpuSourceCount = datareader.ReadInt();
             flagbyte1 = datareader.ReadByte();
 
-            if (vcsSourceType == VcsPlatformType.PC)
+            if (vcsPlatformType == VcsPlatformType.PC)
             {
-                switch (vcsModelType)
+                switch (vcsShaderModelType)
                 {
-                    case VcsModelType._20:
-                    case VcsModelType._2b:
-                    case VcsModelType._30:
-                    case VcsModelType._31:
+                    case VcsShaderModelType._20:
+                    case VcsShaderModelType._2b:
+                    case VcsShaderModelType._30:
+                    case VcsShaderModelType._31:
                         ReadDxilSources(gpuSourceCount);
                         break;
-                    case VcsModelType._40:
-                    case VcsModelType._41:
-                    case VcsModelType._50:
+                    case VcsShaderModelType._40:
+                    case VcsShaderModelType._41:
+                    case VcsShaderModelType._50:
                         ReadDxbcSources(gpuSourceCount);
                         break;
                     default:
-                        throw new ShaderParserException($"Unknown or unsupported model type {vcsSourceType} {vcsModelType}");
+                        throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsShaderModelType}");
                 }
             } else
             {
-                switch (vcsSourceType)
+                switch (vcsPlatformType)
                 {
                     case VcsPlatformType.PCGL:
                     case VcsPlatformType.MOBILE_GLES:
@@ -116,14 +115,14 @@ namespace ValveResourceFormat.CompiledShader
                         ReadVulkanSources(gpuSourceCount);
                         break;
                     default:
-                        throw new ShaderParserException($"Unknown or unsupported source type {vcsSourceType}");
+                        throw new ShaderParserException($"Unknown or unsupported source type {vcsPlatformType}");
                 }
             }
 
             nrEndBlocks = datareader.ReadInt();
             for (int i = 0; i < nrEndBlocks; i++)
             {
-                if (this.vcsFileType == VcsFileType.VertexShader || this.vcsFileType == VcsFileType.GeometryShader)
+                if (this.vcsProgramType == VcsProgramType.VertexShader || this.vcsProgramType == VcsProgramType.GeometryShader)
                 {
                     VsEndBlock vsEndBlock = new(datareader);
                     vsEndBlocks.Add(vsEndBlock);
@@ -195,7 +194,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public string GetLeadSummary()
         {
-            if (vcsFileType != VcsFileType.VertexShader)
+            if (vcsProgramType != VcsProgramType.VertexShader)
             {
                 return "only vs files have this section";
             }
@@ -264,7 +263,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public void ShowEndBlocks()
         {
-            if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.GeometryShader)
+            if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.GeometryShader)
             {
                 Console.WriteLine($"{vsEndBlocks.Count:X02} 00 00 00   // nr of end blocks ({vsEndBlocks.Count})");
                 foreach (VsEndBlock vsEndBlock in vsEndBlocks)
@@ -441,7 +440,7 @@ namespace ValveResourceFormat.CompiledShader
             ShowZDataSection(-1);
             ShowZFrameHeader();
             // this applies only to vs files (ps, gs and psrs files don't have this section)
-            if (vcsFileType == VcsFileType.VertexShader)
+            if (vcsProgramType == VcsProgramType.VertexShader)
             {
                 int blockCountInput = datareader.ReadInt16AtPosition();
                 datareader.ShowByteCount("Unknown additional parameters, non 'FF FF' entries point to configurations (block IDs)");
@@ -482,21 +481,21 @@ namespace ValveResourceFormat.CompiledShader
 
             if (vcsPlatformType == VcsPlatformType.PC)
             {
-                switch (vcsModelType)
+                switch (vcsShaderModelType)
                 {
-                    case VcsModelType._20:
-                    case VcsModelType._2b:
-                    case VcsModelType._30:
-                    case VcsModelType._31:
+                    case VcsShaderModelType._20:
+                    case VcsShaderModelType._2b:
+                    case VcsShaderModelType._30:
+                    case VcsShaderModelType._31:
                         ShowDxilSources(gpuSourceCount);
                         break;
-                    case VcsModelType._40:
-                    case VcsModelType._41:
-                    case VcsModelType._50:
+                    case VcsShaderModelType._40:
+                    case VcsShaderModelType._41:
+                    case VcsShaderModelType._50:
                         ShowDxbcSources(gpuSourceCount);
                         break;
                     default:
-                        throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsModelType}");
+                        throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsShaderModelType}");
                 }
             } else
             {
@@ -517,13 +516,13 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             //  End blocks for vs and gs files
-            if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.GeometryShader)
+            if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.GeometryShader)
             {
                 ShowZAllEndBlocksTypeVs();
                 datareader.BreakLine();
             }
             //  End blocks for ps and psrs files
-            if (vcsFileType == VcsFileType.PixelShader || vcsFileType == VcsFileType.PixelShaderRenderState)
+            if (vcsProgramType == VcsProgramType.PixelShader || vcsProgramType == VcsProgramType.PixelShaderRenderState)
             {
                 datareader.ShowByteCount();
                 int nrEndBlocks = datareader.ReadIntAtPosition();

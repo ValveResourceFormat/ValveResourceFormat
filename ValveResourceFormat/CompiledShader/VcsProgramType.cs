@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader
 {
-    public enum VcsFileType
+    public enum VcsProgramType
     {
         Features,                   // features.vcs
         VertexShader,               // vs.vcs

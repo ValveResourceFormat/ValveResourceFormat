@@ -68,15 +68,15 @@ namespace ValveResourceFormat.CompiledShader
                 mainParams.Add((string_arg0, string_arg1));
             }
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID0 (produces this file)"));
-            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID1 - usually a ref to the vs file ({VcsFileType.VertexShader})"));
-            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID2 - usually a ref to the ps file ({VcsFileType.PixelShader})"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID1 - usually a ref to the vs file ({VcsProgramType.VertexShader})"));
+            editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID2 - usually a ref to the ps file ({VcsProgramType.PixelShader})"));
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID3"));
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID4"));
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID5"));
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID6"));
             if (has_psrs_file)
             {
-                editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID7 - ref to psrs file ({VcsFileType.PixelShaderRenderState})"));
+                editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID7 - ref to psrs file ({VcsProgramType.PixelShaderRenderState})"));
                 editorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
                     $"// Editor ref. ID8 - this ID is shared across archives for vcs files with the same minor-version"));
             } else
@@ -149,9 +149,9 @@ namespace ValveResourceFormat.CompiledShader
             datareader.ShowByteCount("Editor/Shader stack for generating the file");
             datareader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
             datareader.ShowBytes(16, breakLine: false);
-            datareader.TabComment($"Editor ref. ID1 - usually a ref to the vs file ({VcsFileType.VertexShader})");
+            datareader.TabComment($"Editor ref. ID1 - usually a ref to the vs file ({VcsProgramType.VertexShader})");
             datareader.ShowBytes(16, breakLine: false);
-            datareader.TabComment($"Editor ref. ID2 - usually a ref to the ps file ({VcsFileType.PixelShader})");
+            datareader.TabComment($"Editor ref. ID2 - usually a ref to the ps file ({VcsProgramType.PixelShader})");
             datareader.ShowBytes(16, "Editor ref. ID3");
             datareader.ShowBytes(16, "Editor ref. ID4");
             datareader.ShowBytes(16, "Editor ref. ID5");
@@ -163,7 +163,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             if (has_psrs_file == 1)
             {
-                datareader.ShowBytes(16, $"Editor ref. ID7 - reference to psrs file ({VcsFileType.PixelShaderRenderState})");
+                datareader.ShowBytes(16, $"Editor ref. ID7 - reference to psrs file ({VcsProgramType.PixelShaderRenderState})");
                 datareader.ShowBytes(16,
                     "Editor ref. ID7 - this ID is shared across archives for vcs files with the same minor-version");
             }

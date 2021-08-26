@@ -12,9 +12,9 @@ namespace ValveResourceFormat.CompiledShader
     {
         public ShaderDataReader datareader { get; }
         public string filenamepath { get; }
-        public VcsFileType vcsFileType { get; }
+        public VcsProgramType vcsProgramType { get; }
         public VcsPlatformType vcsPlatformType { get; }
-        public VcsModelType vcsModelType { get; }
+        public VcsShaderModelType vcsShaderModelType { get; }
         public FeaturesHeaderBlock featuresHeader { get; }
         public VsPsHeaderBlock vspsHeader { get; }
         public int possibleMinorVersion { get; } // 17 for all up to date files. 14 seen in old test files
@@ -41,23 +41,23 @@ namespace ValveResourceFormat.CompiledShader
         {
             this.filenamepath = filenamepath;
             var vcsFileProperties = ComputeVCSFileName(filenamepath);
-            vcsFileType = vcsFileProperties.Item1;
+            vcsProgramType = vcsFileProperties.Item1;
             vcsPlatformType = vcsFileProperties.Item2;
-            vcsModelType = vcsFileProperties.Item3;
+            vcsShaderModelType = vcsFileProperties.Item3;
             this.datareader = datareader;
             // There's a chance HullShader, DomainShader and RaytracingShader work but they haven't been tested
-            if (vcsFileType == VcsFileType.Features)
+            if (vcsProgramType == VcsProgramType.Features)
             {
                 featuresHeader = new FeaturesHeaderBlock(datareader, datareader.GetOffset());
-            } else if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.PixelShader
-                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState
-                   || vcsFileType == VcsFileType.ComputeShader || vcsFileType == VcsFileType.HullShader
-                   || vcsFileType == VcsFileType.DomainShader || vcsFileType == VcsFileType.RaytracingShader)
+            } else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
+                   || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
+                   || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
+                   || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
             {
                 vspsHeader = new VsPsHeaderBlock(datareader, datareader.GetOffset());
             } else
             {
-                throw new ShaderParserException($"Can't parse this filetype: {vcsFileType}");
+                throw new ShaderParserException($"Can't parse this filetype: {vcsProgramType}");
             }
             possibleMinorVersion = datareader.ReadInt();
             int sfBlockCount = datareader.ReadInt();
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.CompiledShader
                 BufferBlock nextBufferBlock = new(datareader, datareader.GetOffset(), i);
                 bufferBlocks.Add(nextBufferBlock);
             }
-            if (vcsFileType == VcsFileType.Features || vcsFileType == VcsFileType.VertexShader)
+            if (vcsProgramType == VcsProgramType.Features || vcsProgramType == VcsProgramType.VertexShader)
             {
                 int sybmolsBlockCount = datareader.ReadInt();
                 for (int i = 0; i < sybmolsBlockCount; i++)
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.CompiledShader
         public ZFrameFile GetZFrameFile(long zframeId, bool omitParsing = false)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
-                vcsFileType, vcsPlatformType, vcsModelType, omitParsing);
+                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing);
         }
 
         public ZFrameFile GetZFrameFileByIndex(int zframeIndex)
@@ -210,20 +210,20 @@ namespace ValveResourceFormat.CompiledShader
         public void PrintByteAnalysis(bool shortenOutput = true)
         {
             datareader.SetOffset(0);
-            if (vcsFileType == VcsFileType.Features)
+            if (vcsProgramType == VcsProgramType.Features)
             {
                 featuresHeader.PrintAnnotatedBytestream();
-            } else if (vcsFileType == VcsFileType.VertexShader || vcsFileType == VcsFileType.PixelShader
-                   || vcsFileType == VcsFileType.GeometryShader || vcsFileType == VcsFileType.PixelShaderRenderState
-                   || vcsFileType == VcsFileType.ComputeShader || vcsFileType == VcsFileType.HullShader
-                   || vcsFileType == VcsFileType.DomainShader || vcsFileType == VcsFileType.RaytracingShader)
+            } else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
+                   || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
+                   || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
+                   || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
             {
                 vspsHeader.PrintAnnotatedBytestream();
             }
             datareader.ShowByteCount();
             int unknown_val = datareader.ReadIntAtPosition();
             datareader.ShowBytes(4, $"({unknown_val}) unknown significance, possibly a minor-version");
-            int lastEditorRef = vcsFileType == VcsFileType.Features ? featuresHeader.editorIDs.Count - 1 : 1;
+            int lastEditorRef = vcsProgramType == VcsProgramType.Features ? featuresHeader.editorIDs.Count - 1 : 1;
             datareader.TabComment($"the value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
             datareader.ShowByteCount();
             uint sfBlockCount = datareader.ReadUIntAtPosition();
@@ -281,7 +281,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 bufferBlock.PrintAnnotatedBytestream();
             }
-            if (vcsFileType == VcsFileType.Features || vcsFileType == VcsFileType.VertexShader)
+            if (vcsProgramType == VcsProgramType.Features || vcsProgramType == VcsProgramType.VertexShader)
             {
                 datareader.ShowByteCount();
                 uint symbolBlockCount = datareader.ReadUIntAtPosition();

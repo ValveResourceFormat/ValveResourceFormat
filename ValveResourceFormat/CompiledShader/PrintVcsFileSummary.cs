@@ -11,7 +11,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public PrintVcsFileSummary(ShaderFile shaderFile)
         {
-            if (shaderFile.vcsFileType == VcsFileType.Features)
+            if (shaderFile.vcsProgramType == VcsProgramType.Features)
             {
                 PrintFeaturesHeader(shaderFile);
                 PrintFBlocks(shaderFile);
@@ -81,7 +81,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.vspsHeader.vcsFileVersion}");
             output.BreakLine();
-            output.WriteLine($"{shaderFile.vcsFileType} ({Path.GetFileName(shaderFile.filenamepath)})");
+            output.WriteLine($"{shaderFile.vcsProgramType} ({Path.GetFileName(shaderFile.filenamepath)})");
             output.WriteLine($"probable minor version = {shaderFile.possibleMinorVersion}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
@@ -460,7 +460,7 @@ namespace ValveResourceFormat.CompiledShader
             if (shaderFile.GetZFrameCount() == 0)
             {
                 string infoText = "";
-                if (shaderFile.vcsFileType == VcsFileType.Features)
+                if (shaderFile.vcsProgramType == VcsProgramType.Features)
                 {
                     infoText = "(Features files in general don't contain zframes)";
                 }

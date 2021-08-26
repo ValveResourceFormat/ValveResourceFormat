@@ -7,29 +7,29 @@ namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
     {
-        public static (VcsFileType, VcsPlatformType, VcsModelType) ComputeVCSFileName(string filenamepath)
+        public static (VcsProgramType, VcsPlatformType, VcsShaderModelType) ComputeVCSFileName(string filenamepath)
         {
-            VcsFileType vcsFileType = VcsFileType.Undetermined;
+            VcsProgramType vcsProgramType = VcsProgramType.Undetermined;
             VcsPlatformType vcsPlatformType = VcsPlatformType.Undetermined;
-            VcsModelType vcsModelType = VcsModelType.Undetermined;
+            VcsShaderModelType vcsShaderModelType = VcsShaderModelType.Undetermined;
 
             string[] fileTokens = Path.GetFileName(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
             }
-            vcsFileType = fileTokens[^1].ToLower() switch
+            vcsProgramType = fileTokens[^1].ToLower() switch
             {
-                "features.vcs" => VcsFileType.Features,
-                "vs.vcs" => VcsFileType.VertexShader,
-                "ps.vcs" => VcsFileType.PixelShader,
-                "psrs.vcs" => VcsFileType.PixelShaderRenderState,
-                "gs.vcs" => VcsFileType.GeometryShader,
-                "cs.vcs" => VcsFileType.ComputeShader,
-                "hs.vcs" => VcsFileType.HullShader,
-                "ds.vcs" => VcsFileType.DomainShader,
-                "rtx.vcs" => VcsFileType.RaytracingShader,
-                _ => VcsFileType.Undetermined
+                "features.vcs" => VcsProgramType.Features,
+                "vs.vcs" => VcsProgramType.VertexShader,
+                "ps.vcs" => VcsProgramType.PixelShader,
+                "psrs.vcs" => VcsProgramType.PixelShaderRenderState,
+                "gs.vcs" => VcsProgramType.GeometryShader,
+                "cs.vcs" => VcsProgramType.ComputeShader,
+                "hs.vcs" => VcsProgramType.HullShader,
+                "ds.vcs" => VcsProgramType.DomainShader,
+                "rtx.vcs" => VcsProgramType.RaytracingShader,
+                _ => VcsProgramType.Undetermined
             };
             vcsPlatformType = fileTokens[^3].ToLower() switch
             {
@@ -48,26 +48,26 @@ namespace ValveResourceFormat.CompiledShader
                     _ => VcsPlatformType.VULKAN
                 };
             }
-            vcsModelType = fileTokens[^2].ToLower() switch
+            vcsShaderModelType = fileTokens[^2].ToLower() switch
             {
-                "20" => VcsModelType._20,
-                "2b" => VcsModelType._2b,
-                "30" => VcsModelType._30,
-                "31" => VcsModelType._31,
-                "40" => VcsModelType._40,
-                "41" => VcsModelType._41,
-                "50" => VcsModelType._50,
-                "60" => VcsModelType._60,
-                _ => VcsModelType.Undetermined
+                "20" => VcsShaderModelType._20,
+                "2b" => VcsShaderModelType._2b,
+                "30" => VcsShaderModelType._30,
+                "31" => VcsShaderModelType._31,
+                "40" => VcsShaderModelType._40,
+                "41" => VcsShaderModelType._41,
+                "50" => VcsShaderModelType._50,
+                "60" => VcsShaderModelType._60,
+                _ => VcsShaderModelType.Undetermined
             };
-            if (vcsFileType == VcsFileType.Undetermined ||
+            if (vcsProgramType == VcsProgramType.Undetermined ||
                 vcsPlatformType == VcsPlatformType.Undetermined ||
-                vcsModelType == VcsModelType.Undetermined)
+                vcsShaderModelType == VcsShaderModelType.Undetermined)
             {
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
             } else
             {
-                return (vcsFileType, vcsPlatformType, vcsModelType);
+                return (vcsProgramType, vcsPlatformType, vcsShaderModelType);
             }
         }
 
