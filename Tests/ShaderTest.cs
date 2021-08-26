@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using NUnit.Framework;
-using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 
 namespace Tests
 {
@@ -16,7 +16,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var shader = new CompiledShader();
+                var shader = new ShaderCollection();
 
                 using var sw = new StringWriter(CultureInfo.InvariantCulture);
                 var originalOutput = Console.Out;
