@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     public class ShaderDataReader : IDisposable
     {

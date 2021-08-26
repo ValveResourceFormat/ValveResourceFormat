@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Utils;
+using ValveResourceFormat.CompiledShader;
 
 namespace GUI.Types.Viewers
 {
@@ -11,13 +12,13 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == ValveResourceFormat.CompiledShader.MAGIC;
+            return magic == ShaderCollection.MAGIC;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();
-            var shader = new ValveResourceFormat.CompiledShader();
+            var shader = new ShaderCollection();
 
             var buffer = new StringWriter(CultureInfo.InvariantCulture);
             var oldOut = Console.Out;

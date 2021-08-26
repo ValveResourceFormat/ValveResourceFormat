@@ -3,7 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using ValveResourceFormat.Serialization.VfxEval;
 
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
     {

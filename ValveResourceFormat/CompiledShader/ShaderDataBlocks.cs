@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
+using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     public class FeaturesHeaderBlock : ShaderDataBlock
     {
@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ShaderParser
         public FeaturesHeaderBlock(ShaderDataReader datareader, int start) : base(datareader, start)
         {
             int vcsMagicId = datareader.ReadInt();
-            if (vcsMagicId != CompiledShader.MAGIC)
+            if (vcsMagicId != ShaderCollection.MAGIC)
             {
                 throw new ShaderParserException($"Wrong file id {vcsMagicId:x}");
             }
@@ -179,7 +179,7 @@ namespace ValveResourceFormat.ShaderParser
         public VsPsHeaderBlock(ShaderDataReader datareader, int start) : base(datareader, start)
         {
             int magic = datareader.ReadInt();
-            if (magic != CompiledShader.MAGIC)
+            if (magic != ShaderCollection.MAGIC)
             {
                 throw new ShaderParserException($"Wrong file id {magic:x} (not a vcs2 file)");
             }

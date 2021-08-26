@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     /*
      * platform enums found in the game code are

@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     public enum VcsFileType
     {
@@ -11,5 +11,6 @@ namespace ValveResourceFormat.ShaderParser
         ComputeShader,              // cs.vcs
         PixelShaderRenderState,     // psrs.vcs
         RaytracingShader,           // rtx.vcs
+        Any,
     };
 }

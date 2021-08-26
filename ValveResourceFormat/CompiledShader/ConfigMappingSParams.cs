@@ -1,7 +1,7 @@
 using System;
-using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
+using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     /*
      * ZFrameId to static-configuration mapping

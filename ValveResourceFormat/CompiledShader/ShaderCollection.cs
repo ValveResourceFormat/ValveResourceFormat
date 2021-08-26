@@ -1,10 +1,9 @@
 using System;
 using System.IO;
-using ValveResourceFormat.ShaderParser;
 
-namespace ValveResourceFormat
+namespace ValveResourceFormat.CompiledShader
 {
-    public class CompiledShader : IDisposable
+    public class ShaderCollection : IDisposable
     {
         public const int MAGIC = 0x32736376; // "vcs2"
         public const uint ZSTD_DELIM = 0xFFFFFFFD;
@@ -55,7 +54,7 @@ namespace ValveResourceFormat
 
             // todo - let the user switch between byte printout and summary
             // shaderFile.PrintByteAnalysis();
-            PrintSingleFileSummary fileSummary = new PrintSingleFileSummary(shaderFile);
+            PrintVcsFileSummary fileSummary = new PrintVcsFileSummary(shaderFile);
 
 
 

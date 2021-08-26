@@ -1,9 +1,9 @@
 
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     public abstract class ShaderDataBlock
     {
-        protected ShaderDataReader datareader { get; }
+        public ShaderDataReader datareader { get; }
         protected int start { get; }
         protected ShaderDataBlock(ShaderDataReader datareader, int offsetAtStartOfBlock)
         {

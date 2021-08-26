@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using ValveResourceFormat.ThirdParty;
-using static ValveResourceFormat.ShaderParser.ShaderUtilHelpers;
+using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
-namespace ValveResourceFormat.ShaderParser
+namespace ValveResourceFormat.CompiledShader
 {
     public class ZFrameFile : IDisposable
     {
@@ -311,7 +311,7 @@ namespace ValveResourceFormat.ShaderParser
             {
                 name0 = datareader.ReadNullTermString();
                 murmur32 = datareader.ReadUInt();
-                uint murmurCheck = MurmurHash2.Hash(name0.ToLower(), CompiledShader.PI_MURMURSEED);
+                uint murmurCheck = MurmurHash2.Hash(name0.ToLower(), ShaderCollection.PI_MURMURSEED);
                 if (murmur32 != murmurCheck)
                 {
                     throw new ShaderParserException("not a murmur string!");
@@ -842,7 +842,7 @@ namespace ValveResourceFormat.ShaderParser
         {
             string nulltermstr = datareader.ReadNullTermStringAtPosition();
             uint murmur32 = datareader.ReadUIntAtPosition(nulltermstr.Length + 1);
-            uint murmurCheck = MurmurHash2.Hash(nulltermstr.ToLower(), CompiledShader.PI_MURMURSEED);
+            uint murmurCheck = MurmurHash2.Hash(nulltermstr.ToLower(), ShaderCollection.PI_MURMURSEED);
             if (murmur32 != murmurCheck)
             {
                 throw new ShaderParserException("not a murmur string!");
