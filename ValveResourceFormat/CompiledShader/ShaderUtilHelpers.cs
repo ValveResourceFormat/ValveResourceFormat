@@ -51,14 +51,19 @@ namespace ValveResourceFormat.CompiledShader
 
         public static VcsSourceType GetVcsSourceType(string filenamepath)
         {
-            string filename = Path.GetFileName(filenamepath);
-            if (filename.Contains("pcgl_"))
+            string[] fileTokens = Path.GetFileName(filenamepath).Split("_");
+            if (fileTokens.Length < 4)
+            {
+                throw new ShaderParserException($"Source type unknown or not supported {filenamepath}");
+            }
+            if (String.Compare(fileTokens[^3], "pcgl", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 return VcsSourceType.Glsl;
             }
-            if (filename.Contains("pc_"))
+
+            if (String.Compare(fileTokens[^3], "pc", StringComparison.OrdinalIgnoreCase) == 0)
             {
-                if (filename.Contains("30_"))
+                if (String.Compare(fileTokens[^2], "30", StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     return VcsSourceType.DXIL;
                 } else
@@ -66,19 +71,22 @@ namespace ValveResourceFormat.CompiledShader
                     return VcsSourceType.DXBC;
                 }
             }
-            if (filename.Contains("mobile_gles_"))
+            if (String.Compare(fileTokens[^4], "mobile", StringComparison.OrdinalIgnoreCase) == 0 &&
+                String.Compare(fileTokens[^3], "gles", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 return VcsSourceType.MobileGles;
             }
-            if (filename.Contains("android_vulkan_"))
+            if (String.Compare(fileTokens[^4], "android", StringComparison.OrdinalIgnoreCase) == 0 &&
+                String.Compare(fileTokens[^3], "vulkan", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 return VcsSourceType.AndroidVulkan;
             }
-            if (filename.Contains("ios_vulkan_"))
+            if (String.Compare(fileTokens[^4], "ios", StringComparison.OrdinalIgnoreCase) == 0 &&
+                String.Compare(fileTokens[^3], "vulkan", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 return VcsSourceType.IosVulkan;
             }
-            if (filename.Contains("vulkan_"))
+            if (String.Compare(fileTokens[^3], "vulkan", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 return VcsSourceType.Vulkan;
             }
