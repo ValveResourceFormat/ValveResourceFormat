@@ -24,6 +24,7 @@ namespace Tests
                 Console.SetOut(sw);
 
                 shader.Read(file);
+                shader.PrintSummary();
 
                 Console.SetOut(originalOutput);
             }

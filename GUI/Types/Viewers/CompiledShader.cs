@@ -32,6 +32,7 @@ namespace GUI.Types.Viewers
             {
                 shader.Read(vrfGuiContext.FileName);
             }
+            shader.PrintSummary();
 
             Console.SetOut(oldOut);
 

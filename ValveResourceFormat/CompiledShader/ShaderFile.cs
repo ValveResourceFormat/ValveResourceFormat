@@ -57,21 +57,14 @@ namespace ValveResourceFormat.CompiledShader
             datareader = new ShaderDataReader(input);
             this.filenamepath = filenamepath;
             ParseFile();
+        }
 
+        public void PrintSummary()
+        {
             // todo - let the user switch between byte printout and summary
+            // todo - let the user select and view the zframes
             // PrintByteAnalysis();
             PrintVcsFileSummary fileSummary = new PrintVcsFileSummary(this);
-
-            // todo - let the user select their own zframe
-            // print a few zframes, if there are any
-            //for (int i = 0; i < Math.Min(3, GetZFrameCount()); i++)
-            //{
-            //    string headerText = $"Byte printout of zframe[{GetZFrameIdByIndex(i):x08}], {Path.GetFileName(filenamepath)}";
-            //    Console.WriteLine($"\n\n{headerText}");
-            //    Console.WriteLine($"{new string('-', headerText.Length)}");
-            //    Console.WriteLine($"{new string('-', headerText.Length)}\n");
-            //    GetZFrameFile(0).PrintByteAnalysis();
-            //}
         }
 
         public string filenamepath { get; private set; }
