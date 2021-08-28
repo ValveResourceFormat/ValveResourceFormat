@@ -18,6 +18,10 @@ namespace GUI.Utils
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
             public Dictionary<string, float[]> SavedCameras { get; set; } = new Dictionary<string, float[]>();
+            public int WindowTop { get; set; }
+            public int WindowLeft { get; set; }
+            public int WindowWidth { get; set; }
+            public int WindowHeight { get; set; }
         }
 
         private static string SettingsFilePath;
