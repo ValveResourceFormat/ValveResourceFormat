@@ -223,7 +223,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             try
             {
-                return new VfxEval(dynExpDatabytes).DynamicExpressionResult.Replace("UNKNOWN", "VAR"); ;
+                return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR"); ;
             } catch (Exception)
             {
                 return "[error in dyn-exp]";
