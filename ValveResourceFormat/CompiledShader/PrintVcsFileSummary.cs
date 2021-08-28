@@ -2,15 +2,17 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 
 namespace ValveResourceFormat.CompiledShader
 {
     public class PrintVcsFileSummary
     {
-        private OutputFormatterTabulatedData output = new();
+        private OutputFormatterTabulatedData output;
 
-        public PrintVcsFileSummary(ShaderFile shaderFile)
+        public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite OutputWriter = null)
         {
+            output = new OutputFormatterTabulatedData(OutputWriter);
             if (shaderFile.vcsProgramType == VcsProgramType.Features)
             {
                 PrintFeaturesHeader(shaderFile);
@@ -489,7 +491,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             output.BreakLine();
             string configHeader = CombineStringsSpaceSep(sfNames.ToArray(), 6);
-            configHeader = $"{new string(' ', 14)}{configHeader}";
+            configHeader = $"{new string(' ', 16)}{configHeader}";
             foreach (var zframeDesc in shaderFile.zframesLookup)
             {
                 if (zframeCount % 100 == 0)
@@ -497,7 +499,8 @@ namespace ValveResourceFormat.CompiledShader
                     output.WriteLine($"{configHeader}");
                 }
                 int[] configState = configGen.GetConfigState(zframeDesc.Key);
-                output.WriteLine($"  Z[{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
+                // the two backslashes registers the text as a link when viewed in a RichTextBox
+                output.WriteLine($"  Z[\\\\{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
                 zframeCount++;
             }
         }

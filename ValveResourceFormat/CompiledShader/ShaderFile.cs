@@ -5,6 +5,7 @@ using System.Linq;
 using ZstdSharp;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -59,12 +60,12 @@ namespace ValveResourceFormat.CompiledShader
             ParseFile();
         }
 
-        public void PrintSummary()
+        public void PrintSummary(HandleOutputWrite OutputWriter = null)
         {
             // todo - let the user switch between byte printout and summary
             // todo - let the user select and view the zframes
             // PrintByteAnalysis();
-            PrintVcsFileSummary fileSummary = new PrintVcsFileSummary(this);
+            PrintVcsFileSummary fileSummary = new PrintVcsFileSummary(this, OutputWriter);
         }
 
         public string filenamepath { get; private set; }
@@ -243,16 +244,16 @@ namespace ValveResourceFormat.CompiledShader
             return zframesLookup[zframeId].GetDecompressedZFrame();
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId, bool omitParsing = false)
+        public ZFrameFile GetZFrameFile(long zframeId, bool omitParsing = false, HandleOutputWrite OutputWriter = null)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
-                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing);
+                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, OutputWriter);
         }
 
-        public ZFrameFile GetZFrameFileByIndex(int zframeIndex)
+        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite OutputWriter = null)
         {
             long zframeId = zframesLookup.ElementAt(zframeIndex).Key;
-            return GetZFrameFile(zframeId);
+            return GetZFrameFile(zframeId, OutputWriter: OutputWriter);
         }
 #pragma warning restore CA1024
 

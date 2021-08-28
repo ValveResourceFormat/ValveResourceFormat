@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -30,13 +31,13 @@ namespace ValveResourceFormat.CompiledShader
         public int nonZeroDataBlockCount { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
-            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false)
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false, HandleOutputWrite OutputWriter = null)
         {
             this.filenamepath = filenamepath;
             this.vcsProgramType = vcsProgramType;
             this.vcsPlatformType = vcsPlatformType;
             this.vcsShaderModelType = vcsShaderModelType;
-            datareader = new ShaderDataReader(new MemoryStream(databytes));
+            datareader = new ShaderDataReader(new MemoryStream(databytes), OutputWriter);
             this.zframeId = zframeId;
 
             // in case of failure; enable omitParsing and use the datareader directly
