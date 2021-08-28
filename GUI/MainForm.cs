@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -33,6 +34,15 @@ namespace GUI
             LoadAssetTypes();
             InitializeComponent();
 
+            Settings.Load();
+            var left = Settings.Config.WindowLeft == 0 ? 100 : Settings.Config.WindowLeft;
+            var top = Settings.Config.WindowTop == 0 ? 100 : Settings.Config.WindowTop;
+            var width = Settings.Config.WindowWidth == 0 ? 1101 : Settings.Config.WindowWidth;
+            var height = Settings.Config.WindowHeight == 0 ? 532 : Settings.Config.WindowHeight;
+            StartPosition = FormStartPosition.Manual;
+            Location = new Point(left, top);
+            Size = new Size(width, height);
+
             Text = "VRF - Source 2 Resource Viewer v" + Application.ProductVersion;
 
             mainTabs.SelectedIndexChanged += (o, e) =>
@@ -66,6 +76,16 @@ namespace GUI
         {
             // so we can bind keys to actions properly
             KeyPreview = true;
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            Settings.Config.WindowLeft = Left;
+            Settings.Config.WindowTop = Top;
+            Settings.Config.WindowWidth = Width;
+            Settings.Config.WindowHeight = Height;
+            Settings.Save();
+            base.OnClosing(e);
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
