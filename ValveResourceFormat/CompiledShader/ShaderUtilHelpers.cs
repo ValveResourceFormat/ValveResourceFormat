@@ -72,6 +72,26 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        public static VcsProgramType ComputeVcsProgramType(string filenamepath)
+        {
+            return Path.GetFileName(filenamepath).Split("_").Length < 4 ?
+                VcsProgramType.Undetermined
+            :
+             Path.GetFileName(filenamepath).Split("_")[^1].ToLower() switch
+             {
+                 "features.vcs" => VcsProgramType.Features,
+                 "vs.vcs" => VcsProgramType.VertexShader,
+                 "ps.vcs" => VcsProgramType.PixelShader,
+                 "psrs.vcs" => VcsProgramType.PixelShaderRenderState,
+                 "gs.vcs" => VcsProgramType.GeometryShader,
+                 "cs.vcs" => VcsProgramType.ComputeShader,
+                 "hs.vcs" => VcsProgramType.HullShader,
+                 "ds.vcs" => VcsProgramType.DomainShader,
+                 "rtx.vcs" => VcsProgramType.RaytracingShader,
+                 _ => VcsProgramType.Undetermined
+             };
+        }
+
         public static string ShortenShaderParam(string shaderParam)
         {
             if (shaderParam.Length <= 4)

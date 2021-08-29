@@ -241,7 +241,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     tailSummaryDesc += "\n";
                 }
-                tailSummaryDesc += tailSummary[i] > -1 ? $"{tailSummary[i],-10}" : "_  ".PadRight(10);
+                tailSummaryDesc += tailSummary[i] > -1 ? $"{tailSummary[i],-8}" : "_  ".PadRight(8);
             }
             return tailSummaryDesc.Trim();
         }

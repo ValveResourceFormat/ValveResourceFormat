@@ -17,8 +17,7 @@ namespace ValveResourceFormat.CompiledShader
         public byte ReadByteAtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             byte b0 = ReadByte();
             BaseStream.Position = savedPosition;
             return b0;
@@ -27,8 +26,7 @@ namespace ValveResourceFormat.CompiledShader
         public uint ReadUInt16AtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             uint uint0 = ReadUInt16();
             BaseStream.Position = savedPosition;
             return uint0;
@@ -37,8 +35,7 @@ namespace ValveResourceFormat.CompiledShader
         public int ReadInt16AtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             short s0 = ReadInt16();
             BaseStream.Position = savedPosition;
             return s0;
@@ -47,8 +44,7 @@ namespace ValveResourceFormat.CompiledShader
         public uint ReadUInt32AtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             uint uint0 = ReadUInt32();
             BaseStream.Position = savedPosition;
             return uint0;
@@ -57,8 +53,7 @@ namespace ValveResourceFormat.CompiledShader
         public int ReadInt32AtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             int int0 = ReadInt32();
             BaseStream.Position = savedPosition;
             return int0;
@@ -67,9 +62,7 @@ namespace ValveResourceFormat.CompiledShader
         public float ReadSingleAtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             float float0 = ReadSingle();
             BaseStream.Position = savedPosition;
             return float0;
@@ -78,8 +71,7 @@ namespace ValveResourceFormat.CompiledShader
         public byte[] ReadBytesAtPosition(long ind, int len, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             byte[] bytes0 = ReadBytes(len);
             BaseStream.Position = savedPosition;
             return bytes0;
@@ -106,8 +98,7 @@ namespace ValveResourceFormat.CompiledShader
         public string ReadNullTermStringAtPosition(long ind = 0, bool rel = true)
         {
             long savedPosition = BaseStream.Position;
-            long fromInd = rel ? BaseStream.Position + ind : ind;
-            BaseStream.Position = fromInd;
+            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
             string str = ReadNullTermString();
             BaseStream.Position = savedPosition;
             return str;

@@ -60,12 +60,9 @@ namespace ValveResourceFormat.CompiledShader
             ParseFile();
         }
 
-        public void PrintSummary(HandleOutputWrite OutputWriter = null)
+        public void PrintSummary(HandleOutputWrite OutputWriter = null, bool showRichTextBoxLinks = false, List<string> relatedfiles = null)
         {
-            // todo - let the user switch between byte printout and summary
-            // todo - let the user select and view the zframes
-            // PrintByteAnalysis();
-            PrintVcsFileSummary fileSummary = new PrintVcsFileSummary(this, OutputWriter);
+            PrintVcsFileSummary fileSummary = new PrintVcsFileSummary(this, OutputWriter, showRichTextBoxLinks, relatedfiles);
         }
 
         public string filenamepath { get; private set; }
@@ -261,8 +258,9 @@ namespace ValveResourceFormat.CompiledShader
         private uint zFrameCount;
         const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
 
-        public void PrintByteAnalysis(bool shortenOutput = true)
+        public void PrintByteAnalysis(bool shortenOutput = true, HandleOutputWrite OutputWriter = null)
         {
+            datareader.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
             datareader.BaseStream.Position = 0;
             if (vcsProgramType == VcsProgramType.Features)
             {

@@ -9,9 +9,15 @@ namespace ValveResourceFormat.CompiledShader
     public class PrintVcsFileSummary
     {
         private OutputFormatterTabulatedData output;
+        private bool showRichTextBoxLinks;
+        private List<string> relatedFiles;
 
-        public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite OutputWriter = null)
+        public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite OutputWriter = null,
+            bool showRichTextBoxLinks = false, List<string> relatedFiles = null)
         {
+            this.showRichTextBoxLinks = showRichTextBoxLinks;
+            this.relatedFiles = relatedFiles;
+
             output = new OutputFormatterTabulatedData(OutputWriter);
             if (shaderFile.vcsProgramType == VcsProgramType.Features)
             {
@@ -36,7 +42,21 @@ namespace ValveResourceFormat.CompiledShader
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.featuresHeader.vcsFileVersion}");
             output.BreakLine();
-            output.WriteLine($"Features Detail ({Path.GetFileName(shaderFile.filenamepath)})");
+            output.Write($"Features Detail ({Path.GetFileName(shaderFile.filenamepath)})");
+            if (showRichTextBoxLinks)
+            {
+                output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+            }
+            if (relatedFiles != null)
+            {
+                output.Write("Related files:");
+                foreach (var relatedFile in relatedFiles)
+                {
+                    output.Write($" \\\\{relatedFile.Replace("/","\\")}");
+                }
+            }
+            output.BreakLine();
+
             output.WriteLine($"VFX File Desc: {shaderFile.featuresHeader.file_description}");
             output.BreakLine();
             output.WriteLine($"has_psrs_file = {shaderFile.featuresHeader.has_psrs_file}");
@@ -84,6 +104,20 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.vspsHeader.vcsFileVersion}");
             output.BreakLine();
             output.WriteLine($"{shaderFile.vcsProgramType} ({Path.GetFileName(shaderFile.filenamepath)})");
+            if (showRichTextBoxLinks)
+            {
+                output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+            }
+            if (relatedFiles != null)
+            {
+                output.Write("Related files:");
+                foreach (var relatedFile in relatedFiles)
+                {
+                    output.Write($" \\\\{relatedFile.Replace("/","\\")}");
+                }
+            }
+            output.BreakLine();
+
             output.WriteLine($"probable minor version = {shaderFile.possibleMinorVersion}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
