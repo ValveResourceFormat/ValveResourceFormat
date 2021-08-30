@@ -241,16 +241,16 @@ namespace ValveResourceFormat.CompiledShader
             return zframesLookup[zframeId].GetDecompressedZFrame();
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId, bool omitParsing = false, HandleOutputWrite OutputWriter = null)
+        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite OutputWriter = null, bool omitParsing = false)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
                 vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, OutputWriter);
         }
 
-        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite OutputWriter = null)
+        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite OutputWriter = null, bool omitParsing = false)
         {
             long zframeId = zframesLookup.ElementAt(zframeIndex).Key;
-            return GetZFrameFile(zframeId, OutputWriter: OutputWriter);
+            return GetZFrameFile(zframeId, OutputWriter: OutputWriter, omitParsing: omitParsing);
         }
 #pragma warning restore CA1024
 

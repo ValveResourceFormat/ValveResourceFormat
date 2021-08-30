@@ -46,6 +46,9 @@ namespace ValveResourceFormat.CompiledShader
             if (showRichTextBoxLinks)
             {
                 output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+            } else
+            {
+                output.BreakLine();
             }
             if (relatedFiles != null)
             {
@@ -54,8 +57,8 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     output.Write($" \\\\{relatedFile.Replace("/","\\")}");
                 }
+                output.BreakLine();
             }
-            output.BreakLine();
 
             output.WriteLine($"VFX File Desc: {shaderFile.featuresHeader.file_description}");
             output.BreakLine();
@@ -72,7 +75,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.WriteLine($"{ftHeader.editorIDs[i].Item1}    {ftHeader.editorIDs[i].Item2}");
             }
             output.WriteLine($"{ftHeader.editorIDs[^1].Item1}    // Editor ref. ID{ftHeader.editorIDs.Count - 1} " +
-                $"- this ID is shared across archives for vcs files with minor-version = {shaderFile.possibleMinorVersion}");
+                $"- common editor reference shared by multiple files");
             output.BreakLine();
             if (ftHeader.mainParams.Count == 0)
             {
@@ -103,10 +106,13 @@ namespace ValveResourceFormat.CompiledShader
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.vspsHeader.vcsFileVersion}");
             output.BreakLine();
-            output.WriteLine($"{shaderFile.vcsProgramType} ({Path.GetFileName(shaderFile.filenamepath)})");
+            output.Write($"{shaderFile.vcsProgramType} ({Path.GetFileName(shaderFile.filenamepath)})");
             if (showRichTextBoxLinks)
             {
                 output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+            } else
+            {
+                output.BreakLine();
             }
             if (relatedFiles != null)
             {
@@ -115,15 +121,15 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     output.Write($" \\\\{relatedFile.Replace("/","\\")}");
                 }
+                output.BreakLine();
             }
-            output.BreakLine();
 
             output.WriteLine($"probable minor version = {shaderFile.possibleMinorVersion}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
             output.WriteLine($"{shaderFile.vspsHeader.fileID0}    // Editor ref. ID0 (produces this file)");
             output.WriteLine($"{shaderFile.vspsHeader.fileID1}    // Editor ref. ID1 " +
-                $"- this ID is shared across archives for vcs files with minor-version = {shaderFile.possibleMinorVersion}");
+                $"- common editor reference shared by multiple files");
             output.BreakLine();
         }
 
@@ -523,12 +529,16 @@ namespace ValveResourceFormat.CompiledShader
             {
                 output.WriteLine(abbr);
             }
-            output.BreakLine();
+            if (abbreviations.Count > 0)
+            {
+                output.BreakLine();
+            }
+
             string configHeader = CombineStringsSpaceSep(sfNames.ToArray(), 6);
             configHeader = $"{new string(' ', 16)}{configHeader}";
             foreach (var zframeDesc in shaderFile.zframesLookup)
             {
-                if (zframeCount % 100 == 0)
+                if (zframeCount % 100 == 0 && configHeader.Trim().Length > 0)
                 {
                     output.WriteLine($"{configHeader}");
                 }

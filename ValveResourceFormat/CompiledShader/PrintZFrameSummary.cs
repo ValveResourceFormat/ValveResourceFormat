@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using static ValveResourceFormat.CompiledShader.ZFrameFile;
@@ -20,11 +21,16 @@ namespace ValveResourceFormat.CompiledShader
             this.zframeFile = zframeFile;
             this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
             this.showRichTextBoxLinks = showRichTextBoxLinks;
+            if (showRichTextBoxLinks)
+            {
+                OutputWriteLine($"Byte printout \\\\{Path.GetFileName(shaderFile.filenamepath)}-ZFRAME{zframeFile.zframeId:x08}-databytes");
+                OutputWriteLine("");
+            }
             PrintConfigurationState();
             PrintFrameLeadingArgs();
             SortedDictionary<int, int> writeSequences = GetWriteSequences();
             PrintWriteSequences(writeSequences);
-            PrintDataBlocks3(writeSequences);
+            PrintDataBlocks(writeSequences);
             PrintLeadSummary();
             PrintTailSummary();
             PrintSourceSummary();
@@ -177,7 +183,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private void PrintDataBlocks3(SortedDictionary<int, int> writeSequences)
+        private void PrintDataBlocks(SortedDictionary<int, int> writeSequences)
         {
             Dictionary<int, GpuSource> blockIdToSource = GetBlockIdToSource(zframeFile);
             string configHeader = $"D-Param configurations ({blockIdToSource.Count})";
@@ -212,10 +218,17 @@ namespace ValveResourceFormat.CompiledShader
 
                 if (blockSource is GlslSource source)
                 {
-                    string urlText = $"source[{blockSource.GetEditorRefIdAsString()}]";
                     // string sourceLink = $"<a href='{fileTokens.GetGlslHtmlUrl((GlslSource) blockSource)}'>{urlText}</a>";
                     // OutputWriteLine($"    {sourceLink} {blockSource.sourcebytes.Length,12}  (bytes)");
-                    OutputWriteLine(urlText);
+
+                    if (showRichTextBoxLinks)
+                    {
+                        OutputWriteLine($"\\\\source\\{blockSource.sourceId}");
+                    } else
+                    {
+                        string sourceDesc = $"source[{blockSource.GetEditorRefIdAsString()}]";
+                        OutputWriteLine(sourceDesc);
+                    }
                 } else
                 {
                     OutputWriteLine($"  {blockSource.GetBlockName().PadRight(20)} {blockSource.sourcebytes.Length,12} (bytes)");
@@ -253,7 +266,8 @@ namespace ValveResourceFormat.CompiledShader
         private List<int> GetActiveBlockIds()
         {
             List<int> blockIds = new();
-            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader || zframeFile.vcsProgramType == VcsProgramType.GeometryShader)
+            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader ||
+                zframeFile.vcsProgramType == VcsProgramType.GeometryShader || zframeFile.vcsProgramType == VcsProgramType.ComputeShader)
             {
                 foreach (VsEndBlock vsEndBlock in zframeFile.vsEndBlocks)
                 {
@@ -272,7 +286,8 @@ namespace ValveResourceFormat.CompiledShader
         static Dictionary<int, GpuSource> GetBlockIdToSource(ZFrameFile zframeFile)
         {
             Dictionary<int, GpuSource> blockIdToSource = new();
-            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader || zframeFile.vcsProgramType == VcsProgramType.GeometryShader)
+            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader ||
+                zframeFile.vcsProgramType == VcsProgramType.GeometryShader || zframeFile.vcsProgramType == VcsProgramType.ComputeShader)
             {
                 foreach (VsEndBlock vsEndBlock in zframeFile.vsEndBlocks)
                 {
@@ -306,18 +321,20 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintSourceSummary()
         {
-            string headerText = "source summary";
+            string headerText = "source bytes/flags";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
             int b0 = zframeFile.flags0[0];
             int b1 = zframeFile.flags0[1];
             int b2 = zframeFile.flags0[2];
             int b3 = zframeFile.flags0[3];
-            OutputWrite($"{b0:X02} {b1:X02} {b2:X02} {b3:X02}");
-            OutputWriteLine($"    // possible flags {ByteToBinary(b0)} {ByteToBinary(b1)}");
-            OutputWriteLine($"{zframeFile.flagbyte0}              // values seen 0,1");
-            OutputWriteLine($"{zframeFile.gpuSourceCount,-11}    // nr of source files");
-            OutputWriteLine($"{zframeFile.flagbyte1}              // values seen 0,1");
+            OutputWriteLine($"{b0:X02}      // possible control byte ({b0}) or flags ({Convert.ToString(b0, 2).PadLeft(8, '0')})");
+            OutputWriteLine($"{b1:X02}      // values seen (0,1,2)");
+            OutputWriteLine($"{b2:X02}      // always 0");
+            OutputWriteLine($"{b3:X02}      // always 0");
+            OutputWriteLine($"{zframeFile.flagbyte0}       // values seen 0,1");
+            OutputWriteLine($"{zframeFile.gpuSourceCount,-6}  // nr of source files");
+            OutputWriteLine($"{zframeFile.flagbyte1}       // values seen 0,1");
             OutputWriteLine("");
             OutputWriteLine("");
         }
@@ -338,7 +355,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', headerText.Length));
 
             VcsProgramType vcsFiletype = shaderFile.vcsProgramType;
-            if (vcsFiletype == VcsProgramType.VertexShader || vcsFiletype == VcsProgramType.GeometryShader)
+            if (vcsFiletype == VcsProgramType.VertexShader || vcsFiletype == VcsProgramType.GeometryShader || vcsFiletype == VcsProgramType.ComputeShader)
             {
                 OutputWriteLine($"{zframeFile.vsEndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.vsEndBlocks.Count})");
                 OutputWriteLine("");

@@ -200,7 +200,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 stringCollection.Add(line[0..^2]);
             }
-            return stringCollection.ToArray(); ;
+            return stringCollection.ToArray();
         }
 
         public static string BytesToString(byte[] databytes, int breakLen = 32)

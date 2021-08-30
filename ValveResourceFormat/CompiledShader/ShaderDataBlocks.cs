@@ -78,11 +78,11 @@ namespace ValveResourceFormat.CompiledShader
             {
                 editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID7 - ref to psrs file ({VcsProgramType.PixelShaderRenderState})"));
                 editorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
-                    $"// Editor ref. ID8 - this ID is shared across archives for vcs files with the same minor-version"));
+                    $"// Editor ref. ID8 - common editor reference shared by multiple files "));
             } else
             {
                 editorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
-                    "// Editor ref. ID7 - this ID is shared across archives for vcs files with the same minor-version"));
+                    "// Editor ref. ID7- common editor reference shared by multiple files"));
             }
         }
 
