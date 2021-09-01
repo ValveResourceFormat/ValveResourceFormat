@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using Microsoft.Win32;
 using ValveKeyValue;
 
@@ -22,6 +23,7 @@ namespace GUI.Utils
             public int WindowLeft { get; set; }
             public int WindowWidth { get; set; }
             public int WindowHeight { get; set; }
+            public int WindowState { get; set; } = (int)FormWindowState.Normal;
         }
 
         private static string SettingsFilePath;
