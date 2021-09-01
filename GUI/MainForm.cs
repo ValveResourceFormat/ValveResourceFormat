@@ -34,15 +34,6 @@ namespace GUI
             LoadAssetTypes();
             InitializeComponent();
 
-            Settings.Load();
-            var left = Settings.Config.WindowLeft == 0 ? 100 : Settings.Config.WindowLeft;
-            var top = Settings.Config.WindowTop == 0 ? 100 : Settings.Config.WindowTop;
-            var width = Settings.Config.WindowWidth == 0 ? 1101 : Settings.Config.WindowWidth;
-            var height = Settings.Config.WindowHeight == 0 ? 532 : Settings.Config.WindowHeight;
-            StartPosition = FormStartPosition.Manual;
-            Location = new Point(left, top);
-            Size = new Size(width, height);
-
             Text = "VRF - Source 2 Resource Viewer v" + Application.ProductVersion;
 
             mainTabs.SelectedIndexChanged += (o, e) =>
@@ -72,20 +63,67 @@ namespace GUI
             }
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
+        protected override void OnShown(EventArgs e)
         {
-            // so we can bind keys to actions properly
-            KeyPreview = true;
+            Settings.Load();
+            var savedWindowDimensionsAreValid = IsOnScreen(new Rectangle(Settings.Config.WindowLeft, Settings.Config.WindowTop,
+                Settings.Config.WindowWidth, Settings.Config.WindowHeight));
+            if (savedWindowDimensionsAreValid)
+            {
+                Left = Settings.Config.WindowLeft;
+                Top = Settings.Config.WindowTop;
+                Height = Settings.Config.WindowHeight;
+                Width = Settings.Config.WindowWidth;
+                // restores the window-state to Normal or Maximized (the Minimized state is not restored)
+                WindowState = (FormWindowState)Settings.Config.WindowState;
+            }
+            base.OnShown(e);
+        }
+
+        // checks if the Rectangle is within bounds of one of the user's screen
+        public bool IsOnScreen(Rectangle formRectangle)
+        {
+            if (formRectangle.Width < MinimumSize.Width || formRectangle.Height < MinimumSize.Height)
+            {
+                return false;
+            }
+            var screens = Screen.AllScreens;
+            foreach (var screen in screens)
+            {
+                if (screen.WorkingArea.Contains(formRectangle))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            Settings.Config.WindowLeft = Left;
-            Settings.Config.WindowTop = Top;
-            Settings.Config.WindowWidth = Width;
-            Settings.Config.WindowHeight = Height;
+            // save the application window size, position and state (if maximized)
+            (Settings.Config.WindowLeft, Settings.Config.WindowTop,
+             Settings.Config.WindowWidth, Settings.Config.WindowHeight, Settings.Config.WindowState) = WindowState switch
+             {
+                 FormWindowState.Normal =>
+                    (Left, Top, Width, Height, (int)FormWindowState.Normal),
+                 // will restore window to maximized
+                 FormWindowState.Maximized =>
+                    (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Maximized),
+                 // if minimized restore to Normal instead, using RestoreBound values
+                 FormWindowState.Minimized =>
+                    (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Normal),
+                 // the default switch should never happen (FormWindowState only takes the values Normal, Maximized, Minimized)
+                 _ =>
+                    (0, 0, 0, 0, (int)FormWindowState.Normal),
+             };
             Settings.Save();
             base.OnClosing(e);
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            // so we can bind keys to actions properly
+            KeyPreview = true;
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
