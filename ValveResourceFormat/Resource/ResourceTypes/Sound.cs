@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -12,6 +13,22 @@ namespace ValveResourceFormat.ResourceTypes
             AAC = 0,
             WAV = 1,
             MP3 = 2,
+        }
+
+        public enum AudioFormatV4
+        {
+            PCM16 = 0,
+            PCM8 = 1,
+            MP3 = 2,
+            ADPCM = 3,
+        }
+
+        // https://github.com/naudio/NAudio/blob/fb35ce8367f30b8bc5ea84e7d2529e172cf4c381/NAudio.Core/Wave/WaveFormats/WaveFormatEncoding.cs
+        public enum WaveAudioFormat
+        {
+            Unknown = 0,
+            PCM = 1,
+            ADPCM = 2,
         }
 
         /// <summary>
@@ -42,7 +59,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the bitstream encoding format.
         /// </summary>
         /// <value>The audio format.</value>
-        public uint AudioFormat { get; private set; }
+        public WaveAudioFormat AudioFormat { get; private set; }
 
         public uint SampleSize { get; private set; }
 
@@ -69,12 +86,39 @@ namespace ValveResourceFormat.ResourceTypes
             if (resource.Version >= 4)
             {
                 SampleRate = reader.ReadUInt16();
+                var soundFormat = (AudioFormatV4)reader.ReadByte();
+                Channels = reader.ReadByte();
 
-                SetVersion4();
+                switch (soundFormat)
+                {
+                    case AudioFormatV4.PCM8:
+                        SoundType = AudioFileType.WAV;
+                        Bits = 8;
+                        SampleSize = 1;
+                        AudioFormat = WaveAudioFormat.PCM;
+                        break;
 
-                SampleSize = Bits / 8;
-                Channels = 1;
-                AudioFormat = 1;
+                    case AudioFormatV4.PCM16:
+                        SoundType = AudioFileType.WAV;
+                        Bits = 16;
+                        SampleSize = 2;
+                        AudioFormat = WaveAudioFormat.PCM;
+                        break;
+
+                    case AudioFormatV4.MP3:
+                        SoundType = AudioFileType.MP3;
+                        break;
+
+                    case AudioFormatV4.ADPCM:
+                        SoundType = AudioFileType.WAV;
+                        Bits = 4;
+                        SampleSize = 1;
+                        AudioFormat = WaveAudioFormat.ADPCM;
+                        throw new NotImplementedException("ADPCM is currently not implemented correctly.");
+
+                    default:
+                        throw new UnexpectedMagicException("Unexpected audio type", (int)soundFormat, nameof(soundFormat));
+                }
             }
             else
             {
@@ -90,7 +134,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
                 Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
                 SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
-                AudioFormat = ExtractSub(bitpackedSoundInfo, 12, 2);
+                AudioFormat = (WaveAudioFormat)ExtractSub(bitpackedSoundInfo, 12, 2);
                 SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
             }
 
@@ -144,6 +188,12 @@ namespace ValveResourceFormat.ResourceTypes
                 var byteRate = SampleRate * Channels * (Bits / 8);
                 var blockAlign = Channels * (Bits / 8);
 
+                if (AudioFormat == WaveAudioFormat.ADPCM)
+                {
+                    byteRate = 1;
+                    blockAlign = 4;
+                }
+
                 stream.Write(headerRiff, 0, headerRiff.Length);
                 stream.Write(PackageInt(StreamingDataSize + 42, 4), 0, 4);
 
@@ -151,7 +201,7 @@ namespace ValveResourceFormat.ResourceTypes
                 stream.Write(formatTag, 0, formatTag.Length);
                 stream.Write(PackageInt(16, 4), 0, 4); // Subchunk1Size
 
-                stream.Write(PackageInt(AudioFormat, 2), 0, 2);
+                stream.Write(PackageInt((uint)AudioFormat, 2), 0, 2);
                 stream.Write(PackageInt(Channels, 2), 0, 2);
                 stream.Write(PackageInt(SampleRate, 4), 0, 4);
                 stream.Write(PackageInt(byteRate, 4), 0, 4);
@@ -169,25 +219,6 @@ namespace ValveResourceFormat.ResourceTypes
             stream.Seek(0, SeekOrigin.Begin);
 
             return stream;
-        }
-
-        private void SetVersion4()
-        {
-            var type = Reader.ReadUInt16();
-
-            // We don't know if it's actually calculated, or if its a lookup
-            switch (type)
-            {
-                case 0x0101: SoundType = AudioFileType.WAV; Bits = 8; break;
-                case 0x0201: SoundType = AudioFileType.WAV; Bits = 8; break;
-                case 0x0100: SoundType = AudioFileType.WAV; Bits = 16; break;
-                case 0x0200: SoundType = AudioFileType.WAV; Bits = 32; break;
-                case 0x0400: SoundType = AudioFileType.WAV; Bits = 32; break;
-                case 0x0102: SoundType = AudioFileType.MP3; Bits = 16; break;
-                case 0x0202: SoundType = AudioFileType.MP3; Bits = 32; break;
-                //case 0x0203: // TODO: Unknown. In HL:A - pontoon_splash1 or switch_burst
-                default: throw new NotImplementedException($"Unhandled v4 vsnd bits: {type}");
-            }
         }
 
         private static byte[] PackageInt(uint source, int length)
