@@ -67,6 +67,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public int LoopStart { get; private set; }
 
+        public int LoopEnd { get; private set; }
+
         public float Duration { get; private set; }
 
         public uint StreamingDataSize { get; private set; }
@@ -141,8 +143,48 @@ namespace ValveResourceFormat.ResourceTypes
             LoopStart = reader.ReadInt32();
             SampleCount = reader.ReadUInt32();
             Duration = reader.ReadSingle();
+
+            // Skipping over m_Sentence (CSentence_t) and m_pHeader
             reader.BaseStream.Position += 12;
+
             StreamingDataSize = reader.ReadUInt32();
+
+            if (resource.Version < 1)
+            {
+                return;
+            }
+
+            var d = reader.ReadUInt32();
+            if (d != 0)
+            {
+                throw new UnexpectedMagicException("Unexpected", d, nameof(d));
+            }
+
+            var e = reader.ReadUInt32();
+            if (e != 0)
+            {
+                throw new UnexpectedMagicException("Unexpected", e, nameof(e));
+            }
+
+            if (resource.Version < 2)
+            {
+                return;
+            }
+
+            var f = reader.ReadUInt32();
+            if (f != 0)
+            {
+                throw new UnexpectedMagicException("Unexpected", f, nameof(f));
+            }
+
+            // v2 and v3 are the same?
+
+            if (resource.Version < 4)
+            {
+                return;
+            }
+
+            LoopEnd = reader.ReadInt32();
         }
 
         private static uint ExtractSub(uint l, byte offset, byte nrBits)
@@ -247,7 +289,12 @@ namespace ValveResourceFormat.ResourceTypes
             output.AppendLine($"SampleCount: {SampleCount}");
             output.AppendLine($"Format: {AudioFormat}");
             output.AppendLine($"Channels: {Channels}");
-            output.AppendLine($"LoopStart: {LoopStart}");
+
+            var loopStart = TimeSpan.FromSeconds(LoopStart);
+            output.AppendLine($"LoopStart: ({loopStart}) {LoopStart}");
+
+            var loopEnd = TimeSpan.FromSeconds(LoopEnd);
+            output.AppendLine($"LoopEnd: ({loopEnd}) {LoopEnd}");
 
             var duration = TimeSpan.FromSeconds(Duration);
             output.AppendLine($"Duration: {duration} ({Duration})");
