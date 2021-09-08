@@ -545,7 +545,7 @@ namespace ValveResourceFormat
                                 chunkReader.BaseStream.Position -= 2;
                             }
                         }
-                        else 
+                        else
                         {
                             // Read 40 byte 0xFF chunk
                             chunkReader.ReadBytes(40);

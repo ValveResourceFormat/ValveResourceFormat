@@ -65,18 +65,27 @@ namespace GUI
 
         protected override void OnShown(EventArgs e)
         {
-            Settings.Load();
-            var savedWindowDimensionsAreValid = IsOnScreen(new Rectangle(Settings.Config.WindowLeft, Settings.Config.WindowTop,
-                Settings.Config.WindowWidth, Settings.Config.WindowHeight));
+            var savedWindowDimensionsAreValid = IsOnScreen(new Rectangle(
+                Settings.Config.WindowLeft,
+                Settings.Config.WindowTop,
+                Settings.Config.WindowWidth,
+                Settings.Config.WindowHeight));
+
             if (savedWindowDimensionsAreValid)
             {
                 Left = Settings.Config.WindowLeft;
                 Top = Settings.Config.WindowTop;
                 Height = Settings.Config.WindowHeight;
                 Width = Settings.Config.WindowWidth;
-                // restores the window-state to Normal or Maximized (the Minimized state is not restored)
-                WindowState = (FormWindowState)Settings.Config.WindowState;
+
+                var newState = (FormWindowState)Settings.Config.WindowState;
+
+                if (newState == FormWindowState.Maximized || newState == FormWindowState.Normal)
+                {
+                    WindowState = newState;
+                }
             }
+
             base.OnShown(e);
         }
 
@@ -87,35 +96,24 @@ namespace GUI
             {
                 return false;
             }
-            var screens = Screen.AllScreens;
-            foreach (var screen in screens)
-            {
-                if (screen.WorkingArea.Contains(formRectangle))
-                {
-                    return true;
-                }
-            }
-            return false;
+
+            return Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(formRectangle));
         }
 
         protected override void OnClosing(CancelEventArgs e)
         {
             // save the application window size, position and state (if maximized)
-            (Settings.Config.WindowLeft, Settings.Config.WindowTop,
-             Settings.Config.WindowWidth, Settings.Config.WindowHeight, Settings.Config.WindowState) = WindowState switch
-             {
-                 FormWindowState.Normal =>
-                    (Left, Top, Width, Height, (int)FormWindowState.Normal),
-                 // will restore window to maximized
-                 FormWindowState.Maximized =>
-                    (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Maximized),
-                 // if minimized restore to Normal instead, using RestoreBound values
-                 FormWindowState.Minimized =>
-                    (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Normal),
-                 // the default switch should never happen (FormWindowState only takes the values Normal, Maximized, Minimized)
-                 _ =>
-                    (0, 0, 0, 0, (int)FormWindowState.Normal),
-             };
+            (Settings.Config.WindowLeft, Settings.Config.WindowTop, Settings.Config.WindowWidth, Settings.Config.WindowHeight, Settings.Config.WindowState) = WindowState switch
+            {
+                FormWindowState.Normal => (Left, Top, Width, Height, (int)FormWindowState.Normal),
+                // will restore window to maximized
+                FormWindowState.Maximized => (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Maximized),
+                // if minimized restore to Normal instead, using RestoreBound values
+                FormWindowState.Minimized => (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Normal),
+                // the default switch should never happen (FormWindowState only takes the values Normal, Maximized, Minimized)
+                _ => (0, 0, 0, 0, (int)FormWindowState.Normal),
+            };
+
             Settings.Save();
             base.OnClosing(e);
         }
