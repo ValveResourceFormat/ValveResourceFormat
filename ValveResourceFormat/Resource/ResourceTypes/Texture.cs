@@ -487,6 +487,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             var compressedSize = CompressedMips[mipLevel];
 
+            if (compressedSize >= uncompressedSize)
+            {
+                Reader.Read(output);
+                return output;
+            }
+
             var input = Reader.ReadBytes(compressedSize);
 
             LZ4Codec.Decode(input, output);
