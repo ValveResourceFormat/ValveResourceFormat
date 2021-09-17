@@ -9,7 +9,6 @@
     <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <StartupObject>GUI.Program</StartupObject>
     <AssemblyName>VRF</AssemblyName>
