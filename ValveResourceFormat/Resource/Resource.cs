@@ -186,6 +186,11 @@ namespace ValveResourceFormat
                 throw new InvalidDataException(string.Format("Bad header version. ({0} != expected {1})", HeaderVersion, KnownHeaderVersion));
             }
 
+            if (FileName != null)
+            {
+                ResourceType = DetermineResourceTypeByFileExtension();
+            }
+
             Version = Reader.ReadUInt16();
 
             var blockOffset = Reader.ReadUInt32();
@@ -275,11 +280,6 @@ namespace ValveResourceFormat
                 }
 
                 Reader.BaseStream.Position = position + 8;
-            }
-
-            if (ResourceType == ResourceType.Unknown && FileName != null)
-            {
-                ResourceType = DetermineResourceTypeByFileExtension();
             }
 
             foreach (var block in Blocks)
