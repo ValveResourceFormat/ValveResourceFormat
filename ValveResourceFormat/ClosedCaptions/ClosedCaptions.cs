@@ -77,7 +77,7 @@ namespace ValveResourceFormat.ClosedCaptions
 
                 if (version >= 2)
                 {
-                    caption.UnknownV2 = reader.ReadUInt32();
+                    caption.HashText = reader.ReadUInt32();
                 }
 
                 caption.Blocknum = reader.ReadInt32();
