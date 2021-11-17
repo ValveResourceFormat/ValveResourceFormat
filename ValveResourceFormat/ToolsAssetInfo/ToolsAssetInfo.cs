@@ -18,6 +18,8 @@ namespace ValveResourceFormat.ToolsAssetInfo
         public List<string> EditInfoKeys { get; } = new List<string>();
         public List<string> MiscStrings { get; } = new List<string>();
         public List<string> ConstructedFilepaths { get; } = new List<string>();
+        public List<string> UnknownSoundField1 { get; } = new List<string>();
+        public List<string> UnknownSoundField2 { get; } = new List<string>();
 
         /// <summary>
         /// Opens and reads the given filename.
@@ -48,7 +50,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             var version = reader.ReadUInt32();
 
-            if (version != 9 && version != 10 && version != 11)
+            if (version != 9 && version != 10 && version != 11 && version != 12)
             {
                 throw new InvalidDataException($"Unsupported version: {version}");
             }
@@ -67,6 +69,12 @@ namespace ValveResourceFormat.ToolsAssetInfo
             ReadStringsBlock(reader, Extensions);
             ReadStringsBlock(reader, EditInfoKeys);
             ReadStringsBlock(reader, MiscStrings);
+
+            if (version >= 12)
+            {
+                ReadStringsBlock(reader, UnknownSoundField1);
+                ReadStringsBlock(reader, UnknownSoundField2);
+            }
 
             for (var i = 0; i < fileCount; i++)
             {
