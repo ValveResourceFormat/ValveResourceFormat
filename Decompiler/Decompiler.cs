@@ -292,7 +292,7 @@ namespace Decompiler
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
                 case BinaryKV3.MAGIC3:
                 case BinaryKV3.MAGIC2:
-                case BinaryKV3.MAGIC: ParseKV3(stream); return;
+                case BinaryKV3.MAGIC: ParseKV3(path, stream); return;
             }
 
             var pathExtension = Path.GetExtension(path);
@@ -408,23 +408,7 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
-
-                lock (ConsoleWriterLock)
-                {
-                    if (originalPath == null)
-                    {
-                        File.AppendAllText(exceptionsFileName, $"---------------\nFile: {path}\nException: {e}\n\n");
-                    }
-                    else
-                    {
-                        File.AppendAllText(exceptionsFileName, $"---------------\nParent file: {originalPath}\nFile: {path}\nException: {e}\n\n");
-                    }
-
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
+                LogException(e, path, originalPath);
             }
 
             if (CollectStats)
@@ -519,12 +503,7 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
+                LogException(e, path);
             }
         }
 
@@ -545,12 +524,7 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
+                LogException(e, path);
             }
 
             shader.Dispose();
@@ -581,16 +555,11 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
+                LogException(e, path);
             }
         }
 
-        private void ParseKV3(Stream stream)
+        private void ParseKV3(string path, Stream stream)
         {
             var kv3 = new BinaryKV3();
 
@@ -606,12 +575,7 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
+                LogException(e, path);
             }
         }
 
@@ -633,12 +597,7 @@ namespace Decompiler
             }
             catch (Exception e)
             {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
-                }
+                LogException(e, path);
 
                 return;
             }
@@ -653,13 +612,7 @@ namespace Decompiler
                 }
                 catch (Exception e)
                 {
-                    lock (ConsoleWriterLock)
-                    {
-                        Console.WriteLine("Failed to verify checksums and signature of given VPK:");
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine(e.Message);
-                        Console.ResetColor();
-                    }
+                    LogException(e, path);
                 }
 
                 return;
@@ -859,16 +812,7 @@ namespace Decompiler
                     }
                     catch (Exception e)
                     {
-                        var exceptionsFileName = CollectStats ? $"exceptions.{file.TypeName}.txt" : "exceptions.txt";
-
-                        lock (ConsoleWriterLock)
-                        {
-                            File.AppendAllText(exceptionsFileName, $"---------------\nFile: {filePath}\nException: {e}\n\n");
-
-                            Console.ForegroundColor = ConsoleColor.DarkRed;
-                            Console.WriteLine("\t" + e.Message + " on resource type " + type + ", extracting as-is");
-                            Console.ResetColor();
-                        }
+                        LogException(e, filePath, package.FileName);
                     }
                 }
 
@@ -904,6 +848,31 @@ namespace Decompiler
             File.WriteAllText(outputFile, data);
 
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+        }
+
+        private void LogException(Exception e, string path, string parentPath = null)
+        {
+            var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
+
+            lock (ConsoleWriterLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+
+                if (parentPath == null)
+                {
+                    Console.Error.WriteLine($"File: {path}\n{e}");
+
+                    File.AppendAllText(exceptionsFileName, $"---------------\nFile: {path}\nException: {e}\n\n");
+                }
+                else
+                {
+                    Console.Error.WriteLine($"File: {path} (parent: {parentPath})\n{e}");
+
+                    File.AppendAllText(exceptionsFileName, $"---------------\nParent file: {parentPath}\nFile: {path}\nException: {e}\n\n");
+                }
+
+                Console.ResetColor();
+            }
         }
 
         private static string FixPathSlashes(string path)
