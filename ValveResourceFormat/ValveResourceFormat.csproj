@@ -13,7 +13,7 @@
     <PackageReference Include="SkiaSharp" Version="2.80.3" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.3" />
     <PackageReference Include="ValveKeyValue" Version="0.6.0.5" />
-    <PackageReference Include="ZstdSharp.Port" Version="0.5.0" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.5.2" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Icons\vrf_library.png">
