@@ -448,6 +448,11 @@ namespace ValveResourceFormat.IO
             var totalSize = exportedModel.LogicalBuffers.Sum(buffer => (long)buffer.Content.Length);
             settings.MergeBuffers = totalSize <= 1_074_000_000;
 
+            if (!settings.MergeBuffers)
+            {
+                throw new NotSupportedException("VRF does not properly support big model (>1GiB) exports yet due to glTF limitations. See https://github.com/SteamDatabase/ValveResourceFormat/issues/379");
+            }
+
             exportedModel.Save(filePath, settings);
         }
 
