@@ -22,5 +22,6 @@ namespace ValveResourceFormat
         PHYS,
         INSG,
         SrMa,
+        LaCo,
     }
 }
