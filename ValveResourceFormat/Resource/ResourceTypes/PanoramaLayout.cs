@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -99,22 +100,19 @@ namespace ValveResourceFormat.ResourceTypes
         private static void PrintInclude(IKeyValueCollection node, IndentedTextWriter writer)
         {
             var reference = node.GetSubCollection("child");
-            var referenceType = reference.GetProperty<string>("eType");
-            if (referenceType != "REFERENCE_COMPILED")
-            {
-                throw new Exception($"Unknown reference type: {referenceType}");
-            }
 
-            var referenceValue = reference.GetProperty<string>("name");
-            writer.WriteLine($"<include src=\"s2r://{referenceValue}\" />");
+            writer.Write($"<include src=");
+            PrintAttributeOrReferenceValue(reference, writer);
+            writer.WriteLine(" />");
         }
 
         private static void PrintScriptBody(IKeyValueCollection node, IndentedTextWriter writer)
         {
             var content = node.GetProperty<string>("name");
-            writer.Write("<script>");
+
+            writer.Write("<script><![CDATA[");
             writer.Write(content);
-            writer.WriteLine("</script>");
+            writer.WriteLine("]]></script>");
         }
 
         private static void PrintSnippet(IKeyValueCollection node, IndentedTextWriter writer)
@@ -147,9 +145,34 @@ namespace ValveResourceFormat.ResourceTypes
             foreach (var attribute in attributes)
             {
                 var name = attribute.GetProperty<string>("name");
-                var value = attribute.GetSubCollection("child").GetProperty<string>("name");
-                writer.Write($" {name}=\"{value}\"");
+                var value = attribute.GetSubCollection("child");
+
+                writer.Write($" {name}=");
+                PrintAttributeOrReferenceValue(value, writer);
             }
+        }
+
+        private static void PrintAttributeOrReferenceValue(IKeyValueCollection attributeValue, IndentedTextWriter writer)
+        {
+            var value = attributeValue.GetProperty<string>("name");
+            var type = attributeValue.GetProperty<string>("eType");
+
+            switch (type)
+            {
+                case "REFERENCE_COMPILED":
+                    value = "s2r://" + value;
+                    break;
+                case "REFERENCE_PASSTHROUGH":
+                    value = "file://" + value;
+                    break;
+                case "PANEL_ATTRIBUTE_VALUE":
+                    value = SecurityElement.Escape(value);
+                    break;
+                default:
+                    throw new Exception($"Unknown attribute type: {type}");
+            }
+
+            writer.Write($"\"{value}\"");
         }
 
         private static bool IsAttribute(IKeyValueCollection node) => node.GetProperty<string>("eType") == "PANEL_ATTRIBUTE";
