@@ -16,7 +16,6 @@ namespace ValveResourceFormat.IO
             switch (resource.ResourceType)
             {
                 case ResourceType.Panorama:
-                case ResourceType.PanoramaLayout:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaVectorGraphic:
@@ -54,6 +53,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 // These all just use ToString() and WriteText() to do the job
+                case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
                     data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
