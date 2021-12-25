@@ -6,6 +6,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,8 +25,6 @@ namespace Decompiler
     [VersionOptionFromMember(MemberName = nameof(GetVersion))]
     public class Decompiler
     {
-        private static string GetVersion() => typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-
         private readonly Dictionary<string, uint> OldPakManifest = new();
         private readonly Dictionary<string, ResourceStat> stats = new();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
@@ -885,6 +885,20 @@ namespace Decompiler
             }
 
             return path;
+        }
+
+        private static string GetVersion()
+        {
+            var info = new StringBuilder();
+            info.Append("VRF Version: ");
+            info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
+            info.Append("Runtime: ");
+            info.AppendLine(RuntimeInformation.FrameworkDescription);
+            info.Append("OS: ");
+            info.AppendLine(RuntimeInformation.OSDescription);
+            info.AppendLine("Website: https://vrf.steamdb.info");
+            info.Append("GitHub: https://github.com/SteamDatabase/ValveResourceFormat");
+            return info.ToString();
         }
     }
 }
