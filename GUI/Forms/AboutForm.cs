@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace GUI.Forms
@@ -9,7 +10,8 @@ namespace GUI.Forms
         {
             InitializeComponent();
 
-            this.label2.Text = $"Version: {Application.ProductVersion}";
+            this.labelVersion.Text = $"Version: {Application.ProductVersion}";
+            this.labelRuntime.Text = $"Runtime: {RuntimeInformation.FrameworkDescription}";
         }
 
         private void website_Click(object sender, System.EventArgs e)
