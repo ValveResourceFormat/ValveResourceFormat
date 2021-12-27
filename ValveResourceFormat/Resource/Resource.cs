@@ -338,11 +338,13 @@ namespace ValveResourceFormat
             switch (ResourceType)
             {
                 case ResourceType.Panorama:
-                case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaDynamicImages:
                 case ResourceType.PanoramaVectorGraphic:
                     return new Panorama();
+
+                case ResourceType.PanoramaStyle:
+                    return new PanoramaStyle();
 
                 case ResourceType.PanoramaLayout:
                     return new PanoramaLayout();
