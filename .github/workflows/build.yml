@@ -39,7 +39,7 @@ jobs:
       run: dotnet test -v normal ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
     - name: Pack nupkg
-      run: dotnet pack --configuration release ValveResourceFormat/ValveResourceFormat.csproj
+      run: dotnet pack --configuration Release ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Publish GUI
       if: matrix.os == 'windows-latest'

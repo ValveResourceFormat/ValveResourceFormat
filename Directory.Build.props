@@ -14,7 +14,6 @@
     <DebugSymbols>true</DebugSymbols>
     <NeutralLanguage>en</NeutralLanguage>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
