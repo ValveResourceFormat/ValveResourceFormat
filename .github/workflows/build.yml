@@ -97,12 +97,33 @@ jobs:
         name: Decompiler-linux-x64
         path: Decompiler/bin/Release/linux-x64/publish
 
+    - name: Upload Decompiler (Linux arm)
+      uses: actions/upload-artifact@v2
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        name: Decompiler-linux-arm
+        path: Decompiler/bin/Release/linux-arm/publish
+
+    - name: Upload Decompiler (Linux arm64)
+      uses: actions/upload-artifact@v2
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        name: Decompiler-linux-arm64
+        path: Decompiler/bin/Release/linux-arm64/publish
+
     - name: Upload Decompiler (macOS x64)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'macos-latest'
       with:
         name: Decompiler-macos-x64
         path: Decompiler/bin/Release/osx-x64/publish
+
+    - name: Upload Decompiler (macOS arm64)
+      uses: actions/upload-artifact@v2
+      if: matrix.os == 'macos-latest'
+      with:
+        name: Decompiler-macos-arm64
+        path: Decompiler/bin/Release/osx-arm64/publish
 
     - name: Upload test coverage
       uses: coverallsapp/github-action@v1.1.2
@@ -140,10 +161,16 @@ jobs:
       run: |
        mkdir release
        chmod +x artifacts/Decompiler-linux-x64/Decompiler
+       chmod +x artifacts/Decompiler-linux-arm/Decompiler
+       chmod +x artifacts/Decompiler-linux-arm64/Decompiler
        chmod +x artifacts/Decompiler-macos-x64/Decompiler
+       chmod +x artifacts/Decompiler-macos-arm64/Decompiler
        zip -9j release/Decompiler-windows-x64.zip artifacts/Decompiler-windows-x64/*
        zip -9j release/Decompiler-linux-x64.zip artifacts/Decompiler-linux-x64/*
+       zip -9j release/Decompiler-linux-arm.zip artifacts/Decompiler-linux-arm/*
+       zip -9j release/Decompiler-linux-arm64.zip artifacts/Decompiler-linux-arm64/*
        zip -9j release/Decompiler-macos-x64.zip artifacts/Decompiler-macos-x64/*
+       zip -9j release/Decompiler-macos-arm64.zip artifacts/Decompiler-macos-arm64/*
        mv artifacts/VRF-GUI/VRF.exe release/
        mv artifacts/nupkg/*.nupkg release/
 
