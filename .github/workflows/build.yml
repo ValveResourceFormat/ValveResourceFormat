@@ -53,9 +53,21 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
 
+    - name: Publish Decompiler (Linux arm)
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-arm Decompiler/Decompiler.csproj
+
+    - name: Publish Decompiler (Linux arm64)
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-arm64 Decompiler/Decompiler.csproj
+
     - name: Publish Decompiler (macOS x64)
       if: matrix.os == 'macos-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
+
+    - name: Publish Decompiler (macOS arm64)
+      if: matrix.os == 'macos-latest'
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
 
     - name: Upload GUI
       uses: actions/upload-artifact@v2
