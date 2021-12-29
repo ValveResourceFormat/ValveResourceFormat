@@ -45,15 +45,15 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime win-x64 GUI/GUI.csproj
 
-    - name: Publish Decompiler (Windows)
+    - name: Publish Decompiler (Windows x64)
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (Linux)
+    - name: Publish Decompiler (Linux x64)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (Mac)
+    - name: Publish Decompiler (macOS x64)
       if: matrix.os == 'macos-latest'
       run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
 
@@ -71,25 +71,25 @@ jobs:
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
-    - name: Upload Decompiler (Windows)
+    - name: Upload Decompiler (Windows x64)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'windows-latest'
       with:
-        name: Decompiler-windows
+        name: Decompiler-windows-x64
         path: Decompiler/bin/Release/win-x64/publish
 
-    - name: Upload Decompiler (Linux)
+    - name: Upload Decompiler (Linux x64)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux
+        name: Decompiler-linux-x64
         path: Decompiler/bin/Release/linux-x64/publish
 
-    - name: Upload Decompiler (Mac)
+    - name: Upload Decompiler (macOS x64)
       uses: actions/upload-artifact@v2
       if: matrix.os == 'macos-latest'
       with:
-        name: Decompiler-macos
+        name: Decompiler-macos-x64
         path: Decompiler/bin/Release/osx-x64/publish
 
     - name: Upload test coverage
@@ -127,11 +127,11 @@ jobs:
     - name: Create release files
       run: |
        mkdir release
-       chmod +x artifacts/Decompiler-linux/Decompiler
-       chmod +x artifacts/Decompiler-macos/Decompiler
-       zip -9j release/Decompiler-windows.zip artifacts/Decompiler-windows/*
-       zip -9j release/Decompiler-linux.zip artifacts/Decompiler-linux/*
-       zip -9j release/Decompiler-macos.zip artifacts/Decompiler-macos/*
+       chmod +x artifacts/Decompiler-linux-x64/Decompiler
+       chmod +x artifacts/Decompiler-macos-x64/Decompiler
+       zip -9j release/Decompiler-windows-x64.zip artifacts/Decompiler-windows-x64/*
+       zip -9j release/Decompiler-linux-x64.zip artifacts/Decompiler-linux-x64/*
+       zip -9j release/Decompiler-macos-x64.zip artifacts/Decompiler-macos-x64/*
        mv artifacts/VRF-GUI/VRF.exe release/
        mv artifacts/nupkg/*.nupkg release/
 
