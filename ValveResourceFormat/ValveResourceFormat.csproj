@@ -10,8 +10,8 @@
   <ItemGroup>
     <PackageReference Include="K4os.Compression.LZ4" Version="1.2.16" />
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0025" />
-    <PackageReference Include="SkiaSharp" Version="2.80.3" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.3" />
+    <PackageReference Include="SkiaSharp" Version="2.88.0-preview.179" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.0-preview.179" />
     <PackageReference Include="ValveKeyValue" Version="0.6.0.5" />
     <PackageReference Include="ZstdSharp.Port" Version="0.6.0" />
   </ItemGroup>
