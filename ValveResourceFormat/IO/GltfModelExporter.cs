@@ -552,6 +552,12 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
+                        if (attribute.SemanticName == "BLENDWEIGHT" && numComponents != 4)
+                        {
+                            Console.Error.WriteLine($"This model has {attribute.SemanticName} with {numComponents} components, which in unsupported.");
+                            continue;
+                        }
+
                         switch (numComponents)
                         {
                             case 4:
@@ -853,7 +859,7 @@ namespace ValveResourceFormat.IO
                     case "g_tMasks2":
                     // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
                     default:
-                        Console.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
+                        Console.Error.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
                         break;
                 }
             }
