@@ -23,7 +23,7 @@
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.88.0-preview.179" />
-    <PackageReference Include="ValvePak" Version="1.1.0.1" />
+    <PackageReference Include="ValvePak" Version="1.2.0.24" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AssetTypes\*" />
