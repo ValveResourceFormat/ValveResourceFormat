@@ -40,7 +40,7 @@ namespace GUI.Types.Viewers
                     ScrollBars = ScrollBars.Vertical,
                     Multiline = true,
                     ReadOnly = true,
-                    Text = System.Text.Encoding.UTF8.GetString(input),
+                    Text = Utils.Utils.NormalizeLineEndings(System.Text.Encoding.UTF8.GetString(input)),
                 };
                 textTab.Controls.Add(text);
                 resTabs.TabPages.Add(textTab);
