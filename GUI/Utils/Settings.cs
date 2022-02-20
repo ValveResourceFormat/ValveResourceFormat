@@ -42,9 +42,29 @@ namespace GUI.Utils
                 return;
             }
 
-            using (var stream = new FileStream(SettingsFilePath, FileMode.Open, FileAccess.Read))
+            try
             {
+                using var stream = new FileStream(SettingsFilePath, FileMode.Open, FileAccess.Read);
                 Config = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize<AppConfig>(stream, KVSerializerOptions.DefaultOptions);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to parse '{SettingsFilePath}', is it corrupted?");
+                Console.WriteLine(e);
+
+                try
+                {
+                    var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
+                    File.Move(SettingsFilePath, corruptedPath);
+
+                    Console.WriteLine($"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
+
+                    Save();
+                }
+                catch
+                {
+                    //
+                }
             }
 
             BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
