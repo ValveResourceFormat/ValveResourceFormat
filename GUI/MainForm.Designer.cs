@@ -207,7 +207,7 @@ namespace GUI
             this.extractToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("extractToolStripMenuItem.Image")));
             this.extractToolStripMenuItem.Name = "extractToolStripMenuItem";
             this.extractToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
-            this.extractToolStripMenuItem.Text = "Export";
+            this.extractToolStripMenuItem.Text = "Export as is";
             this.extractToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
             // 
             // decompileToolStripMenuItem
