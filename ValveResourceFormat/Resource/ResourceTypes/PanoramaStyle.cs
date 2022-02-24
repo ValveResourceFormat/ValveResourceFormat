@@ -21,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public string ToString(bool applySourceMapIfPresent)
         {
-            if (applySourceMapIfPresent && SourceMap != default)
+            if (applySourceMapIfPresent && SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
             {
                 var sourceBytes = PanoramaSourceMapDecoder.Decode(Data, SourceMap.AsKeyValueCollection());
                 return Encoding.UTF8.GetString(sourceBytes);
