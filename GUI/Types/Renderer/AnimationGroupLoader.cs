@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using GUI.Utils;
 using ValveResourceFormat;
@@ -16,11 +15,18 @@ namespace GUI.Types.Renderer
             var data = resource.DataBlock.AsKeyValueCollection();
 
             // Get the list of animation files
-            var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
+            var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => !string.IsNullOrEmpty(a));
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
             var animationList = new List<Animation>();
+
+            if (resource.ContainsBlockType(BlockType.ANIM))
+            {
+                var animBlock = (KeyValuesOrNTRO)resource.GetBlockByType(BlockType.ANIM);
+                animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey));
+                return animationList;
+            }
 
             // Load animation files
             foreach (var animationFile in animArray)
@@ -40,6 +46,7 @@ namespace GUI.Types.Renderer
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
+            // TODO: This needs to support embedded ANIM somehow
             var animation = animArray.FirstOrDefault(a => a != null && a.EndsWith($"{animationName}.vanim"));
 
             if (animation != default)
@@ -58,7 +65,7 @@ namespace GUI.Types.Renderer
 
             if (animResource == null)
             {
-                return null;
+                return Enumerable.Empty<Animation>();
             }
 
             // Build animation classes
