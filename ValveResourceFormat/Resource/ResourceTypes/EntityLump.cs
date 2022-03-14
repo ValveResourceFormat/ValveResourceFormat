@@ -139,7 +139,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public string ToEntityDumpString()
         {
             var knownKeys = new EntityLumpKnownKeys().Fields;
             var builder = new StringBuilder();

@@ -51,6 +51,10 @@ namespace ValveResourceFormat.IO
                     data = ((Material)resource.DataBlock).ToValveMaterial();
                     break;
 
+                case ResourceType.EntityLump:
+                    data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
+                    break;
+
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:

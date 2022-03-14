@@ -364,14 +364,27 @@ namespace GUI.Types.Viewers
                     tabVmat.Controls.Add(control);
                     resTabs.TabPages.Add(tabVmat);
                 }
+
+                if (block.Type == BlockType.DATA && resource.ResourceType == ResourceType.EntityLump)
+                {
+                    var control = new TextBox();
+                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                    control.Text = Utils.Utils.NormalizeLineEndings(((EntityLump)block).ToEntityDumpString());
+                    control.Dock = DockStyle.Fill;
+                    control.Multiline = true;
+                    control.ReadOnly = true;
+                    control.ScrollBars = ScrollBars.Both;
+                    var tabEntities = new TabPage("Entities");
+                    tabEntities.Controls.Add(control);
+                    resTabs.TabPages.Add(tabEntities);
+                }
             }
 
             if (resource.ResourceType == ResourceType.PanoramaLayout
                 || resource.ResourceType == ResourceType.PanoramaScript
                 || resource.ResourceType == ResourceType.PanoramaStyle
                 || resource.ResourceType == ResourceType.SoundEventScript
-                || resource.ResourceType == ResourceType.SoundStackScript
-                || resource.ResourceType == ResourceType.EntityLump)
+                || resource.ResourceType == ResourceType.SoundStackScript)
             {
                 foreach (TabPage tab2 in resTabs.TabPages)
                 {
@@ -381,6 +394,11 @@ namespace GUI.Types.Viewers
                         break;
                     }
                 }
+            }
+
+            if (resource.ResourceType == ResourceType.EntityLump)
+            {
+                resTabs.SelectTab(resTabs.TabCount - 1);
             }
 
             tab.Controls.Add(resTabs);
