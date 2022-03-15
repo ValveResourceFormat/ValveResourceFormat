@@ -25,7 +25,6 @@ namespace Decompiler
     [VersionOptionFromMember(MemberName = nameof(GetVersion))]
     public class Decompiler
     {
-        private readonly Dictionary<string, uint> OldPakManifest = new();
         private readonly Dictionary<string, ResourceStat> stats = new();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
 
@@ -685,6 +684,7 @@ namespace Decompiler
                 Console.WriteLine("--- Dumping decompiled files...");
 
                 var manifestPath = string.Concat(path, ".manifest.txt");
+                var manifestData = new Dictionary<string, uint>();
 
                 if (CachedManifest && File.Exists(manifestPath))
                 {
@@ -697,7 +697,7 @@ namespace Decompiler
 
                         if (split.Length == 2)
                         {
-                            OldPakManifest.Add(split[1], uint.Parse(split[0], CultureInfo.InvariantCulture));
+                            manifestData.Add(split[1], uint.Parse(split[0], CultureInfo.InvariantCulture));
                         }
                     }
 
@@ -706,14 +706,14 @@ namespace Decompiler
 
                 foreach (var type in package.Entries)
                 {
-                    DumpVPK(path, package, type.Key);
+                    DumpVPK(path, package, type.Key, manifestData);
                 }
 
                 if (CachedManifest)
                 {
                     using var file = new StreamWriter(manifestPath);
 
-                    foreach (var hash in OldPakManifest)
+                    foreach (var hash in manifestData)
                     {
                         if (package.FindEntry(hash.Key) == null)
                         {
@@ -737,7 +737,7 @@ namespace Decompiler
             }
         }
 
-        private void DumpVPK(string parentPath, Package package, string type)
+        private void DumpVPK(string parentPath, Package package, string type, Dictionary<string, uint> manifestData)
         {
             if (ExtFilterList != null && !ExtFilterList.Contains(type))
             {
@@ -766,12 +766,12 @@ namespace Decompiler
 
                 if (OutputFile != null && CachedManifest)
                 {
-                    if (OldPakManifest.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
+                    if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
 
-                    OldPakManifest[filePath] = file.CRC32;
+                    manifestData[filePath] = file.CRC32;
                 }
 
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
