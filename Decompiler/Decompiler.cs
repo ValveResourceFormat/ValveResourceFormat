@@ -758,9 +758,9 @@ namespace Decompiler
                     continue;
                 }
 
-                if (OutputFile != null)
+                if (OutputFile != null && CachedManifest)
                 {
-                    if (CachedManifest && OldPakManifest.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
+                    if (OldPakManifest.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
                     {
                         continue;
                     }
