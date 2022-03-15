@@ -64,7 +64,6 @@ namespace ValveResourceFormat.IO
                     break;
 
                 default:
-                    Console.WriteLine("-- (I don't know how to dump this resource type)"); // TODO: What do we do with this
                     data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
             }

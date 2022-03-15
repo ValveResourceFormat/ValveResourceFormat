@@ -342,12 +342,17 @@ namespace Decompiler
                         case ResourceType.Texture:
                             var texture = (Texture)resource.DataBlock;
                             info = texture.Format.ToString();
-                            texture.GenerateBitmap();
                             break;
 
                         case ResourceType.Sound:
                             info = ((Sound)resource.DataBlock).SoundType.ToString();
                             break;
+                    }
+
+                    if (OutputFile == null)
+                    {
+                        // Test extraction code flow while collecting stats
+                        FileExtract.Extract(resource);
                     }
 
                     if (!string.IsNullOrEmpty(info))
