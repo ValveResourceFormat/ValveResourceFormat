@@ -14,6 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
         public class Entity
         {
             public Dictionary<uint, EntityProperty> Properties { get; } = new Dictionary<uint, EntityProperty>();
+            public List<IKeyValueCollection> Connections { get; internal set; }
 
             public T GetProperty<T>(string name)
                 => GetProperty<T>(EntityLumpKeyLookup.Get(name));
@@ -58,10 +59,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
-                .Select(entity => ParseEntityProperties(entity.GetArray<byte>("m_keyValuesData")))
+                .Select(entity => ParseEntityProperties(entity.GetArray<byte>("m_keyValuesData"), entity.GetArray("m_connections")))
                 .ToList();
 
-        private static Entity ParseEntityProperties(byte[] bytes)
+        private static Entity ParseEntityProperties(byte[] bytes, IKeyValueCollection[] connections)
         {
             using (var dataStream = new MemoryStream(bytes))
             using (var dataReader = new BinaryReader(dataStream))
@@ -135,7 +136,20 @@ namespace ValveResourceFormat.ResourceTypes
                     ReadTypedValue(keyHash, keyName);
                 }
 
+                if (connections.Length > 0)
+                {
+                    entity.Connections = connections.ToList();
+                }
+
                 return entity;
+            }
+        }
+
+        private static void AddConnections(Entity entity, IKeyValueCollection[] connections)
+        {
+            foreach (var connection in connections)
+            {
+                Console.WriteLine();
             }
         }
 
@@ -197,6 +211,48 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     builder.AppendLine($"{key,-30} {types[property.Value.Type],-10} {value}");
+                }
+
+                if (entity.Connections != null)
+                {
+                    foreach (var connection in entity.Connections)
+                    {
+                        builder.Append('@');
+                        builder.Append(connection.GetProperty<string>("m_outputName"));
+                        builder.Append(' ');
+
+                        var delay = connection.GetFloatProperty("m_flDelay");
+
+                        if (delay > 0)
+                        {
+                            builder.Append($"Delay={delay} ");
+                        }
+
+                        var timesToFire = connection.GetInt32Property("m_nTimesToFire");
+
+                        if (timesToFire == 1)
+                        {
+                            builder.Append("OnlyOnce ");
+                        }
+                        else if (timesToFire != -1)
+                        {
+                            throw new UnexpectedMagicException("Unexpected times to fire", timesToFire, nameof(timesToFire));
+                        }
+
+                        builder.Append(connection.GetProperty<string>("m_inputName"));
+                        builder.Append(' ');
+                        builder.Append(connection.GetProperty<string>("m_targetName"));
+
+                        var param = connection.GetProperty<string>("m_overrideParam");
+
+                        if (!string.IsNullOrEmpty(param) && param != "(null)")
+                        {
+                            builder.Append(' ');
+                            builder.Append(param);
+                        }
+
+                        builder.AppendLine();
+                    }
                 }
 
                 builder.AppendLine();
