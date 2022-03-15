@@ -499,7 +499,7 @@ namespace Decompiler
                     var fileName = Path.GetFileName(path);
                     fileName = Path.ChangeExtension(fileName, "txt");
 
-                    DumpFile(fileName, assetsInfo.ToString(), true);
+                    DumpFile(fileName, Encoding.UTF8.GetBytes(assetsInfo.ToString()), true);
                 }
                 else
                 {
@@ -833,24 +833,13 @@ namespace Decompiler
             }
         }
 
-        private void DumpFile(string path, Span<byte> data, bool useOutputAsFullPath = false)
+        private void DumpFile(string path, ReadOnlySpan<byte> data, bool useOutputAsFullPath = false)
         {
             var outputFile = useOutputAsFullPath ? Path.GetFullPath(OutputFile) : Path.Combine(OutputFile, path);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
             File.WriteAllBytes(outputFile, data.ToArray());
-
-            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
-        }
-
-        private void DumpFile(string path, string data, bool useOutputAsFullPath = false)
-        {
-            var outputFile = useOutputAsFullPath ? Path.GetFullPath(OutputFile) : Path.Combine(OutputFile, path);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
-
-            File.WriteAllText(outputFile, data);
 
             Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
         }
