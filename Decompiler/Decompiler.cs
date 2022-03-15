@@ -40,6 +40,9 @@ namespace Decompiler
         [Option("--recursive", "If specified and given input is a folder, all sub directories will be scanned too.", CommandOptionType.NoValue)]
         public bool RecursiveSearch { get; private set; }
 
+        [Option("--recursive_vpk", "If specified along with --recursive, will also recurse into VPK archives.", CommandOptionType.NoValue)]
+        public bool RecursiveSearchArchives { get; private set; }
+
         [Option("-o|--output", "Writes DATA output to file.", CommandOptionType.SingleValue)]
         public string OutputFile { get; private set; }
 
@@ -156,8 +159,15 @@ namespace Decompiler
                     })
                     .ToList();
 
-                if (RecursiveSearch && CollectStats)
+                if (RecursiveSearchArchives)
                 {
+                    if (!RecursiveSearch)
+                    {
+                        Console.Error.WriteLine("Option --recursive_vpk must be specified with --recursive.");
+
+                        return 1;
+                    }
+
                     var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
                     var vpks = Directory
                         .EnumerateFiles(InputFile, "*.vpk", SearchOption.AllDirectories)
@@ -171,7 +181,7 @@ namespace Decompiler
                     Console.Error.WriteLine(
                         "Unable to find any \"_c\" compiled files in \"{0}\" folder.{1}",
                         InputFile,
-                        RecursiveSearch ? " Did you mean to include --recursive parameter?" : string.Empty);
+                        RecursiveSearch ? " Did you mean to include --recursive option?" : string.Empty);
 
                     return 1;
                 }
@@ -183,6 +193,14 @@ namespace Decompiler
                 if (RecursiveSearch)
                 {
                     Console.Error.WriteLine("File passed in with --recursive option. Either pass in a folder or remove --recursive.");
+
+                    return 1;
+                }
+
+                // TODO: Support recursing vpks inside of vpk?
+                if (RecursiveSearchArchives)
+                {
+                    Console.Error.WriteLine("File passed in with --recursive_vpk option, this is not supported.");
 
                     return 1;
                 }
@@ -398,17 +416,7 @@ namespace Decompiler
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    if (IsInputFolder)
-                    {
-                        // I bet this is prone to breaking, is there a better way?
-                        filePath = filePath.Remove(0, InputFile.TrimEnd(Path.DirectorySeparatorChar).Length + 1);
-                    }
-                    else
-                    {
-                        filePath = Path.GetFileName(filePath);
-                    }
-
-                    DumpFile(filePath, data, !IsInputFolder);
+                    DumpFile(filePath, data);
                 }
             }
             catch (Exception e)
@@ -496,10 +504,9 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var fileName = Path.GetFileName(path);
-                    fileName = Path.ChangeExtension(fileName, "txt");
+                    path = Path.ChangeExtension(path, "txt");
 
-                    DumpFile(fileName, Encoding.UTF8.GetBytes(assetsInfo.ToString()), true);
+                    DumpFile(path, Encoding.UTF8.GetBytes(assetsInfo.ToString()));
                 }
                 else
                 {
@@ -552,10 +559,9 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var fileName = Path.GetFileName(path);
-                    fileName = Path.ChangeExtension(fileName, "ttf");
+                    path = Path.ChangeExtension(path, "ttf");
 
-                    DumpFile(fileName, output, true);
+                    DumpFile(path, output);
                 }
             }
             catch (Exception e)
@@ -700,7 +706,7 @@ namespace Decompiler
 
                 foreach (var type in package.Entries)
                 {
-                    DumpVPK(package, type.Key);
+                    DumpVPK(path, package, type.Key);
                 }
 
                 if (CachedManifest)
@@ -731,7 +737,7 @@ namespace Decompiler
             }
         }
 
-        private void DumpVPK(Package package, string type)
+        private void DumpVPK(string parentPath, Package package, string type)
         {
             if (ExtFilterList != null && !ExtFilterList.Contains(type))
             {
@@ -823,25 +829,47 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
+                    if (RecursiveSearchArchives)
+                    {
+                        filePath = Path.Combine(parentPath, filePath);
+                    }
+
                     if (type != extension)
                     {
                         filePath = Path.ChangeExtension(filePath, extension);
                     }
 
-                    DumpFile(filePath, output);
+                    DumpFile(filePath, output, useOutputAsDirectory: true);
                 }
             }
         }
 
-        private void DumpFile(string path, ReadOnlySpan<byte> data, bool useOutputAsFullPath = false)
+        private void DumpFile(string path, ReadOnlySpan<byte> data, bool useOutputAsDirectory = false)
         {
-            var outputFile = useOutputAsFullPath ? Path.GetFullPath(OutputFile) : Path.Combine(OutputFile, path);
+            if (IsInputFolder)
+            {
+                if (!path.StartsWith(InputFile))
+                {
+                    throw new Exception($"Path '{path}' does not start with '{InputFile}', is this a bug?");
+                }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
+                path = path.Remove(0, InputFile.Length);
+                path = Path.Combine(OutputFile, path);
+            }
+            else if (useOutputAsDirectory)
+            {
+                path = Path.Combine(OutputFile, path);
+            }
+            else
+            {
+                path = Path.GetFullPath(OutputFile);
+            }
 
-            File.WriteAllBytes(outputFile, data.ToArray());
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
 
-            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+            File.WriteAllBytes(path, data.ToArray());
+
+            Console.WriteLine("--- Dump written to \"{0}\"", path);
         }
 
         private void LogException(Exception e, string path, string parentPath = null)
