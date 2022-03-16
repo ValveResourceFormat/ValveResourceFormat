@@ -71,6 +71,7 @@ namespace ValveResourceFormat.CompiledShader
         public VcsShaderModelType vcsShaderModelType { get; private set; }
         public FeaturesHeaderBlock featuresHeader { get; private set; }
         public VsPsHeaderBlock vspsHeader { get; private set; }
+        public int vcsVersion { get; private set; }
         public int possibleMinorVersion { get; private set; } // 17 for all up to date files. 14 seen in old test files
         public List<SfBlock> sfBlocks { get; private set; } = new();
         public List<SfConstraintsBlock> sfConstraintsBlocks { get; private set; } = new();
@@ -101,12 +102,14 @@ namespace ValveResourceFormat.CompiledShader
             if (vcsProgramType == VcsProgramType.Features)
             {
                 featuresHeader = new FeaturesHeaderBlock(datareader);
+                vcsVersion = featuresHeader.vcsFileVersion;
             } else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
                    || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
                    || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
                    || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
             {
                 vspsHeader = new VsPsHeaderBlock(datareader);
+                vcsVersion = vspsHeader.vcsFileVersion;
             } else
             {
                 throw new ShaderParserException($"Can't parse this filetype: {vcsProgramType}");
@@ -144,7 +147,7 @@ namespace ValveResourceFormat.CompiledShader
             int paramBlockCount = datareader.ReadInt32();
             for (int i = 0; i < paramBlockCount; i++)
             {
-                ParamBlock nextParamBlock = new(datareader, i);
+                ParamBlock nextParamBlock = new(datareader, i, vcsVersion);
                 paramBlocks.Add(nextParamBlock);
             }
             int mipmapBlockCount = datareader.ReadInt32();
@@ -274,9 +277,9 @@ namespace ValveResourceFormat.CompiledShader
             }
             datareader.ShowByteCount();
             int unknown_val = datareader.ReadInt32AtPosition();
-            datareader.ShowBytes(4, $"({unknown_val}) unknown significance, possibly a minor-version");
+            datareader.ShowBytes(4, $"({unknown_val}) unknown significance");
             int lastEditorRef = vcsProgramType == VcsProgramType.Features ? featuresHeader.editorIDs.Count - 1 : 1;
-            datareader.TabComment($"the value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
+            datareader.TabComment($"value may to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
             datareader.ShowByteCount();
             uint sfBlockCount = datareader.ReadUInt32AtPosition();
             datareader.ShowBytes(4, $"{sfBlockCount} SF blocks (usually 152 bytes each)");
@@ -315,7 +318,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var paramBlock in paramBlocks)
             {
-                paramBlock.PrintAnnotatedBytestream();
+                paramBlock.PrintAnnotatedBytestream(vcsVersion);
             }
             datareader.ShowByteCount();
             uint mipmapBlockCount = datareader.ReadUInt32AtPosition();
