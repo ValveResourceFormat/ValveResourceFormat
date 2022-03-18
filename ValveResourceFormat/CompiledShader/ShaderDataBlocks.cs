@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
@@ -25,16 +26,18 @@ namespace ValveResourceFormat.CompiledShader
             int vcsMagicId = datareader.ReadInt32();
             if (vcsMagicId != ShaderFile.MAGIC)
             {
-                throw new ShaderParserException($"Wrong file id {vcsMagicId:x}");
+                throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
+                    vcsMagicId, nameof(vcsMagicId));
             }
             vcsFileVersion = datareader.ReadInt32();
             if (vcsFileVersion != 65 && vcsFileVersion != 64 && vcsFileVersion != 62)
             {
-                throw new ShaderParserException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported");
+                throw new UnexpectedMagicException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported",
+                    vcsFileVersion, nameof(vcsFileVersion));
             }
 
             int psrs_arg = 0;
-            if (vcsFileVersion == 64 || vcsFileVersion == 65)
+            if (vcsFileVersion >= 64)
             {
                 psrs_arg = datareader.ReadInt32();
             }
@@ -55,7 +58,7 @@ namespace ValveResourceFormat.CompiledShader
             arg5 = datareader.ReadInt32();
             arg6 = datareader.ReadInt32();
 
-            if (vcsFileVersion > 62)
+            if (vcsFileVersion >= 64)
             {
                 arg7 = datareader.ReadInt32();
             }
@@ -86,7 +89,7 @@ namespace ValveResourceFormat.CompiledShader
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID5"));
             editorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID6"));
 
-            if (vcsFileVersion > 62)
+            if (vcsFileVersion >= 64)
             {
                 if (has_psrs_file)
                 {
@@ -100,8 +103,6 @@ namespace ValveResourceFormat.CompiledShader
                         "// Editor ref. ID7- common editor reference shared by multiple files"));
                 }
             }
-
-
         }
 
         public void PrintAnnotatedBytestream()
@@ -114,7 +115,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             datareader.ShowByteCount("features header");
             int has_psrs_file = 0;
-            if (vcs_version == 64 || vcs_version == 65)
+            if (vcs_version >= 64)
             {
                 has_psrs_file = datareader.ReadInt32AtPosition();
                 datareader.ShowBytes(4, "has_psrs_file = " + (has_psrs_file > 0 ? "True" : "False"));
@@ -138,7 +139,7 @@ namespace ValveResourceFormat.CompiledShader
             uint arg4 = datareader.ReadUInt32AtPosition(0);
             uint arg5 = datareader.ReadUInt32AtPosition(4);
             uint arg6 = datareader.ReadUInt32AtPosition(8);
-            if (vcs_version == 64 || vcs_version == 65)
+            if (vcs_version >= 64)
             {
                 uint arg7 = datareader.ReadUInt32AtPosition(12);
                 datareader.ShowBytes(16, 4, breakLine: false);
@@ -188,12 +189,12 @@ namespace ValveResourceFormat.CompiledShader
             datareader.ShowBytes(16, "Editor ref. ID4");
             datareader.ShowBytes(16, "Editor ref. ID5");
             datareader.ShowBytes(16, "Editor ref. ID6");
-            if ((vcs_version == 64 || vcs_version == 65) && has_psrs_file == 0)
+            if (vcs_version >= 64 && has_psrs_file == 0)
             {
                 datareader.ShowBytes(16,
                     "Editor ref. ID7 - common editor reference shared by multiple files");
             }
-            if ((vcs_version == 64 || vcs_version == 65) && has_psrs_file == 1)
+            if (vcs_version >= 64 && has_psrs_file == 1)
             {
                 datareader.ShowBytes(16, $"Editor ref. ID7 - reference to psrs file ({VcsProgramType.PixelShaderRenderState})");
                 datareader.ShowBytes(16,
@@ -211,19 +212,20 @@ namespace ValveResourceFormat.CompiledShader
         public string fileID1 { get; }
         public VsPsHeaderBlock(ShaderDataReader datareader) : base(datareader)
         {
-            int magic = datareader.ReadInt32();
-            if (magic != ShaderFile.MAGIC)
+            int vcsMagicId = datareader.ReadInt32();
+            if (vcsMagicId != ShaderFile.MAGIC)
             {
-                throw new ShaderParserException($"Wrong file id {magic:x} (not a vcs2 file)");
+                throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
+                    vcsMagicId, nameof(vcsMagicId));
             }
             vcsFileVersion = datareader.ReadInt32();
             if (vcsFileVersion != 65 && vcsFileVersion != 64 && vcsFileVersion != 62)
             {
-                throw new ShaderParserException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported");
+                throw new UnexpectedMagicException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported",
+                    vcsFileVersion, nameof(vcsFileVersion));
             }
-
             int psrs_arg = 0;
-            if (vcsFileVersion == 64 || vcsFileVersion == 65)
+            if (vcsFileVersion >= 64)
             {
                 psrs_arg = datareader.ReadInt32();
                 if (psrs_arg != 0 && psrs_arg != 1)
@@ -231,11 +233,11 @@ namespace ValveResourceFormat.CompiledShader
                     throw new ShaderParserException($"Unexpected value psrs_arg = {psrs_arg}");
                 }
             }
-
             hasPsrsFile = psrs_arg > 0;
             fileID0 = datareader.ReadBytesAsString(16);
             fileID1 = datareader.ReadBytesAsString(16);
         }
+
         public void PrintAnnotatedBytestream()
         {
             datareader.BaseStream.Position = start;
@@ -245,7 +247,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.ShowBytes(4, $"version {vcs_version}");
             datareader.BreakLine();
             datareader.ShowByteCount("ps/vs header");
-            if (vcs_version == 64 || vcs_version == 65)
+            if (vcs_version >= 64)
             {
                 int has_psrs_file = datareader.ReadInt32AtPosition();
                 datareader.ShowBytes(4, $"has_psrs_file = {(has_psrs_file > 0 ? "True" : "False")}");
