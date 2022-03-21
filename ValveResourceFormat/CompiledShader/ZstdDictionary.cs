@@ -1,4 +1,105 @@
-
+/*
+ *
+ * ZstdDictionary.GetDictionary()
+ *
+ * Returns a Zstandard dictionary with dictionary id (DID) = 0x2bc2fa87 as a byte[] of size 65536.
+ * The data is stored in this file as a Base64 string, conversion to byte[] is written into the call.
+ *
+ *
+ * Example use (using ZstdSharp.Port)
+ * ----------------------------------
+ *
+ *      byte[] zstdDict = ZstdDictionary.GetDictionary();
+ *      var zstdDecoder = new ZstdSharp.Decompressor();
+ *      zstdDecoder.LoadDictionary(zstdDict);
+ *      byte[] decompressedData = zstdDecoder.Unwrap(compressedZstdFrame).ToArray();
+ *
+ * compressedZstdFrame given as byte[]
+ *
+ *
+ * Zstd dictionary format
+ * ----------------------
+ *
+ * The first 4 bytes of the dictionary is the magic number 0xec30a437 (common to all Zstd dictionaries),
+ * and the following 4 bytes is the dictionary id 0x2bc2fa87. Where these two values are known we can scan
+ * for the presence of a target dictionary (see 'Extracting the Zstd dictionary from Valve binaries' below).
+ *
+ * The Zstd format and dictionary are defined by RFC 8878, see
+ * https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md (Zstd format)
+ * https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format (dictionary)
+ *
+ * The DID is user defined (it can be assigned) but is usually a checksum of its content;
+ * what is certain is the DID (and the dictionary itself) is derived from uncompressed training data,
+ * something representative of the target data; GPU source code (PCGL), GPU bytecode (DXIL,VULKAN)
+ * and header data (variables, buffer write sequences, references to graphics objects).
+ *
+ * Currently the only dictionary found in the Valve vcs files (across multiple applications) is DID(0x2bc2fa87),
+ * therefore, no other dictionary is needed. But presumably the dictionary, or number of dictionaries, may
+ * be subject to change at any time (and should be expected).
+ *
+ *
+ * Reading the dictionary id (DID) from Zstd frames (as they appear in the vcs bytestreams)
+ * ----------------------------------------------------------------------------------------
+ *
+ * Zstd frames appear in the vcs files as shown here; the example is taken from the Dota2 file
+ * crystal_pc_40_vs.vcs (v65), showing zframe[0x00000000] (the first zframe) starting at byte position [11888].
+ * Strictly speaking the 'compressed Zstd frame' starts at byte [11888+12], while 'zframe' is the name
+ * chosen by our application to also include 3 Valve specific headers. These headers are 0xfffffffd
+ * (this value is always the same, assumed to be a delimiter), the size of the uncompressed data and the size
+ * of the compressed Zstd frame.
+ *
+ * [11888] zframe[0x00000000]
+ * FD FF FF FF    // Valve specific Zstd delimiter (0xfffffffd)
+ * 99 DD 00 00    // 56729    size of uncompressed data
+ * E5 09 00 00    // 2533     size of compressed Zstd frame
+ * 28 B5 2F FD 63 87 FA C2 2B 99 DC BD 4E 00 93 3F EE FF 5E D6 AA 88 70 C4 83 1A 2F 4A BC 68 BB DA
+ * 5E 1A D4 0C 01 10 05 70 91 30 C9 E2 03 4F 4B 3C 43 A2 05 A1 E1 87 1F 27 B0 48 9B AF DB AA AE 7B
+ * EF BD 39 9E 57 02 F5 28 49 29 65 6E 58 32 C3 A0 83 1E 73 37 E0 40 5C 41 FA 1D 39 79 C1 02 3D 31
+ * // ... (2437 bytes not shown)
+ *
+ * The first 11 bytes of the compressed Zstd frame are 28 B5 2F FD 63 87 FA C2 2B 99 DC
+ *
+ *      - The first 4 bytes is the magic ID 0xfd2fb528 (common to all compressed Zstd frames)
+ *      - The next byte (63) is the Frame_Header_Descriptor and carries 6 pieces of information; among
+ *        them (specific to this case) is the Frame_Content_Size_flag=1 (bits 6-7),
+ *        Dictionary_ID_flag=3 (bits 0-1) and Single_Segment_Flag=0 (bit 5).
+ *      - A Dictionary_ID_flag=3 implies the dictionary ID will be 4 bytes long; it is described
+ *        by the bytes 87 FA C2 2B (0x2bc2fa87)
+ *      - A Frame_Content_Size_flag=1 implies the size of the Zstd frame is described by the next 2 bytes
+ *        (Frame_Content_Size), according to the specification should be fitted to the range 256 - 65791 by
+ *        adding 256, thus '99 DC' or 0xdc99 = 56473 implies the size of the uncompressed data = 56473 + 256 = 56729.
+ *
+ * The position of the dictionary id (DID) can vary by 0-1 bytes (depending on the presence of a
+ * Window_Descriptor, that in turn depends on Single_Segment_Flag), and the length of the DID can
+ * vary by 0-4 bytes (0 bytes means a dictionary is not used and decompression can be achieved without).
+ * The DID bytes are adjacent to the Frame_Content_Size bytes, so checking the Zstd frame size against the
+ * 'zframe' header data confirms where the DID ends.
+ *
+ *
+ * Extracting the Zstd dictionary from Valve binaries
+ * --------------------------------------------------
+ *
+ * By having knowledge of the DID (0x2bc2fa87), combined with the dictionary magic number (0xec30a437),
+ * the first 8 bytes of a target Zstd dictionary can be predicted, in this case
+ *
+ * 37 A4 30 EC 87 FA C2 2B
+ *
+ * Scanning all Dota2 files (on Windows) for this byte sequence it was found to exist in 5 different files
+ *
+ *      /game/bin/win64/materialsystem2.dll
+ *      /game/bin/win64/resourcecompiler.dll
+ *      /game/bin/win64/tools/met.dll
+ *      /game/bin/win64/tools/model_editor.dll
+ *      /game/bin/win64/vfxcompile.dll
+ *
+ * To complete extraction of the dictionary knowledge of the length is also needed. In the current game files
+ * it can be found by decompiling the dlls. The name is given as V_ZSTD_createDDict_byReference in the dlls,
+ * and the length is seen as 65536.
+ *
+ *      V_ZSTD_createDDict_byReference(&unk_1802027B0, 65536i64);
+ *
+ *
+ */
 namespace ValveResourceFormat.CompiledShader
 {
     public static class ZstdDictionary

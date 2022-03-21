@@ -61,7 +61,7 @@ namespace GUI.Types.Viewers
             tabControl.Controls.Add(mainFileTab);
             tab.Controls.Add(tabControl);
             shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-            string helpText = "[hold ctrl to open and focus links, ESC or right-click on tabs to close]\n\n";
+            string helpText = "[ctrl+click to open and focus links, ESC or right-click on tabs to close]\n\n";
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
             return tab;
         }

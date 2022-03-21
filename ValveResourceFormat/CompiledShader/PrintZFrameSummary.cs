@@ -14,12 +14,24 @@ namespace ValveResourceFormat.CompiledShader
         private ZFrameFile zframeFile;
         private bool showRichTextBoxLinks;
 
+        // If OutputWriter is left as null; output will be written to Console.
+        // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
         public PrintZFrameSummary(ShaderFile shaderFile, ZFrameFile zframeFile,
             HandleOutputWrite OutputWriter = null, bool showRichTextBoxLinks = false)
         {
             this.shaderFile = shaderFile;
             this.zframeFile = zframeFile;
             this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
+
+            if (zframeFile.vcsProgramType == VcsProgramType.Features)
+            {
+                OutputWriteLine("Zframe byte data (encoding for features files has not been determined)");
+                zframeFile.datareader.BaseStream.Position = 0;
+                string zframeBytes = zframeFile.datareader.ReadBytesAsString((int)zframeFile.datareader.BaseStream.Length);
+                OutputWriteLine(zframeBytes);
+                return;
+            }
+
             this.showRichTextBoxLinks = showRichTextBoxLinks;
             if (showRichTextBoxLinks)
             {

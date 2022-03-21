@@ -67,7 +67,7 @@ namespace ValveResourceFormat.CompiledShader
             var ftHeader = shaderFile.featuresHeader;
             output.WriteLine($"bool flags = ({ftHeader.arg0},{ftHeader.arg1},{ftHeader.arg2},{ftHeader.arg3}," +
                 $"{ftHeader.arg4},{ftHeader.arg5},{ftHeader.arg6},{ftHeader.arg7}) (related to editor dependencies)");
-            output.WriteLine($"probable minor version = {shaderFile.possibleMinorVersion}");
+            output.WriteLine($"possible editor description = {shaderFile.possibleEditorDescription}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
             for (int i = 0; i < ftHeader.editorIDs.Count - 1; i++)
@@ -124,7 +124,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
             }
 
-            output.WriteLine($"probable minor version = {shaderFile.possibleMinorVersion}");
+            output.WriteLine($"possible editor description = {shaderFile.possibleEditorDescription}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
             output.WriteLine($"{shaderFile.vspsHeader.fileID0}    // Editor ref. ID0 (produces this file)");

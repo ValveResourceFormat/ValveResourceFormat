@@ -17,7 +17,7 @@ namespace ValveResourceFormat.CompiledShader
         public VcsShaderModelType vcsShaderModelType { get; }
         public long zframeId { get; }
         public ZDataBlock leadingData { get; }
-        public List<ZFrameParam> zframeParams { get; }
+        public List<ZFrameParam> zframeParams { get; } = new();
         public int[] leadSummary { get; }
         public List<ZDataBlock> dataBlocks { get; } = new();
         public int[] tailSummary { get; }
@@ -42,13 +42,13 @@ namespace ValveResourceFormat.CompiledShader
             this.zframeId = zframeId;
 
             // in case of failure; enable omitParsing and use the datareader directly
-            if (omitParsing)
+            // the zframe encoding for Features files has not been determined (only found in v62 files)
+            if (omitParsing || vcsProgramType == VcsProgramType.Features)
             {
                 return;
             }
 
             leadingData = new ZDataBlock(datareader, -1);
-            zframeParams = new();
             int paramCount = datareader.ReadInt16();
             for (int i = 0; i < paramCount; i++)
             {
@@ -369,6 +369,13 @@ namespace ValveResourceFormat.CompiledShader
         public void PrintByteAnalysis()
         {
             datareader.BaseStream.Position = 0;
+            if (vcsProgramType == VcsProgramType.Features)
+            {
+                datareader.Comment("Zframe byte data (encoding for features files has not been determined)");
+                datareader.ShowBytes((int)datareader.BaseStream.Length);
+                return;
+            }
+
             ShowZDataSection(-1);
             ShowZFrameHeader();
             // this applies only to vs files (ps, gs and psrs files don't have this section)
