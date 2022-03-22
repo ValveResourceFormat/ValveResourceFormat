@@ -18,7 +18,7 @@ namespace ValveResourceFormat.CompiledShader
         public long zframeId { get; }
         public ZDataBlock leadingData { get; }
         public List<ZFrameParam> zframeParams { get; } = new();
-        public int[] leadingSummary { get; }
+        public int[] leadingSummary { get; } = Array.Empty<int>();
         public List<ZDataBlock> dataBlocks { get; } = new();
         public int[] trailingSummary { get; }
         public byte[] flags0 { get; }
@@ -55,6 +55,7 @@ namespace ValveResourceFormat.CompiledShader
                 ZFrameParam zParam = new(datareader);
                 zframeParams.Add(zParam);
             }
+            // this data is only found in vertex shaders
             if (this.vcsProgramType == VcsProgramType.VertexShader)
             {
                 int summaryLength = datareader.ReadInt16();

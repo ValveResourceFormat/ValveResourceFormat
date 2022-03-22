@@ -44,9 +44,12 @@ namespace ValveResourceFormat.CompiledShader
             PrintWriteSequences(writeSequences);
             PrintDataBlocks(writeSequences);
 
-            OutputWriteLine($"{zframeFile.leadingSummary.Length:X02} 00   // " +
-                $"configuration states ({zframeFile.leadingSummary.Length}), leading summary\n");
-            OutputWriteLine(SummarizeBytes(zframeFile.leadingSummary) + "\n");
+            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader)
+            {
+                OutputWriteLine($"{zframeFile.leadingSummary.Length:X02} 00   // " +
+                    $"configuration states ({zframeFile.leadingSummary.Length}), leading summary\n");
+                OutputWriteLine(SummarizeBytes(zframeFile.leadingSummary) + "\n");
+            }
             OutputWriteLine($"{zframeFile.trailingSummary.Length:X02} 00   // " +
                 $"configuration states ({zframeFile.trailingSummary.Length}), trailing summary\n");
             OutputWriteLine(SummarizeBytes(zframeFile.trailingSummary) + "\n");
