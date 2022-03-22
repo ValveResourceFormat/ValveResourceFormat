@@ -309,27 +309,60 @@ namespace GUI.Types.Viewers
                 // the sourceId is given in decimals, extracted here from linkTokens[1]
                 // (the sourceId is not the same as the zframeId - a single zframe may contain more than 1 source,
                 // they are enumerated in each zframe file starting from 0)
-                int gpuSourceId = Convert.ToInt32(linkTokens[1]);
-                var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
-                var gpuSourceTab = new TabPage($"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]({gpuSourceId})");
-                var gpuSourceRichTextBox = new RichTextBox
+                int gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
+                string gpuSourceLabel = $"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]({gpuSourceId})";
+
+                TabPage gpuSourceTab = null;
+                switch (zframeFile.gpuSources[gpuSourceId])
                 {
-                    Font = new Font(FontFamily.GenericMonospace, Font.Size),
-                    DetectUrls = true,
-                    Dock = DockStyle.Fill,
-                    Multiline = true,
-                    ReadOnly = true,
-                    WordWrap = false,
-                    Text = Utils.Utils.NormalizeLineEndings(buffer.ToString()),
-                    ScrollBars = RichTextBoxScrollBars.Both
-                };
-                gpuSourceTab.Controls.Add(gpuSourceRichTextBox);
+                    case GlslSource:
+                        var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                        zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
+                        gpuSourceTab = new TabPage(gpuSourceLabel);
+                        var gpuSourceRichTextBox = new RichTextBox
+                        {
+                            Font = new Font(FontFamily.GenericMonospace, Font.Size),
+                            DetectUrls = true,
+                            Dock = DockStyle.Fill,
+                            Multiline = true,
+                            ReadOnly = true,
+                            WordWrap = false,
+                            Text = Utils.Utils.NormalizeLineEndings(buffer.ToString()),
+                            ScrollBars = RichTextBoxScrollBars.Both
+                        };
+                        gpuSourceTab.Controls.Add(gpuSourceRichTextBox);
+                        break;
+
+                    case DxbcSource:
+                    case DxilSource:
+                    case VulkanSource:
+                        gpuSourceTab = CreateByteViewerTab(zframeFile.gpuSources[gpuSourceId].sourcebytes, gpuSourceLabel);
+                        break;
+
+                    default:
+                        throw new InvalidDataException($"Unimplemented GPU source type {zframeFile.gpuSources[gpuSourceId].GetType()}");
+                }
+
                 tabControl.Controls.Add(gpuSourceTab);
                 if ((ModifierKeys & Keys.Control) == Keys.Control)
                 {
                     tabControl.SelectedTab = gpuSourceTab;
                 }
+            }
+
+            private static TabPage CreateByteViewerTab(byte[] input, string tabName)
+            {
+                var bvTab = new TabPage(tabName);
+                var bv = new System.ComponentModel.Design.ByteViewer
+                {
+                    Dock = DockStyle.Fill,
+                };
+                bvTab.Controls.Add(bv);
+                Program.MainForm.Invoke((MethodInvoker)(() =>
+                {
+                    bv.SetBytes(input);
+                }));
+                return bvTab;
             }
         }
     }
