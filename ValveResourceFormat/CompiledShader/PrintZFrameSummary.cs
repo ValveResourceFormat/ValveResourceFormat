@@ -35,7 +35,7 @@ namespace ValveResourceFormat.CompiledShader
             this.showRichTextBoxLinks = showRichTextBoxLinks;
             if (showRichTextBoxLinks)
             {
-                OutputWriteLine($"Byte printout \\\\{Path.GetFileName(shaderFile.filenamepath)}-ZFRAME{zframeFile.zframeId:x08}-databytes");
+                OutputWriteLine($"View byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}-ZFRAME{zframeFile.zframeId:x08}-databytes");
                 OutputWriteLine("");
             }
             PrintConfigurationState();
@@ -43,8 +43,14 @@ namespace ValveResourceFormat.CompiledShader
             SortedDictionary<int, int> writeSequences = GetWriteSequences();
             PrintWriteSequences(writeSequences);
             PrintDataBlocks(writeSequences);
-            PrintLeadSummary();
-            PrintTailSummary();
+
+            OutputWriteLine($"{zframeFile.leadingSummary.Length:X02} 00   // " +
+                $"configuration states ({zframeFile.leadingSummary.Length}), leading summary\n");
+            OutputWriteLine(SummarizeBytes(zframeFile.leadingSummary) + "\n");
+            OutputWriteLine($"{zframeFile.trailingSummary.Length:X02} 00   // " +
+                $"configuration states ({zframeFile.trailingSummary.Length}), trailing summary\n");
+            OutputWriteLine(SummarizeBytes(zframeFile.trailingSummary) + "\n");
+
             PrintSourceSummary();
             PrintEndBlocks();
         }
@@ -54,6 +60,7 @@ namespace ValveResourceFormat.CompiledShader
             string configHeader = "Configuration";
             OutputWriteLine(configHeader);
             OutputWriteLine(new string('-', configHeader.Length));
+            OutputWriteLine("The static configuration this zframe belongs to (zero or more static parameters)\n");
             ConfigMappingSParams configGen = new(shaderFile);
             int[] configState = configGen.GetConfigState(zframeFile.zframeId);
             for (int i = 0; i < configState.Length; i++)
@@ -83,8 +90,10 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /*
-         * rarely if leadingData.h0 is 0 it is given a writeseq of 0 while the writesequence itself will be empty
-         * otherwise writeseq = -1 means empty writesequences
+         * Occasionally leadingData.h0 (leadingData is the first datablock, always present) is 0 we create the empty
+         * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
+         * sequence doesn't contain any data and not needed.
+         *
          */
         private SortedDictionary<int, int> GetWriteSequences()
         {
@@ -96,10 +105,12 @@ namespace ValveResourceFormat.CompiledShader
             if (zframeFile.leadingData.h0 == 0)
             {
                 writeSequences.Add("", seqCount++);
-            } else
+            }
+            else
             {
                 writeSequences.Add(BytesToString(zframeFile.leadingData.dataload, -1), seqCount++);
             }
+
             foreach (ZDataBlock zBlock in zframeFile.dataBlocks)
             {
                 if (zBlock.dataload == null)
@@ -114,7 +125,8 @@ namespace ValveResourceFormat.CompiledShader
                     writeSequences.Add(dataloadStr, seqCount);
                     sequencesMap.Add(zBlock.blockId, seqCount);
                     seqCount++;
-                } else
+                }
+                else
                 {
                     sequencesMap.Add(zBlock.blockId, seq);
                 }
@@ -124,9 +136,12 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintWriteSequences(SortedDictionary<int, int> writeSequences)
         {
-            string headerText = "Parameter glsl mapping";
+            string headerText = "Parameter write sequences";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
+            OutputWriteLine(
+                "This data (thought to be buffer write sequences) appear to be linked to the dynamic (D-param) configurations;\n" +
+                "each configuration points to exactly one sequence. WRITESEQ[0] is always defined and considered 'default'.\n");
 
             int lastseq = writeSequences[-1];
             if (zframeFile.leadingData.h0 > 0)
@@ -198,9 +213,14 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintDataBlocks(SortedDictionary<int, int> writeSequences)
         {
             Dictionary<int, GpuSource> blockIdToSource = GetBlockIdToSource(zframeFile);
-            string configHeader = $"D-Param configurations ({blockIdToSource.Count})";
+            string configHeader = $"Dynamic (D-Param) configurations ({blockIdToSource.Count} defined)";
             OutputWriteLine(configHeader);
             OutputWriteLine(new string('-', configHeader.Length));
+            OutputWriteLine(
+                "Each dynamic parameters has 1 or more defined states. The disabled state (0) is shown as '_'\n" +
+                "All permitted configurations are listed with their matching write sequence and GPU source (there is always\n" +
+                "one of these for each configuration). Purely here to save space, the parameter names (original\n" +
+                "names starting with D_) are shortened to 3-5 length strings (shown in parenthesis).\n");
             PrintAbbreviations();
             List<int> activeBlockIds = GetActiveBlockIds();
             List<string> dParamNames = new();
@@ -225,29 +245,20 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     writeSeqText = "[empty]";
                 }
-                OutputWrite($"[{blockId:X02}] {configStr}        {writeSeqText,-12}");
+                OutputWrite($"[{blockId:X02}] {configStr}   {writeSeqText,-12}");
                 GpuSource blockSource = blockIdToSource[blockId];
 
-                if (blockSource is GlslSource source)
+                if (showRichTextBoxLinks)
                 {
-                    // string sourceLink = $"<a href='{fileTokens.GetGlslHtmlUrl((GlslSource) blockSource)}'>{urlText}</a>";
-                    // OutputWriteLine($"    {sourceLink} {blockSource.sourcebytes.Length,12}  (bytes)");
-
-                    if (showRichTextBoxLinks)
-                    {
-                        OutputWriteLine($"\\\\source\\{blockSource.sourceId}");
-                    } else
-                    {
-                        string sourceDesc = $"source[{blockSource.GetEditorRefIdAsString()}]";
-                        OutputWriteLine(sourceDesc);
-                    }
-                } else
+                    OutputWriteLine($"{blockSource.GetBlockName()}[{blockSource.sourceId}] \\\\source\\{blockSource.sourceId}");
+                }
+                else
                 {
-                    OutputWriteLine($"  {blockSource.GetBlockName().PadRight(20)} {blockSource.sourcebytes.Length,12} (bytes)");
+                    string sourceDesc = $"{blockSource.GetBlockName()}[{blockSource.GetEditorRefIdAsString()}]";
+                    OutputWriteLine(sourceDesc);
                 }
             }
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriteLine("\n");
         }
 
         private void PrintAbbreviations()
@@ -285,7 +296,8 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     blockIds.Add(vsEndBlock.blockIdRef);
                 }
-            } else
+            }
+            else
             {
                 foreach (PsEndBlock psEndBlock in zframeFile.psEndBlocks)
                 {
@@ -305,7 +317,8 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     blockIdToSource.Add(vsEndBlock.blockIdRef, zframeFile.gpuSources[vsEndBlock.sourceRef]);
                 }
-            } else
+            }
+            else
             {
                 foreach (PsEndBlock psEndBlock in zframeFile.psEndBlocks)
                 {
@@ -315,21 +328,21 @@ namespace ValveResourceFormat.CompiledShader
             return blockIdToSource;
         }
 
-        private void PrintLeadSummary()
+
+        public static string SummarizeBytes(int[] bytes)
         {
-            if (zframeFile.vcsProgramType != VcsProgramType.VertexShader)
+            string summaryDesc = "";
+            for (int i = 0; i < bytes.Length; i++)
             {
-                return;
+                if (i > 0 && i % 16 == 0)
+                {
+                    summaryDesc += "\n";
+                }
+                summaryDesc += bytes[i] > -1 ? $"{bytes[i],-8}" : "_  ".PadRight(8);
             }
-            OutputWriteLine(zframeFile.GetLeadSummary());
-            OutputWriteLine("");
+            return summaryDesc.Trim();
         }
 
-        private void PrintTailSummary()
-        {
-            OutputWriteLine(zframeFile.GetTailSummary());
-            OutputWriteLine("");
-        }
 
         private void PrintSourceSummary()
         {
@@ -380,7 +393,8 @@ namespace ValveResourceFormat.CompiledShader
                     OutputWriteLine($"{BytesToString(vsEndBlock.databytes)}");
                     OutputWriteLine("");
                 }
-            } else
+            }
+            else
             {
                 OutputWriteLine($"{zframeFile.psEndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.psEndBlocks.Count})");
                 OutputWriteLine("");

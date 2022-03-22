@@ -18,9 +18,9 @@ namespace ValveResourceFormat.CompiledShader
         public long zframeId { get; }
         public ZDataBlock leadingData { get; }
         public List<ZFrameParam> zframeParams { get; } = new();
-        public int[] leadSummary { get; }
+        public int[] leadingSummary { get; }
         public List<ZDataBlock> dataBlocks { get; } = new();
-        public int[] tailSummary { get; }
+        public int[] trailingSummary { get; }
         public byte[] flags0 { get; }
         public int flagbyte0 { get; }
         public int gpuSourceCount { get; }
@@ -32,13 +32,13 @@ namespace ValveResourceFormat.CompiledShader
         public int nonZeroDataBlockCount { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
-            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false, HandleOutputWrite OutputWriter = null)
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false, HandleOutputWrite outputWriter = null)
         {
             this.filenamepath = filenamepath;
             this.vcsProgramType = vcsProgramType;
             this.vcsPlatformType = vcsPlatformType;
             this.vcsShaderModelType = vcsShaderModelType;
-            datareader = new ShaderDataReader(new MemoryStream(databytes), OutputWriter);
+            datareader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
             this.zframeId = zframeId;
 
             // in case of failure; enable omitParsing and use the datareader directly
@@ -58,10 +58,10 @@ namespace ValveResourceFormat.CompiledShader
             if (this.vcsProgramType == VcsProgramType.VertexShader)
             {
                 int summaryLength = datareader.ReadInt16();
-                leadSummary = new int[summaryLength];
+                leadingSummary = new int[summaryLength];
                 for (int i = 0; i < summaryLength; i++)
                 {
-                    leadSummary[i] = datareader.ReadInt16();
+                    leadingSummary[i] = datareader.ReadInt16();
                 }
             }
             int dataBlockCount = datareader.ReadInt16();
@@ -75,10 +75,10 @@ namespace ValveResourceFormat.CompiledShader
                 dataBlocks.Add(dataBlock);
             }
             int tailSummaryLength = datareader.ReadInt16();
-            tailSummary = new int[tailSummaryLength];
+            trailingSummary = new int[tailSummaryLength];
             for (int i = 0; i < tailSummaryLength; i++)
             {
-                tailSummary[i] = datareader.ReadInt16();
+                trailingSummary[i] = datareader.ReadInt16();
             }
             flags0 = datareader.ReadBytes(4);
             flagbyte0 = datareader.ReadByte();
@@ -189,37 +189,6 @@ namespace ValveResourceFormat.CompiledShader
             return zframeHeaderString;
         }
 
-        public string GetLeadSummary()
-        {
-            if (vcsProgramType != VcsProgramType.VertexShader)
-            {
-                return "only vs files have this section";
-            }
-            string leadSummaryDesc = $"{leadSummary.Length:X02} 00   // configuration states ({leadSummary.Length}), lead summary\n";
-            for (int i = 0; i < leadSummary.Length; i++)
-            {
-                if (i > 0 && i % 16 == 0)
-                {
-                    leadSummaryDesc += "\n";
-                }
-                leadSummaryDesc += leadSummary[i] > -1 ? $"{leadSummary[i],-3}" : "_  ";
-            }
-            return leadSummaryDesc.Trim();
-        }
-
-        public string GetTailSummary()
-        {
-            string tailSummaryDesc = $"{tailSummary.Length:X02} 00   // configuration states ({tailSummary.Length}), tail summary\n";
-            for (int i = 0; i < tailSummary.Length; i++)
-            {
-                if (i > 0 && i % 16 == 0)
-                {
-                    tailSummaryDesc += "\n";
-                }
-                tailSummaryDesc += tailSummary[i] > -1 ? $"{tailSummary[i],-8}" : "_  ".PadRight(8);
-            }
-            return tailSummaryDesc.Trim();
-        }
         public void Dispose()
         {
             Dispose(true);
@@ -234,16 +203,35 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void PrintGlslSource(int sourceId, HandleOutputWrite OutputWriter)
+        /*
+         * Prints the GPU source as text (GLSL) or bytes (DXIL, DXBC, Vulkan)
+         *
+         * Method accepts a HandleOutputWrite to redirect output, this needed by the GUI
+         * when opening data in different window tabs.
+         *
+         */
+        public void PrintGpuSource(int sourceId, HandleOutputWrite outputWriter = null)
         {
-            GlslSource glslSource = gpuSources[sourceId] as GlslSource;
-            string result = Encoding.UTF8.GetString(glslSource.sourcebytes);
-            if (result.Length == 0)
+            outputWriter ??= ((x) => { Console.Write(x); });
+
+            if (gpuSources[sourceId] is GlslSource)
             {
-                OutputWriter("[empty source]");
-            } else
+                GlslSource glslSource = gpuSources[sourceId] as GlslSource;
+                string result = Encoding.UTF8.GetString(glslSource.sourcebytes);
+                if (result.Length == 0)
+                {
+                    outputWriter("[empty source]");
+                }
+                else
+                {
+                    outputWriter(result);
+                }
+            }
+            else
             {
-                OutputWriter(result);
+                outputWriter($"// {gpuSources[sourceId].GetBlockName()}[{sourceId}] source bytes (" +
+                    $"{gpuSources[sourceId].sourcebytes.Length}) ref={gpuSources[sourceId].GetEditorRefIdAsString()}\n");
+                outputWriter(BytesToString(gpuSources[sourceId].sourcebytes)+"\n");
             }
         }
 

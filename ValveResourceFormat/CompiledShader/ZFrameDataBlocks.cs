@@ -61,7 +61,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         public override string GetBlockName()
         {
-            return $"GLSL-SOURCE[{sourceId}]";
+            return $"GLSL";
         }
     }
 
@@ -90,7 +90,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         public override string GetBlockName()
         {
-            return $"DXIL-SOURCE[{sourceId}]";
+            return $"DXIL";
         }
     }
 
@@ -110,7 +110,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         public override string GetBlockName()
         {
-            return $"DXBC-SOURCE[{sourceId}]";
+            return $"DXBC";
         }
     }
 
@@ -132,7 +132,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         public override string GetBlockName()
         {
-            return $"VULKAN-SOURCE[{sourceId}]";
+            return $"VULKAN";
         }
     }
 

@@ -52,7 +52,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
-        /// <param name="filename">The filename <see cref="string"/>.</param>
+        /// <param name="filenamepath">The filename <see cref="string"/>.</param>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filenamepath, Stream input)
         {
@@ -259,16 +259,15 @@ namespace ValveResourceFormat.CompiledShader
             return zframesLookup[zframeId].GetDecompressedZFrame();
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite OutputWriter = null, bool omitParsing = false)
+        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
-                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, OutputWriter);
+                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, outputWriter);
         }
 
-        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite OutputWriter = null, bool omitParsing = false)
+        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
-            long zframeId = zframesLookup.ElementAt(zframeIndex).Key;
-            return GetZFrameFile(zframeId, OutputWriter: OutputWriter, omitParsing: omitParsing);
+            return GetZFrameFile(zframesLookup.ElementAt(zframeIndex).Key, outputWriter, omitParsing);
         }
 #pragma warning restore CA1024
 
@@ -278,7 +277,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public void PrintByteAnalysis(bool shortenOutput = true, HandleOutputWrite OutputWriter = null)
         {
-            datareader.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
+            datareader.outputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
             datareader.BaseStream.Position = 0;
             if (vcsProgramType == VcsProgramType.Features)
             {

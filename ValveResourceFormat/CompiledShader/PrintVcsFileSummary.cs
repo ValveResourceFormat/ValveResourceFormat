@@ -45,12 +45,12 @@ namespace ValveResourceFormat.CompiledShader
             output.Write($"Features Detail ({Path.GetFileName(shaderFile.filenamepath)})");
             if (showRichTextBoxLinks)
             {
-                output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+                output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
             } else
             {
                 output.BreakLine();
             }
-            if (relatedFiles != null)
+            if (relatedFiles != null && relatedFiles.Count > 1)
             {
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
@@ -109,12 +109,12 @@ namespace ValveResourceFormat.CompiledShader
             output.Write($"{shaderFile.vcsProgramType} ({Path.GetFileName(shaderFile.filenamepath)})");
             if (showRichTextBoxLinks)
             {
-                output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+                output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
             } else
             {
                 output.BreakLine();
             }
-            if (relatedFiles != null)
+            if (relatedFiles != null && relatedFiles.Count > 1)
             {
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
