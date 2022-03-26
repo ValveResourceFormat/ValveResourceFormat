@@ -409,7 +409,13 @@ namespace ValveResourceFormat
 
         private ResourceType DetermineResourceTypeByFileExtension()
         {
-            var extension = Path.GetExtension(FileName) ?? string.Empty;
+            var extension = Path.GetExtension(FileName);
+
+            if (string.IsNullOrEmpty(extension))
+            {
+                return ResourceType.Unknown;
+            }
+
             extension = extension.EndsWith("_c", StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
 
             foreach (ResourceType typeValue in Enum.GetValues(typeof(ResourceType)))
