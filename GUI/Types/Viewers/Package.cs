@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
+using ValveResourceFormat.IO;
 
 namespace GUI.Types.Viewers
 {
@@ -31,6 +35,8 @@ namespace GUI.Types.Viewers
                 package.Read(vrfGuiContext.FileName);
             }
 
+            FindHiddenFiles(package);
+
             // create a TreeView with search capabilities, register its events, and add it to the tab
             var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
             treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext.FileName, new TreeViewWithSearchResults.TreeViewPackageTag
@@ -46,6 +52,110 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(treeViewWithSearch);
 
             return tab;
+        }
+
+        private static void FindHiddenFiles(SteamDatabase.ValvePak.Package package)
+        {
+            var allEntries = package.Entries
+                .SelectMany(file => file.Value)
+                .OrderBy(file => file.Offset)
+                .GroupBy(file => file.ArchiveIndex)
+                .OrderBy(x => x.Key)
+                .ToDictionary(x => x.Key, x => x.ToList());
+
+            var hiddenIndex = 0;
+
+            // TODO: Skip non-chunked vpks?
+            foreach (var (archiveIndex, entries) in allEntries)
+            {
+                var nextOffset = 0u;
+
+                foreach (var entry in entries)
+                {
+                    if (entry.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var offset = nextOffset;
+                    nextOffset = entry.Offset + entry.Length;
+
+                    if (offset == entry.Offset)
+                    {
+                        continue;
+                    }
+
+                    offset = (offset + 16 - 1) & ~(16u - 1); // TODO: Validate this gap
+
+                    var length = entry.Offset - offset;
+
+                    if (length <= 16)
+                    {
+                        // TODO: Verify what this gap is, seems to be null bytes
+                        continue;
+                    }
+
+                    hiddenIndex++;
+                    var newEntry = new PackageEntry
+                    {
+                        FileName = $"Archive {archiveIndex} File {hiddenIndex}",
+                        DirectoryName = "@@ Deleted files",
+                        TypeName = " ",
+                        CRC32 = 0,
+                        SmallData = Array.Empty<byte>(),
+                        ArchiveIndex = archiveIndex,
+                        Offset = offset,
+                        Length = length,
+                    };
+
+                    package.ReadEntry(newEntry, out var bytes, false);
+                    var stream = new MemoryStream(bytes);
+
+                    try
+                    {
+                        var res = new ValveResourceFormat.Resource();
+                        res.Read(stream);
+
+                        // TODO: Audio files have data past the length
+                        if (res.FileSize != length)
+                        {
+                            if (res.FileSize > length)
+                            {
+                                throw new Exception("Resource filesize is bigger than the gap length we found");
+                            }
+
+                            nextOffset -= length - res.FileSize;
+                        }
+
+                        if (res.ResourceType != ResourceType.Unknown)
+                        {
+                            var type = typeof(ResourceType).GetMember(res.ResourceType.ToString())[0];
+                            newEntry.TypeName = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
+                            newEntry.TypeName += "_c";
+                        }
+
+                        newEntry.DirectoryName += "/" + res.ResourceType;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
+
+                        newEntry.FileName += $" ({length} bytes)";
+                    }
+
+                    if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
+                    {
+                        typeEntries = new List<PackageEntry>();
+                        package.Entries.Add(newEntry.TypeName, typeEntries);
+                    }
+
+                    typeEntries.Add(newEntry);
+                }
+
+                // TODO: Check nextOffset against archive file size
+            }
+
+            // TODO: Check for completely unused vpk chunk files
         }
 
         private void VPK_Disposed(object sender, EventArgs e)
@@ -86,7 +196,7 @@ namespace GUI.Types.Viewers
             {
                 var package = node.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
                 var file = node.Tag as PackageEntry;
-                package.Package.ReadEntry(file, out var output);
+                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 Program.MainForm.OpenFile(file.GetFileName(), output, package);
             }
