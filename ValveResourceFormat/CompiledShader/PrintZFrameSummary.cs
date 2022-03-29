@@ -17,11 +17,11 @@ namespace ValveResourceFormat.CompiledShader
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
         public PrintZFrameSummary(ShaderFile shaderFile, ZFrameFile zframeFile,
-            HandleOutputWrite OutputWriter = null, bool showRichTextBoxLinks = false)
+            HandleOutputWrite outputWriter = null, bool showRichTextBoxLinks = false)
         {
             this.shaderFile = shaderFile;
             this.zframeFile = zframeFile;
-            this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
+            this.OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
 
             if (zframeFile.vcsProgramType == VcsProgramType.Features)
             {
@@ -46,13 +46,12 @@ namespace ValveResourceFormat.CompiledShader
 
             if (zframeFile.vcsProgramType == VcsProgramType.VertexShader)
             {
-                OutputWriteLine($"{zframeFile.leadingSummary.Length:X02} 00   // " +
-                    $"configuration states ({zframeFile.leadingSummary.Length}), leading summary\n");
+                OutputWriteLine($"// configuration states ({zframeFile.leadingSummary.Length}), leading summary\n");
                 OutputWriteLine(SummarizeBytes(zframeFile.leadingSummary) + "\n");
             }
-            OutputWriteLine($"{zframeFile.trailingSummary.Length:X02} 00   // " +
-                $"configuration states ({zframeFile.trailingSummary.Length}), trailing summary\n");
+            OutputWriteLine($"// configuration states ({zframeFile.trailingSummary.Length}), trailing summary\n");
             OutputWriteLine(SummarizeBytes(zframeFile.trailingSummary) + "\n");
+            OutputWrite("\n");
 
             PrintSourceSummary();
             PrintEndBlocks();
@@ -80,7 +79,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintFrameLeadingArgs()
         {
-            string headerText = "Frame Header";
+            string headerText = "ZFrame Headers";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
             OutputWrite(zframeFile.ZFrameHeaderStringDescription());
@@ -178,7 +177,6 @@ namespace ValveResourceFormat.CompiledShader
             }
             string b2Desc = "dest";
             string b3Desc = "control";
-            // string dataBlockHeader = $"{new string(' ', 5)} {new string(' ', 28)} {b2Desc,-11} {b3Desc}";
             string dataBlockHeader = $"{seqName,-35} {b2Desc,-11} {b3Desc}";
             OutputWriteLine(dataBlockHeader);
             for (int i = 0; i < h0; i++)
@@ -221,9 +219,9 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', configHeader.Length));
             OutputWriteLine(
                 "Each dynamic parameters has 1 or more defined states. The disabled state (0) is shown as '_'\n" +
-                "All permitted configurations are listed with their matching write sequence and GPU source (there is always\n" +
-                "one of these for each configuration). Purely here to save space, the parameter names (original\n" +
-                "names starting with D_) are shortened to 3-5 length strings (shown in parenthesis).\n");
+                "All permitted configurations are listed with their matching write sequence and GPU source (there is exactly\n" +
+                "one of these for each configuration). To save space, the parameter names (original names starting with D_)\n" +
+                "are shortened to 3-5 length strings (shown in parenthesis).\n");
             PrintAbbreviations();
             List<int> activeBlockIds = GetActiveBlockIds();
             List<string> dParamNames = new();
@@ -422,9 +420,6 @@ namespace ValveResourceFormat.CompiledShader
                     {
                         OutputWriteLine("// data-section 2");
                         OutputWriteLine($"{BytesToString(psEndBlock.data2[0..3])}");
-                        // OutputWriteLine($"{BytesToString(psEndBlock.data2[3..11])}");
-                        // OutputWriteLine($"{BytesToString(psEndBlock.data2[11..75])}");
-
                         OutputWriteLine($"{BytesToString(psEndBlock.data2[3..27])}");
                         OutputWriteLine($"{BytesToString(psEndBlock.data2[27..51])}");
                         OutputWriteLine($"{BytesToString(psEndBlock.data2[51..75])}");

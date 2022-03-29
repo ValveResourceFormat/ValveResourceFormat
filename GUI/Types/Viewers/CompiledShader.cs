@@ -193,7 +193,7 @@ namespace GUI.Types.Viewers
                 }
                 else
                 {
-                    shaderFile.PrintByteAnalysis(OutputWriter: buffer.Write);
+                    shaderFile.PrintByteDetail(outputWriter: buffer.Write);
                 }
                 Font = new Font(FontFamily.GenericMonospace, Font.Size);
                 DetectUrls = true;
@@ -267,7 +267,7 @@ namespace GUI.Types.Viewers
                 zframeFile = shaderFile.GetZFrameFile(zframeId, outputWriter: buffer.Write);
                 if (byteVersion)
                 {
-                    zframeFile.PrintByteAnalysis();
+                    zframeFile.PrintByteDetail();
                 }
                 else
                 {
