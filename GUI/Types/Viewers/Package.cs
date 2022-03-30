@@ -80,80 +80,90 @@ namespace GUI.Types.Viewers
                     var offset = nextOffset;
                     nextOffset = entry.Offset + entry.Length;
 
-                    if (offset == entry.Offset)
+                    var scan = true;
+
+                    while (scan)
                     {
-                        continue;
-                    }
+                        scan = false;
 
-                    offset = (offset + 16 - 1) & ~(16u - 1); // TODO: Validate this gap
-
-                    var length = entry.Offset - offset;
-
-                    if (length <= 16)
-                    {
-                        // TODO: Verify what this gap is, seems to be null bytes
-                        continue;
-                    }
-
-                    hiddenIndex++;
-                    var newEntry = new PackageEntry
-                    {
-                        FileName = $"Archive {archiveIndex} File {hiddenIndex}",
-                        DirectoryName = "@@ Deleted files",
-                        TypeName = " ",
-                        CRC32 = 0,
-                        SmallData = Array.Empty<byte>(),
-                        ArchiveIndex = archiveIndex,
-                        Offset = offset,
-                        Length = length,
-                    };
-
-                    package.ReadEntry(newEntry, out var bytes, false);
-                    var stream = new MemoryStream(bytes);
-
-                    try
-                    {
-                        var res = new ValveResourceFormat.Resource();
-                        res.Read(stream);
-
-                        // TODO: Audio files have data past the length
-                        if (res.FileSize != length)
+                        if (offset == entry.Offset)
                         {
-                            if (res.FileSize > length)
+                            break;
+                        }
+
+                        offset = (offset + 16 - 1) & ~(16u - 1); // TODO: Validate this gap
+
+                        var length = entry.Offset - offset;
+
+                        if (length <= 16)
+                        {
+                            // TODO: Verify what this gap is, seems to be null bytes
+                            break;
+                        }
+
+                        hiddenIndex++;
+                        var newEntry = new PackageEntry
+                        {
+                            FileName = $"Archive {archiveIndex} File {hiddenIndex}",
+                            DirectoryName = "@@ Deleted files",
+                            TypeName = " ",
+                            CRC32 = 0,
+                            SmallData = Array.Empty<byte>(),
+                            ArchiveIndex = archiveIndex,
+                            Offset = offset,
+                            Length = length,
+                        };
+
+                        package.ReadEntry(newEntry, out var bytes, false);
+                        var stream = new MemoryStream(bytes);
+
+                        try
+                        {
+                            var res = new ValveResourceFormat.Resource();
+                            res.Read(stream);
+
+                            // TODO: Audio files have data past the length
+                            if (res.FileSize != length)
                             {
-                                throw new Exception("Resource filesize is bigger than the gap length we found");
+                                if (res.FileSize > length)
+                                {
+                                    throw new Exception("Resource filesize is bigger than the gap length we found");
+                                }
+
+                                offset += res.FileSize;
+                                scan = true;
                             }
 
-                            nextOffset -= length - res.FileSize;
-                        }
+                            if (res.ResourceType != ResourceType.Unknown)
+                            {
+                                var type = typeof(ResourceType).GetMember(res.ResourceType.ToString())[0];
+                                newEntry.TypeName = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
+                                newEntry.TypeName += "_c";
+                            }
 
-                        if (res.ResourceType != ResourceType.Unknown)
+                            newEntry.DirectoryName += "/" + res.ResourceType;
+                        }
+                        catch (Exception ex)
                         {
-                            var type = typeof(ResourceType).GetMember(res.ResourceType.ToString())[0];
-                            newEntry.TypeName = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
-                            newEntry.TypeName += "_c";
+                            Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
+
+                            newEntry.FileName += $" ({length} bytes)";
                         }
 
-                        newEntry.DirectoryName += "/" + res.ResourceType;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
+                        if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
+                        {
+                            typeEntries = new List<PackageEntry>();
+                            package.Entries.Add(newEntry.TypeName, typeEntries);
+                        }
 
-                        newEntry.FileName += $" ({length} bytes)";
+                        typeEntries.Add(newEntry);
                     }
-
-                    if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
-                    {
-                        typeEntries = new List<PackageEntry>();
-                        package.Entries.Add(newEntry.TypeName, typeEntries);
-                    }
-
-                    typeEntries.Add(newEntry);
                 }
 
                 // TODO: Check nextOffset against archive file size
             }
+
+            Console.WriteLine($"Found {hiddenIndex} deleted files");
 
             // TODO: Check for completely unused vpk chunk files
         }
