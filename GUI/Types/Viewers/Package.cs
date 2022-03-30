@@ -64,6 +64,7 @@ namespace GUI.Types.Viewers
                 .ToDictionary(x => x.Key, x => x.ToList());
 
             var hiddenIndex = 0;
+            var totalSlackSize = 0u;
 
             // TODO: Skip non-chunked vpks?
             foreach (var (archiveIndex, entries) in allEntries)
@@ -79,6 +80,8 @@ namespace GUI.Types.Viewers
 
                     var offset = nextOffset;
                     nextOffset = entry.Offset + entry.Length;
+
+                    totalSlackSize += entry.Offset - offset;
 
                     var scan = true;
 
@@ -163,7 +166,7 @@ namespace GUI.Types.Viewers
                 // TODO: Check nextOffset against archive file size
             }
 
-            Console.WriteLine($"Found {hiddenIndex} deleted files");
+            Console.WriteLine($"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
 
             // TODO: Check for completely unused vpk chunk files
         }
