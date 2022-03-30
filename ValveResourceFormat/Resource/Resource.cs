@@ -464,12 +464,16 @@ namespace ValveResourceFormat
                     return ResourceType.ParticleSnapshot;
                 case "AnimGroup":
                     return ResourceType.AnimationGroup;
+                case "Animgraph":
+                    return ResourceType.AnimationGraph;
                 case "VPhysXData":
                     return ResourceType.PhysicsCollisionMesh;
                 case "Font":
                     return ResourceType.BitmapFont;
                 case "RenderMesh":
                     return ResourceType.Mesh;
+                case "ChoreoSceneFileData":
+                    return ResourceType.ChoreoSceneFileData;
                 case "Panorama":
                     switch (input.String)
                     {
@@ -486,6 +490,8 @@ namespace ValveResourceFormat
                     return ResourceType.Panorama;
                 case "VectorGraphic":
                     return ResourceType.PanoramaVectorGraphic;
+                case "VData":
+                    return ResourceType.VData;
                 case "DotaItem":
                     return ResourceType.ArtifactItem;
                 case "SBData":

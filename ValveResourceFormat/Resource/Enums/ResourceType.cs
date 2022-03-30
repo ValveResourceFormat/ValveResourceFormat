@@ -14,6 +14,9 @@ namespace ValveResourceFormat
         [Extension("vagrp")]
         AnimationGroup,
 
+        [Extension("vanmgrph")]
+        AnimationGraph,
+
         [Extension("valst")]
         ActionList,
 
@@ -77,6 +80,9 @@ namespace ValveResourceFormat
         [Extension("vrmap")]
         ResourceRemapTable,
 
+        [Extension("vcdlist")]
+        ChoreoSceneFileData,
+
         // All Panorama* are compiled just as CompilePanorama
         // vtxt is not a real extension
         [Extension("vtxt")]
@@ -102,6 +108,9 @@ namespace ValveResourceFormat
 
         [Extension("vmap")]
         Map,
+
+        [Extension("vdata")]
+        VData,
 
         [Extension("item")]
         ArtifactItem,
