@@ -248,13 +248,24 @@ namespace ValveResourceFormat
                         EditInfo = (ResourceEditInfo)block;
 
                         // Try to determine resource type by looking at first compiler indentifier
-                        if (ResourceType == ResourceType.Unknown && EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+                        if (ResourceType == ResourceType.Unknown && EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
                         {
-                            var specialDeps = (SpecialDependencies)EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
+                            var specialDeps = (SpecialDependencies)specialBlock;
 
                             if (specialDeps.List.Count > 0)
                             {
                                 ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0]);
+                            }
+                        }
+
+                        // Try to determine resource type by looking at the input dependency if there is only one
+                        if (ResourceType == ResourceType.Unknown && EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.InputDependencies, out var inputBlock))
+                        {
+                            var inputDeps = (InputDependencies)inputBlock;
+
+                            if (inputDeps.List.Count == 1)
+                            {
+                                ResourceType = DetermineResourceTypeByFileExtension(Path.GetExtension(inputDeps.List[0].ContentRelativeFilename));
                             }
                         }
 
@@ -407,9 +418,9 @@ namespace ValveResourceFormat
             return new ResourceData();
         }
 
-        private ResourceType DetermineResourceTypeByFileExtension()
+        private ResourceType DetermineResourceTypeByFileExtension(string extension = null)
         {
-            var extension = Path.GetExtension(FileName);
+            extension ??= Path.GetExtension(FileName);
 
             if (string.IsNullOrEmpty(extension))
             {

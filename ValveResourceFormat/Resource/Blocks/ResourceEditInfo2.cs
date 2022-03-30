@@ -31,8 +31,25 @@ namespace ValveResourceFormat.Blocks
             kv3.Read(reader, resource);
             BackingData = kv3;
 
+            ConstructSpecialDependencies();
+            ConstuctInputDependencies();
+
+            foreach (var kv in kv3.Data)
+            {
+                // TODO: Structs?
+                //var structType = ConstructStruct(kv.Key);
+            }
+        }
+
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            BackingData.WriteText(writer);
+        }
+
+        private void ConstructSpecialDependencies()
+        {
             var specialDependenciesRedi = new SpecialDependencies();
-            var specialDependencies = kv3.AsKeyValueCollection().GetArray("m_SpecialDependencies");
+            var specialDependencies = BackingData.AsKeyValueCollection().GetArray("m_SpecialDependencies");
 
             foreach (var specialDependency in specialDependencies)
             {
@@ -48,17 +65,26 @@ namespace ValveResourceFormat.Blocks
             }
 
             Structs.Add(REDIStruct.SpecialDependencies, specialDependenciesRedi);
-
-            foreach (var kv in kv3.Data)
-            {
-                // TODO: Structs?
-                //var structType = ConstructStruct(kv.Key);
-            }
         }
 
-        public override void WriteText(IndentedTextWriter writer)
+        private void ConstuctInputDependencies()
         {
-            BackingData.WriteText(writer);
+            var dependenciesRedi = new InputDependencies();
+            var dependencies = BackingData.AsKeyValueCollection().GetArray("m_InputDependencies");
+
+            foreach (var dependency in dependencies)
+            {
+                var dependencyRedi = new InputDependencies.InputDependency
+                {
+                    ContentRelativeFilename = dependency.GetProperty<string>("m_RelativeFilename"),
+                    ContentSearchPath = dependency.GetProperty<string>("m_SearchPath"),
+                    FileCRC = (uint)dependency.GetUnsignedIntegerProperty("m_nFileCRC"),
+                };
+
+                dependenciesRedi.List.Add(dependencyRedi);
+            }
+
+            Structs.Add(REDIStruct.InputDependencies, dependenciesRedi);
         }
 
         private static REDIBlock ConstructStruct(string name)
