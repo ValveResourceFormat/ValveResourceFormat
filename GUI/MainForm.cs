@@ -562,7 +562,7 @@ namespace GUI
             if (selectedNode.Tag is PackageEntry file)
             {
                 var package = selectedNode.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
-                package.Package.ReadEntry(file, out var output);
+                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(package.Package.FileName)} - {file.GetFileName()}";
                 using (var stream = new FileStream(tempPath, FileMode.Create))
@@ -617,7 +617,7 @@ namespace GUI
                 var file = selectedNode.Tag as PackageEntry;
                 var fileName = file.GetFileName();
 
-                package.Package.ReadEntry(file, out var output);
+                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
                 {

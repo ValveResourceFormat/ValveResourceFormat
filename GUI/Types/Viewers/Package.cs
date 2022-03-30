@@ -133,6 +133,7 @@ namespace GUI.Types.Viewers
                                     throw new Exception("Resource filesize is bigger than the gap length we found");
                                 }
 
+                                newEntry.Length = length;
                                 offset += res.FileSize;
                                 scan = true;
                             }
