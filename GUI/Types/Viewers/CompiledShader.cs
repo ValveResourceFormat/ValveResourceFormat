@@ -193,7 +193,7 @@ namespace GUI.Types.Viewers
                 }
                 else
                 {
-                    shaderFile.PrintByteAnalysis(OutputWriter: buffer.Write);
+                    shaderFile.PrintByteDetail(outputWriter: buffer.Write);
                 }
                 Font = new Font(FontFamily.GenericMonospace, Font.Size);
                 DetectUrls = true;
@@ -210,6 +210,8 @@ namespace GUI.Types.Viewers
             {
                 string linkText = evt.LinkText[2..]; // remove two starting backslahses
                 string[] linkTokens = linkText.Split("\\");
+                // linkTokens[0] is sometimes a zframe id, in those cases programType equals 'undetermined'
+                // where linkTokens[0] is a filename VcsProgramType should be defined
                 VcsProgramType programType = ComputeVcsProgramType(linkTokens[0]);
                 if (programType != VcsProgramType.Undetermined)
                 {
@@ -262,14 +264,14 @@ namespace GUI.Types.Viewers
                 this.tabControl = tabControl;
                 this.shaderFile = shaderFile;
                 var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile = shaderFile.GetZFrameFile(zframeId, OutputWriter: buffer.Write);
+                zframeFile = shaderFile.GetZFrameFile(zframeId, outputWriter: buffer.Write);
                 if (byteVersion)
                 {
-                    zframeFile.PrintByteAnalysis();
+                    zframeFile.PrintByteDetail();
                 }
                 else
                 {
-                    PrintZFrameSummary zframeSummary = new PrintZFrameSummary(shaderFile, zframeFile, buffer.Write, true);
+                    PrintZFrameSummary zframeSummary = new(shaderFile, zframeFile, buffer.Write, true);
                 }
                 Font = new Font(FontFamily.GenericMonospace, Font.Size);
                 DetectUrls = true;
@@ -285,8 +287,12 @@ namespace GUI.Types.Viewers
             private void ZFrameRichTextBoxLinkClicked(object sender, LinkClickedEventArgs evt)
             {
                 string[] linkTokens = evt.LinkText[2..].Split("\\");
+                // if the link contains only one token it is the name of the zframe in the form
+                // blur_pcgl_40_vs.vcs-ZFRAME00000000-databytes
                 if (linkTokens.Length == 1)
                 {
+                    // the target id is extracted from the text link, parsing here strictly depends on the chosen format
+                    // linkTokens[0].Split('-')[^2] evaluates as ZFRAME00000000, number is read as base 16
                     long zframeId = Convert.ToInt64(linkTokens[0].Split('-')[^2][6..], 16);
                     var zframeTab = new TabPage($"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeId:x}] bytes");
                     var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, zframeId, byteVersion: true);
@@ -299,25 +305,64 @@ namespace GUI.Types.Viewers
                     }
                     return;
                 }
-                int glslSourceId = Convert.ToInt32(linkTokens[1]);
-                var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile.PrintGlslSource(glslSourceId, buffer.Write);
-                var glslTab = new TabPage($"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]-glsl[{glslSourceId}]");
-                var glslRichTextBox = new RichTextBox();
-                glslRichTextBox.Font = new Font(FontFamily.GenericMonospace, Font.Size);
-                glslRichTextBox.DetectUrls = true;
-                glslRichTextBox.Dock = DockStyle.Fill;
-                glslRichTextBox.Multiline = true;
-                glslRichTextBox.ReadOnly = true;
-                glslRichTextBox.WordWrap = false;
-                glslRichTextBox.Text = Utils.Utils.NormalizeLineEndings(buffer.ToString());
-                glslRichTextBox.ScrollBars = RichTextBoxScrollBars.Both;
-                glslTab.Controls.Add(glslRichTextBox);
-                tabControl.Controls.Add(glslTab);
+                // if (linkTokens.Length != 1) the link text will always be in the form '\\source\0'
+                // the sourceId is given in decimals, extracted here from linkTokens[1]
+                // (the sourceId is not the same as the zframeId - a single zframe may contain more than 1 source,
+                // they are enumerated in each zframe file starting from 0)
+                int gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
+                string gpuSourceLabel = $"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]({gpuSourceId})";
+
+                TabPage gpuSourceTab = null;
+                switch (zframeFile.gpuSources[gpuSourceId])
+                {
+                    case GlslSource:
+                        var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                        zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
+                        gpuSourceTab = new TabPage(gpuSourceLabel);
+                        var gpuSourceRichTextBox = new RichTextBox
+                        {
+                            Font = new Font(FontFamily.GenericMonospace, Font.Size),
+                            DetectUrls = true,
+                            Dock = DockStyle.Fill,
+                            Multiline = true,
+                            ReadOnly = true,
+                            WordWrap = false,
+                            Text = Utils.Utils.NormalizeLineEndings(buffer.ToString()),
+                            ScrollBars = RichTextBoxScrollBars.Both
+                        };
+                        gpuSourceTab.Controls.Add(gpuSourceRichTextBox);
+                        break;
+
+                    case DxbcSource:
+                    case DxilSource:
+                    case VulkanSource:
+                        gpuSourceTab = CreateByteViewerTab(zframeFile.gpuSources[gpuSourceId].sourcebytes, gpuSourceLabel);
+                        break;
+
+                    default:
+                        throw new InvalidDataException($"Unimplemented GPU source type {zframeFile.gpuSources[gpuSourceId].GetType()}");
+                }
+
+                tabControl.Controls.Add(gpuSourceTab);
                 if ((ModifierKeys & Keys.Control) == Keys.Control)
                 {
-                    tabControl.SelectedTab = glslTab;
+                    tabControl.SelectedTab = gpuSourceTab;
                 }
+            }
+
+            private static TabPage CreateByteViewerTab(byte[] input, string tabName)
+            {
+                var bvTab = new TabPage(tabName);
+                var bv = new System.ComponentModel.Design.ByteViewer
+                {
+                    Dock = DockStyle.Fill,
+                };
+                bvTab.Controls.Add(bv);
+                Program.MainForm.Invoke((MethodInvoker)(() =>
+                {
+                    bv.SetBytes(input);
+                }));
+                return bvTab;
             }
         }
     }

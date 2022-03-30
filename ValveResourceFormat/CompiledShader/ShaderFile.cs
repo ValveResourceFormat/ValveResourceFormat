@@ -52,7 +52,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
-        /// <param name="filename">The filename <see cref="string"/>.</param>
+        /// <param name="filenamepath">The filename <see cref="string"/>.</param>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filenamepath, Stream input)
         {
@@ -104,14 +104,16 @@ namespace ValveResourceFormat.CompiledShader
             {
                 featuresHeader = new FeaturesHeaderBlock(datareader);
                 vcsVersion = featuresHeader.vcsFileVersion;
-            } else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
-                   || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
-                   || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
-                   || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
+            }
+            else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
+                 || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
+                 || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
+                 || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
             {
                 vspsHeader = new VsPsHeaderBlock(datareader);
                 vcsVersion = vspsHeader.vcsFileVersion;
-            } else
+            }
+            else
             {
                 throw new ShaderParserException($"Can't parse this filetype: {vcsProgramType}");
             }
@@ -165,8 +167,8 @@ namespace ValveResourceFormat.CompiledShader
             }
             if (vcsProgramType == VcsProgramType.Features || vcsProgramType == VcsProgramType.VertexShader)
             {
-                int sybmolsBlockCount = datareader.ReadInt32();
-                for (int i = 0; i < sybmolsBlockCount; i++)
+                int symbolsBlockCount = datareader.ReadInt32();
+                for (int i = 0; i < symbolsBlockCount; i++)
                 {
                     VertexSymbolsBlock nextSymbolsBlock = new(datareader, i);
                     symbolBlocks.Add(nextSymbolsBlock);
@@ -216,7 +218,7 @@ namespace ValveResourceFormat.CompiledShader
                     uint lzmaDelimOrStartOfData = datareader.ReadUInt32();
                     if (lzmaDelimOrStartOfData != LZMA_DELIM)
                     {
-                        uncompressedLength = (int) chunkSizeOrZframeDelim;
+                        uncompressedLength = (int)chunkSizeOrZframeDelim;
                         compressionType = UNCOMPRESSED;
                     }
                 }
@@ -259,36 +261,34 @@ namespace ValveResourceFormat.CompiledShader
             return zframesLookup[zframeId].GetDecompressedZFrame();
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite OutputWriter = null, bool omitParsing = false)
+        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
-                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, OutputWriter);
+                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, outputWriter);
         }
 
-        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite OutputWriter = null, bool omitParsing = false)
+        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
-            long zframeId = zframesLookup.ElementAt(zframeIndex).Key;
-            return GetZFrameFile(zframeId, OutputWriter: OutputWriter, omitParsing: omitParsing);
+            return GetZFrameFile(zframesLookup.ElementAt(zframeIndex).Key, outputWriter, omitParsing);
         }
 #pragma warning restore CA1024
 
-
         private uint zFrameCount;
-        const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
 
-        public void PrintByteAnalysis(bool shortenOutput = true, HandleOutputWrite OutputWriter = null)
+        public void PrintByteDetail(bool shortenOutput = true, HandleOutputWrite outputWriter = null)
         {
-            datareader.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
+            datareader.outputWriter = outputWriter ?? ((x) => { Console.Write(x); });
             datareader.BaseStream.Position = 0;
             if (vcsProgramType == VcsProgramType.Features)
             {
-                featuresHeader.PrintAnnotatedBytestream();
-            } else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
-                   || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
-                   || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
-                   || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
+                featuresHeader.PrintByteDetail();
+            }
+            else if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.PixelShader
+                 || vcsProgramType == VcsProgramType.GeometryShader || vcsProgramType == VcsProgramType.PixelShaderRenderState
+                 || vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.HullShader
+                 || vcsProgramType == VcsProgramType.DomainShader || vcsProgramType == VcsProgramType.RaytracingShader)
             {
-                vspsHeader.PrintAnnotatedBytestream();
+                vspsHeader.PrintByteDetail();
             }
             datareader.ShowByteCount();
             int possible_editor_desc = datareader.ReadInt32AtPosition();
@@ -301,7 +301,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var sfBlock in sfBlocks)
             {
-                sfBlock.PrintAnnotatedBytestream();
+                sfBlock.PrintByteDetail();
             }
             datareader.ShowByteCount();
             uint sfConstraintsBlockCount = datareader.ReadUInt32AtPosition();
@@ -309,7 +309,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var sfConstraintsBlock in sfConstraintsBlocks)
             {
-                sfConstraintsBlock.PrintAnnotatedBytestream();
+                sfConstraintsBlock.PrintByteDetail();
             }
             datareader.ShowByteCount();
             uint dBlockCount = datareader.ReadUInt32AtPosition();
@@ -317,7 +317,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var dBlock in dBlocks)
             {
-                dBlock.PrintAnnotatedBytestream();
+                dBlock.PrintByteDetail();
             }
             datareader.ShowByteCount();
             uint dConstraintsBlockCount = datareader.ReadUInt32AtPosition();
@@ -325,7 +325,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var dConstraintBlock in dConstraintsBlocks)
             {
-                dConstraintBlock.PrintAnnotatedBytestream();
+                dConstraintBlock.PrintByteDetail();
             }
             datareader.ShowByteCount();
             uint paramBlockCount = datareader.ReadUInt32AtPosition();
@@ -333,7 +333,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var paramBlock in paramBlocks)
             {
-                paramBlock.PrintAnnotatedBytestream(vcsVersion);
+                paramBlock.PrintByteDetail(vcsVersion);
             }
             datareader.ShowByteCount();
             uint mipmapBlockCount = datareader.ReadUInt32AtPosition();
@@ -341,7 +341,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var mipmapBlock in mipmapBlocks)
             {
-                mipmapBlock.PrintAnnotatedBytestream();
+                mipmapBlock.PrintByteDetail();
             }
             datareader.ShowByteCount();
             uint bufferBlockCount = datareader.ReadUInt32AtPosition();
@@ -349,7 +349,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             foreach (var bufferBlock in bufferBlocks)
             {
-                bufferBlock.PrintAnnotatedBytestream();
+                bufferBlock.PrintByteDetail();
             }
             if (vcsProgramType == VcsProgramType.Features || vcsProgramType == VcsProgramType.VertexShader)
             {
@@ -359,7 +359,7 @@ namespace ValveResourceFormat.CompiledShader
                 foreach (var symbolBlock in symbolBlocks)
                 {
                     datareader.BreakLine();
-                    symbolBlock.PrintAnnotatedBytestream();
+                    symbolBlock.PrintByteDetail();
                 }
                 datareader.BreakLine();
             }
@@ -369,7 +369,6 @@ namespace ValveResourceFormat.CompiledShader
             {
                 datareader.Comment("rest of data contains compressed zframes");
                 datareader.BreakLine();
-                return;
             }
 
             datareader.ShowEndOfFile();
@@ -380,8 +379,28 @@ namespace ValveResourceFormat.CompiledShader
             return dBlockConfigGen.GetConfigState(blockId);
         }
 
+        private const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
+        private const int MAX_ZFRAME_BYTES_TO_SHOW = 96;
+
         private void PrintZframes(bool shortenOutput)
         {
+            //
+            // The zFrameIds and zFrameDataOffsets are read as two separate lists before the data section starts
+            // (Normally parsing is expected to stop when the ids and offsets are collected - sufficient to
+            // retrieve any future data as-needed; the data section is always at the end of the file for this reason)
+            //
+            // For testing:
+            // if `shortenOutput = false` all zframes and their data are shown.
+            // if `shortenOutput = true` the parser returns after, or shortly after, showing the listings only
+            //
+            // Parsing correctness is always verified because an end-of-file pointer is provided right after the zframe
+            // listing, the datareader must either reach or be assigned to the end of file to complete parsing; cecked in
+            // the call to datareader.ShowEndOfFile()
+            //
+            //
+            List<uint> zFrameIds = new();
+            List<long> zFrameDataOffsets = new();
+
             datareader.ShowByteCount();
             zFrameCount = datareader.ReadUInt32AtPosition();
             datareader.ShowBytes(4, $"{zFrameCount} zframes");
@@ -390,45 +409,56 @@ namespace ValveResourceFormat.CompiledShader
             {
                 return;
             }
-            List<uint> zFrameIndexes = new();
             datareader.ShowByteCount("zFrame IDs");
             for (int i = 0; i < zFrameCount; i++)
             {
                 uint zframeId = datareader.ReadUInt32AtPosition();
                 datareader.ShowBytes(8, breakLine: false);
-                datareader.TabComment($"{getZFrameIdString(zframeId)}    {Convert.ToString(zframeId, 2).PadLeft(20, '0')}");
-                zFrameIndexes.Add(zframeId);
+                datareader.TabComment($"zframe[0x{zframeId:x08}]    {Convert.ToString(zframeId, 2).PadLeft(20, '0')} (bin.)");
+                zFrameIds.Add(zframeId);
             }
+
             datareader.BreakLine();
-            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
-            {
-                return;
-            }
             datareader.ShowByteCount("zFrame file offsets");
-            foreach (uint zframeId in zFrameIndexes)
+            foreach (uint zframeId in zFrameIds)
             {
                 uint zframe_offset = datareader.ReadUInt32AtPosition();
-                datareader.ShowBytes(4, $"{zframe_offset} offset of {getZFrameIdString(zframeId)}");
+                zFrameDataOffsets.Add(zframe_offset);
+                datareader.ShowBytes(4, $"{zframe_offset} offset of zframe[0x{zframeId:x08}]");
             }
-            uint total_size = datareader.ReadUInt32AtPosition();
-            datareader.ShowBytes(4, $"{total_size} - end of file");
-            datareader.OutputWriteLine("");
-            foreach (uint zframeId in zFrameIndexes)
+            uint endOfFilePointer = datareader.ReadUInt32AtPosition();
+            datareader.ShowBytes(4, $"{endOfFilePointer} - end of file");
+            datareader.BreakLine();
+
+            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
             {
-                PrintCompressedZFrame(zframeId);
+                datareader.BaseStream.Position = endOfFilePointer;
+                return;
+            }
+            for (int i = 0; i < zFrameCount; i++)
+            {
+                datareader.BaseStream.Position = zFrameDataOffsets[i];
+                PrintCompressedZFrame(zFrameIds[i]);
+            }
+            // in v62 the last zframe doesn't always finish at the end of file; it's necessary to assign
+            // the end-pointer here (read above at the end of zframe listings) to confirm correct parsing.
+            if (vcsVersion == 62)
+            {
+                datareader.BaseStream.Position = endOfFilePointer;
             }
         }
 
-        int MAX_ZFRAME_BYTES_TO_SHOW = 96;
+
         public void PrintCompressedZFrame(uint zframeId)
         {
-            datareader.OutputWriteLine($"[{datareader.BaseStream.Position}] {getZFrameIdString(zframeId)}");
+            datareader.OutputWriteLine($"[{datareader.BaseStream.Position}] zframe[0x{zframeId:x08}]");
             bool isLzma = false;
             uint zstdDelimOrChunkSize = datareader.ReadUInt32AtPosition();
             if (zstdDelimOrChunkSize == ZSTD_DELIM)
             {
                 datareader.ShowBytes(4, $"Zstd delim (0x{ZSTD_DELIM:x08})");
-            } else
+            }
+            else
             {
                 datareader.ShowBytes(4, $"Chunk size {zstdDelimOrChunkSize}");
                 uint lzmaDelim = datareader.ReadUInt32AtPosition();
@@ -457,11 +487,6 @@ namespace ValveResourceFormat.CompiledShader
             }
             datareader.BaseStream.Position += compressed_length;
             datareader.BreakLine();
-        }
-
-        private static string getZFrameIdString(uint zframeId)
-        {
-            return $"zframe[0x{zframeId:x08}]";
         }
     }
 

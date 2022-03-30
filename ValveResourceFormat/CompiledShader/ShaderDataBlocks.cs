@@ -105,12 +105,12 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount("vcs file");
             datareader.ShowBytes(4, "\"vcs2\"");
-            int vcs_version = datareader.ReadInt32AtPosition();            
+            int vcs_version = datareader.ReadInt32AtPosition();
             datareader.ShowBytes(4, $"version {vcs_version}");
             datareader.BreakLine();
             datareader.ShowByteCount("features header");
@@ -153,17 +153,17 @@ namespace ValveResourceFormat.CompiledShader
 
             datareader.BreakLine();
             datareader.ShowByteCount();
-            int nr_of_arguments = datareader.ReadInt32AtPosition();
-            datareader.ShowBytes(4, $"nr of arguments {nr_of_arguments}");
+            int argument_count = datareader.ReadInt32AtPosition();
+            datareader.ShowBytes(4, $"argument_count = {argument_count}");
             if (has_psrs_file == 1)
             {
                 // nr_of_arguments becomes overwritten
-                nr_of_arguments = datareader.ReadInt32AtPosition();
-                datareader.ShowBytes(4, $"nr of arguments overriden ({nr_of_arguments})");
+                argument_count = datareader.ReadInt32AtPosition();
+                datareader.ShowBytes(4, $"argument_count = {argument_count} (overridden)");
             }
             datareader.BreakLine();
             datareader.ShowByteCount();
-            for (int i = 0; i < nr_of_arguments; i++)
+            for (int i = 0; i < argument_count; i++)
             {
                 string default_name = datareader.ReadNullTermStringAtPosition();
                 datareader.Comment($"{default_name}");
@@ -191,14 +191,12 @@ namespace ValveResourceFormat.CompiledShader
             datareader.ShowBytes(16, "Editor ref. ID6");
             if (vcs_version >= 64 && has_psrs_file == 0)
             {
-                datareader.ShowBytes(16,
-                    "Editor ref. ID7 - common editor reference shared by multiple files");
+                datareader.ShowBytes(16, "Editor ref. ID7 - common editor reference shared by multiple files");
             }
             if (vcs_version >= 64 && has_psrs_file == 1)
             {
                 datareader.ShowBytes(16, $"Editor ref. ID7 - reference to psrs file ({VcsProgramType.PixelShaderRenderState})");
-                datareader.ShowBytes(16,
-                    "Editor ref. ID7 - common editor reference shared by multiple files");
+                datareader.ShowBytes(16, "Editor ref. ID7 - common editor reference shared by multiple files");
             }
             datareader.BreakLine();
         }
@@ -238,7 +236,7 @@ namespace ValveResourceFormat.CompiledShader
             fileID1 = datareader.ReadBytesAsString(16);
         }
 
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount("vcs file");
@@ -255,8 +253,7 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BreakLine();
             datareader.ShowByteCount("Editor/Shader stack for generating the file");
             datareader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
-            datareader.ShowBytes(16,
-                    "Editor ref. ID1 - this ID is shared across archives for vcs files with the same minor-version");
+            datareader.ShowBytes(16, "Editor ref. ID1 - common editor reference shared by multiple files");
         }
     }
 
@@ -292,7 +289,7 @@ namespace ValveResourceFormat.CompiledShader
                 additionalParams.Add(datareader.ReadNullTermString());
             }
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount();
@@ -410,7 +407,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             return CombineIntArray(flags);
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount($"SF-CONTRAINTS-BLOCK[{blockIndex}]");
@@ -448,7 +445,7 @@ namespace ValveResourceFormat.CompiledShader
             arg4 = datareader.ReadInt32();
             arg5 = datareader.ReadInt32();
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             string dBlockName = datareader.ReadNullTermStringAtPosition();
@@ -577,7 +574,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             return relRule == 3 ? "EXC(3)" : $"INC({relRule})";
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount($"D-CONSTRAINTS-BLOCK[{blockIndex}]");
@@ -697,7 +694,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void PrintAnnotatedBytestream(int vcsVersion)
+        public void PrintByteDetail(int vcsVersion)
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount($"PARAM-BLOCK[{blockIndex}]");
@@ -739,9 +736,14 @@ namespace ValveResourceFormat.CompiledShader
                 datareader.ShowBytes(dynLength, "dynamic expression", 1);
             }
 
+            // 5 or 6 int arguments follow depending on version
+            datareader.ShowBytes(20, 4);
+            // v64,65 has an additional argument
+            if (vcsVersion >= 64)
+            {
+                datareader.ShowBytes(4);
+            }
 
-            // 6 int parameters follow here
-            datareader.ShowBytes(24, 4);
             // a rarely seen file reference
             string name4 = datareader.ReadNullTermStringAtPosition();
             if (name4.Length > 0)
@@ -857,7 +859,7 @@ namespace ValveResourceFormat.CompiledShader
             name = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 256;
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount($"MIPMAP-BLOCK[{blockIndex}]");
@@ -899,7 +901,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             blockCrc = datareader.ReadUInt32();
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             string blockname = datareader.ReadNullTermStringAtPosition();
@@ -949,7 +951,7 @@ namespace ValveResourceFormat.CompiledShader
                 symbolsDefinition.Add((name, type, option, semanticIndex));
             }
         }
-        public void PrintAnnotatedBytestream()
+        public void PrintByteDetail()
         {
             datareader.BaseStream.Position = start;
             datareader.ShowByteCount($"SYMBOL-NAMES-BLOCK[{blockIndex}]");

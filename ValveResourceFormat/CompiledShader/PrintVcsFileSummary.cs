@@ -42,15 +42,15 @@ namespace ValveResourceFormat.CompiledShader
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.featuresHeader.vcsFileVersion}");
             output.BreakLine();
-            output.Write($"Features Detail ({Path.GetFileName(shaderFile.filenamepath)})");
+            output.Write($"Showing {shaderFile.vcsProgramType}: {Path.GetFileName(shaderFile.filenamepath)}");
             if (showRichTextBoxLinks)
             {
-                output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+                output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
             } else
             {
                 output.BreakLine();
             }
-            if (relatedFiles != null)
+            if (showRichTextBoxLinks && relatedFiles != null && relatedFiles.Count > 1)
             {
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
@@ -59,6 +59,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 output.BreakLine();
             }
+            output.BreakLine();
 
             output.WriteLine($"VFX File Desc: {shaderFile.featuresHeader.file_description}");
             output.BreakLine();
@@ -106,15 +107,15 @@ namespace ValveResourceFormat.CompiledShader
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.vspsHeader.vcsFileVersion}");
             output.BreakLine();
-            output.Write($"{shaderFile.vcsProgramType} ({Path.GetFileName(shaderFile.filenamepath)})");
+            output.Write($"Showing {shaderFile.vcsProgramType}: {Path.GetFileName(shaderFile.filenamepath)}");
             if (showRichTextBoxLinks)
             {
-                output.WriteLine($" (bytes printout \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
+                output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
             } else
             {
                 output.BreakLine();
             }
-            if (relatedFiles != null)
+            if (showRichTextBoxLinks && relatedFiles != null && relatedFiles.Count > 1)
             {
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
@@ -123,13 +124,13 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 output.BreakLine();
             }
-
-            output.WriteLine($"possible editor description = {shaderFile.possibleEditorDescription}");
             output.BreakLine();
+
             output.WriteLine("Editor/Shader compiler stack");
             output.WriteLine($"{shaderFile.vspsHeader.fileID0}    // Editor ref. ID0 (produces this file)");
             output.WriteLine($"{shaderFile.vspsHeader.fileID1}    // Editor ref. ID1 " +
                 $"- common editor reference shared by multiple files");
+            output.WriteLine($"possible editor description = {shaderFile.possibleEditorDescription}");
             output.BreakLine();
         }
 
@@ -543,8 +544,14 @@ namespace ValveResourceFormat.CompiledShader
                     output.WriteLine($"{configHeader}");
                 }
                 int[] configState = configGen.GetConfigState(zframeDesc.Key);
-                // the two backslashes registers the text as a link when viewed in a RichTextBox
-                output.WriteLine($"  Z[\\\\{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
+                if (showRichTextBoxLinks)
+                {
+                    // the two backslashes registers the text as a link when viewed in a RichTextBox
+                    output.WriteLine($"  Z[\\\\{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
+                } else
+                {
+                    output.WriteLine($"  Z[{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
+                }
                 zframeCount++;
             }
         }

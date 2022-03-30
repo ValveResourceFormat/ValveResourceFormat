@@ -18,9 +18,9 @@ namespace ValveResourceFormat.CompiledShader
         public long zframeId { get; }
         public ZDataBlock leadingData { get; }
         public List<ZFrameParam> zframeParams { get; } = new();
-        public int[] leadSummary { get; }
+        public int[] leadingSummary { get; } = Array.Empty<int>();
         public List<ZDataBlock> dataBlocks { get; } = new();
-        public int[] tailSummary { get; }
+        public int[] trailingSummary { get; }
         public byte[] flags0 { get; }
         public int flagbyte0 { get; }
         public int gpuSourceCount { get; }
@@ -32,13 +32,13 @@ namespace ValveResourceFormat.CompiledShader
         public int nonZeroDataBlockCount { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
-            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false, HandleOutputWrite OutputWriter = null)
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false, HandleOutputWrite outputWriter = null)
         {
             this.filenamepath = filenamepath;
             this.vcsProgramType = vcsProgramType;
             this.vcsPlatformType = vcsPlatformType;
             this.vcsShaderModelType = vcsShaderModelType;
-            datareader = new ShaderDataReader(new MemoryStream(databytes), OutputWriter);
+            datareader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
             this.zframeId = zframeId;
 
             // in case of failure; enable omitParsing and use the datareader directly
@@ -55,13 +55,14 @@ namespace ValveResourceFormat.CompiledShader
                 ZFrameParam zParam = new(datareader);
                 zframeParams.Add(zParam);
             }
+            // this data is applicable to vertex shaders
             if (this.vcsProgramType == VcsProgramType.VertexShader)
             {
                 int summaryLength = datareader.ReadInt16();
-                leadSummary = new int[summaryLength];
+                leadingSummary = new int[summaryLength];
                 for (int i = 0; i < summaryLength; i++)
                 {
-                    leadSummary[i] = datareader.ReadInt16();
+                    leadingSummary[i] = datareader.ReadInt16();
                 }
             }
             int dataBlockCount = datareader.ReadInt16();
@@ -75,10 +76,10 @@ namespace ValveResourceFormat.CompiledShader
                 dataBlocks.Add(dataBlock);
             }
             int tailSummaryLength = datareader.ReadInt16();
-            tailSummary = new int[tailSummaryLength];
+            trailingSummary = new int[tailSummaryLength];
             for (int i = 0; i < tailSummaryLength; i++)
             {
-                tailSummary[i] = datareader.ReadInt16();
+                trailingSummary[i] = datareader.ReadInt16();
             }
             flags0 = datareader.ReadBytes(4);
             flagbyte0 = datareader.ReadByte();
@@ -189,37 +190,6 @@ namespace ValveResourceFormat.CompiledShader
             return zframeHeaderString;
         }
 
-        public string GetLeadSummary()
-        {
-            if (vcsProgramType != VcsProgramType.VertexShader)
-            {
-                return "only vs files have this section";
-            }
-            string leadSummaryDesc = $"{leadSummary.Length:X02} 00   // configuration states ({leadSummary.Length}), lead summary\n";
-            for (int i = 0; i < leadSummary.Length; i++)
-            {
-                if (i > 0 && i % 16 == 0)
-                {
-                    leadSummaryDesc += "\n";
-                }
-                leadSummaryDesc += leadSummary[i] > -1 ? $"{leadSummary[i],-3}" : "_  ";
-            }
-            return leadSummaryDesc.Trim();
-        }
-
-        public string GetTailSummary()
-        {
-            string tailSummaryDesc = $"{tailSummary.Length:X02} 00   // configuration states ({tailSummary.Length}), tail summary\n";
-            for (int i = 0; i < tailSummary.Length; i++)
-            {
-                if (i > 0 && i % 16 == 0)
-                {
-                    tailSummaryDesc += "\n";
-                }
-                tailSummaryDesc += tailSummary[i] > -1 ? $"{tailSummary[i],-8}" : "_  ".PadRight(8);
-            }
-            return tailSummaryDesc.Trim();
-        }
         public void Dispose()
         {
             Dispose(true);
@@ -234,29 +204,49 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void PrintGlslSource(int sourceId, HandleOutputWrite OutputWriter)
+        /*
+         * Prints the GPU source as text (GLSL) or bytes (DXIL, DXBC, Vulkan)
+         *
+         * Method accepts a HandleOutputWrite to redirect output, this needed by the GUI
+         * when opening data in different window tabs.
+         *
+         */
+        public void PrintGpuSource(int sourceId, HandleOutputWrite outputWriter = null)
         {
-            GlslSource glslSource = gpuSources[sourceId] as GlslSource;
-            string result = Encoding.UTF8.GetString(glslSource.sourcebytes);
-            if (result.Length == 0)
+            outputWriter ??= ((x) => { Console.Write(x); });
+
+            if (gpuSources[sourceId] is GlslSource)
             {
-                OutputWriter("[empty source]");
-            } else
+                GlslSource glslSource = gpuSources[sourceId] as GlslSource;
+                string result = Encoding.UTF8.GetString(glslSource.sourcebytes);
+                if (result.Length == 0)
+                {
+                    outputWriter("[empty source]");
+                }
+                else
+                {
+                    outputWriter(result);
+                }
+            }
+            else
             {
-                OutputWriter(result);
+                outputWriter($"// {gpuSources[sourceId].GetBlockName()}[{sourceId}] source bytes (" +
+                    $"{gpuSources[sourceId].sourcebytes.Length}) ref={gpuSources[sourceId].GetEditorRefIdAsString()}\n");
+                outputWriter(BytesToString(gpuSources[sourceId].sourcebytes)+"\n");
             }
         }
 
         public class ZFrameParam
         {
-            public string name0 { get; }
+            public  string name0 { get; }
             public uint murmur32 { get; }
-            public byte[] code { get; }
             public byte headerOperator { get; }
+            public byte[] headerCode { get; }
             public int dynExpLen { get; } = -1;
             public byte[] dynExpression { get; }
             public string dynExpEvaluated { get; }
-            public int operatorVal { get; } = int.MinValue;
+            public bool hasOperatorVal { get; }
+            public int operatorVal { get; }
 
             public ZFrameParam(ShaderDataReader datareader)
             {
@@ -265,10 +255,10 @@ namespace ValveResourceFormat.CompiledShader
                 uint murmurCheck = MurmurHash2.Hash(name0.ToLower(), ShaderFile.PI_MURMURSEED);
                 if (murmur32 != murmurCheck)
                 {
-                    throw new ShaderParserException("not a murmur string!");
+                    throw new ShaderParserException("Murmur check failed on header name");
                 }
-                code = datareader.ReadBytes(3);
-                headerOperator = code[0];
+                headerCode = datareader.ReadBytes(3);
+                headerOperator = headerCode[0];
                 if (headerOperator == 0x0e)
                 {
                     return;
@@ -278,28 +268,37 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     dynExpression = datareader.ReadBytes(dynExpLen);
                     dynExpEvaluated = ParseDynamicExpression(dynExpression);
-                    return;
                 }
-                if (headerOperator == 1 || headerOperator == 9)
+                else if (headerOperator == 1 || headerOperator == 5)
+                {
+                    operatorVal = datareader.ReadInt32();
+                    hasOperatorVal = true;
+                }
+                else if (headerOperator == 9)
                 {
                     operatorVal = datareader.ReadByte();
-                    return;
+                    hasOperatorVal = true;
                 }
-                if (headerOperator == 5)
-                {
-                    operatorVal = datareader.ReadInt32(); ;
-                    return;
+                else {
+                    throw new ShaderParserException($"Unknown header operator {headerOperator}");
                 }
-                throw new ShaderParserException("unexpected data!");
             }
+
             public override string ToString()
             {
                 if (dynExpLen > 0)
                 {
-                    return $"{name0,-40} 0x{murmur32:x08}     {BytesToString(code)}   {dynExpEvaluated}";
-                } else
+                    return $"{name0,-40} 0x{murmur32:x08}     {BytesToString(headerCode)}   {dynExpEvaluated}";
+                }
+                else
                 {
-                    return $"{name0,-40} 0x{murmur32:x08}     {BytesToString(code)}   {(operatorVal != int.MinValue ? $"{operatorVal}" : "")}";
+                    var toByteString = (byte[] b) => $"{b[0]:x02} {b[1]:x02} {b[2]:x02} {b[3]:x02}";
+                    string operatorDesc = hasOperatorVal ? operatorVal switch
+                    {
+                        > 0x01000000 => $"{toByteString(BitConverter.GetBytes(operatorVal))} (unusual data, note 0x40 = '@')",
+                        _ => $"{operatorVal}"
+                    } : "";
+                    return $"{name0,-40} 0x{murmur32:x08}     {BytesToString(headerCode)}   {operatorDesc}";
                 }
             }
         }
@@ -366,8 +365,12 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void PrintByteAnalysis()
+        public void PrintByteDetail(HandleOutputWrite outputWriter = null)
         {
+            if (outputWriter != null)
+            {
+                datareader.outputWriter = outputWriter;
+            }
             datareader.BaseStream.Position = 0;
             if (vcsProgramType == VcsProgramType.Features)
             {
@@ -438,7 +441,8 @@ namespace ValveResourceFormat.CompiledShader
                     default:
                         throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsShaderModelType}");
                 }
-            } else
+            }
+            else
             {
                 switch (vcsPlatformType)
                 {
@@ -560,7 +564,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 prevBlockWasZero = true;
                 return;
-            } else
+            }
+            else
             {
                 prevBlockWasZero = false;
             }
@@ -579,54 +584,32 @@ namespace ValveResourceFormat.CompiledShader
             for (int i = 0; i < nrArgs; i++)
             {
                 ShowMurmurString();
-                // int headerOperator = databytes[offset];
                 int headerOperator = datareader.ReadByteAtPosition();
+                datareader.ShowBytes(3, "header-code");
                 if (headerOperator == 0x0e)
                 {
-                    datareader.ShowBytes(3);
+                    datareader.BreakLine();
+                    continue;
+                }
+                int dynExpLen = datareader.ReadInt32AtPosition();
+                datareader.ShowBytes(4, $"dynamic expression length = {dynExpLen}");
+                if (dynExpLen > 0)
+                {
+                    ShowDynamicExpression(dynExpLen);
+                    datareader.BreakLine();
                     continue;
                 }
                 if (headerOperator == 1)
                 {
-                    int dynExpLen = datareader.ReadInt32AtPosition(3);
-                    if (dynExpLen == 0)
-                    {
-                        datareader.ShowBytes(8);
-                        continue;
-                    } else
-                    {
-                        datareader.ShowBytes(7);
-                        ShowDynamicExpression(dynExpLen);
-                        continue;
-                    }
-                }
-                if (headerOperator == 9)
-                {
-                    int dynExpLen = datareader.ReadInt32AtPosition(3);
-                    if (dynExpLen == 0)
-                    {
-                        datareader.ShowBytes(8);
-                        continue;
-                    } else
-                    {
-                        datareader.ShowBytes(7);
-                        ShowDynamicExpression(dynExpLen);
-                        continue;
-                    }
+                    datareader.ShowBytes(4, "header argument\n");
                 }
                 if (headerOperator == 5)
                 {
-                    int dynExpLen = datareader.ReadInt32AtPosition(3);
-                    if (dynExpLen == 0)
-                    {
-                        datareader.ShowBytes(11);
-                        continue;
-                    } else
-                    {
-                        datareader.ShowBytes(7);
-                        ShowDynamicExpression(dynExpLen);
-                        continue;
-                    }
+                    datareader.ShowBytes(4, "header argument\n");
+                }
+                if (headerOperator == 9)
+                {
+                    datareader.ShowBytes(1, "header argument\n");
                 }
             }
             if (nrArgs > 0)
@@ -668,14 +651,17 @@ namespace ValveResourceFormat.CompiledShader
                     if (remainingBytes < 50)
                     {
                         datareader.ShowBytes(remainingBytes);
-                    } else
+                    }
+                    else
                     {
                         datareader.Comment($"... ({endOfSource - datareader.BaseStream.Position} bytes of data not shown)");
                     }
-                } else if (additionalSourceBytes <= SOURCE_BYTES_TO_SHOW && additionalSourceBytes > 0)
+                }
+                else if (additionalSourceBytes <= SOURCE_BYTES_TO_SHOW && additionalSourceBytes > 0)
                 {
                     datareader.ShowBytes(additionalSourceBytes);
-                } else
+                }
+                else
                 {
                     datareader.OutputWriteLine("// no source present");
                 }
@@ -705,7 +691,8 @@ namespace ValveResourceFormat.CompiledShader
                     datareader.ShowBytes(SOURCE_BYTES_TO_SHOW, breakLine: false);
                     datareader.OutputWrite(" ");
                     datareader.Comment($"... ({endOfSource - datareader.BaseStream.Position} bytes of data not shown)");
-                } else if (sourceSize <= SOURCE_BYTES_TO_SHOW && sourceSize > 0)
+                }
+                else if (sourceSize <= SOURCE_BYTES_TO_SHOW && sourceSize > 0)
                 {
                     datareader.ShowBytes(sourceSize);
                 }
@@ -728,7 +715,8 @@ namespace ValveResourceFormat.CompiledShader
                     datareader.ShowBytes(4);
                     datareader.OutputWriteLine("// no source present");
                     datareader.BreakLine();
-                } else
+                }
+                else
                 {
                     datareader.ShowByteCount();
                     datareader.ShowBytes(4, $"({offsetToEditorId}) offset to Editor ref. ID ");
@@ -799,7 +787,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 datareader.ShowBytes(SOURCE_BYTES_TO_SHOW);
                 datareader.Comment($"... ({endOfSource - datareader.BaseStream.Position} bytes of data not shown)");
-            } else if (bytesToRead <= SOURCE_BYTES_TO_SHOW && bytesToRead > 0)
+            }
+            else if (bytesToRead <= SOURCE_BYTES_TO_SHOW && bytesToRead > 0)
             {
                 datareader.ShowBytes(bytesToRead);
             }
