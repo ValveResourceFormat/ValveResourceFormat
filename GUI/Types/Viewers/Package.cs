@@ -8,6 +8,7 @@ using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
@@ -122,30 +123,37 @@ namespace GUI.Types.Viewers
 
                         try
                         {
-                            var res = new ValveResourceFormat.Resource();
-                            res.Read(stream);
+                            var resource = new ValveResourceFormat.Resource();
+                            resource.Read(stream);
 
-                            // Unfortunately for sounds we do not know how long the streaming data actually is
-                            if (res.FileSize != length && res.ResourceType != ResourceType.Sound)
+                            var fileSize = resource.FileSize;
+
+                            if (resource.ResourceType == ResourceType.Sound)
                             {
-                                if (res.FileSize > length)
+                                var soundData = (Sound)resource.DataBlock;
+                                fileSize += soundData.StreamingDataSize;
+                            }
+
+                            if (fileSize != length)
+                            {
+                                if (fileSize > length)
                                 {
                                     throw new Exception("Resource filesize is bigger than the gap length we found");
                                 }
 
-                                newEntry.Length = res.FileSize;
-                                offset += res.FileSize;
+                                newEntry.Length = fileSize;
+                                offset += fileSize;
                                 scan = true;
                             }
 
-                            if (res.ResourceType != ResourceType.Unknown)
+                            if (resource.ResourceType != ResourceType.Unknown)
                             {
-                                var type = typeof(ResourceType).GetMember(res.ResourceType.ToString())[0];
+                                var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString())[0];
                                 newEntry.TypeName = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
                                 newEntry.TypeName += "_c";
                             }
 
-                            newEntry.DirectoryName += "/" + res.ResourceType;
+                            newEntry.DirectoryName += "/" + resource.ResourceType;
                         }
                         catch (Exception ex)
                         {
