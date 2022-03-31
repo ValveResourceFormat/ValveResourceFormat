@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -126,23 +125,23 @@ namespace GUI.Controls
 
                 if (extension.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    extension = extension.Substring(0, extension.Length - 2);
+                    extension = extension[0..^2];
                 }
 
                 if (!ImageList.Images.ContainsKey(extension))
                 {
                     if (extension.Length > 0 && extension[0] == 'v')
                     {
-                        extension = extension.Substring(1);
+                        extension = extension[1..];
 
                         if (!ImageList.Images.ContainsKey(extension))
                         {
-                            extension = "_default";
+                            continue;
                         }
                     }
                     else
                     {
-                        extension = "_default";
+                        continue;
                     }
                 }
 
@@ -156,7 +155,8 @@ namespace GUI.Controls
         /// <param name="currentNode">Root node.</param>
         /// <param name="file">File entry.</param>
         /// <param name="vpkFileName">Name of the current vpk file.</param>
-        public void AddFileNode(TreeNode currentNode, PackageEntry file, string vpkFileName)
+        /// <param name="skipDeletedRootFolder">If true, ignore root folder for recovered deleted files.</param>
+        public void AddFileNode(TreeNode currentNode, PackageEntry file, string vpkFileName, bool skipDeletedRootFolder = false)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
@@ -164,13 +164,22 @@ namespace GUI.Controls
 
                 foreach (var subPath in subPaths)
                 {
-                    currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath, @"_folder", @"_folder");
-                    currentNode.Tag = new TreeViewFolder(file.DirectoryName, currentNode.Nodes.Count + 1); //is this enough?
+                    if (skipDeletedRootFolder && subPath == Types.Viewers.Package.DELETED_FILES_FOLDER)
+                    {
+                        continue;
+                    }
+
+                    currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath, "_folder", "_folder");
+                    currentNode.Tag = new TreeViewFolder(currentNode.Nodes.Count + 1);
                 }
             }
 
             var fileName = file.GetFileName();
-            var ext = ExtensionIconList[file.TypeName];
+
+            if (!ExtensionIconList.TryGetValue(file.TypeName, out var ext))
+            {
+                ext = "_default";
+            }
 
             currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
             currentNode.Tag = file; //so we can use it later

@@ -7,13 +7,13 @@ using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
     public class Package : IViewer
     {
+        internal const string DELETED_FILES_FOLDER = "@@ VRF Deleted Files @@";
         public ImageList ImageList { get; set; }
 
         public static bool IsAccepted(uint magic)
@@ -36,8 +36,6 @@ namespace GUI.Types.Viewers
                 package.Read(vrfGuiContext.FileName);
             }
 
-            FindHiddenFiles(package);
-
             // create a TreeView with search capabilities, register its events, and add it to the tab
             var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
             treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext.FileName, new TreeViewWithSearchResults.TreeViewPackageTag
@@ -55,7 +53,7 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static void FindHiddenFiles(SteamDatabase.ValvePak.Package package)
+        internal static List<PackageEntry> RecoverDeletedFiles(SteamDatabase.ValvePak.Package package)
         {
             var allEntries = package.Entries
                 .SelectMany(file => file.Value)
@@ -66,6 +64,7 @@ namespace GUI.Types.Viewers
 
             var hiddenIndex = 0;
             var totalSlackSize = 0u;
+            var hiddenFiles = new List<PackageEntry>();
 
             // TODO: Skip non-chunked vpks?
             foreach (var (archiveIndex, entries) in allEntries)
@@ -109,7 +108,7 @@ namespace GUI.Types.Viewers
                         var newEntry = new PackageEntry
                         {
                             FileName = $"Archive {archiveIndex} File {hiddenIndex}",
-                            DirectoryName = "@@ Deleted files",
+                            DirectoryName = DELETED_FILES_FOLDER,
                             TypeName = " ",
                             CRC32 = 0,
                             SmallData = Array.Empty<byte>(),
@@ -169,6 +168,7 @@ namespace GUI.Types.Viewers
                         }
 
                         typeEntries.Add(newEntry);
+                        hiddenFiles.Add(newEntry);
                     }
                 }
 
@@ -178,6 +178,8 @@ namespace GUI.Types.Viewers
             Console.WriteLine($"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
 
             // TODO: Check for completely unused vpk chunk files
+
+            return hiddenFiles;
         }
 
         private void VPK_Disposed(object sender, EventArgs e)

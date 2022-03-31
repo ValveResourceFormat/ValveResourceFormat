@@ -39,14 +39,15 @@ namespace GUI
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.menuStrip = new System.Windows.Forms.MenuStrip();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.findToolStripButton = new System.Windows.Forms.ToolStripMenuItem();
+            this.recoverDeletedToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainTabs = new System.Windows.Forms.TabControl();
-            this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.tabContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItemsToRight = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItemsToLeft = new System.Windows.Forms.ToolStripMenuItem();
@@ -57,28 +58,28 @@ namespace GUI
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.copyFileNameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openWithDefaultAppToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.menuStrip1.SuspendLayout();
-            this.contextMenuStrip1.SuspendLayout();
+            this.menuStrip.SuspendLayout();
+            this.tabContextMenuStrip.SuspendLayout();
             this.vpkContextMenu.SuspendLayout();
             this.SuspendLayout();
             // 
-            // menuStrip1
+            // menuStrip
             // 
-            this.menuStrip1.BackColor = System.Drawing.SystemColors.Window;
-            this.menuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
-            this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuStrip.BackColor = System.Drawing.SystemColors.Window;
+            this.menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
+            this.menuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem,
             this.findToolStripButton,
+            this.recoverDeletedToolStripMenuItem,
             this.exportToolStripButton,
             this.settingsToolStripMenuItem,
             this.aboutToolStripMenuItem});
-            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
-            this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Padding = new System.Windows.Forms.Padding(5, 1, 0, 0);
-            this.menuStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-            this.menuStrip1.Size = new System.Drawing.Size(1101, 24);
-            this.menuStrip1.TabIndex = 0;
-            this.menuStrip1.Text = "menuStrip1";
+            this.menuStrip.Location = new System.Drawing.Point(0, 0);
+            this.menuStrip.Name = "menuStrip";
+            this.menuStrip.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
+            this.menuStrip.Size = new System.Drawing.Size(1101, 27);
+            this.menuStrip.TabIndex = 0;
+            this.menuStrip.Text = "menuStrip1";
             // 
             // openToolStripMenuItem
             // 
@@ -101,6 +102,17 @@ namespace GUI
             this.findToolStripButton.Size = new System.Drawing.Size(58, 23);
             this.findToolStripButton.Text = "&Find";
             this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
+            // 
+            // recoverDeletedToolStripMenuItem
+            // 
+            this.recoverDeletedToolStripMenuItem.Enabled = false;
+            this.recoverDeletedToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("recoverDeletedToolStripMenuItem.Image")));
+            this.recoverDeletedToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
+            this.recoverDeletedToolStripMenuItem.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.recoverDeletedToolStripMenuItem.Name = "recoverDeletedToolStripMenuItem";
+            this.recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(143, 23);
+            this.recoverDeletedToolStripMenuItem.Text = "Recover deleted files";
+            this.recoverDeletedToolStripMenuItem.Click += new System.EventHandler(this.RecoverDeletedToolStripMenuItem_Click);
             // 
             // exportToolStripButton
             // 
@@ -135,26 +147,26 @@ namespace GUI
             // 
             this.mainTabs.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.mainTabs.Location = new System.Drawing.Point(0, 24);
+            this.mainTabs.Location = new System.Drawing.Point(0, 27);
             this.mainTabs.Margin = new System.Windows.Forms.Padding(0);
             this.mainTabs.Name = "mainTabs";
             this.mainTabs.Padding = new System.Drawing.Point(0, 0);
             this.mainTabs.SelectedIndex = 0;
-            this.mainTabs.Size = new System.Drawing.Size(1101, 508);
+            this.mainTabs.Size = new System.Drawing.Size(1101, 505);
             this.mainTabs.TabIndex = 1;
             this.mainTabs.MouseClick += new System.Windows.Forms.MouseEventHandler(this.OnTabClick);
             // 
-            // contextMenuStrip1
+            // tabContextMenuStrip
             // 
-            this.contextMenuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
-            this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
+            this.tabContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.closeToolStripMenuItem,
             this.closeToolStripMenuItemsToRight,
             this.closeToolStripMenuItemsToLeft,
             this.closeToolStripMenuItems});
-            this.contextMenuStrip1.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
-            this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(234, 124);
+            this.tabContextMenuStrip.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
+            this.tabContextMenuStrip.Name = "contextMenuStrip1";
+            this.tabContextMenuStrip.Size = new System.Drawing.Size(234, 146);
             // 
             // closeToolStripMenuItem
             // 
@@ -246,9 +258,9 @@ namespace GUI
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1101, 532);
             this.Controls.Add(this.mainTabs);
-            this.Controls.Add(this.menuStrip1);
+            this.Controls.Add(this.menuStrip);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.MainMenuStrip = this.menuStrip1;
+            this.MainMenuStrip = this.menuStrip;
             this.Margin = new System.Windows.Forms.Padding(2);
             this.MinimumSize = new System.Drawing.Size(347, 340);
             this.Name = "MainForm";
@@ -256,9 +268,9 @@ namespace GUI
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.MainForm_DragEnter);
-            this.menuStrip1.ResumeLayout(false);
-            this.menuStrip1.PerformLayout();
-            this.contextMenuStrip1.ResumeLayout(false);
+            this.menuStrip.ResumeLayout(false);
+            this.menuStrip.PerformLayout();
+            this.tabContextMenuStrip.ResumeLayout(false);
             this.vpkContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -267,9 +279,9 @@ namespace GUI
 
         #endregion
 
-        private System.Windows.Forms.MenuStrip menuStrip1;
+        private System.Windows.Forms.MenuStrip menuStrip;
         private System.Windows.Forms.TabControl mainTabs;
-        private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
+        private System.Windows.Forms.ContextMenuStrip tabContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItem;
         private System.Windows.Forms.ContextMenuStrip vpkContextMenu;
         private System.Windows.Forms.ToolStripMenuItem extractToolStripMenuItem;
@@ -285,6 +297,7 @@ namespace GUI
         private System.Windows.Forms.ToolStripMenuItem openToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
+        private ToolStripMenuItem recoverDeletedToolStripMenuItem;
     }
 }
 

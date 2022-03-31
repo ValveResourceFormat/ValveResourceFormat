@@ -22,6 +22,7 @@ namespace GUI.Controls
         }
 
         private readonly ImageList imageList;
+        public bool DeletedFilesRecovered { get; private set; }
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
         public event TreeNodeMouseClickEventHandler TreeNodeRightClick; // when a TreeNode is single clicked
@@ -157,8 +158,8 @@ namespace GUI.Controls
             control.GenerateIconList(package.Package.Entries.Keys.ToList());
 
             var name = Path.GetFileName(fileName);
-            var root = control.Nodes.Add("root", name, @"vpk", @"vpk");
-            root.Tag = new TreeViewFolder(name, package.Package.Entries.Count);
+            var root = control.Nodes.Add("root", name, "vpk", "vpk");
+            root.Tag = new TreeViewFolder(package.Package.Entries.Count);
             root.Expand();
 
             var vpkName = Path.GetFileName(package.Package.FileName);
@@ -172,6 +173,48 @@ namespace GUI.Controls
             }
 
             control.EndUpdate();
+        }
+
+        internal void RecoverDeletedFiles()
+        {
+            DeletedFilesRecovered = true;
+
+            var progressDialog = new GenericProgressForm
+            {
+                Text = "Scanning for deleted files..."
+            };
+            progressDialog.OnProcess += (_, __) =>
+            {
+                progressDialog.SetProgress("Scanning for deleted files, this may take a while...");
+
+                var package = (TreeViewPackageTag)mainListView.Tag;
+                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(package.Package);
+
+                Invoke((MethodInvoker)(() =>
+                {
+                    if (foundFiles.Count == 0)
+                    {
+                        var rootEmpty = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, "No deleted files found", "_deleted", "_deleted");
+                        rootEmpty.Tag = new TreeViewFolder(0);
+                        return;
+                    }
+
+                    mainTreeView.BeginUpdate();
+                    var root = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, $"Deleted files ({foundFiles.Count} files found)", "_deleted", "_deleted");
+                    root.Tag = new TreeViewFolder(foundFiles.Count);
+
+                    var vpkName = Path.GetFileName(package.Package.FileName);
+
+                    foreach (var file in foundFiles)
+                    {
+                        mainTreeView.AddFileNode(root, file, vpkName, skipDeletedRootFolder: true);
+                    }
+
+                    root.Expand();
+                    mainTreeView.EndUpdate();
+                }));
+            };
+            progressDialog.ShowDialog();
         }
 
         /// <summary>
@@ -299,7 +342,7 @@ namespace GUI.Controls
             else if (node.Tag.GetType() == typeof(TreeViewFolder))
             {
                 var folder = node.Tag as TreeViewFolder;
-                item.SubItems.Add(string.Format("{0} items", folder.ItemCount));
+                item.SubItems.Add($"{folder.ItemCount} items");
                 item.SubItems.Add("folder");
             }
 
