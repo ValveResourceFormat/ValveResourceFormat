@@ -125,15 +125,15 @@ namespace GUI.Types.Viewers
                             var res = new ValveResourceFormat.Resource();
                             res.Read(stream);
 
-                            // TODO: Audio files have data past the length
-                            if (res.FileSize != length)
+                            // Unfortunately for sounds we do not know how long the streaming data actually is
+                            if (res.FileSize != length && res.ResourceType != ResourceType.Sound)
                             {
                                 if (res.FileSize > length)
                                 {
                                     throw new Exception("Resource filesize is bigger than the gap length we found");
                                 }
 
-                                newEntry.Length = length;
+                                newEntry.Length = res.FileSize;
                                 offset += res.FileSize;
                                 scan = true;
                             }
