@@ -6,6 +6,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat
 {
@@ -184,7 +185,7 @@ namespace ValveResourceFormat
 
             if (HeaderVersion != KnownHeaderVersion)
             {
-                throw new InvalidDataException(string.Format("Bad header version. ({0} != expected {1})", HeaderVersion, KnownHeaderVersion));
+                throw new UnexpectedMagicException($"Unexpected header (expected {KnownHeaderVersion})", HeaderVersion, nameof(HeaderVersion));
             }
 
             if (FileName != null)
