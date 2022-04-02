@@ -117,21 +117,15 @@ namespace GUI.Types.Viewers
                             Length = length,
                         };
 
-                        package.ReadEntry(newEntry, out var bytes, false);
+                        package.ReadEntry(newEntry, out var bytes, validateCrc: false);
                         var stream = new MemoryStream(bytes);
 
                         try
                         {
                             var resource = new ValveResourceFormat.Resource();
-                            resource.Read(stream);
+                            resource.Read(stream, verifyFileSize: false);
 
-                            var fileSize = resource.FileSize;
-
-                            if (resource.ResourceType == ResourceType.Sound)
-                            {
-                                var soundData = (Sound)resource.DataBlock;
-                                fileSize += soundData.StreamingDataSize;
-                            }
+                            var fileSize = resource.FullFileSize;
 
                             if (fileSize != length)
                             {

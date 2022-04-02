@@ -418,6 +418,25 @@ namespace ValveResourceFormat.ResourceTypes
             return skiaBitmap;
         }
 
+        public int CalculateTextureDataSize()
+        {
+            var bytes = 0;
+
+            if (CompressedMips != null)
+            {
+                bytes = CompressedMips.Sum();
+            }
+            else
+            {
+                for (var j = 0; j < NumMipLevels; j++)
+                {
+                    bytes += CalculateBufferSizeForMipLevel(j) * (Flags.HasFlag(VTexFlags.CUBE_TEXTURE) ? 6 : 1);
+                }
+            }
+
+            return bytes;
+        }
+
         private int CalculateBufferSizeForMipLevel(int mipLevel)
         {
             var bytesPerPixel = BlockSize;
