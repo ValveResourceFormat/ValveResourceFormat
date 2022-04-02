@@ -9,6 +9,7 @@ using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -36,6 +37,31 @@ namespace ValveResourceFormat.ResourceTypes
 
             public Sequence[] Sequences { get; set; }
         }
+
+        public int BlockSize => Format switch
+        {
+            VTexFormat.DXT1 => 8,
+            VTexFormat.DXT5 => 16,
+            VTexFormat.RGBA8888 => 4,
+            VTexFormat.R16 => 2,
+            VTexFormat.RG1616 => 4,
+            VTexFormat.RGBA16161616 => 8,
+            VTexFormat.R16F => 2,
+            VTexFormat.RG1616F => 4,
+            VTexFormat.RGBA16161616F => 8,
+            VTexFormat.R32F => 4,
+            VTexFormat.RG3232F => 8,
+            VTexFormat.RGB323232F => 12,
+            VTexFormat.RGBA32323232F => 16,
+            VTexFormat.BC6H => 16,
+            VTexFormat.BC7 => 16,
+            VTexFormat.IA88 => 2,
+            VTexFormat.ETC2 => 8,
+            VTexFormat.ETC2_EAC => 16,
+            VTexFormat.BGRA8888 => 4,
+            VTexFormat.ATI1N => 8,
+            _ => 1,
+        };
 
         private BinaryReader Reader;
         private long DataOffset;
@@ -89,7 +115,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Version != 1)
             {
-                throw new InvalidDataException(string.Format("Unknown vtex version. ({0} != expected 1)", Version));
+                throw new UnexpectedMagicException("Unknown vtex version", Version, nameof(Version));
             }
 
             Flags = (VTexFlags)reader.ReadUInt16();
@@ -258,10 +284,10 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = DataOffset;
 
-            var width = ActualWidth >> MipmapLevelToExtract;
-            var height = ActualHeight >> MipmapLevelToExtract;
-            var blockWidth = Width >> MipmapLevelToExtract;
-            var blockHeight = Height >> MipmapLevelToExtract;
+            var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
+            var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
+            var blockWidth = MipLevelSize(Width, MipmapLevelToExtract);
+            var blockHeight = MipLevelSize(Height, MipmapLevelToExtract);
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
@@ -394,15 +420,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         private int CalculateBufferSizeForMipLevel(int mipLevel)
         {
-            var bytesPerPixel = GetBlockSize();
-            var width = Width >> mipLevel;
-            var height = Height >> mipLevel;
-            var depth = Depth >> mipLevel;
-
-            if (depth < 1)
-            {
-                depth = 1;
-            }
+            var bytesPerPixel = BlockSize;
+            var width = MipLevelSize(Width, mipLevel);
+            var height = MipLevelSize(Height, mipLevel);
+            var depth = MipLevelSize(Depth, mipLevel);
 
             if (Format == VTexFormat.DXT1
             || Format == VTexFormat.DXT5
@@ -522,35 +543,12 @@ namespace ValveResourceFormat.ResourceTypes
             return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
         }
 
-#pragma warning disable CA1024 // Use properties where appropriate
-        public int GetBlockSize()
+        private static int MipLevelSize(int size, int level)
         {
-            return Format switch
-            {
-                VTexFormat.DXT1 => 8,
-                VTexFormat.DXT5 => 16,
-                VTexFormat.RGBA8888 => 4,
-                VTexFormat.R16 => 2,
-                VTexFormat.RG1616 => 4,
-                VTexFormat.RGBA16161616 => 8,
-                VTexFormat.R16F => 2,
-                VTexFormat.RG1616F => 4,
-                VTexFormat.RGBA16161616F => 8,
-                VTexFormat.R32F => 4,
-                VTexFormat.RG3232F => 8,
-                VTexFormat.RGB323232F => 12,
-                VTexFormat.RGBA32323232F => 16,
-                VTexFormat.BC6H => 16,
-                VTexFormat.BC7 => 16,
-                VTexFormat.IA88 => 2,
-                VTexFormat.ETC2 => 8,
-                VTexFormat.ETC2_EAC => 16,
-                VTexFormat.BGRA8888 => 4,
-                VTexFormat.ATI1N => 8,
-                _ => 1,
-            };
+            size >>= level;
+
+            return Math.Max(size, 1);
         }
-#pragma warning restore CA1024 // Use properties where appropriate
 
         public override string ToString()
         {
