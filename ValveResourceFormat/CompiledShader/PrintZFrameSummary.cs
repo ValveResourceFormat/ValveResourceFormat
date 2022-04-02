@@ -170,15 +170,15 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintParamWriteSequence(ShaderFile shaderFile, byte[] dataload, int h0, int h1, int h2, string seqName = "")
         {
+            string b2Desc = "dest";
+            string b3Desc = "control";
+            string dataBlockHeader = $"{seqName,-35} {b2Desc,-11} {b3Desc}";
+            OutputWriteLine(dataBlockHeader);
             if (h0 == 0)
             {
                 OutputWriteLine("[empty writesequence]");
                 return;
             }
-            string b2Desc = "dest";
-            string b3Desc = "control";
-            string dataBlockHeader = $"{seqName,-35} {b2Desc,-11} {b3Desc}";
-            OutputWriteLine(dataBlockHeader);
             for (int i = 0; i < h0; i++)
             {
                 int paramId = dataload[i * 4];
@@ -290,8 +290,9 @@ namespace ValveResourceFormat.CompiledShader
         private List<int> GetActiveBlockIds()
         {
             List<int> blockIds = new();
-            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader ||
-                zframeFile.vcsProgramType == VcsProgramType.GeometryShader || zframeFile.vcsProgramType == VcsProgramType.ComputeShader)
+            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader || zframeFile.vcsProgramType == VcsProgramType.GeometryShader ||
+                zframeFile.vcsProgramType == VcsProgramType.ComputeShader || zframeFile.vcsProgramType == VcsProgramType.DomainShader ||
+                zframeFile.vcsProgramType == VcsProgramType.HullShader)
             {
                 foreach (VsEndBlock vsEndBlock in zframeFile.vsEndBlocks)
                 {
@@ -311,8 +312,9 @@ namespace ValveResourceFormat.CompiledShader
         static Dictionary<int, GpuSource> GetBlockIdToSource(ZFrameFile zframeFile)
         {
             Dictionary<int, GpuSource> blockIdToSource = new();
-            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader ||
-                zframeFile.vcsProgramType == VcsProgramType.GeometryShader || zframeFile.vcsProgramType == VcsProgramType.ComputeShader)
+            if (zframeFile.vcsProgramType == VcsProgramType.VertexShader || zframeFile.vcsProgramType == VcsProgramType.GeometryShader ||
+                zframeFile.vcsProgramType == VcsProgramType.ComputeShader || zframeFile.vcsProgramType == VcsProgramType.DomainShader ||
+                zframeFile.vcsProgramType == VcsProgramType.HullShader)
             {
                 foreach (VsEndBlock vsEndBlock in zframeFile.vsEndBlocks)
                 {
@@ -381,7 +383,9 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', headerText.Length));
 
             VcsProgramType vcsFiletype = shaderFile.vcsProgramType;
-            if (vcsFiletype == VcsProgramType.VertexShader || vcsFiletype == VcsProgramType.GeometryShader || vcsFiletype == VcsProgramType.ComputeShader)
+            if (vcsFiletype == VcsProgramType.VertexShader || vcsFiletype == VcsProgramType.GeometryShader ||
+                vcsFiletype == VcsProgramType.ComputeShader || vcsFiletype == VcsProgramType.DomainShader ||
+                vcsFiletype == VcsProgramType.HullShader)
             {
                 OutputWriteLine($"{zframeFile.vsEndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.vsEndBlocks.Count})");
                 OutputWriteLine("");
@@ -391,6 +395,10 @@ namespace ValveResourceFormat.CompiledShader
                     OutputWriteLine($"arg0              {vsEndBlock.arg0}");
                     OutputWriteLine($"source-ref        {vsEndBlock.sourceRef}");
                     OutputWriteLine($"source-pointer    {vsEndBlock.sourcePointer}");
+                    if (vcsFiletype == VcsProgramType.HullShader)
+                    {
+                        OutputWriteLine($"hs-arg            {vsEndBlock.hullShaderArg}");
+                    }
                     OutputWriteLine($"{BytesToString(vsEndBlock.databytes)}");
                     OutputWriteLine("");
                 }

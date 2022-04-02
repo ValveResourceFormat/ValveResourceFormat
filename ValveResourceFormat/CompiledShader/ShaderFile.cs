@@ -394,7 +394,7 @@ namespace ValveResourceFormat.CompiledShader
             // if `shortenOutput = true` the parser returns after, or shortly after, showing the listings only
             //
             // Parsing correctness is always verified because an end-of-file pointer is provided right after the zframe
-            // listing, the datareader must either reach or be assigned to the end of file to complete parsing; cecked in
+            // listing, the datareader must either reach or be assigned to the end of file to complete parsing; checked in
             // the call to datareader.ShowEndOfFile()
             //
             //
