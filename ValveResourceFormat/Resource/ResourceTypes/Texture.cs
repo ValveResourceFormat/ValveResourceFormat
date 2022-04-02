@@ -386,9 +386,11 @@ namespace ValveResourceFormat.ResourceTypes
                 // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
+                    return SKBitmap.Decode(Reader.ReadBytes((int)(Reader.BaseStream.Length - Reader.BaseStream.Position)));
+
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
-                    return ReadBuffer();
+                    return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
 
                 case VTexFormat.ETC2:
                     // TODO: Rewrite EtcDecoder to work on skia span directly
@@ -420,6 +422,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         public int CalculateTextureDataSize()
         {
+            if (Format == VTexFormat.PNG_DXT5 || Format == VTexFormat.PNG_RGBA8888)
+            {
+                return CalculatePngSize();
+            }
+
             var bytes = 0;
 
             if (CompressedMips != null)
@@ -557,9 +564,51 @@ namespace ValveResourceFormat.ResourceTypes
             return new BinaryReader(outStream); // TODO: dispose
         }
 
-        private SKBitmap ReadBuffer()
+        private int CalculatePngSize()
         {
-            return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
+            var size = 8; // PNG header
+            var originalPosition = Reader.BaseStream.Position;
+
+            Reader.BaseStream.Position = DataOffset;
+
+            try
+            {
+                var pngHeaderA = Reader.ReadInt32();
+                var pngHeaderB = Reader.ReadInt32();
+
+                if (pngHeaderA != 0x474E5089)
+                {
+                    throw new UnexpectedMagicException("This is not PNG", pngHeaderA, nameof(pngHeaderA));
+                }
+
+                if (pngHeaderB != 0x0A1A0A0D)
+                {
+                    throw new UnexpectedMagicException("This is not PNG", pngHeaderB, nameof(pngHeaderB));
+                }
+
+                var chunk = 0;
+
+                // Scan all the chunks until IEND
+                do
+                {
+                    // Integers in png are big endian
+                    var number = Reader.ReadBytes(sizeof(uint));
+                    Array.Reverse(number);
+                    size += BitConverter.ToInt32(number);
+                    size += 12; // length + chunk type + crc
+
+                    chunk = Reader.ReadInt32();
+
+                    Reader.BaseStream.Position = DataOffset + size;
+                }
+                while (chunk != 0x444E4549);
+            }
+            finally
+            {
+                Reader.BaseStream.Position = originalPosition;
+            }
+
+            return size;
         }
 
         private static int MipLevelSize(int size, int level)

@@ -333,7 +333,7 @@ namespace ValveResourceFormat
 
                     // TODO: We do not currently have a way of calculating buffer size for these types
                     // Texture.GenerateBitmap also just reads until end of the buffer
-                    if (data.Format == VTexFormat.JPEG_DXT5 || data.Format == VTexFormat.JPEG_RGBA8888 || data.Format == VTexFormat.PNG_DXT5 || data.Format == VTexFormat.PNG_RGBA8888)
+                    if (data.Format == VTexFormat.JPEG_DXT5 || data.Format == VTexFormat.JPEG_RGBA8888)
                     {
                         return;
                     }
