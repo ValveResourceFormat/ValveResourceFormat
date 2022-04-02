@@ -533,7 +533,11 @@ namespace Decompiler
             try
             {
                 shader.Read(path, stream);
-                shader.PrintSummary();
+
+                if (!CollectStats)
+                {
+                    shader.PrintSummary();
+                }
             }
             catch (Exception e)
             {

@@ -1,14 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
     public class Package : IViewer
     {
+        internal const string DELETED_FILES_FOLDER = "@@ VRF Deleted Files @@";
         public ImageList ImageList { get; set; }
 
         public static bool IsAccepted(uint magic)
@@ -46,6 +51,129 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(treeViewWithSearch);
 
             return tab;
+        }
+
+        internal static List<PackageEntry> RecoverDeletedFiles(SteamDatabase.ValvePak.Package package)
+        {
+            var allEntries = package.Entries
+                .SelectMany(file => file.Value)
+                .OrderBy(file => file.Offset)
+                .GroupBy(file => file.ArchiveIndex)
+                .OrderBy(x => x.Key)
+                .ToDictionary(x => x.Key, x => x.ToList());
+
+            var hiddenIndex = 0;
+            var totalSlackSize = 0u;
+            var hiddenFiles = new List<PackageEntry>();
+
+            // TODO: Skip non-chunked vpks?
+            foreach (var (archiveIndex, entries) in allEntries)
+            {
+                var nextOffset = 0u;
+
+                foreach (var entry in entries)
+                {
+                    if (entry.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var offset = nextOffset;
+                    nextOffset = entry.Offset + entry.Length;
+
+                    totalSlackSize += entry.Offset - offset;
+
+                    var scan = true;
+
+                    while (scan)
+                    {
+                        scan = false;
+
+                        if (offset == entry.Offset)
+                        {
+                            break;
+                        }
+
+                        offset = (offset + 16 - 1) & ~(16u - 1); // TODO: Validate this gap
+
+                        var length = entry.Offset - offset;
+
+                        if (length <= 16)
+                        {
+                            // TODO: Verify what this gap is, seems to be null bytes
+                            break;
+                        }
+
+                        hiddenIndex++;
+                        var newEntry = new PackageEntry
+                        {
+                            FileName = $"Archive {archiveIndex} File {hiddenIndex}",
+                            DirectoryName = DELETED_FILES_FOLDER,
+                            TypeName = " ",
+                            CRC32 = 0,
+                            SmallData = Array.Empty<byte>(),
+                            ArchiveIndex = archiveIndex,
+                            Offset = offset,
+                            Length = length,
+                        };
+
+                        package.ReadEntry(newEntry, out var bytes, validateCrc: false);
+                        var stream = new MemoryStream(bytes);
+
+                        try
+                        {
+                            var resource = new ValveResourceFormat.Resource();
+                            resource.Read(stream, verifyFileSize: false);
+
+                            var fileSize = resource.FullFileSize;
+
+                            if (fileSize != length)
+                            {
+                                if (fileSize > length)
+                                {
+                                    throw new Exception("Resource filesize is bigger than the gap length we found");
+                                }
+
+                                newEntry.Length = fileSize;
+                                offset += fileSize;
+                                scan = true;
+                            }
+
+                            if (resource.ResourceType != ResourceType.Unknown)
+                            {
+                                var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString())[0];
+                                newEntry.TypeName = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
+                                newEntry.TypeName += "_c";
+                            }
+
+                            newEntry.DirectoryName += "/" + resource.ResourceType;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
+
+                            newEntry.FileName += $" ({length} bytes)";
+                        }
+
+                        if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
+                        {
+                            typeEntries = new List<PackageEntry>();
+                            package.Entries.Add(newEntry.TypeName, typeEntries);
+                        }
+
+                        typeEntries.Add(newEntry);
+                        hiddenFiles.Add(newEntry);
+                    }
+                }
+
+                // TODO: Check nextOffset against archive file size
+            }
+
+            Console.WriteLine($"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
+
+            // TODO: Check for completely unused vpk chunk files
+
+            return hiddenFiles;
         }
 
         private void VPK_Disposed(object sender, EventArgs e)
@@ -86,7 +214,7 @@ namespace GUI.Types.Viewers
             {
                 var package = node.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
                 var file = node.Tag as PackageEntry;
-                package.Package.ReadEntry(file, out var output);
+                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 Program.MainForm.OpenFile(file.GetFileName(), output, package);
             }

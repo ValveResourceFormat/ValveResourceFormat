@@ -299,6 +299,8 @@ namespace ValveResourceFormat.ResourceTypes
             var duration = TimeSpan.FromSeconds(Duration);
             output.AppendLine($"Duration: {duration} ({Duration})");
 
+            output.AppendLine($"StreamingDataSize: {StreamingDataSize}");
+
             return output.ToString();
         }
     }

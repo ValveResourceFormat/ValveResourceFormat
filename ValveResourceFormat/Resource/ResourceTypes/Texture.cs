@@ -9,6 +9,7 @@ using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -36,6 +37,31 @@ namespace ValveResourceFormat.ResourceTypes
 
             public Sequence[] Sequences { get; set; }
         }
+
+        public int BlockSize => Format switch
+        {
+            VTexFormat.DXT1 => 8,
+            VTexFormat.DXT5 => 16,
+            VTexFormat.RGBA8888 => 4,
+            VTexFormat.R16 => 2,
+            VTexFormat.RG1616 => 4,
+            VTexFormat.RGBA16161616 => 8,
+            VTexFormat.R16F => 2,
+            VTexFormat.RG1616F => 4,
+            VTexFormat.RGBA16161616F => 8,
+            VTexFormat.R32F => 4,
+            VTexFormat.RG3232F => 8,
+            VTexFormat.RGB323232F => 12,
+            VTexFormat.RGBA32323232F => 16,
+            VTexFormat.BC6H => 16,
+            VTexFormat.BC7 => 16,
+            VTexFormat.IA88 => 2,
+            VTexFormat.ETC2 => 8,
+            VTexFormat.ETC2_EAC => 16,
+            VTexFormat.BGRA8888 => 4,
+            VTexFormat.ATI1N => 8,
+            _ => 1,
+        };
 
         private BinaryReader Reader;
         private long DataOffset;
@@ -89,7 +115,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Version != 1)
             {
-                throw new InvalidDataException(string.Format("Unknown vtex version. ({0} != expected 1)", Version));
+                throw new UnexpectedMagicException("Unknown vtex version", Version, nameof(Version));
             }
 
             Flags = (VTexFlags)reader.ReadUInt16();
@@ -258,10 +284,10 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = DataOffset;
 
-            var width = ActualWidth >> MipmapLevelToExtract;
-            var height = ActualHeight >> MipmapLevelToExtract;
-            var blockWidth = Width >> MipmapLevelToExtract;
-            var blockHeight = Height >> MipmapLevelToExtract;
+            var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
+            var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
+            var blockWidth = MipLevelSize(Width, MipmapLevelToExtract);
+            var blockHeight = MipLevelSize(Height, MipmapLevelToExtract);
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
@@ -360,9 +386,11 @@ namespace ValveResourceFormat.ResourceTypes
                 // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
+                    return SKBitmap.Decode(Reader.ReadBytes((int)(Reader.BaseStream.Length - Reader.BaseStream.Position)));
+
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
-                    return ReadBuffer();
+                    return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
 
                 case VTexFormat.ETC2:
                     // TODO: Rewrite EtcDecoder to work on skia span directly
@@ -392,17 +420,36 @@ namespace ValveResourceFormat.ResourceTypes
             return skiaBitmap;
         }
 
+        public int CalculateTextureDataSize()
+        {
+            if (Format == VTexFormat.PNG_DXT5 || Format == VTexFormat.PNG_RGBA8888)
+            {
+                return CalculatePngSize();
+            }
+
+            var bytes = 0;
+
+            if (CompressedMips != null)
+            {
+                bytes = CompressedMips.Sum();
+            }
+            else
+            {
+                for (var j = 0; j < NumMipLevels; j++)
+                {
+                    bytes += CalculateBufferSizeForMipLevel(j) * (Flags.HasFlag(VTexFlags.CUBE_TEXTURE) ? 6 : 1);
+                }
+            }
+
+            return bytes;
+        }
+
         private int CalculateBufferSizeForMipLevel(int mipLevel)
         {
-            var bytesPerPixel = GetBlockSize();
-            var width = Width >> mipLevel;
-            var height = Height >> mipLevel;
-            var depth = Depth >> mipLevel;
-
-            if (depth < 1)
-            {
-                depth = 1;
-            }
+            var bytesPerPixel = BlockSize;
+            var width = MipLevelSize(Width, mipLevel);
+            var height = MipLevelSize(Height, mipLevel);
+            var depth = MipLevelSize(Depth, mipLevel);
 
             if (Format == VTexFormat.DXT1
             || Format == VTexFormat.DXT5
@@ -517,40 +564,59 @@ namespace ValveResourceFormat.ResourceTypes
             return new BinaryReader(outStream); // TODO: dispose
         }
 
-        private SKBitmap ReadBuffer()
+        private int CalculatePngSize()
         {
-            return SKBitmap.Decode(Reader.ReadBytes((int)Reader.BaseStream.Length));
+            var size = 8; // PNG header
+            var originalPosition = Reader.BaseStream.Position;
+
+            Reader.BaseStream.Position = DataOffset;
+
+            try
+            {
+                var pngHeaderA = Reader.ReadInt32();
+                var pngHeaderB = Reader.ReadInt32();
+
+                if (pngHeaderA != 0x474E5089)
+                {
+                    throw new UnexpectedMagicException("This is not PNG", pngHeaderA, nameof(pngHeaderA));
+                }
+
+                if (pngHeaderB != 0x0A1A0A0D)
+                {
+                    throw new UnexpectedMagicException("This is not PNG", pngHeaderB, nameof(pngHeaderB));
+                }
+
+                var chunk = 0;
+
+                // Scan all the chunks until IEND
+                do
+                {
+                    // Integers in png are big endian
+                    var number = Reader.ReadBytes(sizeof(uint));
+                    Array.Reverse(number);
+                    size += BitConverter.ToInt32(number);
+                    size += 12; // length + chunk type + crc
+
+                    chunk = Reader.ReadInt32();
+
+                    Reader.BaseStream.Position = DataOffset + size;
+                }
+                while (chunk != 0x444E4549);
+            }
+            finally
+            {
+                Reader.BaseStream.Position = originalPosition;
+            }
+
+            return size;
         }
 
-#pragma warning disable CA1024 // Use properties where appropriate
-        public int GetBlockSize()
+        private static int MipLevelSize(int size, int level)
         {
-            return Format switch
-            {
-                VTexFormat.DXT1 => 8,
-                VTexFormat.DXT5 => 16,
-                VTexFormat.RGBA8888 => 4,
-                VTexFormat.R16 => 2,
-                VTexFormat.RG1616 => 4,
-                VTexFormat.RGBA16161616 => 8,
-                VTexFormat.R16F => 2,
-                VTexFormat.RG1616F => 4,
-                VTexFormat.RGBA16161616F => 8,
-                VTexFormat.R32F => 4,
-                VTexFormat.RG3232F => 8,
-                VTexFormat.RGB323232F => 12,
-                VTexFormat.RGBA32323232F => 16,
-                VTexFormat.BC6H => 16,
-                VTexFormat.BC7 => 16,
-                VTexFormat.IA88 => 2,
-                VTexFormat.ETC2 => 8,
-                VTexFormat.ETC2_EAC => 16,
-                VTexFormat.BGRA8888 => 4,
-                VTexFormat.ATI1N => 8,
-                _ => 1,
-            };
+            size >>= level;
+
+            return Math.Max(size, 1);
         }
-#pragma warning restore CA1024 // Use properties where appropriate
 
         public override string ToString()
         {

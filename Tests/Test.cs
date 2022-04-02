@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace Tests
 {
@@ -161,7 +162,7 @@ namespace Tests
             {
                 using (var ms = new MemoryStream(Enumerable.Repeat<byte>(1, 12).ToArray()))
                 {
-                    Assert.Throws<InvalidDataException>(() => resource.Read(ms));
+                    Assert.Throws<UnexpectedMagicException>(() => resource.Read(ms));
                 }
             }
         }
