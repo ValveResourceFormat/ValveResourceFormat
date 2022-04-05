@@ -196,7 +196,7 @@ namespace ValveResourceFormat.CompiledShader
             if (vcs_version >= 64 && has_psrs_file == 1)
             {
                 datareader.ShowBytes(16, $"Editor ref. ID7 - reference to psrs file ({VcsProgramType.PixelShaderRenderState})");
-                datareader.ShowBytes(16, "Editor ref. ID7 - common editor reference shared by multiple files");
+                datareader.ShowBytes(16, "Editor ref. ID8 - common editor reference shared by multiple files");
             }
             datareader.BreakLine();
         }

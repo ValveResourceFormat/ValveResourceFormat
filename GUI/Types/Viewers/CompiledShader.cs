@@ -310,15 +310,15 @@ namespace GUI.Types.Viewers
                 // (the sourceId is not the same as the zframeId - a single zframe may contain more than 1 source,
                 // they are enumerated in each zframe file starting from 0)
                 int gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
-                string gpuSourceLabel = $"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]({gpuSourceId})";
+                string gpuSourceTabTitle = $"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]({gpuSourceId})";
 
                 TabPage gpuSourceTab = null;
+                var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
                 switch (zframeFile.gpuSources[gpuSourceId])
                 {
                     case GlslSource:
-                        var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                        zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
-                        gpuSourceTab = new TabPage(gpuSourceLabel);
+                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
                         var gpuSourceRichTextBox = new RichTextBox
                         {
                             Font = new Font(FontFamily.GenericMonospace, Font.Size),
@@ -336,7 +336,9 @@ namespace GUI.Types.Viewers
                     case DxbcSource:
                     case DxilSource:
                     case VulkanSource:
-                        gpuSourceTab = CreateByteViewerTab(zframeFile.gpuSources[gpuSourceId].sourcebytes, gpuSourceLabel);
+                        byte[] input = zframeFile.gpuSources[gpuSourceId].sourcebytes;
+                        gpuSourceTab = CreateByteViewerTab(input, buffer.ToString());
+                        gpuSourceTab.Text = gpuSourceTabTitle;
                         break;
 
                     default:
@@ -350,19 +352,39 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            private static TabPage CreateByteViewerTab(byte[] input, string tabName)
+            private static TabPage CreateByteViewerTab(byte[] databytes, string dataFormatted)
             {
-                var bvTab = new TabPage(tabName);
+                var tab = new TabPage();
+                var resTabs = new TabControl
+                {
+                    Dock = DockStyle.Fill,
+                };
+                tab.Controls.Add(resTabs);
+                var bvTab = new TabPage("Hex");
                 var bv = new System.ComponentModel.Design.ByteViewer
                 {
                     Dock = DockStyle.Fill,
                 };
                 bvTab.Controls.Add(bv);
-                Program.MainForm.Invoke((MethodInvoker)(() =>
+                resTabs.TabPages.Add(bvTab);
+                var textTab = new TabPage("Bytes");
+                var textBox = new System.Windows.Forms.RichTextBox
                 {
-                    bv.SetBytes(input);
-                }));
-                return bvTab;
+                    Dock = DockStyle.Fill,
+                    ScrollBars = RichTextBoxScrollBars.Both,
+                    Multiline = true,
+                    ReadOnly = true,
+                    WordWrap = false,
+                    Text = dataFormatted,
+                };
+                textBox.Font = new Font(FontFamily.GenericMonospace, textBox.Font.Size);
+                textTab.Controls.Add(textBox);
+                resTabs.TabPages.Add(textTab);
+                resTabs.SelectedTab = textTab;
+                Program.MainForm.Invoke((MethodInvoker)(
+                    () => bv.SetBytes(databytes)
+                ));
+                return tab;
             }
         }
     }
