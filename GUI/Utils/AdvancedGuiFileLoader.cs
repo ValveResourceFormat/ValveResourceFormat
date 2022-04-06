@@ -14,6 +14,7 @@ namespace GUI.Utils
     public class AdvancedGuiFileLoader : IFileLoader
     {
         private static readonly Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
+        private readonly HashSet<string> CurrentGameSearchPaths = new HashSet<string>();
         private readonly List<Package> CurrentGamePackages = new List<Package>();
         private readonly Dictionary<string, Resource> CachedResources = new Dictionary<string, Resource>();
         private readonly VrfGuiContext GuiContext;
@@ -130,7 +131,7 @@ namespace GUI.Utils
                 }
             }
 
-            var path = FindResourcePath(paths, file, GuiContext.FileName);
+            var path = FindResourcePath(paths.Concat(CurrentGameSearchPaths).ToList(), file, GuiContext.FileName);
 
             if (path == null)
             {
@@ -216,6 +217,16 @@ namespace GUI.Utils
                     var package = new Package();
                     package.Read(vpk);
                     CurrentGamePackages.Add(package);
+                }
+
+
+                if (!Settings.Config.GameSearchPaths.Contains(folder) && !CurrentGameSearchPaths.Contains(folder))
+                {
+                    Console.WriteLine($"Added folder \"{folder}\" to game search paths");
+
+                    CurrentGameSearchPaths.Add(folder);
+
+                    continue;
                 }
             }
         }
