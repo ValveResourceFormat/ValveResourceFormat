@@ -260,7 +260,7 @@ namespace GUI.Types.Renderer
                     modelNode.SetAnimation(animation);
                 }
 
-                var bodyHash = EntityLumpKeyLookup.Get("body");
+                var bodyHash = StringToken.Get("body");
                 if (entity.Properties.ContainsKey(bodyHash))
                 {
                     var groups = modelNode.GetMeshGroups();

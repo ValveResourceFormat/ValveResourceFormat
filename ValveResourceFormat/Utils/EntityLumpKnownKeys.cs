@@ -2,11 +2,9 @@ using System.Collections.Generic;
 
 namespace ValveResourceFormat.Utils
 {
-    public class EntityLumpKnownKeys
+    class EntityLumpKnownKeys
     {
-        public Dictionary<uint, string> Fields { get; } = new Dictionary<uint, string>();
-
-        public EntityLumpKnownKeys()
+        public static void FillKeys()
         {
             // grep -Eohr "^\s*([a-zA-Z0-9\w_-]+)\s*\(" **/*.fgd | tr '[:upper:]' '[:lower:]' | sort -h | uniq > test.txt
             // grep -Eohr "^\s*\[Property\(\s*\"([a-zA-Z0-9\w_-]+)\"" sbox/**/*.cs | tr '[:upper:]' '[:lower:]' | sort -h | uniq > test.txt
@@ -5954,7 +5952,7 @@ namespace ValveResourceFormat.Utils
 
             foreach (var field in list)
             {
-                Fields.Add(EntityLumpKeyLookup.Get(field), field);
+                StringToken.Get(field);
             }
         }
     }

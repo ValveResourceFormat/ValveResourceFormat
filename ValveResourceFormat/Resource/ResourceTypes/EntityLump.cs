@@ -17,10 +17,10 @@ namespace ValveResourceFormat.ResourceTypes
             public List<IKeyValueCollection> Connections { get; internal set; }
 
             public T GetProperty<T>(string name)
-                => GetProperty<T>(EntityLumpKeyLookup.Get(name));
+                => GetProperty<T>(StringToken.Get(name));
 
             public EntityProperty GetProperty(string name)
-                => GetProperty(EntityLumpKeyLookup.Get(name));
+                => GetProperty(StringToken.Get(name));
 
             public T GetProperty<T>(uint hash)
             {
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public string ToEntityDumpString()
         {
-            var knownKeys = new EntityLumpKnownKeys().Fields;
+            var knownKeys = StringToken.InvertedTable;
             var builder = new StringBuilder();
             var unknownKeys = new Dictionary<uint, uint>();
 
@@ -188,9 +188,9 @@ namespace ValveResourceFormat.ResourceTypes
 
                     string key;
 
-                    if (knownKeys.ContainsKey(property.Key))
+                    if (knownKeys.TryGetValue(property.Key, out var knownKey))
                     {
-                        key = knownKeys[property.Key];
+                        key = knownKey;
                     }
                     else if (property.Value.Name != null)
                     {
