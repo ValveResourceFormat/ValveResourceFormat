@@ -47,11 +47,13 @@ namespace GUI.Controls
             stopwatch = new Stopwatch();
 
             // Initialize GL control
+            var flags = GraphicsContextFlags.ForwardCompatible;
+
 #if DEBUG
-            GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Debug);
-#else
-            GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, GraphicsContextFlags.Default);
+            flags |= GraphicsContextFlags.Debug;
 #endif
+
+            GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, flags);
             GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;
