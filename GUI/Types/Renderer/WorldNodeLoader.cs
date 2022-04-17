@@ -80,7 +80,7 @@ namespace GUI.Types.Renderer
 
                 var renderable = sceneObject.GetProperty<string>("m_renderable");
 
-                if (renderable != null)
+                if (!string.IsNullOrEmpty(renderable))
                 {
                     var newResource = guiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
 
