@@ -45,13 +45,13 @@ void main()
     vec4 color = texture(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
 
 #if param_F_ALPHA_TEST == 1
-	if (color.a < g_flAlphaTestReference)
+    if (color.a < g_flAlphaTestReference)
     {
        discard;
     }
 #endif
 
-	//Get the direction from the fragment to the light - light position == camera position for now
+    //Get the direction from the fragment to the light - light position == camera position for now
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Get the world normal for this fragment
@@ -80,18 +80,18 @@ void main()
 
     // Different render mode definitions
 #if param_renderMode_Color == 1
-	outputColor = vec4(color.rgb, 1.0);
+    outputColor = vec4(color.rgb, 1.0);
 #endif
 
 #if param_renderMode_Normals
-	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals
-	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, illumination, illumination, 1.0);
+    outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }

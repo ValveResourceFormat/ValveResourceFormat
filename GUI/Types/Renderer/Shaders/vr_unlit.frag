@@ -29,7 +29,7 @@ void main()
     vec4 color = texture(g_tColor2, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
 
 #if param_F_ALPHA_TEST == 1
-	if (color.a < g_flAlphaTestReference)
+    if (color.a < g_flAlphaTestReference)
     {
        discard;
     }

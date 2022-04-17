@@ -29,22 +29,22 @@ void main()
 {
     mat4 skinTransformMatrix = transform * getSkinMatrix();
     vec4 fragPosition = skinTransformMatrix * vec4(vPOSITION, 1.0);
-	gl_Position = uProjectionViewMatrix * fragPosition;
-	vFragPosition = fragPosition.xyz / fragPosition.w;
+    gl_Position = uProjectionViewMatrix * fragPosition;
+    vFragPosition = fragPosition.xyz / fragPosition.w;
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransformMatrix)));
 
-	//Unpack normals
+    //Unpack normals
 #if param_fulltangent == 1
-	vNormalOut = normalize(normalTransform * vNORMAL.xyz);
-	vTangentOut = normalize(normalTransform * vTANGENT.xyz);
-	vBitangentOut = cross(vNormalOut, vTangentOut);
+    vNormalOut = normalize(normalTransform * vNORMAL.xyz);
+    vTangentOut = normalize(normalTransform * vTANGENT.xyz);
+    vBitangentOut = cross(vNormalOut, vTangentOut);
 #else
     vec4 tangent = DecompressTangent(vNORMAL);
-	vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
     vTangentOut = normalize(normalTransform * tangent.xyz);
-	vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 #endif
 
-	vTexCoordOut = vTEXCOORD;
+    vTexCoordOut = vTEXCOORD;
 }

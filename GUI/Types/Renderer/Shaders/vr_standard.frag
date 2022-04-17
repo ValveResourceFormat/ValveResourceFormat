@@ -55,7 +55,7 @@ vec3 calculateWorldNormal()
     vec3 tangentNormal = oct_to_float32x3(temp);
 #endif
 #if param_LegacySource1InvertNormals == 1
-	tangentNormal.y *= -1.0;
+    tangentNormal.y *= -1.0;
 #endif
 
     vec3 normal = vNormalOut;
@@ -79,7 +79,7 @@ void main()
     vec4 color = texture(g_tColor, vTexCoordOut);
 
 #if param_F_ALPHA_TEST == 1
-	if (color.a < g_flAlphaTestReference)
+    if (color.a < g_flAlphaTestReference)
     {
        discard;
     }
@@ -100,26 +100,26 @@ void main()
     outputColor = vec4(illumination * color.rgb * g_vColorTint.rgb, color.a);
 
 #if param_renderMode_Color == 1
-	outputColor = vec4(color.rgb, 1.0);
+    outputColor = vec4(color.rgb, 1.0);
 #endif
 
 #if param_renderMode_BumpMap == 1
-	outputColor = texture(g_tNormal, vTexCoordOut);
+    outputColor = texture(g_tNormal, vTexCoordOut);
 #endif
 
 #if param_renderMode_Tangents == 1
-	outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
-	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpNormals == 1
-	outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, illumination, illumination, 1.0);
+    outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }

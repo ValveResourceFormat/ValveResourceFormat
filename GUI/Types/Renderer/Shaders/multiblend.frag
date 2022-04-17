@@ -210,34 +210,34 @@ void main()
     outputColor = vec4(illumination * occludedColor.xyz + vec3(0.7) * specular, 1);
 
 #if param_renderMode_Color == 1
-	outputColor = vec4(finalColor.rgb, 1.0);
+    outputColor = vec4(finalColor.rgb, 1.0);
 #endif
 
 #if param_renderMode_Terrain_Blend == 1
-	outputColor = vec4(blend.xyz, 1.0);
+    outputColor = vec4(blend.xyz, 1.0);
 #endif
 
 #if param_renderMode_Ambient_Occlusion == 1
-	outputColor = vec4(vWeightsOut2.xyz, 1.0);
+    outputColor = vec4(vWeightsOut2.xyz, 1.0);
 #endif
 
 #if param_renderMode_Normals == 1
-	outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Tangents == 1 && param_F_NORMAL_MAP == 1
-	outputColor = vec4(tangent * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(tangent * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_BumpMap == 1 && param_F_NORMAL_MAP == 1
-	outputColor = vec4(bumpNormal.xyz, 1.0);
+    outputColor = vec4(bumpNormal.xyz, 1.0);
 #endif
 
 #if param_renderMode_BumpNormals == 1
-	outputColor = vec4(finalNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(finalNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if param_renderMode_Illumination == 1
-	outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+    outputColor = vec4(illumination, 0.0, 0.0, 1.0);
 #endif
 }

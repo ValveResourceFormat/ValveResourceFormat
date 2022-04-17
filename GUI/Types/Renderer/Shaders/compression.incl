@@ -11,20 +11,20 @@ vec4 DecompressTangent( vec4 inputNormal )
 {
     float fOne   = 1.0f;
     vec4 ztztSignBits	= -floor(( inputNormal - 128.0f )/127.0f);						// sign bits for zs and binormal (1 or 0)  set-less-than (slt) asm instruction
-	vec4 xyxyAbs		= abs( inputNormal - 128.0f ) - ztztSignBits;		// 0..127
-	vec4 xyxySignBits	= -floor(( xyxyAbs - 64.0f )/63.0f);							// sign bits for xs and ys (1 or 0)
-	vec4 normTan		= (abs( xyxyAbs - 64.0f ) - xyxySignBits) / 63.0f;	// abs({nX, nY, tX, tY})
+    vec4 xyxyAbs		= abs( inputNormal - 128.0f ) - ztztSignBits;		// 0..127
+    vec4 xyxySignBits	= -floor(( xyxyAbs - 64.0f )/63.0f);							// sign bits for xs and ys (1 or 0)
+    vec4 normTan		= (abs( xyxyAbs - 64.0f ) - xyxySignBits) / 63.0f;	// abs({nX, nY, tX, tY})
 
     vec4 outputTangent;
-	outputTangent.xy	= normTan.zw;										// abs({tX, tY, __, __})
+    outputTangent.xy	= normTan.zw;										// abs({tX, tY, __, __})
 
-	vec4 xyxySigns	= 1 - 2*xyxySignBits;								// Convert sign bits to signs
-	vec4 ztztSigns	= 1 - 2*ztztSignBits;								// ( [1,0] -> [-1,+1] )
+    vec4 xyxySigns	= 1 - 2*xyxySignBits;								// Convert sign bits to signs
+    vec4 ztztSigns	= 1 - 2*ztztSignBits;								// ( [1,0] -> [-1,+1] )
 
-	outputTangent.z		= 1.0f - outputTangent.x - outputTangent.y;			// Project onto x+y+z=1
-	outputTangent.xyz	= normalize( outputTangent.xyz );					// Normalize onto unit sphere
-	outputTangent.xy   *= xyxySigns.zw;										// Restore x and y signs
-	outputTangent.z	   *= ztztSigns.z;										// Restore z sign
+    outputTangent.z		= 1.0f - outputTangent.x - outputTangent.y;			// Project onto x+y+z=1
+    outputTangent.xyz	= normalize( outputTangent.xyz );					// Normalize onto unit sphere
+    outputTangent.xy   *= xyxySigns.zw;										// Restore x and y signs
+    outputTangent.z	   *= ztztSigns.z;										// Restore z sign
     outputTangent.w		= ztztSigns.w;
 
     return outputTangent;

@@ -34,7 +34,7 @@ void main()
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransformMatrix)));
 
-	//Unpack normals
+    //Unpack normals
 #if param_fulltangent == 1
     vNormalOut = normalize(normalTransform * vNORMAL.xyz);
     vTangentOut = normalize(normalTransform * vTANGENT.xyz);
@@ -46,5 +46,5 @@ void main()
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
 
-	vTexCoordOut = vTEXCOORD;
+    vTexCoordOut = vTEXCOORD;
 }

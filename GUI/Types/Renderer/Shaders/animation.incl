@@ -15,7 +15,7 @@ mat4 getMatrix(float id) {
 
 mat4 getSkinMatrix() {
     // Calculate animation matrix
-	mat4 skinMatrix = mat4(1.0 - bAnimated);
+    mat4 skinMatrix = mat4(1.0 - bAnimated);
     skinMatrix += bAnimated * vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
     skinMatrix += bAnimated * vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
     skinMatrix += bAnimated * vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
