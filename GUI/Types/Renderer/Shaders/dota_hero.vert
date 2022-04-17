@@ -1,8 +1,8 @@
 #version 330
 
 //Includes - resolved by VRF
-#include "compression.incl";
-#include "animation.incl";
+#include "compression.incl"
+#include "animation.incl"
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters

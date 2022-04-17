@@ -1,6 +1,6 @@
 #version 330
 
-#include "animation.incl";
+#include "animation.incl"
 
 in vec3 vPOSITION;
 in vec2 vTEXCOORD;

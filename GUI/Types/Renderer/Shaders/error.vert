@@ -1,7 +1,7 @@
 #version 330
 
 //Includes - resolved by VRF
-#include "animation.incl";
+#include "animation.incl"
 //End of includes
 
 in vec3 vPOSITION;
