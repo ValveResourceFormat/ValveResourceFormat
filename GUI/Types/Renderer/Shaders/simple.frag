@@ -42,7 +42,7 @@ uniform vec4 g_vColorTint;
 void main()
 {
     //Get the ambient color from the color texture
-    vec4 color = texture2D(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
+    vec4 color = texture(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
 
 #if param_F_ALPHA_TEST == 1
 	if (color.a < g_flAlphaTestReference)
@@ -69,7 +69,7 @@ void main()
     vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
 
 #if param_F_TINT_MASK == 1
-    float tintStrength = texture2D(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;
+    float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;
     vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
 #else
     vec3 tintFactor = tintColor;

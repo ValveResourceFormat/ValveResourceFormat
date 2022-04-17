@@ -7,10 +7,10 @@ uniform sampler2D animationTexture;
 
 mat4 getMatrix(float id) {
     float texelPos = id/fNumBones;
-    return mat4(texture2D(animationTexture, vec2(0.00, texelPos)),
-        texture2D(animationTexture, vec2(0.25, texelPos)),
-        texture2D(animationTexture, vec2(0.50, texelPos)),
-        texture2D(animationTexture, vec2(0.75, texelPos)));
+    return mat4(texture(animationTexture, vec2(0.00, texelPos)),
+        texture(animationTexture, vec2(0.25, texelPos)),
+        texture(animationTexture, vec2(0.50, texelPos)),
+        texture(animationTexture, vec2(0.75, texelPos)));
 }
 
 mat4 getSkinMatrix() {

@@ -35,7 +35,7 @@ uniform float g_flLowEndSurfaceMinimumColor;
 vec3 calculateWorldNormal()
 {
     vec2 offset = TextureFlow.xy * g_flTime * g_flFlowTimeScale;
-    vec4 textureNormal = texture2D(g_tNormal, (vFragPosition.xy / g_flNormalUvScale) + offset);
+    vec4 textureNormal = texture(g_tNormal, (vFragPosition.xy / g_flNormalUvScale) + offset);
 
     //Reconstruct the bump vector from the map
     vec2 temp = vec2(textureNormal.w, textureNormal.y) * 2 - 1;

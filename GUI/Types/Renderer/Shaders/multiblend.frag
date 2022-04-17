@@ -84,7 +84,7 @@ vec2 getTexCoord(float scale, float rotation) {
 //Interpolate between two tint colors based on the tint mask and coordinate scale.
 vec4 interpolateTint(int id, vec4 tint1, vec4 tint2, float coordScale, float coordRotation)
 {
-    float maskValue = texture2D(g_tTintMasks, getTexCoord(coordScale, coordRotation))[id];
+    float maskValue = texture(g_tTintMasks, getTexCoord(coordScale, coordRotation))[id];
     return tint1 * (maskValue) + tint2 * (1-maskValue);
 }
 
@@ -100,27 +100,27 @@ void main()
 #endif
 
     //Get the ambient color from the color texture
-    vec4 color0 = texture2D(g_tColor0, coord0);
-    vec4 color1 = texture2D(g_tColor1, coord1);
+    vec4 color0 = texture(g_tColor0, coord0);
+    vec4 color1 = texture(g_tColor1, coord1);
 #if param_F_TWO_LAYER_BLEND == 0
-    vec4 color2 = texture2D(g_tColor2, coord2);
-    vec4 color3 = texture2D(g_tColor3, coord3);
+    vec4 color2 = texture(g_tColor2, coord2);
+    vec4 color3 = texture(g_tColor3, coord3);
 #endif
 
     //Get normal
-    vec4 normal0 = texture2D(g_tNormal0, coord0);
-    vec4 normal1 = texture2D(g_tNormal1, coord1);
+    vec4 normal0 = texture(g_tNormal0, coord0);
+    vec4 normal1 = texture(g_tNormal1, coord1);
 #if param_F_TWO_LAYER_BLEND == 0
-    vec4 normal2 = texture2D(g_tNormal2, coord2);
-    vec4 normal3 = texture2D(g_tNormal3, coord3);
+    vec4 normal2 = texture(g_tNormal2, coord2);
+    vec4 normal3 = texture(g_tNormal3, coord3);
 #endif
 
     //Get specular
-    vec4 specular0 = texture2D(g_tSpecular0, coord0);
-    vec4 specular1 = texture2D(g_tSpecular1, coord1);
+    vec4 specular0 = texture(g_tSpecular0, coord0);
+    vec4 specular1 = texture(g_tSpecular1, coord1);
 #if param_F_TWO_LAYER_BLEND == 0
-    vec4 specular2 = texture2D(g_tSpecular2, coord2);
-    vec4 specular3 = texture2D(g_tSpecular3, coord3);
+    vec4 specular2 = texture(g_tSpecular2, coord2);
+    vec4 specular3 = texture(g_tSpecular3, coord3);
 #endif
 
     //calculate blend

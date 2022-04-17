@@ -42,7 +42,7 @@ vec3 oct_to_float32x3(vec2 e)
 vec3 calculateWorldNormal()
 {
     //Get the noral from the texture map -- Normal map seems broken
-    vec4 bumpNormal = texture2D(g_tNormal, vTexCoordOut);
+    vec4 bumpNormal = texture(g_tNormal, vTexCoordOut);
 
     //Reconstruct the tangent vector from the map
 #if param_HemiOctIsoRoughness_RG_B == 1
@@ -76,7 +76,7 @@ void main()
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
     //Get the ambient color from the color texture
-    vec4 color = texture2D(g_tColor, vTexCoordOut);
+    vec4 color = texture(g_tColor, vTexCoordOut);
 
 #if param_F_ALPHA_TEST == 1
 	if (color.a < g_flAlphaTestReference)
@@ -104,7 +104,7 @@ void main()
 #endif
 
 #if param_renderMode_BumpMap == 1
-	outputColor = texture2D(g_tNormal, vTexCoordOut);
+	outputColor = texture(g_tNormal, vTexCoordOut);
 #endif
 
 #if param_renderMode_Tangents == 1
