@@ -1,0 +1,10 @@
+{
+	"profiles": {
+		"GUI2.Windows (Package)": {
+			"commandName": "MsixPackage"
+		},
+		"GUI2.Windows (Unpackaged)": {
+			"commandName": "Project"
+		}
+	}
+}

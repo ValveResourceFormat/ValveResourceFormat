@@ -1,0 +1,49 @@
+<Page
+    x:Class="GUI2.Viewers.Package"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:GUI2.Viewers"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <TreeView x:Name="tree" Grid.Column="0" Margin="0,0,8,0">
+            <TreeView.ItemTemplate>
+                <DataTemplate x:DataType="local:PackageNode">
+                    <TreeViewItem ItemsSource="{x:Bind Children}">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="20" Source="{x:Bind Extension}" />
+                            <TextBlock Margin="10,0,0,0" Text="{x:Bind DisplayName}" />
+                        </StackPanel>
+                    </TreeViewItem>
+                </DataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+        <controls:GridSplitter
+            Grid.Column="1"
+            HorizontalAlignment="Left"
+            ResizeBehavior="BasedOnAlignment"
+            ResizeDirection="Auto"
+            Background="Transparent"
+        >
+            <controls:GridSplitter.Element>
+                <TextBlock HorizontalAlignment="Center"
+                         IsHitTestVisible="False"
+                         VerticalAlignment="Center"
+                         Text="&#xE784;"
+                         Foreground="White"
+                         FontFamily="Segoe MDL2 Assets"/>
+            </controls:GridSplitter.Element>
+            <controls:GridSplitter.RenderTransform>
+                <TranslateTransform X="-8" />
+            </controls:GridSplitter.RenderTransform>
+        </controls:GridSplitter>
+        <ListView Grid.Column="1" Margin="8,0,0,0"/>
+    </Grid>
+</Page>

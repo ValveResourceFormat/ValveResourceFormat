@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>6279c845-92f8-4333-ab99-3d213163593c</ProjectGuid>
+    <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.Default.props" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.props" />
+  <PropertyGroup />
+  <Import Project="GUI2.Shared.projitems" Label="Shared" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
+  <ItemGroup>
+    <_Globbed_Compile Remove="ErrorPage.xaml.cs" />
+    <_Globbed_Compile Remove="LoadingPage.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\ByteViewer.Hex.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\ByteViewer.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\ByteViewer_Hex.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\ByteViewer_Text.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\IViewer.cs" />
+    <_Globbed_Compile Remove="Viewers\Package.xaml.cs" />
+    <_Globbed_Compile Remove="VrfGuiContext.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <_Globbed_Content Remove="Assets\AssetTypes\agrp.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\ani.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\anim.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\anmgrph.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\bsp.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\cfg.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\css.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\csv.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\data.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\dmx.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\ents.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\fbx.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\gnv.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\grass.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\hcg.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\html.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\ini.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\jpg.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\map.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\mat.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\mdl.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\mesh.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\mix.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\morf.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\mp3.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\pcf.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\pdf.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\pdi.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\phy.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\phys.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\png.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\postprocessing.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\postprocessing_sm.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\psd.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\res.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\rman.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\snd.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\sndevts.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\sndstck.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\surf.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\tex.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\ttf.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\txt.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vcd.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vcdlist.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vcs.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vis.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vmt.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vpk.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vtf.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vtx.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\vvd.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\wav.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\wnod.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\wrld.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\xml.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\_default.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\_deleted.png" />
+    <_Globbed_Content Remove="Assets\AssetTypes\_folder.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <_Globbled_Page Remove="ErrorPage.xaml" />
+    <_Globbled_Page Remove="LoadingPage.xaml" />
+    <_Globbled_Page Remove="Viewers\ByteViewer.Hex.xaml" />
+    <_Globbled_Page Remove="Viewers\ByteViewer.xaml" />
+    <_Globbled_Page Remove="Viewers\ByteViewer_Hex.xaml" />
+    <_Globbled_Page Remove="Viewers\ByteViewer_Text.xaml" />
+    <_Globbled_Page Remove="Viewers\Package.xaml" />
+  </ItemGroup>
+</Project>

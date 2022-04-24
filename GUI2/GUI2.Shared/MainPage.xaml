@@ -1,0 +1,29 @@
+<Page
+    x:Class="GUI2.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:GUI2"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"    
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <TabView x:Name="tabView" IsAddTabButtonVisible="false" Background="Transparent" >
+        <TabView.TabStripFooter>
+            <SplitButton
+                    x:Name="mainButton"
+                    Click="OpenFile_Click"
+                    Content="&#xE710;"
+                    FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                    FontSize="12" Height="32">
+                <SplitButton.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Find" Icon="Find" />
+                        <MenuFlyoutItem Text="Export" Icon="Save" />
+                        <MenuFlyoutItem Text="Settings" Icon="Setting" />
+                        <MenuFlyoutItem Text="About" Icon="Help" />
+                    </MenuFlyout>
+                </SplitButton.Flyout>
+            </SplitButton>
+        </TabView.TabStripFooter>
+    </TabView>
+</Page>

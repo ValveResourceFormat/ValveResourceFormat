@@ -1,0 +1,14 @@
+{
+  "solution": {
+    "path": "GUI2.sln",
+    "projects": [
+		"GUI2.Shared\\GUI2.Shared.shproj",
+
+		"GUI2.Mobile\\GUI2.Mobile.csproj",
+
+		"GUI2.Wasm\\GUI2.Wasm.csproj",
+
+		"GUI2.Skia.Gtk\\GUI2.Skia.Gtk.csproj",
+    ]
+  }
+}

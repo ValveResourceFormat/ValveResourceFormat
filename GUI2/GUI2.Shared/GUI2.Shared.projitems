@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>6279c845-92f8-4333-ab99-3d213163593c</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>GUI2</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="$(MSBuildThisFileDirectory)App.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </ApplicationDefinition>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)ErrorPage.xaml.cs">
+      <DependentUpon>ErrorPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)LoadingPage.xaml.cs">
+      <DependentUpon>LoadingPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)MainPage.xaml.cs">
+      <DependentUpon>MainPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\ByteViewer.xaml.cs">
+      <DependentUpon>ByteViewer.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\ByteViewer_Hex.xaml.cs">
+      <DependentUpon>ByteViewer_Hex.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\ByteViewer_Text.xaml.cs">
+      <DependentUpon>ByteViewer_Text.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\Package.xaml.cs">
+      <DependentUpon>Package.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)VrfGuiContext.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="$(MSBuildThisFileDirectory)ErrorPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)LoadingPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)MainPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\ByteViewer.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\ByteViewer_Hex.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\ByteViewer_Text.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\Package.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)Assets\SharedAssets.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <PRIResource Include="$(MSBuildThisFileDirectory)Strings\en\Resources.resw" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+		 Add files present in the shared project folder, excluding the ones
+		 explicitly included in the projitem, so files can be added from vscode
+		 without manipulating the projitem file.
+	-->
+    <Content Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\data.png" />
+    <Content Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\postprocessing.png" />
+    <_Globbled_Page Include="$(MSBuildThisFileDirectory)**/*.xaml" Exclude="@(Page);@(ApplicationDefinition)">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </_Globbled_Page>
+    <_Globbed_Compile Include="$(MSBuildThisFileDirectory)**/*.xaml.cs" Exclude="@(Compile)">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </_Globbed_Compile>
+    <_Globbed_Compile Include="$(MSBuildThisFileDirectory)**/*.cs" Exclude="@(Compile);@(_Globbed_Compile)" />
+    <_Globbed_PRIResource Include="$(MSBuildThisFileDirectory)**/*.resw" Exclude="@(PRIResource)" />
+    <PRIResource Include="@(_Globbed_PRIResource)" />
+    <_Globbed_Content Include="$(MSBuildThisFileDirectory)Assets/**/*.*" Exclude="@(Content)" />
+    <Content Include="@(_Globbed_Content)" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\agrp.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\ani.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\anim.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\anmgrph.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\bsp.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\cfg.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\css.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\csv.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\dmx.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\ents.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\fbx.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\gnv.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\grass.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\hcg.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\html.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\ini.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\jpg.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\map.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\mat.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\mdl.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\mesh.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\mix.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\morf.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\mp3.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\pcf.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\pdf.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\pdi.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\phy.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\phys.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\png.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\postprocessing_sm.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\psd.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\res.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\rman.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\snd.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\sndevts.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\sndstck.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\surf.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\tex.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\ttf.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\txt.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vcd.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vcdlist.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vcs.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vis.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vmt.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vpk.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vtf.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vtx.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\vvd.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\wav.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\wnod.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\wrld.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\xml.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\_default.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\_deleted.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Assets\AssetTypes\_folder.png" />
+  </ItemGroup>
+</Project>

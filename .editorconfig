@@ -92,6 +92,12 @@ dotnet_diagnostic.CA2214.severity = none
 # CA5394: Do not use insecure randomness
 dotnet_diagnostic.CA5394.severity = suggestion
 
+# CA5392 Use DefaultDllImportSearchPaths attribute for P/Invokes
+dotnet_diagnostic.CA5392.severity = none
+
+# CA1014 Mark assemblies with CLSCompliantAttribute
+dotnet_diagnostic.CA1014.severity = none
+
 #
 # Dotnet code style settings:
 #
