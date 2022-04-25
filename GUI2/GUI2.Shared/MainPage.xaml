@@ -13,8 +13,11 @@
                     x:Name="mainButton"
                     Click="OpenFile_Click"
                     Content="&#xE710;"
+                    BorderThickness="0"
+                    Margin="0"
                     FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                    FontSize="12" Height="32">
+                    FontSize="12"
+                    Height="32">
                 <SplitButton.Flyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="Find" Icon="Find" />
