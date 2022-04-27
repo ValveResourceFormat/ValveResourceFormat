@@ -19,6 +19,7 @@
     <_Globbed_Compile Remove="Viewers\ByteViewer_Text.xaml.cs" />
     <_Globbed_Compile Remove="Viewers\IViewer.cs" />
     <_Globbed_Compile Remove="Viewers\Package.xaml.cs" />
+    <_Globbed_Compile Remove="VrfGlobalSingleton.cs" />
     <_Globbed_Compile Remove="VrfGuiContext.cs" />
   </ItemGroup>
   <ItemGroup>

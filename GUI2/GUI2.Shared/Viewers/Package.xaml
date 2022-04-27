@@ -13,7 +13,7 @@
             <ColumnDefinition />
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
-        <TreeView x:Name="tree" Grid.Column="0" Margin="0,0,8,0">
+        <TreeView x:Name="tree" Grid.Column="0" Margin="0,0,8,0" IsDoubleTapEnabled="True" DoubleTapped="{x:Bind TreeView_OnDoubleTapped}">
             <TreeView.ItemTemplate>
                 <DataTemplate x:DataType="local:PackageNode">
                     <TreeViewItem ItemsSource="{x:Bind Children}">

@@ -47,6 +47,8 @@ namespace GUI2.Viewers
     {
         private Dictionary<string, PackageNode> folderNodes = new();
 
+        private ValvePackage package { get; set; }
+
         public Dictionary<string, string> ExtensionIconList { get; private set; }
 
         public static bool IsAccepted(uint magic, ushort magicResourceVersion)
@@ -104,8 +106,8 @@ namespace GUI2.Viewers
         {
             if (e.Parameter is VrfGuiContext ctx)
             {
-                var package = new ValvePackage();
-                package.SetFileName(ctx.File.Name);
+                package = new ValvePackage();
+                package.SetFileName(ctx.FileName);
                 package.Read(new MemoryStream(ctx.FileBytes));
 
                 var rootNode = new PackageNode() { Extension = "vpk", DisplayName = "root" };
@@ -182,6 +184,15 @@ namespace GUI2.Viewers
                 ext = "_default";
             }
             folderNode.Children.Add(new PackageNode { File = file, Extension = ext, DisplayName = file.GetFileName() });
+        }
+
+        private void TreeView_OnDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
+        {
+            var selectedNode = tree.SelectedItem as PackageNode;
+            if (selectedNode == null) return;
+            if (!selectedNode.IsFile) return;
+            package.ReadEntry(selectedNode.File, out var output, validateCrc: selectedNode.File.CRC32 > 0);
+            VrfGlobalSingleton.OpenFile(selectedNode.DisplayName, output, package);
         }
     }
 }

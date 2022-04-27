@@ -39,6 +39,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Viewers\Package.xaml.cs">
       <DependentUpon>Package.xaml</DependentUpon>
     </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)VrfGlobalSingleton.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)VrfGuiContext.cs" />
   </ItemGroup>
   <ItemGroup>

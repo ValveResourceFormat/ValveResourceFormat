@@ -7,7 +7,13 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"    
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-    <TabView x:Name="tabView" IsAddTabButtonVisible="false" Background="Transparent" >
+    <TabView
+        x:Name="tabView"
+        IsAddTabButtonVisible="false"
+        Background="Transparent"
+        TabItemsSource="{x:Bind local:VrfGlobalSingleton.Tabs}"
+        TabItemsChanged="{x:Bind TabView_OnTabItemsChanged}"
+        >
         <TabView.TabStripFooter>
             <SplitButton
                     x:Name="mainButton"

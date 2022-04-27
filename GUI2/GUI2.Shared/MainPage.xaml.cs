@@ -82,14 +82,14 @@ namespace GUI2
                 filePicker.FileTypeFilter.Add("*");
 
                 // WTF Microsoft
-                var handle = WinRT.Interop.WindowNative.GetWindowHandle(App.Window);
-                WinRT.Interop.InitializeWithWindow.Initialize(filePicker, handle);
+                var handle = WindowNative.GetWindowHandle(App.Window);
+                InitializeWithWindow.Initialize(filePicker, handle);
 
                 var files = await filePicker.PickMultipleFilesAsync();
 
                 foreach (var file in files)
                 {
-                    OpenFile(file);
+                    VrfGlobalSingleton.OpenFile(file);
                 }
             }
             catch (Exception ex)
@@ -98,43 +98,17 @@ namespace GUI2
             }
         }
 
-        private void OpenFile(StorageFile file)
+        private int tabCount;
+
+        private void TabView_OnTabItemsChanged(object sender, IVectorChangedEventArgs args)
         {
-            var tab = new TabViewItem();
-            tab.Header = file.Name;
-
-            Frame frame = new();
-            tab.Content = frame;
-            frame.Navigate(typeof(LoadingPage));
-            tabView.TabItems.Add(tab);
-            tabView.SelectedItem = tab;
-
-            var task = Task.Factory.StartNew(() => new VrfGuiContext(file).Process());
-
-            task.ContinueWith(
-                t =>
-                {
-                    t.Exception?.Flatten().Handle(ex =>
-                    {
-                        frame.Navigate(typeof(ErrorPage), ex.ToString());
-
-                        return false;
-                    });
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnFaulted,
-                TaskScheduler.FromCurrentSynchronizationContext());
-
-            task.ContinueWith(
-                t =>
-                {
-                    var result = t.Unwrap().Result;
-                    frame.Navigate(result.XamlPage, result);
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnRanToCompletion,
-                TaskScheduler.FromCurrentSynchronizationContext());
+            if (tabView.TabItems.Count != tabCount)
+            {
+                tabView.SelectedIndex = tabView.TabItems.Count - 1;
+                tabCount = tabView.TabItems.Count;
+            }
         }
+
 
         private static AppWindow GetAppWindowForCurrentWindow()
         {
