@@ -385,11 +385,20 @@ namespace GUI
             task.ContinueWith(
                 t =>
                 {
-                    tab.Controls.Clear();
+                    tab.SuspendLayout();
 
-                    foreach (Control c in t.Result.Controls)
+                    try
                     {
-                        tab.Controls.Add(c);
+                        tab.Controls.Clear();
+
+                        foreach (Control c in t.Result.Controls)
+                        {
+                            tab.Controls.Add(c);
+                        }
+                    }
+                    finally
+                    {
+                        tab.ResumeLayout();
                     }
 
                     ShowHideSearch();
