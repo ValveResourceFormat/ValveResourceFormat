@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Windows.Forms;
 
 namespace GUI.Controls
@@ -10,8 +10,8 @@ namespace GUI.Controls
             var tx = x as TreeNode;
             var ty = y as TreeNode;
 
-            var folderx = tx.ImageKey == @"_folder";
-            var foldery = ty.ImageKey == @"_folder";
+            var folderx = tx.Tag is TreeViewFolder;
+            var foldery = ty.Tag is TreeViewFolder;
 
             if (folderx && !foldery)
             {
