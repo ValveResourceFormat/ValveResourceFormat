@@ -169,8 +169,18 @@ namespace GUI.Controls
                         continue;
                     }
 
-                    currentNode = currentNode.Nodes[subPath] ?? currentNode.Nodes.Add(subPath, subPath, "_folder", "_folder");
-                    currentNode.Tag = new TreeViewFolder(currentNode.Nodes.Count + 1);
+                    var subNode = currentNode.Nodes[subPath];
+
+                    if (subNode == null)
+                    {
+                        currentNode = currentNode.Nodes.Add(subPath, subPath, "_folder", "_folder");
+                        currentNode.Tag = new TreeViewFolder(1);
+                    }
+                    else
+                    {
+                        currentNode = subNode;
+                        (subNode.Tag as TreeViewFolder).ItemCount++;
+                    }
                 }
             }
 
