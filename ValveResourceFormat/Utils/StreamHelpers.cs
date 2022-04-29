@@ -13,6 +13,11 @@ namespace ValveResourceFormat
         /// <param name="encoding">Encoding.</param>
         public static string ReadNullTermString(this BinaryReader stream, Encoding encoding)
         {
+            if (encoding == Encoding.UTF8)
+            {
+                return ReadNullTermUtf8String(stream);
+            }
+
             var characterSize = encoding.GetByteCount("e");
 
             using var ms = new MemoryStream();
@@ -62,6 +67,25 @@ namespace ValveResourceFormat
             stream.BaseStream.Position = currentOffset + 4;
 
             return str;
+        }
+
+        private static string ReadNullTermUtf8String(BinaryReader stream)
+        {
+            using var ms = new MemoryStream();
+
+            while (true)
+            {
+                var b = stream.ReadByte();
+
+                if (b == 0x00)
+                {
+                    break;
+                }
+
+                ms.WriteByte(b);
+            }
+
+            return Encoding.UTF8.GetString(ms.ToArray());
         }
     }
 }
