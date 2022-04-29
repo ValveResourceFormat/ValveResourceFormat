@@ -93,9 +93,9 @@ namespace GUI.Types.Exporter
                 }
                 else
                 {
-                    var data = FileExtract.Extract(resource).ToArray();
+                    var data = FileExtract.Extract(resource);
                     using var stream = dialog.OpenFile();
-                    stream.Write(data, 0, data.Length);
+                    stream.Write(data);
                 }
 
                 Console.WriteLine($"Export for \"{fileName}\" completed");

@@ -22,21 +22,26 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Sound:
-                    data = ((Sound)resource.DataBlock).GetSound();
-
-                    break;
-
-                case ResourceType.Texture:
-                    var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-
-                    using (var ms = new MemoryStream())
                     {
-                        bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
+                        var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
+                        soundStream.TryGetBuffer(out var buffer);
+                        data = buffer;
 
-                        data = ms.ToArray();
+                        break;
                     }
 
-                    break;
+                case ResourceType.Texture:
+                    {
+                        var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+
+                        using var ms = new MemoryStream();
+                        bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
+
+                        ms.TryGetBuffer(out var buffer);
+                        data = buffer;
+
+                        break;
+                    }
 
                 case ResourceType.Particle:
                     data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());

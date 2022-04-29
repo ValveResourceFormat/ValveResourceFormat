@@ -41,7 +41,9 @@ namespace ValveResourceFormat
                 ms.Write(data, 0, data.Length);
             }
 
-            return encoding.GetString(ms.ToArray());
+            ms.TryGetBuffer(out var buffer);
+
+            return encoding.GetString(buffer);
         }
 
         /// <summary>
@@ -85,7 +87,9 @@ namespace ValveResourceFormat
                 ms.WriteByte(b);
             }
 
-            return Encoding.UTF8.GetString(ms.ToArray());
+            ms.TryGetBuffer(out var buffer);
+
+            return Encoding.UTF8.GetString(buffer);
         }
     }
 }
