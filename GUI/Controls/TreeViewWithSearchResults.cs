@@ -151,10 +151,6 @@ namespace GUI.Controls
             control.ImageList = imageList;
             control.ShowRootLines = false;
 
-            // TODO: Disabled for now
-            // When opening a map or model the tooltip remains visible without a way to remove it
-            //control.ShowNodeToolTips = true;
-
             control.GenerateIconList(package.Package.Entries.Keys.ToList());
 
             var name = Path.GetFileName(fileName);

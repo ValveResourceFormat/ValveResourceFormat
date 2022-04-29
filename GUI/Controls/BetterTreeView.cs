@@ -183,23 +183,6 @@ namespace GUI.Controls
 
             currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
             currentNode.Tag = file; //so we can use it later
-
-            var tooltip = new StringBuilder();
-            tooltip.AppendLine($"Path: {file.GetFullPath()}");
-            tooltip.AppendLine($"Offset: {file.Offset}");
-            tooltip.AppendLine($"Size: {file.TotalLength}");
-
-            if (file.SmallData.Length > 0)
-            {
-                tooltip.AppendLine($"Small data length: {file.SmallData.Length}");
-            }
-
-            if (file.ArchiveIndex != 0x7FFF)
-            {
-                tooltip.AppendLine($"Archive: {vpkFileName}_{file.ArchiveIndex:000}.vpk");
-            }
-
-            currentNode.ToolTipText = tooltip.ToString();
         }
     }
 }
