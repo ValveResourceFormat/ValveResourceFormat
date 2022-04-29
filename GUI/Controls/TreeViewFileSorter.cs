@@ -10,17 +10,12 @@ namespace GUI.Controls
             var tx = x as TreeNode;
             var ty = y as TreeNode;
 
-            var folderx = tx.Tag is TreeViewFolder;
-            var foldery = ty.Tag is TreeViewFolder;
+            var folderx = tx.Tag is TreeViewFolder ? -1 : 1;
+            var foldery = ty.Tag is TreeViewFolder ? -1 : 1;
 
-            if (folderx && !foldery)
+            if (folderx != foldery)
             {
-                return -1;
-            }
-
-            if (!folderx && foldery)
-            {
-                return 1;
+                return folderx - foldery;
             }
 
             return string.CompareOrdinal(tx.Text, ty.Text);
