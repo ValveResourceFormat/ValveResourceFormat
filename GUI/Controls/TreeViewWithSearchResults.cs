@@ -143,7 +143,6 @@ namespace GUI.Controls
 
             var control = mainTreeView;
             control.BeginUpdate();
-            control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.PathSeparator = Package.DirectorySeparatorChar.ToString();
             control.Name = "treeViewVpk";
             control.Tag = package; //so we can access it later
@@ -168,6 +167,7 @@ namespace GUI.Controls
                 }
             }
 
+            control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
         }
 
