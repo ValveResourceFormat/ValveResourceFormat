@@ -127,7 +127,7 @@ namespace GUI2.Viewers
             }
             else
             {
-                throw new NotSupportedException("ByteViewer only supports navigation with Context");
+                throw new NotSupportedException("Package only supports navigation with Context");
             }
             base.OnNavigatedTo(e);
         }

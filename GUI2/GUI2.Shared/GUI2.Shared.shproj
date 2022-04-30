@@ -19,6 +19,9 @@
     <_Globbed_Compile Remove="Viewers\ByteViewer_Text.xaml.cs" />
     <_Globbed_Compile Remove="Viewers\IViewer.cs" />
     <_Globbed_Compile Remove="Viewers\Package.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\Resource.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\Resource_ExternalRefs.xaml.cs" />
+    <_Globbed_Compile Remove="Viewers\Resource_Generic.xaml.cs" />
     <_Globbed_Compile Remove="VrfGlobalSingleton.cs" />
     <_Globbed_Compile Remove="VrfGuiContext.cs" />
   </ItemGroup>
@@ -91,5 +94,8 @@
     <_Globbled_Page Remove="Viewers\ByteViewer_Hex.xaml" />
     <_Globbled_Page Remove="Viewers\ByteViewer_Text.xaml" />
     <_Globbled_Page Remove="Viewers\Package.xaml" />
+    <_Globbled_Page Remove="Viewers\Resource.xaml" />
+    <_Globbled_Page Remove="Viewers\Resource_ExternalRefs.xaml" />
+    <_Globbled_Page Remove="Viewers\Resource_Generic.xaml" />
   </ItemGroup>
 </Project>

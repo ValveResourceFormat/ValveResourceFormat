@@ -39,6 +39,15 @@
     <Compile Include="$(MSBuildThisFileDirectory)Viewers\Package.xaml.cs">
       <DependentUpon>Package.xaml</DependentUpon>
     </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\Resource.xaml.cs">
+      <DependentUpon>Resource.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\Resource_ExternalRefs.xaml.cs">
+      <DependentUpon>Resource_ExternalRefs.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Viewers\Resource_Generic.xaml.cs">
+      <DependentUpon>Resource_Generic.xaml</DependentUpon>
+    </Compile>
     <Compile Include="$(MSBuildThisFileDirectory)VrfGlobalSingleton.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)VrfGuiContext.cs" />
   </ItemGroup>
@@ -68,6 +77,18 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="$(MSBuildThisFileDirectory)Viewers\Package.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\Resource.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\Resource_ExternalRefs.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)Viewers\Resource_Generic.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

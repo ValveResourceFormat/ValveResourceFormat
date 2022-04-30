@@ -54,6 +54,10 @@ namespace GUI2
             {
                 XamlPage = typeof(Package);
             }
+            else if (Resource.IsAccepted(magic, magicResourceVersion))
+            {
+                XamlPage = typeof(Resource);
+            }
             else
             {
                 XamlPage = typeof(ByteViewer);

@@ -109,6 +109,12 @@ namespace GUI2
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "WinUI callbacks cannot be static")]
+        private void TabView_OnCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
+        {
+            VrfGlobalSingleton.Tabs.Remove(args.Tab);
+        }
+
 
         private static AppWindow GetAppWindowForCurrentWindow()
         {

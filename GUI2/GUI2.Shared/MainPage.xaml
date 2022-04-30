@@ -13,6 +13,7 @@
         Background="Transparent"
         TabItemsSource="{x:Bind local:VrfGlobalSingleton.Tabs}"
         TabItemsChanged="{x:Bind TabView_OnTabItemsChanged}"
+        TabCloseRequested="{x:Bind TabView_OnCloseRequested}"
         >
         <TabView.TabStripFooter>
             <SplitButton
