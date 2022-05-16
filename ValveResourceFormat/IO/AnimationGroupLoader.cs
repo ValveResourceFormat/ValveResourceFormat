@@ -1,16 +1,16 @@
 using System.Collections.Generic;
 using System.Linq;
-using GUI.Utils;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.IO
 {
-    internal static class AnimationGroupLoader
+    public static class AnimationGroupLoader
     {
-        public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, VrfGuiContext vrfGuiContext)
+        public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader)
         {
             var data = resource.DataBlock.AsKeyValueCollection();
 
@@ -32,13 +32,13 @@ namespace GUI.Types.Renderer
             // Load animation files
             foreach (var animationFile in animArray)
             {
-                animationList.AddRange(LoadAnimationFile(animationFile, decodeKey, vrfGuiContext));
+                animationList.AddRange(LoadAnimationFile(animationFile, decodeKey, fileLoader));
             }
 
             return animationList;
         }
 
-        public static IEnumerable<Animation> TryLoadSingleAnimationFileFromGroup(Resource resource, string animationName, VrfGuiContext vrfGuiContext)
+        public static IEnumerable<Animation> TryLoadSingleAnimationFileFromGroup(Resource resource, string animationName, IFileLoader fileLoader)
         {
             var data = resource.DataBlock.AsKeyValueCollection();
 
@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
 
             if (animation != default)
             {
-                return LoadAnimationFile(animation, decodeKey, vrfGuiContext);
+                return LoadAnimationFile(animation, decodeKey, fileLoader);
             }
             else
             {
@@ -60,9 +60,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static IEnumerable<Animation> LoadAnimationFile(string animationFile, IKeyValueCollection decodeKey, VrfGuiContext vrfGuiContext)
+        private static IEnumerable<Animation> LoadAnimationFile(string animationFile, IKeyValueCollection decodeKey, IFileLoader fileLoader)
         {
-            var animResource = vrfGuiContext.LoadFileByAnyMeansNecessary(animationFile + "_c");
+            var animResource = fileLoader.LoadFile(animationFile + "_c");
 
             if (animResource == null)
             {

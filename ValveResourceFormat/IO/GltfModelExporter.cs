@@ -884,30 +884,7 @@ namespace ValveResourceFormat.IO
                 var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
                 if (animGroup != default)
                 {
-                    var data = animGroup.DataBlock.AsKeyValueCollection();
-
-                    // Get the key to decode the animations
-                    var decodeKey = data.GetSubCollection("m_decodeKey");
-
-                    // Load animation from vagrp_c files
-                    if (animGroup.ContainsBlockType(BlockType.ANIM))
-                    {
-                        var animBlock = (KeyValuesOrNTRO)animGroup.GetBlockByType(BlockType.ANIM);
-                        animations.AddRange(VAnimation.FromData(animBlock.Data, decodeKey));
-                        continue;
-                    }
-
-                    // Get the list of animation files
-                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => !string.IsNullOrEmpty(a));
-
-                    // Load animation files
-                    foreach (var animationFile in animArray)
-                    {
-                        var animResource = FileLoader.LoadFile(animationFile + "_c");
-
-                        // Build animation classes
-                        animations.AddRange(VAnimation.FromResource(animResource, decodeKey));
-                    }
+                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, FileLoader));
                 }
             }
 
