@@ -888,10 +888,23 @@ namespace ValveResourceFormat.IO
                     // Load animation files
                     foreach (var animationFile in animArray)
                     {
+                        if (string.IsNullOrEmpty(animationFile))
+                        {
+                            continue;
+                        }
                         var animResource = FileLoader.LoadFile(animationFile + "_c");
 
                         // Build animation classes
                         animations.AddRange(VAnimation.FromResource(animResource, decodeKey));
+
+                    }
+
+                    // Load animation from vagrp_c files
+                    if (animGroup.ContainsBlockType(BlockType.ANIM))
+                    {
+                        var animBlock = (KeyValuesOrNTRO)animGroup.GetBlockByType(BlockType.ANIM);
+                        animations.AddRange(VAnimation.FromData(animBlock.Data, decodeKey));
+                        return animations;
                     }
                 }
             }
