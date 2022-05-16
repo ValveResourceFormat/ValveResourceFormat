@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -8,9 +7,12 @@ using SharpGLTF.IO;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
+using Material = SharpGLTF.Schema2.Material;
+using Mesh = SharpGLTF.Schema2.Mesh;
 
 namespace ValveResourceFormat.IO
 {
@@ -725,8 +727,12 @@ namespace ValveResourceFormat.IO
 
             renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
             renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
+
             if (renderMaterial.ShaderName == "vr_glass.vfx")
+            {
                 isTranslucent = 1;
+            }
+
             material.Alpha = isTranslucent > 0 ? AlphaMode.BLEND : (isAlphaTest > 0 ? AlphaMode.MASK : AlphaMode.OPAQUE);
             if (isAlphaTest > 0 && renderMaterial.FloatParams.ContainsKey("g_flAlphaTestReference"))
             {
@@ -880,10 +886,19 @@ namespace ValveResourceFormat.IO
                 {
                     var data = animGroup.DataBlock.AsKeyValueCollection();
 
-                    // Get the list of animation files
-                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => a != null);
                     // Get the key to decode the animations
                     var decodeKey = data.GetSubCollection("m_decodeKey");
+
+                    // Load animation from vagrp_c files
+                    if (animGroup.ContainsBlockType(BlockType.ANIM))
+                    {
+                        var animBlock = (KeyValuesOrNTRO)animGroup.GetBlockByType(BlockType.ANIM);
+                        animations.AddRange(VAnimation.FromData(animBlock.Data, decodeKey));
+                        continue;
+                    }
+
+                    // Get the list of animation files
+                    var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => !string.IsNullOrEmpty(a));
 
                     // Load animation files
                     foreach (var animationFile in animArray)

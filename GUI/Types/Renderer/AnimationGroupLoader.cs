@@ -14,8 +14,6 @@ namespace GUI.Types.Renderer
         {
             var data = resource.DataBlock.AsKeyValueCollection();
 
-            // Get the list of animation files
-            var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => !string.IsNullOrEmpty(a));
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
@@ -27,6 +25,9 @@ namespace GUI.Types.Renderer
                 animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey));
                 return animationList;
             }
+
+            // Get the list of animation files
+            var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => !string.IsNullOrEmpty(a));
 
             // Load animation files
             foreach (var animationFile in animArray)
