@@ -8,9 +8,12 @@ using SharpGLTF.IO;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
+using Material = SharpGLTF.Schema2.Material;
+using Mesh = SharpGLTF.Schema2.Mesh;
 
 namespace ValveResourceFormat.IO
 {
