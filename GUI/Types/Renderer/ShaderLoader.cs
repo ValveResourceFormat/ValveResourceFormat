@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
-        private static Regex RegexInclude = new Regex(@"^#include ""(?<IncludeName>[^""]+)""$", RegexOptions.Multiline);
+        private static Regex RegexInclude = new Regex(@"^#include ""(?<IncludeName>[^""]+)""", RegexOptions.Multiline);
         private static Regex RegexDefine = new Regex(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
 #if !DEBUG_SHADERS || !DEBUG
