@@ -211,28 +211,12 @@ namespace GUI.Types.Renderer
 
         private void LoadAnimations()
         {
-            var animGroupPaths = Model.GetReferencedAnimationGroupNames();
-            var emebeddedAnims = Model.GetEmbeddedAnimations();
+            animations.AddRange(AnimationGroupLoader.GetAllAnimations(Model, Scene.GuiContext.FileLoader));
 
-            if (!animGroupPaths.Any() && !emebeddedAnims.Any())
+            if (animations.Any())
             {
-                return;
+                SetupAnimationTextures();
             }
-
-            SetupAnimationTextures();
-
-            // Load animations from referenced animation groups
-            foreach (var animGroupPath in animGroupPaths)
-            {
-                var animGroup = Scene.GuiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
-                if (animGroup != default)
-                {
-                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, Scene.GuiContext.FileLoader));
-                }
-            }
-
-            // Get embedded animations
-            animations.AddRange(emebeddedAnims);
         }
 
         public void LoadAnimation(string animationName)

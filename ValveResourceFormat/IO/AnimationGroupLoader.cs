@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using ValveResourceFormat;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -10,6 +8,24 @@ namespace ValveResourceFormat.IO
 {
     public static class AnimationGroupLoader
     {
+        public static List<Animation> GetAllAnimations(Model model, IFileLoader fileLoader)
+        {
+            var animGroupPaths = model.GetReferencedAnimationGroupNames();
+            var animations = model.GetEmbeddedAnimations().ToList();
+
+            // Load animations from referenced animation groups
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                var animGroup = fileLoader.LoadFile(animGroupPath + "_c");
+                if (animGroup != default)
+                {
+                    animations.AddRange(LoadAnimationGroup(animGroup, fileLoader));
+                }
+            }
+
+            return animations.ToList();
+        }
+
         public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader)
         {
             var data = resource.DataBlock.AsKeyValueCollection();

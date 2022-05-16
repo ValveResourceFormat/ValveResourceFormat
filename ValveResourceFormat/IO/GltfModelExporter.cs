@@ -387,7 +387,7 @@ namespace ValveResourceFormat.IO
                     .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
 
                 // Add animations
-                var animations = GetAllAnimations(model);
+                var animations = AnimationGroupLoader.GetAllAnimations(model, FileLoader);
                 foreach (var animation in animations)
                 {
                     var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
@@ -871,24 +871,6 @@ namespace ValveResourceFormat.IO
             }
 
             return material;
-        }
-
-        private List<VAnimation> GetAllAnimations(VModel model)
-        {
-            var animGroupPaths = model.GetReferencedAnimationGroupNames();
-            var animations = model.GetEmbeddedAnimations().ToList();
-
-            // Load animations from referenced animation groups
-            foreach (var animGroupPath in animGroupPaths)
-            {
-                var animGroup = FileLoader.LoadFile(animGroupPath + "_c");
-                if (animGroup != default)
-                {
-                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, FileLoader));
-                }
-            }
-
-            return animations.ToList();
         }
 
         public static string GetAccessorName(string name, int index)
