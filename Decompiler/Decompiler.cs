@@ -37,19 +37,19 @@ namespace Decompiler
         [Option("-i|--input", "Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.", CommandOptionType.SingleValue)]
         public string InputFile { get; private set; }
 
+        [Option("-o|--output", "Output path to write to. If input is a folder (or a VPK), this should be a folder.", CommandOptionType.SingleValue)]
+        public string OutputFile { get; private set; }
+
         [Option("--recursive", "If specified and given input is a folder, all sub directories will be scanned too.", CommandOptionType.NoValue)]
         public bool RecursiveSearch { get; private set; }
 
         [Option("--recursive_vpk", "If specified along with --recursive, will also recurse into VPK archives.", CommandOptionType.NoValue)]
         public bool RecursiveSearchArchives { get; private set; }
 
-        [Option("-o|--output", "Writes DATA output to file.", CommandOptionType.SingleValue)]
-        public string OutputFile { get; private set; }
-
-        [Option("-a|--all", "Prints the content of each resource block in the file.", CommandOptionType.NoValue)]
+        [Option("-a|--all", "Print the content of each resource block in the file.", CommandOptionType.NoValue)]
         public bool PrintAllBlocks { get; }
 
-        [Option("-b|--block", "Print the content of a specific block. Specify the block via its 4CC name - case matters! (eg. DATA, RERL, REDI, NTRO).", CommandOptionType.SingleValue)]
+        [Option("-b|--block", "Print the content of a specific block, example: DATA, RERL, REDI, NTRO.", CommandOptionType.SingleValue)]
         public string BlockToPrint { get; }
 
         [Option("--stats", "Collect stats on all input files and then print them. (This is testing VRF over all files at once)", CommandOptionType.NoValue)]
@@ -67,22 +67,22 @@ namespace Decompiler
         [Option("--vpk_cache", "Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.", CommandOptionType.NoValue)]
         public bool CachedManifest { get; }
 
-        [Option("-d|--vpk_decompile", "Decompile supported files", CommandOptionType.NoValue)]
+        [Option("-d|--vpk_decompile", "Decompile supported resource files.", CommandOptionType.NoValue)]
         public bool Decompile { get; }
 
-        [Option("-e|--vpk_extensions", "File extension(s) filter, example: \"vcss_c,vjs_c,vxml_c\"", CommandOptionType.SingleValue)]
+        [Option("-e|--vpk_extensions", "File extension(s) filter, example: \"vcss_c,vjs_c,vxml_c\".", CommandOptionType.SingleValue)]
         public string ExtFilter { get; }
 
-        [Option("-f|--vpk_filepath", "File path filter, example: panorama\\ or \"panorama\\\\\"", CommandOptionType.SingleValue)]
+        [Option("-f|--vpk_filepath", "File path filter, example: \"panorama\\\\\" or \"scripts/items/items_game.txt\".", CommandOptionType.SingleValue)]
         public string FileFilter { get; private set; }
 
         [Option("-l|--vpk_list", "Lists all resources in given VPK. File extension and path filters apply.", CommandOptionType.NoValue)]
         public bool ListResources { get; }
 
-        [Option("--gltf_export_format", "Exports meshes/models in given glTF format. Must be either 'gltf' (default) or 'glb'", CommandOptionType.SingleValue)]
+        [Option("--gltf_export_format", "Exports meshes/models in given glTF format. Must be either 'gltf' (default) or 'glb'.", CommandOptionType.SingleValue)]
         public string GltfExportFormat { get; } = "gltf";
 
-        [Option("--gltf_export_materials", "Whether to export materials during glTF exports (warning: slow!)", CommandOptionType.NoValue)]
+        [Option("--gltf_export_materials", "Whether to export materials during glTF exports.", CommandOptionType.NoValue)]
         public bool GltfExportMaterials { get; }
 
         private string[] ExtFilterList;
