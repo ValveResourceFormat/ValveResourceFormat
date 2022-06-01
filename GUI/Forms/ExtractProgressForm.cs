@@ -134,7 +134,7 @@ namespace GUI.Forms
                                 filePath = Path.ChangeExtension(filePath, extension);
                             }
 
-                            output = FileExtract.Extract(resource).ToArray();
+                            output = FileExtract.Extract(resource, package, filePath).ToArray();
                         }
                         catch (Exception e)
                         {
@@ -144,10 +144,17 @@ namespace GUI.Forms
                     }
                 }
 
-                var stream = new FileStream(filePath, FileMode.Create);
-                await using (stream.ConfigureAwait(false))
+                if (output.Length > 0)
                 {
-                    await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
+                    var stream = new FileStream(filePath, FileMode.Create);
+                    await using (stream.ConfigureAwait(false))
+                    {
+                        await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Skip write" + filePath);
                 }
             }
         }

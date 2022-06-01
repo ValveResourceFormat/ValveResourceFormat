@@ -2,14 +2,14 @@ using System;
 using System.IO;
 using System.Text;
 using SkiaSharp;
-using ValveResourceFormat;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
     public static class FileExtract
     {
-        public static Span<byte> Extract(Resource resource)
+        public static Span<byte> Extract(Resource resource, Package package = null, string targetPath = null)
         {
             Span<byte> data;
 
@@ -48,9 +48,40 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Mesh:
-                    // Wrap it around a KV3File object to get the header.
-                    data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.DataBlock).GetKV3File().ToString());
+                case ResourceType.Model:
+                case ResourceType.World:
+                case ResourceType.WorldNode:
+                {
+                    if (package != null && targetPath != null)
+                    {
+                        data = Array.Empty<byte>();
+                        var exporter = new GltfModelExporter
+                        {
+                            FileLoader = new BasicVpkFileLoader(package)
+                        };
+                        switch(resource.ResourceType)
+                        {
+                            case ResourceType.Mesh:
+                                exporter.ExportToFile(resource.FileName, targetPath, new Mesh(resource));
+                                break;
+                            case ResourceType.Model:
+                                exporter.ExportToFile(resource.FileName, targetPath, (Model)resource.DataBlock);
+                                break;
+                            case ResourceType.WorldNode:
+                                exporter.ExportToFile(resource.FileName, targetPath, (WorldNode)resource.DataBlock);
+                                break;
+                            case ResourceType.World:
+                                exporter.ExportToFile(resource.FileName, targetPath, (World)resource.DataBlock);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    }
+
                     break;
+                }
 
                 case ResourceType.Material:
                     data = ((Material)resource.DataBlock).ToValveMaterial();
@@ -85,6 +116,14 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaStyle: return "css";
                 case ResourceType.PanoramaVectorGraphic: return "svg";
                 case ResourceType.Texture: return "png";
+
+                case ResourceType.Mesh:
+                case ResourceType.Model:
+                case ResourceType.World:
+                case ResourceType.WorldNode:
+                {
+                    return "gltf";
+                }
 
                 case ResourceType.Sound:
                     switch (((Sound)resource.DataBlock).SoundType)
