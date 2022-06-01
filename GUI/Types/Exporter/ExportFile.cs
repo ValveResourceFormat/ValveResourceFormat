@@ -33,12 +33,12 @@ namespace GUI.Types.Exporter
                 if (exportData.FileType == ExportFileType.GLB)
                 {
                     extension = "glb";
-                    filter = $"GLB file|*.glb|{filter}";
+                    filter = $"GLB file|*.glb|glTF file|*.gltf|{filter}";
                 }
                 else
                 {
                     extension = "gltf";
-                    filter = $"glTF file|*.gltf|{filter}";
+                    filter = $"glTF file|*.gltf|GLB file|*.glb|{filter}";
                 }
             }
 
@@ -66,34 +66,19 @@ namespace GUI.Types.Exporter
             var extractDialog = new GenericProgressForm();
             extractDialog.OnProcess += (_, __) =>
             {
-                if (dialog.FilterIndex == 1 && ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
+                GltfModelExporter exporter = null;
+                if (dialog.FilterIndex <= 2 && ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
                 {
-                    var exporter = new GltfModelExporter
+                    exporter = new GltfModelExporter
                     {
                         ProgressReporter = new Progress<string>(extractDialog.SetProgress),
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
-                    switch(resource.ResourceType)
-                    {
-                        case ResourceType.Mesh:
-                            exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource));
-                            break;
-                        case ResourceType.Model:
-                            exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock);
-                            break;
-                        case ResourceType.WorldNode:
-                            exporter.ExportToFile(fileName, dialog.FileName, (WorldNode)resource.DataBlock);
-                            break;
-                        case ResourceType.World:
-                            exporter.ExportToFile(fileName, dialog.FileName, (World)resource.DataBlock);
-                            break;
-                        default:
-                            break;
-                    }
                 }
-                else
+
+                var data = FileExtract.Extract(resource, exporter, dialog.FileName);
+                if (data.Length > 0)
                 {
-                    var data = FileExtract.Extract(resource);
                     using var stream = dialog.OpenFile();
                     stream.Write(data);
                 }

@@ -2,14 +2,13 @@ using System;
 using System.IO;
 using System.Text;
 using SkiaSharp;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
     public static class FileExtract
     {
-        public static Span<byte> Extract(Resource resource, Package package = null, string targetPath = null)
+        public static Span<byte> Extract(Resource resource, GltfModelExporter exporter = null, string targetPath = null)
         {
             Span<byte> data;
 
@@ -52,13 +51,9 @@ namespace ValveResourceFormat.IO
                 case ResourceType.World:
                 case ResourceType.WorldNode:
                 {
-                    if (package != null && targetPath != null)
+                    if (exporter != null && targetPath != null)
                     {
                         data = Array.Empty<byte>();
-                        var exporter = new GltfModelExporter
-                        {
-                            FileLoader = new BasicVpkFileLoader(package)
-                        };
                         switch(resource.ResourceType)
                         {
                             case ResourceType.Mesh:
@@ -116,14 +111,6 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaStyle: return "css";
                 case ResourceType.PanoramaVectorGraphic: return "svg";
                 case ResourceType.Texture: return "png";
-
-                case ResourceType.Mesh:
-                case ResourceType.Model:
-                case ResourceType.World:
-                case ResourceType.WorldNode:
-                {
-                    return "gltf";
-                }
 
                 case ResourceType.Sound:
                     switch (((Sound)resource.DataBlock).SoundType)

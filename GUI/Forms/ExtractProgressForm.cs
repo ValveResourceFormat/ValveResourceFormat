@@ -22,6 +22,8 @@ namespace GUI.Forms
         private CancellationTokenSource cancellationTokenSource;
         private int initialFileCount;
 
+        private GltfModelExporter exporter;
+
         public ExtractProgressForm(Package package, TreeNode root, string path, bool decompile)
         {
             InitializeComponent();
@@ -34,6 +36,11 @@ namespace GUI.Forms
             this.root = root;
             this.path = path;
             this.decompile = decompile;
+
+            exporter = new GltfModelExporter
+            {
+                FileLoader = new BasicVpkFileLoader(package)
+            };
         }
 
         protected override void OnShown(EventArgs e)
@@ -134,7 +141,7 @@ namespace GUI.Forms
                                 filePath = Path.ChangeExtension(filePath, extension);
                             }
 
-                            output = FileExtract.Extract(resource, package, filePath).ToArray();
+                            output = FileExtract.Extract(resource, exporter, filePath).ToArray();
                         }
                         catch (Exception e)
                         {
