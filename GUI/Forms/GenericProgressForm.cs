@@ -40,9 +40,14 @@ namespace GUI.Forms
                 {
                     if (t.Exception != null)
                     {
-                        Console.Error.WriteLine(t.Exception);
+                        foreach(var exception in t.Exception.Flatten().InnerExceptions)
+                        {
+                            Console.Error.WriteLine(exception);
+                        }
+
                         Console.Error.WriteLine("Search existing issues or create a new one here: https://github.com/SteamDatabase/ValveResourceFormat/issues");
-                        SetProgress($"An exception occured, view console tab for more information. ({t.Exception.Message})");
+
+                        SetProgress($"An exception occured, view console tab for more information. ({t.Exception.InnerException.Message})");
 
                         // TODO: Throwing doesn't actually display the exception ui
                         throw t.Exception;

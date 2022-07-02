@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Text;
 using SkiaSharp;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
@@ -15,6 +14,9 @@ namespace ValveResourceFormat.IO
 
             switch (resource.ResourceType)
             {
+                case ResourceType.Map:
+                    throw new NotImplementedException("Export the vwrld_c file if you are trying to export a map. vmap_c is simply a metadata file.");
+
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaVectorGraphic:
