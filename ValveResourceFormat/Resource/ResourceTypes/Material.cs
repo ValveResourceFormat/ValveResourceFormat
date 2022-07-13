@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
@@ -71,7 +72,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var kvp in Data.GetArray("m_stringAttributes"))
             {
-                StringAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_pValue");
+                StringAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_value");
             }
 
             // This is zero-length for all vmat files in Dota2 and HL archives
@@ -133,7 +134,7 @@ namespace ValveResourceFormat.ResourceTypes
             return arguments;
         }
 
-        public byte[] ToValveMaterial()
+        public string ToValveMaterial()
         {
             var root = new KVObject("Layer0", new List<KVObject>());
 
@@ -151,37 +152,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var (key, value) in VectorParams)
             {
-                root.Add(new KVObject(key, $"[{value.X} {value.Y} {value.Z} {value.W}]"));
+                root.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
             }
 
             foreach (var (key, value) in TextureParams)
             {
                 root.Add(new KVObject(key, value));
-            }
-
-            foreach (var (key, value) in IntAttributes)
-            {
-                root.Add(new KVObject(key, value));
-            }
-
-            foreach (var (key, value) in FloatAttributes)
-            {
-                root.Add(new KVObject(key, value));
-            }
-
-            foreach (var (key, value) in FloatAttributes)
-            {
-                root.Add(new KVObject(key, value));
-            }
-
-            foreach (var (key, value) in VectorAttributes)
-            {
-                root.Add(new KVObject(key, $"[{value.X} {value.Y} {value.Z} {value.W}]"));
-            }
-
-            foreach (var (key, value) in StringAttributes)
-            {
-                root.Add(new KVObject(key, value ?? string.Empty));
             }
 
             if (DynamicExpressions.Count > 0)
@@ -194,9 +170,60 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
+            var attributes = new List<KVObject>();
+
+            foreach (var (key, value) in IntAttributes)
+            {
+                // not defined by user, so skip it
+                if (key.Equals("representativetexturewidth", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("representativetextureheight", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                attributes.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in FloatAttributes)
+            {
+                // Skip `int` definition if there is a `float` definition
+                attributes = attributes.Where(existing_key => existing_key.Name != key).ToList();
+                attributes.Add(new KVObject(key, value));
+            }
+
+            foreach (var (key, value) in VectorAttributes)
+            {
+                attributes.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
+            }
+
+            foreach (var (key, value) in StringAttributes)
+            {
+                attributes.Add(new KVObject(key, value ?? string.Empty));
+            }
+
+            var toSystem = new HashSet<string>
+            {
+                "physicssurfaceproperties",
+                "worldmappingwidth",
+                "worldmappingheight"
+            };
+
+            if (attributes.Any())
+            {
+                // Some attributes are actually SystemAttributes
+                var systemattributes = new List<KVObject>();
+                var isSystemAttribute = attributes.ToLookup(attribute => toSystem.Contains(attribute.Name.ToLower()));
+
+                root.Add(new KVObject("Attributes", isSystemAttribute[false]));
+
+                if (isSystemAttribute[true].Any())
+                {
+                    root.Add(new KVObject("SystemAttributes", isSystemAttribute[true]));
+                }
+            }
+
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
-            return ms.ToArray();
+            return Encoding.UTF8.GetString(ms.ToArray());
         }
     }
 }

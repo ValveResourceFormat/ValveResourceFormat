@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
-using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Audio;
 using GUI.Types.Exporter;
@@ -355,7 +354,7 @@ namespace GUI.Types.Viewers
                 {
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = Utils.Utils.NormalizeLineEndings(Encoding.UTF8.GetString(((Material)block).ToValveMaterial()));
+                    control.Text = Utils.Utils.NormalizeLineEndings(((Material)block).ToValveMaterial());
                     control.Dock = DockStyle.Fill;
                     control.Multiline = true;
                     control.ReadOnly = true;
