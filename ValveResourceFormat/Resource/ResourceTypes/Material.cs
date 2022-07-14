@@ -213,7 +213,10 @@ namespace ValveResourceFormat.ResourceTypes
                 var systemattributes = new List<KVObject>();
                 var isSystemAttribute = attributes.ToLookup(attribute => toSystem.Contains(attribute.Name.ToLower()));
 
-                root.Add(new KVObject("Attributes", isSystemAttribute[false]));
+                if (isSystemAttribute[false].Any())
+                {
+                    root.Add(new KVObject("Attributes", isSystemAttribute[false]));
+                }
 
                 if (isSystemAttribute[true].Any())
                 {
