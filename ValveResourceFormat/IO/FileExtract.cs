@@ -55,7 +55,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Material:
-                    data = ((Material)resource.DataBlock).ToValveMaterial();
+                    data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
                     break;
 
                 case ResourceType.EntityLump:
