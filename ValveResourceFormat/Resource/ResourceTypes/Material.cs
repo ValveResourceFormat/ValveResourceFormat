@@ -224,19 +224,22 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            var subrect = extraStringData.List.Where(x => x.Name.ToLower() == "subrectdefinition").FirstOrDefault();
-
-            if (subrect != null)
+            // Can't read ExtraStringData from RED2 yet
+            if (Resource.EditInfo.GetType() == typeof(ResourceEditInfo))
             {
-                var toolattributes = new List<KVObject>()
+                var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
+                var subrect = extraStringData.List.Where(x => x.Name.ToLower() == "subrectdefinition").FirstOrDefault();
+
+                if (subrect != null)
                 {
-                    new KVObject("SubrectDefinition", subrect.Value)
-                };
+                    var toolattributes = new List<KVObject>()
+                    {
+                        new KVObject("SubrectDefinition", subrect.Value)
+                    };
 
-                root.Add(new KVObject("ToolAttributes", toolattributes));
+                    root.Add(new KVObject("ToolAttributes", toolattributes));
+                }
             }
-
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
             return Encoding.UTF8.GetString(ms.ToArray());
