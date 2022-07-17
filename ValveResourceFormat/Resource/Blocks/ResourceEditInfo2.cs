@@ -16,6 +16,9 @@ namespace ValveResourceFormat.Blocks
 
         private BinaryKV3 BackingData;
 
+        //public ? WeakReferenceList { get; private set; }
+        public IKeyValueCollection SearchableUserData { get; private set; }
+
         public ResourceEditInfo2()
         {
             //
@@ -34,6 +37,7 @@ namespace ValveResourceFormat.Blocks
             ConstructSpecialDependencies();
             ConstuctInputDependencies();
 
+            SearchableUserData = kv3.AsKeyValueCollection().GetSubCollection("m_SearchableUserData");
             foreach (var kv in kv3.Data)
             {
                 // TODO: Structs?

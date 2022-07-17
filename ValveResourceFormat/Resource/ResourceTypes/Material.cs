@@ -224,22 +224,28 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            // Can't read ExtraStringData from RED2 yet
-            if (Resource.EditInfo.GetType() == typeof(ResourceEditInfo))
+            string subrectDefinition = null;
+
+            if (Resource.EditInfo is ResourceEditInfo2)
+            {
+                subrectDefinition = ((ResourceEditInfo2)Resource.EditInfo).SearchableUserData.Where(x => x.Key.ToLower() == "subrectdefinition").FirstOrDefault().Value as string;
+            }
+            else if (Resource.EditInfo is ResourceEditInfo)
             {
                 var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-                var subrect = extraStringData.List.Where(x => x.Name.ToLower() == "subrectdefinition").FirstOrDefault();
-
-                if (subrect != null)
-                {
-                    var toolattributes = new List<KVObject>()
-                    {
-                        new KVObject("SubrectDefinition", subrect.Value)
-                    };
-
-                    root.Add(new KVObject("ToolAttributes", toolattributes));
-                }
+                subrectDefinition = extraStringData.List.Where(x => x.Name.ToLower() == "subrectdefinition").FirstOrDefault()?.Value;
             }
+
+            if (subrectDefinition != null)
+            {
+                var toolattributes = new List<KVObject>()
+                {
+                    new KVObject("SubrectDefinition", subrectDefinition)
+                };
+
+                root.Add(new KVObject("ToolAttributes", toolattributes));
+            }
+
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
             return Encoding.UTF8.GetString(ms.ToArray());
