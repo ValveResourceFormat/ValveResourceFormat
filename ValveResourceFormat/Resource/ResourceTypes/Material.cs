@@ -200,7 +200,7 @@ namespace ValveResourceFormat.ResourceTypes
                 attributes.Add(new KVObject(key, value ?? string.Empty));
             }
 
-            var toSystem = new HashSet<string>
+            var attributesThatAreSystemAttributes = new HashSet<string>
             {
                 "physicssurfaceproperties",
                 "worldmappingwidth",
@@ -210,15 +210,40 @@ namespace ValveResourceFormat.ResourceTypes
             if (attributes.Any())
             {
                 // Some attributes are actually SystemAttributes
-                var systemattributes = new List<KVObject>();
-                var isSystemAttribute = attributes.ToLookup(attribute => toSystem.Contains(attribute.Name.ToLower()));
+                var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLower())).ToList();
+                attributes = attributes.Except(systemAttributes).ToList();
 
-                root.Add(new KVObject("Attributes", isSystemAttribute[false]));
-
-                if (isSystemAttribute[true].Any())
+                if (attributes.Any())
                 {
-                    root.Add(new KVObject("SystemAttributes", isSystemAttribute[true]));
+                    root.Add(new KVObject("Attributes", attributes));
                 }
+
+                if (systemAttributes.Any())
+                {
+                    root.Add(new KVObject("SystemAttributes", systemAttributes));
+                }
+            }
+
+            string subrectDefinition = null;
+
+            if (Resource.EditInfo is ResourceEditInfo2)
+            {
+                subrectDefinition = ((ResourceEditInfo2)Resource.EditInfo).SearchableUserData.Where(x => x.Key.ToLower() == "subrectdefinition").FirstOrDefault().Value as string;
+            }
+            else if (Resource.EditInfo is ResourceEditInfo)
+            {
+                var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
+                subrectDefinition = extraStringData.List.Where(x => x.Name.ToLower() == "subrectdefinition").FirstOrDefault()?.Value;
+            }
+
+            if (subrectDefinition != null)
+            {
+                var toolattributes = new List<KVObject>()
+                {
+                    new KVObject("SubrectDefinition", subrectDefinition)
+                };
+
+                root.Add(new KVObject("ToolAttributes", toolattributes));
             }
 
             using var ms = new MemoryStream();
