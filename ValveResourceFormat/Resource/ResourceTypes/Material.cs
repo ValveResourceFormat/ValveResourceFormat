@@ -200,7 +200,7 @@ namespace ValveResourceFormat.ResourceTypes
                 attributes.Add(new KVObject(key, value ?? string.Empty));
             }
 
-            var toSystem = new HashSet<string>
+            var attributesThatAreSystemAttributes = new HashSet<string>
             {
                 "physicssurfaceproperties",
                 "worldmappingwidth",
@@ -210,17 +210,17 @@ namespace ValveResourceFormat.ResourceTypes
             if (attributes.Any())
             {
                 // Some attributes are actually SystemAttributes
-                var systemattributes = new List<KVObject>();
-                var isSystemAttribute = attributes.ToLookup(attribute => toSystem.Contains(attribute.Name.ToLower()));
+                var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLower())).ToList();
+                attributes = attributes.Except(systemAttributes).ToList();
 
-                if (isSystemAttribute[false].Any())
+                if (attributes.Any())
                 {
-                    root.Add(new KVObject("Attributes", isSystemAttribute[false]));
+                    root.Add(new KVObject("Attributes", attributes));
                 }
 
-                if (isSystemAttribute[true].Any())
+                if (systemAttributes.Any())
                 {
-                    root.Add(new KVObject("SystemAttributes", isSystemAttribute[true]));
+                    root.Add(new KVObject("SystemAttributes", systemAttributes));
                 }
             }
 
