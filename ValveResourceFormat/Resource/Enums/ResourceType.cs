@@ -71,6 +71,9 @@ namespace ValveResourceFormat
         [Extension("vsndevts")]
         SoundEventScript,
 
+        [Extension("vmix")]
+        VMix,
+
         [Extension("vsndstck")]
         SoundStackScript,
 
