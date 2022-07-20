@@ -49,11 +49,6 @@ namespace ValveResourceFormat.IO
                     data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
                     break;
 
-                case ResourceType.Mesh:
-                    // Wrap it around a KV3File object to get the header.
-                    data = Encoding.UTF8.GetBytes(((BinaryKV3)resource.DataBlock).GetKV3File().ToString());
-                    break;
-
                 case ResourceType.Material:
                     data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
                     break;
@@ -71,8 +66,19 @@ namespace ValveResourceFormat.IO
                     break;
 
                 default:
-                    data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
-                    break;
+                    {
+                        if (resource.DataBlock is BinaryKV3 dataKv3)
+                        {
+                            // Wrap it around a KV3File object to get the header.
+                            data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
+                        }
+                        else
+                        {
+                            data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                        }
+
+                        break;
+                    }
             }
 
             return data;
