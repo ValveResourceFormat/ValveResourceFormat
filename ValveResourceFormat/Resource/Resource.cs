@@ -444,6 +444,9 @@ namespace ValveResourceFormat
                 case ResourceType.Particle:
                     return new ParticleSystem();
 
+                case ResourceType.PostProcessing:
+                    return new PostProcessing();
+
                 case ResourceType.ResourceManifest:
                     return new ResourceManifest();
 
@@ -509,7 +512,8 @@ namespace ValveResourceFormat
                    || type == ResourceType.Particle
                    || type == ResourceType.Material
                    || type == ResourceType.EntityLump
-                   || type == ResourceType.PhysicsCollisionMesh;
+                   || type == ResourceType.PhysicsCollisionMesh
+                   || type == ResourceType.PostProcessing;
         }
 
         private static ResourceType DetermineResourceTypeByCompilerIdentifier(SpecialDependencies.SpecialDependency input)
