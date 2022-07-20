@@ -545,7 +545,8 @@ namespace ValveResourceFormat
                     return ResourceType.VData;
                 case "DotaItem":
                     return ResourceType.ArtifactItem;
-                case "ManagedResourceCompiler": // This is without "Compile"
+                case "SBData":
+                case "ManagedResourceCompiler": // This is without the "Compile" prefix
                     return ResourceType.SboxManagedResource;
             }
 
