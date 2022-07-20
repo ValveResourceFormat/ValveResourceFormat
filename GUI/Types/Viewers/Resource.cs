@@ -298,28 +298,22 @@ namespace GUI.Types.Viewers
 
                     if (block.Type == BlockType.DATA)
                     {
-                        switch (resource.ResourceType)
+                        if (block is BinaryKV3 blockKeyvalues)
                         {
-                            case ResourceType.Sound:
+                            // Wrap it around a KV3File object to get the header.
+                            control.Text =
+                                Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
+                        }
+                        else
+                        {
+                            if (resource.ResourceType == ResourceType.Sound)
+                            {
                                 control.Text = Utils.Utils.NormalizeLineEndings(((Sound)block).ToString());
-                                break;
-                            case ResourceType.Particle:
-                            case ResourceType.Mesh:
-                                if (block is BinaryKV3 blockKeyvalues)
-                                {
-                                    //Wrap it around a KV3File object to get the header.
-                                    control.Text =
-                                        Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
-                                }
-                                else
-                                {
-                                    control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
-                                }
-
-                                break;
-                            default:
+                            }
+                            else
+                            {
                                 control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
-                                break;
+                            }
                         }
                     }
                     else
