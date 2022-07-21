@@ -1,3 +1,4 @@
+using System.IO;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -60,6 +61,23 @@ namespace ValveResourceFormat.ResourceTypes
 
         public byte[] GetColorCorrectionLUT()
             => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
+
+        public void SaveCCToFile(string fileName)
+        {
+            var lut = GetColorCorrectionLUT();
+            var lut_without_a = new byte[3 * (lut.Length/4)];
+
+            for (int i = 0, j = 0; i < lut.Length; i++)
+            {
+                // Skip each fourth byte
+                if (((i+1) % 4) == 0)
+                    continue;
+
+                lut_without_a[j++] = lut[i];
+            }
+
+            File.WriteAllBytes(fileName, lut_without_a);
+        }
 
         public string ToValvePostProcessing()
         {
@@ -127,9 +145,10 @@ namespace ValveResourceFormat.ResourceTypes
                 // TODO: How does the local contrast layer look like?
             }
 
+            // All other layers are compiled into a 3D lookup table
+            // https://en.wikipedia.org/wiki/3D_lookup_table
             if (HasColorCorrection())
             {
-                // TODO: All other layers are converted into this. Extract to lookup table?
                 // https://developer.valvesoftware.com/wiki/Color_Correction#RAW_File_Format
             }
 
