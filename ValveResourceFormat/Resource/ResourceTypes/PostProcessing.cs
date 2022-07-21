@@ -1,9 +1,46 @@
+using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
     public class PostProcessing : BinaryKV3
     {
+        public IKeyValueCollection GetTonemapParams()
+        {
+            if (Data.GetProperty<bool>("m_bHasTonemapParams"))
+            {
+                return Data.GetProperty<IKeyValueCollection>("m_toneMapParams");
+            }
+
+            return null;
+        }
+
+        public IKeyValueCollection GetBloomParams()
+        {
+            if (Data.GetProperty<bool>("m_bHasBloomParams"))
+            {
+                return Data.GetProperty<IKeyValueCollection>("m_bloomParams");
+            }
+
+            return null;
+        }
+
+        public IKeyValueCollection GetVignetteParams()
+        {
+            if (Data.GetProperty<bool>("m_bHasVignetteParams"))
+            {
+                return Data.GetProperty<IKeyValueCollection>("m_vignetteParams");
+            }
+
+            return null;
+        }
+
+        public int GetColorCorrectionLUTDimension()
+            => Data.GetProperty<int>("m_nColorCorrectionVolumeDim");
+
+        public byte[] GetColorCorrectionLUT()
+            => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
+
         public string ToValvePostProcessing()
         {
             var outKV3 = new KVObject(null);
@@ -11,7 +48,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             var layers = new KVObject("m_layers", isArray:true);
 
-            if (Data.GetProperty<bool>("m_bHasTonemapParams"))
+            var tonemapParams = GetTonemapParams();
+            var bloomParams = GetBloomParams();
+            var vignetteParams = GetVignetteParams();
+
+            if (tonemapParams != null)
             {
                 var tonemappingLayer = new KVObject(null);
                 {
@@ -22,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
                     tonemappingLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
 
                     var tonemappingLayerParams = new KVObject("m_params");
-                    foreach (var kv in Data.GetProperty<KVObject>("m_toneMapParams").Properties)
+                    foreach (var kv in ((KVObject)tonemapParams).Properties)
                     {
                         tonemappingLayerParams.AddProperty(kv.Key, kv.Value);
                     }
@@ -33,7 +74,7 @@ namespace ValveResourceFormat.ResourceTypes
                 layers.AddProperty("", new KVValue(KVType.OBJECT, tonemappingLayer));
             }
 
-            if (Data.GetProperty<bool>("m_bHasBloomParams"))
+            if (bloomParams != null)
             {
                 var bloomLayer = new KVObject(null);
                 {
@@ -44,7 +85,7 @@ namespace ValveResourceFormat.ResourceTypes
                     bloomLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
 
                     var bloomLayerParams = new KVObject("m_params");
-                    foreach (var kv in Data.GetProperty<KVObject>("m_bloomParams").Properties)
+                    foreach (var kv in ((KVObject)bloomParams).Properties)
                     {
                         bloomLayerParams.AddProperty(kv.Key, kv.Value);
                     }
@@ -55,7 +96,7 @@ namespace ValveResourceFormat.ResourceTypes
                 layers.AddProperty("", new KVValue(KVType.OBJECT, bloomLayer));
             }
 
-            if (Data.GetProperty<bool>("m_bHasVignetteParams"))
+            if (vignetteParams != null)
             {
                 // TODO: How does the vignette layer look like?
             }
@@ -63,8 +104,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (Data.ContainsKey("m_colorCorrectionVolumeData"))
             {
                 // TODO: All other layers are converted into this. Extract to lookup table?
-                // var colorCorrectionVolumeDim = Data.GetProperty<int>("m_nColorCorrectionVolumeDim");
-                // var colorCorrectionVolumeData = Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
+                // https://developer.valvesoftware.com/wiki/Color_Correction#RAW_File_Format
             }
 
             outKV3.AddProperty(layers.Key, new KVValue(KVType.ARRAY, layers));
