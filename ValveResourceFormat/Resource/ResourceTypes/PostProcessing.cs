@@ -35,6 +35,26 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        public IKeyValueCollection GetLocalContrastParams()
+        {
+            if (Data.GetProperty<bool>("m_bHasLocalContrastParams"))
+            {
+                return Data.GetProperty<IKeyValueCollection>("m_localConstrastParams");
+            }
+
+            return null;
+        }
+
+        public bool HasColorCorrection()
+        {
+            if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value))
+            {
+                return (bool)value.Value;
+            }
+
+            return true; // Assumed true pre Aperture Desk Job
+        }
+
         public int GetColorCorrectionLUTDimension()
             => Data.GetProperty<int>("m_nColorCorrectionVolumeDim");
 
@@ -51,6 +71,7 @@ namespace ValveResourceFormat.ResourceTypes
             var tonemapParams = GetTonemapParams();
             var bloomParams = GetBloomParams();
             var vignetteParams = GetVignetteParams();
+            var localContrastParams = GetLocalContrastParams();
 
             if (tonemapParams != null)
             {
@@ -101,7 +122,12 @@ namespace ValveResourceFormat.ResourceTypes
                 // TODO: How does the vignette layer look like?
             }
 
-            if (Data.ContainsKey("m_colorCorrectionVolumeData"))
+            if (localContrastParams != null)
+            {
+                // TODO: How does the local contrast layer look like?
+            }
+
+            if (HasColorCorrection())
             {
                 // TODO: All other layers are converted into this. Extract to lookup table?
                 // https://developer.valvesoftware.com/wiki/Color_Correction#RAW_File_Format

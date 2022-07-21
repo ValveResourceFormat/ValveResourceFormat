@@ -445,9 +445,9 @@ namespace GUI.Types.Viewers
                     control.Multiline = true;
                     control.ReadOnly = true;
                     control.ScrollBars = ScrollBars.Both;
-                    var tabVmat = new TabPage("vpost");
-                    tabVmat.Controls.Add(control);
-                    resTabs.TabPages.Add(tabVmat);
+                    var tabVpost = new TabPage("vpost");
+                    tabVpost.Controls.Add(control);
+                    resTabs.TabPages.Add(tabVpost);
                 }
             }
 
