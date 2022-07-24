@@ -8,7 +8,7 @@ namespace ValveResourceFormat.IO
 {
     public static class FileExtract
     {
-        public static Span<byte> Extract(Resource resource, GltfModelExporter exporter = null, string targetPath = null)
+        public static Span<byte> Extract(Resource resource)
         {
             Span<byte> data;
 
@@ -45,38 +45,6 @@ namespace ValveResourceFormat.IO
                 case ResourceType.Particle:
                     data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
                     break;
-
-                case ResourceType.Mesh:
-                case ResourceType.Model:
-                case ResourceType.World:
-                case ResourceType.WorldNode:
-                {
-                    if (exporter != null && targetPath != null)
-                    {
-                        data = Array.Empty<byte>();
-                        switch(resource.ResourceType)
-                        {
-                            case ResourceType.Mesh:
-                                exporter.ExportToFile(resource.FileName, targetPath, new Mesh(resource));
-                                break;
-                            case ResourceType.Model:
-                                exporter.ExportToFile(resource.FileName, targetPath, (Model)resource.DataBlock);
-                                break;
-                            case ResourceType.WorldNode:
-                                exporter.ExportToFile(resource.FileName, targetPath, (WorldNode)resource.DataBlock);
-                                break;
-                            case ResourceType.World:
-                                exporter.ExportToFile(resource.FileName, targetPath, (World)resource.DataBlock);
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
-                    }
-
-                    break;
-                }
 
                 case ResourceType.Material:
                     data = ((Material)resource.DataBlock).ToValveMaterial();
