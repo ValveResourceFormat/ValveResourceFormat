@@ -130,6 +130,12 @@ namespace GUI.Forms
                         {
                             resource.Read(memory);
 
+                            if (GltfModelExporter.CanExport(resource))
+                            {
+                                gltfExporter.Export(resource, filePath);
+                                continue;
+                            }
+
                             var extension = FileExtract.GetExtension(resource);
 
                             if (extension == null)
