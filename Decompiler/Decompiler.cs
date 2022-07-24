@@ -416,7 +416,7 @@ namespace Decompiler
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    DumpFile(filePath, extractedResource.Data);
+                    DumpExtractedResource(filePath, extractedResource);
                 }
             }
             catch (Exception e)
@@ -783,6 +783,7 @@ namespace Decompiler
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 package.ReadEntry(file, out var output);
+                var extractedResource = default(ExtractedResource);
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
@@ -817,7 +818,7 @@ namespace Decompiler
                             continue;
                         }
 
-                        output = FileExtract.Extract(resource).Data.ToArray();
+                        extractedResource = FileExtract.Extract(resource);
                     }
                     catch (Exception e)
                     {
@@ -837,7 +838,38 @@ namespace Decompiler
                         filePath = Path.ChangeExtension(filePath, extension);
                     }
 
-                    DumpFile(filePath, output, useOutputAsDirectory: true);
+
+                    if (Decompile)
+                    {
+                        DumpExtractedResource(filePath, extractedResource, useOutputAsDirectory: true);
+                    }
+                    else
+                    {
+                        DumpFile(filePath, output, useOutputAsDirectory: true);
+                    }
+
+                }
+            }
+        }
+
+        private void DumpExtractedResource(string path, ExtractedResource extract, bool useOutputAsDirectory = false, bool extractWithChildren = true)
+        {
+            DumpFile(path, extract.Data.ToArray(), useOutputAsDirectory);
+
+            if (extractWithChildren)
+            {
+                foreach (var child in extract.Children)
+                {
+                    if (!useOutputAsDirectory)
+                    {
+                        // Bit of a hack, user provides custom output filepath, but only for the main resource.
+                        // So have to redirect this child resource next to the main resource or otherwise the
+                        // child resource will get extracted next to input.
+                        OutputFile = Path.Combine(Path.GetDirectoryName(OutputFile), Path.GetFileName(child.FileName));
+                    }
+
+                    DumpFile(child.FileName, child.Data, useOutputAsDirectory);
+
                 }
             }
         }

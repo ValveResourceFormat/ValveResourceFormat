@@ -22,6 +22,8 @@ namespace GUI.Forms
         private CancellationTokenSource cancellationTokenSource;
         private int initialFileCount;
 
+        private ExtractedResource extractedResource;
+
         private GltfModelExporter gltfExporter;
 
         public ExtractProgressForm(Package package, TreeNode root, string path, bool decompile)
@@ -112,17 +114,18 @@ namespace GUI.Forms
                     extractStatusLabel.Text = $"Extracting {packageFile.GetFullPath()}";
                 }));
 
-                var filePath = Path.Combine(path, packageFile.GetFullPath());
+                var outFilePath = Path.Combine(path, packageFile.GetFullPath());
+                var outFolder = Path.GetDirectoryName(outFilePath);
 
                 package.ReadEntry(packageFile, out var output, false);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                Directory.CreateDirectory(outFolder);
 
-                if (decompile && filePath.EndsWith("_c", StringComparison.Ordinal))
+                if (decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
                     using (var resource = new Resource
                     {
-                        FileName = filePath,
+                        FileName = outFilePath,
                     })
                     using (var memory = new MemoryStream(output))
                     {
@@ -132,7 +135,7 @@ namespace GUI.Forms
 
                             if (GltfModelExporter.CanExport(resource))
                             {
-                                gltfExporter.Export(resource, filePath);
+                                gltfExporter.Export(resource, outFilePath);
                                 continue;
                             }
 
@@ -140,14 +143,16 @@ namespace GUI.Forms
 
                             if (extension == null)
                             {
-                                filePath = filePath.Substring(0, filePath.Length - 2);
+                                outFilePath = outFilePath.Substring(0, outFilePath.Length - 2);
                             }
                             else
                             {
-                                filePath = Path.ChangeExtension(filePath, extension);
+                                outFilePath = Path.ChangeExtension(outFilePath, extension);
                             }
 
-                            output = FileExtract.Extract(resource).Data.ToArray();
+                            extractedResource = FileExtract.Extract(resource);
+                            output = extractedResource.Data;
+
                         }
                         catch (Exception e)
                         {
@@ -159,15 +164,22 @@ namespace GUI.Forms
 
                 if (output.Length > 0)
                 {
-                    var stream = new FileStream(filePath, FileMode.Create);
+                    var stream = new FileStream(outFilePath, FileMode.Create);
                     await using (stream.ConfigureAwait(false))
                     {
                         await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
+
+                    foreach(var child in extractedResource.Children)
+                    {
+                        var childPath = Path.Combine(outFolder, child.FileName);
+                        Directory.CreateDirectory(Path.GetDirectoryName(childPath));
+                        File.WriteAllBytes(childPath, child.Data);
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("Skip write" + filePath);
+                    Console.WriteLine("Skip write" + outFilePath);
                 }
             }
         }

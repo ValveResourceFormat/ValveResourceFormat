@@ -8,14 +8,13 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.IO
 {
 
-    public ref struct ExtractedResource
+    public class ExtractedResource
     {
-        public Span<byte> Data { get; set; }
+        public byte[] Data { get; set; }
         public List<ChildExtractedResource> Children { get; private set;}
 
         public ExtractedResource()
         {
-            Data = new Span<byte>();
             Children = new List<ChildExtractedResource>();
         }
     }
@@ -23,32 +22,32 @@ namespace ValveResourceFormat.IO
     public class ChildExtractedResource
     {
         public byte[] Data { get; set; }
-        public string Filename { get; set; }
+        public string FileName { get; set; }
     }
 
     public static class FileExtract
     {
         /// <summary>
-        /// Extract a compiled Resource to source file(s).
+        /// Extract source data from a compiled resource.
         /// </summary>
         /// <param name="resource">The resource to be extracted/decompiled.</param>
         public static ExtractedResource Extract(Resource resource)
         {
-            var exportFile = new ExtractedResource();
+            var extract = new ExtractedResource();
 
             switch (resource.ResourceType)
             {
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaVectorGraphic:
-                    exportFile.Data = ((Panorama)resource.DataBlock).Data;
+                    extract.Data = ((Panorama)resource.DataBlock).Data;
                     break;
 
                 case ResourceType.Sound:
                     {
                         var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
-                        exportFile.Data = buffer;
+                        extract.Data = buffer.ToArray();
 
                         break;
                     }
@@ -61,21 +60,21 @@ namespace ValveResourceFormat.IO
                         bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
 
                         ms.TryGetBuffer(out var buffer);
-                        exportFile.Data = buffer;
+                        extract.Data = buffer.ToArray();
 
                         break;
                     }
 
                 case ResourceType.Particle:
-                    exportFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
+                    extract.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
                     break;
 
                 case ResourceType.Material:
-                    exportFile.Data = ((Material)resource.DataBlock).ToValveMaterial();
+                    extract.Data = ((Material)resource.DataBlock).ToValveMaterial();
                     break;
 
                 case ResourceType.EntityLump:
-                    exportFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
+                    extract.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
                     break;
 
                 // These all just use ToString() and WriteText() to do the job
@@ -83,15 +82,15 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    exportFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    extract.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
                 default:
-                    exportFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    extract.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
             }
 
-            return exportFile;
+            return extract;
         }
 
         public static string GetExtension(Resource resource)

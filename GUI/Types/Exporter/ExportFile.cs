@@ -76,6 +76,13 @@ namespace GUI.Types.Exporter
                     var extractedResource = FileExtract.Extract(resource);
                     using var stream = dialog.OpenFile();
                     stream.Write(extractedResource.Data);
+
+                    foreach (var childExtractedResource in extractedResource.Children)
+                    {
+                        var childFileName = Path.Combine(Path.GetDirectoryName(dialog.FileName), childExtractedResource.FileName);
+                        using var childStream = File.OpenWrite(childFileName);
+                        childStream.Write(childExtractedResource.Data);
+                    }
                 }
 
                 Console.WriteLine($"Export for \"{fileName}\" completed");
