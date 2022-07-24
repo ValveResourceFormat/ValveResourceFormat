@@ -412,11 +412,11 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var data = FileExtract.Extract(resource);
+                    var extractedResource = FileExtract.Extract(resource);
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    DumpFile(filePath, data);
+                    DumpFile(filePath, extractedResource.Data);
                 }
             }
             catch (Exception e)
@@ -798,34 +798,26 @@ namespace Decompiler
 
                         extension = FileExtract.GetExtension(resource) ?? type[..^2];
 
-                        // TODO: Hook this up in FileExtract
-                        if (resource.ResourceType == ResourceType.Mesh || resource.ResourceType == ResourceType.Model)
+                        if (GltfModelExporter.CanExport(resource))
                         {
                             var outputExtension = GltfExportFormat;
                             var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
 
                             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
-                            var exporter = new GltfModelExporter
+                            var gltfModelExporter = new GltfModelExporter
                             {
                                 ExportMaterials = GltfExportMaterials,
                                 ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
                                 FileLoader = fileLoader
                             };
 
-                            if (resource.ResourceType == ResourceType.Mesh)
-                            {
-                                exporter.ExportToFile(file.GetFileName(), outputFile, new Mesh(resource));
-                            }
-                            else if (resource.ResourceType == ResourceType.Model)
-                            {
-                                exporter.ExportToFile(file.GetFileName(), outputFile, (Model)resource.DataBlock);
-                            }
+                            gltfModelExporter.Export(resource, outputFile);
 
                             continue;
                         }
 
-                        output = FileExtract.Extract(resource).ToArray();
+                        output = FileExtract.Extract(resource).Data.ToArray();
                     }
                     catch (Exception e)
                     {

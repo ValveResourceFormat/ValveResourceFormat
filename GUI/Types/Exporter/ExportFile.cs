@@ -1,19 +1,14 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
-        static ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
-        { ResourceType.Mesh, ResourceType.Model, ResourceType.WorldNode, ResourceType.World };
 
         public static void Export(string fileName, ExportData exportData)
         {
@@ -28,7 +23,7 @@ namespace GUI.Types.Exporter
 
             var filter = $"{extension} file|*.{extension}";
 
-            if (ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
+            if (GltfModelExporter.CanExport(resource))
             {
                 if (exportData.FileType == ExportFileType.GLB)
                 {
@@ -66,21 +61,21 @@ namespace GUI.Types.Exporter
             var extractDialog = new GenericProgressForm();
             extractDialog.OnProcess += (_, __) =>
             {
-                GltfModelExporter exporter = null;
-                if (dialog.FilterIndex <= 2 && ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
+                if (dialog.FilterIndex <= 2 && GltfModelExporter.CanExport(resource))
                 {
-                    exporter = new GltfModelExporter
+                    var exporter = new GltfModelExporter
                     {
                         ProgressReporter = new Progress<string>(extractDialog.SetProgress),
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
-                }
 
-                var data = FileExtract.Extract(resource, exporter, dialog.FileName);
-                if (data.Length > 0)
+                    exporter.Export(resource, dialog.FileName);
+                }
+                else
                 {
+                    var extractedResource = FileExtract.Extract(resource);
                     using var stream = dialog.OpenFile();
-                    stream.Write(data);
+                    stream.Write(extractedResource.Data);
                 }
 
                 Console.WriteLine($"Export for \"{fileName}\" completed");
