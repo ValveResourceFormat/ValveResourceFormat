@@ -13,7 +13,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
 using SteamDatabase.ValvePak;
-using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
@@ -437,7 +436,7 @@ namespace Decompiler
                                 var frame = sequence.Frames[j];
                                 if (sequence.Frames.Length > 1)
                                 {
-                                    filePath = String.Format("{0}_seq{1:00}_{2}.png", basePath, i, j);
+                                    filePath = String.Format("{0}_seq{1:00}_{2:00}.png", basePath, i, j);
                                 }
                                 else
                                 {
