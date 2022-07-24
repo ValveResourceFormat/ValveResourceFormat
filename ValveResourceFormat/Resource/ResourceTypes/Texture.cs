@@ -28,6 +28,15 @@ namespace ValveResourceFormat.ResourceTypes
 
                     public Vector2 EndMins { get; set; }
                     public Vector2 EndMaxs { get; set; }
+
+                    public SKRectI GetBoundingRect(int width, int height)
+                    {
+                        int startX = (int)(StartMins.X * width);
+                        int startY = (int)(StartMins.Y * height);
+                        int endX = (int)(StartMaxs.X * width);
+                        int endY = (int)(StartMaxs.Y * height);
+                        return new SKRectI(startX, startY, endX, endY);
+                    }
                 }
 
                 public Frame[] Frames { get; set; }
