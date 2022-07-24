@@ -86,8 +86,8 @@ namespace Decompiler
         [Option("--gltf_export_materials", "Whether to export materials during glTF exports.", CommandOptionType.NoValue)]
         public bool GltfExportMaterials { get; }
 
-        [Option("-t|--texture_split", "Texture split mode: images (save images, default), json (contains split coords)", CommandOptionType.SingleValue)]
-        public string TextureSplit { get; }
+        [Option("-t|--texture_split", "Whether seperate images should be dumped when compiling texture spritesheets.", CommandOptionType.NoValue)]
+        public bool TextureSplit { get; }
 
         private string[] ExtFilterList;
         private bool IsInputFolder;
@@ -421,6 +421,33 @@ namespace Decompiler
                     var filePath = Path.ChangeExtension(path, extension);
 
                     DumpFile(filePath, data);
+
+                    if (resource.ResourceType == ResourceType.Texture && TextureSplit)
+                    {
+                        var texture = (Texture)resource.DataBlock;
+                        var imageSheet = FileExtract.ExtractTextureSheet(texture);
+
+                        var basePath = Path.ChangeExtension(OutputFile, null);
+
+                        for (int i = 0; i < imageSheet.Sequences.Length; i++)
+                        {
+                            var sequence = imageSheet.Sequences[i];
+                            for (int j = 0; j < sequence.Frames.Length; j++)
+                            {
+                                var frame = sequence.Frames[j];
+                                if (sequence.Frames.Length > 1)
+                                {
+                                    filePath = String.Format("{0}_seq{1:00}_{2}.png", basePath, i, j);
+                                }
+                                else
+                                {
+                                    filePath = String.Format("{0}_seq{1:00}.png", basePath, i);
+                                }
+                                OutputFile = filePath; //not optimal, but only way without DumpFile rewrite
+                                DumpFile(filePath, frame.data);
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception e)
@@ -494,77 +521,6 @@ namespace Decompiler
 
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Type);
                     Console.WriteLine(block.ToString());
-                }
-            }
-
-            if (resource.ResourceType == ResourceType.Texture && TextureSplit != null)
-            {
-                var texture = (Texture)resource.DataBlock;
-                var spriteSheet = texture.GetSpriteSheetData();
-
-                if (OutputFile == null && TextureSplit != "json")
-                {
-                    Console.WriteLine("\n\n--- No output file given: Could not write any images.");
-                }
-                else if (OutputFile != null && TextureSplit != "json")
-                {
-                    Console.Write("\n\n");
-                    if (spriteSheet == null)
-                    {
-                        Console.WriteLine("--- This texture has no sheet data.");
-                    }
-                }
-
-                if (spriteSheet != null)
-                {
-                    var sequences = spriteSheet.Sequences;
-                    var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-                    SKBitmap subset = new SKBitmap();
-                    var basePath = Path.ChangeExtension(OutputFile, null);
-
-                    String output = "{";
-                    for (int i = 0; i < sequences.Length; i++)
-                    {
-                        var sequence = sequences[i];
-                        if (sequence.Frames.Length < 1) continue;
-                        Console.WriteLine(sequence.Frames.Length);
-                        var firstFrame = sequence.Frames[0];
-
-                        output += String.Format("\n\t\"{0}\": ", i) + "{";
-                        output += String.Format("\n\t\t\"StartMins\": [{0}, {1}],", firstFrame.StartMins.X, firstFrame.StartMins.Y);
-                        output += String.Format("\n\t\t\"StartMaxs\": [{0}, {1}],", firstFrame.StartMaxs.X, firstFrame.StartMaxs.Y);
-                        output += String.Format("\n\t\t\"EndMins\": [{0}, {1}],", firstFrame.EndMins.X, firstFrame.EndMins.Y);
-                        output += String.Format("\n\t\t\"EndMaxs\": [{0}, {1}]", firstFrame.EndMaxs.X, firstFrame.EndMaxs.Y);
-                        output += "\n\t},";
-
-                        if (OutputFile != null && TextureSplit != "json")
-                        {
-                            for (int j = 0; j < sequence.Frames.Length; j++)
-                            {
-                                var frame = sequence.Frames[j];
-                                SKRectI imageRect = frame.GetBoundingRect(bitmap.Width, bitmap.Height);
-                                var success = bitmap.ExtractSubset(subset, imageRect);
-
-                                if (success)
-                                {
-                                    using var ms = new MemoryStream();
-                                    subset.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
-
-                                    ms.TryGetBuffer(out var buffer);
-                                    OutputFile = String.Format("{0}_seq{1:00}_{2}.png", basePath, i, j);
-                                    DumpFile("", buffer);
-                                }
-                            }
-                        }
-                    }
-                    if (TextureSplit == "json")
-                    {
-                        output = output.Remove(output.Length - 1);
-                        output += "\n}";
-
-                        OutputFile = basePath + "_sequences.json";
-                        DumpFile("", Encoding.UTF8.GetBytes(output));
-                    }
                 }
             }
         }
