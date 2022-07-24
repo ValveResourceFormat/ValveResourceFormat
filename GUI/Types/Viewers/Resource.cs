@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
-using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Audio;
 using GUI.Types.Exporter;
@@ -299,28 +298,22 @@ namespace GUI.Types.Viewers
 
                     if (block.Type == BlockType.DATA)
                     {
-                        switch (resource.ResourceType)
+                        if (block is BinaryKV3 blockKeyvalues)
                         {
-                            case ResourceType.Sound:
+                            // Wrap it around a KV3File object to get the header.
+                            control.Text =
+                                Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
+                        }
+                        else
+                        {
+                            if (resource.ResourceType == ResourceType.Sound)
+                            {
                                 control.Text = Utils.Utils.NormalizeLineEndings(((Sound)block).ToString());
-                                break;
-                            case ResourceType.Particle:
-                            case ResourceType.Mesh:
-                                if (block is BinaryKV3 blockKeyvalues)
-                                {
-                                    //Wrap it around a KV3File object to get the header.
-                                    control.Text =
-                                        Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
-                                }
-                                else
-                                {
-                                    control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
-                                }
-
-                                break;
-                            default:
+                            }
+                            else
+                            {
                                 control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
-                                break;
+                            }
                         }
                     }
                     else
@@ -355,7 +348,7 @@ namespace GUI.Types.Viewers
                 {
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = Utils.Utils.NormalizeLineEndings(Encoding.UTF8.GetString(((Material)block).ToValveMaterial()));
+                    control.Text = Utils.Utils.NormalizeLineEndings(((Material)block).ToValveMaterial());
                     control.Dock = DockStyle.Fill;
                     control.Multiline = true;
                     control.ReadOnly = true;

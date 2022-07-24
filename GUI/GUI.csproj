@@ -13,7 +13,7 @@
     <AssemblyName>VRF</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NAudio" Version="2.0.1" />
+    <PackageReference Include="NAudio" Version="2.1.0" />
     <PackageReference Include="NLayer" Version="1.14.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.3.0" />
     <PackageReference Include="OpenTK" Version="3.3.2">
@@ -22,7 +22,7 @@
     <PackageReference Include="OpenTK.GLControl" Version="3.1.0">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.88.0-preview.179" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.88.0" />
     <PackageReference Include="ValvePak" Version="1.3.0.33" />
   </ItemGroup>
   <ItemGroup>

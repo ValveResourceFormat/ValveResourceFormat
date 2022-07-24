@@ -434,7 +434,7 @@ namespace ValveResourceFormat
                 case ResourceType.ResourceManifest:
                     return new ResourceManifest();
 
-                case ResourceType.SboxData:
+                case ResourceType.SboxManagedResource:
                 case ResourceType.ArtifactItem:
                     return new Plaintext();
 
@@ -546,7 +546,8 @@ namespace ValveResourceFormat
                 case "DotaItem":
                     return ResourceType.ArtifactItem;
                 case "SBData":
-                    return ResourceType.SboxData;
+                case "ManagedResourceCompiler": // This is without the "Compile" prefix
+                    return ResourceType.SboxManagedResource;
             }
 
             if (Enum.TryParse(identifier, false, out ResourceType resourceType))

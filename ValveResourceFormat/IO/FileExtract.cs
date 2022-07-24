@@ -37,6 +37,9 @@ namespace ValveResourceFormat.IO
 
             switch (resource.ResourceType)
             {
+                case ResourceType.Map:
+                    throw new NotImplementedException("Export the vwrld_c file if you are trying to export a map. vmap_c is simply a metadata file.");
+
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaVectorGraphic:
@@ -70,7 +73,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Material:
-                    extract.Data = ((Material)resource.DataBlock).ToValveMaterial();
+                    extract.Data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
                     break;
 
                 case ResourceType.EntityLump:
@@ -86,8 +89,19 @@ namespace ValveResourceFormat.IO
                     break;
 
                 default:
-                    extract.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
-                    break;
+                    {
+                        if (resource.DataBlock is BinaryKV3 dataKv3)
+                        {
+                            // Wrap it around a KV3File object to get the header.
+                            extract.Data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
+                        }
+                        else
+                        {
+                            extract.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                        }
+
+                        break;
+                    }
             }
 
             return extract;

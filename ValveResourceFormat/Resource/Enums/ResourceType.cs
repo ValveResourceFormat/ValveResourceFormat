@@ -71,6 +71,9 @@ namespace ValveResourceFormat
         [Extension("vsndevts")]
         SoundEventScript,
 
+        [Extension("vmix")]
+        VMix,
+
         [Extension("vsndstck")]
         SoundStackScript,
 
@@ -115,8 +118,8 @@ namespace ValveResourceFormat
         [Extension("item")]
         ArtifactItem,
 
-        [Extension("sbox")] // TODO: Specify each type individually when sbox ships (sound, decal, surface, etc)
-        SboxData,
+        [Extension("sbox")] // TODO: Managed resources can have any extension
+        SboxManagedResource,
 #pragma warning restore 1591
     }
 }
