@@ -22,7 +22,7 @@ namespace GUI.Forms
         private CancellationTokenSource cancellationTokenSource;
         private int initialFileCount;
 
-        private ExtractedResource extractedResource;
+        private ContentFile contentFile;
 
         private GltfModelExporter gltfExporter;
 
@@ -150,8 +150,8 @@ namespace GUI.Forms
                                 outFilePath = Path.ChangeExtension(outFilePath, extension);
                             }
 
-                            extractedResource = FileExtract.Extract(resource);
-                            output = extractedResource.Data;
+                            contentFile = FileExtract.Extract(resource);
+                            output = contentFile.Data;
 
                         }
                         catch (Exception e)
@@ -170,7 +170,7 @@ namespace GUI.Forms
                         await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
 
-                    foreach(var child in extractedResource.Children)
+                    foreach(var child in contentFile.SubFiles)
                     {
                         var childPath = Path.Combine(outFolder, child.FileName);
                         Directory.CreateDirectory(Path.GetDirectoryName(childPath));

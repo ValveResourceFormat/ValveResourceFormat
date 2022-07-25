@@ -7,19 +7,29 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
-
-    public class ExtractedResource
+    public class ContentFile
     {
         public byte[] Data { get; set; }
-        public List<ChildExtractedResource> Children { get; private set;}
+        public List<ContentSubFile> SubFiles { get; private set;}
 
-        public ExtractedResource()
+        public ContentFile()
         {
-            Children = new List<ChildExtractedResource>();
+            SubFiles = new List<ContentSubFile>();
+        }
+
+        public void AddSubFile(string fileName, byte[] data)
+        {
+            var subFile = new ContentSubFile
+            {
+                FileName = fileName,
+                Data = data
+            };
+
+            SubFiles.Add(subFile);
         }
     }
 
-    public class ChildExtractedResource
+    public class ContentSubFile
     {
         public byte[] Data { get; set; }
         public string FileName { get; set; }
@@ -28,12 +38,12 @@ namespace ValveResourceFormat.IO
     public static class FileExtract
     {
         /// <summary>
-        /// Extract source data from a compiled resource.
+        /// Extract content file from a compiled resource.
         /// </summary>
         /// <param name="resource">The resource to be extracted/decompiled.</param>
-        public static ExtractedResource Extract(Resource resource)
+        public static ContentFile Extract(Resource resource)
         {
-            var extract = new ExtractedResource();
+            var extract = new ContentFile();
 
             switch (resource.ResourceType)
             {
@@ -104,6 +114,10 @@ namespace ValveResourceFormat.IO
                     }
             }
 
+#if DEBUG_CONTENTSUBFILE
+            extract.AddSubFile("subfile1.txt", Encoding.UTF8.GetBytes("Hello World!"));
+            extract.AddSubFile("subfile2.txt", Encoding.UTF8.GetBytes("Hello World!2"));
+#endif
             return extract;
         }
 

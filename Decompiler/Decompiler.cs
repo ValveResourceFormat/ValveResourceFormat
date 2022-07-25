@@ -412,11 +412,11 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var extractedResource = FileExtract.Extract(resource);
+                    var contentFile = FileExtract.Extract(resource);
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    DumpExtractedResource(filePath, extractedResource);
+                    DumpContentFile(filePath, contentFile);
                 }
             }
             catch (Exception e)
@@ -783,7 +783,7 @@ namespace Decompiler
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 package.ReadEntry(file, out var output);
-                var extractedResource = default(ExtractedResource);
+                var contentFile = default(ContentFile);
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
@@ -818,7 +818,7 @@ namespace Decompiler
                             continue;
                         }
 
-                        extractedResource = FileExtract.Extract(resource);
+                        contentFile = FileExtract.Extract(resource);
                     }
                     catch (Exception e)
                     {
@@ -841,7 +841,7 @@ namespace Decompiler
 
                     if (Decompile)
                     {
-                        DumpExtractedResource(filePath, extractedResource, useOutputAsDirectory: true);
+                        DumpContentFile(filePath, contentFile, useOutputAsDirectory: true);
                     }
                     else
                     {
@@ -852,13 +852,13 @@ namespace Decompiler
             }
         }
 
-        private void DumpExtractedResource(string path, ExtractedResource extract, bool useOutputAsDirectory = false, bool extractWithChildren = true)
+        private void DumpContentFile(string path, ContentFile contentFile, bool useOutputAsDirectory = false, bool dumpSubFiles = true)
         {
-            DumpFile(path, extract.Data.ToArray(), useOutputAsDirectory);
+            DumpFile(path, contentFile.Data.ToArray(), useOutputAsDirectory);
 
-            if (extractWithChildren)
+            if (dumpSubFiles)
             {
-                foreach (var child in extract.Children)
+                foreach (var child in contentFile.SubFiles)
                 {
                     if (!useOutputAsDirectory)
                     {
