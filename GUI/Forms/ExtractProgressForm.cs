@@ -174,7 +174,7 @@ namespace GUI.Forms
                     {
                         var childPath = Path.Combine(outFolder, child.FileName);
                         Directory.CreateDirectory(Path.GetDirectoryName(childPath));
-                        File.WriteAllBytes(childPath, child.Data);
+                        File.WriteAllBytes(childPath, child.Extract());
                     }
                 }
                 else

@@ -81,7 +81,7 @@ namespace GUI.Types.Exporter
                     {
                         var childFileName = Path.Combine(Path.GetDirectoryName(dialog.FileName), childExtractedResource.FileName);
                         using var childStream = File.OpenWrite(childFileName);
-                        childStream.Write(childExtractedResource.Data);
+                        childStream.Write(childExtractedResource.Extract());
                     }
                 }
 

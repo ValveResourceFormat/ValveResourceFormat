@@ -868,7 +868,7 @@ namespace Decompiler
                         OutputFile = Path.Combine(Path.GetDirectoryName(OutputFile), Path.GetFileName(child.FileName));
                     }
 
-                    DumpFile(child.FileName, child.Data, useOutputAsDirectory);
+                    DumpFile(child.FileName, child.Extract(), useOutputAsDirectory);
 
                 }
             }
