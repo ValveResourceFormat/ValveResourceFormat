@@ -858,17 +858,17 @@ namespace Decompiler
 
             if (dumpSubFiles)
             {
-                foreach (var child in contentFile.SubFiles)
+                foreach (var contentSubFile in contentFile.SubFiles)
                 {
                     if (!useOutputAsDirectory)
                     {
                         // Bit of a hack, user provides custom output filepath, but only for the main resource.
                         // So have to redirect this child resource next to the main resource or otherwise the
                         // child resource will get extracted next to input.
-                        OutputFile = Path.Combine(Path.GetDirectoryName(OutputFile), Path.GetFileName(child.FileName));
+                        OutputFile = Path.Combine(Path.GetDirectoryName(OutputFile), Path.GetFileName(contentSubFile.FileName));
                     }
 
-                    DumpFile(child.FileName, child.Extract(), useOutputAsDirectory);
+                    DumpFile(contentSubFile.FileName, contentSubFile.Extract(), useOutputAsDirectory);
 
                 }
             }

@@ -77,11 +77,11 @@ namespace GUI.Types.Exporter
                     using var stream = dialog.OpenFile();
                     stream.Write(contentFile.Data);
 
-                    foreach (var childExtractedResource in contentFile.SubFiles)
+                    foreach (var contentSubFile in contentFile.SubFiles)
                     {
-                        var childFileName = Path.Combine(Path.GetDirectoryName(dialog.FileName), childExtractedResource.FileName);
-                        using var childStream = File.OpenWrite(childFileName);
-                        childStream.Write(childExtractedResource.Extract());
+                        var subFilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName), contentSubFile.FileName);
+                        using var subFileStream = File.OpenWrite(subFilePath);
+                        subFileStream.Write(contentSubFile.Extract());
                     }
                 }
 

@@ -164,22 +164,28 @@ namespace GUI.Forms
 
                 if (output.Length > 0)
                 {
-                    var stream = new FileStream(outFilePath, FileMode.Create);
-                    await using (stream.ConfigureAwait(false))
+                    Console.WriteLine($"Writing content file: {outFilePath}");
+                    await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
+                }
+
+                foreach(var contentSubFile in contentFile.SubFiles)
+                {
+                    var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
+
+                    byte[] subFileData;
+                    try
                     {
-                        await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
+                        subFileData = contentSubFile.Extract();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}");
+                        continue;
                     }
 
-                    foreach(var child in contentFile.SubFiles)
-                    {
-                        var childPath = Path.Combine(outFolder, child.FileName);
-                        Directory.CreateDirectory(Path.GetDirectoryName(childPath));
-                        File.WriteAllBytes(childPath, child.Extract());
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Skip write" + outFilePath);
+                    Console.WriteLine($"Writing content subfile: {subFilePath}");
+                    await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
             }
         }
