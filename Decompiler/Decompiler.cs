@@ -416,7 +416,9 @@ namespace Decompiler
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    DumpContentFile(filePath, contentFile);
+                    // TODO: fix exporting subfiles to a non-folder --output / no DumpVPK
+                    // there is an issue with paths
+                    DumpContentFile(filePath, contentFile, dumpSubFiles: false);
                 }
             }
             catch (Exception e)
@@ -860,16 +862,7 @@ namespace Decompiler
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    if (!useOutputAsDirectory)
-                    {
-                        // Bit of a hack, user provides custom output filepath, but only for the main resource.
-                        // So have to redirect this child resource next to the main resource or otherwise the
-                        // child resource will get extracted next to input.
-                        OutputFile = Path.Combine(Path.GetDirectoryName(OutputFile), Path.GetFileName(contentSubFile.FileName));
-                    }
-
-                    DumpFile(contentSubFile.FileName, contentSubFile.Extract(), useOutputAsDirectory);
-
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract(), useOutputAsDirectory);
                 }
             }
         }
