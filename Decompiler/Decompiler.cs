@@ -416,8 +416,8 @@ namespace Decompiler
 
                     var filePath = Path.ChangeExtension(path, extension);
 
-                    // TODO: fix exporting subfiles to a non-folder --output / no DumpVPK
-                    // there is an issue with paths
+                    // TODO: fix exporting subfiles to a non-folder --output
+                    // there is an issue with how output path is handled
                     DumpContentFile(filePath, contentFile, dumpSubFiles: false);
                 }
             }
