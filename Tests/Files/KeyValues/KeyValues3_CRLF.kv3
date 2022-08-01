@@ -21,6 +21,8 @@ Second line of a multi-line string literal.
 		n = 5
 		s = "foo"
 	}
+    arrayOnSingleLine = [ 16.7551, 20.3763, 19.6448 ]
+    "quoted.key" = "hello"
 	// single line comment
 	/* multi
 	line

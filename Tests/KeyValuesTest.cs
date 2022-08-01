@@ -36,7 +36,7 @@ namespace Tests
             Assert.AreEqual("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}", file.Encoding);
             Assert.AreEqual("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}", file.Format);
 
-            Assert.AreEqual(10, file.Root.Count);
+            Assert.AreEqual(12, file.Root.Count);
 
             var properties = file.Root.Properties;
 
@@ -67,6 +67,8 @@ namespace Tests
             var objectValue = properties["objectValue"].Value as KVObject;
             Assert.AreEqual((long)5, objectValue.Properties["n"].Value);
             Assert.AreEqual("foo", objectValue.Properties["s"].Value);
+
+            Assert.AreEqual(KVType.ARRAY, properties["arrayOnSingleLine"].Type);
         }
     }
 }

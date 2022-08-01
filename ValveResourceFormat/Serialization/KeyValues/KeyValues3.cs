@@ -184,7 +184,6 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.VALUE_ARRAY);
-                parser.StateStack.Push(State.SEEK_VALUE);
 
                 parser.ObjStack.Push(new KVObject(parser.CurrentString.ToString(), true));
             }
@@ -390,25 +389,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Read a numerical value
         private static void ReadValueNumber(char c, Parser parser)
         {
-            //For arrays
-            if (c == ',')
-            {
-                parser.StateStack.Pop();
-                parser.StateStack.Push(State.SEEK_VALUE);
-                if (parser.CurrentString.ToString().Contains('.'))
-                {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.DOUBLE, double.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
-                }
-                else
-                {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.INT64, long.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
-                }
-
-                return;
-            }
-
-            //Stop reading the number once whitespace is encountered
-            if (char.IsWhiteSpace(c))
+            //Stop reading the number once whitespace (or comma in arrays) is encountered
+            if (char.IsWhiteSpace(c) || c == ',')
             {
                 //Distinguish between doubles and ints
                 parser.StateStack.Pop();
@@ -430,6 +412,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Read an array
         private static void ReadValueArray(char c, Parser parser)
         {
+            //Check for the end of the array
+            if (c == ']')
+            {
+                KVObject value = parser.ObjStack.Pop();
+                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
+                parser.StateStack.Pop();
+                return;
+            }
+
             //This shouldn't happen
             if (!char.IsWhiteSpace(c) && c != ',')
             {
