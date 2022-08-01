@@ -8,6 +8,19 @@ namespace Tests
     public class KeyValuesTest
     {
         [Test]
+        public void TestKeyValues3_CRLF()
+        {
+            var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_CRLF.kv3"));
+
+            Assert.AreEqual("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}", file.Encoding);
+            Assert.AreEqual("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}", file.Format);
+
+            //Not sure what KVType is better for this
+            Assert.AreEqual("First line of a multi-line string literal.\r\nSecond line of a multi-line string literal.",
+                file.Root.Properties["multiLineStringValue"].Value);
+        }
+
+        [Test]
         public void TestKeyValues3_LF()
         {
             var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
@@ -16,23 +29,6 @@ namespace Tests
             Assert.AreEqual("First line of a multi-line string literal.\nSecond line of a multi-line string literal.",
                 file.Root.Properties["multiLineStringValue"].Value);
 
-            TestKeyValues3(file);
-        }
-
-        [Test]
-        public void TestKeyValues3_CRLF()
-        {
-            var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_CRLF.kv3"));
-
-            //Not sure what KVType is better for this
-            Assert.AreEqual("First line of a multi-line string literal.\r\nSecond line of a multi-line string literal.",
-                file.Root.Properties["multiLineStringValue"].Value);
-
-            TestKeyValues3(file);
-        }
-
-        static void TestKeyValues3(KV3File file)
-        {
             Assert.AreEqual("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}", file.Encoding);
             Assert.AreEqual("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}", file.Format);
 
