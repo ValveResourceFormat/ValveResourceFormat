@@ -3,6 +3,8 @@
 	boolValue = false
 	intValue = 128
 	doubleValue = 64.000000
+	negativeIntValue = -1337
+	negativeDoubleValue = -0.1337
 	stringValue = "hello world"
 	stringThatIsAResourceReference = resource:"particles/items3_fx/star_emblem.vpcf"
 	multiLineStringValue = """

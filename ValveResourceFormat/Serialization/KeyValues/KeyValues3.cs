@@ -248,7 +248,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             // Number
-            else if (char.IsDigit(c))
+            else if (ReadAheadIsNumber(parser, c))
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.VALUE_NUMBER);
@@ -397,7 +397,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return;
             }
 
-            //Stop reading the number once whtiespace is encountered
+            //Stop reading the number once whitespace is encountered
             if (char.IsWhiteSpace(c))
             {
                 //Distinguish between doubles and ints
@@ -550,6 +550,23 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (c + PeekString(parser, pattern.Length - 1) == pattern)
             {
                 return true;
+            }
+
+            return false;
+        }
+
+        private static bool ReadAheadIsNumber(Parser parser, char c)
+        {
+            if (char.IsDigit(c))
+            {
+                return true;
+            }
+
+            if (c == '-')
+            {
+                var nextChar = PeekString(parser, 1);
+
+                return char.IsDigit(nextChar[0]);
             }
 
             return false;
