@@ -93,6 +93,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 c = NextChar(parser);
 
+                if (parser.StateStack.Count == 0)
+                {
+                    if (!char.IsWhiteSpace(c))
+                    {
+                        throw new InvalidDataException($"Unexpected character '{c}' at position {parser.FileStream.BaseStream.Position}");
+                    }
+
+                    continue;
+                }
+
                 //Do something depending on the current state
                 switch (parser.StateStack.Peek())
                 {
