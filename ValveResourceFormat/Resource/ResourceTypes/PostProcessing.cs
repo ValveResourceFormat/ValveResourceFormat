@@ -65,18 +65,18 @@ namespace ValveResourceFormat.ResourceTypes
         public void SaveCCToFile(string fileName)
         {
             var lut = GetColorCorrectionLUT();
-            var lut_without_a = new byte[3 * (lut.Length/4)];
 
-            for (int i = 0, j = 0; i < lut.Length; i++)
+            int j = 0;
+            for (int i = 0; i < lut.Length; i++)
             {
                 // Skip each fourth byte
                 if (((i+1) % 4) == 0)
                     continue;
 
-                lut_without_a[j++] = lut[i];
+                lut[j++] = lut[i];
             }
 
-            File.WriteAllBytes(fileName, lut_without_a);
+            File.WriteAllBytes(fileName, lut[..j]);
         }
 
         public string ToValvePostProcessing()
