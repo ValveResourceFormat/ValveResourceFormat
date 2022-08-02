@@ -10,12 +10,7 @@ namespace ValveResourceFormat.IO
     public class ContentFile
     {
         public byte[] Data { get; set; }
-        public List<ContentSubFile> SubFiles { get; private set;}
-
-        public ContentFile()
-        {
-            SubFiles = new List<ContentSubFile>();
-        }
+        public List<ContentSubFile> SubFiles { get; private set; } = new List<ContentSubFile>();
 
         public void AddSubFile(string fileName, Func<byte[]> extractFunction)
         {
@@ -115,8 +110,8 @@ namespace ValveResourceFormat.IO
             }
 
 #if DEBUG_CONTENTSUBFILE
-            extract.AddSubFile("subfile1.txt", () => Encoding.UTF8.GetBytes("Hello World!"));
-            extract.AddSubFile("subfile2.txt", () => Encoding.UTF8.GetBytes("Hello World!2"));
+            extract.AddSubFile("subfile1.txt", extractFunction: () => Encoding.UTF8.GetBytes("Hello World!"));
+            extract.AddSubFile("subfile2.txt", extractFunction: () => Encoding.UTF8.GetBytes("Hello World!2"));
 #endif
             return extract;
         }
