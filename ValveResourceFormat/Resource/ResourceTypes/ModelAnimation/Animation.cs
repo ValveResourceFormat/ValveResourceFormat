@@ -299,7 +299,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                         default:
                             if (channelAttribute != "data")
                             {
-                                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}'");
+                                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{channelAttribute}'");
                             }
 
                             break;
