@@ -269,6 +269,11 @@ namespace GUI.Types.Viewers
                     };
                     externalRefs.CellDoubleClick += (object sender, DataGridViewCellEventArgs e) =>
                     {
+                        if (e.RowIndex < 0)
+                        {
+                            return;
+                        }
+
                         var grid = (DataGridView)sender;
                         var row = grid.Rows[e.RowIndex];
                         var name = (string)row.Cells["Name"].Value;
