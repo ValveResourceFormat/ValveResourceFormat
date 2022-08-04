@@ -29,7 +29,7 @@ namespace ValveResourceFormat.IO
     {
         private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
 
-        public static readonly ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
+        private static readonly ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
         {
             ResourceType.Mesh,
             ResourceType.Model,
@@ -69,6 +69,8 @@ namespace ValveResourceFormat.IO
                 case ResourceType.World:
                     ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
                     break;
+                default:
+                    throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
             }
         }
 

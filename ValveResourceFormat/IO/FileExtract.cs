@@ -109,10 +109,6 @@ namespace ValveResourceFormat.IO
                     }
             }
 
-#if DEBUG_CONTENTSUBFILE
-            extract.AddSubFile("subfile1.txt", extractFunction: () => Encoding.UTF8.GetBytes("Hello World!"));
-            extract.AddSubFile("subfile2.txt", extractFunction: () => Encoding.UTF8.GetBytes("Hello World!2"));
-#endif
             return extract;
         }
 
