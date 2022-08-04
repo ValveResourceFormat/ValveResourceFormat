@@ -41,7 +41,8 @@ namespace GUI
                 ShowHideSearch();
             };
 
-            mainTabs.TabPages.Add(ConsoleTab.CreateTab());
+            var consoleTab = new ConsoleTab();
+            mainTabs.TabPages.Add(consoleTab.CreateTab());
 
             Console.WriteLine($"VRF v{Application.ProductVersion}");
 

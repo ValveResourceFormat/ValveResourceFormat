@@ -299,7 +299,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                         default:
                             if (channelAttribute != "data")
                             {
-                                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}'");
+                                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{channelAttribute}'");
                             }
 
                             break;
@@ -339,7 +339,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var s3 = bytes[5] & 128;
 
             var c = (float)Math.Sin(Math.PI / 4.0f) / 16384.0f;
-            var t1 = (float)Math.Sin(Math.PI / 4.0f);
             var x = (bytes[1] & 64) == 0 ? c * (i1 - 16384) : c * i1;
             var y = (bytes[3] & 64) == 0 ? c * (i2 - 16384) : c * i2;
             var z = (bytes[5] & 64) == 0 ? c * (i3 - 16384) : c * i3;

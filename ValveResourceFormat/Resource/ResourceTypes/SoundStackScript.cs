@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -18,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (version != 8)
             {
-                throw new NotImplementedException($"Unknown soundstack version: {version}");
+                throw new UnexpectedMagicException("Unknown version", version, nameof(version));
             }
 
             SoundStackScriptValue = new Dictionary<string, string>();

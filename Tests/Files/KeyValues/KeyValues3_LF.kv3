@@ -3,6 +3,8 @@
 	boolValue = false
 	intValue = 128
 	doubleValue = 64.000000
+	negativeIntValue = -1337
+	negativeDoubleValue = -0.1337
 	stringValue = "hello world"
 	stringThatIsAResourceReference = resource:"particles/items3_fx/star_emblem.vpcf"
 	multiLineStringValue = """
@@ -19,6 +21,8 @@ Second line of a multi-line string literal.
 		n = 5
 		s = "foo"
 	}
+    arrayOnSingleLine = [ 16.7551, 20.3763, 19.6448 ]
+    "quoted.key" = "hello"
 	// single line comment
 	/* multi
 	line

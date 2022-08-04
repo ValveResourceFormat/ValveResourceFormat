@@ -93,6 +93,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 c = NextChar(parser);
 
+                if (parser.StateStack.Count == 0)
+                {
+                    if (!char.IsWhiteSpace(c))
+                    {
+                        throw new InvalidDataException($"Unexpected character '{c}' at position {parser.FileStream.BaseStream.Position}");
+                    }
+
+                    continue;
+                }
+
                 //Do something depending on the current state
                 switch (parser.StateStack.Peek())
                 {
@@ -174,7 +184,6 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.VALUE_ARRAY);
-                parser.StateStack.Push(State.SEEK_VALUE);
 
                 parser.ObjStack.Push(new KVObject(parser.CurrentString.ToString(), true));
             }
@@ -248,7 +257,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             // Number
-            else if (char.IsDigit(c))
+            else if (ReadAheadIsNumber(parser, c))
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.VALUE_NUMBER);
@@ -380,25 +389,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Read a numerical value
         private static void ReadValueNumber(char c, Parser parser)
         {
-            //For arrays
-            if (c == ',')
-            {
-                parser.StateStack.Pop();
-                parser.StateStack.Push(State.SEEK_VALUE);
-                if (parser.CurrentString.ToString().Contains('.'))
-                {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.DOUBLE, double.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
-                }
-                else
-                {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.INT64, long.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
-                }
-
-                return;
-            }
-
-            //Stop reading the number once whtiespace is encountered
-            if (char.IsWhiteSpace(c))
+            //Stop reading the number once whitespace (or comma in arrays) is encountered
+            if (char.IsWhiteSpace(c) || c == ',')
             {
                 //Distinguish between doubles and ints
                 parser.StateStack.Pop();
@@ -420,6 +412,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Read an array
         private static void ReadValueArray(char c, Parser parser)
         {
+            //Check for the end of the array
+            if (c == ']')
+            {
+                KVObject value = parser.ObjStack.Pop();
+                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
+                parser.StateStack.Pop();
+                return;
+            }
+
             //This shouldn't happen
             if (!char.IsWhiteSpace(c) && c != ',')
             {
@@ -550,6 +551,23 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (c + PeekString(parser, pattern.Length - 1) == pattern)
             {
                 return true;
+            }
+
+            return false;
+        }
+
+        private static bool ReadAheadIsNumber(Parser parser, char c)
+        {
+            if (char.IsDigit(c))
+            {
+                return true;
+            }
+
+            if (c == '-')
+            {
+                var nextChar = PeekString(parser, 1);
+
+                return char.IsDigit(nextChar[0]);
             }
 
             return false;

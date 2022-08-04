@@ -18,13 +18,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             switch (attribute)
             {
                 case "Position":
-                    InsertIfUnknown(bone);
-                    Bones[bone].Position = (Vector3)data;
+                    GetBone(bone).Position = (Vector3)data;
                     break;
+
                 case "Angle":
-                    InsertIfUnknown(bone);
-                    Bones[bone].Angle = (Quaternion)data;
+                    GetBone(bone).Angle = (Quaternion)data;
                     break;
+
                 case "data":
                     //ignore
                     break;
@@ -36,12 +36,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        private void InsertIfUnknown(string name)
+        private FrameBone GetBone(string name)
         {
-            if (!Bones.ContainsKey(name))
+            if (!Bones.TryGetValue(name, out var bone))
             {
-                Bones[name] = new FrameBone(new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 1));
+                bone = new FrameBone(new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 1));
+
+                Bones[name] = bone;
             }
+
+            return bone;
         }
     }
 }

@@ -23,16 +23,28 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 public class Frame
                 {
-                    public Vector2 StartMins { get; set; }
-                    public Vector2 StartMaxs { get; set; }
+                    public class Image
+                    {
+                        public Vector2 StartMins { get; set; }
+                        public Vector2 StartMaxs { get; set; }
 
-                    public Vector2 EndMins { get; set; }
-                    public Vector2 EndMaxs { get; set; }
+                        public Vector2 EndMins { get; set; }
+                        public Vector2 EndMaxs { get; set; }
+                    }
+
+                    public Image[] Images { get; set; }
+
+                    public float DisplayTime { get; set; }
                 }
 
                 public Frame[] Frames { get; set; }
-
                 public float FramesPerSecond { get; set; }
+                public string Name { get; set; }
+                public bool Clamp { get; set; }
+                public bool AlphaCrop { get; set; }
+                public bool NoColor { get; set; }
+                public bool NoAlpha { get; set; }
+                public Dictionary<string, float> FloatParams { get; } = new();
             }
 
             public Sequence[] Sequences { get; set; }
@@ -218,57 +230,97 @@ namespace ValveResourceFormat.ResourceTypes
                 using var memoryStream = new MemoryStream(bytes);
                 using var reader = new BinaryReader(memoryStream);
                 var version = reader.ReadUInt32();
+
+                if (version != 8)
+                {
+                    throw new UnexpectedMagicException("Unknown version", version, nameof(version));
+                }
+
                 var numSequences = reader.ReadUInt32();
 
                 var sequences = new SpritesheetData.Sequence[numSequences];
 
-                for (var i = 0; i < numSequences; i++)
+                for (var s = 0; s < numSequences; s++)
                 {
-                    var sequenceNumber = reader.ReadUInt32();
-                    var unknown1 = reader.ReadUInt32(); // 1?
-                    var unknown2 = reader.ReadUInt32();
+                    var sequence = new SpritesheetData.Sequence();
+                    var id = reader.ReadUInt32();
+                    sequence.Clamp = reader.ReadBoolean();
+                    sequence.AlphaCrop = reader.ReadBoolean();
+                    sequence.NoColor = reader.ReadBoolean();
+                    sequence.NoAlpha = reader.ReadBoolean();
+                    var framesOffset = reader.BaseStream.Position + reader.ReadUInt32();
                     var numFrames = reader.ReadUInt32();
-                    var framesPerSecond = reader.ReadSingle(); // Not too sure about this one
-                    var dataOffset = reader.BaseStream.Position + reader.ReadUInt32();
-                    var unknown4 = reader.ReadUInt32(); // 0?
-                    var unknown5 = reader.ReadUInt32(); // 0?
+                    sequence.FramesPerSecond = reader.ReadSingle();
+                    var nameOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                    var floatParamsOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                    var floatParamsCount = reader.ReadUInt32();
 
-                    var endOfHeaderOffset = reader.BaseStream.Position; // Store end of header to return to later
+                    var endOfHeaderOffset = reader.BaseStream.Position;
 
                     // Seek to start of the sequence data
-                    reader.BaseStream.Position = dataOffset;
+                    reader.BaseStream.Position = nameOffset;
 
-                    var sequenceName = reader.ReadNullTermString(Encoding.UTF8);
+                    sequence.Name = reader.ReadNullTermString(Encoding.UTF8);
+                    // There may be alignment bytes after the name, so the data always falls on 4-byte boundary
 
-                    var frameUnknown = reader.ReadUInt16();
-
-                    var frames = new SpritesheetData.Sequence.Frame[numFrames];
-
-                    for (var j = 0; j < numFrames; j++)
+                    if (floatParamsCount > 0)
                     {
-                        var frameUnknown1 = reader.ReadSingle();
-                        var frameUnknown2 = reader.ReadUInt32();
-                        var frameUnknown3 = reader.ReadSingle();
+                        reader.BaseStream.Position = floatParamsOffset;
 
-                        frames[j] = new SpritesheetData.Sequence.Frame();
+                        for (var p = 0; p < floatParamsCount; p++)
+                        {
+                            var floatParamNameOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                            var floatValue = reader.ReadSingle();
+
+                            var offsetNextParam = reader.BaseStream.Position;
+                            reader.BaseStream.Position = floatParamNameOffset;
+                            var floatName = reader.ReadNullTermString(Encoding.UTF8);
+                            reader.BaseStream.Position = offsetNextParam;
+
+                            sequence.FloatParams.Add(floatName, floatValue);
+                        }
                     }
 
-                    for (var j = 0; j < numFrames; j++)
-                    {
-                        frames[j].StartMins = new Vector2(reader.ReadSingle(), reader.ReadSingle());
-                        frames[j].StartMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+                    reader.BaseStream.Position = framesOffset;
 
-                        frames[j].EndMins = new Vector2(reader.ReadSingle(), reader.ReadSingle());
-                        frames[j].EndMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+                    sequence.Frames = new SpritesheetData.Sequence.Frame[numFrames];
+
+                    for (var f = 0; f < numFrames; f++)
+                    {
+                        var displayTime = reader.ReadSingle();
+                        var imageOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                        var imageCount = reader.ReadUInt32();
+                        var originalOffset = reader.BaseStream.Position;
+
+                        var images = new SpritesheetData.Sequence.Frame.Image[imageCount];
+                        sequence.Frames[f] = new SpritesheetData.Sequence.Frame
+                        {
+                            DisplayTime = displayTime,
+                            Images = images,
+                        };
+
+                        reader.BaseStream.Position = imageOffset;
+
+                        for (var i = 0; i < images.Length; i++)
+                        {
+                            images[i] = new SpritesheetData.Sequence.Frame.Image
+                            {
+                                // uvCropped
+                                StartMins = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                StartMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+
+                                // uvUncropped
+                                EndMins = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                EndMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                            };
+                        }
+
+                        reader.BaseStream.Position = originalOffset;
                     }
 
                     reader.BaseStream.Position = endOfHeaderOffset;
 
-                    sequences[i] = new SpritesheetData.Sequence
-                    {
-                        Frames = frames,
-                        FramesPerSecond = framesPerSecond,
-                    };
+                    sequences[s] = sequence;
                 }
 
                 return new SpritesheetData
@@ -656,6 +708,50 @@ namespace ValveResourceFormat.ResourceTypes
                 else if (b.Key == VTexExtraData.CUBEMAP_RADIANCE_SH)
                 {
                     writer.WriteLine("{0,-16}   [ {1} coefficients: {2} ]", string.Empty, RadianceCoefficients.Length, string.Join(", ", RadianceCoefficients));
+                }
+                else if (b.Key == VTexExtraData.SHEET)
+                {
+                    var data = GetSpriteSheetData();
+
+                    writer.WriteLine("{0,-16} {1} Sheet Sequences:", string.Empty, data.Sequences.Length);
+
+                    for (var s = 0; s < data.Sequences.Length; s++)
+                    {
+                        var sequence = data.Sequences[s];
+
+                        writer.WriteLine("{0,-16} [Sequence {1}]:", string.Empty, s);
+                        writer.WriteLine("{0,-16}   m_name            = '{1}'", string.Empty, sequence.Name);
+                        writer.WriteLine("{0,-16}   m_bClamp          = {1}", string.Empty, sequence.Clamp);
+                        writer.WriteLine("{0,-16}   m_bAlphaCrop      = {1}", string.Empty, sequence.AlphaCrop);
+                        writer.WriteLine("{0,-16}   m_bNoColor        = {1}", string.Empty, sequence.NoColor);
+                        writer.WriteLine("{0,-16}   m_bNoAlpha        = {1}", string.Empty, sequence.NoAlpha);
+                        writer.WriteLine("{0,-16}   m_flTotalTime     = {1:F6}", string.Empty, sequence.FramesPerSecond);
+                        writer.WriteLine("{0,-16}   {1} Float Params:", string.Empty, sequence.FloatParams.Count);
+
+                        foreach (var (floatName, floatValue) in sequence.FloatParams)
+                        {
+                            writer.WriteLine("{0,-16}     '{1}' = {2:F6}", string.Empty, floatName, floatValue);
+                        }
+
+                        writer.WriteLine("{0,-16}   {1} Frames:", string.Empty, sequence.Frames.Length);
+
+                        for (var f = 0; f < sequence.Frames.Length; f++)
+                        {
+                            var frame = sequence.Frames[f];
+
+                            writer.WriteLine("{0,-16}     [Sequence {1} Frame {2}]:", string.Empty, s, f);
+                            writer.WriteLine("{0,-16}       m_flDisplayTime  = {1:F6}", string.Empty, frame.DisplayTime);
+                            writer.WriteLine("{0,-16}       {1} Images:", string.Empty, frame.Images.Length);
+
+                            for (var i = 0; i < frame.Images.Length; i++)
+                            {
+                                var image = frame.Images[i];
+
+                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvCropped    = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.StartMins.X, image.StartMins.Y, image.StartMaxs.X, image.StartMaxs.Y);
+                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvUncropped  = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.EndMins.X, image.EndMins.Y, image.EndMaxs.X, image.EndMaxs.Y);
+                            }
+                        }
+                    }
                 }
             }
 
