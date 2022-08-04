@@ -22,8 +22,6 @@ namespace GUI.Forms
         private CancellationTokenSource cancellationTokenSource;
         private int initialFileCount;
 
-        private ContentFile contentFile;
-
         private GltfModelExporter gltfExporter;
 
         public ExtractProgressForm(Package package, TreeNode root, string path, bool decompile)
@@ -121,8 +119,11 @@ namespace GUI.Forms
 
                 Directory.CreateDirectory(outFolder);
 
+                // Decompile & Export
                 if (decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
+                    ContentFile contentFile;
+
                     using (var resource = new Resource
                     {
                         FileName = outFilePath,
@@ -151,42 +152,45 @@ namespace GUI.Forms
                             }
 
                             contentFile = FileExtract.Extract(resource);
-                            output = contentFile.Data;
-
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}");
+                            await Console.Error.WriteLineAsync($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}").ConfigureAwait(false);
                             continue;
                         }
                     }
-                }
 
-                if (output.Length > 0)
-                {
-                    Console.WriteLine($"Writing content file: {outFilePath}");
-                    await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
-                }
-
-                foreach(var contentSubFile in contentFile.SubFiles)
-                {
-                    var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
-                    Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
-
-                    byte[] subFileData;
-                    try
+                    if (contentFile.Data.Length > 0)
                     {
-                        subFileData = contentSubFile.Extract();
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}");
-                        continue;
+                        Console.WriteLine($"Writing content file: {outFilePath}");
+                        await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
 
-                    Console.WriteLine($"Writing content subfile: {subFilePath}");
-                    await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                    foreach(var contentSubFile in contentFile.SubFiles)
+                    {
+                        var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
+                        Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
+
+                        byte[] subFileData;
+                        try
+                        {
+                            subFileData = contentSubFile.Extract();
+                        }
+                        catch (Exception e)
+                        {
+                            await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
+                            continue;
+                        }
+
+                        Console.WriteLine($"Writing content subfile: {subFilePath}");
+                        await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                    }
+
+                    continue;
                 }
+
+                // Extract as is
+                await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
             }
         }
 
