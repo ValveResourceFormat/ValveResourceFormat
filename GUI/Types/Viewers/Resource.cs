@@ -236,7 +236,7 @@ namespace GUI.Types.Viewers
                                 new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences
                                     .ResourceRefInfoList), null),
                     };
-                    externalRefs.CellContentDoubleClick += (object sender, DataGridViewCellEventArgs e) =>
+                    externalRefs.CellDoubleClick += (object sender, DataGridViewCellEventArgs e) =>
                     {
                         var grid = (DataGridView)sender;
                         var row = grid.Rows[e.RowIndex];
