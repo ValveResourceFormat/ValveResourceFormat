@@ -849,14 +849,13 @@ namespace Decompiler
                     {
                         DumpFile(filePath, output, useOutputAsDirectory: true);
                     }
-
                 }
             }
         }
 
         private void DumpContentFile(string path, ContentFile contentFile, bool useOutputAsDirectory = false, bool dumpSubFiles = true)
         {
-            DumpFile(path, contentFile.Data.ToArray(), useOutputAsDirectory);
+            DumpFile(path, contentFile.Data, useOutputAsDirectory);
 
             if (dumpSubFiles)
             {
