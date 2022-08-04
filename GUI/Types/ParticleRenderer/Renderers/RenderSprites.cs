@@ -174,12 +174,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     var frame = particleTime * sequence.FramesPerSecond * animationRate;
 
                     var currentFrame = sequence.Frames[(int)Math.Floor(frame) % sequence.Frames.Length];
+                    var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
 
                     // Lerp frame coords and size
                     var subFrameTime = frame % 1.0f;
-                    var offset = (currentFrame.StartMins * (1 - subFrameTime)) + (currentFrame.EndMins * subFrameTime);
-                    var scale = ((currentFrame.StartMaxs - currentFrame.StartMins) * (1 - subFrameTime))
-                            + ((currentFrame.EndMaxs - currentFrame.EndMins) * subFrameTime);
+                    var offset = (currentImage.StartMins * (1 - subFrameTime)) + (currentImage.EndMins * subFrameTime);
+                    var scale = ((currentImage.StartMaxs - currentImage.StartMins) * (1 - subFrameTime))
+                            + ((currentImage.EndMaxs - currentImage.EndMins) * subFrameTime);
 
                     rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X + (scale.X * 0);
                     rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + (scale.Y * 1);
