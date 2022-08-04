@@ -236,7 +236,35 @@ namespace GUI.Types.Viewers
                                 new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences
                                     .ResourceRefInfoList), null),
                     };
+                    externalRefs.CellContentDoubleClick += (object sender, DataGridViewCellEventArgs e) =>
+                    {
+                        var grid = (DataGridView)sender;
+                        var row = grid.Rows[e.RowIndex];
+                        var name = (string)row.Cells["Name"].Value;
 
+                        Console.WriteLine($"Opening {name} from external refs");
+
+                        var file = vrfGuiContext.CurrentPackage?.FindEntry(name);
+
+                        if (file == null)
+                        {
+                            file = vrfGuiContext.CurrentPackage?.FindEntry(name + "_c");
+                        }
+
+                        if (file != null)
+                        {
+                            vrfGuiContext.CurrentPackage.ReadEntry(file, out var fileContents);
+
+                            // TODO: Creating TreeViewPackageTag here is subpar
+                            var newVrfGuiContext = new VrfGuiContext(file.GetFileName(), new Controls.TreeViewWithSearchResults.TreeViewPackageTag()
+                            {
+                                Package = vrfGuiContext.CurrentPackage,
+                                ParentFileLoader = vrfGuiContext.FileLoader,
+                            });
+
+                            Program.MainForm.OpenFile(fileContents, newVrfGuiContext);
+                        }
+                    };
                     externalRefsTab.Controls.Add(externalRefs);
 
                     resTabs.TabPages.Add(externalRefsTab);
