@@ -25,11 +25,31 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     public class Image
                     {
-                        public Vector2 StartMins { get; set; }
-                        public Vector2 StartMaxs { get; set; }
+                        public Vector2 CroppedMin { get; set; }
+                        public Vector2 CroppedMax { get; set; }
 
-                        public Vector2 EndMins { get; set; }
-                        public Vector2 EndMaxs { get; set; }
+                        public Vector2 UncroppedMin { get; set; }
+                        public Vector2 UncroppedMax { get; set; }
+
+                        public SKRectI GetCroppedRect(int width, int height)
+                        {
+                            var startX = (int)(CroppedMin.X * width);
+                            var startY = (int)(CroppedMin.Y * height);
+                            var endX = (int)(CroppedMax.X * width);
+                            var endY = (int)(CroppedMax.Y * height);
+
+                            return new SKRectI(startX, startY, endX, endY);
+                        }
+
+                        public SKRectI GetUncroppedRect(int width, int height)
+                        {
+                            var startX = (int)(UncroppedMin.X * width);
+                            var startY = (int)(UncroppedMin.Y * height);
+                            var endX = (int)(UncroppedMax.X * width);
+                            var endY = (int)(UncroppedMax.Y * height);
+
+                            return new SKRectI(startX, startY, endX, endY);
+                        }
                     }
 
                     public Image[] Images { get; set; }
@@ -306,12 +326,12 @@ namespace ValveResourceFormat.ResourceTypes
                             images[i] = new SpritesheetData.Sequence.Frame.Image
                             {
                                 // uvCropped
-                                StartMins = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
-                                StartMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                CroppedMin = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                CroppedMax = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
 
                                 // uvUncropped
-                                EndMins = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
-                                EndMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                UncroppedMin = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                UncroppedMax = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
                             };
                         }
 
@@ -747,8 +767,8 @@ namespace ValveResourceFormat.ResourceTypes
                             {
                                 var image = frame.Images[i];
 
-                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvCropped    = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.StartMins.X, image.StartMins.Y, image.StartMaxs.X, image.StartMaxs.Y);
-                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvUncropped  = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.EndMins.X, image.EndMins.Y, image.EndMaxs.X, image.EndMaxs.Y);
+                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvCropped    = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.CroppedMin.X, image.CroppedMin.Y, image.CroppedMax.X, image.CroppedMax.Y);
+                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvUncropped  = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.UncroppedMin.X, image.UncroppedMin.Y, image.UncroppedMax.X, image.UncroppedMax.Y);
                             }
                         }
                     }
