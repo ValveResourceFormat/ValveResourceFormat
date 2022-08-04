@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
     public class RingWave : IParticleInitializer
     {
         private readonly bool evenDistribution;
-        private readonly float initialRadius;
+        private readonly INumberProvider initialRadius;
         private readonly float thickness;
         private readonly float particlesPerOrbit = -1f;
 
@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (keyValues.ContainsKey("m_flInitialRadius"))
             {
-                initialRadius = keyValues.GetFloatProperty("m_flInitialRadius");
+                initialRadius = keyValues.GetNumberProvider("m_flInitialRadius");
             }
 
             if (keyValues.ContainsKey("m_flThickness"))
@@ -40,7 +40,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var radius = initialRadius + ((float)random.NextDouble() * thickness);
+            var radius = (float)initialRadius.NextNumber() + ((float)random.NextDouble() * thickness);
 
             var angle = GetNextAngle();
 
