@@ -660,7 +660,9 @@ namespace ValveResourceFormat.ResourceTypes
             return new KVValue(realType, data);
         }
 
+#pragma warning disable CA1024 // Use properties where appropriate
         public KV3File GetKV3File()
+#pragma warning restore CA1024 // Use properties where appropriate
         {
             // TODO: Other format guids are not "generic" but strings like "vpc19"
             var formatType = "generic";
