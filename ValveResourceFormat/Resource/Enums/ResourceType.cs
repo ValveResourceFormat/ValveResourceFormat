@@ -103,6 +103,9 @@ namespace ValveResourceFormat
         [Extension("vjs")]
         PanoramaScript,
 
+        [Extension("vts")]
+        PanoramaTypescript,
+
         [Extension("vsvg")]
         PanoramaVectorGraphic,
 

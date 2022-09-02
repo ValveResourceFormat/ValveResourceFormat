@@ -391,6 +391,7 @@ namespace ValveResourceFormat
             {
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
+                case ResourceType.PanoramaTypescript:
                 case ResourceType.PanoramaDynamicImages:
                 case ResourceType.PanoramaVectorGraphic:
                     return new Panorama();
