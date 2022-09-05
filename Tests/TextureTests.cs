@@ -19,8 +19,7 @@ namespace Tests
                 var resource = new Resource();
                 resource.Read(file);
 
-                var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-
+                using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                 using var ms = new MemoryStream();
                 using var pixels = bitmap.PeekPixels();
                 pixels.Encode(ms, SKEncodedImageFormat.Png, 100);

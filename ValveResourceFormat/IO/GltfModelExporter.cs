@@ -786,9 +786,10 @@ namespace ValveResourceFormat.IO
 
                 using (var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap())
                 {
+                    using var pixels = bitmap.PeekPixels();
+
                     if (renderTexture.Key.StartsWith("g_tColor", StringComparison.Ordinal) && material.Alpha == AlphaMode.OPAQUE)
                     {
-                        using var pixels = bitmap.PeekPixels();
                         var bitmapSpan = pixels.GetPixelSpan<SKColor>();
 
                         // expensive transparency workaround for color maps
@@ -799,7 +800,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     using var fs = File.Open(exportedTexturePath, FileMode.Create);
-                    bitmap.PeekPixels().Encode(fs, SKEncodedImageFormat.Png, 100);
+                    pixels.Encode(fs, SKEncodedImageFormat.Png, 100);
                 }
 
                 var image = model.UseImage(exportedTexturePath);

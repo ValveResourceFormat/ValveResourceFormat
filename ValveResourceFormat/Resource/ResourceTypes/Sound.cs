@@ -201,10 +201,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Byte array containing sound data.</returns>
         public byte[] GetSound()
         {
-            using (var sound = GetSoundStream())
-            {
-                return sound.ToArray();
-            }
+            using var sound = GetSoundStream();
+            return sound.ToArray();
         }
 
         /// <summary>

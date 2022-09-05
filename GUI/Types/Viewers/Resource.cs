@@ -56,7 +56,7 @@ namespace GUI.Types.Viewers
                     {
                         var tex = (Texture)resource.DataBlock;
                         var sheet = tex.GetSpriteSheetData();
-                        var bitmap = tex.GenerateBitmap();
+                        using var bitmap = tex.GenerateBitmap();
 
                         if (sheet != null)
                         {

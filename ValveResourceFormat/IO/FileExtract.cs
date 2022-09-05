@@ -26,7 +26,7 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Sound:
                     {
-                        var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
+                        using var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
                         data = buffer;
 
@@ -35,14 +35,10 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-
-                        using var ms = new MemoryStream();
+                        using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                         using var pixels = bitmap.PeekPixels();
-                        pixels.Encode(ms, SKEncodedImageFormat.Png, 100);
-
-                        ms.TryGetBuffer(out var buffer);
-                        data = buffer;
+                        using var png = pixels.Encode(SKPngEncoderOptions.Default);
+                        data = png.ToArray();
 
                         break;
                     }
