@@ -325,7 +325,9 @@ namespace ValveResourceFormat
                 }
             }
 
-            if (verifyFileSize && Reader.BaseStream.Length != FullFileSize)
+            var fullFileSize = FullFileSize;
+
+            if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
             {
                 if (ResourceType == ResourceType.Texture)
                 {
@@ -339,7 +341,7 @@ namespace ValveResourceFormat
                     }
                 }
 
-                throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({FullFileSize}) ({ResourceType}).");
+                throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({fullFileSize}) ({ResourceType}).");
             }
         }
 
