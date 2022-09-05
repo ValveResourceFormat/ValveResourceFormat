@@ -703,13 +703,35 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("{0,-12} = {1}", "NumMipLevels", NumMipLevels);
             writer.WriteLine("{0,-12} = {1}", "Picmip0Res", Picmip0Res);
             writer.WriteLine("{0,-12} = {1} (VTEX_FORMAT_{2})", "Format", (int)Format, Format);
-            writer.WriteLine("{0,-12} = 0x{1:X8}", "Flags", (int)Flags);
 
-            foreach (Enum value in Enum.GetValues(Flags.GetType()))
             {
-                if (Flags.HasFlag(value))
+                var flagIndex = 0;
+                var currentFlag = -1;
+                var flags = (int)Flags;
+
+                writer.WriteLine("{0,-12} = 0x{1:X8}", "Flags", flags);
+
+                while (flagIndex < flags)
                 {
-                    writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", string.Empty, Convert.ToInt32(value), value);
+                    var flag = (1 << ++currentFlag);
+
+                    flagIndex += flag;
+
+                    if ((flag & flags) == 0)
+                    {
+                        continue;
+                    }
+
+                    var flagObject = Enum.ToObject(typeof(VTexFlags), flag);
+
+                    if (Enum.IsDefined(typeof(VTexFlags), flagObject))
+                    {
+                        writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", string.Empty, flag, (VTexFlags)flag);
+                    }
+                    else
+                    {
+                        writer.WriteLine("{0,-12} | 0x{1:X8} = <UNKNOWN>", string.Empty, flag);
+                    }
                 }
             }
 
