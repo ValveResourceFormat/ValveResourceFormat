@@ -775,9 +775,12 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            for (var j = 0; j < NumMipLevels; j++)
+            if (Format is not VTexFormat.JPEG_DXT5 and not VTexFormat.JPEG_RGBA8888 and not VTexFormat.PNG_DXT5 and not VTexFormat.PNG_RGBA8888)
             {
-                writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
+                for (var j = 0; j < NumMipLevels; j++)
+                {
+                    writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
+                }
             }
 
             return writer.ToString();
