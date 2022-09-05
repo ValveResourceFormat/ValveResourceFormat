@@ -8,7 +8,8 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public static SKBitmap ReadI8(SKBitmap res, Span<byte> input)
         {
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
             var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
@@ -22,7 +23,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap ReadIA88(SKBitmap res, Span<byte> input)
         {
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
             var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
@@ -37,7 +39,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap ReadRGBA8888(SKBitmap res, Span<byte> input)
         {
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
             var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
@@ -54,7 +57,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap ReadBGRA8888(SKBitmap res, Span<byte> input)
         {
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
             var offset = 0;
 
             for (var i = 0; i < span.Length; i++)
@@ -72,7 +76,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadR16(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -87,7 +92,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRG1616(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -103,7 +109,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadR16F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -118,7 +125,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRG1616F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -133,7 +141,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap ReadRGBA16161616(SKBitmap imageInfo, Span<byte> bytes)
         {
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var log = 0d;
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
@@ -184,7 +193,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap ReadRGBA16161616F(SKBitmap imageInfo, Span<byte> bytes)
         {
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var log = 0d;
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
@@ -236,7 +246,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadR32F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -251,7 +262,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRG3232F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -267,7 +279,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRGB323232F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -284,7 +297,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static SKBitmap ReadRGBA32323232F(BinaryReader r, int w, int h)
         {
             var res = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var span = res.PeekPixels().GetPixelSpan<SKColor>();
+            using var pixels = res.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColor>();
 
             for (var i = 0; i < span.Length; i++)
             {
@@ -301,7 +315,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap UncompressATI1N(SKBitmap bitmap, Span<byte> input, int w, int h)
         {
-            var data = bitmap.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = bitmap.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
 
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -339,7 +354,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap UncompressATI2N(SKBitmap imageInfo, Span<byte> input, int w, int h, bool normalize)
         {
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var offset = 0;
@@ -385,7 +401,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap UncompressDXT1(SKBitmap imageInfo, Span<byte> input, int w, int h)
         {
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var offset = 0;
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
@@ -481,7 +498,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public static SKBitmap UncompressDXT5(SKBitmap imageInfo, Span<byte> input, int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
         {
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var offset = 0;
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;

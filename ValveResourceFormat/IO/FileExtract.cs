@@ -38,7 +38,8 @@ namespace ValveResourceFormat.IO
                         var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
 
                         using var ms = new MemoryStream();
-                        bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
+                        using var pixels = bitmap.PeekPixels();
+                        pixels.Encode(ms, SKEncodedImageFormat.Png, 100);
 
                         ms.TryGetBuffer(out var buffer);
                         data = buffer;

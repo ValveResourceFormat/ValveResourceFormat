@@ -788,7 +788,8 @@ namespace ValveResourceFormat.IO
                 {
                     if (renderTexture.Key.StartsWith("g_tColor", StringComparison.Ordinal) && material.Alpha == AlphaMode.OPAQUE)
                     {
-                        var bitmapSpan = bitmap.PeekPixels().GetPixelSpan<SKColor>();
+                        using var pixels = bitmap.PeekPixels();
+                        var bitmapSpan = pixels.GetPixelSpan<SKColor>();
 
                         // expensive transparency workaround for color maps
                         for (var i = 0; i < bitmapSpan.Length; i++)
