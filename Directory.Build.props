@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <ProjectBaseVersion>0.2.1</ProjectBaseVersion>
+    <ProjectBaseVersion>0.2.2</ProjectBaseVersion>
     <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>
     <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
 
