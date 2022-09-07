@@ -289,19 +289,31 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else if (compressionMethod == 1)
                 {
-                    // TODO: Do we need to pass blockTotalSize here?
-                    using var lz4decoder = new LZ4ChainDecoder((int)blockTotalSize, 0);
+                    using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
 
-                    for (var i = 0; i < blockCount; i++)
+                    while (outRead.BaseStream.Position < outRead.BaseStream.Length)
                     {
                         var compressedBlockLength = outRead.ReadUInt16();
                         var input = new Span<byte>(new byte[compressedBlockLength]);
-                        var output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
+                        var output = new Span<byte>(new byte[compressionFrameSize]);
 
                         RawBinaryReader.Read(input);
-                        lz4decoder.DecodeAndDrain(input, output, out _);
 
-                        uncompressedBlocks.Write(output);
+                        if (lz4decoder.DecodeAndDrain(input, output, out var decoded) && decoded > 0)
+                        {
+                            if (decoded < output.Length)
+                            {
+                                uncompressedBlocks.Write(output[..decoded]);
+                            }
+                            else
+                            {
+                                uncompressedBlocks.Write(output);
+                            }
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
+                        }
                     }
                 }
                 else if (compressionMethod == 2)
