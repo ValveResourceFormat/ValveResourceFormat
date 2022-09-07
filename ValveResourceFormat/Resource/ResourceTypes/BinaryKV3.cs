@@ -131,9 +131,19 @@ namespace ValveResourceFormat.ResourceTypes
             var c = reader.ReadUInt16();
 
             var uncompressedSize = reader.ReadUInt32();
-            var compressedSize = reader.ReadInt32(); // uint32
+            var compressedSize = reader.ReadUInt32();
             var blockCount = reader.ReadUInt32();
-            var blockTotalSize = reader.ReadInt32(); // uint32
+            var blockTotalSize = reader.ReadUInt32();
+
+            if (compressedSize > int.MaxValue)
+            {
+                throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
+            }
+
+            if (blockTotalSize > int.MaxValue)
+            {
+                throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
+            }
 
             if (compressionMethod == 0)
             {
@@ -163,7 +173,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var input = reader.ReadBytes(compressedSize);
+                var input = reader.ReadBytes((int)compressedSize);
                 var output = new Span<byte>(new byte[uncompressedSize]);
 
                 LZ4Codec.Decode(input, output);
@@ -183,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var input = reader.ReadBytes(compressedSize);
+                var input = reader.ReadBytes((int)compressedSize);
                 var zstd = new ZstdSharp.Decompressor();
                 var output = zstd.Unwrap(input);
 
@@ -204,7 +214,7 @@ namespace ValveResourceFormat.ResourceTypes
                 outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
             }
 
-            var countOfStrings = outRead.ReadInt32();
+            var countOfStrings = outRead.ReadUInt32();
             var kvDataOffset = outRead.BaseStream.Position;
 
             // Subtract one integer since we already read it (countOfStrings)
@@ -267,7 +277,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             try
             {
-                using var uncompressedBlocks = new MemoryStream(blockTotalSize);
+                using var uncompressedBlocks = new MemoryStream((int)blockTotalSize);
                 uncompressedBlockDataReader = new BinaryReader(uncompressedBlocks);
 
                 if (compressionMethod == 0)
@@ -280,7 +290,7 @@ namespace ValveResourceFormat.ResourceTypes
                 else if (compressionMethod == 1)
                 {
                     // TODO: Do we need to pass blockTotalSize here?
-                    using var lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
+                    using var lz4decoder = new LZ4ChainDecoder((int)blockTotalSize, 0);
 
                     for (var i = 0; i < blockCount; i++)
                     {
