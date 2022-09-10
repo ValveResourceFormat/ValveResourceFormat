@@ -7,6 +7,7 @@ using GUI.Types.Audio;
 using GUI.Types.Exporter;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -54,12 +55,42 @@ namespace GUI.Types.Viewers
                     try
                     {
                         var tex = (Texture)resource.DataBlock;
+                        var sheet = tex.GetSpriteSheetData();
+                        using var bitmap = tex.GenerateBitmap();
+
+                        if (sheet != null)
+                        {
+                            using var canvas = new SKCanvas(bitmap);
+
+                            foreach (var sequence in sheet.Sequences)
+                            {
+                                foreach (var frame in sequence.Frames)
+                                {
+                                    foreach (var image in frame.Images)
+                                    {
+                                        canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), new SKPaint
+                                        {
+                                            Style = SKPaintStyle.Stroke,
+                                            Color = new SKColor(0, 100, 255, 200),
+                                            StrokeWidth = 1,
+                                        });
+
+                                        canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), new SKPaint
+                                        {
+                                            Style = SKPaintStyle.Stroke,
+                                            Color = new SKColor(255, 100, 0, 200),
+                                            StrokeWidth = 1,
+                                        });
+                                    }
+                                }
+                            }
+                        }
 
                         var control = new Forms.Texture
                         {
                             BackColor = Color.Black,
                         };
-                        control.SetImage(tex.GenerateBitmap().ToBitmap(), Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
+                        control.SetImage(bitmap.ToBitmap(), Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
                             tex.ActualWidth, tex.ActualHeight);
 
                         tab2.Controls.Add(control);
@@ -236,7 +267,40 @@ namespace GUI.Types.Viewers
                                 new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences
                                     .ResourceRefInfoList), null),
                     };
+                    externalRefs.CellDoubleClick += (object sender, DataGridViewCellEventArgs e) =>
+                    {
+                        if (e.RowIndex < 0)
+                        {
+                            return;
+                        }
 
+                        var grid = (DataGridView)sender;
+                        var row = grid.Rows[e.RowIndex];
+                        var name = (string)row.Cells["Name"].Value;
+
+                        Console.WriteLine($"Opening {name} from external refs");
+
+                        var file = vrfGuiContext.CurrentPackage?.FindEntry(name);
+
+                        if (file == null)
+                        {
+                            file = vrfGuiContext.CurrentPackage?.FindEntry(name + "_c");
+                        }
+
+                        if (file != null)
+                        {
+                            vrfGuiContext.CurrentPackage.ReadEntry(file, out var fileContents);
+
+                            // TODO: Creating TreeViewPackageTag here is subpar
+                            var newVrfGuiContext = new VrfGuiContext(file.GetFileName(), new Controls.TreeViewWithSearchResults.TreeViewPackageTag()
+                            {
+                                Package = vrfGuiContext.CurrentPackage,
+                                ParentFileLoader = vrfGuiContext.FileLoader,
+                            });
+
+                            Program.MainForm.OpenFile(fileContents, newVrfGuiContext);
+                        }
+                    };
                     externalRefsTab.Controls.Add(externalRefs);
 
                     resTabs.TabPages.Add(externalRefsTab);

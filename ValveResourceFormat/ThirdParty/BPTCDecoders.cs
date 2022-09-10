@@ -109,7 +109,8 @@ namespace BPTC
         public static SKBitmap UncompressBC6H(BinaryReader r, int w, int h)
         {
             var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var rowBytes = imageInfo.RowBytes;
@@ -522,7 +523,8 @@ namespace BPTC
         public static SKBitmap UncompressBC7(BinaryReader r, int w, int h, bool hemiOctRB, bool invert)
         {
             var imageInfo = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var data = imageInfo.PeekPixels().GetPixelSpan<byte>();
+            using var pixels = imageInfo.PeekPixels();
+            var data = pixels.GetPixelSpan<byte>();
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
 

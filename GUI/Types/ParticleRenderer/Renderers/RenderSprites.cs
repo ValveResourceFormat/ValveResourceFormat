@@ -178,9 +178,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                     // Lerp frame coords and size
                     var subFrameTime = frame % 1.0f;
-                    var offset = (currentImage.StartMins * (1 - subFrameTime)) + (currentImage.EndMins * subFrameTime);
-                    var scale = ((currentImage.StartMaxs - currentImage.StartMins) * (1 - subFrameTime))
-                            + ((currentImage.EndMaxs - currentImage.EndMins) * subFrameTime);
+                    var offset = (currentImage.CroppedMin * (1 - subFrameTime)) + (currentImage.UncroppedMin * subFrameTime);
+                    var scale = ((currentImage.CroppedMax - currentImage.CroppedMin) * (1 - subFrameTime))
+                            + ((currentImage.UncroppedMax - currentImage.UncroppedMin) * subFrameTime);
 
                     rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X + (scale.X * 0);
                     rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + (scale.Y * 1);

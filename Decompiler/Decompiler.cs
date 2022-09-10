@@ -643,7 +643,10 @@ namespace Decompiler
 
             if (OutputFile == null)
             {
-                Console.WriteLine("--- Files in package:");
+                if (!CollectStats)
+                {
+                    Console.WriteLine("--- Files in package:");
+                }
 
                 var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
 
@@ -674,21 +677,62 @@ namespace Decompiler
                 if (CollectStats)
                 {
                     TotalFiles += orderedEntries.Sum(x => x.Value.Count);
-                }
 
-                foreach (var entry in orderedEntries)
-                {
-                    Console.WriteLine("\t{0}: {1} files", entry.Key, entry.Value.Count);
-
-                    if (CollectStats)
+                    if (MaxParallelismThreads > 1)
                     {
-                        foreach (var file in entry.Value)
-                        {
-                            package.ReadEntry(file, out var output);
+                        var queue = new ConcurrentQueue<PackageEntry>();
+                        var tasks = new List<Task>();
 
-                            using var entryStream = new MemoryStream(output);
-                            ProcessFile(file.GetFullPath(), entryStream, path);
+                        foreach (var entry in orderedEntries)
+                        {
+                            foreach (var file in entry.Value)
+                            {
+                                queue.Enqueue(file);
+                            }
                         }
+
+                        var lockEntryRead = new object();
+
+                        for (var n = 0; n < MaxParallelismThreads; n++)
+                        {
+                            tasks.Add(Task.Run(() =>
+                            {
+                                while (queue.TryDequeue(out var file))
+                                {
+                                    byte[] output;
+
+                                    lock (lockEntryRead)
+                                    {
+                                        package.ReadEntry(file, out output);
+                                    }
+
+                                    using var entryStream = new MemoryStream(output);
+                                    ProcessFile(file.GetFullPath(), entryStream, path);
+                                }
+                            }));
+                        }
+
+                        Task.WhenAll(tasks).GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        foreach (var entry in orderedEntries)
+                        {
+                            foreach (var file in entry.Value)
+                            {
+                                package.ReadEntry(file, out var output);
+
+                                using var entryStream = new MemoryStream(output);
+                                ProcessFile(file.GetFullPath(), entryStream, path);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var entry in orderedEntries)
+                    {
+                        Console.WriteLine($"\t{entry.Key}: {entry.Value.Count} files");
                     }
                 }
             }

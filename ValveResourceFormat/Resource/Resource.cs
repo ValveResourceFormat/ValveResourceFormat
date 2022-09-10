@@ -325,7 +325,9 @@ namespace ValveResourceFormat
                 }
             }
 
-            if (verifyFileSize && Reader.BaseStream.Length != FullFileSize)
+            var fullFileSize = FullFileSize;
+
+            if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
             {
                 if (ResourceType == ResourceType.Texture)
                 {
@@ -337,9 +339,19 @@ namespace ValveResourceFormat
                     {
                         return;
                     }
+
+                    // TODO: Valve added null bytes after the png for whatever reason,
+                    // so assume we have the full file if the buffer is bigger than the size we calculated
+                    if (data.Format == VTexFormat.PNG_DXT5 || data.Format == VTexFormat.PNG_RGBA8888)
+                    {
+                        if (Reader.BaseStream.Length > fullFileSize)
+                        {
+                            return;
+                        }
+                    }
                 }
 
-                throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({FullFileSize}) ({ResourceType}).");
+                throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({fullFileSize}) ({ResourceType}).");
             }
         }
 
@@ -391,6 +403,7 @@ namespace ValveResourceFormat
             {
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
+                case ResourceType.PanoramaTypescript:
                 case ResourceType.PanoramaDynamicImages:
                 case ResourceType.PanoramaVectorGraphic:
                     return new Panorama();

@@ -19,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
         private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new Guid(new byte[] { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 });
         private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new Guid(new byte[] { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 });
         private static readonly Guid KV3_ENCODING_BINARY_BLOCK_LZ4 = new Guid(new byte[] { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 });
-        //private static readonly Guid KV3_FORMAT_GENERIC = new Guid(new byte[] { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 });
+        private static readonly Guid KV3_FORMAT_GENERIC = new Guid(new byte[] { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 });
         public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
         public const int MAGIC2 = 0x4B563301; // KV3\x01
         public const int MAGIC3 = 0x4B563302; // KV3\x02
@@ -131,9 +131,19 @@ namespace ValveResourceFormat.ResourceTypes
             var c = reader.ReadUInt16();
 
             var uncompressedSize = reader.ReadUInt32();
-            var compressedSize = reader.ReadInt32(); // uint32
+            var compressedSize = reader.ReadUInt32();
             var blockCount = reader.ReadUInt32();
-            var blockTotalSize = reader.ReadInt32(); // uint32
+            var blockTotalSize = reader.ReadUInt32();
+
+            if (compressedSize > int.MaxValue)
+            {
+                throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
+            }
+
+            if (blockTotalSize > int.MaxValue)
+            {
+                throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
+            }
 
             if (compressionMethod == 0)
             {
@@ -163,7 +173,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var input = reader.ReadBytes(compressedSize);
+                var input = reader.ReadBytes((int)compressedSize);
                 var output = new Span<byte>(new byte[uncompressedSize]);
 
                 LZ4Codec.Decode(input, output);
@@ -183,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var input = reader.ReadBytes(compressedSize);
+                var input = reader.ReadBytes((int)compressedSize);
                 var zstd = new ZstdSharp.Decompressor();
                 var output = zstd.Unwrap(input);
 
@@ -204,7 +214,7 @@ namespace ValveResourceFormat.ResourceTypes
                 outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
             }
 
-            var countOfStrings = outRead.ReadInt32();
+            var countOfStrings = outRead.ReadUInt32();
             var kvDataOffset = outRead.BaseStream.Position;
 
             // Subtract one integer since we already read it (countOfStrings)
@@ -267,7 +277,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             try
             {
-                using var uncompressedBlocks = new MemoryStream(blockTotalSize);
+                using var uncompressedBlocks = new MemoryStream((int)blockTotalSize);
                 uncompressedBlockDataReader = new BinaryReader(uncompressedBlocks);
 
                 if (compressionMethod == 0)
@@ -279,19 +289,31 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else if (compressionMethod == 1)
                 {
-                    // TODO: Do we need to pass blockTotalSize here?
-                    using var lz4decoder = new LZ4ChainDecoder(blockTotalSize, 0);
+                    using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
 
-                    for (var i = 0; i < blockCount; i++)
+                    while (outRead.BaseStream.Position < outRead.BaseStream.Length)
                     {
                         var compressedBlockLength = outRead.ReadUInt16();
                         var input = new Span<byte>(new byte[compressedBlockLength]);
-                        var output = new Span<byte>(new byte[uncompressedBlockLengthArray[i]]);
+                        var output = new Span<byte>(new byte[compressionFrameSize]);
 
                         RawBinaryReader.Read(input);
-                        lz4decoder.DecodeAndDrain(input, output, out _);
 
-                        uncompressedBlocks.Write(output);
+                        if (lz4decoder.DecodeAndDrain(input, output, out var decoded) && decoded > 0)
+                        {
+                            if (decoded < output.Length)
+                            {
+                                uncompressedBlocks.Write(output[..decoded]);
+                            }
+                            else
+                            {
+                                uncompressedBlocks.Write(output);
+                            }
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
+                        }
                     }
                 }
                 else if (compressionMethod == 2)
@@ -660,10 +682,19 @@ namespace ValveResourceFormat.ResourceTypes
             return new KVValue(realType, data);
         }
 
+#pragma warning disable CA1024 // Use properties where appropriate
         public KV3File GetKV3File()
+#pragma warning restore CA1024 // Use properties where appropriate
         {
             // TODO: Other format guids are not "generic" but strings like "vpc19"
-            return new KV3File(Data, format: $"generic:version{{{Format.ToString()}}}");
+            var formatType = "generic";
+
+            if (Format != KV3_FORMAT_GENERIC)
+            {
+                formatType = "vrfunknown";
+            }
+
+            return new KV3File(Data, format: $"{formatType}:version{{{Format}}}");
         }
 
         public override void WriteText(IndentedTextWriter writer)

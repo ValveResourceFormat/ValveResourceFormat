@@ -25,11 +25,31 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     public class Image
                     {
-                        public Vector2 StartMins { get; set; }
-                        public Vector2 StartMaxs { get; set; }
+                        public Vector2 CroppedMin { get; set; }
+                        public Vector2 CroppedMax { get; set; }
 
-                        public Vector2 EndMins { get; set; }
-                        public Vector2 EndMaxs { get; set; }
+                        public Vector2 UncroppedMin { get; set; }
+                        public Vector2 UncroppedMax { get; set; }
+
+                        public SKRectI GetCroppedRect(int width, int height)
+                        {
+                            var startX = (int)(CroppedMin.X * width);
+                            var startY = (int)(CroppedMin.Y * height);
+                            var endX = (int)(CroppedMax.X * width);
+                            var endY = (int)(CroppedMax.Y * height);
+
+                            return new SKRectI(startX, startY, endX, endY);
+                        }
+
+                        public SKRectI GetUncroppedRect(int width, int height)
+                        {
+                            var startX = (int)(UncroppedMin.X * width);
+                            var startY = (int)(UncroppedMin.Y * height);
+                            var endX = (int)(UncroppedMax.X * width);
+                            var endY = (int)(UncroppedMax.Y * height);
+
+                            return new SKRectI(startX, startY, endX, endY);
+                        }
                     }
 
                     public Image[] Images { get; set; }
@@ -306,12 +326,12 @@ namespace ValveResourceFormat.ResourceTypes
                             images[i] = new SpritesheetData.Sequence.Frame.Image
                             {
                                 // uvCropped
-                                StartMins = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
-                                StartMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                CroppedMin = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                CroppedMax = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
 
                                 // uvUncropped
-                                EndMins = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
-                                EndMaxs = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                UncroppedMin = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
+                                UncroppedMax = new Vector2(reader.ReadSingle(), reader.ReadSingle()),
                             };
                         }
 
@@ -683,13 +703,35 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("{0,-12} = {1}", "NumMipLevels", NumMipLevels);
             writer.WriteLine("{0,-12} = {1}", "Picmip0Res", Picmip0Res);
             writer.WriteLine("{0,-12} = {1} (VTEX_FORMAT_{2})", "Format", (int)Format, Format);
-            writer.WriteLine("{0,-12} = 0x{1:X8}", "Flags", (int)Flags);
 
-            foreach (Enum value in Enum.GetValues(Flags.GetType()))
             {
-                if (Flags.HasFlag(value))
+                var flagIndex = 0;
+                var currentFlag = -1;
+                var flags = (int)Flags;
+
+                writer.WriteLine("{0,-12} = 0x{1:X8}", "Flags", flags);
+
+                while (flagIndex < flags)
                 {
-                    writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", string.Empty, Convert.ToInt32(value), value);
+                    var flag = (1 << ++currentFlag);
+
+                    flagIndex += flag;
+
+                    if ((flag & flags) == 0)
+                    {
+                        continue;
+                    }
+
+                    var flagObject = Enum.ToObject(typeof(VTexFlags), flag);
+
+                    if (Enum.IsDefined(typeof(VTexFlags), flagObject))
+                    {
+                        writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", string.Empty, flag, (VTexFlags)flag);
+                    }
+                    else
+                    {
+                        writer.WriteLine("{0,-12} | 0x{1:X8} = <UNKNOWN>", string.Empty, flag);
+                    }
                 }
             }
 
@@ -747,17 +789,20 @@ namespace ValveResourceFormat.ResourceTypes
                             {
                                 var image = frame.Images[i];
 
-                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvCropped    = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.StartMins.X, image.StartMins.Y, image.StartMaxs.X, image.StartMaxs.Y);
-                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvUncropped  = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.EndMins.X, image.EndMins.Y, image.EndMaxs.X, image.EndMaxs.Y);
+                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvCropped    = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.CroppedMin.X, image.CroppedMin.Y, image.CroppedMax.X, image.CroppedMax.Y);
+                                writer.WriteLine("{0,-16}         [{1}.{2}.{3}] uvUncropped  = {{ ( {4:F6}, {5:F6} ), ( {6:F6}, {7:F6} ) }}", string.Empty, s, f, i, image.UncroppedMin.X, image.UncroppedMin.Y, image.UncroppedMax.X, image.UncroppedMax.Y);
                             }
                         }
                     }
                 }
             }
 
-            for (var j = 0; j < NumMipLevels; j++)
+            if (Format is not VTexFormat.JPEG_DXT5 and not VTexFormat.JPEG_RGBA8888 and not VTexFormat.PNG_DXT5 and not VTexFormat.PNG_RGBA8888)
             {
-                writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
+                for (var j = 0; j < NumMipLevels; j++)
+                {
+                    writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
+                }
             }
 
             return writer.ToString();

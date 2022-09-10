@@ -13,24 +13,41 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Bones = new Dictionary<string, FrameBone>();
         }
 
-        public void SetAttribute(string bone, string attribute, object data)
+        public void SetAttribute(string bone, string attribute, Vector3 data)
         {
             switch (attribute)
             {
                 case "Position":
-                    GetBone(bone).Position = (Vector3)data;
-                    break;
-
-                case "Angle":
-                    GetBone(bone).Angle = (Quaternion)data;
+                    GetBone(bone).Position = data;
                     break;
 
                 case "data":
                     //ignore
                     break;
+
 #if DEBUG
                 default:
-                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered");
+                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with Vector3 data");
+                    break;
+#endif
+            }
+        }
+
+        public void SetAttribute(string bone, string attribute, Quaternion data)
+        {
+            switch (attribute)
+            {
+                case "Angle":
+                    GetBone(bone).Angle = data;
+                    break;
+
+                case "data":
+                    //ignore
+                    break;
+
+#if DEBUG
+                default:
+                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with Quaternion data");
                     break;
 #endif
             }

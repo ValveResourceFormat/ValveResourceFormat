@@ -19,20 +19,18 @@ namespace Tests
                 var resource = new Resource();
                 resource.Read(file);
 
-                var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                using var ms = new MemoryStream();
+                using var pixels = bitmap.PeekPixels();
+                pixels.Encode(ms, SKEncodedImageFormat.Png, 100);
 
-                using (var ms = new MemoryStream())
-                {
-                    bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
-
-                    // TODO: Comparing images as bytes doesn't work
+                // TODO: Comparing images as bytes doesn't work
 #if false
-                    using (var expected = new FileStream(Path.ChangeExtension(file, "png"), FileMode.Open, FileAccess.Read))
-                    {
-                        FileAssert.AreEqual(expected, ms);
-                    }
-#endif
+                using (var expected = new FileStream(Path.ChangeExtension(file, "png"), FileMode.Open, FileAccess.Read))
+                {
+                    FileAssert.AreEqual(expected, ms);
                 }
+#endif
             }
         }
     }

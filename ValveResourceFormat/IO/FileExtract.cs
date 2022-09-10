@@ -47,13 +47,14 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
+                case ResourceType.PanoramaTypescript:
                 case ResourceType.PanoramaVectorGraphic:
                     extract.Data = ((Panorama)resource.DataBlock).Data;
                     break;
 
                 case ResourceType.Sound:
                     {
-                        var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
+                        using var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
                         extract.Data = buffer.ToArray();
 
@@ -62,13 +63,11 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
 
-                        using var ms = new MemoryStream();
-                        bitmap.PeekPixels().Encode(ms, SKEncodedImageFormat.Png, 100);
-
-                        ms.TryGetBuffer(out var buffer);
-                        extract.Data = buffer.ToArray();
+                        using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                        using var pixels = bitmap.PeekPixels();
+                        using var png = pixels.Encode(SKPngEncoderOptions.Default);
+                        extract.Data = png.ToArray();
 
                         break;
                     }
@@ -118,6 +117,7 @@ namespace ValveResourceFormat.IO
             {
                 case ResourceType.PanoramaLayout: return "xml";
                 case ResourceType.PanoramaScript: return "js";
+                case ResourceType.PanoramaTypescript: return "js";
                 case ResourceType.PanoramaStyle: return "css";
                 case ResourceType.PanoramaVectorGraphic: return "svg";
                 case ResourceType.Texture: return "png";

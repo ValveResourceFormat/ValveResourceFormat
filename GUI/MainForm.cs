@@ -350,14 +350,20 @@ namespace GUI
                 }
             }
 
-            var tab = new TabPage(Path.GetFileName(fileName));
-            tab.ToolTipText = fileName;
+            var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
+            OpenFile(input, vrfGuiContext);
+        }
+
+        public void OpenFile(byte[] input, VrfGuiContext vrfGuiContext)
+        {
+            var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName));
+            tab.ToolTipText = vrfGuiContext.FileName;
             tab.Controls.Add(new LoadingFile());
 
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(fileName, input, currentPackage));
+            var task = Task.Factory.StartNew(() => ProcessFile(input, vrfGuiContext));
 
             task.ContinueWith(
                 t =>
@@ -409,7 +415,7 @@ namespace GUI
                 TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        private TabPage ProcessFile(string fileName, byte[] input, TreeViewWithSearchResults.TreeViewPackageTag currentPackage)
+        private TabPage ProcessFile(byte[] input, VrfGuiContext vrfGuiContext)
         {
             uint magic = 0;
             ushort magicResourceVersion = 0;
@@ -426,7 +432,7 @@ namespace GUI
             {
                 var magicData = new byte[6];
 
-                using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     fs.Read(magicData, 0, 6);
                 }
@@ -434,8 +440,6 @@ namespace GUI
                 magic = BitConverter.ToUInt32(magicData, 0);
                 magicResourceVersion = BitConverter.ToUInt16(magicData, 4);
             }
-
-            var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
 
             if (Types.Viewers.Package.IsAccepted(magic))
             {
@@ -474,7 +478,7 @@ namespace GUI
             {
                 return new Types.Viewers.Image().Create(vrfGuiContext, input);
             }
-            else if (Types.Viewers.Audio.IsAccepted(magic, fileName))
+            else if (Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
                 return new Types.Viewers.Audio().Create(vrfGuiContext, input);
             }
