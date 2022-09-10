@@ -414,11 +414,14 @@ namespace Decompiler
                 {
                     var contentFile = FileExtract.Extract(resource);
 
-                    var filePath = Path.ChangeExtension(path, extension);
+                    var outFilePath = GetOutputPath(path);
 
-                    // TODO: fix exporting subfiles to a non-folder --output
-                    // there is an issue with how output path is handled
-                    DumpContentFile(filePath, contentFile, dumpSubFiles: false);
+                    if (Path.GetExtension(outFilePath) != extension)
+                    {
+                        Console.WriteLine($"WARNING: Extension `{Path.GetExtension(outFilePath)}` differs from the one suggested `{extension}`");
+                    }
+
+                    DumpContentFile(outFilePath, contentFile);
                 }
             }
             catch (Exception e)
@@ -507,6 +510,7 @@ namespace Decompiler
                 if (OutputFile != null)
                 {
                     path = Path.ChangeExtension(path, "txt");
+                    path = GetOutputPath(path);
 
                     DumpFile(path, Encoding.UTF8.GetBytes(assetsInfo.ToString()));
                 }
@@ -567,6 +571,7 @@ namespace Decompiler
                 if (OutputFile != null)
                 {
                     path = Path.ChangeExtension(path, "ttf");
+                    path = GetOutputPath(path);
 
                     DumpFile(path, output);
                 }
@@ -840,52 +845,58 @@ namespace Decompiler
                         filePath = Path.ChangeExtension(filePath, extension);
                     }
 
+                    filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
 
                     if (Decompile)
                     {
-                        DumpContentFile(filePath, contentFile, useOutputAsDirectory: true);
+                        DumpContentFile(filePath, contentFile);
                     }
                     else
                     {
-                        DumpFile(filePath, output, useOutputAsDirectory: true);
+                        DumpFile(filePath, output);
                     }
                 }
             }
         }
 
-        private void DumpContentFile(string path, ContentFile contentFile, bool useOutputAsDirectory = false, bool dumpSubFiles = true)
+        private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
         {
-            DumpFile(path, contentFile.Data, useOutputAsDirectory);
+
+            if (IsInputFolder)
+            {
+                if (!inputPath.StartsWith(InputFile))
+                {
+                    throw new Exception($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?");
+                }
+
+                inputPath = inputPath.Remove(0, InputFile.Length);
+
+                return Path.Combine(OutputFile, inputPath);
+            }
+            else if (useOutputAsDirectory)
+            {
+                return Path.Combine(OutputFile, inputPath);
+            }
+
+            return Path.GetFullPath(OutputFile);
+        }
+
+        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
+        {
+            DumpFile(path, contentFile.Data);
 
             if (dumpSubFiles)
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract(), useOutputAsDirectory);
+                    // Subfile.FileName is relative to the parent
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract());
                 }
             }
         }
 
-        private void DumpFile(string path, ReadOnlySpan<byte> data, bool useOutputAsDirectory = false)
+        private static void DumpFile(string path, ReadOnlySpan<byte> data)
         {
-            if (IsInputFolder)
-            {
-                if (!path.StartsWith(InputFile))
-                {
-                    throw new Exception($"Path '{path}' does not start with '{InputFile}', is this a bug?");
-                }
-
-                path = path.Remove(0, InputFile.Length);
-                path = Path.Combine(OutputFile, path);
-            }
-            else if (useOutputAsDirectory)
-            {
-                path = Path.Combine(OutputFile, path);
-            }
-            else
-            {
-                path = Path.GetFullPath(OutputFile);
-            }
 
             Directory.CreateDirectory(Path.GetDirectoryName(path));
 
