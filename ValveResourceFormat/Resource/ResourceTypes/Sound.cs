@@ -10,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes
     public struct EmphasisSample
     {
         public float Time { get; }
-        public float Value { get;}
+        public float Value { get; }
     }
 
     public struct PhonemeTag
@@ -94,7 +94,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public float Duration { get; private set; }
 
-        public Sentence Sentence {get; private set; }
+        public Sentence Sentence { get; private set; }
 
         public uint StreamingDataSize { get; private set; }
 
@@ -170,10 +170,10 @@ namespace ValveResourceFormat.ResourceTypes
             Duration = reader.ReadSingle();
 
             var sentenceOffset = reader.ReadInt64();
-            
+
             if (sentenceOffset != 0)
                 sentenceOffset = reader.BaseStream.Position + sentenceOffset;
-            
+
             // Skipping over m_pHeader
             reader.BaseStream.Position += 4;
 
@@ -222,10 +222,12 @@ namespace ValveResourceFormat.ResourceTypes
         private void ReadPhonemeStream(BinaryReader reader, long sentenceOffset)
         {
             if (sentenceOffset == 0)
+            {
                 return;
-            
+            }
+
             Reader.BaseStream.Position = sentenceOffset;
-            
+
             var numPhonemeTags = reader.ReadInt32();
 
             var a = reader.ReadInt32(); // numEmphasisSamples ?
@@ -237,21 +239,22 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            Sentence = new Sentence();
-
-            Sentence.RunTimePhonemes = new PhonemeTag[numPhonemeTags];
+            Sentence = new Sentence
+            {
+                RunTimePhonemes = new PhonemeTag[numPhonemeTags]
+            };
 
             for (var i = 0; i < numPhonemeTags; i++)
             {
                 var startTime = reader.ReadSingle();
                 var endTime = reader.ReadSingle();
                 var phonemeCode = (UInt16)reader.ReadInt32();
-                
+
                 var phonemeTag = new PhonemeTag
                 {
-                    StartTime=startTime,
-                    EndTime=endTime,
-                    PhonemeCode=phonemeCode
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    PhonemeCode = phonemeCode
                 };
 
                 Sentence.RunTimePhonemes[i] = phonemeTag;
