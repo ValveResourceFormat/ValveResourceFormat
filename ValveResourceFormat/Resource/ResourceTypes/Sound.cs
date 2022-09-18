@@ -173,44 +173,39 @@ namespace ValveResourceFormat.ResourceTypes
             reader.BaseStream.Position += 4;
 
             if (sentenceOffset != 0)
+            {
                 sentenceOffset = reader.BaseStream.Position + sentenceOffset;
+            }
 
             // Skipping over m_pHeader
             reader.BaseStream.Position += 4;
 
             StreamingDataSize = reader.ReadUInt32();
 
-            if (resource.Version < 1)
+            if (resource.Version >= 1)
             {
-                ReadPhonemeStream(reader, sentenceOffset);
-                return;
-            }
+                var d = reader.ReadUInt32();
+                if (d != 0)
+                {
+                    throw new UnexpectedMagicException("Unexpected", d, nameof(d));
+                }
 
-            var d = reader.ReadUInt32();
-            if (d != 0)
-            {
-                throw new UnexpectedMagicException("Unexpected", d, nameof(d));
-            }
-
-            var e = reader.ReadUInt32();
-            if (e != 0)
-            {
-                throw new UnexpectedMagicException("Unexpected", e, nameof(e));
-            }
-
-            if (resource.Version < 2)
-            {
-                ReadPhonemeStream(reader, sentenceOffset);
-                return;
-            }
-
-            var f = reader.ReadUInt32();
-            if (f != 0)
-            {
-                throw new UnexpectedMagicException("Unexpected", f, nameof(f));
+                var e = reader.ReadUInt32();
+                if (e != 0)
+                {
+                    throw new UnexpectedMagicException("Unexpected", e, nameof(e));
+                }
             }
 
             // v2 and v3 are the same?
+            if (resource.Version >= 2)
+            {
+                var f = reader.ReadUInt32();
+                if (f != 0)
+                {
+                    throw new UnexpectedMagicException("Unexpected", f, nameof(f));
+                }
+            }
 
             if (resource.Version >= 4)
             {
