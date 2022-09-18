@@ -169,7 +169,8 @@ namespace ValveResourceFormat.ResourceTypes
             SampleCount = reader.ReadUInt32();
             Duration = reader.ReadSingle();
 
-            var sentenceOffset = reader.ReadInt64();
+            var sentenceOffset = (long)reader.ReadUInt32();
+            reader.BaseStream.Position += 4;
 
             if (sentenceOffset != 0)
                 sentenceOffset = reader.BaseStream.Position + sentenceOffset;
