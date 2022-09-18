@@ -244,7 +244,9 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var startTime = reader.ReadSingle();
                 var endTime = reader.ReadSingle();
-                var phonemeCode = (UInt16)reader.ReadInt32();
+                var phonemeCode = reader.ReadUInt16();
+
+                reader.BaseStream.Position += 2;
 
                 var phonemeTag = new PhonemeTag
                 {
