@@ -19,10 +19,9 @@ namespace GUI.Forms
         private readonly string path;
         private readonly bool decompile;
         private readonly Queue<PackageEntry> filesToExtract;
+        private readonly GltfModelExporter gltfExporter;
         private CancellationTokenSource cancellationTokenSource;
         private int initialFileCount;
-
-        private GltfModelExporter gltfExporter;
 
         public ExtractProgressForm(Package package, TreeNode root, string path, bool decompile)
         {
@@ -166,7 +165,7 @@ namespace GUI.Forms
                         await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
 
-                    foreach(var contentSubFile in contentFile.SubFiles)
+                    foreach (var contentSubFile in contentFile.SubFiles)
                     {
                         var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
                         Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));

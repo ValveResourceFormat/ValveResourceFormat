@@ -30,7 +30,7 @@ namespace GUI.Types.Exporter
                     extension = "glb";
                     filter = $"GLB file|*.glb|glTF file|*.gltf|{filter}";
                 }
-                else
+                else if (exportData.FileType == ExportFileType.GLTF)
                 {
                     extension = "gltf";
                     filter = $"glTF file|*.gltf|GLB file|*.glb|{filter}";

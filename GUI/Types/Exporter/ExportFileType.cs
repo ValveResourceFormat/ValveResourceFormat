@@ -12,6 +12,11 @@ namespace GUI.Types.Exporter
         Auto,
 
         /// <summary>
+        /// Use the glTF format
+        /// </summary>
+        GLTF,
+
+        /// <summary>
         /// Use the GLB format
         /// </summary>
         GLB

@@ -55,7 +55,7 @@ namespace ValveResourceFormat.IO
 
         public void Export(Resource resource, string targetPath)
         {
-            switch(resource.ResourceType)
+            switch (resource.ResourceType)
             {
                 case ResourceType.Mesh:
                     ExportToFile(resource.FileName, targetPath, new VMesh(resource));

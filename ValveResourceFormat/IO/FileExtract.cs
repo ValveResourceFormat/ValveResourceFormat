@@ -10,7 +10,7 @@ namespace ValveResourceFormat.IO
     public class ContentFile
     {
         public byte[] Data { get; set; }
-        public List<ContentSubFile> SubFiles { get; private set; } = new List<ContentSubFile>();
+        public List<ContentSubFile> SubFiles { get; init; } = new List<ContentSubFile>();
 
         public void AddSubFile(string fileName, Func<byte[]> extractFunction)
         {
