@@ -105,17 +105,21 @@ namespace GUI.Forms
                     extractStatusLabel.Text = $"Extracting {packageFile.GetFullPath()}";
                 }));
 
-                var filePath = Path.Combine(path, packageFile.GetFullPath());
+                var outFilePath = Path.Combine(path, packageFile.GetFullPath());
+                var outFolder = Path.GetDirectoryName(outFilePath);
 
                 package.ReadEntry(packageFile, out var output, false);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                Directory.CreateDirectory(outFolder);
 
-                if (decompile && filePath.EndsWith("_c", StringComparison.Ordinal))
+                // Decompile & Export
+                if (decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
+                    ContentFile contentFile;
+
                     using (var resource = new Resource
                     {
-                        FileName = filePath,
+                        FileName = outFilePath,
                     })
                     using (var memory = new MemoryStream(output))
                     {
@@ -127,28 +131,53 @@ namespace GUI.Forms
 
                             if (extension == null)
                             {
-                                filePath = filePath.Substring(0, filePath.Length - 2);
+                                outFilePath = outFilePath.Substring(0, outFilePath.Length - 2);
                             }
                             else
                             {
-                                filePath = Path.ChangeExtension(filePath, extension);
+                                outFilePath = Path.ChangeExtension(outFilePath, extension);
                             }
 
-                            output = FileExtract.Extract(resource).ToArray();
+                            contentFile = FileExtract.Extract(resource);
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}");
+                            await Console.Error.WriteLineAsync($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}").ConfigureAwait(false);
                             continue;
                         }
                     }
+
+                    if (contentFile.Data.Length > 0)
+                    {
+                        Console.WriteLine($"Writing content file: {outFilePath}");
+                        await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
+                    }
+
+                    foreach (var contentSubFile in contentFile.SubFiles)
+                    {
+                        var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
+                        Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
+
+                        byte[] subFileData;
+                        try
+                        {
+                            subFileData = contentSubFile.Extract();
+                        }
+                        catch (Exception e)
+                        {
+                            await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
+                            continue;
+                        }
+
+                        Console.WriteLine($"Writing content subfile: {subFilePath}");
+                        await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                    }
+
+                    continue;
                 }
 
-                var stream = new FileStream(filePath, FileMode.Create);
-                await using (stream.ConfigureAwait(false))
-                {
-                    await stream.WriteAsync(output, cancellationTokenSource.Token).ConfigureAwait(false);
-                }
+                // Extract as is
+                await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
             }
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using SkiaSharp;
@@ -6,11 +7,38 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
+    public class ContentFile
+    {
+        public byte[] Data { get; set; }
+        public List<ContentSubFile> SubFiles { get; init; } = new List<ContentSubFile>();
+
+        public void AddSubFile(string fileName, Func<byte[]> extractFunction)
+        {
+            var subFile = new ContentSubFile
+            {
+                FileName = fileName,
+                Extract = extractFunction
+            };
+
+            SubFiles.Add(subFile);
+        }
+    }
+
+    public class ContentSubFile
+    {
+        public string FileName { get; set; }
+        public Func<byte[]> Extract { get; set; }
+    }
+
     public static class FileExtract
     {
-        public static Span<byte> Extract(Resource resource)
+        /// <summary>
+        /// Extract content file from a compiled resource.
+        /// </summary>
+        /// <param name="resource">The resource to be extracted or decompiled.</param>
+        public static ContentFile Extract(Resource resource)
         {
-            Span<byte> data;
+            var contentFile = new ContentFile();
 
             switch (resource.ResourceType)
             {
@@ -21,14 +49,14 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaTypescript:
                 case ResourceType.PanoramaVectorGraphic:
-                    data = ((Panorama)resource.DataBlock).Data;
+                    contentFile.Data = ((Panorama)resource.DataBlock).Data;
                     break;
 
                 case ResourceType.Sound:
                     {
                         using var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
-                        data = buffer;
+                        contentFile.Data = buffer.ToArray();
 
                         break;
                     }
@@ -38,21 +66,21 @@ namespace ValveResourceFormat.IO
                         using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                         using var pixels = bitmap.PeekPixels();
                         using var png = pixels.Encode(SKPngEncoderOptions.Default);
-                        data = png.ToArray();
+                        contentFile.Data = png.ToArray();
 
                         break;
                     }
 
                 case ResourceType.Particle:
-                    data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
                     break;
 
                 case ResourceType.Material:
-                    data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
                     break;
 
                 case ResourceType.EntityLump:
-                    data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
                     break;
 
                 // These all just use ToString() and WriteText() to do the job
@@ -60,7 +88,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
                 default:
@@ -68,18 +96,18 @@ namespace ValveResourceFormat.IO
                         if (resource.DataBlock is BinaryKV3 dataKv3)
                         {
                             // Wrap it around a KV3File object to get the header.
-                            data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
+                            contentFile.Data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
                         }
                         else
                         {
-                            data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                            contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                         }
 
                         break;
                     }
             }
 
-            return data;
+            return contentFile;
         }
 
         public static string GetExtension(Resource resource)
