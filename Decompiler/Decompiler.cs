@@ -136,6 +136,12 @@ namespace Decompiler
                     return 1;
                 }
 
+                // Make sure we always have a trailing slash for input folders
+                if (!InputFile.EndsWith(Path.DirectorySeparatorChar))
+                {
+                    InputFile += Path.DirectorySeparatorChar;
+                }
+
                 IsInputFolder = true;
 
                 var dirs = Directory
