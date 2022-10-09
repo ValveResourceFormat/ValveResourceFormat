@@ -178,10 +178,12 @@ namespace Decompiler
 
                 if (!dirs.Any())
                 {
-                    Console.Error.WriteLine(
-                        "Unable to find any \"_c\" compiled files in \"{0}\" folder.{1}",
-                        InputFile,
-                        RecursiveSearch ? " Did you mean to include --recursive option?" : string.Empty);
+                    Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{InputFile}\" folder.");
+
+                    if (!RecursiveSearch)
+                    {
+                        Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
+                    }
 
                     return 1;
                 }
