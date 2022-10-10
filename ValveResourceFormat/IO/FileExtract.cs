@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using SkiaSharp;
@@ -63,11 +64,67 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                        var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                         using var pixels = bitmap.PeekPixels();
                         using var png = pixels.Encode(SKPngEncoderOptions.Default);
                         contentFile.Data = png.ToArray();
 
+                        var spriteSheetData = ((Texture)resource.DataBlock).GetSpriteSheetData();
+
+                        if (spriteSheetData is null)
+                        {
+                            bitmap.Dispose();
+                            break;
+                        }
+
+                        var mks = new StringBuilder();
+                        var textureName = Path.GetFileNameWithoutExtension(resource.FileName);
+
+                        for (var s = 0; s < spriteSheetData.Sequences.Length; s++)
+                        {
+                            var sequence = spriteSheetData.Sequences[s];
+
+                            mks.AppendLine();
+                            mks.AppendLine($"sequence {s}");
+
+                            if (!sequence.Clamp)
+                            {
+                                mks.AppendLine("LOOP");
+                            }
+
+                            for (var f = 0; f < sequence.Frames.Length; f++)
+                            {
+                                var frame = sequence.Frames[f];
+
+                                var imageFileName = sequence.Frames.Length == 1
+                                    ? $"{textureName}_seq{s:00}.png"
+                                    : $"{textureName}_seq{s:00}_{f:00}.png";
+
+                                mks.AppendLine($"frame {imageFileName} {frame.DisplayTime.ToString(CultureInfo.InvariantCulture)}");
+
+                                // These images seem to be duplicates. So only extract the first one.
+                                var image = frame.Images[0];
+                                var ImageExtract = () =>
+                                {
+                                    SKRectI imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
+                                    using var subset = new SKBitmap();
+                                    bitmap.ExtractSubset(subset, imageRect);
+
+                                    if (subset.IsNull)
+                                    {
+                                        return Array.Empty<byte>();
+                                    }
+
+                                    using var pixels = subset.PeekPixels();
+                                    using var png = pixels.Encode(SKPngEncoderOptions.Default);
+                                    return png.ToArray();
+                                };
+
+                                contentFile.AddSubFile(imageFileName, ImageExtract);
+                            }
+                        }
+
+                        contentFile.AddSubFile($"{textureName}.mks", () => Encoding.UTF8.GetBytes(mks.ToString()));
                         break;
                     }
 
