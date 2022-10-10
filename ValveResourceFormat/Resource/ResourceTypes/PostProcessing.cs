@@ -1,4 +1,3 @@
-using System.IO;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -81,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes
             return lut[..j];
         }
 
-        public string ToValvePostProcessing()
+        public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
         {
             var outKV3 = new KVObject(null);
             outKV3.AddProperty("_class", new KVValue(KVType.STRING, "CPostProcessData"));
@@ -148,10 +147,32 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // All other layers are compiled into a 3D lookup table
-            // https://en.wikipedia.org/wiki/3D_lookup_table
             if (HasColorCorrection())
             {
-                // https://developer.valvesoftware.com/wiki/Color_Correction#RAW_File_Format
+                var ccLayer = new KVObject(null);
+                {
+                    ccLayer.AddProperty("_class", new KVValue(KVType.STRING, "CColorLookupColorCorrectionLayer"));
+                    ccLayer.AddProperty("m_name", new KVValue(KVType.STRING, "VRF Extracted Lookup Table"));
+                    ccLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
+                    ccLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
+                    ccLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
+                    ccLayer.AddProperty("m_fileName", new KVValue(KVType.STRING, lutFileName));
+
+                    var lut = new KVObject("m_lut", isArray: true);
+
+                    if (preloadLookupTable)
+                    {
+                        foreach (var b in GetRAWData())
+                        {
+                            lut.AddProperty("", new KVValue(KVType.DOUBLE, b / 255d));
+                        }
+                    }
+
+                    ccLayer.AddProperty(lut.Key, new KVValue(KVType.ARRAY, lut));
+                    ccLayer.AddProperty("m_nDim", new KVValue(KVType.INT64, GetColorCorrectionLUTDimension()));
+                }
+
+                layers.AddProperty("", new KVValue(KVType.OBJECT, ccLayer));
             }
 
             outKV3.AddProperty(layers.Key, new KVValue(KVType.ARRAY, layers));

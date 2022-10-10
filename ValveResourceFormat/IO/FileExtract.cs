@@ -85,10 +85,13 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.PostProcessing:
                     {   
-                        contentFile.Data = Encoding.UTF8.GetBytes(((PostProcessing)resource.DataBlock).ToValvePostProcessing());
+                        var lutFileName = Path.ChangeExtension(resource.FileName, "raw");
+                        contentFile.Data = Encoding.UTF8.GetBytes(
+                            ((PostProcessing)resource.DataBlock).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName)
+                        );
 
                         contentFile.AddSubFile(
-                            fileName: Path.ChangeExtension(resource.FileName, "raw"),
+                            fileName: lutFileName,
                             extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
                         );
 
