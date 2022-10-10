@@ -428,9 +428,13 @@ namespace Decompiler
                     var extensionNew = Path.GetExtension(outFilePath);
                     if (extensionNew.Length == 0 || (extensionNew[1..]) != extension)
                     {
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"Extension `.{extension}` might be more suitable than the one provided `{extensionNew}`");
-                        Console.ResetColor();
+                        lock (ConsoleWriterLock)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
+                            Console.ResetColor();
+                        }
+                        
                     }
 
                     DumpContentFile(outFilePath, contentFile);
