@@ -434,7 +434,6 @@ namespace Decompiler
                             Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
                             Console.ResetColor();
                         }
-                        
                     }
 
                     DumpContentFile(outFilePath, contentFile);
@@ -942,7 +941,6 @@ namespace Decompiler
 
         private static void DumpFile(string path, ReadOnlySpan<byte> data)
         {
-
             Directory.CreateDirectory(Path.GetDirectoryName(path));
 
             File.WriteAllBytes(path, data.ToArray());
@@ -952,10 +950,9 @@ namespace Decompiler
 
         private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
         {
-
             if (IsInputFolder)
             {
-                if (!inputPath.StartsWith(InputFile))
+                if (!inputPath.StartsWith(InputFile, StringComparison.Ordinal))
                 {
                     throw new Exception($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?");
                 }
