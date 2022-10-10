@@ -435,6 +435,20 @@ namespace GUI.Types.Viewers
                     tabEntities.Controls.Add(control);
                     resTabs.TabPages.Add(tabEntities);
                 }
+
+                if (block.Type == BlockType.DATA && resource.ResourceType == ResourceType.PostProcessing)
+                {
+                    var control = new TextBox();
+                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                    control.Text = Utils.Utils.NormalizeLineEndings(((PostProcessing)block).ToValvePostProcessing());
+                    control.Dock = DockStyle.Fill;
+                    control.Multiline = true;
+                    control.ReadOnly = true;
+                    control.ScrollBars = ScrollBars.Both;
+                    var tabVpost = new TabPage("vpost");
+                    tabVpost.Controls.Add(control);
+                    resTabs.TabPages.Add(tabVpost);
+                }
             }
 
             if (resource.ResourceType == ResourceType.PanoramaLayout

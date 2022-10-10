@@ -115,6 +115,9 @@ namespace ValveResourceFormat
         [Extension("vmap")]
         Map,
 
+        [Extension("vpost")]
+        PostProcessing,
+
         [Extension("vdata")]
         VData,
 

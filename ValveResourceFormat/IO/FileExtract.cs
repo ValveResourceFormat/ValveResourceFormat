@@ -83,6 +83,21 @@ namespace ValveResourceFormat.IO
                     contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
                     break;
 
+                case ResourceType.PostProcessing:
+                    {
+                        var lutFileName = Path.ChangeExtension(resource.FileName, "raw");
+                        contentFile.Data = Encoding.UTF8.GetBytes(
+                            ((PostProcessing)resource.DataBlock).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
+                        );
+
+                        contentFile.AddSubFile(
+                            fileName: lutFileName,
+                            extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
+                        );
+
+                        break;
+                    }
+
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:
