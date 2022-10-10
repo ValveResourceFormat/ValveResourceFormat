@@ -84,10 +84,10 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.PostProcessing:
-                    {   
+                    {
                         var lutFileName = Path.ChangeExtension(resource.FileName, "raw");
                         contentFile.Data = Encoding.UTF8.GetBytes(
-                            ((PostProcessing)resource.DataBlock).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName)
+                            ((PostProcessing)resource.DataBlock).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
                         );
 
                         contentFile.AddSubFile(
