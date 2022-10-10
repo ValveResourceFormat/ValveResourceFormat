@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public byte[] GetRAWData()
         {
-            var lut = GetColorCorrectionLUT();
+            var lut = GetColorCorrectionLUT().Clone() as byte[];
 
             int j = 0;
             for (int i = 0; i < lut.Length; i++)
