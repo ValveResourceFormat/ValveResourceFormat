@@ -420,11 +420,24 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var data = FileExtract.Extract(resource);
+                    var contentFile = FileExtract.Extract(resource);
 
-                    var filePath = Path.ChangeExtension(path, extension);
+                    path = Path.ChangeExtension(path, extension);
+                    var outFilePath = GetOutputPath(path);
 
-                    DumpFile(filePath, data);
+                    var extensionNew = Path.GetExtension(outFilePath);
+                    if (extensionNew.Length == 0 || (extensionNew[1..]) != extension)
+                    {
+                        lock (ConsoleWriterLock)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
+                            Console.ResetColor();
+                        }
+                        
+                    }
+
+                    DumpContentFile(outFilePath, contentFile);
                 }
             }
             catch (Exception e)
@@ -513,6 +526,7 @@ namespace Decompiler
                 if (OutputFile != null)
                 {
                     path = Path.ChangeExtension(path, "txt");
+                    path = GetOutputPath(path);
 
                     DumpFile(path, Encoding.UTF8.GetBytes(assetsInfo.ToString()));
                 }
@@ -573,6 +587,7 @@ namespace Decompiler
                 if (OutputFile != null)
                 {
                     path = Path.ChangeExtension(path, "ttf");
+                    path = GetOutputPath(path);
 
                     DumpFile(path, output);
                 }
@@ -835,6 +850,7 @@ namespace Decompiler
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 package.ReadEntry(file, out var output);
+                var contentFile = default(ContentFile);
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
@@ -877,7 +893,7 @@ namespace Decompiler
                             continue;
                         }
 
-                        output = FileExtract.Extract(resource).ToArray();
+                        contentFile = FileExtract.Extract(resource);
                     }
                     catch (Exception e)
                     {
@@ -897,37 +913,63 @@ namespace Decompiler
                         filePath = Path.ChangeExtension(filePath, extension);
                     }
 
-                    DumpFile(filePath, output, useOutputAsDirectory: true);
+                    filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
+
+                    if (Decompile)
+                    {
+                        DumpContentFile(filePath, contentFile);
+                    }
+                    else
+                    {
+                        DumpFile(filePath, output);
+                    }
                 }
             }
         }
 
-        private void DumpFile(string path, ReadOnlySpan<byte> data, bool useOutputAsDirectory = false)
+        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
         {
-            if (IsInputFolder)
-            {
-                if (!path.StartsWith(InputFile))
-                {
-                    throw new Exception($"Path '{path}' does not start with '{InputFile}', is this a bug?");
-                }
+            DumpFile(path, contentFile.Data);
 
-                path = path.Remove(0, InputFile.Length);
-                path = Path.Combine(OutputFile, path);
-            }
-            else if (useOutputAsDirectory)
+            if (dumpSubFiles)
             {
-                path = Path.Combine(OutputFile, path);
+                foreach (var contentSubFile in contentFile.SubFiles)
+                {
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract());
+                }
             }
-            else
-            {
-                path = Path.GetFullPath(OutputFile);
-            }
+        }
+
+        private static void DumpFile(string path, ReadOnlySpan<byte> data)
+        {
 
             Directory.CreateDirectory(Path.GetDirectoryName(path));
 
             File.WriteAllBytes(path, data.ToArray());
 
             Console.WriteLine("--- Dump written to \"{0}\"", path);
+        }
+
+        private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
+        {
+
+            if (IsInputFolder)
+            {
+                if (!inputPath.StartsWith(InputFile))
+                {
+                    throw new Exception($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?");
+                }
+
+                inputPath = inputPath.Remove(0, InputFile.Length);
+
+                return Path.Combine(OutputFile, inputPath);
+            }
+            else if (useOutputAsDirectory)
+            {
+                return Path.Combine(OutputFile, inputPath);
+            }
+
+            return Path.GetFullPath(OutputFile);
         }
 
         private void LogException(Exception e, string path, string parentPath = null)
