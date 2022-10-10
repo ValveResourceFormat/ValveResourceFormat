@@ -62,21 +62,23 @@ namespace ValveResourceFormat.ResourceTypes
         public byte[] GetColorCorrectionLUT()
             => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
 
-        public void SaveCCToFile(string fileName)
+        public byte[] GetRAWData()
         {
             var lut = GetColorCorrectionLUT();
 
             int j = 0;
             for (int i = 0; i < lut.Length; i++)
             {
-                // Skip each fourth byte
-                if (((i+1) % 4) == 0)
+                // Skip each 4th byte
+                if (((i + 1) % 4) == 0)
+                {
                     continue;
+                }
 
                 lut[j++] = lut[i];
             }
 
-            File.WriteAllBytes(fileName, lut[..j]);
+            return lut[..j];
         }
 
         public string ToValvePostProcessing()
@@ -84,7 +86,7 @@ namespace ValveResourceFormat.ResourceTypes
             var outKV3 = new KVObject(null);
             outKV3.AddProperty("_class", new KVValue(KVType.STRING, "CPostProcessData"));
 
-            var layers = new KVObject("m_layers", isArray:true);
+            var layers = new KVObject("m_layers", isArray: true);
 
             var tonemapParams = GetTonemapParams();
             var bloomParams = GetBloomParams();

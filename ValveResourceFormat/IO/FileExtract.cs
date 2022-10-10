@@ -84,8 +84,16 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.PostProcessing:
-                    data = Encoding.UTF8.GetBytes(((PostProcessing)resource.DataBlock).ToValvePostProcessing());
-                    break;
+                    {   
+                        contentFile.Data = Encoding.UTF8.GetBytes(((PostProcessing)resource.DataBlock).ToValvePostProcessing());
+
+                        contentFile.AddSubFile(
+                            fileName: Path.ChangeExtension(resource.FileName, "raw"),
+                            extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
+                        );
+
+                        break;
+                    }
 
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
