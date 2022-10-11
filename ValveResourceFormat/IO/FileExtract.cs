@@ -35,10 +35,10 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Extract content file from a compiled resource.
         /// </summary>
-        /// <param name="resource">The resource to be extracted/decompiled.</param>
+        /// <param name="resource">The resource to be extracted or decompiled.</param>
         public static ContentFile Extract(Resource resource)
         {
-            var extract = new ContentFile();
+            var contentFile = new ContentFile();
 
             switch (resource.ResourceType)
             {
@@ -49,14 +49,14 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaTypescript:
                 case ResourceType.PanoramaVectorGraphic:
-                    extract.Data = ((Panorama)resource.DataBlock).Data;
+                    contentFile.Data = ((Panorama)resource.DataBlock).Data;
                     break;
 
                 case ResourceType.Sound:
                     {
                         using var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
-                        extract.Data = buffer.ToArray();
+                        contentFile.Data = buffer.ToArray();
 
                         break;
                     }
@@ -67,29 +67,44 @@ namespace ValveResourceFormat.IO
                         using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
                         using var pixels = bitmap.PeekPixels();
                         using var png = pixels.Encode(SKPngEncoderOptions.Default);
-                        extract.Data = png.ToArray();
+                        contentFile.Data = png.ToArray();
 
                         break;
                     }
 
                 case ResourceType.Particle:
-                    extract.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
                     break;
 
                 case ResourceType.Material:
-                    extract.Data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
                     break;
 
                 case ResourceType.EntityLump:
-                    extract.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
                     break;
+
+                case ResourceType.PostProcessing:
+                    {
+                        var lutFileName = Path.ChangeExtension(resource.FileName, "raw");
+                        contentFile.Data = Encoding.UTF8.GetBytes(
+                            ((PostProcessing)resource.DataBlock).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
+                        );
+
+                        contentFile.AddSubFile(
+                            fileName: lutFileName,
+                            extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
+                        );
+
+                        break;
+                    }
 
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    extract.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
                 default:
@@ -97,18 +112,18 @@ namespace ValveResourceFormat.IO
                         if (resource.DataBlock is BinaryKV3 dataKv3)
                         {
                             // Wrap it around a KV3File object to get the header.
-                            extract.Data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
+                            contentFile.Data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
                         }
                         else
                         {
-                            extract.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                            contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                         }
 
                         break;
                     }
             }
 
-            return extract;
+            return contentFile;
         }
 
         public static string GetExtension(Resource resource)

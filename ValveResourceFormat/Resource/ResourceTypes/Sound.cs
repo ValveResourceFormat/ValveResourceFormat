@@ -6,6 +6,29 @@ using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+
+    public struct EmphasisSample
+    {
+        public float Time { get; }
+        public float Value { get; }
+    }
+
+    public struct PhonemeTag
+    {
+        public float StartTime { get; set; }
+        public float EndTime { get; set; }
+        public UInt16 PhonemeCode { get; set; }
+    }
+
+    public class Sentence
+    {
+        public bool ShouldVoiceDuck { get; set; }
+
+        public PhonemeTag[] RunTimePhonemes { get; set; }
+
+        public EmphasisSample[] EmphasisSamples { get; set; }
+    }
+
     public class Sound : ResourceData
     {
         public enum AudioFileType
@@ -70,6 +93,8 @@ namespace ValveResourceFormat.ResourceTypes
         public int LoopEnd { get; private set; }
 
         public float Duration { get; private set; }
+
+        public Sentence Sentence { get; private set; }
 
         public uint StreamingDataSize { get; private set; }
 
@@ -144,47 +169,94 @@ namespace ValveResourceFormat.ResourceTypes
             SampleCount = reader.ReadUInt32();
             Duration = reader.ReadSingle();
 
-            // Skipping over m_Sentence (CSentence_t) and m_pHeader
-            reader.BaseStream.Position += 12;
+            var sentenceOffset = (long)reader.ReadUInt32();
+            reader.BaseStream.Position += 4;
+
+            if (sentenceOffset != 0)
+            {
+                sentenceOffset = reader.BaseStream.Position + sentenceOffset;
+            }
+
+            // Skipping over m_pHeader
+            reader.BaseStream.Position += 4;
 
             StreamingDataSize = reader.ReadUInt32();
 
-            if (resource.Version < 1)
+            if (resource.Version >= 1)
             {
-                return;
-            }
+                var d = reader.ReadUInt32();
+                if (d != 0)
+                {
+                    throw new UnexpectedMagicException("Unexpected", d, nameof(d));
+                }
 
-            var d = reader.ReadUInt32();
-            if (d != 0)
-            {
-                throw new UnexpectedMagicException("Unexpected", d, nameof(d));
-            }
-
-            var e = reader.ReadUInt32();
-            if (e != 0)
-            {
-                throw new UnexpectedMagicException("Unexpected", e, nameof(e));
-            }
-
-            if (resource.Version < 2)
-            {
-                return;
-            }
-
-            var f = reader.ReadUInt32();
-            if (f != 0)
-            {
-                throw new UnexpectedMagicException("Unexpected", f, nameof(f));
+                var e = reader.ReadUInt32();
+                if (e != 0)
+                {
+                    throw new UnexpectedMagicException("Unexpected", e, nameof(e));
+                }
             }
 
             // v2 and v3 are the same?
+            if (resource.Version >= 2)
+            {
+                var f = reader.ReadUInt32();
+                if (f != 0)
+                {
+                    throw new UnexpectedMagicException("Unexpected", f, nameof(f));
+                }
+            }
 
-            if (resource.Version < 4)
+            if (resource.Version >= 4)
+            {
+                LoopEnd = reader.ReadInt32();
+            }
+
+            ReadPhonemeStream(reader, sentenceOffset);
+        }
+
+        private void ReadPhonemeStream(BinaryReader reader, long sentenceOffset)
+        {
+            if (sentenceOffset == 0)
             {
                 return;
             }
 
-            LoopEnd = reader.ReadInt32();
+            Reader.BaseStream.Position = sentenceOffset;
+
+            var numPhonemeTags = reader.ReadInt32();
+
+            var a = reader.ReadInt32(); // numEmphasisSamples ?
+            var b = Reader.ReadInt32(); // Sentence.ShouldVoiceDuck ?
+
+            // Skip sounds that have these
+            if (a != 0 || b != 0)
+            {
+                return;
+            }
+
+            Sentence = new Sentence
+            {
+                RunTimePhonemes = new PhonemeTag[numPhonemeTags]
+            };
+
+            for (var i = 0; i < numPhonemeTags; i++)
+            {
+                var startTime = reader.ReadSingle();
+                var endTime = reader.ReadSingle();
+                var phonemeCode = reader.ReadUInt16();
+
+                reader.BaseStream.Position += 2;
+
+                var phonemeTag = new PhonemeTag
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    PhonemeCode = phonemeCode
+                };
+
+                Sentence.RunTimePhonemes[i] = phonemeTag;
+            }
         }
 
         private static uint ExtractSub(uint l, byte offset, byte nrBits)
@@ -298,6 +370,15 @@ namespace ValveResourceFormat.ResourceTypes
             output.AppendLine($"Duration: {duration} ({Duration})");
 
             output.AppendLine($"StreamingDataSize: {StreamingDataSize}");
+
+            if (Sentence != null)
+            {
+                output.AppendLine($"Sentence[{Sentence.RunTimePhonemes.Length}]:");
+                foreach (var phoneme in Sentence.RunTimePhonemes)
+                {
+                    output.AppendLine($"\tPhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
+                }
+            }
 
             return output.ToString();
         }

@@ -136,6 +136,12 @@ namespace Decompiler
                     return 1;
                 }
 
+                // Make sure we always have a trailing slash for input folders
+                if (!InputFile.EndsWith(Path.DirectorySeparatorChar))
+                {
+                    InputFile += Path.DirectorySeparatorChar;
+                }
+
                 IsInputFolder = true;
 
                 var dirs = Directory
@@ -178,10 +184,12 @@ namespace Decompiler
 
                 if (!dirs.Any())
                 {
-                    Console.Error.WriteLine(
-                        "Unable to find any \"_c\" compiled files in \"{0}\" folder.{1}",
-                        InputFile,
-                        RecursiveSearch ? " Did you mean to include --recursive option?" : string.Empty);
+                    Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{InputFile}\" folder.");
+
+                    if (!RecursiveSearch)
+                    {
+                        Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
+                    }
 
                     return 1;
                 }
@@ -414,11 +422,18 @@ namespace Decompiler
                 {
                     var contentFile = FileExtract.Extract(resource);
 
+                    path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
 
-                    if (Path.GetExtension(outFilePath) != extension)
+                    var extensionNew = Path.GetExtension(outFilePath);
+                    if (extensionNew.Length == 0 || (extensionNew[1..]) != extension)
                     {
-                        Console.WriteLine($"WARNING: Extension `{Path.GetExtension(outFilePath)}` differs from the one suggested `{extension}`");
+                        lock (ConsoleWriterLock)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
+                            Console.ResetColor();
+                        }
                     }
 
                     DumpContentFile(outFilePath, contentFile);
@@ -903,12 +918,33 @@ namespace Decompiler
             }
         }
 
+        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
+        {
+            DumpFile(path, contentFile.Data);
+
+            if (dumpSubFiles)
+            {
+                foreach (var contentSubFile in contentFile.SubFiles)
+                {
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract());
+                }
+            }
+        }
+
+        private static void DumpFile(string path, ReadOnlySpan<byte> data)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+            File.WriteAllBytes(path, data.ToArray());
+
+            Console.WriteLine("--- Dump written to \"{0}\"", path);
+        }
+
         private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
         {
-
             if (IsInputFolder)
             {
-                if (!inputPath.StartsWith(InputFile))
+                if (!inputPath.StartsWith(InputFile, StringComparison.Ordinal))
                 {
                     throw new Exception($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?");
                 }
@@ -923,30 +959,6 @@ namespace Decompiler
             }
 
             return Path.GetFullPath(OutputFile);
-        }
-
-        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
-        {
-            DumpFile(path, contentFile.Data);
-
-            if (dumpSubFiles)
-            {
-                foreach (var contentSubFile in contentFile.SubFiles)
-                {
-                    // Subfile.FileName is relative to the parent
-                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract());
-                }
-            }
-        }
-
-        private static void DumpFile(string path, ReadOnlySpan<byte> data)
-        {
-
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-
-            File.WriteAllBytes(path, data.ToArray());
-
-            Console.WriteLine("--- Dump written to \"{0}\"", path);
         }
 
         private void LogException(Exception e, string path, string parentPath = null)

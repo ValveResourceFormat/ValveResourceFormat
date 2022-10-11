@@ -1,0 +1,63 @@
+//------------------------------------------------
+//--- 010 Editor v12.0 Binary Template
+//
+//      File: Parse Source 2 resource files
+//   Authors: xPaw
+//   Version:
+//   Purpose:
+//  Category:
+// File Mask: *.*_c
+//  ID Bytes:
+//   History:
+//------------------------------------------------
+
+local uint blockCount;
+local uint blockDataCount;
+
+struct Block
+{
+	SetBackColor(blockCount++ % 2 ? cDkGreen : cLtGreen);
+
+	char name[4];
+	local uint prevOffset = FTell();
+	uint offset;
+	local uint totalOffset = offset + prevOffset;
+	uint size;
+
+	SetBackColor(cNone);
+
+	FSeek(totalOffset);
+
+	SetBackColor(blockDataCount++ % 2 ? cDkBlue : cLtBlue);
+	byte data[size];
+	SetBackColor(cNone);
+
+	FSeek(prevOffset + 8);
+};
+
+struct File
+{
+	SetBackColor(cDkPurple);
+	uint fileSize;
+	ushort headerVersion;
+
+	if (headerVersion != 12)
+    {
+		return -1;
+	}
+
+	ushort version;
+
+	uint blocksOffset;
+	uint blocksCount;
+
+	SetBackColor(cNone);
+
+	FSeek( FTell() + blocksOffset - 8 );
+
+	local int i;
+	for( i = 0; i < blocksCount; i++ )
+	{
+		Block block <name=name>;
+	}
+} file <optimize=false>;
