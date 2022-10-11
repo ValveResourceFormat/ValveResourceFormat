@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Types.Exporter;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -17,13 +18,15 @@ namespace GUI.Forms
         private readonly Package package;
         private readonly TreeNode root;
         private readonly string path;
-        private readonly bool decompile;
+        private readonly ExportData exportData;
         private readonly Queue<PackageEntry> filesToExtract;
         private readonly GltfModelExporter gltfExporter;
         private CancellationTokenSource cancellationTokenSource;
         private int initialFileCount;
 
-        public ExtractProgressForm(Package package, TreeNode root, string path, bool decompile)
+        public bool Decompile => exportData != null; 
+
+        public ExtractProgressForm(Package package, TreeNode root, string path, ExportData exportData = null)
         {
             InitializeComponent();
 
@@ -34,12 +37,15 @@ namespace GUI.Forms
             this.package = package;
             this.root = root;
             this.path = path;
-            this.decompile = decompile;
-
-            gltfExporter = new GltfModelExporter()
-            {
-                FileLoader = new BasicVpkFileLoader(package)
-            };
+            this.exportData = exportData;
+            
+            if (Decompile)
+            {                
+                gltfExporter = new GltfModelExporter()
+                {
+                    FileLoader = exportData.VrfGuiContext.FileLoader,
+                };
+            }
         }
 
         protected override void OnShown(EventArgs e)
@@ -118,8 +124,7 @@ namespace GUI.Forms
 
                 Directory.CreateDirectory(outFolder);
 
-                // Decompile & Export
-                if (decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
+                if (Decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
                     ContentFile contentFile;
 
