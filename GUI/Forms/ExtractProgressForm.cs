@@ -169,8 +169,11 @@ namespace GUI.Forms
                             continue;
                         }
 
-                        Console.WriteLine($"Writing content subfile: {subFilePath}");
-                        await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                        if (subFileData.Length > 0)
+                        {
+                            Console.WriteLine($"Writing content subfile: {subFilePath}");
+                            await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                        }
                     }
 
                     continue;
