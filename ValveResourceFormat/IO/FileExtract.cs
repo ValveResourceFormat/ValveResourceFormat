@@ -79,13 +79,34 @@ namespace ValveResourceFormat.IO
 
                         var mks = new StringBuilder();
                         var textureName = Path.GetFileNameWithoutExtension(resource.FileName);
+                        var packmodeNonFlat = false;
 
                         for (var s = 0; s < spriteSheetData.Sequences.Length; s++)
                         {
                             var sequence = spriteSheetData.Sequences[s];
 
                             mks.AppendLine();
-                            mks.AppendLine($"sequence {s}");
+
+                            switch (sequence.NoColor, sequence.NoAlpha)
+                            {
+                                case (false, false):
+                                    mks.AppendLine($"sequence {s}");
+                                    break;
+
+                                case (false, true):
+                                    mks.AppendLine($"sequence-rgb {s}");
+                                    packmodeNonFlat = true;
+                                    break;
+
+                                case (true, false):
+                                    mks.AppendLine($"sequence-a {s}");
+                                    packmodeNonFlat = true;
+                                    break;
+
+                                case (true, true):
+                                    throw new Exception($"Unexpected combination of {nameof(sequence.NoColor)} and {nameof(sequence.NoAlpha)}");
+                            }
+
 
                             if (!sequence.Clamp)
                             {
@@ -123,6 +144,13 @@ namespace ValveResourceFormat.IO
                                 contentFile.AddSubFile(imageFileName, ImageExtract);
                             }
                         }
+
+                        if (packmodeNonFlat)
+                        {
+                            mks.Insert(0, "packmode rgb+a\n");
+                        }
+
+                        mks.Insert(0, "// Reconstructed by VRF - https://vrf.steamdb.info/\n\n");
 
                         contentFile.AddSubFile($"{textureName}.mks", () => Encoding.UTF8.GetBytes(mks.ToString()));
                         break;
