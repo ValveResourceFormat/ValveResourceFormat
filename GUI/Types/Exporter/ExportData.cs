@@ -7,6 +7,5 @@ namespace GUI.Types.Exporter
     {
         public Resource Resource { get; set; }
         public VrfGuiContext VrfGuiContext { get; set; }
-        public ExportFileType FileType { get; set; } = ExportFileType.Auto;
     }
 }

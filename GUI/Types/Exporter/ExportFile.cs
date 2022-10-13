@@ -1,20 +1,14 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
-        static ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
-        { ResourceType.Mesh, ResourceType.Model, ResourceType.WorldNode, ResourceType.World };
-
         public static void Export(string fileName, ExportData exportData)
         {
             var resource = exportData.Resource;
@@ -28,23 +22,17 @@ namespace GUI.Types.Exporter
 
             var filter = $"{extension} file|*.{extension}";
 
-            if (ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
+            if (GltfModelExporter.CanExport(resource))
             {
-                if (exportData.FileType == ExportFileType.GLB)
-                {
-                    extension = "glb";
-                    filter = $"GLB file|*.glb|{filter}";
-                }
-                else
-                {
-                    extension = "gltf";
-                    filter = $"glTF file|*.gltf|{filter}";
-                }
+                var gltfFilter = "glTF|*.gltf";
+                var glbFilter = "glTF Binary|*.glb";
+
+                filter = $"{gltfFilter}|{glbFilter}|{filter}";
             }
 
             var dialog = new SaveFileDialog
             {
-                FileName = Path.GetFileName(Path.ChangeExtension(fileName, extension)),
+                FileName = Path.GetFileNameWithoutExtension(fileName),
                 InitialDirectory = Settings.Config.SaveDirectory,
                 DefaultExt = extension,
                 Filter = filter,
@@ -58,7 +46,7 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            Console.WriteLine($"Export for \"{fileName}\" started to \"{extension}\"");
+            Console.WriteLine($"Export for \"{fileName}\" started to \"{Path.GetFileName(dialog.FileName)}\"");
 
             Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
             Settings.Save();
@@ -66,30 +54,15 @@ namespace GUI.Types.Exporter
             var extractDialog = new GenericProgressForm();
             extractDialog.OnProcess += (_, __) =>
             {
-                if (dialog.FilterIndex == 1 && ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType))
+                if (GltfModelExporter.CanExport(resource) && dialog.FilterIndex <= 2)
                 {
                     var exporter = new GltfModelExporter
                     {
                         ProgressReporter = new Progress<string>(extractDialog.SetProgress),
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
-                    switch(resource.ResourceType)
-                    {
-                        case ResourceType.Mesh:
-                            exporter.ExportToFile(fileName, dialog.FileName, new Mesh(resource));
-                            break;
-                        case ResourceType.Model:
-                            exporter.ExportToFile(fileName, dialog.FileName, (Model)resource.DataBlock);
-                            break;
-                        case ResourceType.WorldNode:
-                            exporter.ExportToFile(fileName, dialog.FileName, (WorldNode)resource.DataBlock);
-                            break;
-                        case ResourceType.World:
-                            exporter.ExportToFile(fileName, dialog.FileName, (World)resource.DataBlock);
-                            break;
-                        default:
-                            break;
-                    }
+
+                    exporter.Export(resource, dialog.FileName);
                 }
                 else
                 {

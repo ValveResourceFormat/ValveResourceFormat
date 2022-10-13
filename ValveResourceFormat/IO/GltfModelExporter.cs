@@ -29,6 +29,14 @@ namespace ValveResourceFormat.IO
     {
         private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
 
+        private static readonly ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
+        {
+            ResourceType.Mesh,
+            ResourceType.Model,
+            ResourceType.WorldNode,
+            ResourceType.World
+        };
+
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
@@ -40,6 +48,31 @@ namespace ValveResourceFormat.IO
 
         private string DstDir;
         private readonly IDictionary<string, Node> LoadedUnskinnedMeshDictionary = new Dictionary<string, Node>();
+
+
+        public static bool CanExport(Resource resource)
+            => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
+
+        public void Export(Resource resource, string targetPath)
+        {
+            switch (resource.ResourceType)
+            {
+                case ResourceType.Mesh:
+                    ExportToFile(resource.FileName, targetPath, new VMesh(resource));
+                    break;
+                case ResourceType.Model:
+                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
+                    break;
+                case ResourceType.WorldNode:
+                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
+                    break;
+                case ResourceType.World:
+                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
+                    break;
+                default:
+                    throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
+            }
+        }
 
         /// <summary>
         /// Export a Valve VWRLD to GLTF.

@@ -673,7 +673,16 @@ namespace GUI
                 var dialog = new FolderBrowserDialog();
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath, decompile);
+                    ExportData exportData = null;
+                    if (decompile)
+                    {
+                        exportData = new ExportData
+                        {
+                            VrfGuiContext = new VrfGuiContext(null, package),
+                        };
+                    }
+
+                    var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath, exportData);
                     extractDialog.ShowDialog();
                 }
             }
