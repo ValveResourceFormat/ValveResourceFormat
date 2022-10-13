@@ -81,6 +81,8 @@ namespace ValveResourceFormat.IO
                         var textureName = Path.GetFileNameWithoutExtension(resource.FileName);
                         var packmodeNonFlat = false;
 
+                        var rects = new Dictionary<SKRect, string>();
+
                         for (var s = 0; s < spriteSheetData.Sequences.Length; s++)
                         {
                             var sequence = spriteSheetData.Sequences[s];
@@ -118,16 +120,23 @@ namespace ValveResourceFormat.IO
                                 var frame = sequence.Frames[f];
 
                                 var imageFileName = sequence.Frames.Length == 1
-                                    ? $"{textureName}_seq{s:00}.png"
-                                    : $"{textureName}_seq{s:00}_{f:00}.png";
-
-                                mks.AppendLine($"frame {imageFileName} {frame.DisplayTime.ToString(CultureInfo.InvariantCulture)}");
+                                    ? $"{textureName}_seq{s}.png"
+                                    : $"{textureName}_seq{s}_{f}.png";
 
                                 // These images seem to be duplicates. So only extract the first one.
                                 var image = frame.Images[0];
+                                SKRectI imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
+
+                                var addForExtract = rects.TryAdd(imageRect, imageFileName);
+                                mks.AppendLine($"frame {rects[imageRect]} {frame.DisplayTime.ToString(CultureInfo.InvariantCulture)}");
+
+                                if (!addForExtract)
+                                {
+                                    continue;
+                                }
+
                                 var ImageExtract = () =>
                                 {
-                                    SKRectI imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
                                     using var subset = new SKBitmap();
                                     bitmap.ExtractSubset(subset, imageRect);
 
