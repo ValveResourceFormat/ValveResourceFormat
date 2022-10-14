@@ -127,8 +127,19 @@ namespace ValveResourceFormat.IO
                                 var image = frame.Images[0];
                                 SKRectI imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
 
+                                if (imageRect.IsEmpty)
+                                {
+                                    continue;
+                                }
+
+                                var displayTime = frame.DisplayTime;
+                                if (sequence.Clamp && displayTime == 0)
+                                {
+                                    displayTime = 1;
+                                }
+
                                 var addForExtract = rects.TryAdd(imageRect, imageFileName);
-                                mks.AppendLine($"frame {rects[imageRect]} {frame.DisplayTime.ToString(CultureInfo.InvariantCulture)}");
+                                mks.AppendLine($"frame {rects[imageRect]} {displayTime.ToString(CultureInfo.InvariantCulture)}");
 
                                 if (!addForExtract)
                                 {
@@ -139,11 +150,6 @@ namespace ValveResourceFormat.IO
                                 {
                                     using var subset = new SKBitmap();
                                     bitmap.ExtractSubset(subset, imageRect);
-
-                                    if (subset.IsNull)
-                                    {
-                                        return Array.Empty<byte>();
-                                    }
 
                                     using var pixels = subset.PeekPixels();
                                     using var png = pixels.Encode(SKPngEncoderOptions.Default);
