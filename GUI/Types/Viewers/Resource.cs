@@ -426,6 +426,20 @@ namespace GUI.Types.Viewers
                     case ResourceType.PostProcessing:
                         AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
                         break;
+
+                    case ResourceType.Texture:
+                        {
+                            var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
+
+                            AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
+
+                            if (textureExtract.TryGetMksData(out var _, out var mks))
+                            {
+                                AddContentTab(resTabs, "Reconstructed mks", mks);
+                            }
+
+                            break;
+                        }
                 }
             }
 
