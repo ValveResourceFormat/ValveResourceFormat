@@ -129,7 +129,7 @@ namespace ValveResourceFormat.IO
             return contentFile;
         }
 
-        private static bool IsChildResource(Resource resource)
+        public static bool IsChildResource(Resource resource)
         {
             if (resource.EditInfo is ResourceEditInfo2 redi2)
             {

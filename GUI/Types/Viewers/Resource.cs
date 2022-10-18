@@ -429,8 +429,12 @@ namespace GUI.Types.Viewers
 
                     case ResourceType.Texture:
                         {
-                            var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
+                            if (FileExtract.IsChildResource(resource))
+                            {
+                                break;
+                            }
 
+                            var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
                             AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
 
                             if (textureExtract.TryGetMksData(out var _, out var mks))
