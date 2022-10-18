@@ -139,7 +139,7 @@ public sealed class TextureExtract
                 var image = frame.Images[0];
                 var imageRect = image.GetCroppedRect(texture.ActualWidth, texture.ActualHeight);
 
-                if (imageRect.IsEmpty)
+                if (imageRect.Size.IsEmpty)
                 {
                     continue;
                 }
