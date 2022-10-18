@@ -224,8 +224,6 @@ public sealed class TextureExtract
         @"            ""m_outputColorSpace"" ""string"" ""srgb""",
         @"        }",
         @"    ]",
-        @"    ""m_vClamp"" ""vector3"" ""0 0 0""",
-        @"    ""m_bNoLod"" ""bool"" """"",
         @"}");
     }
 }
