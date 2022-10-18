@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
-using SkiaSharp;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
@@ -64,110 +64,14 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-                        using var pixels = bitmap.PeekPixels();
-                        using var png = pixels.Encode(SKPngEncoderOptions.Default);
-                        contentFile.Data = png.ToArray();
-
-                        var spriteSheetData = ((Texture)resource.DataBlock).GetSpriteSheetData();
-
-                        if (spriteSheetData is null)
+                        var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
+                        if (IsChildResource(resource))
                         {
-                            bitmap.Dispose();
+                            contentFile.Data = textureExtract.ToPngImage();
                             break;
                         }
 
-                        var mks = new StringBuilder();
-                        var textureName = Path.GetFileNameWithoutExtension(resource.FileName);
-                        var packmodeNonFlat = false;
-
-                        var rects = new Dictionary<SKRect, string>();
-
-                        for (var s = 0; s < spriteSheetData.Sequences.Length; s++)
-                        {
-                            var sequence = spriteSheetData.Sequences[s];
-
-                            mks.AppendLine();
-
-                            switch (sequence.NoColor, sequence.NoAlpha)
-                            {
-                                case (false, false):
-                                    mks.AppendLine($"sequence {s}");
-                                    break;
-
-                                case (false, true):
-                                    mks.AppendLine($"sequence-rgb {s}");
-                                    packmodeNonFlat = true;
-                                    break;
-
-                                case (true, false):
-                                    mks.AppendLine($"sequence-a {s}");
-                                    packmodeNonFlat = true;
-                                    break;
-
-                                case (true, true):
-                                    throw new Exception($"Unexpected combination of {nameof(sequence.NoColor)} and {nameof(sequence.NoAlpha)}");
-                            }
-
-
-                            if (!sequence.Clamp)
-                            {
-                                mks.AppendLine("LOOP");
-                            }
-
-                            for (var f = 0; f < sequence.Frames.Length; f++)
-                            {
-                                var frame = sequence.Frames[f];
-
-                                var imageFileName = sequence.Frames.Length == 1
-                                    ? $"{textureName}_seq{s}.png"
-                                    : $"{textureName}_seq{s}_{f}.png";
-
-                                // These images seem to be duplicates. So only extract the first one.
-                                var image = frame.Images[0];
-                                SKRectI imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
-
-                                if (imageRect.IsEmpty)
-                                {
-                                    continue;
-                                }
-
-                                var displayTime = frame.DisplayTime;
-                                if (sequence.Clamp && displayTime == 0)
-                                {
-                                    displayTime = 1;
-                                }
-
-                                var addForExtract = rects.TryAdd(imageRect, imageFileName);
-                                mks.AppendLine($"frame {rects[imageRect]} {displayTime.ToString(CultureInfo.InvariantCulture)}");
-
-                                if (!addForExtract)
-                                {
-                                    continue;
-                                }
-
-                                var ImageExtract = () =>
-                                {
-                                    using var subset = new SKBitmap();
-                                    bitmap.ExtractSubset(subset, imageRect);
-
-                                    using var pixels = subset.PeekPixels();
-                                    using var png = pixels.Encode(SKPngEncoderOptions.Default);
-                                    return png.ToArray();
-                                };
-
-                                contentFile.AddSubFile(imageFileName, ImageExtract);
-                            }
-                        }
-
-                        if (packmodeNonFlat)
-                        {
-                            mks.Insert(0, "packmode rgb+a\n");
-                        }
-
-                        mks.Insert(0, "// Reconstructed by VRF - https://vrf.steamdb.info/\n\n");
-
-                        contentFile.AddSubFile($"{textureName}.mks", () => Encoding.UTF8.GetBytes(mks.ToString()));
+                        contentFile = textureExtract.ToContentFile();
                         break;
                     }
 
@@ -225,6 +129,17 @@ namespace ValveResourceFormat.IO
             return contentFile;
         }
 
+        private static bool IsChildResource(Resource resource)
+        {
+            if (resource.EditInfo is ResourceEditInfo2 redi2)
+            {
+                return redi2.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
+            }
+
+            var extraIntData = (Blocks.ResourceEditInfoStructs.ExtraIntData)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraIntData];
+            return extraIntData.List.Where(x => x.Name == "IsChildResource").Select(x => x.Value).FirstOrDefault() == 1;
+        }
+
         public static string GetExtension(Resource resource)
         {
             switch (resource.ResourceType)
@@ -234,7 +149,14 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaTypescript: return "js";
                 case ResourceType.PanoramaStyle: return "css";
                 case ResourceType.PanoramaVectorGraphic: return "svg";
-                case ResourceType.Texture: return "png";
+
+                case ResourceType.Texture:
+                    if (IsChildResource(resource))
+                    {
+                        return "png";
+                    }
+
+                    break;
 
                 case ResourceType.Sound:
                     switch (((Sound)resource.DataBlock).SoundType)

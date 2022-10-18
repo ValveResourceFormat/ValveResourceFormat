@@ -44,7 +44,7 @@ public sealed class TextureExtract
             {
                 contentFile.AddSubFile(
                     spriteName,
-                    () => GetSpriteImage(spriteRect)
+                    () => SubsetToPngImage(spriteRect)
                 );
             }
 
@@ -53,7 +53,7 @@ public sealed class TextureExtract
 
         contentFile.AddSubFile(
             GetImageFileName(),
-            GetImage
+            ToPngImage
         );
 
         return contentFile;
@@ -72,10 +72,10 @@ public sealed class TextureExtract
         return png.ToArray();
     }
 
-    private byte[] GetImage()
+    public byte[] ToPngImage()
         => EncodePng(bitmap);
 
-    private byte[] GetSpriteImage(SKRectI spriteRect)
+    private byte[] SubsetToPngImage(SKRectI spriteRect)
     {
         using var subset = new SKBitmap();
         bitmap.ExtractSubset(subset, spriteRect);
@@ -137,7 +137,7 @@ public sealed class TextureExtract
 
                 // These images seem to be duplicates. So only extract the first one.
                 var image = frame.Images[0];
-                var imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
+                var imageRect = image.GetCroppedRect(texture.ActualWidth, texture.ActualHeight);
 
                 if (imageRect.IsEmpty)
                 {
