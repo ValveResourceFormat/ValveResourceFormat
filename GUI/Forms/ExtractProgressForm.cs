@@ -178,7 +178,7 @@ namespace GUI.Forms
                         byte[] subFileData;
                         try
                         {
-                            subFileData = contentSubFile.Extract();
+                            subFileData = contentSubFile.Extract.Invoke();
                         }
                         catch (Exception e)
                         {
@@ -193,6 +193,7 @@ namespace GUI.Forms
                         }
                     }
 
+                    contentFile.Dispose();
                     continue;
                 }
 

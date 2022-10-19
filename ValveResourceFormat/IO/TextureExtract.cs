@@ -8,18 +8,39 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO;
 
+public class TextureContentFile : ContentFile
+{
+    public SKBitmap Bitmap { get; init; }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (!Disposed && disposing)
+        {
+            Bitmap.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+}
+
+public sealed class ImageSubfile : ContentSubFile
+{
+    public SKBitmap Bitmap { get; init; }
+    public Func<SKBitmap, byte[]> ImageExtract { get; init; }
+    public override Func<byte[]> Extract => () => ImageExtract(Bitmap);
+
+}
+
 public sealed class TextureExtract
 {
     private readonly string fileName;
     private readonly Texture texture;
-    private readonly SKBitmap bitmap;
     private readonly bool isSpriteSheet;
 
     public TextureExtract(string fileName, Texture texture)
     {
         this.fileName = fileName;
         this.texture = texture;
-        bitmap = texture.GenerateBitmap();
 
         if (texture.ExtraData.ContainsKey(VTexExtraData.SHEET))
         {
@@ -30,35 +51,43 @@ public sealed class TextureExtract
     /// <summary>
     /// The vtex content file. Input image(s) come as subfiles.
     /// </summary>
-    public ContentFile ToContentFile()
+    public TextureContentFile ToContentFile()
     {
-        var contentFile = new ContentFile()
+        var bitmap = texture.GenerateBitmap();
+
+        var contentFile = new TextureContentFile()
         {
-            Data = Encoding.UTF8.GetBytes(ToValveTexture())
+            Data = Encoding.UTF8.GetBytes(ToValveTexture()),
+            Bitmap = bitmap
         };
 
         if (TryGetMksData(out var sprites, out var mks))
         {
-            contentFile.AddSubFile(
-                GetMksFileName(),
-                () => Encoding.UTF8.GetBytes(mks)
-            );
+            contentFile.AddSubFile(GetMksFileName(), () => Encoding.UTF8.GetBytes(mks));
 
             foreach (var (spriteRect, spriteName) in sprites)
             {
-                contentFile.AddSubFile(
-                    spriteName,
-                    () => SubsetToPngImage(spriteRect)
-                );
+                var sprite = new ImageSubfile()
+                {
+                    FileName = spriteName,
+                    Bitmap = bitmap,
+                    ImageExtract = (bitmap) => SubsetToPngImage(bitmap, spriteRect)
+                };
+
+                contentFile.SubFiles.Add(sprite);
             }
 
             return contentFile;
         }
 
-        contentFile.AddSubFile(
-            GetImageFileName(),
-            ToPngImage
-        );
+        var image = new ImageSubfile()
+        {
+            FileName = GetImageFileName(),
+            Bitmap = bitmap,
+            ImageExtract = ToPngImage
+        };
+
+        contentFile.SubFiles.Add(image);
 
         return contentFile;
     }
@@ -69,22 +98,24 @@ public sealed class TextureExtract
     private string GetMksFileName()
         => Path.ChangeExtension(fileName, "mks");
 
-    private static byte[] EncodePng(SKBitmap bitmap)
+    public static byte[] ToPngImage(SKBitmap bitmap)
     {
-        using var pixels = bitmap.PeekPixels();
-        using var png = pixels.Encode(SKPngEncoderOptions.Default);
-        return png.ToArray();
+        return EncodePng(bitmap);
     }
 
-    public byte[] ToPngImage()
-        => EncodePng(bitmap);
-
-    private byte[] SubsetToPngImage(SKRectI spriteRect)
+    public static byte[] SubsetToPngImage(SKBitmap bitmap, SKRectI spriteRect)
     {
         using var subset = new SKBitmap();
         bitmap.ExtractSubset(subset, spriteRect);
 
         return EncodePng(subset);
+    }
+
+    private static byte[] EncodePng(SKBitmap bitmap)
+    {
+        using var pixels = bitmap.PeekPixels();
+        using var png = pixels.Encode(SKPngEncoderOptions.Default);
+        return png.ToArray();
     }
 
     public bool TryGetMksData(out Dictionary<SKRectI, string> sprites, out string mks)

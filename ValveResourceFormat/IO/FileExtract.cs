@@ -8,10 +8,11 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
-    public class ContentFile
+    public class ContentFile : IDisposable
     {
         public byte[] Data { get; set; }
         public List<ContentSubFile> SubFiles { get; init; } = new List<ContentSubFile>();
+        protected bool Disposed { get; private set; }
 
         public void AddSubFile(string fileName, Func<byte[]> extractFunction)
         {
@@ -23,12 +24,23 @@ namespace ValveResourceFormat.IO
 
             SubFiles.Add(subFile);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            Disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 
     public class ContentSubFile
     {
         public string FileName { get; set; }
-        public Func<byte[]> Extract { get; set; }
+        public virtual Func<byte[]> Extract { get; set; }
     }
 
     public static class FileExtract
@@ -64,13 +76,14 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
                         if (IsChildResource(resource))
                         {
-                            contentFile.Data = textureExtract.ToPngImage();
+                            using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                            contentFile.Data = TextureExtract.ToPngImage(bitmap);
                             break;
                         }
 
+                        var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
                         contentFile = textureExtract.ToContentFile();
                         break;
                     }

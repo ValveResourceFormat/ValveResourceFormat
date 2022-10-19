@@ -378,7 +378,7 @@ namespace Decompiler
                     if (OutputFile == null)
                     {
                         // Test extraction code flow while collecting stats
-                        FileExtract.Extract(resource);
+                        using FileExtract.Extract(resource);
                     }
 
                     if (!string.IsNullOrEmpty(info))
@@ -849,7 +849,7 @@ namespace Decompiler
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 package.ReadEntry(file, out var output);
-                var contentFile = default(ContentFile);
+                ContentFile contentFile;
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
@@ -926,9 +926,11 @@ namespace Decompiler
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract());
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract.Invoke());
                 }
             }
+
+            contentFile.Dispose();
         }
 
         private static void DumpFile(string path, ReadOnlySpan<byte> data)
