@@ -137,7 +137,7 @@ namespace ValveResourceFormat.IO
             }
 
             var extraIntData = (Blocks.ResourceEditInfoStructs.ExtraIntData)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraIntData];
-            return extraIntData.List.Where(x => x.Name == "IsChildResource").Select(x => x.Value).FirstOrDefault() == 1;
+            return extraIntData.List.FirstOrDefault(x => x.Name == "IsChildResource")?.Value == 1;
         }
 
         public static string GetExtension(Resource resource)
