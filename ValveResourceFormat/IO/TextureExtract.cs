@@ -13,14 +13,18 @@ public sealed class TextureExtract
     private readonly string fileName;
     private readonly Texture texture;
     private readonly SKBitmap bitmap;
-    private readonly Texture.SpritesheetData spriteSheetData;
+    private readonly bool isSpriteSheet;
 
     public TextureExtract(string fileName, Texture texture)
     {
         this.fileName = fileName;
         this.texture = texture;
         bitmap = texture.GenerateBitmap();
-        spriteSheetData = texture.GetSpriteSheetData();
+
+        if (texture.ExtraData.ContainsKey(VTexExtraData.SHEET))
+        {
+            isSpriteSheet = true;
+        }
     }
 
     /// <summary>
@@ -88,10 +92,12 @@ public sealed class TextureExtract
         mks = string.Empty;
         sprites = new Dictionary<SKRectI, string>();
 
-        if (spriteSheetData is null)
+        if (!isSpriteSheet)
         {
             return false;
         }
+
+        var spriteSheetData = texture.GetSpriteSheetData();
 
         var mksBuilder = new StringBuilder();
         var textureName = Path.GetFileNameWithoutExtension(fileName);
@@ -167,7 +173,7 @@ public sealed class TextureExtract
 
     private string GetInputFileNameForVtex()
     {
-        if (spriteSheetData is not null)
+        if (isSpriteSheet)
         {
             return GetMksFileName().Replace(Path.DirectorySeparatorChar, '/');
         }
