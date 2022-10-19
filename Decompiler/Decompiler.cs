@@ -378,7 +378,7 @@ namespace Decompiler
                     if (OutputFile == null)
                     {
                         // Test extraction code flow while collecting stats
-                        using FileExtract.Extract(resource);
+                        FileExtract.Extract(resource).Dispose();
                     }
 
                     if (!string.IsNullOrEmpty(info))
@@ -849,7 +849,7 @@ namespace Decompiler
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 package.ReadEntry(file, out var output);
-                ContentFile contentFile;
+                ContentFile contentFile = null;
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
