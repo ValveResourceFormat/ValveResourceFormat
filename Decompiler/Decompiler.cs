@@ -378,7 +378,7 @@ namespace Decompiler
                     if (OutputFile == null)
                     {
                         // Test extraction code flow while collecting stats
-                        FileExtract.Extract(resource).Dispose();
+                        using var _ = FileExtract.Extract(resource);
                     }
 
                     if (!string.IsNullOrEmpty(info))
