@@ -894,30 +894,30 @@ namespace Decompiler
                     }
                 }
 
-                if (OutputFile != null)
+                using (contentFile)
                 {
-                    if (RecursiveSearchArchives)
+                    if (OutputFile != null)
                     {
-                        filePath = Path.Combine(parentPath, filePath);
-                    }
+                        if (RecursiveSearchArchives)
+                        {
+                            filePath = Path.Combine(parentPath, filePath);
+                        }
 
-                    if (type != extension)
-                    {
-                        filePath = Path.ChangeExtension(filePath, extension);
-                    }
+                        if (type != extension)
+                        {
+                            filePath = Path.ChangeExtension(filePath, extension);
+                        }
 
-                    filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
+                        filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
 
-                    if (Decompile && contentFile is not null)
-                    {
-                        using (contentFile)
+                        if (Decompile && contentFile is not null)
                         {
                             DumpContentFile(filePath, contentFile);
                         }
-                    }
-                    else
-                    {
-                        DumpFile(filePath, output);
+                        else
+                        {
+                            DumpFile(filePath, output);
+                        }
                     }
                 }
             }
