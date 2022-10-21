@@ -420,7 +420,7 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var contentFile = FileExtract.Extract(resource);
+                    using var contentFile = FileExtract.Extract(resource);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -889,6 +889,7 @@ namespace Decompiler
                     catch (Exception e)
                     {
                         LogException(e, filePath, package.FileName);
+                        contentFile?.Dispose();
                     }
                 }
 
@@ -908,7 +909,10 @@ namespace Decompiler
 
                     if (Decompile)
                     {
-                        DumpContentFile(filePath, contentFile);
+                        using (contentFile)
+                        {
+                            DumpContentFile(filePath, contentFile);
+                        }
                     }
                     else
                     {
@@ -929,8 +933,6 @@ namespace Decompiler
                     DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract.Invoke());
                 }
             }
-
-            contentFile.Dispose();
         }
 
         private static void DumpFile(string path, ReadOnlySpan<byte> data)
