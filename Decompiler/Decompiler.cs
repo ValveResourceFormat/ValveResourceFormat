@@ -890,6 +890,7 @@ namespace Decompiler
                     {
                         LogException(e, filePath, package.FileName);
                         contentFile?.Dispose();
+                        contentFile = null;
                     }
                 }
 
@@ -907,7 +908,7 @@ namespace Decompiler
 
                     filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
 
-                    if (Decompile)
+                    if (Decompile && contentFile is not null)
                     {
                         using (contentFile)
                         {
