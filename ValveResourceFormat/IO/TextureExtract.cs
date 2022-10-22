@@ -12,6 +12,18 @@ public class TextureContentFile : ContentFile
 {
     public SKBitmap Bitmap { get; init; }
 
+    public void AddImageSubFile(string fileName, Func<SKBitmap, byte[]> imageExtractFunction)
+    {
+        var image = new ImageSubFile()
+        {
+            FileName = fileName,
+            Bitmap = Bitmap,
+            ImageExtract = imageExtractFunction
+        };
+
+        SubFiles.Add(image);
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (!Disposed && disposing)
@@ -23,12 +35,11 @@ public class TextureContentFile : ContentFile
     }
 }
 
-public sealed class ImageSubfile : ContentSubFile
+public sealed class ImageSubFile : ContentSubFile
 {
     public SKBitmap Bitmap { get; init; }
     public Func<SKBitmap, byte[]> ImageExtract { get; init; }
     public override Func<byte[]> Extract => () => ImageExtract(Bitmap);
-
 }
 
 public sealed class TextureExtract
@@ -55,7 +66,7 @@ public sealed class TextureExtract
     {
         var bitmap = texture.GenerateBitmap();
 
-        var contentFile = new TextureContentFile()
+        var vtex = new TextureContentFile()
         {
             Data = Encoding.UTF8.GetBytes(ToValveTexture()),
             Bitmap = bitmap
@@ -63,33 +74,18 @@ public sealed class TextureExtract
 
         if (TryGetMksData(out var sprites, out var mks))
         {
-            contentFile.AddSubFile(GetMksFileName(), () => Encoding.UTF8.GetBytes(mks));
+            vtex.AddSubFile(GetMksFileName(), () => Encoding.UTF8.GetBytes(mks));
 
-            foreach (var (spriteRect, spriteName) in sprites)
+            foreach (var (spriteRect, spriteFileName) in sprites)
             {
-                var sprite = new ImageSubfile()
-                {
-                    FileName = spriteName,
-                    Bitmap = bitmap,
-                    ImageExtract = (bitmap) => SubsetToPngImage(bitmap, spriteRect)
-                };
-
-                contentFile.SubFiles.Add(sprite);
+                vtex.AddImageSubFile(spriteFileName, (bitmap) => SubsetToPngImage(bitmap, spriteRect));
             }
 
-            return contentFile;
+            return vtex;
         }
 
-        var image = new ImageSubfile()
-        {
-            FileName = GetImageFileName(),
-            Bitmap = bitmap,
-            ImageExtract = ToPngImage
-        };
-
-        contentFile.SubFiles.Add(image);
-
-        return contentFile;
+        vtex.AddImageSubFile(GetImageFileName(), ToPngImage);
+        return vtex;
     }
 
     private string GetImageFileName()
