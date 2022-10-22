@@ -33,14 +33,14 @@ public sealed class ImageSubfile : ContentSubFile
 
 public sealed class TextureExtract
 {
-    private readonly string fileName;
     private readonly Texture texture;
+    private readonly string fileName;
     private readonly bool isSpriteSheet;
 
-    public TextureExtract(string fileName, Texture texture)
+    public TextureExtract(Texture texture, string fileName)
     {
-        this.fileName = fileName;
         this.texture = texture;
+        this.fileName = fileName;
 
         if (texture.ExtraData.ContainsKey(VTexExtraData.SHEET))
         {

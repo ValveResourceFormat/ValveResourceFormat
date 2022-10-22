@@ -83,7 +83,7 @@ namespace ValveResourceFormat.IO
                             break;
                         }
 
-                        var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
+                        var textureExtract = new TextureExtract((Texture)resource.DataBlock, resource.FileName);
                         contentFile = textureExtract.ToContentFile();
                         break;
                     }

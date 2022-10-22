@@ -434,7 +434,7 @@ namespace GUI.Types.Viewers
                                 break;
                             }
 
-                            var textureExtract = new TextureExtract(resource.FileName, (Texture)resource.DataBlock);
+                            var textureExtract = new TextureExtract((Texture)resource.DataBlock, resource.FileName);
                             AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
 
                             if (textureExtract.TryGetMksData(out var _, out var mks))
