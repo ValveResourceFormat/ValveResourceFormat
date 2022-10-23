@@ -335,11 +335,11 @@ namespace GUI
             }
         }
 
-        public void OpenFile(string fileName, byte[] input = null, TreeViewWithSearchResults.TreeViewPackageTag currentPackage = null)
+        private void OpenFile(string fileName)
         {
             Console.WriteLine($"Opening {fileName}");
 
-            if (input == null && Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+            if (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
             {
                 var fixedPackage = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
 
@@ -350,8 +350,8 @@ namespace GUI
                 }
             }
 
-            var vrfGuiContext = new VrfGuiContext(fileName, currentPackage);
-            OpenFile(input, vrfGuiContext);
+            var vrfGuiContext = new VrfGuiContext(fileName, null);
+            OpenFile(null, vrfGuiContext);
         }
 
         public void OpenFile(byte[] input, VrfGuiContext vrfGuiContext)
@@ -573,10 +573,10 @@ namespace GUI
 
             if (selectedNode.Tag is PackageEntry file)
             {
-                var package = selectedNode.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
-                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+                var vrfGuiContext = (VrfGuiContext)selectedNode.TreeView.Tag;
+                vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
-                var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(package.Package.FileName)} - {file.GetFileName()}";
+                var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(vrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     stream.Write(output, 0, output.Length);
@@ -605,7 +605,7 @@ namespace GUI
 
         private static void ExtractFiles(object sender, bool decompile)
         {
-            TreeViewWithSearchResults.TreeViewPackageTag package = null;
+            VrfGuiContext vrfGuiContext = null;
             TreeNode selectedNode = null;
 
             // the context menu can come from a TreeView or a ListView depending on where the user clicked to extract
@@ -614,13 +614,13 @@ namespace GUI
             {
                 var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
                 selectedNode = tree.SelectedNode;
-                package = tree.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
+                vrfGuiContext = (VrfGuiContext)tree.Tag;
             }
             else if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is ListView)
             {
                 var listView = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ListView;
                 selectedNode = listView.SelectedItems[0].Tag as TreeNode;
-                package = listView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
+                vrfGuiContext = (VrfGuiContext)listView.Tag;
             }
 
             if (selectedNode.Tag.GetType() == typeof(PackageEntry))
@@ -629,7 +629,7 @@ namespace GUI
                 var file = selectedNode.Tag as PackageEntry;
                 var fileName = file.GetFileName();
 
-                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+                vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
                 {
@@ -644,7 +644,7 @@ namespace GUI
                     ExportFile.Export(fileName, new ExportData
                     {
                         Resource = resource,
-                        VrfGuiContext = new VrfGuiContext(null, package),
+                        VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
                     });
 
                     return;
@@ -678,11 +678,11 @@ namespace GUI
                     {
                         exportData = new ExportData
                         {
-                            VrfGuiContext = new VrfGuiContext(null, package),
+                            VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
                         };
                     }
 
-                    var extractDialog = new ExtractProgressForm(package.Package, selectedNode, dialog.SelectedPath, exportData);
+                    var extractDialog = new ExtractProgressForm(vrfGuiContext.CurrentPackage, selectedNode, dialog.SelectedPath, exportData);
                     extractDialog.ShowDialog();
                 }
             }

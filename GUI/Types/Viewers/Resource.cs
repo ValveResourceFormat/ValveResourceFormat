@@ -277,12 +277,7 @@ namespace GUI.Types.Viewers
                         {
                             vrfGuiContext.CurrentPackage.ReadEntry(file, out var fileContents);
 
-                            // TODO: Creating TreeViewPackageTag here is subpar
-                            var newVrfGuiContext = new VrfGuiContext(file.GetFileName(), new Controls.TreeViewWithSearchResults.TreeViewPackageTag()
-                            {
-                                Package = vrfGuiContext.CurrentPackage,
-                                ParentFileLoader = vrfGuiContext.FileLoader,
-                            });
+                            var newVrfGuiContext = new VrfGuiContext(file.GetFileName(), vrfGuiContext);
 
                             Program.MainForm.OpenFile(fileContents, newVrfGuiContext);
                         }

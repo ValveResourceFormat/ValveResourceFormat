@@ -63,9 +63,9 @@ namespace GUI.Utils
                 return resource;
             }
 
-            if (GuiContext.ParentFileLoader != null)
+            if (GuiContext.ParentGuiContext != null)
             {
-                return GuiContext.ParentFileLoader.LoadFile(file);
+                return GuiContext.ParentGuiContext.FileLoader.LoadFile(file);
             }
 
             if (!GamePackagesScanned)

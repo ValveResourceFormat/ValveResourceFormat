@@ -36,13 +36,11 @@ namespace GUI.Types.Viewers
                 package.Read(vrfGuiContext.FileName);
             }
 
+            vrfGuiContext.CurrentPackage = package;
+
             // create a TreeView with search capabilities, register its events, and add it to the tab
             var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
-            treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext.FileName, new TreeViewWithSearchResults.TreeViewPackageTag
-            {
-                Package = package,
-                ParentFileLoader = vrfGuiContext.FileLoader,
-            });
+            treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext);
             treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
             treeViewWithSearch.TreeNodeRightClick += VPK_OnClick;
             treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
@@ -212,11 +210,12 @@ namespace GUI.Types.Viewers
             //Make sure we aren't a directory!
             if (node.Tag.GetType() == typeof(PackageEntry))
             {
-                var package = node.TreeView.Tag as TreeViewWithSearchResults.TreeViewPackageTag;
+                var parentGuiContext = (VrfGuiContext)node.TreeView.Tag;
                 var file = node.Tag as PackageEntry;
-                package.Package.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+                parentGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
-                Program.MainForm.OpenFile(file.GetFileName(), output, package);
+                var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), parentGuiContext);
+                Program.MainForm.OpenFile(output, vrfGuiContext);
             }
         }
 

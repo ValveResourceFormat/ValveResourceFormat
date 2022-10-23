@@ -15,12 +15,6 @@ namespace GUI.Controls
     /// </summary>
     public partial class TreeViewWithSearchResults : UserControl
     {
-        public class TreeViewPackageTag
-        {
-            public Package Package { get; set; }
-            public AdvancedGuiFileLoader ParentFileLoader { get; set; }
-        }
-
         private readonly ImageList imageList;
         public bool DeletedFilesRecovered { get; private set; }
 
@@ -72,7 +66,7 @@ namespace GUI.Controls
             mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect -= MainTreeView_AfterSelect;
 
-            (mainTreeView.Tag as TreeViewPackageTag).Package.Dispose();
+            ((VrfGuiContext)mainTreeView.Tag).Dispose();
             mainTreeView.Tag = null;
             mainTreeView = null;
             mainListView = null;
@@ -135,31 +129,29 @@ namespace GUI.Controls
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
-        /// <param name="fileName">File path to the package.</param>
-        /// <param name="package">Package object.</param>
-        internal void InitializeTreeViewFromPackage(string fileName, TreeViewPackageTag package)
+        internal void InitializeTreeViewFromPackage(VrfGuiContext vrfGuiContext)
         {
-            mainListView.Tag = package;
+            mainListView.Tag = vrfGuiContext;
 
             var control = mainTreeView;
             control.BeginUpdate();
             control.PathSeparator = Package.DirectorySeparatorChar.ToString();
             control.Name = "treeViewVpk";
-            control.Tag = package; //so we can access it later
+            control.Tag = vrfGuiContext; // so we can access it later
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
             control.ShowRootLines = false;
 
-            control.GenerateIconList(package.Package.Entries.Keys.ToList());
+            control.GenerateIconList(vrfGuiContext.CurrentPackage.Entries.Keys.ToList());
 
-            var name = Path.GetFileName(fileName);
+            var name = Path.GetFileName(vrfGuiContext.FileName);
             var root = control.Nodes.Add("root", name, "vpk", "vpk");
-            root.Tag = new TreeViewFolder(package.Package.Entries.Count);
+            root.Tag = new TreeViewFolder(vrfGuiContext.CurrentPackage.Entries.Count);
             root.Expand();
 
-            var vpkName = Path.GetFileName(package.Package.FileName);
+            var vpkName = Path.GetFileName(vrfGuiContext.CurrentPackage.FileName);
 
-            foreach (var fileType in package.Package.Entries)
+            foreach (var fileType in vrfGuiContext.CurrentPackage.Entries)
             {
                 foreach (var file in fileType.Value)
                 {
@@ -183,8 +175,8 @@ namespace GUI.Controls
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while...");
 
-                var package = (TreeViewPackageTag)mainListView.Tag;
-                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(package.Package);
+                var vrfGuiContext = (VrfGuiContext)mainListView.Tag;
+                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(vrfGuiContext.CurrentPackage);
 
                 Invoke((MethodInvoker)(() =>
                 {
@@ -199,7 +191,7 @@ namespace GUI.Controls
                     var root = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, $"Deleted files ({foundFiles.Count} files found)", "_deleted", "_deleted");
                     root.Tag = new TreeViewFolder(foundFiles.Count);
 
-                    var vpkName = Path.GetFileName(package.Package.FileName);
+                    var vpkName = Path.GetFileName(vrfGuiContext.CurrentPackage.FileName);
 
                     foreach (var file in foundFiles)
                     {
