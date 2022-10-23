@@ -19,10 +19,18 @@ namespace GUI.Forms
         private readonly TreeNode root;
         private readonly string path;
         private readonly ExportData exportData;
+        private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted;
         private readonly Queue<PackageEntry> filesToExtract;
+        private readonly HashSet<string> extractedFiles;
         private readonly GltfModelExporter gltfExporter;
         private CancellationTokenSource cancellationTokenSource;
-        private int initialFileCount;
+
+        private static readonly List<ResourceType> ExtractOrder = new()
+        {
+            // Materials before textures
+            ResourceType.Material,
+            ResourceType.Texture,
+        };
 
         public bool Decompile => exportData != null;
 
@@ -31,8 +39,15 @@ namespace GUI.Forms
             InitializeComponent();
 
             cancellationTokenSource = new CancellationTokenSource();
+
+            filesToExtractSorted = new();
+            foreach (var resourceType in ExtractOrder)
+            {
+                var extension = FileExtract.GetExtension(resourceType);
+                filesToExtractSorted.Add(extension + "_c", new Queue<PackageEntry>());
+            }
             filesToExtract = new Queue<PackageEntry>();
-            initialFileCount = 0;
+            extractedFiles = new HashSet<string>();
 
             this.package = package;
             this.root = root;
@@ -61,14 +76,25 @@ namespace GUI.Forms
                     }));
 
                     CalculateFilesToExtract(root);
-                    initialFileCount = filesToExtract.Count;
 
                     Invoke((Action)(() =>
                     {
                         extractProgressBar.Style = ProgressBarStyle.Continuous;
                     }));
 
-                    await ExtractFilesAsync().ConfigureAwait(false);
+                    if (Decompile)
+                    {
+                        foreach (var resourceType in ExtractOrder)
+                        {
+                            Invoke(() => Text = $"Extracting {resourceType}s...");
+                            var extension = FileExtract.GetExtension(resourceType);
+                            await ExtractFilesAsync(filesToExtractSorted[extension + "_c"]).ConfigureAwait(false);
+                        }
+
+                        Invoke(() => Text = $"Extracting files...");
+                    }
+
+                    await ExtractFilesAsync(filesToExtract).ConfigureAwait(false);
                 },
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
@@ -94,6 +120,13 @@ namespace GUI.Forms
                 if (node.Tag.GetType() == typeof(PackageEntry))
                 {
                     var file = node.Tag as PackageEntry;
+
+                    if (Decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
+                    {
+                        specializedQueue.Enqueue(file);
+                        continue;
+                    }
+
                     filesToExtract.Enqueue(file);
                 }
                 else
@@ -103,17 +136,23 @@ namespace GUI.Forms
             }
         }
 
-        private async Task ExtractFilesAsync()
+        private async Task ExtractFilesAsync(Queue<PackageEntry> filesToExtract)
         {
+            var initialCount = filesToExtract.Count;
             while (filesToExtract.Count > 0)
             {
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                 var packageFile = filesToExtract.Dequeue();
 
+                if (extractedFiles.Contains(packageFile.GetFullPath()))
+                {
+                    continue;
+                }
+
                 Invoke((Action)(() =>
                 {
-                    extractProgressBar.Value = 100 - (int)((filesToExtract.Count / (float)initialFileCount) * 100.0f);
+                    extractProgressBar.Value = 100 - (int)(filesToExtract.Count / (float)initialCount * 100.0f);
                     extractStatusLabel.Text = $"Extracting {packageFile.GetFullPath()}";
                 }));
 
@@ -155,7 +194,7 @@ namespace GUI.Forms
                                 outFilePath = Path.ChangeExtension(outFilePath, extension);
                             }
 
-                            contentFile = FileExtract.Extract(resource);
+                            contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader);
                         }
                         catch (Exception e)
                         {
@@ -173,28 +212,24 @@ namespace GUI.Forms
                             await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                         }
 
-                        foreach (var contentSubFile in contentFile.SubFiles)
+                        // Handle the subfiles of external refs directly
+                        if (contentFile.SubFilesAreExternal)
                         {
-                            var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
-                            Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
-
-                            byte[] subFileData;
-                            try
+                            foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
                             {
-                                subFileData = contentSubFile.Extract.Invoke();
+                                extractedFiles.Add(refFileName);
+                                await ExtractSubfiles(Path.GetDirectoryName(refFileName), refContentFile).ConfigureAwait(false);
                             }
-                            catch (Exception e)
-                            {
-                                await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
-                                continue;
-                            }
-
-                            if (subFileData.Length > 0)
-                            {
-                                Console.WriteLine($"Writing content subfile: {subFilePath}");
-                                await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
-                            }
+                            continue;
                         }
+
+                        extractedFiles.Add(packageFile.GetFullPath());
+                        foreach (var handledFile in contentFile.ExternalRefsHandled.Keys)
+                        {
+                            extractedFiles.Add(handledFile);
+                        }
+
+                        await ExtractSubfiles(Path.GetDirectoryName(packageFile.GetFullPath()), contentFile).ConfigureAwait(false);
                     }
 
                     continue;
@@ -202,6 +237,41 @@ namespace GUI.Forms
 
                 // Extract as is
                 await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExtractSubfiles(string contentRelativeFolder, ContentFile contentFile)
+        {
+            foreach (var contentSubFile in contentFile.SubFiles)
+            {
+                contentSubFile.FileName = Path.Combine(contentRelativeFolder, contentSubFile.FileName).Replace(Path.DirectorySeparatorChar, '/');
+                var fullPath = Path.Combine(path, contentSubFile.FileName);
+
+                if (extractedFiles.Contains(contentSubFile.FileName))
+                {
+                    Console.WriteLine($"\t- {contentSubFile.FileName}");
+                    continue;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+
+                byte[] subFileData;
+                try
+                {
+                    subFileData = contentSubFile.Extract.Invoke();
+                }
+                catch (Exception e)
+                {
+                    await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
+                    continue;
+                }
+
+                if (subFileData.Length > 0)
+                {
+                    Console.WriteLine($"\t+ {contentSubFile.FileName}");
+                    extractedFiles.Add(contentSubFile.FileName);
+                    await File.WriteAllBytesAsync(fullPath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                }
             }
         }
 

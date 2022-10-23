@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
-
+using static ValveResourceFormat.IO.MaterialExtract;
 namespace ValveResourceFormat.IO;
 
 public class TextureContentFile : ContentFile
@@ -59,6 +59,11 @@ public sealed class TextureExtract
         }
     }
 
+    public TextureExtract(Resource resource)
+        : this((Texture)resource.DataBlock, resource.FileName)
+    {
+    }
+
     /// <summary>
     /// The vtex content file. Input image(s) come as subfiles.
     /// </summary>
@@ -88,6 +93,23 @@ public sealed class TextureExtract
         return vtex;
     }
 
+    public TextureContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
+    {
+        var bitmap = texture.GenerateBitmap();
+
+        var vtex = new TextureContentFile()
+        {
+            Bitmap = bitmap
+        };
+
+        foreach (var unpackInfo in mapsToUnpack)
+        {
+            vtex.AddImageSubFile(Path.GetFileName(unpackInfo.FileName), (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
+        }
+
+        return vtex;
+    }
+
     private string GetImageFileName()
         => Path.ChangeExtension(fileName, "png");
 
@@ -107,9 +129,86 @@ public sealed class TextureExtract
         return EncodePng(subset);
     }
 
+    public static byte[] ToPngImageChannels(SKBitmap bitmap, Channel channel)
+    {
+        if (channel < Channel._OneChannel)
+        {
+            using var newBitmap = new SKBitmap(bitmap.Width, bitmap.Height, SKColorType.Gray8, SKAlphaType.Opaque);
+            using var newPixelmap = newBitmap.PeekPixels();
+            using var pixelmap = bitmap.PeekPixels();
+
+            var newPixels = newPixelmap.GetPixelSpan<byte>();
+            var pixels = pixelmap.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                newPixels[i] = channel switch
+                {
+                    Channel.R => pixels[i].Red,
+                    Channel.G => pixels[i].Green,
+                    Channel.B => pixels[i].Blue,
+                    Channel.A => pixels[i].Alpha,
+                    _ => throw new InvalidOperationException($"{channel} is not a single channel."),
+                };
+            }
+
+            return EncodePng(newPixelmap);
+        }
+
+        // Shift a combination of two channels to RG
+        if (channel < Channel._TwoChannels && channel == Channel.GA)
+        {
+            using var newBitmap = new SKBitmap(bitmap.Info);
+            using var newPixelmap = newBitmap.PeekPixels();
+            using var pixelmap = bitmap.PeekPixels();
+
+            var newPixels = newPixelmap.GetPixelSpan<SKColor>();
+            var pixels = pixelmap.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                newPixels[i] = newPixels[i].WithRed(pixels[i].Green).WithGreen(pixels[i].Alpha);
+            }
+
+            return EncodePng(newPixelmap);
+        }
+
+        if (channel == Channel.RGB)
+        {
+            if (bitmap.Info.IsOpaque)
+            {
+                return EncodePng(bitmap);
+            }
+
+            using var newBitmap = bitmap.Copy();
+            using var newPixelmap = newBitmap.PeekPixels();
+            var newPixels = newPixelmap.GetPixelSpan<SKColor>();
+
+            // expensive transparency workaround for color maps
+            for (var i = 0; i < newPixels.Length; i++)
+            {
+                newPixels[i] = newPixels[i].WithAlpha(255);
+            }
+
+            return EncodePng(newPixelmap);
+        }
+
+        if (channel == Channel.RGBA)
+        {
+            return EncodePng(bitmap);
+        }
+
+        throw new InvalidOperationException($"{channel} is not a valid channel to extract.");
+    }
+
     private static byte[] EncodePng(SKBitmap bitmap)
     {
         using var pixels = bitmap.PeekPixels();
+        return EncodePng(pixels);
+    }
+
+    private static byte[] EncodePng(SKPixmap pixels)
+    {
         using var png = pixels.Encode(SKPngEncoderOptions.Default);
         return png.ToArray();
     }

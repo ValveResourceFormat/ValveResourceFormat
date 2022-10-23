@@ -378,7 +378,7 @@ namespace Decompiler
                     if (OutputFile == null)
                     {
                         // Test extraction code flow while collecting stats
-                        using var _ = FileExtract.Extract(resource);
+                        using var _ = FileExtract.Extract(resource, null);
                     }
 
                     if (!string.IsNullOrEmpty(info))
@@ -420,7 +420,7 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    using var contentFile = FileExtract.Extract(resource);
+                    using var contentFile = FileExtract.Extract(resource, null);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -884,7 +884,7 @@ namespace Decompiler
                             continue;
                         }
 
-                        contentFile = FileExtract.Extract(resource);
+                        contentFile = FileExtract.Extract(resource, fileLoader);
                     }
                     catch (Exception e)
                     {
