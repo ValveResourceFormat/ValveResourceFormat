@@ -1,17 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
-using SkiaSharp;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
-    public class ContentFile
+    public class ContentFile : IDisposable
     {
         public byte[] Data { get; set; }
         public List<ContentSubFile> SubFiles { get; init; } = new List<ContentSubFile>();
+        protected bool Disposed { get; private set; }
 
         public void AddSubFile(string fileName, Func<byte[]> extractFunction)
         {
@@ -23,12 +24,23 @@ namespace ValveResourceFormat.IO
 
             SubFiles.Add(subFile);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            Disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 
     public class ContentSubFile
     {
         public string FileName { get; set; }
-        public Func<byte[]> Extract { get; set; }
+        public virtual Func<byte[]> Extract { get; set; }
     }
 
     public static class FileExtract
@@ -64,67 +76,15 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-                        using var pixels = bitmap.PeekPixels();
-                        using var png = pixels.Encode(SKPngEncoderOptions.Default);
-                        contentFile.Data = png.ToArray();
-
-                        var spriteSheetData = ((Texture)resource.DataBlock).GetSpriteSheetData();
-
-                        if (spriteSheetData is null)
+                        if (IsChildResource(resource))
                         {
-                            bitmap.Dispose();
+                            using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                            contentFile.Data = TextureExtract.ToPngImage(bitmap);
                             break;
                         }
 
-                        var mks = new StringBuilder();
-                        var textureName = Path.GetFileNameWithoutExtension(resource.FileName);
-
-                        for (var s = 0; s < spriteSheetData.Sequences.Length; s++)
-                        {
-                            var sequence = spriteSheetData.Sequences[s];
-
-                            mks.AppendLine();
-                            mks.AppendLine($"sequence {s}");
-
-                            if (!sequence.Clamp)
-                            {
-                                mks.AppendLine("LOOP");
-                            }
-
-                            for (var f = 0; f < sequence.Frames.Length; f++)
-                            {
-                                var frame = sequence.Frames[f];
-
-                                var imageFileName = sequence.Frames.Length == 1
-                                    ? $"{textureName}_seq{s:00}.png"
-                                    : $"{textureName}_seq{s:00}_{f:00}.png";
-
-                                mks.AppendLine($"frame {imageFileName} {frame.DisplayTime.ToString(CultureInfo.InvariantCulture)}");
-
-                                // These images seem to be duplicates. So only extract the first one.
-                                var image = frame.Images[0];
-                                var ImageExtract = () =>
-                                {
-                                    SKRectI imageRect = image.GetCroppedRect(bitmap.Width, bitmap.Height);
-                                    using var subset = new SKBitmap();
-                                    bitmap.ExtractSubset(subset, imageRect);
-
-                                    if (subset.IsNull)
-                                    {
-                                        return Array.Empty<byte>();
-                                    }
-
-                                    using var pixels = subset.PeekPixels();
-                                    using var png = pixels.Encode(SKPngEncoderOptions.Default);
-                                    return png.ToArray();
-                                };
-
-                                contentFile.AddSubFile(imageFileName, ImageExtract);
-                            }
-                        }
-
-                        contentFile.AddSubFile($"{textureName}.mks", () => Encoding.UTF8.GetBytes(mks.ToString()));
+                        var textureExtract = new TextureExtract((Texture)resource.DataBlock, resource.FileName);
+                        contentFile = textureExtract.ToContentFile();
                         break;
                     }
 
@@ -182,6 +142,17 @@ namespace ValveResourceFormat.IO
             return contentFile;
         }
 
+        public static bool IsChildResource(Resource resource)
+        {
+            if (resource.EditInfo is ResourceEditInfo2 redi2)
+            {
+                return redi2.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
+            }
+
+            var extraIntData = (Blocks.ResourceEditInfoStructs.ExtraIntData)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraIntData];
+            return extraIntData.List.FirstOrDefault(x => x.Name == "IsChildResource")?.Value == 1;
+        }
+
         public static string GetExtension(Resource resource)
         {
             switch (resource.ResourceType)
@@ -191,7 +162,14 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaTypescript: return "js";
                 case ResourceType.PanoramaStyle: return "css";
                 case ResourceType.PanoramaVectorGraphic: return "svg";
-                case ResourceType.Texture: return "png";
+
+                case ResourceType.Texture:
+                    if (IsChildResource(resource))
+                    {
+                        return "png";
+                    }
+
+                    break;
 
                 case ResourceType.Sound:
                     switch (((Sound)resource.DataBlock).SoundType)

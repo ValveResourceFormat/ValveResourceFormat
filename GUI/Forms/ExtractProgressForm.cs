@@ -126,7 +126,7 @@ namespace GUI.Forms
 
                 if (Decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    ContentFile contentFile;
+                    ContentFile contentFile = null;
 
                     using (var resource = new Resource
                     {
@@ -148,7 +148,7 @@ namespace GUI.Forms
 
                             if (extension == null)
                             {
-                                outFilePath = outFilePath.Substring(0, outFilePath.Length - 2);
+                                outFilePath = outFilePath[..^2];
                             }
                             else
                             {
@@ -160,36 +160,40 @@ namespace GUI.Forms
                         catch (Exception e)
                         {
                             await Console.Error.WriteLineAsync($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}").ConfigureAwait(false);
+                            contentFile?.Dispose();
                             continue;
                         }
                     }
 
-                    if (contentFile.Data.Length > 0)
+                    using (contentFile)
                     {
-                        Console.WriteLine($"Writing content file: {outFilePath}");
-                        await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
-                    }
-
-                    foreach (var contentSubFile in contentFile.SubFiles)
-                    {
-                        var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
-                        Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
-
-                        byte[] subFileData;
-                        try
+                        if (contentFile.Data.Length > 0)
                         {
-                            subFileData = contentSubFile.Extract();
-                        }
-                        catch (Exception e)
-                        {
-                            await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
-                            continue;
+                            Console.WriteLine($"Writing content file: {outFilePath}");
+                            await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                         }
 
-                        if (subFileData.Length > 0)
+                        foreach (var contentSubFile in contentFile.SubFiles)
                         {
-                            Console.WriteLine($"Writing content subfile: {subFilePath}");
-                            await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                            var subFilePath = Path.Combine(outFolder, contentSubFile.FileName);
+                            Directory.CreateDirectory(Path.GetDirectoryName(subFilePath));
+
+                            byte[] subFileData;
+                            try
+                            {
+                                subFileData = contentSubFile.Extract.Invoke();
+                            }
+                            catch (Exception e)
+                            {
+                                await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
+                                continue;
+                            }
+
+                            if (subFileData.Length > 0)
+                            {
+                                Console.WriteLine($"Writing content subfile: {subFilePath}");
+                                await File.WriteAllBytesAsync(subFilePath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                            }
                         }
                     }
 

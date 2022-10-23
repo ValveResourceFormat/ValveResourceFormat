@@ -394,46 +394,56 @@ namespace GUI.Types.Viewers
 
                 resTabs.TabPages.Add(tab2);
 
-                if (block.Type == BlockType.DATA && resource.ResourceType == ResourceType.Material)
+                static void AddContentTab(TabControl resTabs, string name, string text)
                 {
                     var control = new TextBox();
                     control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = Utils.Utils.NormalizeLineEndings(((Material)block).ToValveMaterial());
+                    control.Text = Utils.Utils.NormalizeLineEndings(text);
                     control.Dock = DockStyle.Fill;
                     control.Multiline = true;
                     control.ReadOnly = true;
                     control.ScrollBars = ScrollBars.Both;
-                    var tabVmat = new TabPage("vmat");
-                    tabVmat.Controls.Add(control);
-                    resTabs.TabPages.Add(tabVmat);
+                    var tab = new TabPage(name);
+                    tab.Controls.Add(control);
+                    resTabs.TabPages.Add(tab);
                 }
 
-                if (block.Type == BlockType.DATA && resource.ResourceType == ResourceType.EntityLump)
+                if (block.Type != BlockType.DATA)
                 {
-                    var control = new TextBox();
-                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = Utils.Utils.NormalizeLineEndings(((EntityLump)block).ToEntityDumpString());
-                    control.Dock = DockStyle.Fill;
-                    control.Multiline = true;
-                    control.ReadOnly = true;
-                    control.ScrollBars = ScrollBars.Both;
-                    var tabEntities = new TabPage("Entities");
-                    tabEntities.Controls.Add(control);
-                    resTabs.TabPages.Add(tabEntities);
+                    continue;
                 }
 
-                if (block.Type == BlockType.DATA && resource.ResourceType == ResourceType.PostProcessing)
+                switch (resource.ResourceType)
                 {
-                    var control = new TextBox();
-                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = Utils.Utils.NormalizeLineEndings(((PostProcessing)block).ToValvePostProcessing());
-                    control.Dock = DockStyle.Fill;
-                    control.Multiline = true;
-                    control.ReadOnly = true;
-                    control.ScrollBars = ScrollBars.Both;
-                    var tabVpost = new TabPage("vpost");
-                    tabVpost.Controls.Add(control);
-                    resTabs.TabPages.Add(tabVpost);
+                    case ResourceType.Material:
+                        AddContentTab(resTabs, "Reconstructed vmat", ((Material)block).ToValveMaterial());
+                        break;
+
+                    case ResourceType.EntityLump:
+                        AddContentTab(resTabs, "Entities", ((EntityLump)block).ToEntityDumpString());
+                        break;
+
+                    case ResourceType.PostProcessing:
+                        AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
+                        break;
+
+                    case ResourceType.Texture:
+                        {
+                            if (FileExtract.IsChildResource(resource))
+                            {
+                                break;
+                            }
+
+                            var textureExtract = new TextureExtract((Texture)resource.DataBlock, resource.FileName);
+                            AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
+
+                            if (textureExtract.TryGetMksData(out var _, out var mks))
+                            {
+                                AddContentTab(resTabs, "Reconstructed mks", mks);
+                            }
+
+                            break;
+                        }
                 }
             }
 

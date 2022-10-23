@@ -378,7 +378,7 @@ namespace Decompiler
                     if (OutputFile == null)
                     {
                         // Test extraction code flow while collecting stats
-                        FileExtract.Extract(resource);
+                        using var _ = FileExtract.Extract(resource);
                     }
 
                     if (!string.IsNullOrEmpty(info))
@@ -420,7 +420,7 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var contentFile = FileExtract.Extract(resource);
+                    using var contentFile = FileExtract.Extract(resource);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -849,7 +849,7 @@ namespace Decompiler
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
                 package.ReadEntry(file, out var output);
-                var contentFile = default(ContentFile);
+                ContentFile contentFile = null;
 
                 if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
                 {
@@ -889,30 +889,35 @@ namespace Decompiler
                     catch (Exception e)
                     {
                         LogException(e, filePath, package.FileName);
+                        contentFile?.Dispose();
+                        contentFile = null;
                     }
                 }
 
-                if (OutputFile != null)
+                using (contentFile)
                 {
-                    if (RecursiveSearchArchives)
+                    if (OutputFile != null)
                     {
-                        filePath = Path.Combine(parentPath, filePath);
-                    }
+                        if (RecursiveSearchArchives)
+                        {
+                            filePath = Path.Combine(parentPath, filePath);
+                        }
 
-                    if (type != extension)
-                    {
-                        filePath = Path.ChangeExtension(filePath, extension);
-                    }
+                        if (type != extension)
+                        {
+                            filePath = Path.ChangeExtension(filePath, extension);
+                        }
 
-                    filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
+                        filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
 
-                    if (Decompile)
-                    {
-                        DumpContentFile(filePath, contentFile);
-                    }
-                    else
-                    {
-                        DumpFile(filePath, output);
+                        if (Decompile && contentFile is not null)
+                        {
+                            DumpContentFile(filePath, contentFile);
+                        }
+                        else
+                        {
+                            DumpFile(filePath, output);
+                        }
                     }
                 }
             }
@@ -926,7 +931,7 @@ namespace Decompiler
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract());
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract.Invoke());
                 }
             }
         }

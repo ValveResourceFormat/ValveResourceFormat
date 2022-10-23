@@ -66,15 +66,16 @@ namespace GUI.Types.Exporter
                 }
                 else
                 {
-                    var contentFile = FileExtract.Extract(resource);
+                    using var contentFile = FileExtract.Extract(resource);
                     using var stream = dialog.OpenFile();
                     stream.Write(contentFile.Data);
 
                     foreach (var contentSubFile in contentFile.SubFiles)
                     {
+                        Console.WriteLine($"Export for \"{fileName}\" also writing \"{contentSubFile.FileName}\"");
                         var subFilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName), contentSubFile.FileName);
                         using var subFileStream = File.OpenWrite(subFilePath);
-                        subFileStream.Write(contentSubFile.Extract());
+                        subFileStream.Write(contentSubFile.Extract.Invoke());
                     }
                 }
 
