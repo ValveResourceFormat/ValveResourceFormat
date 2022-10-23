@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -18,6 +19,8 @@ namespace GUI.Utils
         public AdvancedGuiFileLoader FileLoader { get; }
         public VrfGuiContext ParentGuiContext { get; }
 
+        // TODO: This buffer should not be here
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public QuadIndexBuffer QuadIndices
         {
             get
