@@ -34,10 +34,17 @@ namespace GUI
             LoadAssetTypes();
             InitializeComponent();
 
-            Text = "VRF - Source 2 Resource Viewer v" + Application.ProductVersion;
-
-            mainTabs.SelectedIndexChanged += (o, e) =>
+            mainTabs.SelectedIndexChanged += (tabControl, e) =>
             {
+                if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
+                {
+                    Text = "VRF";
+                }
+                else
+                {
+                    Text = $"VRF - {mainTabs.SelectedTab.ToolTipText}";
+                }
+
                 ShowHideSearch();
             };
 
@@ -358,6 +365,16 @@ namespace GUI
         {
             var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName));
             tab.ToolTipText = vrfGuiContext.FileName;
+
+            var parentContext = vrfGuiContext.ParentGuiContext;
+
+            while (parentContext != null)
+            {
+                tab.ToolTipText = $"{parentContext.FileName} > {tab.ToolTipText}";
+
+                parentContext = parentContext.ParentGuiContext;
+            }
+
             tab.Controls.Add(new LoadingFile());
 
             mainTabs.TabPages.Add(tab);
