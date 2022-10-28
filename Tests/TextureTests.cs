@@ -1,6 +1,5 @@
 using System.IO;
 using NUnit.Framework;
-using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
@@ -19,18 +18,7 @@ namespace Tests
                 var resource = new Resource();
                 resource.Read(file);
 
-                using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
-                using var ms = new MemoryStream();
-                using var pixels = bitmap.PeekPixels();
-                pixels.Encode(ms, SKEncodedImageFormat.Png, 100);
-
-                // TODO: Comparing images as bytes doesn't work
-#if false
-                using (var expected = new FileStream(Path.ChangeExtension(file, "png"), FileMode.Open, FileAccess.Read))
-                {
-                    FileAssert.AreEqual(expected, ms);
-                }
-#endif
+                using var _ = ((Texture)resource.DataBlock).GenerateBitmap();
             }
         }
     }
