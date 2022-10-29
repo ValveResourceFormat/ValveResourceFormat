@@ -72,7 +72,8 @@ namespace GUI.Types.Viewers
             if (vrfPackage != null)
             {
                 // search the package
-                string vcsCollectionName = targetFilename.Substring(0, targetFilename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+                string filename = Path.GetFileName(targetFilename);
+                string vcsCollectionName = filename[..filename.LastIndexOf('_')]; // in the form water_dota_pcgl_40
                 List<PackageEntry> vcsEntries = vrfPackage.Entries["vcs"];
                 // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                 foreach (var vcsEntry in vcsEntries)
