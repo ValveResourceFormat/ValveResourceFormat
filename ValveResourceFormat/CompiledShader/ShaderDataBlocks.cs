@@ -29,12 +29,9 @@ namespace ValveResourceFormat.CompiledShader
                 throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
                     vcsMagicId, nameof(vcsMagicId));
             }
+
             vcsFileVersion = datareader.ReadInt32();
-            if (vcsFileVersion != 65 && vcsFileVersion != 64 && vcsFileVersion != 62)
-            {
-                throw new UnexpectedMagicException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported",
-                    vcsFileVersion, nameof(vcsFileVersion));
-            }
+            ThrowIfNotSupported(vcsFileVersion);
 
             int psrs_arg = 0;
             if (vcsFileVersion >= 64)
@@ -216,12 +213,10 @@ namespace ValveResourceFormat.CompiledShader
                 throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
                     vcsMagicId, nameof(vcsMagicId));
             }
+
             vcsFileVersion = datareader.ReadInt32();
-            if (vcsFileVersion != 65 && vcsFileVersion != 64 && vcsFileVersion != 62)
-            {
-                throw new UnexpectedMagicException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported",
-                    vcsFileVersion, nameof(vcsFileVersion));
-            }
+            ThrowIfNotSupported(vcsFileVersion);
+
             int psrs_arg = 0;
             if (vcsFileVersion >= 64)
             {
@@ -688,7 +683,7 @@ namespace ValveResourceFormat.CompiledShader
             command1 = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
 
-            if (vcsVersion == 65)
+            if (vcsVersion >= 65)
             {
                 v65Data = datareader.ReadBytes(6);
             }
