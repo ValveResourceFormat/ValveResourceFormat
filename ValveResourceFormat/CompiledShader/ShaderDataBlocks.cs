@@ -624,17 +624,18 @@ namespace ValveResourceFormat.CompiledShader
                 dynExp = datareader.ReadBytes(dynExpLen);
             }
 
+            arg0 = datareader.ReadInt32();
+
             // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
-            byte[] checkSBMS = datareader.ReadBytesAtPosition(0, 4);
-            if (checkSBMS[0] == 0x53 && checkSBMS[1] == 0x42 && checkSBMS[2] == 0x4D && checkSBMS[3] == 0x53)
+            if (arg0 == 0x534D4253)
             {
                 // note - bytes are ignored
-                datareader.ReadBytes(4);
                 int dynExpLength = datareader.ReadInt32();
                 datareader.ReadBytes(dynExpLength);
+
+                arg0 = datareader.ReadInt32();
             }
 
-            arg0 = datareader.ReadInt32();
             arg1 = datareader.ReadInt32();
             arg2 = datareader.ReadInt32();
             arg3 = datareader.ReadInt32();
