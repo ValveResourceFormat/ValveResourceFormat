@@ -72,7 +72,8 @@ namespace GUI.Types.Viewers
             if (vrfPackage != null)
             {
                 // search the package
-                string vcsCollectionName = targetFilename.Substring(0, targetFilename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+                string filename = Path.GetFileName(targetFilename);
+                string vcsCollectionName = filename[..filename.LastIndexOf('_')]; // in the form water_dota_pcgl_40
                 List<PackageEntry> vcsEntries = vrfPackage.Entries["vcs"];
                 // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                 foreach (var vcsEntry in vcsEntries)
@@ -118,7 +119,7 @@ namespace GUI.Types.Viewers
             var tabControl = sender as TabControl;
             var tabs = tabControl.TabPages;
             TabPage thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
-            if (e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Right || e.Button == MouseButtons.Middle)
             {
                 var tabIndex = GetTabIndex(thisTab);
                 // don't close the main tab

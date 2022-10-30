@@ -29,12 +29,9 @@ namespace ValveResourceFormat.CompiledShader
                 throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
                     vcsMagicId, nameof(vcsMagicId));
             }
+
             vcsFileVersion = datareader.ReadInt32();
-            if (vcsFileVersion != 65 && vcsFileVersion != 64 && vcsFileVersion != 62)
-            {
-                throw new UnexpectedMagicException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported",
-                    vcsFileVersion, nameof(vcsFileVersion));
-            }
+            ThrowIfNotSupported(vcsFileVersion);
 
             int psrs_arg = 0;
             if (vcsFileVersion >= 64)
@@ -216,12 +213,10 @@ namespace ValveResourceFormat.CompiledShader
                 throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
                     vcsMagicId, nameof(vcsMagicId));
             }
+
             vcsFileVersion = datareader.ReadInt32();
-            if (vcsFileVersion != 65 && vcsFileVersion != 64 && vcsFileVersion != 62)
-            {
-                throw new UnexpectedMagicException($"Unsupported version {vcsFileVersion}, versions 65, 64 and 62 are supported",
-                    vcsFileVersion, nameof(vcsFileVersion));
-            }
+            ThrowIfNotSupported(vcsFileVersion);
+
             int psrs_arg = 0;
             if (vcsFileVersion >= 64)
             {
@@ -629,17 +624,18 @@ namespace ValveResourceFormat.CompiledShader
                 dynExp = datareader.ReadBytes(dynExpLen);
             }
 
+            arg0 = datareader.ReadInt32();
+
             // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
-            byte[] checkSBMS = datareader.ReadBytesAtPosition(0, 4);
-            if (checkSBMS[0] == 0x53 && checkSBMS[1] == 0x42 && checkSBMS[2] == 0x4D && checkSBMS[3] == 0x53)
+            if (arg0 == 0x534D4253)
             {
                 // note - bytes are ignored
-                datareader.ReadBytes(4);
                 int dynExpLength = datareader.ReadInt32();
                 datareader.ReadBytes(dynExpLength);
+
+                arg0 = datareader.ReadInt32();
             }
 
-            arg0 = datareader.ReadInt32();
             arg1 = datareader.ReadInt32();
             arg2 = datareader.ReadInt32();
             arg3 = datareader.ReadInt32();
@@ -688,7 +684,7 @@ namespace ValveResourceFormat.CompiledShader
             command1 = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
 
-            if (vcsVersion == 65)
+            if (vcsVersion >= 65)
             {
                 v65Data = datareader.ReadBytes(6);
             }
