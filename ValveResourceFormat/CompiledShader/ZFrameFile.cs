@@ -430,6 +430,10 @@ namespace ValveResourceFormat.CompiledShader
             datareader.ShowBytes(1, "always 0");
             datareader.ShowBytes(1, "always 0");
             datareader.ShowBytes(1, "values seen (0,1)");
+            if (vcsVersion >= 66)
+            {
+                datareader.ShowBytes(1, "added with v66");
+            }
             datareader.BreakLine();
             datareader.ShowByteCount($"Start of source section, {datareader.BaseStream.Position} is " +
                 $"the base offset for end-section source pointers");
