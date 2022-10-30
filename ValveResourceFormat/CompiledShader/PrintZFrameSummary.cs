@@ -361,8 +361,9 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine($"{b2:X02}      // always 0");
             OutputWriteLine($"{b3:X02}      // always 0");
             OutputWriteLine($"{zframeFile.flagbyte0}       // values seen 0,1");
+            OutputWriteLine($"{zframeFile.flagbyte1}       // v66");
             OutputWriteLine($"{zframeFile.gpuSourceCount,-6}  // nr of source files");
-            OutputWriteLine($"{zframeFile.flagbyte1}       // values seen 0,1");
+            OutputWriteLine($"{zframeFile.flagbyte2}       // values seen 0,1");
             OutputWriteLine("");
             OutputWriteLine("");
         }

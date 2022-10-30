@@ -264,7 +264,7 @@ namespace ValveResourceFormat.CompiledShader
         public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), filenamepath, zframeId,
-                vcsProgramType, vcsPlatformType, vcsShaderModelType, omitParsing, outputWriter);
+                vcsProgramType, vcsPlatformType, vcsShaderModelType, vcsVersion, omitParsing, outputWriter);
         }
 
         public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)

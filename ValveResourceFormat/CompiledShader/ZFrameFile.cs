@@ -22,22 +22,26 @@ namespace ValveResourceFormat.CompiledShader
         public List<ZDataBlock> dataBlocks { get; } = new();
         public int[] trailingSummary { get; }
         public byte[] flags0 { get; }
-        public int flagbyte0 { get; }
+        public byte flagbyte0 { get; }
+        public byte flagbyte1 { get; }
         public int gpuSourceCount { get; }
-        public int flagbyte1 { get; }
+        public byte flagbyte2 { get; }
         public List<GpuSource> gpuSources { get; } = new();
         public List<VsEndBlock> vsEndBlocks { get; } = new();
         public List<PsEndBlock> psEndBlocks { get; } = new();
         public int nrEndBlocks { get; }
         public int nonZeroDataBlockCount { get; }
 
+        private int vcsVersion { get; }
+
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
-            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, bool omitParsing = false, HandleOutputWrite outputWriter = null)
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, bool omitParsing = false, HandleOutputWrite outputWriter = null)
         {
             this.filenamepath = filenamepath;
             this.vcsProgramType = vcsProgramType;
             this.vcsPlatformType = vcsPlatformType;
             this.vcsShaderModelType = vcsShaderModelType;
+            this.vcsVersion = vcsVersion;
             datareader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
             this.zframeId = zframeId;
 
@@ -83,8 +87,12 @@ namespace ValveResourceFormat.CompiledShader
             }
             flags0 = datareader.ReadBytes(4);
             flagbyte0 = datareader.ReadByte();
+            if (vcsVersion >= 66)
+            {
+                flagbyte1 = datareader.ReadByte();
+            }
             gpuSourceCount = datareader.ReadInt32();
-            flagbyte1 = datareader.ReadByte();
+            flagbyte2 = datareader.ReadByte();
 
             if (vcsPlatformType == VcsPlatformType.PC)
             {
