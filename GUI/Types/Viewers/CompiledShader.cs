@@ -119,7 +119,7 @@ namespace GUI.Types.Viewers
             var tabControl = sender as TabControl;
             var tabs = tabControl.TabPages;
             TabPage thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
-            if (e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Right || e.Button == MouseButtons.Middle)
             {
                 var tabIndex = GetTabIndex(thisTab);
                 // don't close the main tab
