@@ -19,6 +19,7 @@ namespace ValveResourceFormat.CompiledShader
         public const int LZMA_COMPRESSION = 2;
         public const uint PI_MURMURSEED = 0x31415926;
         public ShaderDataReader datareader { get; set; }
+        private FileStream FileStream;
 
         /// <summary>
         /// Releases binary reader.
@@ -31,10 +32,19 @@ namespace ValveResourceFormat.CompiledShader
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && datareader != null)
+            if (disposing)
             {
-                datareader.Dispose();
-                datareader = null;
+                if (FileStream != null)
+                {
+                    FileStream.Dispose();
+                    FileStream = null;
+                }
+
+                if (datareader != null)
+                {
+                    datareader.Dispose();
+                    datareader = null;
+                }
             }
         }
 
@@ -45,8 +55,8 @@ namespace ValveResourceFormat.CompiledShader
         /// <param name="filenamepath">The file to open and read.</param>
         public void Read(string filenamepath)
         {
-            var fs = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            Read(filenamepath, fs);
+            FileStream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            Read(filenamepath, FileStream);
         }
 
         /// <summary>
