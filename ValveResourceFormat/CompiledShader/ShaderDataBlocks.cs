@@ -37,6 +37,14 @@ namespace ValveResourceFormat.CompiledShader
             if (VcsFileVersion >= 64)
             {
                 psrs_arg = datareader.ReadInt32();
+
+                // S&box - there is no psrs here. Just a 2 and a 0
+                if (psrs_arg == 2)
+                {
+                    psrs_arg = 0;
+                    datareader.BaseStream.Position += 4;
+                    VcsFileVersion = 64;
+                }
             }
 
             if (psrs_arg != 0 && psrs_arg != 1)
@@ -115,7 +123,16 @@ namespace ValveResourceFormat.CompiledShader
             if (vcs_version >= 64)
             {
                 has_psrs_file = DataReader.ReadInt32AtPosition();
-                DataReader.ShowBytes(4, "has_psrs_file = " + (has_psrs_file > 0 ? "True" : "False"));
+                if (has_psrs_file == 2)
+                {
+                    DataReader.ShowBytes(4, "s&box const int 2");
+                    DataReader.ShowBytes(4, "s&box int");
+                    vcs_version = 64;
+                }
+                else
+                {
+                    DataReader.ShowBytes(4, "has_psrs_file = " + (has_psrs_file > 0 ? "True" : "False"));
+                }
             }
             var version = DataReader.ReadInt32AtPosition();
             DataReader.ShowBytes(4, $"Version = {version}");
@@ -221,6 +238,15 @@ namespace ValveResourceFormat.CompiledShader
             if (VcsFileVersion >= 64)
             {
                 psrs_arg = datareader.ReadInt32();
+
+                // S&box - there is no psrs here. Just a 2 and a 0
+                if (psrs_arg == 2)
+                {
+                    psrs_arg = 0;
+                    datareader.BaseStream.Position += 4;
+                    VcsFileVersion = 64;
+                }
+
                 if (psrs_arg != 0 && psrs_arg != 1)
                 {
                     throw new ShaderParserException($"Unexpected value psrs_arg = {psrs_arg}");
