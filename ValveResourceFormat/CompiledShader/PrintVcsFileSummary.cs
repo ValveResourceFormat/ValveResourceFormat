@@ -64,9 +64,10 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"VFX File Desc: {shaderFile.featuresHeader.file_description}");
             output.BreakLine();
             output.WriteLine($"has_psrs_file = {shaderFile.featuresHeader.has_psrs_file}");
-            output.WriteLine($"unknown_val = {shaderFile.featuresHeader.unknown_val} values seen (0,1) (likely editor related)");
+            output.WriteLine($"{nameof(shaderFile.featuresHeader.Version)} = {shaderFile.featuresHeader.Version}");
             var ftHeader = shaderFile.featuresHeader;
-            output.WriteLine($"bool flags = ({ftHeader.arg0},{ftHeader.arg1},{ftHeader.arg2},{ftHeader.arg3}," +
+            output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
+            output.WriteLine($"bool flags = ({ftHeader.arg1},{ftHeader.arg2},{ftHeader.arg3}," +
                 $"{ftHeader.arg4},{ftHeader.arg5},{ftHeader.arg6},{ftHeader.arg7}) (related to editor dependencies)");
             output.WriteLine($"possible editor description = {shaderFile.possibleEditorDescription}");
             output.BreakLine();
