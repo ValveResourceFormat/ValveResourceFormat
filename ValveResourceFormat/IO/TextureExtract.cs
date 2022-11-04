@@ -175,20 +175,9 @@ public sealed class TextureExtract
 
         if (channel == Channel.RGB)
         {
-            if (bitmap.Info.IsOpaque)
-            {
-                return EncodePng(bitmap);
-            }
-
-            using var newBitmap = bitmap.Copy();
-            using var newPixelmap = newBitmap.PeekPixels();
-            var newPixels = newPixelmap.GetPixelSpan<SKColor>();
-
-            // expensive transparency workaround for color maps
-            for (var i = 0; i < newPixels.Length; i++)
-            {
-                newPixels[i] = newPixels[i].WithAlpha(255);
-            }
+            using var _bitmap = bitmap.Copy();
+            using var _pixelmap = _bitmap.PeekPixels();
+            using var newPixelmap = _pixelmap.WithAlphaType(SKAlphaType.Opaque);
 
             return EncodePng(newPixelmap);
         }
