@@ -169,7 +169,7 @@ namespace GUI.Forms
 
                     using (var resource = new Resource
                     {
-                        FileName = outFilePath,
+                        FileName = packageFile.GetFullPath(),
                     })
                     using (var memory = new MemoryStream(output))
                     {

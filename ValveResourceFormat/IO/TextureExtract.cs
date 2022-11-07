@@ -79,17 +79,17 @@ public sealed class TextureExtract
 
         if (TryGetMksData(out var sprites, out var mks))
         {
-            vtex.AddSubFile(GetMksFileName(), () => Encoding.UTF8.GetBytes(mks));
+            vtex.AddSubFile(Path.GetFileName(GetMksFileName()), () => Encoding.UTF8.GetBytes(mks));
 
             foreach (var (spriteRect, spriteFileName) in sprites)
             {
-                vtex.AddImageSubFile(spriteFileName, (bitmap) => SubsetToPngImage(bitmap, spriteRect));
+                vtex.AddImageSubFile(Path.GetFileName(spriteFileName), (bitmap) => SubsetToPngImage(bitmap, spriteRect));
             }
 
             return vtex;
         }
 
-        vtex.AddImageSubFile(GetImageFileName(), ToPngImage);
+        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName()), ToPngImage);
         return vtex;
     }
 

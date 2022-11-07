@@ -50,6 +50,9 @@ namespace ValveResourceFormat.IO
 
     public class ContentSubFile
     {
+        /// <remarks>
+        /// This is relative to the content file.
+        /// </remarks>
         public string FileName { get; set; }
         public virtual Func<byte[]> Extract { get; set; }
     }
@@ -119,7 +122,7 @@ namespace ValveResourceFormat.IO
                         );
 
                         contentFile.AddSubFile(
-                            fileName: lutFileName,
+                            fileName: Path.GetFileName(lutFileName),
                             extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
                         );
 
