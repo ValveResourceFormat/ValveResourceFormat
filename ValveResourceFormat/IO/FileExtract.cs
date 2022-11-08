@@ -11,17 +11,17 @@ namespace ValveResourceFormat.IO
     public class ContentFile : IDisposable
     {
         public byte[] Data { get; set; }
-        public List<ContentSubFile> SubFiles { get; init; } = new List<ContentSubFile>();
+        public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
         public Dictionary<string, ContentFile> ExternalRefsHandled { get; init; } = new();
         public bool SubFilesAreExternal { get; set; }
         protected bool Disposed { get; private set; }
 
-        public void AddSubFile(string fileName, Func<byte[]> extractFunction)
+        public void AddSubFile(string fileName, Func<byte[]> extractMethod)
         {
-            var subFile = new ContentSubFile
+            var subFile = new SubFile
             {
                 FileName = fileName,
-                Extract = extractFunction
+                Extract = extractMethod
             };
 
             SubFiles.Add(subFile);
@@ -48,7 +48,7 @@ namespace ValveResourceFormat.IO
         }
     }
 
-    public class ContentSubFile
+    public class SubFile
     {
         /// <remarks>
         /// This is relative to the content file.
@@ -123,7 +123,7 @@ namespace ValveResourceFormat.IO
 
                         contentFile.AddSubFile(
                             fileName: Path.GetFileName(lutFileName),
-                            extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
+                            extractMethod: () => ((PostProcessing)resource.DataBlock).GetRAWData()
                         );
 
                         break;

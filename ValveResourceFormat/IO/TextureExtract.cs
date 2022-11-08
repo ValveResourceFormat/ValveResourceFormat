@@ -35,7 +35,7 @@ public class TextureContentFile : ContentFile
     }
 }
 
-public sealed class ImageSubFile : ContentSubFile
+public sealed class ImageSubFile : SubFile
 {
     public SKBitmap Bitmap { get; init; }
     public Func<SKBitmap, byte[]> ImageExtract { get; init; }
