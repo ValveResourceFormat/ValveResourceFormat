@@ -46,6 +46,13 @@ public sealed class MaterialExtract
         //["multiblend"] = null,
         //["hero"] = null,
 
+        ["generic"] = new()
+        {
+            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor") },
+            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
+            ["g_tMetalnessReflectanceFresnel"] = new[] { (Channel.R, "TextureMetalness"), (Channel.G, "TextureReflectance"), (Channel.B, "TextureFresnel") },
+            ["g_tRoughness"] = new[] { (Channel.R, "TextureRoughness"), },
+        },
 
         ["vr_complex"] = new()
         {
@@ -102,6 +109,11 @@ public sealed class MaterialExtract
             ["g_tIrisMask"] = new[] { (Channel.R, "TextureIrisMask") },
             ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
         },
+
+        ["sky"] = new()
+        {
+            ["g_tSkyTexture"] = new[] { (Channel.RGBA, "SkyTexture") },
+        }
     };
 
     public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
