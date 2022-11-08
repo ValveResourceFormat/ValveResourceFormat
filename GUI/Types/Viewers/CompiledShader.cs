@@ -254,7 +254,7 @@ namespace GUI.Types.Viewers
         }
 
 
-        private class ZFrameRichTextBox : RichTextBox
+        private class ZFrameRichTextBox : RichTextBox, IDisposable
         {
             private TabControl tabControl;
             private ShaderFile shaderFile;
@@ -283,6 +283,23 @@ namespace GUI.Types.Viewers
                 Text = Utils.Utils.NormalizeLineEndings(buffer.ToString());
                 ScrollBars = RichTextBoxScrollBars.Both;
                 LinkClicked += new LinkClickedEventHandler(ZFrameRichTextBoxLinkClicked);
+            }
+
+            public new void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected new virtual void Dispose(bool disposing)
+            {
+                if (disposing && zframeFile != null)
+                {
+                    zframeFile.Dispose();
+                    zframeFile = null;
+                }
+
+                base.Dispose(disposing);
             }
 
             private void ZFrameRichTextBoxLinkClicked(object sender, LinkClickedEventArgs evt)
