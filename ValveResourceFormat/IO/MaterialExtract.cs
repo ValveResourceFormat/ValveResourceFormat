@@ -44,7 +44,25 @@ public sealed class MaterialExtract
         },
 
         //["multiblend"] = null,
-        //["hero"] = null,
+
+        ["hero"] = new()
+        {
+            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
+            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
+            ["g_tCubeMap"] = new[] { (Channel.RGBA, "TextureCubeMap") },
+            ["g_tCubeMapSeparateMask"] = new[] { (Channel.G, "TextureCubeMapSeparateMask") },
+            ["g_tFresnelWarp"] = new[] { (Channel.R, "TextureFresnelWarpRim"), (Channel.G, "TextureFresnelWarpColor"), (Channel.B, "TextureFresnelWarpSpec") },
+            ["g_tMasks1"] = new[] { (Channel.R, "TextureDetailMask"), (Channel.G, "TextureDiffuseWarpMask"), (Channel.B, "TextureMetalnessMask"), (Channel.A, "TextureSelfIllumMask") },
+            ["g_tMasks2"] = new[] { (Channel.R, "TextureSpecularMask"), (Channel.G, "TextureRimMask"), (Channel.B, "TextureTintByBaseMask"), (Channel.A, "TextureSpecularExponent") },
+        },
+
+        ["grasstile_preview"] = new()
+        {
+            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
+            ["g_tTintMask"] = new[] { (Channel.G, "TextureTintMask") },
+            ["g_tSpecular"] = new[] { (Channel.G, "TextureReflectance") },
+            ["g_tSelfIllum"] = new[] { (Channel.G, "TextureSelfIllum") },
+        },
 
         ["generic"] = new()
         {
@@ -118,12 +136,22 @@ public sealed class MaterialExtract
 
     public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
     {
+        { "TextureDetailMask", "_detailmask" },
+        { "TextureDiffuseWarpMask", "_diffusemask" },
+        { "TextureMetalnessMask", "_metalnessmask" },
+        { "TextureSelfIllumMask", "_selfillummask" },
+
+        { "TextureSpecularMask", "_specmask" },
+        { "TextureRimMask", "_rimmask" },
+        { "TextureTintByBaseMask", "_basetintmask" },
+        { "TextureSpecularExponent", "_specexp" },
+
         { "TextureColor", "_color" },
         { "TextureNormal", "_normal" },
         { "TextureRoughness", "_rough" },
         { "TextureMetalness", "_metal" },
         { "TextureAmbientOcclusion", "_ao" },
-        { "TextureReflectance", "_refl"}
+        { "TextureReflectance", "_refl"},
     };
 
     private static bool IsDefaultTexture(string textureFileName)
