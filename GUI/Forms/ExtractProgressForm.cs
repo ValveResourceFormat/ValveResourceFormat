@@ -75,6 +75,7 @@ namespace GUI.Forms
                         extractProgressBar.Style = ProgressBarStyle.Marquee;
                     }));
 
+                    Console.WriteLine($"Folder export started to \"{path}\"");
                     CalculateFilesToExtract(root);
 
                     Invoke((Action)(() =>
@@ -208,7 +209,7 @@ namespace GUI.Forms
                     {
                         if (contentFile.Data.Length > 0)
                         {
-                            Console.WriteLine($"Writing content file: {outFilePath}");
+                            Console.WriteLine($"+ {outFilePath.Remove(0, path.Length + 1)}");
                             await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                         }
 
@@ -217,6 +218,7 @@ namespace GUI.Forms
                         {
                             foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
                             {
+                                Invoke(() => extractStatusLabel.Text = $"Extracting {refFileName}");
                                 extractedFiles.Add(refFileName);
                                 await ExtractSubfiles(Path.GetDirectoryName(refFileName), refContentFile).ConfigureAwait(false);
                             }
