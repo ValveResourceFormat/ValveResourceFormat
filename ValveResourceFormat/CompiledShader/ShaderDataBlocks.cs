@@ -9,9 +9,9 @@ namespace ValveResourceFormat.CompiledShader
     {
         public int vcsFileVersion { get; }
         public bool has_psrs_file { get; }
-        public int unknown_val { get; }
+        public int Version { get; }
         public string file_description { get; }
-        public int arg0 { get; }
+        public int DevShader { get; }
         public int arg1 { get; }
         public int arg2 { get; }
         public int arg3 { get; }
@@ -44,10 +44,10 @@ namespace ValveResourceFormat.CompiledShader
                 throw new ShaderParserException($"unexpected value psrs_arg = {psrs_arg}");
             }
             has_psrs_file = psrs_arg > 0;
-            unknown_val = datareader.ReadInt32();
+            Version = datareader.ReadInt32();
             datareader.ReadInt32(); // length of name, but not needed because it's always null-term
             file_description = datareader.ReadNullTermString();
-            arg0 = datareader.ReadInt32();
+            DevShader = datareader.ReadInt32();
             arg1 = datareader.ReadInt32();
             arg2 = datareader.ReadInt32();
             arg3 = datareader.ReadInt32();
@@ -117,8 +117,8 @@ namespace ValveResourceFormat.CompiledShader
                 has_psrs_file = datareader.ReadInt32AtPosition();
                 datareader.ShowBytes(4, "has_psrs_file = " + (has_psrs_file > 0 ? "True" : "False"));
             }
-            int unknown_val = datareader.ReadInt32AtPosition();
-            datareader.ShowBytes(4, $"unknown_val = {unknown_val} (usually 0)");
+            int version = datareader.ReadInt32AtPosition();
+            datareader.ShowBytes(4, $"Version = {version}");
             int len_name_description = datareader.ReadInt32AtPosition();
             datareader.ShowBytes(4, $"{len_name_description} len of name");
             datareader.BreakLine();
@@ -127,12 +127,12 @@ namespace ValveResourceFormat.CompiledShader
             datareader.ShowBytes(len_name_description + 1);
             datareader.BreakLine();
             datareader.ShowByteCount();
-            uint arg0 = datareader.ReadUInt32AtPosition(0);
+            datareader.ShowBytes(4, $"DevShader bool");
             uint arg1 = datareader.ReadUInt32AtPosition(4);
             uint arg2 = datareader.ReadUInt32AtPosition(8);
             uint arg3 = datareader.ReadUInt32AtPosition(12);
-            datareader.ShowBytes(16, 4, breakLine: false);
-            datareader.TabComment($"({arg0},{arg1},{arg2},{arg3})");
+            datareader.ShowBytes(12, 4, breakLine: false);
+            datareader.TabComment($"({arg1},{arg2},{arg3})");
             uint arg4 = datareader.ReadUInt32AtPosition(0);
             uint arg5 = datareader.ReadUInt32AtPosition(4);
             uint arg6 = datareader.ReadUInt32AtPosition(8);

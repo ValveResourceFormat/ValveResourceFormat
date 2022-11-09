@@ -156,15 +156,18 @@ namespace GUI.Types.Viewers
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && tabControl != null)
+            if (disposing)
             {
-                tabControl.Dispose();
-                tabControl = null;
-            }
-            if (disposing && shaderFile != null)
-            {
-                shaderFile.Dispose();
-                tabControl = null;
+                if (tabControl != null)
+                {
+                    tabControl.Dispose();
+                    tabControl = null;
+                }
+
+                foreach (var shader in shaderCollection.Values)
+                {
+                    shader.Dispose();
+                }
             }
         }
 
