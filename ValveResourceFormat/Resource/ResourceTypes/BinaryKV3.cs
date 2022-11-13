@@ -193,12 +193,17 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
+                var totalSize = uncompressedSize + blockTotalSize;
                 var input = reader.ReadBytes((int)compressedSize);
-                var zstd = new ZstdSharp.Decompressor();
-                var output = zstd.Unwrap(input);
 
-                outWrite.Write(output);
-                outWrite.BaseStream.Position = 0;
+                var output = new Span<byte>(new byte[totalSize]);
+
+                var zstd = new ZstdSharp.Decompressor();
+
+                if (!zstd.TryUnwrap(input, output, out var written) || totalSize != written)
+                {
+                    throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {totalSize} bytes)");
+                }
             }
             else
             {
