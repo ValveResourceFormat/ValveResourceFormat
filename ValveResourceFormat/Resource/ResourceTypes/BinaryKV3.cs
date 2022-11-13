@@ -204,6 +204,9 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {totalSize} bytes)");
                 }
+
+                outWrite.Write(output);
+                outWrite.BaseStream.Position = 0;
             }
             else
             {
