@@ -198,7 +198,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 var output = new Span<byte>(new byte[totalSize]);
 
-                var zstd = new ZstdSharp.Decompressor();
+                using var zstd = new ZstdSharp.Decompressor();
 
                 if (!zstd.TryUnwrap(input, output, out var written) || totalSize != written)
                 {
