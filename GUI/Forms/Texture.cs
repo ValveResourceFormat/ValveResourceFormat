@@ -31,7 +31,7 @@ namespace GUI.Forms
             var menuStrip = sender as ContextMenuStrip;
             menuStrip.Visible = false; //Hide it as we have pressed the button now!
 
-            var saveFileDialog = new SaveFileDialog
+            using var saveFileDialog = new SaveFileDialog
             {
                 Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tiff|Bitmap Image|*.bmp",
                 Title = "Save an Image File",

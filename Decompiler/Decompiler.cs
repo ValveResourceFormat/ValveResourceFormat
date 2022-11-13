@@ -337,7 +337,7 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            var resource = new Resource
+            using var resource = new Resource
             {
                 FileName = path,
             };
@@ -626,7 +626,7 @@ namespace Decompiler
                 Console.ResetColor();
             }
 
-            var package = new Package();
+            using var package = new Package();
             package.SetFileName(path);
 
             try

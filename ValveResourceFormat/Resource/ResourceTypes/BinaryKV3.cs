@@ -51,9 +51,9 @@ namespace ValveResourceFormat.ResourceTypes
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
-            var outStream = new MemoryStream();
-            var outWrite = new BinaryWriter(outStream);
-            var outRead = new BinaryReader(outStream); // Why why why why why why why
+            using var outStream = new MemoryStream();
+            using var outWrite = new BinaryWriter(outStream, System.Text.Encoding.UTF8, true);
+            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true); // Why why why why why why why
 
             var magic = reader.ReadUInt32();
 

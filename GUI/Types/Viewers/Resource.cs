@@ -62,6 +62,18 @@ namespace GUI.Types.Viewers
                         if (sheet != null)
                         {
                             using var canvas = new SKCanvas(bitmap);
+                            using var color1 = new SKPaint
+                            {
+                                Style = SKPaintStyle.Stroke,
+                                Color = new SKColor(0, 100, 255, 200),
+                                StrokeWidth = 1,
+                            };
+                            using var color2 = new SKPaint
+                            {
+                                Style = SKPaintStyle.Stroke,
+                                Color = new SKColor(255, 100, 0, 200),
+                                StrokeWidth = 1,
+                            };
 
                             foreach (var sequence in sheet.Sequences)
                             {
@@ -69,19 +81,8 @@ namespace GUI.Types.Viewers
                                 {
                                     foreach (var image in frame.Images)
                                     {
-                                        canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), new SKPaint
-                                        {
-                                            Style = SKPaintStyle.Stroke,
-                                            Color = new SKColor(0, 100, 255, 200),
-                                            StrokeWidth = 1,
-                                        });
-
-                                        canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), new SKPaint
-                                        {
-                                            Style = SKPaintStyle.Stroke,
-                                            Color = new SKColor(255, 100, 0, 200),
-                                            StrokeWidth = 1,
-                                        });
+                                        canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
+                                        canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
                                     }
                                 }
                             }

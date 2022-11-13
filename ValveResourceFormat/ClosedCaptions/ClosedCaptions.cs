@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ClosedCaptions
                 // TODO: Throw warning?
             }
 
-            var reader = new BinaryReader(input);
+            using var reader = new BinaryReader(input, Encoding.UTF8, true);
             Captions = new List<ClosedCaption>();
 
             if (reader.ReadUInt32() != MAGIC)

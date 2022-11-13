@@ -46,7 +46,7 @@ namespace Tests
 
                 if (extension.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    extension = extension.Substring(0, extension.Length - 2);
+                    extension = extension[..^2];
                 }
 
                 var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString()).First();
@@ -77,7 +77,7 @@ namespace Tests
                     FileName = file,
                 };
 
-                var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
+                using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
                 var ms = new MemoryStream();
                 fs.CopyTo(ms);
                 ms.Seek(0, SeekOrigin.Begin);
@@ -112,8 +112,7 @@ namespace Tests
                 var resource = resources[name];
                 var blockName = Path.GetFileNameWithoutExtension(file);
 
-                BlockType blockType;
-                Enum.TryParse(blockName, false, out blockType);
+                Enum.TryParse(blockName, false, out BlockType blockType);
 
                 if (!resource.ContainsBlockType(blockType))
                 {
@@ -158,13 +157,10 @@ namespace Tests
         [Test]
         public void InvalidResourceThrows()
         {
-            using (var resource = new Resource())
-            {
-                using (var ms = new MemoryStream(Enumerable.Repeat<byte>(1, 12).ToArray()))
-                {
-                    Assert.Throws<UnexpectedMagicException>(() => resource.Read(ms));
-                }
-            }
+            using var resource = new Resource();
+            using var ms = new MemoryStream(Enumerable.Repeat<byte>(1, 12).ToArray());
+
+            Assert.Throws<UnexpectedMagicException>(() => resource.Read(ms));
         }
 
         [Test]
@@ -172,15 +168,12 @@ namespace Tests
         {
             var data = new byte[] { 0x34, 0x12, 0xAA, 0x55, 0x00, 0x00 };
 
-            using (var resource = new Resource())
-            {
-                using (var ms = new MemoryStream(data))
-                {
-                    var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
+            using var resource = new Resource();
+            using var ms = new MemoryStream(data);
 
-                    Assert.That(ex.Message, Does.Contain("Use ValvePak"));
-                }
-            }
+            var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
+
+            Assert.That(ex.Message, Does.Contain("Use ValvePak"));
         }
 
         [Test]
@@ -188,12 +181,11 @@ namespace Tests
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Shaders", "error_pcgl_40_ps.vcs");
 
-            using (var resource = new Resource())
-            {
-                var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
+            using var resource = new Resource();
 
-                Assert.That(ex.Message, Does.Contain("Use CompiledShader"));
-            }
+            var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
+
+            Assert.That(ex.Message, Does.Contain("Use CompiledShader"));
         }
     }
 }

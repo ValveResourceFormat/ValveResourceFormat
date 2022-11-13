@@ -75,7 +75,7 @@ dotnet_diagnostic.CA1815.severity = none
 dotnet_diagnostic.CA1819.severity = none
 
 # CA2000: Dispose objects before losing scope
-dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA2000.severity = suggestion
 
 # CA2008: Do not create tasks without passing a TaskScheduler
 dotnet_diagnostic.CA2008.severity = none

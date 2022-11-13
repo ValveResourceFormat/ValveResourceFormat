@@ -167,7 +167,7 @@ namespace GUI.Controls
         {
             DeletedFilesRecovered = true;
 
-            var progressDialog = new GenericProgressForm
+            using var progressDialog = new GenericProgressForm
             {
                 Text = "Scanning for deleted files..."
             };

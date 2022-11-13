@@ -23,7 +23,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 PrintFeaturesHeader(shaderFile);
                 PrintFBlocks(shaderFile);
-            } else
+            }
+            else
             {
                 PrintPsVsHeader(shaderFile);
                 PrintSBlocks(shaderFile);
@@ -46,7 +47,8 @@ namespace ValveResourceFormat.CompiledShader
             if (showRichTextBoxLinks)
             {
                 output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
-            } else
+            }
+            else
             {
                 output.BreakLine();
             }
@@ -55,7 +57,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
                 {
-                    output.Write($" \\\\{relatedFile.Replace("/","\\")}");
+                    output.Write($" \\\\{relatedFile.Replace("/", "\\")}");
                 }
                 output.BreakLine();
             }
@@ -88,7 +90,8 @@ namespace ValveResourceFormat.CompiledShader
             if (ftHeader.mainParams.Count > 1)
             {
                 output.WriteLine($"Primary static modes (one of these should be selected)");
-            } else
+            }
+            else
             {
                 output.WriteLine($"Primary static modes (this file has only one default mode)");
             }
@@ -112,7 +115,8 @@ namespace ValveResourceFormat.CompiledShader
             if (showRichTextBoxLinks)
             {
                 output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.filenamepath)}\\bytes)");
-            } else
+            }
+            else
             {
                 output.BreakLine();
             }
@@ -121,7 +125,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
                 {
-                    output.Write($" \\\\{relatedFile.Replace("/","\\")}");
+                    output.Write($" \\\\{relatedFile.Replace("/", "\\")}");
                 }
                 output.BreakLine();
             }
@@ -360,7 +364,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})");
                 output.WriteLine("[none defined]");
-            } else
+            }
+            else
             {
                 output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})    (name0,type0,type1,arg0,arg1,arg2,arg4,arg5 reprinted)");
                 output.DefineHeaders(new string[] { "param-index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", "dyn-exp" });
@@ -411,7 +416,8 @@ namespace ValveResourceFormat.CompiledShader
             if (shaderFile.mipmapBlocks.Count > 0)
             {
                 output.DefineHeaders(new string[] { "index", "name", "arg0", "arg1", "arg2", "arg3", "arg4", "arg5" });
-            } else
+            }
+            else
             {
                 output.DefineHeaders(Array.Empty<string>());
                 output.WriteLine("[none defined]");
@@ -549,7 +555,8 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     // the two backslashes registers the text as a link when viewed in a RichTextBox
                     output.WriteLine($"  Z[\\\\{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
-                } else
+                }
+                else
                 {
                     output.WriteLine($"  Z[{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
                 }

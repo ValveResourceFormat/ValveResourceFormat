@@ -146,7 +146,7 @@ namespace Tests
             var exampleStr = "07 00 00 20 41 07 00 00 20 41 13 08 00 19 38 AE 48 52 04 17 00 1F 00 07 00 00 80 3F 02 24 00 19 " +
                 "31 FB FD 02 04 29 00 34 00 07 00 00 80 3F 06 00 00 02 39 00 07 00 00 E0 40 00";
             var expectedResult =
-                "v0 = 10+10;\n"+
+                "v0 = 10+10;\n" +
                 "return (UNKNOWN[5248ae38] || UNKNOWN[02fdfb31]) ? sin(1) : 7;";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
@@ -281,10 +281,10 @@ namespace Tests
              "07 00 00 20 41 08 00 07 00 00 30 41 08 01 07 00 00 A0 40 08 02 09 01 09 00 0F 04 1F 00 27 00 07 " +
              "00 00 80 3F 02 2C 00 09 02 09 00 0F 04 31 00 39 00 07 00 00 C8 42 02 3E 00 07 00 00 48 43 08 03 09 03 00";
             var expectedResult =
-                "v0 = 10;\n"+
-                "v1 = 11;\n"+
-                "v2 = 5;\n"+
-                "v3 = ((v1>v0) || (v2>v0)) ? 100 : 200;\n"+
+                "v0 = 10;\n" +
+                "v1 = 11;\n" +
+                "v2 = 5;\n" +
+                "v3 = ((v1>v0) || (v2>v0)) ? 100 : 200;\n" +
                 "return v3;";
             Assert.AreEqual(expectedResult, new VfxEval(ParseString(exampleStr)).DynamicExpressionResult);
         }
@@ -358,7 +358,7 @@ namespace Tests
             var testInput = ParseString(
                 "1A 13 04 0F 00 07 00 07 00 00 00 00 02 14 00 1F 28 A6 90 70 04 19 00 21 00 19 A1 D0 52 1E 02 26 00 1D 6F 89 29 B8 00");
             var expectedResult = "(COND[19] && exists(UNKNOWN[7090a628])) ? UNKNOWN[1e52d0a1] : EVAL[b829896f]";
-            VfxEval vfxEval = new VfxEval(testInput, omitReturnStatement: true);
+            var vfxEval = new VfxEval(testInput, omitReturnStatement: true);
             Assert.AreEqual(expectedResult, vfxEval.DynamicExpressionResult);
         }
 

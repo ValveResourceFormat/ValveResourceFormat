@@ -15,7 +15,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var resource = new Resource();
+                using var resource = new Resource();
                 resource.Read(file);
 
                 using var _ = ((Texture)resource.DataBlock).GenerateBitmap();
