@@ -119,13 +119,13 @@ namespace ValveResourceFormat.CompiledShader
             {
                 for (var i = 0; i < splitName.Length && i < 5; i++)
                 {
-                    newName += splitName[i].Substring(0, 1);
+                    newName += splitName[i][..1];
                 }
                 return newName;
             }
             if (splitName.Length == 1)
             {
-                return splitName[0].Length > 4 ? splitName[0].Substring(0, 4) : splitName[0];
+                return splitName[0].Length > 4 ? splitName[0][..4] : splitName[0];
             }
             newName = splitName[0].Length > 3 ? splitName[0][0..3] : splitName[0];
             return $"{newName}_{splitName[1][0..1]}";

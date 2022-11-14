@@ -168,7 +168,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var v = (hr - y) * 0.713f;
 
                 var mul = 4.0f * y / log;
-                mul = mul / (1.0f + mul);
+                mul /= 1.0f + mul;
                 mul /= y;
 
                 hr = (float)Math.Pow((y + (1.403f * v)) * mul, 2.25f);
@@ -243,7 +243,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var v = (hr - y) * 0.713f;
 
                 var mul = 4.0f * y / log;
-                mul = mul / (1.0f + mul);
+                mul /= 1.0f + mul;
                 mul /= y;
 
                 hr = (float)Math.Pow((y + (1.403f * v)) * mul, 2.25f);
@@ -568,7 +568,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         for (var x = 0; x < 4; x++)
                         {
-                            var dataIndex = ofs + ((x * 4) + (y * rowBytes));
+                            var dataIndex = ofs + (x * 4) + (y * rowBytes);
                             if ((i * 4) + x >= imageWidth || data.Length < dataIndex + 3)
                             {
                                 break;
@@ -614,7 +614,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                             if (invert)
                             {
-                                data[dataIndex + 1] = (byte)(~data[dataIndex + 1]);  // LegacySource1InvertNormals
+                                data[dataIndex + 1] = (byte)~data[dataIndex + 1];  // LegacySource1InvertNormals
                             }
                         }
                     }

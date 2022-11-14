@@ -59,10 +59,11 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
             for (var i = 0; i < Size; i++)
             {
-                var dep = new EditStringData();
-
-                dep.Name = reader.ReadOffsetString(Encoding.UTF8);
-                dep.Value = reader.ReadOffsetString(Encoding.UTF8);
+                var dep = new EditStringData
+                {
+                    Name = reader.ReadOffsetString(Encoding.UTF8),
+                    Value = reader.ReadOffsetString(Encoding.UTF8)
+                };
 
                 List.Add(dep);
             }

@@ -1,4 +1,3 @@
-using System;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer

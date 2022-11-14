@@ -87,35 +87,17 @@ namespace ValveResourceFormat.ResourceTypes
                     Name = keyName,
                 };
 
-                switch (type)
+                entityProperty.Data = type switch
                 {
-                    case 0x06: // boolean
-                        entityProperty.Data = dataReader.ReadBoolean(); // 1
-                        break;
-                    case 0x01: // float
-                        entityProperty.Data = dataReader.ReadSingle(); // 4
-                        break;
-                    case 0x09: // color255
-                        entityProperty.Data = dataReader.ReadBytes(4); // 4
-                        break;
-                    case 0x05: // node_id
-                    case 0x25: // flags
-                        entityProperty.Data = dataReader.ReadUInt32(); // 4
-                        break;
-                    case 0x1a: // integer
-                        entityProperty.Data = dataReader.ReadUInt64(); // 8
-                        break;
-                    case 0x03: // vector
-                    case 0x27: // angle
-                        entityProperty.Data = new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()); // 12
-                        break;
-                    case 0x1e: // string
-                        entityProperty.Data = dataReader.ReadNullTermString(Encoding.UTF8); // null term variable
-                        break;
-                    default:
-                        throw new NotImplementedException($"Unknown type {type}");
-                }
-
+                    0x06 => dataReader.ReadBoolean(), // 1 - boolean
+                    0x01 => dataReader.ReadSingle(), // 4 - float
+                    0x09 => dataReader.ReadBytes(4), // 4 - color255
+                    0x05 or 0x25 => dataReader.ReadUInt32(), // 4 - node_id, integer
+                    0x1a => dataReader.ReadUInt64(), // 8 - vector, angle
+                    0x03 or 0x27 => new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()), // 12 - string
+                    0x1e => dataReader.ReadNullTermString(Encoding.UTF8), // null term variable
+                    _ => throw new NotImplementedException($"Unknown type {type}"),
+                };
                 entity.Properties.Add(keyHash, entityProperty);
             }
 

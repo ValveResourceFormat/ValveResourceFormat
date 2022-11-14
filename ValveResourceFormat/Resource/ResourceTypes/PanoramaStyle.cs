@@ -78,7 +78,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             output.Add(Enumerable.Repeat(Encoding.UTF8.GetBytes("\n")[0], 1));
-            output.Add(data.Skip(mapping[mapping.Length - 1].Item1));
+            output.Add(data.Skip(mapping[^1].Item1));
 
             return output.SelectMany(_ => _).ToArray();
         }

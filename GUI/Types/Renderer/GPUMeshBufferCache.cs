@@ -8,8 +8,8 @@ namespace GUI.Types.Renderer
 {
     public class GPUMeshBufferCache
     {
-        private readonly Dictionary<VBIB, GPUMeshBuffers> gpuBuffers = new Dictionary<VBIB, GPUMeshBuffers>();
-        private readonly Dictionary<VAOKey, uint> vertexArrayObjects = new Dictionary<VAOKey, uint>();
+        private readonly Dictionary<VBIB, GPUMeshBuffers> gpuBuffers = new();
+        private readonly Dictionary<VAOKey, uint> vertexArrayObjects = new();
 
         private struct VAOKey
         {

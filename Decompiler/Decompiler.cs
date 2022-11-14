@@ -426,7 +426,7 @@ namespace Decompiler
                     var outFilePath = GetOutputPath(path);
 
                     var extensionNew = Path.GetExtension(outFilePath);
-                    if (extensionNew.Length == 0 || (extensionNew[1..]) != extension)
+                    if (extensionNew.Length == 0 || extensionNew[1..] != extension)
                     {
                         lock (ConsoleWriterLock)
                         {

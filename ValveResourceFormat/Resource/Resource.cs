@@ -540,19 +540,14 @@ namespace ValveResourceFormat
                 case "ChoreoSceneFileData":
                     return ResourceType.ChoreoSceneFileData;
                 case "Panorama":
-                    switch (input.String)
+                    return input.String switch
                     {
-                        case "Panorama Style Compiler Version":
-                            return ResourceType.PanoramaStyle;
-                        case "Panorama Script Compiler Version":
-                            return ResourceType.PanoramaScript;
-                        case "Panorama Layout Compiler Version":
-                            return ResourceType.PanoramaLayout;
-                        case "Panorama Dynamic Images Compiler Version":
-                            return ResourceType.PanoramaDynamicImages;
-                    }
-
-                    return ResourceType.Panorama;
+                        "Panorama Style Compiler Version" => ResourceType.PanoramaStyle,
+                        "Panorama Script Compiler Version" => ResourceType.PanoramaScript,
+                        "Panorama Layout Compiler Version" => ResourceType.PanoramaLayout,
+                        "Panorama Dynamic Images Compiler Version" => ResourceType.PanoramaDynamicImages,
+                        _ => ResourceType.Panorama,
+                    };
                 case "VectorGraphic":
                     return ResourceType.PanoramaVectorGraphic;
                 case "VData":

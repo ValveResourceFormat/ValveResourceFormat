@@ -17,25 +17,23 @@ namespace GUI.Types.ParticleRenderer
     {
         public static float GetScalar(this Particle particle, ParticleField field)
         {
-            switch (field)
+            return field switch
             {
-                case ParticleField.Alpha: return particle.Alpha;
-                case ParticleField.AlphaAlternate: return particle.AlphaAlternate;
-                case ParticleField.Radius: return particle.Radius;
-            }
-
-            return 0f;
+                ParticleField.Alpha => particle.Alpha,
+                ParticleField.AlphaAlternate => particle.AlphaAlternate,
+                ParticleField.Radius => particle.Radius,
+                _ => 0f,
+            };
         }
 
         public static Vector3 GetVector(this Particle particle, ParticleField field)
         {
-            switch (field)
+            return field switch
             {
-                case ParticleField.Position: return particle.Position;
-                case ParticleField.PositionPrevious: return particle.PositionPrevious;
-            }
-
-            return Vector3.Zero;
+                ParticleField.Position => particle.Position,
+                ParticleField.PositionPrevious => particle.PositionPrevious,
+                _ => Vector3.Zero,
+            };
         }
     }
 }

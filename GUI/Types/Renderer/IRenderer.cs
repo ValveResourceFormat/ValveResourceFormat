@@ -1,5 +1,3 @@
-using System;
-
 namespace GUI.Types.Renderer
 {
     internal interface IRenderer

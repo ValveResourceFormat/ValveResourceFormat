@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer
     {
         public float Lifetime { get; set; }
 
-        private readonly Dictionary<int, Vector3> controlPoints = new Dictionary<int, Vector3>();
+        private readonly Dictionary<int, Vector3> controlPoints = new();
 
         public Vector3 GetControlPoint(int cp)
             => controlPoints.TryGetValue(cp, out var value)

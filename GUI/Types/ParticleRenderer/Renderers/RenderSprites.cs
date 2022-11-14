@@ -114,7 +114,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
             else if (rawVertices.Length < numFloats)
             {
-                var nextSize = (((count / 64) + 1) * 64) * VertexSize;
+                var nextSize = ((count / 64) + 1) * 64 * VertexSize;
                 Array.Resize(ref rawVertices, nextSize);
             }
         }

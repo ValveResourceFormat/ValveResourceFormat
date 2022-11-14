@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using GUI.Utils;
@@ -36,8 +35,8 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
-        private readonly List<SceneNode> staticNodes = new List<SceneNode>();
-        private readonly List<SceneNode> dynamicNodes = new List<SceneNode>();
+        private readonly List<SceneNode> staticNodes = new();
+        private readonly List<SceneNode> dynamicNodes = new();
 
         public Scene(VrfGuiContext context, float sizeHint = 32768)
         {

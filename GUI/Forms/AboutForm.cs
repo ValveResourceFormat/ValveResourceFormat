@@ -10,8 +10,8 @@ namespace GUI.Forms
         {
             InitializeComponent();
 
-            this.labelVersion.Text = $"Version: {Application.ProductVersion}";
-            this.labelRuntime.Text = $"Runtime: {RuntimeInformation.FrameworkDescription}";
+            labelVersion.Text = $"Version: {Application.ProductVersion}";
+            labelRuntime.Text = $"Runtime: {RuntimeInformation.FrameworkDescription}";
         }
 
         private void website_Click(object sender, System.EventArgs e)

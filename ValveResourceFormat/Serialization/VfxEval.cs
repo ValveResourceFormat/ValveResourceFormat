@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -130,13 +129,13 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false)
         {
-            this.OmitReturnStatement = omitReturnStatement;
+            OmitReturnStatement = omitReturnStatement;
             ParseExpression(binaryBlob);
         }
 
         public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false)
         {
-            this.OmitReturnStatement = omitReturnStatement;
+            OmitReturnStatement = omitReturnStatement;
             uint MURMUR2SEED = 0x31415926; // pi!
 
             foreach (var externalVarName in renderAttributesUsed)
@@ -290,7 +289,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 var floatVal = dataReader.ReadSingle();
                 var floatLiteral = string.Format("{0:g}", floatVal);
                 // if a float leads with "0." remove the 0 (as how Valve likes it)
-                if (floatLiteral.Length > 1 && floatLiteral.Substring(0, 2) == "0.")
+                if (floatLiteral.Length > 1 && floatLiteral[..2] == "0.")
                 {
                     floatLiteral = floatLiteral[1..];
                 }

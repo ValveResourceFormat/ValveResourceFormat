@@ -64,15 +64,15 @@ namespace ValveResourceFormat.Compression
 
             if (indexSize == 2)
             {
-                BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(offset + 0), (ushort)a);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(offset + 2), (ushort)b);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(offset + 4), (ushort)c);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination[(offset + 0)..], (ushort)a);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination[(offset + 2)..], (ushort)b);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination[(offset + 4)..], (ushort)c);
             }
             else
             {
-                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 0), a);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 4), b);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(offset + 8), c);
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[(offset + 0)..], a);
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[(offset + 4)..], b);
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[(offset + 8)..], c);
             }
         }
 
@@ -110,9 +110,9 @@ namespace ValveResourceFormat.Compression
             var last = 0u;
 
             var bufferIndex = 1;
-            var data = buffer.Slice(dataOffset, buffer.Length - 16 - dataOffset);
+            var data = buffer[dataOffset..^16];
 
-            var codeauxTable = buffer.Slice(buffer.Length - 16);
+            var codeauxTable = buffer[^16..];
 
             var destination = new Span<byte>(new byte[indexCount * indexSize]);
 

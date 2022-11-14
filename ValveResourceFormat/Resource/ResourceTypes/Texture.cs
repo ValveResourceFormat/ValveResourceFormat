@@ -713,7 +713,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 while (flagIndex < flags)
                 {
-                    var flag = (1 << ++currentFlag);
+                    var flag = 1 << ++currentFlag;
 
                     flagIndex += flag;
 

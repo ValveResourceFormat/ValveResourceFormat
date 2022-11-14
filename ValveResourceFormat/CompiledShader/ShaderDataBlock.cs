@@ -9,7 +9,7 @@ namespace ValveResourceFormat.CompiledShader
         protected long start { get; }
         protected ShaderDataBlock(ShaderDataReader datareader)
         {
-            this.start = datareader.BaseStream.Position;
+            start = datareader.BaseStream.Position;
             this.datareader = datareader;
         }
 

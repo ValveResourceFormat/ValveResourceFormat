@@ -258,8 +258,10 @@ namespace GUI
 
         private void LoadAssetTypes()
         {
-            ImageList = new ImageList();
-            ImageList.ColorDepth = ColorDepth.Depth32Bit;
+            ImageList = new ImageList
+            {
+                ColorDepth = ColorDepth.Depth32Bit
+            };
 
             var assembly = Assembly.GetExecutingAssembly();
             var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal));
@@ -346,7 +348,7 @@ namespace GUI
 
             if (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
             {
-                var fixedPackage = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
+                var fixedPackage = $"{fileName[..^8]}_dir.vpk";
 
                 if (File.Exists(fixedPackage))
                 {
@@ -361,8 +363,10 @@ namespace GUI
 
         public void OpenFile(byte[] input, VrfGuiContext vrfGuiContext)
         {
-            var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName));
-            tab.ToolTipText = vrfGuiContext.FileName;
+            var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
+            {
+                ToolTipText = vrfGuiContext.FileName
+            };
 
             var parentContext = vrfGuiContext.ParentGuiContext;
 

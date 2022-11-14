@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
-using static ValveResourceFormat.CompiledShader.ZFrameFile;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -21,7 +20,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             this.shaderFile = shaderFile;
             this.zframeFile = zframeFile;
-            this.OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
+            OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
 
             if (zframeFile.vcsProgramType == VcsProgramType.Features)
             {

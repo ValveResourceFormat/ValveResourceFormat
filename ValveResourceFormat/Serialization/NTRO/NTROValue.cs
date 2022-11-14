@@ -1,6 +1,4 @@
 using System;
-using System.Numerics;
-using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Serialization.NTRO
 {

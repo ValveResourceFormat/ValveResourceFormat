@@ -101,7 +101,7 @@ namespace ValveResourceFormat.CompiledShader
     {
         public DxbcSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            this.offset = datareader.ReadInt32();
+            offset = datareader.ReadInt32();
             if (offset > 0)
             {
                 sourcebytes = datareader.ReadBytes(offset);
@@ -121,11 +121,11 @@ namespace ValveResourceFormat.CompiledShader
 
         public VulkanSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            this.offset = datareader.ReadInt32();
+            offset = datareader.ReadInt32();
             if (offset > 0)
             {
-                this.arg0 = datareader.ReadInt32();
-                this.offset2 = datareader.ReadInt32();
+                arg0 = datareader.ReadInt32();
+                offset2 = datareader.ReadInt32();
                 sourcebytes = datareader.ReadBytes(offset - 8);
             }
             editorRefId = datareader.ReadBytes(16);

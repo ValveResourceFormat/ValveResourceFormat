@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
 
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
-        private readonly Camera skyboxCamera = new Camera();
+        private readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
 

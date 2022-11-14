@@ -36,10 +36,11 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
             for (var i = 0; i < Size; i++)
             {
-                var dep = new ReferenceInfo();
-
-                dep.Id = reader.ReadUInt64();
-                dep.ResourceName = reader.ReadOffsetString(Encoding.UTF8);
+                var dep = new ReferenceInfo
+                {
+                    Id = reader.ReadUInt64(),
+                    ResourceName = reader.ReadOffsetString(Encoding.UTF8)
+                };
 
                 reader.ReadBytes(4); // TODO: ????
 

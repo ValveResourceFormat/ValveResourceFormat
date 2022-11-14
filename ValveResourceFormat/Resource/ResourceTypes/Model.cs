@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.Blocks;
@@ -70,7 +69,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var physBlockIndex = (int)embeddedPhys.GetIntegerProperty("phys_data_block");
-            return ((PhysAggregateData)Resource.GetBlockByIndex(physBlockIndex));
+            return (PhysAggregateData)Resource.GetBlockByIndex(physBlockIndex);
         }
 
         public IEnumerable<string> GetReferencedPhysNames()

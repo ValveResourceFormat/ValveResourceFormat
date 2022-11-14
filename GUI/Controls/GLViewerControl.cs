@@ -18,9 +18,9 @@ namespace GUI.Controls
     {
         public GLControl GLControl { get; }
 
-        private readonly List<Label> labels = new List<Label>();
-        private readonly List<UserControl> selectionBoxes = new List<UserControl>();
-        private readonly List<Control> otherControls = new List<Control>();
+        private readonly List<Label> labels = new();
+        private readonly List<UserControl> selectionBoxes = new();
+        private readonly List<Control> otherControls = new();
 
         public class RenderEventArgs
         {
@@ -74,9 +74,11 @@ namespace GUI.Controls
 
         public Label AddLabel(string text)
         {
-            var label = new Label();
-            label.Text = text;
-            label.AutoSize = true;
+            var label = new Label
+            {
+                Text = text,
+                AutoSize = true
+            };
 
             controlsPanel.Controls.Add(label);
 

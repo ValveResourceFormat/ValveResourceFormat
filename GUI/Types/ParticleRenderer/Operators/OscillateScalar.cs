@@ -99,8 +99,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        private readonly Dictionary<int, float> particleRates = new Dictionary<int, float>();
-        private readonly Dictionary<int, float> particleFrequencies = new Dictionary<int, float>();
+        private readonly Dictionary<int, float> particleRates = new();
+        private readonly Dictionary<int, float> particleFrequencies = new();
 
         private float GetParticleRate(int particleId)
         {

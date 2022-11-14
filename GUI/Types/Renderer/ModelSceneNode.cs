@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -36,8 +35,8 @@ namespace GUI.Types.Renderer
         public AnimationController AnimationController { get; } = new();
         public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
 
-        private readonly List<RenderableMesh> meshRenderers = new List<RenderableMesh>();
-        private readonly List<Animation> animations = new List<Animation>();
+        private readonly List<RenderableMesh> meshRenderers = new();
+        private readonly List<Animation> animations = new();
         private Dictionary<string, string> skinMaterials;
 
         private Animation activeAnimation;

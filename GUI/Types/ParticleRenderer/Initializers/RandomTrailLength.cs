@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float minLength = 0.1f;
         private readonly float maxLength = 0.1f;
 
-        private readonly Random random = new Random();
+        private readonly Random random = new();
 
         public RandomTrailLength(IKeyValueCollection keyValues)
         {

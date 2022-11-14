@@ -15,12 +15,12 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
-        private static readonly Regex RegexInclude = new Regex(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
-        private static readonly Regex RegexDefine = new Regex(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
+        private static readonly Regex RegexInclude = new(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
+        private static readonly Regex RegexDefine = new(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
 #if !DEBUG_SHADERS || !DEBUG
-        private readonly Dictionary<uint, Shader> CachedShaders = new Dictionary<uint, Shader>();
-        private readonly Dictionary<string, List<string>> ShaderDefines = new Dictionary<string, List<string>>();
+        private readonly Dictionary<uint, Shader> CachedShaders = new();
+        private readonly Dictionary<string, List<string>> ShaderDefines = new();
 #endif
 
         public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
@@ -102,7 +102,7 @@ namespace GUI.Types.Renderer
             const string renderMode = "renderMode_";
             var renderModes = defines
                 .Where(k => k.StartsWith(renderMode))
-                .Select(k => k.Substring(renderMode.Length))
+                .Select(k => k[renderMode.Length..])
                 .ToList();
 
             var shader = new Shader

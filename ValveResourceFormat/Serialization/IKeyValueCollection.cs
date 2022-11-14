@@ -81,18 +81,18 @@ namespace ValveResourceFormat.Serialization
         public static IKeyValueCollection[] GetArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<IKeyValueCollection>(name);
 
-        public static Vector3 ToVector3(this IKeyValueCollection collection) => new Vector3(
+        public static Vector3 ToVector3(this IKeyValueCollection collection) => new(
             collection.GetFloatProperty("0"),
             collection.GetFloatProperty("1"),
             collection.GetFloatProperty("2"));
 
-        public static Vector4 ToVector4(this IKeyValueCollection collection) => new Vector4(
+        public static Vector4 ToVector4(this IKeyValueCollection collection) => new(
             collection.GetFloatProperty("0"),
             collection.GetFloatProperty("1"),
             collection.GetFloatProperty("2"),
             collection.GetFloatProperty("3"));
 
-        public static Quaternion ToQuaternion(this IKeyValueCollection collection) => new Quaternion(
+        public static Quaternion ToQuaternion(this IKeyValueCollection collection) => new(
             collection.GetFloatProperty("0"),
             collection.GetFloatProperty("1"),
             collection.GetFloatProperty("2"),

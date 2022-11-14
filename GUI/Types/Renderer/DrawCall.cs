@@ -1,6 +1,5 @@
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {

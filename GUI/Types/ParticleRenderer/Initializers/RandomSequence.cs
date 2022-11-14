@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int sequenceMax;
         private readonly bool shuffle;
 
-        private readonly Random random = new Random();
+        private readonly Random random = new();
 
         private int counter;
 

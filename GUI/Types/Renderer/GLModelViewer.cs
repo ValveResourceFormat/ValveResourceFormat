@@ -159,7 +159,7 @@ namespace GUI.Types.Renderer
                 Scene.Add(physSceneNode, false);
 
                 //disabled by default. Enable if viewing only phys or model without meshes
-                physSceneNode.Enabled = (modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any());
+                physSceneNode.Enabled = modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any();
 
                 ViewerControl.AddCheckBox("Show Physics", physSceneNode.Enabled, (v) => { physSceneNode.Enabled = v; });
             }

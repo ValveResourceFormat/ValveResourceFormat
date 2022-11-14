@@ -160,25 +160,28 @@ namespace ValveResourceFormat.Blocks
 
         private static OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
         {
-            var buffer = new OnDiskBufferData();
-            buffer.ElementCount = data.GetUInt32Property("m_nElementCount");
-            buffer.ElementSizeInBytes = data.GetUInt32Property("m_nElementSizeInBytes");
+            var buffer = new OnDiskBufferData
+            {
+                ElementCount = data.GetUInt32Property("m_nElementCount"),
+                ElementSizeInBytes = data.GetUInt32Property("m_nElementSizeInBytes"),
 
-            buffer.InputLayoutFields = new List<RenderInputLayoutField>();
+                InputLayoutFields = new List<RenderInputLayoutField>()
+            };
 
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
             foreach (var il in inputLayoutFields)
             {
-                var attrib = new RenderInputLayoutField();
-
-                //null-terminated string
-                attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0);
-                attrib.SemanticIndex = il.GetInt32Property("m_nSemanticIndex");
-                attrib.Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format");
-                attrib.Offset = il.GetUInt32Property("m_nOffset");
-                attrib.Slot = il.GetInt32Property("m_nSlot");
-                attrib.SlotType = (RenderSlotType)il.GetUInt32Property("m_nSlotType");
-                attrib.InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate");
+                var attrib = new RenderInputLayoutField
+                {
+                    //null-terminated string
+                    SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0),
+                    SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
+                    Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format"),
+                    Offset = il.GetUInt32Property("m_nOffset"),
+                    Slot = il.GetInt32Property("m_nSlot"),
+                    SlotType = (RenderSlotType)il.GetUInt32Property("m_nSlotType"),
+                    InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate")
+                };
 
                 buffer.InputLayoutFields.Add(attrib);
             }

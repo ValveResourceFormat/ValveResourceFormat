@@ -14,7 +14,7 @@ namespace GUI.Types.Renderer
         private readonly Shader shader;
         private readonly int quadVao;
 
-        public AABB BoundingBox => new AABB(-1, -1, -1, 1, 1, 1);
+        public AABB BoundingBox => new(-1, -1, -1, 1, 1, 1);
 
         public MaterialRenderer(VrfGuiContext vrfGuiContext, Resource resource)
         {

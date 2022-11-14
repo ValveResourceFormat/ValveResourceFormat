@@ -374,8 +374,10 @@ namespace GUI.Types.Viewers
                 {
                     Console.WriteLine(e);
 
-                    var bv = new System.ComponentModel.Design.ByteViewer();
-                    bv.Dock = DockStyle.Fill;
+                    var bv = new System.ComponentModel.Design.ByteViewer
+                    {
+                        Dock = DockStyle.Fill
+                    };
                     tab2.Controls.Add(bv);
 
                     Program.MainForm.Invoke((MethodInvoker)(() =>

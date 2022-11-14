@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer
 
         public int Count { get; private set; }
 
-        public Span<Particle> LiveParticles => new Span<Particle>(particles, 0, Count);
+        public Span<Particle> LiveParticles => new(particles, 0, Count);
 
         public ParticleBag(int initialCapacity, bool growable)
         {

@@ -40,12 +40,13 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
             for (var i = 0; i < Size; i++)
             {
-                var dep = new ArgumentDependency();
-
-                dep.ParameterName = reader.ReadOffsetString(Encoding.UTF8);
-                dep.ParameterType = reader.ReadOffsetString(Encoding.UTF8);
-                dep.Fingerprint = reader.ReadUInt32();
-                dep.FingerprintDefault = reader.ReadUInt32();
+                var dep = new ArgumentDependency
+                {
+                    ParameterName = reader.ReadOffsetString(Encoding.UTF8),
+                    ParameterType = reader.ReadOffsetString(Encoding.UTF8),
+                    Fingerprint = reader.ReadUInt32(),
+                    FingerprintDefault = reader.ReadUInt32()
+                };
 
                 List.Add(dep);
             }

@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
 {
     public class MaterialLoader
     {
-        private readonly Dictionary<string, RenderMaterial> Materials = new Dictionary<string, RenderMaterial>();
+        private readonly Dictionary<string, RenderMaterial> Materials = new();
         private readonly VrfGuiContext VrfGuiContext;
         private int ErrorTextureID;
         public static int MaxTextureMaxAnisotropy { get; set; }

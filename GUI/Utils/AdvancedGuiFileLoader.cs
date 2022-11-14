@@ -13,10 +13,10 @@ namespace GUI.Utils
 {
     public class AdvancedGuiFileLoader : IFileLoader
     {
-        private static readonly Dictionary<string, Package> CachedPackages = new Dictionary<string, Package>();
-        private readonly HashSet<string> CurrentGameSearchPaths = new HashSet<string>();
-        private readonly List<Package> CurrentGamePackages = new List<Package>();
-        private readonly Dictionary<string, Resource> CachedResources = new Dictionary<string, Resource>();
+        private static readonly Dictionary<string, Package> CachedPackages = new();
+        private readonly HashSet<string> CurrentGameSearchPaths = new();
+        private readonly List<Package> CurrentGamePackages = new();
+        private readonly Dictionary<string, Resource> CachedResources = new();
         private readonly VrfGuiContext GuiContext;
         private bool GamePackagesScanned;
 

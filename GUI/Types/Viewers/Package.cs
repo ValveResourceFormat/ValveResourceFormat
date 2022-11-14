@@ -7,7 +7,6 @@ using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {

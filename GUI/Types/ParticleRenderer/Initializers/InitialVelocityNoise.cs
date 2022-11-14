@@ -58,7 +58,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         /// Yes I know it's not actually a proper LCG but I need it to work without knowing the last value.
         /// </summary>
         private static float PseudoRandom(float t)
-            => ((1013904223517 * t) % 1664525) / 1664525f;
+            => 1013904223517 * t % 1664525 / 1664525f;
 
         private static float CosineInterpolate(float start, float end, float mu)
         {

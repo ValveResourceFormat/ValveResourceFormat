@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ValveResourceFormat
+﻿namespace ValveResourceFormat
 {
     /// <summary>
     /// A utility class to compute CRC32.

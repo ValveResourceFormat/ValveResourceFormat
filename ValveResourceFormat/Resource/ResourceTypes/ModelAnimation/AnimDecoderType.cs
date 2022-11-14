@@ -1,5 +1,3 @@
-using System;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public enum AnimDecoderType

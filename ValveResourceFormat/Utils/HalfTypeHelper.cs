@@ -34,7 +34,7 @@ namespace ValveResourceFormat
                     while ((mantissa & 1024) == 0)
                     {
                         exp--;
-                        mantissa = mantissa << 1;
+                        mantissa <<= 1;
                     }
 
                     mantissa &= 0xfffffbff;

@@ -219,7 +219,7 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSummary = $"{s0,-7}{s1,-10}{s5,-16}{s4,-BL}{s6,-8}{s7,-8}";
                 for (var i = 1; i < breakNames.Length; i++)
                 {
-                    blockSummary += $"\n{(""),7}{(""),10}{(""),16}{breakNames[i],-BL}";
+                    blockSummary += $"\n{"",7}{"",10}{"",16}{breakNames[i],-BL}";
                 }
                 output.Write(blockSummary);
                 output.BreakLine();
@@ -299,7 +299,7 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSummary = $"{s0,-7}{s1,-10}{s3,-15}{s5,-16}{s4,-BL}{s6,-10}{s7,-8}";
                 for (var i = 1; i < breakNames.Length; i++)
                 {
-                    blockSummary += $"\n{(""),-7}{(""),-10}{(""),-15}{(""),-16}{breakNames[i],-BL}";
+                    blockSummary += $"\n{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}";
                 }
                 output.Write(blockSummary);
                 output.BreakLine();

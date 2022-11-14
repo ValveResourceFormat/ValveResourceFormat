@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float thickness;
         private readonly float particlesPerOrbit = -1f;
 
-        private readonly Random random = new Random();
+        private readonly Random random = new();
 
         private float orbitCount;
 

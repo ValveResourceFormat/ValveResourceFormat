@@ -4,7 +4,6 @@ using System.Linq;
 using System.Numerics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -25,7 +24,7 @@ namespace GUI.Types.Renderer
         public float Time { get; private set; }
 
         private readonly Mesh mesh;
-        private readonly List<DrawCall> DrawCallsAll = new List<DrawCall>();
+        private readonly List<DrawCall> DrawCallsAll = new();
 
         public RenderableMesh(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {

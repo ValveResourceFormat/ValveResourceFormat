@@ -774,7 +774,7 @@ namespace BPTC
 
                             if (invert)
                             {
-                                data[pixelIndex + 1] = (byte)(~data[pixelIndex + 1]);  // LegacySource1InvertNormals
+                                data[pixelIndex + 1] = (byte)~data[pixelIndex + 1];  // LegacySource1InvertNormals
                             }
                         }
                     }

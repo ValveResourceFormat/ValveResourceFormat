@@ -43,7 +43,7 @@ namespace ValveResourceFormat.CompiledShader
             var state = new int[nr_states.Length];
             for (var i = 0; i < nr_states.Length; i++)
             {
-                state[i] = (int)(zframeId / offsets[i]) % (nr_states[i]);
+                state[i] = (int)(zframeId / offsets[i]) % nr_states[i];
             }
             return state;
         }

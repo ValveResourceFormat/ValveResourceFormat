@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat.CompiledShader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using VrfPackage = SteamDatabase.ValvePak.Package;
@@ -92,7 +91,7 @@ namespace GUI.Types.Viewers
             {
                 // search file-system
                 var filename = Path.GetFileName(targetFilename);
-                var vcsCollectionName = filename.Substring(0, filename.LastIndexOf('_'));
+                var vcsCollectionName = filename[..filename.LastIndexOf('_')];
                 foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
                 {
                     if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName))

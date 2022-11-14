@@ -13,18 +13,16 @@ using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
 using Material = SharpGLTF.Schema2.Material;
 using Mesh = SharpGLTF.Schema2.Mesh;
+using static ValveResourceFormat.Blocks.VBIB;
+using VMaterial = ValveResourceFormat.ResourceTypes.Material;
+using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
+using VModel = ValveResourceFormat.ResourceTypes.Model;
+using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
+using VWorld = ValveResourceFormat.ResourceTypes.World;
+using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.IO
 {
-    using static VBIB;
-    using VMaterial = ResourceTypes.Material;
-    using VMesh = ResourceTypes.Mesh;
-    using VModel = ResourceTypes.Model;
-    using VWorldNode = ResourceTypes.WorldNode;
-    using VWorld = ResourceTypes.World;
-    using VEntityLump = ResourceTypes.EntityLump;
-    using VAnimation = ResourceTypes.ModelAnimation.Animation;
-
     public class GltfModelExporter
     {
         private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
@@ -472,10 +470,12 @@ namespace ValveResourceFormat.IO
 
         private static void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
-            var settings = new WriteSettings();
-            settings.ImageWriting = ResourceWriteMode.SatelliteFile;
-            settings.ImageWriteCallback = ImageWriteCallback;
-            settings.JsonIndented = true;
+            var settings = new WriteSettings
+            {
+                ImageWriting = ResourceWriteMode.SatelliteFile,
+                ImageWriteCallback = ImageWriteCallback,
+                JsonIndented = true
+            };
 
             // See https://github.com/KhronosGroup/glTF/blob/0bc36d536946b13c4807098f9cf62ddff738e7a5/specification/2.0/README.md#buffers-and-buffer-views
             // Disable merging buffers if the buffer size is over 1GiB, otherwise this will

@@ -33,7 +33,7 @@ namespace GUI.Controls
             double dblValue;
 
             // Jump to the clicked location
-            dblValue = ((double)e.X / (double)trackBar.Width) * (trackBar.Maximum - trackBar.Minimum);
+            dblValue = (double)e.X / (double)trackBar.Width * (trackBar.Maximum - trackBar.Minimum);
             trackBar.Value = Convert.ToInt32(dblValue);
         }
     }

@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 offsetMin = Vector3.Zero;
         private readonly Vector3 offsetMax = Vector3.Zero;
 
-        private readonly Random random = new Random();
+        private readonly Random random = new();
 
         public PositionOffset(IKeyValueCollection keyValues)
         {

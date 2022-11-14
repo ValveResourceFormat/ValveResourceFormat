@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Compression
                     destination[14] = Next(2, data[dataVar]);
                     destination[15] = Next(2, data[dataVar]);
 
-                    return data.Slice(dataVar);
+                    return data[dataVar..];
                 case 2:
                     dataVar = 8;
 
@@ -116,11 +116,11 @@ namespace ValveResourceFormat.Compression
                     destination[14] = Next(4, data[dataVar]);
                     destination[15] = Next(4, data[dataVar]);
 
-                    return data.Slice(dataVar);
+                    return data[dataVar..];
                 case 3:
-                    data.Slice(0, ByteGroupSize).CopyTo(destination);
+                    data[..ByteGroupSize].CopyTo(destination);
 
-                    return data.Slice(ByteGroupSize);
+                    return data[ByteGroupSize..];
                 default:
                     throw new ArgumentException("Unexpected bit length");
             }
@@ -134,9 +134,9 @@ namespace ValveResourceFormat.Compression
             }
 
             var headerSize = ((destination.Length / ByteGroupSize) + 3) / 4;
-            var header = data.Slice(0);
+            var header = data[..];
 
-            data = data.Slice(headerSize);
+            data = data[headerSize..];
 
             for (var i = 0; i < destination.Length; i += ByteGroupSize)
             {
@@ -147,9 +147,9 @@ namespace ValveResourceFormat.Compression
 
                 var headerOffset = i / ByteGroupSize;
 
-                var bitslog2 = (header[headerOffset / 4] >> ((headerOffset % 4) * 2)) & 3;
+                var bitslog2 = (header[headerOffset / 4] >> (headerOffset % 4 * 2)) & 3;
 
-                data = DecodeBytesGroup(data, destination.Slice(i), bitslog2);
+                data = DecodeBytesGroup(data, destination[i..], bitslog2);
             }
 
             return data;
@@ -169,7 +169,7 @@ namespace ValveResourceFormat.Compression
 
             for (var k = 0; k < vertexSize; ++k)
             {
-                data = DecodeBytes(data, buffer.Slice(0, vertexCountAligned));
+                data = DecodeBytes(data, buffer[..vertexCountAligned]);
 
                 var vertexOffset = k;
 
@@ -186,7 +186,7 @@ namespace ValveResourceFormat.Compression
                 }
             }
 
-            transposed.Slice(0, vertexCount * vertexSize).CopyTo(vertexData);
+            transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
 
             transposed.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
 
@@ -213,7 +213,7 @@ namespace ValveResourceFormat.Compression
             var vertexSpan = new Span<byte>(vertexBuffer);
 
             var header = vertexSpan[0];
-            vertexSpan = vertexSpan.Slice(1);
+            vertexSpan = vertexSpan[1..];
             if (header != VertexHeader)
             {
                 throw new ArgumentException($"Invalid vertex buffer header, expected {VertexHeader} but got {header}.");
@@ -234,7 +234,7 @@ namespace ValveResourceFormat.Compression
                     ? vertexBlockSize
                     : vertexCount - vertexOffset;
 
-                vertexSpan = DecodeVertexBlock(vertexSpan, result.Slice(vertexOffset * vertexSize), blockSize, vertexSize, lastVertex);
+                vertexSpan = DecodeVertexBlock(vertexSpan, result[(vertexOffset * vertexSize)..], blockSize, vertexSize, lastVertex);
 
                 vertexOffset += blockSize;
             }

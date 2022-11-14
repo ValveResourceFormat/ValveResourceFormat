@@ -157,20 +157,13 @@ namespace ValveResourceFormat.ResourceTypes
             var value = attributeValue.GetProperty<string>("name");
             var type = attributeValue.GetProperty<string>("eType");
 
-            switch (type)
+            value = type switch
             {
-                case "REFERENCE_COMPILED":
-                    value = "s2r://" + value;
-                    break;
-                case "REFERENCE_PASSTHROUGH":
-                    value = "file://" + value;
-                    break;
-                case "PANEL_ATTRIBUTE_VALUE":
-                    value = SecurityElement.Escape(value);
-                    break;
-                default:
-                    throw new Exception($"Unknown attribute type: {type}");
-            }
+                "REFERENCE_COMPILED" => "s2r://" + value,
+                "REFERENCE_PASSTHROUGH" => "file://" + value,
+                "PANEL_ATTRIBUTE_VALUE" => SecurityElement.Escape(value),
+                _ => throw new Exception($"Unknown attribute type: {type}"),
+            };
 
             writer.Write($"\"{value}\"");
         }

@@ -144,7 +144,7 @@ namespace ValveResourceFormat.CompiledShader
             for (var i = 1; i < shaderFile.sfBlocks.Count; i++)
             {
                 nr_states[i] = shaderFile.sfBlocks[i].arg2 + 1;
-                offsets[i] = offsets[i - 1] * (nr_states[i - 1]);
+                offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
         }
 

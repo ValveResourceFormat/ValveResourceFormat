@@ -50,7 +50,7 @@ namespace GUI.Forms
 
             if (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
             {
-                fileName = $"{fileName.Substring(0, fileName.Length - 8)}_dir.vpk";
+                fileName = $"{fileName[..^8]}_dir.vpk";
             }
 
             if (Settings.Config.GameSearchPaths.Contains(fileName))

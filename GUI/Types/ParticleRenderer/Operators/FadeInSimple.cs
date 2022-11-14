@@ -22,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
                 if (time <= fadeInTime)
                 {
-                    particles[i].Alpha = (time / fadeInTime) * particles[i].ConstantAlpha;
+                    particles[i].Alpha = time / fadeInTime * particles[i].ConstantAlpha;
                 }
             }
         }

@@ -14,7 +14,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
 
-        private readonly Random random = new Random();
+        private readonly Random random = new();
 
         public RandomRotationSpeed(IKeyValueCollection keyValues)
         {
