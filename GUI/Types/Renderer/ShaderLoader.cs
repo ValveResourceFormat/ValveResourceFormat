@@ -15,8 +15,8 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
-        private static Regex RegexInclude = new Regex(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
-        private static Regex RegexDefine = new Regex(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
+        private static readonly Regex RegexInclude = new Regex(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
+        private static readonly Regex RegexDefine = new Regex(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
 #if !DEBUG_SHADERS || !DEBUG
         private readonly Dictionary<uint, Shader> CachedShaders = new Dictionary<uint, Shader>();
@@ -169,7 +169,7 @@ namespace GUI.Types.Renderer
             //Find all #define param_(paramName) (paramValue) using regex
             var defines = RegexDefine.Matches(source);
 
-            foreach (Match define in defines)
+            foreach (var define in defines.Cast<Match>())
             {
                 //Check if this parameter is in the arguments
                 if (!arguments.TryGetValue(define.Groups["ParamName"].Value, out var value))
@@ -196,24 +196,22 @@ namespace GUI.Types.Renderer
 
             var includes = RegexInclude.Matches(source);
 
-            foreach (Match define in includes)
+            foreach (var define in includes.Cast<Match>())
             {
                 //Read included code
 #if DEBUG_SHADERS  && DEBUG
                 using (var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open))
 #else
-                using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups["IncludeName"].Value}"))
+                using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups["IncludeName"].Value}");
 #endif
-                using (var reader = new StreamReader(stream))
-                {
-                    var includedCode = reader.ReadToEnd();
+                using var reader = new StreamReader(stream);
+                var includedCode = reader.ReadToEnd();
 
-                    //Recursively resolve includes in the included code. (Watch out for cyclic dependencies!)
-                    includedCode = ResolveIncludes(includedCode);
+                //Recursively resolve includes in the included code. (Watch out for cyclic dependencies!)
+                includedCode = ResolveIncludes(includedCode);
 
-                    //Replace the include with the code
-                    source = source.Replace(define.Value, includedCode);
-                }
+                //Replace the include with the code
+                source = source.Replace(define.Value, includedCode);
             }
 
             return source;

@@ -252,10 +252,7 @@ namespace ValveResourceFormat
                     Reader.BaseStream.Position = position;
                 }
 
-                if (block == null)
-                {
-                    block = ConstructFromType(blockType);
-                }
+                block ??= ConstructFromType(blockType);
 
                 block.Offset = offset;
                 block.Size = size;

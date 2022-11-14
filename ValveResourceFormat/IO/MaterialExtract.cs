@@ -8,13 +8,12 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
+using ChannelMapping = System.ValueTuple<ValveResourceFormat.IO.MaterialExtract.Channel, string>;
+
 namespace ValveResourceFormat.IO;
-
-using ChannelMapping = ValueTuple<MaterialExtract.Channel, string>;
-
 public sealed class MaterialExtract
 {
-    public struct UnpackInfo
+    public readonly struct UnpackInfo
     {
         public string TextureType { get; init; }
         public string FileName { get; init; }

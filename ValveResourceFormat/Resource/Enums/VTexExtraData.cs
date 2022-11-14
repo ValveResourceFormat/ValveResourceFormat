@@ -2,7 +2,6 @@ using System;
 
 namespace ValveResourceFormat
 {
-#pragma warning disable CA1717 // it thinks its plural
     public enum VTexExtraData
     {
         UNKNOWN = 0,
@@ -12,5 +11,4 @@ namespace ValveResourceFormat
         COMPRESSED_MIP_SIZE = 4,
         CUBEMAP_RADIANCE_SH = 5,
     }
-#pragma warning restore CA1717
 }

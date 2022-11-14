@@ -5,7 +5,7 @@ namespace GUI.Types.Renderer
 {
     internal class ParticleSceneNode : SceneNode
     {
-        private ParticleRenderer.ParticleRenderer particleRenderer;
+        private readonly ParticleRenderer.ParticleRenderer particleRenderer;
 
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem)
             : base(scene)

@@ -10,9 +10,9 @@ namespace ValveResourceFormat.CompiledShader
     public class PrintZFrameSummary
     {
         public HandleOutputWrite OutputWriter { get; set; }
-        private ShaderFile shaderFile;
-        private ZFrameFile zframeFile;
-        private bool showRichTextBoxLinks;
+        private readonly ShaderFile shaderFile;
+        private readonly ZFrameFile zframeFile;
+        private readonly bool showRichTextBoxLinks;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)

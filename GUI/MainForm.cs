@@ -268,10 +268,8 @@ namespace GUI
             {
                 var res = name.Split('.');
 
-                using (var stream = assembly.GetManifestResourceStream(name))
-                {
-                    ImageList.Images.Add(res[2], Image.FromStream(stream));
-                }
+                using var stream = assembly.GetManifestResourceStream(name);
+                ImageList.Images.Add(res[2], Image.FromStream(stream));
             }
         }
 

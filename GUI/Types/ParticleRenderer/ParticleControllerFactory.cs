@@ -15,8 +15,8 @@ namespace GUI.Types.ParticleRenderer
         private static readonly IDictionary<string, Func<IKeyValueCollection, IKeyValueCollection, IParticleEmitter>> EmitterDictionary
             = new Dictionary<string, Func<IKeyValueCollection, IKeyValueCollection, IParticleEmitter>>
             {
-                ["C_OP_InstantaneousEmitter"] = (baseProperties, emitterInfo) => new InstantaneousEmitter(baseProperties, emitterInfo),
-                ["C_OP_ContinuousEmitter"] = (baseProperties, emitterInfo) => new ContinuousEmitter(baseProperties, emitterInfo),
+                ["C_OP_InstantaneousEmitter"] = (baseProperties, emitterInfo) => new InstantaneousEmitter(emitterInfo),
+                ["C_OP_ContinuousEmitter"] = (baseProperties, emitterInfo) => new ContinuousEmitter(emitterInfo),
             };
 
         // Register particle initializers

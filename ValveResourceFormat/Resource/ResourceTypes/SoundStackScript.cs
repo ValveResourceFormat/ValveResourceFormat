@@ -54,17 +54,15 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            using (var writer = new IndentedTextWriter())
+            using var writer = new IndentedTextWriter();
+            foreach (var entry in SoundStackScriptValue)
             {
-                foreach (var entry in SoundStackScriptValue)
-                {
-                    writer.WriteLine($"// {entry.Key}");
-                    writer.Write(entry.Value);
-                    writer.WriteLine(string.Empty);
-                }
-
-                return writer.ToString();
+                writer.WriteLine($"// {entry.Key}");
+                writer.Write(entry.Value);
+                writer.WriteLine(string.Empty);
             }
+
+            return writer.ToString();
         }
     }
 }

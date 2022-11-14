@@ -42,9 +42,9 @@ namespace GUI.Types.ParticleRenderer
         private readonly VrfGuiContext vrfGuiContext;
         private bool hasStarted;
 
-        private ParticleBag particleBag;
+        private readonly ParticleBag particleBag;
         private int particlesEmitted;
-        private ParticleSystemRenderState systemRenderState;
+        private readonly ParticleSystemRenderState systemRenderState;
 
         // TODO: Passing in position here was for testing, do it properly
         public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext, Vector3 pos = default)

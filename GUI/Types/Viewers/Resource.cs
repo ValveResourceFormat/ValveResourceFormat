@@ -269,10 +269,7 @@ namespace GUI.Types.Viewers
 
                         var file = vrfGuiContext.CurrentPackage?.FindEntry(name);
 
-                        if (file == null)
-                        {
-                            file = vrfGuiContext.CurrentPackage?.FindEntry(name + "_c");
-                        }
+                        file ??= vrfGuiContext.CurrentPackage?.FindEntry(name + "_c");
 
                         if (file != null)
                         {

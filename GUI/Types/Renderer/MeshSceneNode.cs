@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private RenderableMesh meshRenderer;
+        private readonly RenderableMesh meshRenderer;
 
         public MeshSceneNode(Scene scene, Mesh mesh, Dictionary<string, string> skinMaterials = null)
             : base(scene)

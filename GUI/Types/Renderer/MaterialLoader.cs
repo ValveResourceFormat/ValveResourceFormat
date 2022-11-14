@@ -235,7 +235,7 @@ namespace GUI.Types.Renderer
                 _ => PixelType.UnsignedByte
             };
 
-        
+
         public RenderMaterial GetErrorMaterial()
         {
             var errorMat = new RenderMaterial(new VrfMaterial());

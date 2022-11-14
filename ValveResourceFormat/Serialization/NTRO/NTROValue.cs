@@ -28,12 +28,10 @@ namespace ValveResourceFormat.Serialization.NTRO
 
         public override string ToString()
         {
-            using (var writer = new IndentedTextWriter())
-            {
-                WriteText(writer);
+            using var writer = new IndentedTextWriter();
+            WriteText(writer);
 
-                return writer.ToString();
-            }
+            return writer.ToString();
         }
 
         public override void WriteText(IndentedTextWriter writer)

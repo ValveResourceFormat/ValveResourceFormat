@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
 
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
-        private Camera skyboxCamera = new Camera();
+        private readonly Camera skyboxCamera = new Camera();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
 
@@ -149,9 +149,7 @@ namespace GUI.Types.Renderer
 
         protected void AddRenderModeSelectionControl()
         {
-            if (renderModeComboBox == null)
-            {
-                renderModeComboBox = ViewerControl.AddSelection("Render Mode", (renderMode, _) =>
+            renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) =>
                 {
                     foreach (var node in Scene.AllNodes)
                     {
@@ -166,7 +164,6 @@ namespace GUI.Types.Renderer
                         }
                     }
                 });
-            }
         }
 
         private void SetAvailableRenderModes(IEnumerable<string> renderModes)

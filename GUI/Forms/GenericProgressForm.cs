@@ -40,7 +40,7 @@ namespace GUI.Forms
                 {
                     if (t.Exception != null)
                     {
-                        foreach(var exception in t.Exception.Flatten().InnerExceptions)
+                        foreach (var exception in t.Exception.Flatten().InnerExceptions)
                         {
                             Console.Error.WriteLine(exception);
                         }

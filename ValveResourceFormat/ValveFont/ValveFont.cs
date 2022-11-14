@@ -17,10 +17,8 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public byte[] Read(string filename)
         {
-            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                return Read(fs);
-            }
+            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return Read(fs);
         }
 
         /// <summary>
@@ -29,18 +27,16 @@ namespace ValveResourceFormat
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public byte[] Read(Stream input)
         {
-            using (var reader = new BinaryReader(input))
+            using var reader = new BinaryReader(input);
+            // Magic is at the end
+            reader.BaseStream.Seek(-MAGIC.Length, SeekOrigin.End);
+
+            if (Encoding.ASCII.GetString(reader.ReadBytes(MAGIC.Length)) != MAGIC)
             {
-                // Magic is at the end
-                reader.BaseStream.Seek(-MAGIC.Length, SeekOrigin.End);
-
-                if (Encoding.ASCII.GetString(reader.ReadBytes(MAGIC.Length)) != MAGIC)
-                {
-                    throw new InvalidDataException("Given file is not a vfont, version 1.");
-                }
-
-                return Decode(reader);
+                throw new InvalidDataException("Given file is not a vfont, version 1.");
             }
+
+            return Decode(reader);
         }
 
         private byte[] Decode(BinaryReader reader)

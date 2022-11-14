@@ -25,10 +25,7 @@ namespace GUI.Utils
         {
             get
             {
-                if (quadIndices == null)
-                {
-                    quadIndices = new QuadIndexBuffer(65532);
-                }
+                quadIndices ??= new QuadIndexBuffer(65532);
 
                 return quadIndices;
             }

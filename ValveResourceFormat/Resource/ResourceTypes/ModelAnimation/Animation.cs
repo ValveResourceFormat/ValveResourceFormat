@@ -231,80 +231,78 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Read container
             var container = segment.GetArray<byte>("m_container");
-            using (var containerReader = new BinaryReader(new MemoryStream(container)))
+            using var containerReader = new BinaryReader(new MemoryStream(container));
+            var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
+            var elementBones = new int[decodeKey.GetProperty<int>("m_nChannelElements")];
+            for (var i = 0; i < elementIndexArray.Length; i++)
             {
-                var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
-                var elementBones = new int[decodeKey.GetProperty<int>("m_nChannelElements")];
-                for (var i = 0; i < elementIndexArray.Length; i++)
+                elementBones[elementIndexArray[i]] = i;
+            }
+
+            // Read header
+            var decoder = decoderArray[containerReader.ReadInt16()];
+            var cardinality = containerReader.ReadInt16();
+            var numBones = containerReader.ReadInt16();
+            var totalLength = containerReader.ReadInt16();
+
+            // Read bone list
+            var elements = new List<int>();
+            for (var i = 0; i < numBones; i++)
+            {
+                elements.Add(containerReader.ReadInt16());
+            }
+
+            // Skip data to find the data for the current frame.
+            // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
+            if (containerReader.BaseStream.Position + (decoder.Size() * frame * numBones) < containerReader.BaseStream.Length)
+            {
+                containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
+            }
+
+            // Read animation data for all bones
+            for (var element = 0; element < numBones; element++)
+            {
+                // Get the bone we are reading for
+                var bone = elementBones[elements[element]];
+
+                // Look at the decoder to see what to read
+                switch (decoder)
                 {
-                    elementBones[elementIndexArray[i]] = i;
-                }
-
-                // Read header
-                var decoder = decoderArray[containerReader.ReadInt16()];
-                var cardinality = containerReader.ReadInt16();
-                var numBones = containerReader.ReadInt16();
-                var totalLength = containerReader.ReadInt16();
-
-                // Read bone list
-                var elements = new List<int>();
-                for (var i = 0; i < numBones; i++)
-                {
-                    elements.Add(containerReader.ReadInt16());
-                }
-
-                // Skip data to find the data for the current frame.
-                // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
-                if (containerReader.BaseStream.Position + (decoder.Size() * frame * numBones) < containerReader.BaseStream.Length)
-                {
-                    containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
-                }
-
-                // Read animation data for all bones
-                for (var element = 0; element < numBones; element++)
-                {
-                    // Get the bone we are reading for
-                    var bone = elementBones[elements[element]];
-
-                    // Look at the decoder to see what to read
-                    switch (decoder)
-                    {
-                        case AnimDecoderType.CCompressedStaticFullVector3:
-                        case AnimDecoderType.CCompressedFullVector3:
-                        case AnimDecoderType.CCompressedDeltaVector3:
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
-                                containerReader.ReadSingle(),
-                                containerReader.ReadSingle(),
-                                containerReader.ReadSingle()));
-                            break;
-                        case AnimDecoderType.CCompressedAnimVector3:
-                        case AnimDecoderType.CCompressedStaticVector3:
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
-                                ReadHalfFloat(containerReader),
-                                ReadHalfFloat(containerReader),
-                                ReadHalfFloat(containerReader)));
-                            break;
-                        case AnimDecoderType.CCompressedAnimQuaternion:
-                        case AnimDecoderType.CCompressedStaticQuaternion:
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
-                            break;
-                        case AnimDecoderType.CCompressedFullQuaternion:
-                            outFrame.SetAttribute(boneNames[bone], channelAttribute, new Quaternion(
-                               containerReader.ReadSingle(),
-                               containerReader.ReadSingle(),
-                               containerReader.ReadSingle(),
-                               containerReader.ReadSingle()));
-                            break;
+                    case AnimDecoderType.CCompressedStaticFullVector3:
+                    case AnimDecoderType.CCompressedFullVector3:
+                    case AnimDecoderType.CCompressedDeltaVector3:
+                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
+                            containerReader.ReadSingle(),
+                            containerReader.ReadSingle(),
+                            containerReader.ReadSingle()));
+                        break;
+                    case AnimDecoderType.CCompressedAnimVector3:
+                    case AnimDecoderType.CCompressedStaticVector3:
+                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
+                            ReadHalfFloat(containerReader),
+                            ReadHalfFloat(containerReader),
+                            ReadHalfFloat(containerReader)));
+                        break;
+                    case AnimDecoderType.CCompressedAnimQuaternion:
+                    case AnimDecoderType.CCompressedStaticQuaternion:
+                        outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
+                        break;
+                    case AnimDecoderType.CCompressedFullQuaternion:
+                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Quaternion(
+                           containerReader.ReadSingle(),
+                           containerReader.ReadSingle(),
+                           containerReader.ReadSingle(),
+                           containerReader.ReadSingle()));
+                        break;
 #if DEBUG
-                        default:
-                            if (channelAttribute != "data")
-                            {
-                                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{channelAttribute}'");
-                            }
+                    default:
+                        if (channelAttribute != "data")
+                        {
+                            Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{channelAttribute}'");
+                        }
 
-                            break;
+                        break;
 #endif
-                    }
                 }
             }
         }

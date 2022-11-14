@@ -6,7 +6,8 @@ namespace ValveResourceFormat.CompiledShader
      * X360, MAC are not implemented
      *
      */
-    public enum VcsPlatformType {
+    public enum VcsPlatformType
+    {
         PC,
         PCGL,
         X360,

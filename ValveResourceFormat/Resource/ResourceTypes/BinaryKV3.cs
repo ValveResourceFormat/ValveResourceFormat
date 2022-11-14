@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
     public class BinaryKV3 : ResourceData
 #pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
-        private BlockType KVBlockType;
+        private readonly BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
 
         private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new Guid(new byte[] { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 });

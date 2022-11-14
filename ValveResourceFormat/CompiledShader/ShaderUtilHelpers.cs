@@ -10,16 +10,13 @@ namespace ValveResourceFormat.CompiledShader
     {
         public static (VcsProgramType, VcsPlatformType, VcsShaderModelType) ComputeVCSFileName(string filenamepath)
         {
-            var vcsProgramType = VcsProgramType.Undetermined;
-            var vcsPlatformType = VcsPlatformType.Undetermined;
-            var vcsShaderModelType = VcsShaderModelType.Undetermined;
-
             var fileTokens = Path.GetFileName(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
             }
-            vcsProgramType = fileTokens[^1].ToLower() switch
+
+            var vcsProgramType = fileTokens[^1].ToLower() switch
             {
                 "features.vcs" => VcsProgramType.Features,
                 "vs.vcs" => VcsProgramType.VertexShader,
@@ -32,7 +29,8 @@ namespace ValveResourceFormat.CompiledShader
                 "rtx.vcs" => VcsProgramType.RaytracingShader,
                 _ => VcsProgramType.Undetermined
             };
-            vcsPlatformType = fileTokens[^3].ToLower() switch
+
+            var vcsPlatformType = fileTokens[^3].ToLower() switch
             {
                 "pc" => VcsPlatformType.PC,
                 "pcgl" => VcsPlatformType.PCGL,
@@ -40,6 +38,7 @@ namespace ValveResourceFormat.CompiledShader
                 "vulkan" => VcsPlatformType.VULKAN,
                 _ => VcsPlatformType.Undetermined
             };
+
             if (vcsPlatformType == VcsPlatformType.VULKAN)
             {
                 vcsPlatformType = fileTokens[^4].ToLower() switch
@@ -49,7 +48,8 @@ namespace ValveResourceFormat.CompiledShader
                     _ => VcsPlatformType.VULKAN
                 };
             }
-            vcsShaderModelType = fileTokens[^2].ToLower() switch
+
+            var vcsShaderModelType = fileTokens[^2].ToLower() switch
             {
                 "20" => VcsShaderModelType._20,
                 "2b" => VcsShaderModelType._2b,
@@ -61,6 +61,7 @@ namespace ValveResourceFormat.CompiledShader
                 "60" => VcsShaderModelType._60,
                 _ => VcsShaderModelType.Undetermined
             };
+
             if (vcsProgramType == VcsProgramType.Undetermined ||
                 vcsPlatformType == VcsPlatformType.Undetermined ||
                 vcsShaderModelType == VcsShaderModelType.Undetermined)
@@ -257,7 +258,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             try
             {
-                return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR"); ;
+                return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR");
             }
             catch (Exception)
             {

@@ -6,16 +6,16 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class OscillateScalar : IParticleOperator
     {
-        private ParticleField outputField = ParticleField.Alpha;
-        private float rateMin;
-        private float rateMax;
-        private float frequencyMin = 1f;
-        private float frequencyMax = 1f;
-        private float oscillationMultiplier = 2f;
-        private float oscillationOffset = 0.5f;
-        private bool proportional = true;
+        private readonly ParticleField outputField = ParticleField.Alpha;
+        private readonly float rateMin;
+        private readonly float rateMax;
+        private readonly float frequencyMin = 1f;
+        private readonly float frequencyMax = 1f;
+        private readonly float oscillationMultiplier = 2f;
+        private readonly float oscillationOffset = 0.5f;
+        private readonly bool proportional = true;
 
-        private Random random;
+        private readonly Random random;
 
         public OscillateScalar(IKeyValueCollection keyValues)
         {
@@ -99,8 +99,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        private Dictionary<int, float> particleRates = new Dictionary<int, float>();
-        private Dictionary<int, float> particleFrequencies = new Dictionary<int, float>();
+        private readonly Dictionary<int, float> particleRates = new Dictionary<int, float>();
+        private readonly Dictionary<int, float> particleFrequencies = new Dictionary<int, float>();
 
         private float GetParticleRate(int particleId)
         {

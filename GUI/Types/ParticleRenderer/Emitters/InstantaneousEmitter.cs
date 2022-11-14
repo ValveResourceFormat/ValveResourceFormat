@@ -7,19 +7,15 @@ namespace GUI.Types.ParticleRenderer.Emitters
     {
         public bool IsFinished { get; private set; }
 
-        private readonly IKeyValueCollection baseProperties;
-
         private Action particleEmitCallback;
 
-        private INumberProvider emitCount;
-        private INumberProvider startTime;
+        private readonly INumberProvider emitCount;
+        private readonly INumberProvider startTime;
 
         private float time;
 
-        public InstantaneousEmitter(IKeyValueCollection baseProperties, IKeyValueCollection keyValues)
+        public InstantaneousEmitter(IKeyValueCollection keyValues)
         {
-            this.baseProperties = baseProperties;
-
             emitCount = keyValues.GetNumberProvider("m_nParticlesToEmit");
             startTime = keyValues.GetNumberProvider("m_flStartTime");
         }

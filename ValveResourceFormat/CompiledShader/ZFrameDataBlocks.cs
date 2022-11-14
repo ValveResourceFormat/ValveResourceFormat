@@ -54,7 +54,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 arg0 = datareader.ReadInt32();
                 offset2 = datareader.ReadInt32();
-                sourcebytes = datareader.ReadBytes(offset2-1); // -1 because the sourcebytes are null-term
+                sourcebytes = datareader.ReadBytes(offset2 - 1); // -1 because the sourcebytes are null-term
                 datareader.BaseStream.Position += 1;
             }
             editorRefId = datareader.ReadBytes(16);

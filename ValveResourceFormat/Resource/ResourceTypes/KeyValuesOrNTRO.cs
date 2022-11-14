@@ -7,8 +7,8 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class KeyValuesOrNTRO : ResourceData
     {
-        private string IntrospectionStructName;
-        private BlockType KVBlockType;
+        private readonly string IntrospectionStructName;
+        private readonly BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
 
         protected Resource Resource { get; private set; }

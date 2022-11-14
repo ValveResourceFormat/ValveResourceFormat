@@ -14,12 +14,13 @@ namespace GUI.Types.Renderer
     {
         public bool Enabled { get; set; }
         public bool IsTrigger { get; set; }
-        PhysAggregateData phys;
-        Shader shader;
-        int indexCount;
-        int vboHandle;
-        int iboHandle;
-        int vaoHandle;
+
+        readonly PhysAggregateData phys;
+        readonly Shader shader;
+        readonly int indexCount;
+        readonly int vboHandle;
+        readonly int iboHandle;
+        readonly int vaoHandle;
 
         public PhysSceneNode(Scene scene, PhysAggregateData phys)
             : base(scene)

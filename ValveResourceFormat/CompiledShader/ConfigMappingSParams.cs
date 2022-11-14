@@ -101,7 +101,7 @@ namespace ValveResourceFormat.CompiledShader
      */
     public class ConfigMappingSParams
     {
-        private ShaderFile shaderfile;
+        private readonly ShaderFile shaderfile;
 
         public ConfigMappingSParams(ShaderFile shaderfile)
         {
@@ -163,8 +163,8 @@ namespace ValveResourceFormat.CompiledShader
         }
         int[] offsets;
         int[] nr_states;
-        bool[,] exclusions = new bool[100, 100];
-        bool[,] inclusions = new bool[100, 100];
+        readonly bool[,] exclusions = new bool[100, 100];
+        readonly bool[,] inclusions = new bool[100, 100];
         void AddExclusionRule(int s1, int s2, int s3)
         {
             AddExclusionRule(s1, s2);

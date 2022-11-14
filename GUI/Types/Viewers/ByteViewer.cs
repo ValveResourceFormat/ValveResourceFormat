@@ -26,10 +26,7 @@ namespace GUI.Types.Viewers
             bvTab.Controls.Add(bv);
             resTabs.TabPages.Add(bvTab);
 
-            if (input == null)
-            {
-                input = File.ReadAllBytes(vrfGuiContext.FileName);
-            }
+            input ??= File.ReadAllBytes(vrfGuiContext.FileName);
 
             if (!input.Contains<byte>(0x00))
             {

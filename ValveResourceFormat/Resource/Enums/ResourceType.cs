@@ -5,7 +5,6 @@ namespace ValveResourceFormat
     // Friendly names are used
     public enum ResourceType
     {
-#pragma warning disable 1591
         Unknown = 0,
 
         [Extension("vanim")]
@@ -126,6 +125,5 @@ namespace ValveResourceFormat
 
         [Extension("sbox")] // TODO: Managed resources can have any extension
         SboxManagedResource,
-#pragma warning restore 1591
     }
 }

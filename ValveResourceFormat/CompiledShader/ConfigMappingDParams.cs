@@ -5,7 +5,7 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class ConfigMappingDParams
     {
-        private ShaderFile shaderfile;
+        private readonly ShaderFile shaderfile;
 
         public ConfigMappingDParams(ShaderFile shaderfile)
         {

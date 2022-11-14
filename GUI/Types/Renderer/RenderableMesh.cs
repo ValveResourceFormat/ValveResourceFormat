@@ -24,8 +24,8 @@ namespace GUI.Types.Renderer
 
         public float Time { get; private set; }
 
-        private Mesh mesh;
-        private List<DrawCall> DrawCallsAll = new List<DrawCall>();
+        private readonly Mesh mesh;
+        private readonly List<DrawCall> DrawCallsAll = new List<DrawCall>();
 
         public RenderableMesh(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
         {
@@ -185,14 +185,11 @@ namespace GUI.Types.Renderer
                 _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
             };
 
-            switch (primitiveType)
+            drawCall.PrimitiveType = primitiveType switch
             {
-                case "RENDER_PRIM_TRIANGLES":
-                    drawCall.PrimitiveType = PrimitiveType.Triangles;
-                    break;
-                default:
-                    throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
-            }
+                "RENDER_PRIM_TRIANGLES" => PrimitiveType.Triangles,
+                _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")"),
+            };
 
             SetupDrawCallMaterial(drawCall, shaderArguments, material);
 

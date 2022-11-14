@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Utils
     public class UnexpectedMagicException : Exception
 #pragma warning restore CA1032 // Implement standard exception constructors
     {
-        private string Magic;
-        private string MagicNameof;
+        private readonly string Magic;
+        private readonly string MagicNameof;
 
         public override string Message => $"{base.Message} for variable '{MagicNameof}': {Magic}";
 

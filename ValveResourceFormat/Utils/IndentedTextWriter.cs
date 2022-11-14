@@ -24,7 +24,7 @@ namespace ValveResourceFormat
         /// Gets the encoding for the text writer to use.
         /// </summary>
         /// <returns>
-        /// An <see cref="T:System.Text.Encoding" /> that indicates the encoding for the text writer to use.
+        /// An <see cref="System.Text.Encoding" /> that indicates the encoding for the text writer to use.
         /// </returns>
         public override Encoding Encoding
         {
@@ -84,8 +84,7 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Outputs the tab string once for each level of indentation according to the
-        /// <see
-        ///     cref="P:System.CodeDom.Compiler.IndentedTextWriter.Indent" />
+        /// <see cref="System.CodeDom.Compiler.IndentedTextWriter.Indent" />
         /// property.
         /// </summary>
         protected virtual void OutputTabs()

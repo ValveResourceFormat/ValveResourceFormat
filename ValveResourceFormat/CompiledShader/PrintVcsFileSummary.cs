@@ -8,9 +8,9 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class PrintVcsFileSummary
     {
-        private OutputFormatterTabulatedData output;
-        private bool showRichTextBoxLinks;
-        private List<string> relatedFiles;
+        private readonly OutputFormatterTabulatedData output;
+        private readonly bool showRichTextBoxLinks;
+        private readonly List<string> relatedFiles;
 
         public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite OutputWriter = null,
             bool showRichTextBoxLinks = false, List<string> relatedFiles = null)
@@ -216,7 +216,7 @@ namespace ValveResourceFormat.CompiledShader
                 var s5 = $"{CombineIntArray(sfRuleBlock.range0)}";
                 var s6 = $"{CombineIntArray(sfRuleBlock.range1)}";
                 var s7 = $"{CombineIntArray(sfRuleBlock.range2)}";
-                var blockSummary = $"{s0.PadRight(7)}{s1.PadRight(10)}{s5.PadRight(16)}{s4.PadRight(BL)}{s6.PadRight(8)}{s7.PadRight(8)}";
+                var blockSummary = $"{s0,-7}{s1,-10}{s5,-16}{s4,-BL}{s6,-8}{s7,-8}";
                 for (var i = 1; i < breakNames.Length; i++)
                 {
                     blockSummary += $"\n{(""),7}{(""),10}{(""),16}{breakNames[i],-BL}";

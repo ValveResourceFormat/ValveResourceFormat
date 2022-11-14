@@ -84,10 +84,8 @@ namespace GUI.Utils
         {
             Config.BackgroundColor = ColorTranslator.ToHtml(BackgroundColor);
 
-            using (var stream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
-            {
-                KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
-            }
+            using var stream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
         }
 
         private static string GetSteamPath()

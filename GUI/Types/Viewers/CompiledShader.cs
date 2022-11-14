@@ -173,10 +173,10 @@ namespace GUI.Types.Viewers
 
         private class ShaderRichTextBox : RichTextBox
         {
-            private ShaderFile shaderFile;
-            SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection;
-            private ShaderTabControl tabControl;
-            private List<string> relatedFiles = new();
+            private readonly ShaderFile shaderFile;
+            readonly SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection;
+            private readonly ShaderTabControl tabControl;
+            private readonly List<string> relatedFiles = new();
             public ShaderRichTextBox(ShaderFile shaderFile, ShaderTabControl tabControl,
                 SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection = null, bool byteVersion = false) : base()
             {
@@ -259,8 +259,8 @@ namespace GUI.Types.Viewers
 
         private class ZFrameRichTextBox : RichTextBox, IDisposable
         {
-            private TabControl tabControl;
-            private ShaderFile shaderFile;
+            private readonly TabControl tabControl;
+            private readonly ShaderFile shaderFile;
             private ZFrameFile zframeFile;
 
             public ZFrameRichTextBox(TabControl tabControl, ShaderFile shaderFile, long zframeId, bool byteVersion = false) : base()

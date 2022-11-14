@@ -64,85 +64,83 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static Entity ParseEntityProperties(byte[] bytes, IKeyValueCollection[] connections)
         {
-            using (var dataStream = new MemoryStream(bytes))
-            using (var dataReader = new BinaryReader(dataStream))
+            using var dataStream = new MemoryStream(bytes);
+            using var dataReader = new BinaryReader(dataStream);
+            var a = dataReader.ReadUInt32(); // always 1?
+
+            if (a != 1)
             {
-                var a = dataReader.ReadUInt32(); // always 1?
-
-                if (a != 1)
-                {
-                    throw new NotImplementedException($"First field in entity lump is not 1");
-                }
-
-                var hashedFieldsCount = dataReader.ReadUInt32();
-                var stringFieldsCount = dataReader.ReadUInt32();
-
-                var entity = new Entity();
-
-                void ReadTypedValue(uint keyHash, string keyName)
-                {
-                    var type = dataReader.ReadUInt32();
-                    var entityProperty = new EntityProperty
-                    {
-                        Type = type,
-                        Name = keyName,
-                    };
-
-                    switch (type)
-                    {
-                        case 0x06: // boolean
-                            entityProperty.Data = dataReader.ReadBoolean(); // 1
-                            break;
-                        case 0x01: // float
-                            entityProperty.Data = dataReader.ReadSingle(); // 4
-                            break;
-                        case 0x09: // color255
-                            entityProperty.Data = dataReader.ReadBytes(4); // 4
-                            break;
-                        case 0x05: // node_id
-                        case 0x25: // flags
-                            entityProperty.Data = dataReader.ReadUInt32(); // 4
-                            break;
-                        case 0x1a: // integer
-                            entityProperty.Data = dataReader.ReadUInt64(); // 8
-                            break;
-                        case 0x03: // vector
-                        case 0x27: // angle
-                            entityProperty.Data = new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()); // 12
-                            break;
-                        case 0x1e: // string
-                            entityProperty.Data = dataReader.ReadNullTermString(Encoding.UTF8); // null term variable
-                            break;
-                        default:
-                            throw new NotImplementedException($"Unknown type {type}");
-                    }
-
-                    entity.Properties.Add(keyHash, entityProperty);
-                }
-
-                for (var i = 0; i < hashedFieldsCount; i++)
-                {
-                    // murmur2 hashed field name (see EntityLumpKeyLookup)
-                    var keyHash = dataReader.ReadUInt32();
-
-                    ReadTypedValue(keyHash, null);
-                }
-
-                for (var i = 0; i < stringFieldsCount; i++)
-                {
-                    var keyHash = dataReader.ReadUInt32();
-                    var keyName = dataReader.ReadNullTermString(Encoding.UTF8);
-
-                    ReadTypedValue(keyHash, keyName);
-                }
-
-                if (connections.Length > 0)
-                {
-                    entity.Connections = connections.ToList();
-                }
-
-                return entity;
+                throw new NotImplementedException($"First field in entity lump is not 1");
             }
+
+            var hashedFieldsCount = dataReader.ReadUInt32();
+            var stringFieldsCount = dataReader.ReadUInt32();
+
+            var entity = new Entity();
+
+            void ReadTypedValue(uint keyHash, string keyName)
+            {
+                var type = dataReader.ReadUInt32();
+                var entityProperty = new EntityProperty
+                {
+                    Type = type,
+                    Name = keyName,
+                };
+
+                switch (type)
+                {
+                    case 0x06: // boolean
+                        entityProperty.Data = dataReader.ReadBoolean(); // 1
+                        break;
+                    case 0x01: // float
+                        entityProperty.Data = dataReader.ReadSingle(); // 4
+                        break;
+                    case 0x09: // color255
+                        entityProperty.Data = dataReader.ReadBytes(4); // 4
+                        break;
+                    case 0x05: // node_id
+                    case 0x25: // flags
+                        entityProperty.Data = dataReader.ReadUInt32(); // 4
+                        break;
+                    case 0x1a: // integer
+                        entityProperty.Data = dataReader.ReadUInt64(); // 8
+                        break;
+                    case 0x03: // vector
+                    case 0x27: // angle
+                        entityProperty.Data = new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()); // 12
+                        break;
+                    case 0x1e: // string
+                        entityProperty.Data = dataReader.ReadNullTermString(Encoding.UTF8); // null term variable
+                        break;
+                    default:
+                        throw new NotImplementedException($"Unknown type {type}");
+                }
+
+                entity.Properties.Add(keyHash, entityProperty);
+            }
+
+            for (var i = 0; i < hashedFieldsCount; i++)
+            {
+                // murmur2 hashed field name (see EntityLumpKeyLookup)
+                var keyHash = dataReader.ReadUInt32();
+
+                ReadTypedValue(keyHash, null);
+            }
+
+            for (var i = 0; i < stringFieldsCount; i++)
+            {
+                var keyHash = dataReader.ReadUInt32();
+                var keyName = dataReader.ReadNullTermString(Encoding.UTF8);
+
+                ReadTypedValue(keyHash, keyName);
+            }
+
+            if (connections.Length > 0)
+            {
+                entity.Connections = connections.ToList();
+            }
+
+            return entity;
         }
 
         private static void AddConnections(Entity entity, IKeyValueCollection[] connections)

@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly long orientationType;
 
         private float[] rawVertices;
-        private QuadIndexBuffer quadIndices;
+        private readonly QuadIndexBuffer quadIndices;
         private int vertexBufferHandle;
 
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)

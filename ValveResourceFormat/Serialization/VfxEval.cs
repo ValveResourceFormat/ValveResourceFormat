@@ -395,7 +395,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 if (OmitReturnStatement)
                 {
                     DynamicExpressionList.Add(finalExp);
-                } else
+                }
+                else
                 {
                     DynamicExpressionList.Add($"return {finalExp};");
                 }
@@ -471,7 +472,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (varKnownName != null)
             {
                 return varKnownName;
-            } else
+            }
+            else
             {
                 return $"UNKNOWN[{varId:x08}]";
             }

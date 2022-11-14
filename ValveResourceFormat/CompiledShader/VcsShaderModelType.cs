@@ -1,6 +1,7 @@
 namespace ValveResourceFormat.CompiledShader
 {
-    public enum VcsShaderModelType {
+    public enum VcsShaderModelType
+    {
         _20,
         _2b,
         _30,

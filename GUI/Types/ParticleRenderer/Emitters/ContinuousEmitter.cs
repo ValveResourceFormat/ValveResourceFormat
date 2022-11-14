@@ -7,8 +7,6 @@ namespace GUI.Types.ParticleRenderer.Emitters
     {
         public bool IsFinished { get; private set; }
 
-        private readonly IKeyValueCollection baseProperties;
-
         private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
         private readonly INumberProvider emitRate = new LiteralNumberProvider(100);
@@ -19,10 +17,8 @@ namespace GUI.Types.ParticleRenderer.Emitters
         private float time;
         private float lastEmissionTime;
 
-        public ContinuousEmitter(IKeyValueCollection baseProperties, IKeyValueCollection keyValues)
+        public ContinuousEmitter(IKeyValueCollection keyValues)
         {
-            this.baseProperties = baseProperties;
-
             if (keyValues.ContainsKey("m_flEmissionDuration"))
             {
                 emissionDuration = keyValues.GetNumberProvider("m_flEmissionDuration");

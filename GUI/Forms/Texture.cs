@@ -57,10 +57,8 @@ namespace GUI.Forms
                         break;
                 }
 
-                using (var fs = (FileStream)saveFileDialog.OpenFile())
-                {
-                    pictureBox1.Image.Save(fs, format);
-                }
+                using var fs = (FileStream)saveFileDialog.OpenFile();
+                pictureBox1.Image.Save(fs, format);
             }
         }
     }

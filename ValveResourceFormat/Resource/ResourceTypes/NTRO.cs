@@ -189,7 +189,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return new NTROValue<byte>(field.Type, Reader.ReadByte(), pointer);
 
                 case DataType.Boolean:
-                    return new NTROValue<bool>(field.Type, Reader.ReadByte() == 1 ? true : false, pointer);
+                    return new NTROValue<bool>(field.Type, Reader.ReadByte() == 1, pointer);
 
                 case DataType.Int16:
                     return new NTROValue<short>(field.Type, Reader.ReadInt16(), pointer);

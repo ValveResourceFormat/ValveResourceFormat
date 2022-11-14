@@ -30,12 +30,10 @@ namespace ValveResourceFormat
         /// <returns>A string that represents the current object.</returns>
         public override string ToString()
         {
-            using (var writer = new IndentedTextWriter())
-            {
-                WriteText(writer);
+            using var writer = new IndentedTextWriter();
+            WriteText(writer);
 
-                return writer.ToString();
-            }
+            return writer.ToString();
         }
 
         /// <summary>

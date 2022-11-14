@@ -126,10 +126,7 @@ namespace GUI.Types.Renderer
             foreach (var materialGroup in materialGroups)
             {
                 // "The first item needs to match the default materials on the model"
-                if (defaultMaterials == null)
-                {
-                    defaultMaterials = materialGroup.GetArray<string>("m_materials");
-                }
+                defaultMaterials ??= materialGroup.GetArray<string>("m_materials");
 
                 if (materialGroup.GetProperty<string>("m_name") == skin)
                 {
