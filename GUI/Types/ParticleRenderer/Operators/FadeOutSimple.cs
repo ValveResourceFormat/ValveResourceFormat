@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (int i = 0; i < particles.Length; ++i)
+            for (var i = 0; i < particles.Length; ++i)
             {
                 var timeLeft = particles[i].Lifetime / particles[i].ConstantLifetime;
                 if (timeLeft <= fadeOutTime)

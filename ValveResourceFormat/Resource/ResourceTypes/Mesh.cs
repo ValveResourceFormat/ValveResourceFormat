@@ -43,7 +43,7 @@ namespace ValveResourceFormat.ResourceTypes
             var minBounds = sceneObjects[0].GetSubCollection("m_vMinBounds").ToVector3();
             var maxBounds = sceneObjects[0].GetSubCollection("m_vMaxBounds").ToVector3();
 
-            for (int i = 1; i < sceneObjects.Length; ++i)
+            for (var i = 1; i < sceneObjects.Length; ++i)
             {
                 var localMin = sceneObjects[i].GetSubCollection("m_vMinBounds").ToVector3();
                 var localMax = sceneObjects[i].GetSubCollection("m_vMaxBounds").ToVector3();

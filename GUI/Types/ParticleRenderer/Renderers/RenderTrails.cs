@@ -163,11 +163,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var uvScaleLocation = shader.GetUniformLocation("uUvScale");
 
             // Create billboarding rotation (always facing camera)
-            Matrix4x4.Decompose(modelViewMatrix, out _, out Quaternion modelViewRotation, out _);
+            Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _);
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            for (int i = 0; i < particles.Length; ++i)
+            for (var i = 0; i < particles.Length; ++i)
             {
                 var position = new Vector3(particles[i].Position.X, particles[i].Position.Y, particles[i].Position.Z);
                 var previousPosition = new Vector3(particles[i].PositionPrevious.X, particles[i].PositionPrevious.Y, particles[i].PositionPrevious.Z);

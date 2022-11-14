@@ -77,7 +77,7 @@ namespace GUI.Types.Renderer
             var data = mesh.GetData();
             var sceneObjects = data.GetArray("m_sceneObjects");
 
-            int i = 0;
+            var i = 0;
             foreach (var sceneObject in sceneObjects)
             {
                 var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
@@ -177,7 +177,7 @@ namespace GUI.Types.Renderer
         {
             var drawCall = new DrawCall();
 
-            string primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType") switch
+            var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType") switch
             {
                 string primitiveTypeString => primitiveTypeString,
                 byte primitiveTypeByte =>

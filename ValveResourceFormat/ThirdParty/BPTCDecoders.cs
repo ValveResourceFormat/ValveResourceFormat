@@ -119,22 +119,22 @@ namespace BPTC
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong block0 = r.ReadUInt64();
-                    ulong block64 = r.ReadUInt64();
+                    var block0 = r.ReadUInt64();
+                    var block64 = r.ReadUInt64();
                     ulong Bit(int p)
                     {
                         return (byte)(p < 64 ? block0 >> p & 1 : block64 >> (p - 64) & 1);
                     }
 
-                    byte m = (byte)(block0 & 0x3);
+                    var m = (byte)(block0 & 0x3);
                     if (m >= 2)
                     {
                         m = (byte)(block0 & 0x1F);
                     }
 
-                    int epb = 0;
-                    ushort[,] endpoints = new ushort[4, 3];
-                    short[,] deltas = new short[3, 3];
+                    var epb = 0;
+                    var endpoints = new ushort[4, 3];
+                    var deltas = new short[3, 3];
                     byte pb = 0;
                     ulong ib = 0;
 
@@ -339,7 +339,7 @@ namespace BPTC
                         deltas[0, 2] = SignExtend((block0 >> 55) & 0xFF, 4);
                     }
 
-                    ushort epm = (ushort)((1U << epb) - 1);
+                    var epm = (ushort)((1U << epb) - 1);
 
                     if (m != 3 && m != 7 && m != 11 && m != 15)
                     {
@@ -371,31 +371,31 @@ namespace BPTC
 
                     if (m != 3 && m != 30)
                     {
-                        for (int d = 0; d < 3; d++)
+                        for (var d = 0; d < 3; d++)
                         {
-                            for (int e = 0; e < 3; e++)
+                            for (var e = 0; e < 3; e++)
                             {
                                 endpoints[d + 1, e] = (ushort)((endpoints[0, e] + deltas[d, e]) & epm);
                             }
                         }
                     }
 
-                    for (int s = 0; s < 4; s++)
+                    for (var s = 0; s < 4; s++)
                     {
-                        for (int e = 0; e < 3; e++)
+                        for (var e = 0; e < 3; e++)
                         {
                             endpoints[s, e] = Unquantize(endpoints[s, e]);
                         }
                     }
 
-                    for (int by = 0; by < 4; by++)
+                    for (var by = 0; by < 4; by++)
                     {
-                        for (int bx = 0; bx < 4; bx++)
+                        for (var bx = 0; bx < 4; bx++)
                         {
                             var pixelIndex = (((j * 4) + by) * rowBytes) + (((i * 4) + bx) * 4);
-                            int io = (by * 4) + bx;
+                            var io = (by * 4) + bx;
 
-                            int isAnchor = 0;
+                            var isAnchor = 0;
                             byte cweight = 0;
                             byte subset = 0;
                             if (m == 3 || m == 7 || m == 11 || m == 15)
@@ -412,9 +412,9 @@ namespace BPTC
                                 ib >>= 3 - isAnchor;
                             }
 
-                            for (int e = 0; e < 3; e++)
+                            for (var e = 0; e < 3; e++)
                             {
-                                ushort factor = BPTCInterpolateFactor(cweight, endpoints[subset, e], endpoints[subset + 1, e]);
+                                var factor = BPTCInterpolateFactor(cweight, endpoints[subset, e], endpoints[subset + 1, e]);
                                 //gamma correction and mul 4
                                 factor = (ushort)Math.Min(0xFFFF, Math.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
                                 data[pixelIndex + 2 - e] = (byte)(factor >> 8);
@@ -532,9 +532,9 @@ namespace BPTC
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong block0 = r.ReadUInt64();
-                    ulong block64 = r.ReadUInt64();
-                    int m = 0;
+                    var block0 = r.ReadUInt64();
+                    var block64 = r.ReadUInt64();
+                    var m = 0;
                     for (; m < 8; m++)
                     {
                         if ((block0 >> m & 1) == 1)
@@ -546,7 +546,7 @@ namespace BPTC
                     byte pb = 0;
                     byte rb = 0;
                     byte isb = 0;
-                    byte[,] endpoints = new byte[6, 4];
+                    var endpoints = new byte[6, 4];
                     byte epbits = 0;
                     byte spbits = 0;
                     ulong ib = 0;
@@ -582,12 +582,12 @@ namespace BPTC
                             return res;
                         }
 
-                        byte mask = (byte)((0x1 << cb) - 1);
-                        for (int c = 0; c < 3; c++)
+                        var mask = (byte)((0x1 << cb) - 1);
+                        for (var c = 0; c < 3; c++)
                         {
-                            for (int s = 0; s < ns2; s++)
+                            for (var s = 0; s < ns2; s++)
                             {
-                                int ofs = start + (cb * ((c * ns2) + s));
+                                var ofs = start + (cb * ((c * ns2) + s));
                                 endpoints[s, c] = GetVal(ofs, mask);
                                 if (m == 1)
                                 {
@@ -607,9 +607,9 @@ namespace BPTC
                         if (ab != 0)
                         {
                             mask = (byte)((0x1 << ab) - 1);
-                            for (int s = 0; s < ns2; s++)
+                            for (var s = 0; s < ns2; s++)
                             {
-                                int ofs = astart + (ab * s);
+                                var ofs = astart + (ab * s);
                                 endpoints[s, 3] = GetVal(ofs, mask);
                                 if (m == 6 || m == 7)
                                 {
@@ -674,19 +674,19 @@ namespace BPTC
                         ib = block64 >> 34;
                     }
 
-                    int ib2l = (m == 4) ? 3 : 2;
-                    for (int by = 0; by < 4; by++)
+                    var ib2l = (m == 4) ? 3 : 2;
+                    for (var by = 0; by < 4; by++)
                     {
-                        for (int bx = 0; bx < 4; bx++)
+                        for (var bx = 0; bx < 4; bx++)
                         {
-                            int io = (by * 4) + bx;
+                            var io = (by * 4) + bx;
                             var pixelIndex = (((j * 4) + by) * imageInfo.RowBytes) + (((i * 4) + bx) * 4);
 
                             byte cweight = 0;
                             byte aweight = 0;
                             byte subset = 0;
 
-                            int isAnchor = 0;
+                            var isAnchor = 0;
                             if (m == 0 || m == 2)
                             {//3 subsets
                                 isAnchor = (io == 0 || io == BC7AnchorIndices32[pb] || io == BC7AnchorIndices33[pb]) ? 1 : 0;
@@ -724,7 +724,7 @@ namespace BPTC
 
                                 if (isb == 1)
                                 {
-                                    byte t = cweight;
+                                    var t = cweight;
                                     cweight = aweight;
                                     aweight = t;
                                 }
@@ -753,7 +753,7 @@ namespace BPTC
 
                                 if ((m == 4 || m == 5) && rb != 0)
                                 {
-                                    byte t = data[pixelIndex + 3];
+                                    var t = data[pixelIndex + 3];
                                     data[pixelIndex + 3] = data[pixelIndex + 3 - rb];
                                     data[pixelIndex + 3 - rb] = t;
                                 }
@@ -761,11 +761,11 @@ namespace BPTC
 
                             if (hemiOctRB)
                             {
-                                float nx = ((data[pixelIndex + 2] + data[pixelIndex + 1]) / 255.0f) - 1.003922f;
-                                float ny = (data[pixelIndex + 2] - data[pixelIndex + 1]) / 255.0f;
-                                float nz = 1 - Math.Abs(nx) - Math.Abs(ny);
+                                var nx = ((data[pixelIndex + 2] + data[pixelIndex + 1]) / 255.0f) - 1.003922f;
+                                var ny = (data[pixelIndex + 2] - data[pixelIndex + 1]) / 255.0f;
+                                var nz = 1 - Math.Abs(nx) - Math.Abs(ny);
 
-                                float l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                var l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
                                 data[pixelIndex + 3] = data[pixelIndex + 0]; //b to alpha
                                 data[pixelIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
                                 data[pixelIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);

@@ -326,16 +326,16 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong block1 = BitConverter.ToUInt64(input.Slice(offset, 8));
+                    var block1 = BitConverter.ToUInt64(input.Slice(offset, 8));
                     offset += 8;
-                    int ofs = ((i * 4) + (j * 4 * w)) * 4;
+                    var ofs = ((i * 4) + (j * 4 * w)) * 4;
                     Decompress8BitBlock(i * 4, w, ofs, block1, data, w * 4);
 
-                    for (int y = 0; y < 4; y++)
+                    for (var y = 0; y < 4; y++)
                     {
-                        for (int x = 0; x < 4; x++)
+                        for (var x = 0; x < 4; x++)
                         {
-                            int dataIndex = ofs + ((x + (y * w)) * 4);
+                            var dataIndex = ofs + ((x + (y * w)) * 4);
                             if (data.Length < dataIndex + 3)
                             {
                                 break;
@@ -364,17 +364,17 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var i = 0; i < blockCountX; i++)
                 {
-                    ulong block1 = BitConverter.ToUInt64(input.Slice(offset, 8));
-                    ulong block2 = BitConverter.ToUInt64(input.Slice(offset + 8, 8));
+                    var block1 = BitConverter.ToUInt64(input.Slice(offset, 8));
+                    var block2 = BitConverter.ToUInt64(input.Slice(offset + 8, 8));
                     offset += 16;
-                    int ofs = ((i * 4) + (j * 4 * w)) * 4;
+                    var ofs = ((i * 4) + (j * 4 * w)) * 4;
                     Decompress8BitBlock(i * 4, w, ofs + 2, block1, data, w * 4); //r
                     Decompress8BitBlock(i * 4, w, ofs + 1, block2, data, w * 4); //g
-                    for (int y = 0; y < 4; y++)
+                    for (var y = 0; y < 4; y++)
                     {
-                        for (int x = 0; x < 4; x++)
+                        for (var x = 0; x < 4; x++)
                         {
-                            int dataIndex = ofs + ((x + (y * w)) * 4);
+                            var dataIndex = ofs + ((x + (y * w)) * 4);
                             if (data.Length < dataIndex + 3)
                             {
                                 break;
@@ -514,15 +514,15 @@ namespace ValveResourceFormat.ResourceTypes
                     offset += 8;
                     var blockStorage = input.Slice(offset, 8);
                     offset += 8;
-                    int ofs = (i * 16) + (j * 4 * rowBytes);
+                    var ofs = (i * 16) + (j * 4 * rowBytes);
                     DecompressBlockDXT1(i * 4, j * 4, imageWidth, blockStorage, data, rowBytes);
                     Decompress8BitBlock(i * 4, imageWidth, ofs + 3, blockAlpha, data, rowBytes);
 
-                    for (int y = 0; y < 4; y++)
+                    for (var y = 0; y < 4; y++)
                     {
-                        for (int x = 0; x < 4; x++)
+                        for (var x = 0; x < 4; x++)
                         {
-                            int dataIndex = ofs + ((x * 4) + (y * rowBytes));
+                            var dataIndex = ofs + ((x * 4) + (y * rowBytes));
                             if ((i * 4) + x >= imageWidth || data.Length < dataIndex + 3)
                             {
                                 break;
@@ -544,11 +544,11 @@ namespace ValveResourceFormat.ResourceTypes
                             {
                                 if (hemiOct)
                                 {
-                                    float nx = ((data[dataIndex + 3] + data[dataIndex + 1]) / 255.0f) - 1.003922f;
-                                    float ny = (data[dataIndex + 3] - data[dataIndex + 1]) / 255.0f;
-                                    float nz = 1 - Math.Abs(nx) - Math.Abs(ny);
+                                    var nx = ((data[dataIndex + 3] + data[dataIndex + 1]) / 255.0f) - 1.003922f;
+                                    var ny = (data[dataIndex + 3] - data[dataIndex + 1]) / 255.0f;
+                                    var nz = 1 - Math.Abs(nx) - Math.Abs(ny);
 
-                                    float l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                    var l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
                                     data[dataIndex + 3] = data[dataIndex + 2]; //r to alpha
                                     data[dataIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
                                     data[dataIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
@@ -580,13 +580,13 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void Decompress8BitBlock(int bx, int w, int offset, ulong block, Span<byte> pixels, int stride)
         {
-            byte e0 = (byte)(block & 0xFF);
-            byte e1 = (byte)(block >> 8 & 0xFF);
-            ulong code = block >> 16;
+            var e0 = (byte)(block & 0xFF);
+            var e1 = (byte)(block >> 8 & 0xFF);
+            var code = block >> 16;
 
-            for (int y = 0; y < 4; y++)
+            for (var y = 0; y < 4; y++)
             {
-                for (int x = 0; x < 4; x++)
+                for (var x = 0; x < 4; x++)
                 {
                     var dataIndex = offset + (y * stride) + (x * 4);
 

@@ -48,7 +48,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (int i = 0; i < particles.Length; ++i)
+            for (var i = 0; i < particles.Length; ++i)
             {
                 var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
 

@@ -73,7 +73,7 @@ namespace ValveResourceFormat
         /// <returns>The computed checksum.</returns>
         public static uint Compute(byte[] buffer)
         {
-            uint crc = 0xFFFFFFFF;
+            var crc = 0xFFFFFFFF;
 
             for (var i = 0; i < buffer.Length; i++)
             {

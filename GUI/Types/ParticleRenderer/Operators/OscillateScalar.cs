@@ -73,7 +73,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }*/
 
             // Update remaining particles
-            for (int i = 0; i < particles.Length; ++i)
+            for (var i = 0; i < particles.Length; ++i)
             {
                 var rate = GetParticleRate(particles[i].ParticleCount);
                 var frequency = GetParticleFrequency(particles[i].ParticleCount);

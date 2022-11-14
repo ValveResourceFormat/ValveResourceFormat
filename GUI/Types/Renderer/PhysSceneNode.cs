@@ -41,10 +41,10 @@ namespace GUI.Types.Renderer
             }
             //m_boneParents
 
-            bool firstBbox = true;
+            var firstBbox = true;
 
             var parts = phys.Data.GetArray("m_parts");
-            for (int p = 0; p < parts.Length; p++)
+            for (var p = 0; p < parts.Length; p++)
             {
                 var shape = parts[p].GetSubCollection("m_rnShape");
 
@@ -60,7 +60,7 @@ namespace GUI.Types.Renderer
 
                     AddSphere(verts, inds, center, radius);
 
-                    AABB bbox = new AABB(center + new Vector3(radius),
+                    var bbox = new AABB(center + new Vector3(radius),
                                          center - new Vector3(radius));
                     LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
                     firstBbox = false;
@@ -79,7 +79,7 @@ namespace GUI.Types.Renderer
                     AddCapsule(verts, inds, center[0], center[1], radius);
                     foreach (var cn in center)
                     {
-                        AABB bbox = new AABB(cn + new Vector3(radius),
+                        var bbox = new AABB(cn + new Vector3(radius),
                                              cn - new Vector3(radius));
                         LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
                         firstBbox = false;
@@ -118,7 +118,7 @@ namespace GUI.Types.Renderer
                     }
                     //m_Faces
                     var bounds = hull.GetSubCollection("m_Bounds");
-                    AABB bbox = new AABB(bounds.GetSubCollection("m_vMinBounds").ToVector3(),
+                    var bbox = new AABB(bounds.GetSubCollection("m_vMinBounds").ToVector3(),
                                          bounds.GetSubCollection("m_vMaxBounds").ToVector3());
 
                     LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
@@ -180,7 +180,7 @@ namespace GUI.Types.Renderer
                         System.Buffer.BlockCopy(trianglesBlob, 0, triangles, 0, trianglesBlob.Length);
                     }
 
-                    for (int i = 0; i < triangles.Length; i += 3)
+                    for (var i = 0; i < triangles.Length; i += 3)
                     {
                         inds.Add(vertOffset + triangles[i]);
                         inds.Add(vertOffset + triangles[i + 1]);
@@ -190,7 +190,7 @@ namespace GUI.Types.Renderer
                         inds.Add(vertOffset + triangles[i]);
                     }
 
-                    AABB bbox = new AABB(mesh.GetSubCollection("m_vMin").ToVector3(),
+                    var bbox = new AABB(mesh.GetSubCollection("m_vMin").ToVector3(),
                                          mesh.GetSubCollection("m_vMax").ToVector3());
                     LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
                     firstBbox = false;
@@ -237,21 +237,21 @@ namespace GUI.Types.Renderer
 
         private static void AddCapsule(List<float> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
         {
-            Matrix4x4 mtx = Matrix4x4.CreateLookAt(c0, c1, Vector3.UnitY);
+            var mtx = Matrix4x4.CreateLookAt(c0, c1, Vector3.UnitY);
             mtx.Translation = Vector3.Zero;
             AddSphere(verts, inds, c0, radius);
             AddSphere(verts, inds, c1, radius);
 
             var vertOffset = verts.Count / 7;
 
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
-                Vector3 vr = new Vector3(
+                var vr = new Vector3(
                     MathF.Cos(i * MathF.PI / 2) * radius,
                     MathF.Sin(i * MathF.PI / 2) * radius,
                     0);
                 vr = Vector3.Transform(vr, mtx);
-                Vector3 v = vr + c0;
+                var v = vr + c0;
 
                 verts.Add(v.X);
                 verts.Add(v.Y);
@@ -288,9 +288,9 @@ namespace GUI.Types.Renderer
         private static void AddCircle(List<float> verts, List<int> inds, Vector3 center, float radius, Matrix4x4 mtx)
         {
             var vertOffset = verts.Count / 7;
-            for (int i = 0; i < 16; i++)
+            for (var i = 0; i < 16; i++)
             {
-                Vector3 v = new Vector3(
+                var v = new Vector3(
                     MathF.Cos(i * MathF.PI / 8) * radius,
                     MathF.Sin(i * MathF.PI / 8) * radius,
                     0);

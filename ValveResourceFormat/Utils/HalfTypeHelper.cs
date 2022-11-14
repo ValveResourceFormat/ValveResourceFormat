@@ -24,8 +24,8 @@ namespace ValveResourceFormat
         internal static float Convert(ushort value)
         {
             uint rst;
-            uint mantissa = (uint)(value & 1023);
-            uint exp = 0xfffffff2;
+            var mantissa = (uint)(value & 1023);
+            var exp = 0xfffffff2;
 
             if ((value & -33792) == 0)
             {

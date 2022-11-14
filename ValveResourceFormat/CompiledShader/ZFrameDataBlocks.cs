@@ -34,7 +34,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         public string GetEditorRefIdAsString()
         {
-            string stringId = ShaderUtilHelpers.BytesToString(editorRefId);
+            var stringId = ShaderUtilHelpers.BytesToString(editorRefId);
             stringId = stringId.Replace(" ", "").ToLower();
             return stringId;
         }

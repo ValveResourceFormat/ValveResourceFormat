@@ -428,7 +428,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return BPTC.BPTCDecoders.UncompressBC6H(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.BC7:
-                    bool hemiOctRB = false;
+                    var hemiOctRB = false;
                     invert = false;
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {

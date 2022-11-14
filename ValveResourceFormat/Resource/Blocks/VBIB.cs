@@ -160,7 +160,7 @@ namespace ValveResourceFormat.Blocks
 
         private static OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
         {
-            OnDiskBufferData buffer = new OnDiskBufferData();
+            var buffer = new OnDiskBufferData();
             buffer.ElementCount = data.GetUInt32Property("m_nElementCount");
             buffer.ElementSizeInBytes = data.GetUInt32Property("m_nElementSizeInBytes");
 
@@ -169,7 +169,7 @@ namespace ValveResourceFormat.Blocks
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
             foreach (var il in inputLayoutFields)
             {
-                RenderInputLayoutField attrib = new RenderInputLayoutField();
+                var attrib = new RenderInputLayoutField();
 
                 //null-terminated string
                 attrib.SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0);

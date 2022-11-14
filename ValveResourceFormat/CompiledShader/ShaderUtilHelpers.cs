@@ -10,11 +10,11 @@ namespace ValveResourceFormat.CompiledShader
     {
         public static (VcsProgramType, VcsPlatformType, VcsShaderModelType) ComputeVCSFileName(string filenamepath)
         {
-            VcsProgramType vcsProgramType = VcsProgramType.Undetermined;
-            VcsPlatformType vcsPlatformType = VcsPlatformType.Undetermined;
-            VcsShaderModelType vcsShaderModelType = VcsShaderModelType.Undetermined;
+            var vcsProgramType = VcsProgramType.Undetermined;
+            var vcsPlatformType = VcsPlatformType.Undetermined;
+            var vcsShaderModelType = VcsShaderModelType.Undetermined;
 
-            string[] fileTokens = Path.GetFileName(filenamepath).Split("_");
+            var fileTokens = Path.GetFileName(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
@@ -98,8 +98,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 return shaderParam;
             }
-            string[] splitName = shaderParam[2..].Split("_");
-            string newName = "";
+            var splitName = shaderParam[2..].Split("_");
+            var newName = "";
             if (splitName[0] == "MODE")
             {
                 if (splitName.Length == 2)
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.CompiledShader
                     return splitName[1].Length > 3 ? $"M_{splitName[1][0..3]}" : $"M_{splitName[1]}";
                 }
                 newName = "M_";
-                for (int i = 1; i < splitName.Length; i++)
+                for (var i = 1; i < splitName.Length; i++)
                 {
                     newName += splitName[i][0..1];
                 }
@@ -115,7 +115,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             if (splitName.Length > 2)
             {
-                for (int i = 0; i < splitName.Length && i < 5; i++)
+                for (var i = 0; i < splitName.Length && i < 5; i++)
                 {
                     newName += splitName[i].Substring(0, 1);
                 }
@@ -132,8 +132,8 @@ namespace ValveResourceFormat.CompiledShader
         public static string CombineIntArray(int[] ints0, bool includeParenth = false)
         {
             if (ints0.Length == 0) return $"_";
-            string valueString = "";
-            foreach (int i in ints0)
+            var valueString = "";
+            foreach (var i in ints0)
             {
                 valueString += $"{i},";
             }
@@ -144,10 +144,10 @@ namespace ValveResourceFormat.CompiledShader
         public static string CombineIntsSpaceSep(int[] ints0, int padding = 5)
         {
             if (ints0.Length == 0) return $"_".PadLeft(padding);
-            string valueString = "";
-            foreach (int v in ints0)
+            var valueString = "";
+            foreach (var v in ints0)
             {
-                string intPadded = $"{(v != 0 ? v : "_")}".PadLeft(padding);
+                var intPadded = $"{(v != 0 ? v : "_")}".PadLeft(padding);
                 valueString += $"{intPadded}";
             }
             // return $"{valueString[0..^padding]}";
@@ -156,8 +156,8 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string CombineStringsSpaceSep(string[] strings0, int padding = 5)
         {
-            string combinedString = "";
-            foreach (string s in strings0)
+            var combinedString = "";
+            foreach (var s in strings0)
             {
                 combinedString += s.PadLeft(padding);
             }
@@ -167,8 +167,8 @@ namespace ValveResourceFormat.CompiledShader
         public static string CombineStringArray(string[] strings0, bool includeParenth = false)
         {
             if (strings0.Length == 0) return $"_";
-            string combinedString = "";
-            foreach (string s in strings0)
+            var combinedString = "";
+            foreach (var s in strings0)
             {
                 combinedString += $"{s}, ";
             }
@@ -184,8 +184,8 @@ namespace ValveResourceFormat.CompiledShader
                 stringCollection.Add("");
                 return stringCollection.ToArray();
             }
-            string line = strings0[0] + ", ";
-            for (int i = 1; i < strings0.Length; i++)
+            var line = strings0[0] + ", ";
+            for (var i = 1; i < strings0.Length; i++)
             {
                 if (line.Length + strings0[i].Length + 1 < breakLen)
                 {
@@ -213,9 +213,9 @@ namespace ValveResourceFormat.CompiledShader
             {
                 breakLen = int.MaxValue;
             }
-            int count = 0;
-            string bytestring = "";
-            for (int i = 0; i < databytes.Length; i++)
+            var count = 0;
+            var bytestring = "";
+            for (var i = 0; i < databytes.Length; i++)
             {
                 bytestring += $"{databytes[i]:X02} ";
                 if (++count % breakLen == 0)
@@ -228,13 +228,13 @@ namespace ValveResourceFormat.CompiledShader
 
         public static void ShowIntArray(int[] ints0, int padding = 5, string label = null, bool hex = false)
         {
-            string intsString = "";
-            foreach (int v in ints0)
+            var intsString = "";
+            foreach (var v in ints0)
             {
-                string val = hex ? $"{v:x}" : $"{v}";
+                var val = hex ? $"{v:x}" : $"{v}";
                 intsString += $"{(v != 0 ? val : "_")}".PadLeft(padding);
             }
-            string labelstr = (label != null && hex) ? $"{label}(0x)" : $"{label}";
+            var labelstr = (label != null && hex) ? $"{label}(0x)" : $"{label}";
             labelstr = label != null ? $"{labelstr,12} = " : "";
             Console.WriteLine($"{labelstr}{intsString.Trim()}");
         }
@@ -282,7 +282,7 @@ namespace ValveResourceFormat.CompiledShader
                 headerValues = new();
                 tabulatedValues = new();
                 columnWidths = new();
-                foreach (string s in headers)
+                foreach (var s in headers)
                 {
                     headerValues.Add(s);
                     columnWidths.Add(s.Length);
@@ -297,9 +297,9 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 List<string> newRow = new();
                 List<List<string>> additionalRows = new();
-                for (int i = 0; i < rowMembers.Length; i++)
+                for (var i = 0; i < rowMembers.Length; i++)
                 {
-                    string[] multipleLines = rowMembers[i].Split("\n");
+                    var multipleLines = rowMembers[i].Split("\n");
                     if (multipleLines.Length > 1)
                     {
                         AddExtraLines(additionalRows, multipleLines, i);
@@ -319,7 +319,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             private void AddExtraLines(List<List<string>> additionalRows, string[] multipleLines, int ind)
             {
-                for (int i = 1; i < multipleLines.Length; i++)
+                for (var i = 1; i < multipleLines.Length; i++)
                 {
                     if (additionalRows.Count < i)
                     {
@@ -336,7 +336,7 @@ namespace ValveResourceFormat.CompiledShader
             private List<string> EmptyRow()
             {
                 List<string> newRow = new();
-                for (int i = 0; i < headerValues.Count; i++)
+                for (var i = 0; i < headerValues.Count; i++)
                 {
                     newRow.Add("");
                 }
@@ -350,9 +350,9 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 foreach (var row in tabulatedValues)
                 {
-                    for (int i = 0; i < row.Count; i++)
+                    for (var i = 0; i < row.Count; i++)
                     {
-                        int pad = columnWidths[i] + spacing;
+                        var pad = columnWidths[i] + spacing;
                         Write($"{row[i].PadRight(pad)}");
                     }
                     Write("\n");

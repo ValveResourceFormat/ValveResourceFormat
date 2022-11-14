@@ -42,7 +42,7 @@ namespace GUI.Types.Renderer
             var gpuVbib = GetVertexIndexBuffers(vbib);
             var vaoKey = new VAOKey { VBIB = gpuVbib, Shader = shader, VertexIndex = vtxIndex, IndexIndex = idxIndex };
 
-            if (vertexArrayObjects.TryGetValue(vaoKey, out uint vaoHandle))
+            if (vertexArrayObjects.TryGetValue(vaoKey, out var vaoHandle))
             {
                 return vaoHandle;
             }

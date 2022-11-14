@@ -31,7 +31,7 @@ namespace ValveResourceFormat.CompiledShader
             offsets[0] = 1;
             nr_states[0] = shaderFile.dBlocks[0].arg2 + 1;
 
-            for (int i = 1; i < shaderFile.dBlocks.Count; i++)
+            for (var i = 1; i < shaderFile.dBlocks.Count; i++)
             {
                 nr_states[i] = shaderFile.dBlocks[i].arg2 + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
@@ -40,8 +40,8 @@ namespace ValveResourceFormat.CompiledShader
 
         public int[] GetConfigState(long zframeId)
         {
-            int[] state = new int[nr_states.Length];
-            for (int i = 0; i < nr_states.Length; i++)
+            var state = new int[nr_states.Length];
+            for (var i = 0; i < nr_states.Length; i++)
             {
                 state[i] = (int)(zframeId / offsets[i]) % (nr_states[i]);
             }

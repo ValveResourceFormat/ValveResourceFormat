@@ -314,7 +314,7 @@ namespace GUI.Types.Renderer
 
         private void UpdateBoundingBox()
         {
-            bool first = true;
+            var first = true;
             foreach (var mesh in meshRenderers)
             {
                 LocalBoundingBox = first ? mesh.BoundingBox : BoundingBox.Union(mesh.BoundingBox);

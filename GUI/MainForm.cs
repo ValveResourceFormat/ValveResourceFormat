@@ -57,10 +57,10 @@ namespace GUI
 
             Settings.Load();
 
-            string[] args = Environment.GetCommandLineArgs();
-            for (int i = 1; i < args.Length; i++)
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 1; i < args.Length; i++)
             {
-                string file = args[i];
+                var file = args[i];
                 if (File.Exists(file))
                 {
                     OpenFile(file);
@@ -170,7 +170,7 @@ namespace GUI
         private int GetTabIndex(TabPage tab)
         {
             //Work out the index of the requested tab
-            for (int i = 0; i < mainTabs.TabPages.Count; i++)
+            for (var i = 0; i < mainTabs.TabPages.Count; i++)
             {
                 if (mainTabs.TabPages[i] == tab)
                 {
@@ -209,8 +209,8 @@ namespace GUI
         private void CloseAllTabs()
         {
             //Close all tabs currently open (excluding console)
-            int tabCount = mainTabs.TabPages.Count;
-            for (int i = 1; i < tabCount; i++)
+            var tabCount = mainTabs.TabPages.Count;
+            for (var i = 1; i < tabCount; i++)
             {
                 CloseTab(mainTabs.TabPages[tabCount - i]);
             }
@@ -226,7 +226,7 @@ namespace GUI
             }
 
             //Close all tabs to the left of the base (excluding console)
-            for (int i = GetTabIndex(basePage); i > 0; i--)
+            for (var i = GetTabIndex(basePage); i > 0; i--)
             {
                 CloseTab(mainTabs.TabPages[i]);
             }
@@ -242,8 +242,8 @@ namespace GUI
             }
 
             //Close all tabs to the right of the base one
-            int tabCount = mainTabs.TabPages.Count;
-            for (int i = 1; i < tabCount; i++)
+            var tabCount = mainTabs.TabPages.Count;
+            for (var i = 1; i < tabCount; i++)
             {
                 if (mainTabs.TabPages[tabCount - i] == basePage)
                 {
@@ -280,7 +280,7 @@ namespace GUI
             //Work out what tab we're interacting with
             var tabControl = sender as TabControl;
             var tabs = tabControl.TabPages;
-            TabPage thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
+            var thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
 
             if (e.Button == MouseButtons.Middle)
             {

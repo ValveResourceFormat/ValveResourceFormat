@@ -27,7 +27,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             var acceleration = gravity * frameTime;
 
-            for (int i = 0; i < particles.Length; ++i)
+            for (var i = 0; i < particles.Length; ++i)
             {
                 // Apply acceleration
                 particles[i].Velocity += acceleration;

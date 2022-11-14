@@ -65,8 +65,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var lut = GetColorCorrectionLUT().Clone() as byte[];
 
-            int j = 0;
-            for (int i = 0; i < lut.Length; i++)
+            var j = 0;
+            for (var i = 0; i < lut.Length; i++)
             {
                 // Skip each 4th byte
                 if (((i + 1) % 4) == 0)

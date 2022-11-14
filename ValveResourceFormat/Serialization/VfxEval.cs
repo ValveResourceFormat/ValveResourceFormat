@@ -360,9 +360,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             if (op == OPCODE.EVAL)
             {
-                uint intval = dataReader.ReadUInt32();
+                var intval = dataReader.ReadUInt32();
                 // if this reference exists in the vars-reference, then show it
-                string murmurString = ExternalVarsReference.GetValueOrDefault(intval, $"{intval:x08}");
+                var murmurString = ExternalVarsReference.GetValueOrDefault(intval, $"{intval:x08}");
                 Expressions.Push($"EVAL[{murmurString}]");
                 return;
             }

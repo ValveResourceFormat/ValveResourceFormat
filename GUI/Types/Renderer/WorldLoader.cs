@@ -265,7 +265,7 @@ namespace GUI.Types.Renderer
                 {
                     var groups = modelNode.GetMeshGroups();
                     var body = entity.Properties[bodyHash].Data;
-                    int bodyGroup = -1;
+                    var bodyGroup = -1;
 
                     if (body is ulong bodyGroupLong)
                     {

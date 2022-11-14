@@ -655,7 +655,7 @@ namespace ValveResourceFormat.IO
                     var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
                     var indices = ReadIndices(indexBuffer, startIndex, indexCount);
 
-                    string primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
+                    var primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
                     {
                         string primitiveTypeString => primitiveTypeString,
                         byte primitiveTypeByte =>
@@ -786,7 +786,7 @@ namespace ValveResourceFormat.IO
                 metalValue = flMetalness;
             }
 
-            Vector4 baseColor = Vector4.One;
+            var baseColor = Vector4.One;
 
             if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
             {
@@ -981,30 +981,30 @@ namespace ValveResourceFormat.IO
             var inputNormal = compressedNormal;
             var outputNormal = Vector3.Zero;
 
-            float x = inputNormal.X - 128.0f;
-            float y = inputNormal.Y - 128.0f;
+            var x = inputNormal.X - 128.0f;
+            var y = inputNormal.Y - 128.0f;
             float z;
 
-            float zSignBit = x < 0 ? 1.0f : 0.0f;           // z and t negative bits (like slt asm instruction)
-            float tSignBit = y < 0 ? 1.0f : 0.0f;
-            float zSign = -((2 * zSignBit) - 1);          // z and t signs
-            float tSign = -((2 * tSignBit) - 1);
+            var zSignBit = x < 0 ? 1.0f : 0.0f;           // z and t negative bits (like slt asm instruction)
+            var tSignBit = y < 0 ? 1.0f : 0.0f;
+            var zSign = -((2 * zSignBit) - 1);          // z and t signs
+            var tSign = -((2 * tSignBit) - 1);
 
             x = (x * zSign) - zSignBit;                           // 0..127
             y = (y * tSign) - tSignBit;
             x -= 64;                                     // -64..63
             y -= 64;
 
-            float xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
-            float ySignBit = y < 0 ? 1.0f : 0.0f;
-            float xSign = -((2 * xSignBit) - 1);          // x and y signs
-            float ySign = -((2 * ySignBit) - 1);
+            var xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
+            var ySignBit = y < 0 ? 1.0f : 0.0f;
+            var xSign = -((2 * xSignBit) - 1);          // x and y signs
+            var ySign = -((2 * ySignBit) - 1);
 
             x = ((x * xSign) - xSignBit) / 63.0f;             // 0..1 range
             y = ((y * ySign) - ySignBit) / 63.0f;
             z = 1.0f - x - y;
 
-            float oolen = 1.0f / (float)Math.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
+            var oolen = 1.0f / (float)Math.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
             x *= oolen * xSign;                 // Recover signs
             y *= oolen * ySign;
             z *= oolen * zSign;

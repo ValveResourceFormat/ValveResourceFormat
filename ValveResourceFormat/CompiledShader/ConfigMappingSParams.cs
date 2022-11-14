@@ -141,7 +141,7 @@ namespace ValveResourceFormat.CompiledShader
             offsets[0] = 1;
             nr_states[0] = shaderFile.sfBlocks[0].arg2 + 1;
 
-            for (int i = 1; i < shaderFile.sfBlocks.Count; i++)
+            for (var i = 1; i < shaderFile.sfBlocks.Count; i++)
             {
                 nr_states[i] = shaderFile.sfBlocks[i].arg2 + 1;
                 offsets[i] = offsets[i - 1] * (nr_states[i - 1]);
@@ -154,8 +154,8 @@ namespace ValveResourceFormat.CompiledShader
          */
         public int[] GetConfigState(long zframeId)
         {
-            int[] state = new int[nr_states.Length];
-            for (int i = 0; i < nr_states.Length; i++)
+            var state = new int[nr_states.Length];
+            for (var i = 0; i < nr_states.Length; i++)
             {
                 state[i] = (int)(zframeId / offsets[i] % nr_states[i]);
             }
@@ -192,14 +192,14 @@ namespace ValveResourceFormat.CompiledShader
         }
         bool CheckZFrame(int zframe)
         {
-            int[] state = GetConfigState(zframe);
+            var state = GetConfigState(zframe);
             // checking exclusion rules
-            for (int j = 2; j < offsets.Length; j++)
+            for (var j = 2; j < offsets.Length; j++)
             {
-                for (int i = 1; i < j; i++)
+                for (var i = 1; i < j; i++)
                 {
-                    int s1 = state[i];
-                    int s2 = state[j];
+                    var s1 = state[i];
+                    var s2 = state[j];
                     if (s1 == 0 || s2 == 0)
                     {
                         continue;
@@ -215,11 +215,11 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
             // checking inclusion rules
-            for (int i = 1; i < offsets.Length; i++)
+            for (var i = 1; i < offsets.Length; i++)
             {
-                int s1 = state[i];
+                var s1 = state[i];
                 if (s1 == 0) continue;
-                for (int j = 1; j < offsets.Length; j++)
+                for (var j = 1; j < offsets.Length; j++)
                 {
                     if (inclusions[i, j] && state[j] == 0)
                     {

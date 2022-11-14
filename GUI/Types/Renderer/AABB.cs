@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
 
             var min = points[0];
             var max = points[0];
-            for (int i = 1; i < points.Length; ++i)
+            for (var i = 1; i < points.Length; ++i)
             {
                 min = Vector4.Min(min, points[i]);
                 max = Vector4.Max(max, points[i]);

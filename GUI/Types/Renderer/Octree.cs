@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
                 var remainingElements = new List<Element>();
                 foreach (var element in Elements)
                 {
-                    bool movedDown = false;
+                    var movedDown = false;
 
                     foreach (var child in Children)
                     {
@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
                     Subdivide();
                 }
 
-                bool inserted = false;
+                var inserted = false;
 
                 if (HasChildren)
                 {
@@ -117,7 +117,7 @@ namespace GUI.Types.Renderer
             {
                 if (HasElements)
                 {
-                    for (int i = 0; i < Elements.Count; ++i)
+                    for (var i = 0; i < Elements.Count; ++i)
                     {
                         if (Elements[i].ClientObject == clientObject)
                         {

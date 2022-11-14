@@ -82,7 +82,7 @@ namespace GUI.Types.ParticleRenderer
 
         private void EmitParticle()
         {
-            int index = particleBag.Add();
+            var index = particleBag.Add();
             if (index < 0)
             {
                 Console.WriteLine("Out of space in particle bag");
@@ -163,7 +163,7 @@ namespace GUI.Types.ParticleRenderer
                 var maxParticlePos = center;
 
                 var liveParticles = particleBag.LiveParticles;
-                for (int i = 0; i < liveParticles.Length; ++i)
+                for (var i = 0; i < liveParticles.Length; ++i)
                 {
                     var pos = liveParticles[i].Position;
                     var radius = liveParticles[i].Radius;

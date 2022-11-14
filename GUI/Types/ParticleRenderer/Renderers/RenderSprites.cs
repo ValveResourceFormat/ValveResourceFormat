@@ -75,7 +75,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             vertexBufferHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
 
-            int stride = sizeof(float) * VertexSize;
+            var stride = sizeof(float) * VertexSize;
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
@@ -106,7 +106,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private void EnsureSpaceForVertices(int count)
         {
-            int numFloats = count * VertexSize;
+            var numFloats = count * VertexSize;
 
             if (rawVertices == null)
             {
@@ -114,7 +114,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
             else if (rawVertices.Length < numFloats)
             {
-                int nextSize = (((count / 64) + 1) * 64) * VertexSize;
+                var nextSize = (((count / 64) + 1) * 64) * VertexSize;
                 Array.Resize(ref rawVertices, nextSize);
             }
         }
@@ -124,13 +124,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var particles = particleBag.LiveParticles;
 
             // Create billboarding rotation (always facing camera)
-            Matrix4x4.Decompose(modelViewMatrix, out _, out Quaternion modelViewRotation, out _);
+            Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _);
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             // Update vertex buffer
             EnsureSpaceForVertices(particleBag.Count * 4);
-            for (int i = 0; i < particleBag.Count; ++i)
+            for (var i = 0; i < particleBag.Count; ++i)
             {
                 // Positions
                 var modelMatrix = orientationType == 0
@@ -142,7 +142,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var br = Vector4.Transform(new Vector4(1, 1, 0, 1), modelMatrix);
                 var tr = Vector4.Transform(new Vector4(1, -1, 0, 1), modelMatrix);
 
-                int quadStart = i * VertexSize * 4;
+                var quadStart = i * VertexSize * 4;
                 rawVertices[quadStart + 0] = tl.X;
                 rawVertices[quadStart + 1] = tl.Y;
                 rawVertices[quadStart + 2] = tl.Z;
@@ -157,7 +157,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
 
                 // Colors
-                for (int j = 0; j < 4; ++j)
+                for (var j = 0; j < 4; ++j)
                 {
                     rawVertices[quadStart + (VertexSize * j) + 3] = particles[i].Color.X;
                     rawVertices[quadStart + (VertexSize * j) + 4] = particles[i].Color.Y;
