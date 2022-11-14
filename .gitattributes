@@ -1,5 +1,8 @@
 * text=auto
-*.cs     diff=csharp
+*.cs text=auto diff=csharp
+
+*.png binary
+*.ico binary
 
 #For KeyValues3 Tests, keep intended line endings to test parser
 *_CRLF.kv3 eol=crlf
