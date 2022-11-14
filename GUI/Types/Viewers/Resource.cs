@@ -412,7 +412,7 @@ namespace GUI.Types.Viewers
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Material:
-                        AddContentTab(resTabs, "Reconstructed vmat", ((Material)block).ToValveMaterial());
+                        AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
                         break;
 
                     case ResourceType.EntityLump:
@@ -430,7 +430,7 @@ namespace GUI.Types.Viewers
                                 break;
                             }
 
-                            var textureExtract = new TextureExtract((Texture)resource.DataBlock, resource.FileName);
+                            var textureExtract = new TextureExtract(resource);
                             AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
 
                             if (textureExtract.TryGetMksData(out var _, out var mks))

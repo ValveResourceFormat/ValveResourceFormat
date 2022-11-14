@@ -378,7 +378,7 @@ namespace Decompiler
                     if (OutputFile == null)
                     {
                         // Test extraction code flow while collecting stats
-                        using var _ = FileExtract.Extract(resource);
+                        using var _ = FileExtract.Extract(resource, null);
                     }
 
                     if (!string.IsNullOrEmpty(info))
@@ -420,7 +420,7 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    using var contentFile = FileExtract.Extract(resource);
+                    using var contentFile = FileExtract.Extract(resource, null);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -811,9 +811,18 @@ namespace Decompiler
 
         private void DumpVPK(string parentPath, Package package, string type, Dictionary<string, uint> manifestData)
         {
-            if (ExtFilterList != null && !ExtFilterList.Contains(type))
+            var allowSubFilesFromExternalRefs = true;
+            if (ExtFilterList != null)
             {
-                return;
+                if (!ExtFilterList.Contains(type))
+                {
+                    return;
+                }
+
+                if (type == "vmat_c" && ExtFilterList.Contains("vmat_c") && !ExtFilterList.Contains("vtex_c"))
+                {
+                    allowSubFilesFromExternalRefs = false;
+                }
             }
 
             if (!package.Entries.ContainsKey(type))
@@ -884,7 +893,7 @@ namespace Decompiler
                             continue;
                         }
 
-                        contentFile = FileExtract.Extract(resource);
+                        contentFile = FileExtract.Extract(resource, fileLoader);
                     }
                     catch (Exception e)
                     {
@@ -912,7 +921,7 @@ namespace Decompiler
 
                         if (Decompile && contentFile is not null)
                         {
-                            DumpContentFile(filePath, contentFile);
+                            DumpContentFile(filePath, contentFile, allowSubFilesFromExternalRefs);
                         }
                         else
                         {

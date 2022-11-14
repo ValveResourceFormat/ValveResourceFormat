@@ -66,7 +66,7 @@ namespace GUI.Types.Exporter
                 }
                 else
                 {
-                    using var contentFile = FileExtract.Extract(resource);
+                    using var contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext?.FileLoader);
                     using var stream = dialog.OpenFile();
                     stream.Write(contentFile.Data);
 

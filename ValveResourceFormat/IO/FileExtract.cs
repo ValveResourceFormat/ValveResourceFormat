@@ -11,15 +11,17 @@ namespace ValveResourceFormat.IO
     public class ContentFile : IDisposable
     {
         public byte[] Data { get; set; }
-        public List<ContentSubFile> SubFiles { get; init; } = new List<ContentSubFile>();
+        public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
+        public Dictionary<string, ContentFile> ExternalRefsHandled { get; init; } = new();
+        public bool SubFilesAreExternal { get; set; }
         protected bool Disposed { get; private set; }
 
-        public void AddSubFile(string fileName, Func<byte[]> extractFunction)
+        public void AddSubFile(string fileName, Func<byte[]> extractMethod)
         {
-            var subFile = new ContentSubFile
+            var subFile = new SubFile
             {
                 FileName = fileName,
-                Extract = extractFunction
+                Extract = extractMethod
             };
 
             SubFiles.Add(subFile);
@@ -27,6 +29,15 @@ namespace ValveResourceFormat.IO
 
         protected virtual void Dispose(bool disposing)
         {
+
+            if (!Disposed && disposing)
+            {
+                foreach (var externalRef in ExternalRefsHandled.Values)
+                {
+                    externalRef.Dispose();
+                }
+            }
+
             Disposed = true;
         }
 
@@ -37,8 +48,11 @@ namespace ValveResourceFormat.IO
         }
     }
 
-    public class ContentSubFile
+    public class SubFile
     {
+        /// <remarks>
+        /// This is relative to the content file.
+        /// </remarks>
         public string FileName { get; set; }
         public virtual Func<byte[]> Extract { get; set; }
     }
@@ -49,7 +63,7 @@ namespace ValveResourceFormat.IO
         /// Extract content file from a compiled resource.
         /// </summary>
         /// <param name="resource">The resource to be extracted or decompiled.</param>
-        public static ContentFile Extract(Resource resource)
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader)
         {
             var contentFile = new ContentFile();
 
@@ -83,7 +97,7 @@ namespace ValveResourceFormat.IO
                             break;
                         }
 
-                        var textureExtract = new TextureExtract((Texture)resource.DataBlock, resource.FileName);
+                        var textureExtract = new TextureExtract(resource);
                         contentFile = textureExtract.ToContentFile();
                         break;
                     }
@@ -93,7 +107,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Material:
-                    contentFile.Data = Encoding.UTF8.GetBytes(((Material)resource.DataBlock).ToValveMaterial());
+                    contentFile = new MaterialExtract(resource, fileLoader).ToContentFile();
                     break;
 
                 case ResourceType.EntityLump:
@@ -108,8 +122,8 @@ namespace ValveResourceFormat.IO
                         );
 
                         contentFile.AddSubFile(
-                            fileName: lutFileName,
-                            extractFunction: () => ((PostProcessing)resource.DataBlock).GetRAWData()
+                            fileName: Path.GetFileName(lutFileName),
+                            extractMethod: () => ((PostProcessing)resource.DataBlock).GetRAWData()
                         );
 
                         break;
@@ -181,9 +195,14 @@ namespace ValveResourceFormat.IO
                     break;
             }
 
-            if (resource.ResourceType != ResourceType.Unknown)
+            return GetExtension(resource.ResourceType);
+        }
+
+        public static string GetExtension(ResourceType resourceType)
+        {
+            if (resourceType != ResourceType.Unknown)
             {
-                var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString())[0];
+                var type = typeof(ResourceType).GetMember(resourceType.ToString())[0];
                 return ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
             }
 
