@@ -960,7 +960,7 @@ namespace Decompiler
             {
                 if (!inputPath.StartsWith(InputFile, StringComparison.Ordinal))
                 {
-                    throw new Exception($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?");
+                    throw new ArgumentException($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?", nameof(inputPath));
                 }
 
                 inputPath = inputPath.Remove(0, InputFile.Length);
