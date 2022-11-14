@@ -17,7 +17,7 @@
     <PackageReference Include="SkiaSharp" Version="2.88.3" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.3" />
     <PackageReference Include="ValveKeyValue" Version="0.8.2.162" />
-    <PackageReference Include="ZstdSharp.Port" Version="0.6.4" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.6.5" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Icons\vrf_library.png">
