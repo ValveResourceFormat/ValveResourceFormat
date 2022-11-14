@@ -819,14 +819,30 @@ namespace ValveResourceFormat.CompiledShader
         }
         private static string Fmt(float val)
         {
-            if (val == -1e9) return "-inf";
-            if (val == 1e9) return "inf";
+            if (val == -1e9)
+            {
+                return "-inf";
+            }
+
+            if (val == 1e9)
+            {
+                return "inf";
+            }
+
             return $"{val}";
         }
         private static string Fmt(int val)
         {
-            if (val == -999999999) return "-inf";
-            if (val == 999999999) return "inf";
+            if (val == -999999999)
+            {
+                return "-inf";
+            }
+
+            if (val == 999999999)
+            {
+                return "inf";
+            }
+
             return "" + val; ;
         }
     }
@@ -964,7 +980,10 @@ namespace ValveResourceFormat.CompiledShader
                 datareader.ShowBytes(4);
                 datareader.BreakLine();
             }
-            if (symbolGroupCount == 0) datareader.BreakLine();
+            if (symbolGroupCount == 0)
+            {
+                datareader.BreakLine();
+            }
         }
 
     }

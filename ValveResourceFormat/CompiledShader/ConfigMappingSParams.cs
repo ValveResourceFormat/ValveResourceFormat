@@ -218,7 +218,11 @@ namespace ValveResourceFormat.CompiledShader
             for (var i = 1; i < offsets.Length; i++)
             {
                 var s1 = state[i];
-                if (s1 == 0) continue;
+                if (s1 == 0)
+                {
+                    continue;
+                }
+
                 for (var j = 1; j < offsets.Length; j++)
                 {
                     if (inclusions[i, j] && state[j] == 0)

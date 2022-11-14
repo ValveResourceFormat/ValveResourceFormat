@@ -66,7 +66,8 @@ namespace ValveResourceFormat.CompiledShader
                 vcsShaderModelType == VcsShaderModelType.Undetermined)
             {
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
-            } else
+            }
+            else
             {
                 return (vcsProgramType, vcsPlatformType, vcsShaderModelType);
             }
@@ -131,7 +132,11 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string CombineIntArray(int[] ints0, bool includeParenth = false)
         {
-            if (ints0.Length == 0) return $"_";
+            if (ints0.Length == 0)
+            {
+                return $"_";
+            }
+
             var valueString = "";
             foreach (var i in ints0)
             {
@@ -143,7 +148,11 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string CombineIntsSpaceSep(int[] ints0, int padding = 5)
         {
-            if (ints0.Length == 0) return $"_".PadLeft(padding);
+            if (ints0.Length == 0)
+            {
+                return $"_".PadLeft(padding);
+            }
+
             var valueString = "";
             foreach (var v in ints0)
             {
@@ -166,7 +175,11 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string CombineStringArray(string[] strings0, bool includeParenth = false)
         {
-            if (strings0.Length == 0) return $"_";
+            if (strings0.Length == 0)
+            {
+                return $"_";
+            }
+
             var combinedString = "";
             foreach (var s in strings0)
             {
@@ -190,7 +203,8 @@ namespace ValveResourceFormat.CompiledShader
                 if (line.Length + strings0[i].Length + 1 < breakLen)
                 {
                     line += strings0[i] + ", ";
-                } else
+                }
+                else
                 {
                     stringCollection.Add(line[0..^2]);
                     line = strings0[i] + ", ";
@@ -244,7 +258,8 @@ namespace ValveResourceFormat.CompiledShader
             try
             {
                 return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR"); ;
-            } catch (Exception)
+            }
+            catch (Exception)
             {
                 return "[error in dyn-exp]";
             }

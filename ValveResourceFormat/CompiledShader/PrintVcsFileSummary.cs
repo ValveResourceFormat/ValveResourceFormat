@@ -601,15 +601,31 @@ namespace ValveResourceFormat.CompiledShader
 
         private static string Fmt(float val)
         {
-            if (val == -1e9) return "-";
-            if (val == 1e9) return "+";
+            if (val == -1e9)
+            {
+                return "-";
+            }
+
+            if (val == 1e9)
+            {
+                return "+";
+            }
+
             return $"{val}";
         }
 
         private static string Fmt(int val)
         {
-            if (val == -999999999) return "-";
-            if (val == 999999999) return "+";
+            if (val == -999999999)
+            {
+                return "-";
+            }
+
+            if (val == 999999999)
+            {
+                return "+";
+            }
+
             return "" + val; ;
         }
     }

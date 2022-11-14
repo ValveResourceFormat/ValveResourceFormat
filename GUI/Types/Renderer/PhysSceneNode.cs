@@ -56,7 +56,9 @@ namespace GUI.Types.Renderer
                     var radius = sphere.GetFloatProperty("m_flRadius");
 
                     if (bindPose.Any())
+                    {
                         center = Vector3.Transform(center, bindPose[p]);
+                    }
 
                     AddSphere(verts, inds, center, radius);
 
@@ -98,7 +100,10 @@ namespace GUI.Types.Renderer
                     {
                         var vec = v.ToVector3();
                         if (bindPose.Any())
+                        {
                             vec = Vector3.Transform(vec, bindPose[p]);
+                        }
+
                         verts.Add(vec.X);
                         verts.Add(vec.Y);
                         verts.Add(vec.Z);
@@ -153,7 +158,10 @@ namespace GUI.Types.Renderer
                     {
                         var v = vec;
                         if (bindPose.Any())
+                        {
                             v = Vector3.Transform(vec, bindPose[p]);
+                        }
+
                         verts.Add(v.X);
                         verts.Add(v.Y);
                         verts.Add(v.Z);
@@ -313,7 +321,9 @@ namespace GUI.Types.Renderer
         public override void Render(Scene.RenderContext context)
         {
             if (!Enabled)
+            {
                 return;
+            }
 
             var viewProjectionMatrix = (Transform * context.Camera.ViewProjectionMatrix).ToOpenTK();
 
