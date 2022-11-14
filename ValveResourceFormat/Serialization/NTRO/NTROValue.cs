@@ -81,6 +81,10 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 case DataType.Color:
+                    var color = Value as NTROStruct;
+                    writer.WriteLine("({0}, {1}, {2}, {3})", color.GetProperty<byte>("0"), color.GetProperty<byte>("1"), color.GetProperty<byte>("2"), color.GetProperty<byte>("3"));
+                    break;
+
                 case DataType.Fltx4:
                 case DataType.Vector4D:
                 case DataType.Vector4D_44:

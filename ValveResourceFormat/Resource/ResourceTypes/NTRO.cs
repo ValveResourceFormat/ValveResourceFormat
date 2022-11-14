@@ -240,6 +240,15 @@ namespace ValveResourceFormat.ResourceTypes
                         pointer);
 
                 case DataType.Color:
+                    return new NTROValue<NTROStruct>(
+                        field.Type,
+                        new NTROStruct(
+                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer),
+                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer),
+                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer),
+                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer)),
+                        pointer);
+
                 case DataType.Fltx4:
                 case DataType.Vector4D:
                 case DataType.Vector4D_44:
