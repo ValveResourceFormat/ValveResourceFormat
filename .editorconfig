@@ -98,6 +98,9 @@ dotnet_diagnostic.CA5394.severity = none
 # CS0219: Variable is assigned but its value is never used
 dotnet_diagnostic.CS0219.severity = suggestion
 
+# CA1308: Normalize strings to uppercase
+dotnet_diagnostic.CA1308.severity = none
+
 dotnet_diagnostic.IDE0059.severity = none
 
 #
