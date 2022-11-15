@@ -6,8 +6,13 @@ namespace GUI.Controls
 {
     public partial class SavedCameraPositionsControl : UserControl
     {
+        public class RestoreCameraRequestEvent : EventArgs
+        {
+            public string Camera { get; init; }
+        }
+
         public event EventHandler SaveCameraRequest;
-        public event EventHandler<string> RestoreCameraRequest;
+        public event EventHandler<RestoreCameraRequestEvent> RestoreCameraRequest;
 
         public SavedCameraPositionsControl()
         {
@@ -21,7 +26,12 @@ namespace GUI.Controls
 
         private void BtnRestore_Click(object sender, EventArgs e)
         {
-            RestoreCameraRequest?.Invoke(this, cmbPositions.SelectedItem.ToString());
+            var ev = new RestoreCameraRequestEvent
+            {
+                Camera = cmbPositions.SelectedItem.ToString(),
+            };
+
+            RestoreCameraRequest?.Invoke(this, ev);
         }
 
         private void BtnDelete_Click(object sender, EventArgs e)

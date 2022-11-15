@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
+using static GUI.Controls.SavedCameraPositionsControl;
 
 namespace GUI.Types.Renderer
 {
@@ -66,9 +67,9 @@ namespace GUI.Types.Renderer
             });
         }
 
-        private void OnRestoreCameraRequest(object sender, string e)
+        private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
         {
-            if (Settings.Config.SavedCameras.TryGetValue(e, out var savedFloats))
+            if (Settings.Config.SavedCameras.TryGetValue(e.Camera, out var savedFloats))
             {
                 if (savedFloats.Length == 5)
                 {
