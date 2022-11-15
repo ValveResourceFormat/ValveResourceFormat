@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Serialization.NTRO
 {
@@ -216,5 +217,16 @@ namespace ValveResourceFormat.Serialization.NTRO
             => Contents
                 .Select(p => new KeyValuePair<string, object>(p.Key, p.Value.ValueObject))
                 .GetEnumerator();
+
+        public KVObject ToKVObject()
+        {
+            var kv = new KVObject(Name);
+            foreach (var entry in Contents)
+            {
+                kv.AddProperty(entry.Key, entry.Value.ToKVValue());
+            }
+
+            return kv;
+        }
     }
 }

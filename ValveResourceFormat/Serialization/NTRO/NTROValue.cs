@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Serialization.NTRO
@@ -8,6 +9,7 @@ namespace ValveResourceFormat.Serialization.NTRO
     {
         public DataType Type { get; protected set; }
         public bool Pointer { get; protected set; }
+        public abstract KVValue ToKVValue();
         public abstract void WriteText(IndentedTextWriter writer);
 
         public abstract object ValueObject { get; }
@@ -24,6 +26,62 @@ namespace ValveResourceFormat.Serialization.NTRO
             Type = type;
             Value = value;
             Pointer = pointer;
+        }
+
+        public override KVValue ToKVValue()
+        {
+            return Type switch
+            {
+                DataType.Struct => new KVValue(KVType.OBJECT, (Value as NTROStruct).ToKVObject()),
+                DataType.Enum => new KVValue(KVType.UINT64, Value),
+                DataType.ExternalReference => throw new NotImplementedException(),
+                DataType.String4 => new KVValue(KVType.STRING, Value),
+                DataType.SByte => new KVValue(KVType.INT64, Value),
+                DataType.Byte => new KVValue(KVType.UINT64, Value),
+                DataType.Int16 => new KVValue(KVType.INT64, Value),
+                DataType.UInt16 => new KVValue(KVType.UINT64, Value),
+                DataType.Int32 => new KVValue(KVType.INT64, Value),
+                DataType.UInt32 => new KVValue(KVType.UINT64, Value),
+                DataType.Int64 => new KVValue(KVType.INT64, Value),
+                DataType.UInt64 => new KVValue(KVType.UINT64, Value),
+                DataType.Float => new KVValue(KVType.DOUBLE, (double)(float)(object)Value),
+                DataType.Matrix2x4 => MakeArray<float>(Value, Type, KVType.DOUBLE, 2),
+                DataType.Vector => MakeArray<float>(Value, Type, KVType.DOUBLE, 3),
+                DataType.Vector4D => MakeArray<float>(Value, Type, KVType.DOUBLE, 4),
+                DataType.Quaternion => throw new NotImplementedException(),
+                DataType.Fltx4 => throw new NotImplementedException(),
+                DataType.Color => MakeArray<byte>(Value, Type, KVType.INT64, 4),
+                DataType.Boolean => new KVValue(KVType.BOOLEAN, Value),
+                DataType.String => new KVValue(KVType.STRING, Value),
+                DataType.Matrix3x4 => throw new NotImplementedException(),
+                DataType.Matrix3x4a => throw new NotImplementedException(),
+                DataType.CTransform => throw new NotImplementedException(),
+                DataType.Vector4D_44 => throw new NotImplementedException(),
+                _ => throw new ArgumentOutOfRangeException(nameof(Type)),
+            };
+
+            static KVValue MakeArray<StructMembersType>(T value, DataType type, KVType kvValuesType, int num)
+            {
+                if (value is not NTROStruct structValue)
+                {
+                    throw new InvalidOperationException($"Can only make array from a NTROStruct value, not ({typeof(T)}).");
+                }
+
+                var arrayObject = new KVObject(type.ToString(), true);
+                for (var i = 0; i < num; i++)
+                {
+                    var index = i.ToString(CultureInfo.InvariantCulture);
+                    if (kvValuesType == KVType.DOUBLE)
+                    {
+                        arrayObject.AddProperty(null, new KVValue(kvValuesType, structValue.GetDoubleProperty(index)));
+                        continue;
+                    }
+
+                    arrayObject.AddProperty(null, new KVValue(kvValuesType, structValue.GetProperty<StructMembersType>(index)));
+                }
+
+                return new KVValue(KVType.ARRAY, arrayObject);
+            }
         }
 
         public override string ToString()
