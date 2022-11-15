@@ -101,11 +101,8 @@ namespace ValveResourceFormat.CompiledShader
      */
     public class ConfigMappingSParams
     {
-        private readonly ShaderFile shaderfile;
-
         public ConfigMappingSParams(ShaderFile shaderfile)
         {
-            this.shaderfile = shaderfile;
             GenerateOffsetAndStateLookups(shaderfile);
         }
 
@@ -163,6 +160,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         int[] offsets;
         int[] nr_states;
+        /*
         readonly bool[,] exclusions = new bool[100, 100];
         readonly bool[,] inclusions = new bool[100, 100];
         void AddExclusionRule(int s1, int s2, int s3)
@@ -180,6 +178,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             inclusions[s1, s2] = true;
         }
+        */
 
         /*
          * possible zframe values are upto this value,
@@ -190,6 +189,8 @@ namespace ValveResourceFormat.CompiledShader
         {
             return nr_states[^1] * offsets[^1];
         }
+
+        /*
         bool CheckZFrame(int zframe)
         {
             var state = GetConfigState(zframe);
@@ -233,12 +234,13 @@ namespace ValveResourceFormat.CompiledShader
             }
             return true;
         }
+        */
+
         public void ShowOffsetAndNrStatesArrays()
         {
             ShowIntArray(offsets, 8, "offsets", hex: true);
             ShowIntArray(nr_states, 8, "nr_states");
 
         }
-
     }
 }

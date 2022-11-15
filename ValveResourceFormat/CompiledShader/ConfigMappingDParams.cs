@@ -5,11 +5,8 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class ConfigMappingDParams
     {
-        private readonly ShaderFile shaderfile;
-
         public ConfigMappingDParams(ShaderFile shaderfile)
         {
-            this.shaderfile = shaderfile;
             GenerateOffsetAndStateLookups(shaderfile);
         }
 

@@ -89,6 +89,7 @@ namespace ValveResourceFormat.Blocks
             Structs.Add(REDIStruct.InputDependencies, dependenciesRedi);
         }
 
+        /*
         private static REDIBlock ConstructStruct(string name)
         {
             return name switch
@@ -107,5 +108,6 @@ namespace ValveResourceFormat.Blocks
                 _ => throw new InvalidDataException($"Unknown struct in RED2 block: '{name}'"),
             };
         }
+        */
     }
 }

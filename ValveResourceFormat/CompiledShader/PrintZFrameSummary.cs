@@ -367,6 +367,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine("");
         }
 
+        /*
         private static string ByteToBinary(int b0)
         {
             var byteString = "";
@@ -375,6 +376,7 @@ namespace ValveResourceFormat.CompiledShader
             byteString += $"{Convert.ToString(b0 & 0xf, 2).PadLeft(4, '0')}";
             return byteString;
         }
+        */
 
         private void PrintEndBlocks()
         {
