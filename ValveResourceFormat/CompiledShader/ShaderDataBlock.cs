@@ -5,12 +5,12 @@ namespace ValveResourceFormat.CompiledShader
 {
     public abstract class ShaderDataBlock
     {
-        public ShaderDataReader datareader { get; }
-        protected long start { get; }
+        public ShaderDataReader DataReader { get; }
+        protected long Start { get; }
         protected ShaderDataBlock(ShaderDataReader datareader)
         {
-            start = datareader.BaseStream.Position;
-            this.datareader = datareader;
+            Start = datareader.BaseStream.Position;
+            DataReader = datareader;
         }
 
         protected static void ThrowIfNotSupported(int vcsFileVersion)

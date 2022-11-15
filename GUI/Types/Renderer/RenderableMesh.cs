@@ -7,6 +7,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
@@ -223,7 +224,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                throw new Exception("Unsupported index type");
+                throw new UnexpectedMagicException("Unsupported index type", indexElementSize, nameof(indexElementSize));
             }
 
             var m_vertexBuffer = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0

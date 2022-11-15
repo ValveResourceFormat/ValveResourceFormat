@@ -143,7 +143,7 @@ namespace GUI.Controls
             UpdateTime();
         }
 
-        private void trackBarPosition_Scroll(object sender, EventArgs e)
+        private void OnTrackBarPositionScroll(object sender, EventArgs e)
         {
             waveStream.CurrentTime = TimeSpan.FromSeconds(waveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
             UpdateTime();

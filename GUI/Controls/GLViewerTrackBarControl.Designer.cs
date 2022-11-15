@@ -53,7 +53,7 @@ namespace GUI.Controls
             this.trackBar.TabIndex = 0;
             this.trackBar.Minimum = 0;
             this.trackBar.Maximum = 1;
-            this.trackBar.MouseDown += trackVolume_MouseDown;
+            this.trackBar.MouseDown += OnTrackVolumeMouseDown;
             // 
             // GLViewerCheckboxControl
             // 

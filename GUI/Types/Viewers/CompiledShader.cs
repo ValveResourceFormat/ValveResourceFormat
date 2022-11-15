@@ -243,7 +243,7 @@ namespace GUI.Types.Viewers
                     return;
                 }
                 var zframeId = Convert.ToInt64(linkText, 16);
-                var zframeTab = new TabPage($"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeId:x}]");
+                var zframeTab = new TabPage($"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeId:x}]");
                 var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, zframeId);
                 zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                 zframeTab.Controls.Add(zframeRichTextBox);
@@ -314,7 +314,7 @@ namespace GUI.Types.Viewers
                     // the target id is extracted from the text link, parsing here strictly depends on the chosen format
                     // linkTokens[0].Split('-')[^2] evaluates as ZFRAME00000000, number is read as base 16
                     var zframeId = Convert.ToInt64(linkTokens[0].Split('-')[^2][6..], 16);
-                    var zframeTab = new TabPage($"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeId:x}] bytes");
+                    var zframeTab = new TabPage($"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeId:x}] bytes");
                     var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, zframeId, byteVersion: true);
                     zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                     zframeTab.Controls.Add(zframeRichTextBox);
@@ -330,12 +330,12 @@ namespace GUI.Types.Viewers
                 // (the sourceId is not the same as the zframeId - a single zframe may contain more than 1 source,
                 // they are enumerated in each zframe file starting from 0)
                 var gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
-                var gpuSourceTabTitle = $"{shaderFile.filenamepath.Split('_')[^1][..^4]}[{zframeFile.zframeId:x}]({gpuSourceId})";
+                var gpuSourceTabTitle = $"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeFile.ZframeId:x}]({gpuSourceId})";
 
                 TabPage gpuSourceTab = null;
                 var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
-                switch (zframeFile.gpuSources[gpuSourceId])
+                switch (zframeFile.GpuSources[gpuSourceId])
                 {
                     case GlslSource:
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
@@ -356,13 +356,13 @@ namespace GUI.Types.Viewers
                     case DxbcSource:
                     case DxilSource:
                     case VulkanSource:
-                        var input = zframeFile.gpuSources[gpuSourceId].sourcebytes;
+                        var input = zframeFile.GpuSources[gpuSourceId].Sourcebytes;
                         gpuSourceTab = CreateByteViewerTab(input, buffer.ToString());
                         gpuSourceTab.Text = gpuSourceTabTitle;
                         break;
 
                     default:
-                        throw new InvalidDataException($"Unimplemented GPU source type {zframeFile.gpuSources[gpuSourceId].GetType()}");
+                        throw new InvalidDataException($"Unimplemented GPU source type {zframeFile.GpuSources[gpuSourceId].GetType()}");
                 }
 
                 tabControl.Controls.Add(gpuSourceTab);

@@ -14,17 +14,17 @@ namespace GUI.Forms
             labelRuntime.Text = $"Runtime: {RuntimeInformation.FrameworkDescription}";
         }
 
-        private void website_Click(object sender, System.EventArgs e)
+        private void OnWebsiteClick(object sender, System.EventArgs e)
         {
             OpenUrl("https://vrf.steamdb.info");
         }
 
-        private void github_Click(object sender, System.EventArgs e)
+        private void OnGithubClick(object sender, System.EventArgs e)
         {
             OpenUrl("https://github.com/SteamDatabase/ValveResourceFormat");
         }
 
-        private void releases_Click(object sender, System.EventArgs e)
+        private void OnReleasesClick(object sender, System.EventArgs e)
         {
             OpenUrl("https://github.com/SteamDatabase/ValveResourceFormat/releases");
         }

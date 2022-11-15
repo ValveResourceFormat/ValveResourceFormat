@@ -5,7 +5,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class SpinUpdate : IParticleOperator
     {
-        public SpinUpdate(IKeyValueCollection keyValues)
+        public SpinUpdate()
         {
         }
 

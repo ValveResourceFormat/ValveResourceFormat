@@ -82,7 +82,7 @@ namespace GUI.Forms
             this.website.TabIndex = 4;
             this.website.Text = "Website";
             this.website.UseVisualStyleBackColor = true;
-            this.website.Click += new System.EventHandler(this.website_Click);
+            this.website.Click += new System.EventHandler(this.OnWebsiteClick);
             // 
             // github
             // 
@@ -92,7 +92,7 @@ namespace GUI.Forms
             this.github.TabIndex = 5;
             this.github.Text = "GitHub";
             this.github.UseVisualStyleBackColor = true;
-            this.github.Click += new System.EventHandler(this.github_Click);
+            this.github.Click += new System.EventHandler(this.OnGithubClick);
             // 
             // releases
             // 
@@ -102,7 +102,7 @@ namespace GUI.Forms
             this.releases.TabIndex = 6;
             this.releases.Text = "View releases";
             this.releases.UseVisualStyleBackColor = true;
-            this.releases.Click += new System.EventHandler(this.releases_Click);
+            this.releases.Click += new System.EventHandler(this.OnReleasesClick);
             // 
             // labelRuntime
             // 

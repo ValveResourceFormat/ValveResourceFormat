@@ -653,6 +653,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static KVType ConvertBinaryOnlyKVType(KVType type)
         {
+#pragma warning disable IDE0066 // Convert switch statement to expression
             switch (type)
             {
                 case KVType.BOOLEAN:
@@ -674,6 +675,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.ARRAY_TYPED:
                     return KVType.ARRAY;
             }
+#pragma warning restore IDE0066 // Convert switch statement to expression
 
             return type;
         }

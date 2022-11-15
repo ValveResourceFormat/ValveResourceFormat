@@ -5,7 +5,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     public class Decay : IParticleOperator
     {
-        public Decay(IKeyValueCollection keyValues)
+        public Decay()
         {
         }
 

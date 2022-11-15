@@ -57,7 +57,7 @@ dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1710.severity = none
 
 # CA1711: Identifiers should not have incorrect suffix
-dotnet_diagnostic.CA1711.severity = suggestion
+dotnet_diagnostic.CA1711.severity = none
 
 # CA1720: Identifier contains type name
 dotnet_diagnostic.CA1720.severity = none
@@ -98,6 +98,8 @@ dotnet_diagnostic.CA5394.severity = none
 # CS0219: Variable is assigned but its value is never used
 dotnet_diagnostic.CS0219.severity = suggestion
 
+dotnet_diagnostic.IDE0059.severity = none
+
 #
 # Dotnet code style settings:
 #
@@ -123,6 +125,9 @@ dotnet_style_collection_initializer = true:suggestion
 dotnet_style_coalesce_expression = true:suggestion
 dotnet_style_null_propagation = true:suggestion
 dotnet_style_explicit_tuple_names = true:suggestion
+
+# IDE0042: Deconstruct variable declaration
+csharp_style_deconstructed_variable_declaration = false:silent
 
 #
 # CSharp code style settings:
@@ -209,7 +214,6 @@ csharp_style_prefer_null_check_over_type_check = true:suggestion
 csharp_prefer_simple_default_expression = true:suggestion
 csharp_style_prefer_local_over_anonymous_function = true:suggestion
 csharp_style_prefer_tuple_swap = false:suggestion
-csharp_style_unused_value_assignment_preference = false:silent
 
 dotnet_naming_rule.interface_should_be_begins_with_i.severity = silent
 dotnet_naming_rule.types_should_be_pascal_case.severity = silent

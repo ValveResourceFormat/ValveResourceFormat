@@ -15,7 +15,6 @@ namespace GUI.Types.Renderer
         public bool Enabled { get; set; }
         public bool IsTrigger { get; set; }
 
-        readonly PhysAggregateData phys;
         readonly Shader shader;
         readonly int indexCount;
         readonly int vboHandle;
@@ -25,8 +24,6 @@ namespace GUI.Types.Renderer
         public PhysSceneNode(Scene scene, PhysAggregateData phys)
             : base(scene)
         {
-            this.phys = phys;
-
             var verts = new List<float>();
             var inds = new List<int>();
 

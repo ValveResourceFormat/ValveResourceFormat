@@ -5,13 +5,13 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class ShaderDataReader : BinaryReader
     {
-        public HandleOutputWrite outputWriter { get; set; }
+        public HandleOutputWrite OutputWriter { get; set; }
         public delegate void HandleOutputWrite(string s);
 
         // pass an OutputWriter to direct output somewhere else, Console.Write is assigned by default
         public ShaderDataReader(Stream input, HandleOutputWrite outputWriter = null) : base(input)
         {
-            this.outputWriter = outputWriter ?? ((x) => { Console.Write(x); });
+            OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
         }
 
         public byte ReadByteAtPosition(long ind = 0, bool rel = true)
@@ -156,7 +156,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public void BreakLine()
         {
-            outputWriter("\n");
+            OutputWriter("\n");
         }
 
         public void Comment(string message)
@@ -166,17 +166,17 @@ namespace ValveResourceFormat.CompiledShader
 
         public void TabComment(string message, int tabLen = 4, bool useSlashes = true)
         {
-            outputWriter($"{"".PadLeft(tabLen)}{(useSlashes ? "// " : "")}{message}\n");
+            OutputWriter($"{"".PadLeft(tabLen)}{(useSlashes ? "// " : "")}{message}\n");
         }
 
         public void OutputWrite(string text)
         {
-            outputWriter(text);
+            OutputWriter(text);
         }
 
         public void OutputWriteLine(string text)
         {
-            outputWriter(text + "\n");
+            OutputWriter(text + "\n");
         }
     }
 }

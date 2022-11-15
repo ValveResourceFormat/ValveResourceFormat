@@ -28,7 +28,7 @@ namespace GUI.Controls
             IgnoreValueChanged = false;
         }
 
-        private void trackVolume_MouseDown(object sender, MouseEventArgs e)
+        private void OnTrackVolumeMouseDown(object sender, MouseEventArgs e)
         {
             double dblValue;
 

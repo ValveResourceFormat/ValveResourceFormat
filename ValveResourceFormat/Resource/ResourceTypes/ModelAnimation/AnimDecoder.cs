@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public static int Size(this AnimDecoderType t)
         {
+#pragma warning disable IDE0066 // Convert switch statement to expression
             switch (t)
             {
                 case AnimDecoderType.CCompressedFullQuaternion:
@@ -17,6 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 case AnimDecoderType.CCompressedAnimQuaternion:
                     return 6;
             }
+#pragma warning restore IDE0066 // Convert switch statement to expression
 
             return 0;
         }

@@ -7,26 +7,26 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.ResourceTypes
 {
 
-    public struct EmphasisSample
+    public readonly struct EmphasisSample
     {
         public float Time { get; }
         public float Value { get; }
     }
 
-    public struct PhonemeTag
+    public readonly struct PhonemeTag
     {
-        public float StartTime { get; set; }
-        public float EndTime { get; set; }
-        public UInt16 PhonemeCode { get; set; }
+        public float StartTime { get; init; }
+        public float EndTime { get; init; }
+        public ushort PhonemeCode { get; init; }
     }
 
     public class Sentence
     {
-        public bool ShouldVoiceDuck { get; set; }
+        public bool ShouldVoiceDuck { get; init; }
 
-        public PhonemeTag[] RunTimePhonemes { get; set; }
+        public PhonemeTag[] RunTimePhonemes { get; init; }
 
-        public EmphasisSample[] EmphasisSamples { get; set; }
+        public EmphasisSample[] EmphasisSamples { get; init; }
     }
 
     public class Sound : ResourceData

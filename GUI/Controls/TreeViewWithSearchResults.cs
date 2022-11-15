@@ -149,13 +149,11 @@ namespace GUI.Controls
             root.Tag = new TreeViewFolder(vrfGuiContext.CurrentPackage.Entries.Count);
             root.Expand();
 
-            var vpkName = Path.GetFileName(vrfGuiContext.CurrentPackage.FileName);
-
             foreach (var fileType in vrfGuiContext.CurrentPackage.Entries)
             {
                 foreach (var file in fileType.Value)
                 {
-                    control.AddFileNode(root, file, vpkName);
+                    control.AddFileNode(root, file);
                 }
             }
 
@@ -195,7 +193,7 @@ namespace GUI.Controls
 
                     foreach (var file in foundFiles)
                     {
-                        mainTreeView.AddFileNode(root, file, vpkName, skipDeletedRootFolder: true);
+                        mainTreeView.AddFileNode(root, file, skipDeletedRootFolder: true);
                     }
 
                     root.Expand();

@@ -128,7 +128,7 @@ namespace GUI.Types.Viewers
                             {
                                 if (fileSize > length)
                                 {
-                                    throw new Exception("Resource filesize is bigger than the gap length we found");
+                                    throw new InvalidDataException("Resource filesize is bigger than the gap length we found");
                                 }
 
                                 newEntry.Length = fileSize;

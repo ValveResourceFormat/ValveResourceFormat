@@ -153,9 +153,8 @@ namespace GUI.Controls
         /// </summary>
         /// <param name="currentNode">Root node.</param>
         /// <param name="file">File entry.</param>
-        /// <param name="vpkFileName">Name of the current vpk file.</param>
         /// <param name="skipDeletedRootFolder">If true, ignore root folder for recovered deleted files.</param>
-        public void AddFileNode(TreeNode currentNode, PackageEntry file, string vpkFileName, bool skipDeletedRootFolder = false)
+        public void AddFileNode(TreeNode currentNode, PackageEntry file, bool skipDeletedRootFolder = false)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {

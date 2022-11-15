@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -43,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (root == default)
             {
-                throw new Exception("Unknown LaCo format, unable to format to XML");
+                throw new InvalidDataException("Unknown LaCo format, unable to format to XML");
             }
 
             PrintNode(root, writer);
@@ -64,7 +65,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case "SCRIPTS": PrintPanelBase("scripts", node, writer); break;
                 case "SNIPPET": PrintSnippet(node, writer); break;
                 case "SNIPPETS": PrintPanelBase("snippets", node, writer); break;
-                default: throw new Exception($"Unknown node type: {type}");
+                default: throw new UnexpectedMagicException("Unknown node type", type, nameof(type));
             };
         }
 
@@ -162,7 +163,7 @@ namespace ValveResourceFormat.ResourceTypes
                 "REFERENCE_COMPILED" => "s2r://" + value,
                 "REFERENCE_PASSTHROUGH" => "file://" + value,
                 "PANEL_ATTRIBUTE_VALUE" => SecurityElement.Escape(value),
-                _ => throw new Exception($"Unknown attribute type: {type}"),
+                _ => throw new UnexpectedMagicException("Unknown node type", type, nameof(type)),
             };
 
             writer.Write($"\"{value}\"");

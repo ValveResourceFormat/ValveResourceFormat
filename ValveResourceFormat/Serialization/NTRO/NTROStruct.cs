@@ -33,15 +33,12 @@ namespace ValveResourceFormat.Serialization.NTRO
 
             foreach (var entry in Contents)
             {
-                var array = entry.Value as NTROArray;
-                var byteArray = (entry.Value as NTROValue<byte[]>)?.Value;
-
                 if (entry.Value.Pointer)
                 {
                     writer.Write("{0} {1}* = (ptr) ->", ValveDataType(entry.Value.Type), entry.Key);
                     entry.Value.WriteText(writer);
                 }
-                else if (array != null)
+                else if (entry.Value is NTROArray array)
                 {
                     writer.WriteLine("{0} {1}[{2}] =", ValveDataType(array.Type), entry.Key, array.Count);
 
@@ -56,13 +53,13 @@ namespace ValveResourceFormat.Serialization.NTRO
                     writer.Indent--;
                     writer.WriteLine("]");
                 }
-                else if (byteArray != null)
+                else if (entry.Value is NTROValue<byte[]> byteArray && byteArray?.Value != null)
                 {
-                    writer.WriteLine("{0}[{2}] {1} =", ValveDataType(entry.Value.Type), entry.Key, byteArray.Length);
+                    writer.WriteLine("{0}[{2}] {1} =", ValveDataType(entry.Value.Type), entry.Key, byteArray.Value.Length);
                     writer.WriteLine("[");
                     writer.Indent++;
 
-                    foreach (var val in byteArray)
+                    foreach (var val in byteArray.Value)
                     {
                         writer.WriteLine("{0:X2}", val);
                     }
@@ -92,24 +89,23 @@ namespace ValveResourceFormat.Serialization.NTRO
 
         private static string ValveDataType(DataType type)
         {
-            switch (type)
+            return type switch
             {
-                case DataType.SByte: return "int8";
-                case DataType.Byte: return "uint8";
-                case DataType.Int16: return "int16";
-                case DataType.UInt16: return "uint16";
-                case DataType.Int32: return "int32";
-                case DataType.UInt32: return "uint32";
-                case DataType.Int64: return "int64";
-                case DataType.UInt64: return "uint64";
-                case DataType.Float: return "float32";
-                case DataType.String: return "CResourceString";
-                case DataType.Boolean: return "bool";
-                case DataType.Fltx4: return "fltx4";
-                case DataType.Matrix3x4a: return "matrix3x4a_t";
-            }
-
-            return type.ToString();
+                DataType.SByte => "int8",
+                DataType.Byte => "uint8",
+                DataType.Int16 => "int16",
+                DataType.UInt16 => "uint16",
+                DataType.Int32 => "int32",
+                DataType.UInt32 => "uint32",
+                DataType.Int64 => "int64",
+                DataType.UInt64 => "uint64",
+                DataType.Float => "float32",
+                DataType.String => "CResourceString",
+                DataType.Boolean => "bool",
+                DataType.Fltx4 => "fltx4",
+                DataType.Matrix3x4a => "matrix3x4a_t",
+                _ => type.ToString(),
+            };
         }
 
         public NTROValue this[string key]
@@ -199,7 +195,7 @@ namespace ValveResourceFormat.Serialization.NTRO
             }
             else
             {
-                return default(T[]);
+                return default;
             }
         }
 
@@ -211,7 +207,7 @@ namespace ValveResourceFormat.Serialization.NTRO
             }
             else
             {
-                return default(T);
+                return default;
             }
         }
 

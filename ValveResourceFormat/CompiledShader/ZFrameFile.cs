@@ -10,40 +10,40 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class ZFrameFile : IDisposable
     {
-        public ShaderDataReader datareader { get; private set; }
-        public string filenamepath { get; }
-        public VcsProgramType vcsProgramType { get; }
-        public VcsPlatformType vcsPlatformType { get; }
-        public VcsShaderModelType vcsShaderModelType { get; }
-        public long zframeId { get; }
-        public ZDataBlock leadingData { get; }
-        public List<ZFrameParam> zframeParams { get; } = new();
-        public int[] leadingSummary { get; } = Array.Empty<int>();
-        public List<ZDataBlock> dataBlocks { get; } = new();
-        public int[] trailingSummary { get; }
-        public byte[] flags0 { get; }
-        public byte flagbyte0 { get; }
-        public byte flagbyte1 { get; }
-        public int gpuSourceCount { get; }
-        public byte flagbyte2 { get; }
-        public List<GpuSource> gpuSources { get; } = new();
-        public List<VsEndBlock> vsEndBlocks { get; } = new();
-        public List<PsEndBlock> psEndBlocks { get; } = new();
-        public int nrEndBlocks { get; }
-        public int nonZeroDataBlockCount { get; }
+        public ShaderDataReader DataReader { get; private set; }
+        public string FilenamePath { get; }
+        public VcsProgramType VcsProgramType { get; }
+        public VcsPlatformType VcsPlatformType { get; }
+        public VcsShaderModelType VcsShaderModelType { get; }
+        public long ZframeId { get; }
+        public ZDataBlock LeadingData { get; }
+        public List<ZFrameParam> ZframeParams { get; } = new();
+        public int[] LeadingSummary { get; } = Array.Empty<int>();
+        public List<ZDataBlock> DataBlocks { get; } = new();
+        public int[] TrailingSummary { get; }
+        public byte[] Flags0 { get; }
+        public byte Flagbyte0 { get; }
+        public byte Flagbyte1 { get; }
+        public int GpuSourceCount { get; }
+        public byte Flagbyte2 { get; }
+        public List<GpuSource> GpuSources { get; } = new();
+        public List<VsEndBlock> VsEndBlocks { get; } = new();
+        public List<PsEndBlock> PsEndBlocks { get; } = new();
+        public int NrEndBlocks { get; }
+        public int NonZeroDataBlockCount { get; }
 
-        private int vcsVersion { get; }
+        private int VcsVersion { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
             VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, bool omitParsing = false, HandleOutputWrite outputWriter = null)
         {
-            this.filenamepath = filenamepath;
-            this.vcsProgramType = vcsProgramType;
-            this.vcsPlatformType = vcsPlatformType;
-            this.vcsShaderModelType = vcsShaderModelType;
-            this.vcsVersion = vcsVersion;
-            datareader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
-            this.zframeId = zframeId;
+            FilenamePath = filenamepath;
+            VcsProgramType = vcsProgramType;
+            VcsPlatformType = vcsPlatformType;
+            VcsShaderModelType = vcsShaderModelType;
+            VcsVersion = vcsVersion;
+            DataReader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
+            ZframeId = zframeId;
 
             // in case of failure; enable omitParsing and use the datareader directly
             // the zframe encoding for Features files has not been determined (only found in v62 files)
@@ -52,47 +52,47 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
 
-            leadingData = new ZDataBlock(datareader, -1);
-            int paramCount = datareader.ReadInt16();
+            LeadingData = new ZDataBlock(DataReader, -1);
+            int paramCount = DataReader.ReadInt16();
             for (var i = 0; i < paramCount; i++)
             {
-                ZFrameParam zParam = new(datareader);
-                zframeParams.Add(zParam);
+                ZFrameParam zParam = new(DataReader);
+                ZframeParams.Add(zParam);
             }
             // this data is applicable to vertex shaders
-            if (this.vcsProgramType == VcsProgramType.VertexShader)
+            if (VcsProgramType == VcsProgramType.VertexShader)
             {
-                int summaryLength = datareader.ReadInt16();
-                leadingSummary = new int[summaryLength];
+                int summaryLength = DataReader.ReadInt16();
+                LeadingSummary = new int[summaryLength];
                 for (var i = 0; i < summaryLength; i++)
                 {
-                    leadingSummary[i] = datareader.ReadInt16();
+                    LeadingSummary[i] = DataReader.ReadInt16();
                 }
             }
-            int dataBlockCount = datareader.ReadInt16();
+            int dataBlockCount = DataReader.ReadInt16();
             for (var blockId = 0; blockId < dataBlockCount; blockId++)
             {
-                ZDataBlock dataBlock = new(datareader, blockId);
-                if (dataBlock.h0 > 0)
+                ZDataBlock dataBlock = new(DataReader, blockId);
+                if (dataBlock.H0 > 0)
                 {
-                    nonZeroDataBlockCount++;
+                    NonZeroDataBlockCount++;
                 }
-                dataBlocks.Add(dataBlock);
+                DataBlocks.Add(dataBlock);
             }
-            int tailSummaryLength = datareader.ReadInt16();
-            trailingSummary = new int[tailSummaryLength];
+            int tailSummaryLength = DataReader.ReadInt16();
+            TrailingSummary = new int[tailSummaryLength];
             for (var i = 0; i < tailSummaryLength; i++)
             {
-                trailingSummary[i] = datareader.ReadInt16();
+                TrailingSummary[i] = DataReader.ReadInt16();
             }
-            flags0 = datareader.ReadBytes(4);
-            flagbyte0 = datareader.ReadByte();
+            Flags0 = DataReader.ReadBytes(4);
+            Flagbyte0 = DataReader.ReadByte();
             if (vcsVersion >= 66)
             {
-                flagbyte1 = datareader.ReadByte();
+                Flagbyte1 = DataReader.ReadByte();
             }
-            gpuSourceCount = datareader.ReadInt32();
-            flagbyte2 = datareader.ReadByte();
+            GpuSourceCount = DataReader.ReadInt32();
+            Flagbyte2 = DataReader.ReadByte();
 
             if (vcsPlatformType == VcsPlatformType.PC)
             {
@@ -102,13 +102,13 @@ namespace ValveResourceFormat.CompiledShader
                     case VcsShaderModelType._2b:
                     case VcsShaderModelType._30:
                     case VcsShaderModelType._31:
-                        ReadDxilSources(gpuSourceCount);
+                        ReadDxilSources(GpuSourceCount);
                         break;
                     case VcsShaderModelType._40:
                     case VcsShaderModelType._41:
                     case VcsShaderModelType._50:
                     case VcsShaderModelType._60:
-                        ReadDxbcSources(gpuSourceCount);
+                        ReadDxbcSources(GpuSourceCount);
                         break;
                     default:
                         throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsShaderModelType}");
@@ -120,34 +120,34 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     case VcsPlatformType.PCGL:
                     case VcsPlatformType.MOBILE_GLES:
-                        ReadGlslSources(gpuSourceCount);
+                        ReadGlslSources(GpuSourceCount);
                         break;
                     case VcsPlatformType.VULKAN:
                     case VcsPlatformType.ANDROID_VULKAN:
                     case VcsPlatformType.IOS_VULKAN:
-                        ReadVulkanSources(gpuSourceCount);
+                        ReadVulkanSources(GpuSourceCount);
                         break;
                     default:
                         throw new ShaderParserException($"Unknown or unsupported source type {vcsPlatformType}");
                 }
             }
-            nrEndBlocks = datareader.ReadInt32();
-            for (var i = 0; i < nrEndBlocks; i++)
+            NrEndBlocks = DataReader.ReadInt32();
+            for (var i = 0; i < NrEndBlocks; i++)
             {
                 if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.GeometryShader ||
                     vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.DomainShader ||
                     vcsProgramType == VcsProgramType.HullShader)
                 {
-                    VsEndBlock vsEndBlock = new(datareader, hullShader: vcsProgramType == VcsProgramType.HullShader);
-                    vsEndBlocks.Add(vsEndBlock);
+                    VsEndBlock vsEndBlock = new(DataReader, hullShader: vcsProgramType == VcsProgramType.HullShader);
+                    VsEndBlocks.Add(vsEndBlock);
                 }
                 else
                 {
-                    PsEndBlock psEndBlock = new(datareader);
-                    psEndBlocks.Add(psEndBlock);
+                    PsEndBlock psEndBlock = new(DataReader);
+                    PsEndBlocks.Add(psEndBlock);
                 }
             }
-            if (datareader.BaseStream.Position != datareader.BaseStream.Length)
+            if (DataReader.BaseStream.Position != DataReader.BaseStream.Length)
             {
                 throw new ShaderParserException("End of file expected");
             }
@@ -157,44 +157,44 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var sourceId = 0; sourceId < glslSourceCount; sourceId++)
             {
-                GlslSource glslSource = new(datareader, sourceId);
-                gpuSources.Add(glslSource);
+                GlslSource glslSource = new(DataReader, sourceId);
+                GpuSources.Add(glslSource);
             }
         }
         private void ReadDxilSources(int dxilSourceCount)
         {
             for (var sourceId = 0; sourceId < dxilSourceCount; sourceId++)
             {
-                DxilSource dxilSource = new(datareader, sourceId);
-                gpuSources.Add(dxilSource);
+                DxilSource dxilSource = new(DataReader, sourceId);
+                GpuSources.Add(dxilSource);
             }
         }
         private void ReadDxbcSources(int dxbcSourceCount)
         {
             for (var sourceId = 0; sourceId < dxbcSourceCount; sourceId++)
             {
-                DxbcSource dxbcSource = new(datareader, sourceId);
-                gpuSources.Add(dxbcSource);
+                DxbcSource dxbcSource = new(DataReader, sourceId);
+                GpuSources.Add(dxbcSource);
             }
         }
         private void ReadVulkanSources(int vulkanSourceCount)
         {
             for (var sourceId = 0; sourceId < vulkanSourceCount; sourceId++)
             {
-                VulkanSource vulkanSource = new(datareader, sourceId);
-                gpuSources.Add(vulkanSource);
+                VulkanSource vulkanSource = new(DataReader, sourceId);
+                GpuSources.Add(vulkanSource);
             }
         }
 
         public ZDataBlock GetDataBlock(int blockId)
         {
-            return blockId == -1 ? leadingData : dataBlocks[blockId];
+            return blockId == -1 ? LeadingData : DataBlocks[blockId];
         }
 
         public string ZFrameHeaderStringDescription()
         {
             var zframeHeaderString = "";
-            foreach (var zParam in zframeParams)
+            foreach (var zParam in ZframeParams)
             {
                 zframeHeaderString += $"{zParam}\n";
             }
@@ -208,10 +208,10 @@ namespace ValveResourceFormat.CompiledShader
         }
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && datareader != null)
+            if (disposing && DataReader != null)
             {
-                datareader.Dispose();
-                datareader = null;
+                DataReader.Dispose();
+                DataReader = null;
             }
         }
 
@@ -226,134 +226,134 @@ namespace ValveResourceFormat.CompiledShader
         {
             outputWriter ??= (x) => { Console.Write(x); };
             var sourceDetails =
-                $"// {gpuSources[sourceId].GetBlockName()}[{sourceId}] source bytes " +
-                $"({gpuSources[sourceId].sourcebytes.Length}) ref={gpuSources[sourceId].GetEditorRefIdAsString()}\n";
-            if (gpuSources[sourceId].sourcebytes.Length == 0)
+                $"// {GpuSources[sourceId].GetBlockName()}[{sourceId}] source bytes " +
+                $"({GpuSources[sourceId].Sourcebytes.Length}) ref={GpuSources[sourceId].GetEditorRefIdAsString()}\n";
+            if (GpuSources[sourceId].Sourcebytes.Length == 0)
             {
                 outputWriter(sourceDetails);
                 outputWriter("[empty source]");
                 return;
             }
-            if (gpuSources[sourceId] is GlslSource)
+            if (GpuSources[sourceId] is GlslSource)
             {
-                var glslSourceFile = Encoding.UTF8.GetString(gpuSources[sourceId].sourcebytes);
+                var glslSourceFile = Encoding.UTF8.GetString(GpuSources[sourceId].Sourcebytes);
                 outputWriter(glslSourceFile);
             }
             else
             {
                 outputWriter(sourceDetails);
-                outputWriter(BytesToString(gpuSources[sourceId].sourcebytes) + "\n");
+                outputWriter(BytesToString(GpuSources[sourceId].Sourcebytes) + "\n");
             }
         }
 
         public class ZFrameParam
         {
-            public string name0 { get; }
-            public uint murmur32 { get; }
-            public byte headerOperator { get; }
-            public byte[] headerCode { get; }
-            public int dynExpLen { get; } = -1;
-            public byte[] dynExpression { get; }
-            public string dynExpEvaluated { get; }
-            public bool hasOperatorVal { get; }
-            public int operatorVal { get; }
+            public string Name0 { get; }
+            public uint Murmur32 { get; }
+            public byte HeaderOperator { get; }
+            public byte[] HeaderCode { get; }
+            public int DynExpLen { get; } = -1;
+            public byte[] DynExpression { get; }
+            public string DynExpEvaluated { get; }
+            public bool HasOperatorVal { get; }
+            public int OperatorVal { get; }
 
             public ZFrameParam(ShaderDataReader datareader)
             {
-                name0 = datareader.ReadNullTermString();
-                murmur32 = datareader.ReadUInt32();
-                var murmurCheck = MurmurHash2.Hash(name0.ToLower(), ShaderFile.PI_MURMURSEED);
-                if (murmur32 != murmurCheck)
+                Name0 = datareader.ReadNullTermString();
+                Murmur32 = datareader.ReadUInt32();
+                var murmurCheck = MurmurHash2.Hash(Name0.ToLower(), ShaderFile.PI_MURMURSEED);
+                if (Murmur32 != murmurCheck)
                 {
                     throw new ShaderParserException("Murmur check failed on header name");
                 }
-                headerCode = datareader.ReadBytes(3);
-                headerOperator = headerCode[0];
-                if (headerOperator == 0x0e)
+                HeaderCode = datareader.ReadBytes(3);
+                HeaderOperator = HeaderCode[0];
+                if (HeaderOperator == 0x0e)
                 {
                     return;
                 }
-                dynExpLen = datareader.ReadInt32();
-                if (dynExpLen > 0)
+                DynExpLen = datareader.ReadInt32();
+                if (DynExpLen > 0)
                 {
-                    dynExpression = datareader.ReadBytes(dynExpLen);
-                    dynExpEvaluated = ParseDynamicExpression(dynExpression);
+                    DynExpression = datareader.ReadBytes(DynExpLen);
+                    DynExpEvaluated = ParseDynamicExpression(DynExpression);
                 }
-                else if (headerOperator == 1 || headerOperator == 5)
+                else if (HeaderOperator == 1 || HeaderOperator == 5)
                 {
-                    operatorVal = datareader.ReadInt32();
-                    hasOperatorVal = true;
+                    OperatorVal = datareader.ReadInt32();
+                    HasOperatorVal = true;
                 }
-                else if (headerOperator == 9)
+                else if (HeaderOperator == 9)
                 {
-                    operatorVal = datareader.ReadByte();
-                    hasOperatorVal = true;
+                    OperatorVal = datareader.ReadByte();
+                    HasOperatorVal = true;
                 }
                 else
                 {
-                    throw new ShaderParserException($"Unknown header operator {headerOperator}");
+                    throw new ShaderParserException($"Unknown header operator {HeaderOperator}");
                 }
             }
 
             public override string ToString()
             {
-                if (dynExpLen > 0)
+                if (DynExpLen > 0)
                 {
-                    return $"{name0,-40} 0x{murmur32:x08}     {BytesToString(headerCode)}   {dynExpEvaluated}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}     {BytesToString(HeaderCode)}   {DynExpEvaluated}";
                 }
                 else
                 {
                     var toByteString = (byte[] b) => $"{b[0]:x02} {b[1]:x02} {b[2]:x02} {b[3]:x02}";
-                    var operatorDesc = hasOperatorVal ? operatorVal switch
+                    var operatorDesc = HasOperatorVal ? OperatorVal switch
                     {
-                        > 0x01000000 => $"{toByteString(BitConverter.GetBytes(operatorVal))} (unusual data, note 0x40 = '@')",
-                        _ => $"{operatorVal}"
+                        > 0x01000000 => $"{toByteString(BitConverter.GetBytes(OperatorVal))} (unusual data, note 0x40 = '@')",
+                        _ => $"{OperatorVal}"
                     } : "";
-                    return $"{name0,-40} 0x{murmur32:x08}     {BytesToString(headerCode)}   {operatorDesc}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}     {BytesToString(HeaderCode)}   {operatorDesc}";
                 }
             }
         }
 
         public class VsEndBlock
         {
-            public byte[] databytes { get; }
-            public int blockIdRef { get; }
-            public int arg0 { get; }
-            public int sourceRef { get; }
-            public int sourcePointer { get; }
-            public int hullShaderArg { get; } = -1;
+            public byte[] Databytes { get; }
+            public int BlockIdRef { get; }
+            public int Arg0 { get; }
+            public int SourceRef { get; }
+            public int SourcePointer { get; }
+            public int HullShaderArg { get; } = -1;
             public VsEndBlock(ShaderDataReader datareader, bool hullShader = false)
             {
-                databytes = datareader.ReadBytesAtPosition(0, 16 + (hullShader ? 1 : 0));
-                blockIdRef = datareader.ReadInt32();
-                arg0 = datareader.ReadInt32();
-                sourceRef = datareader.ReadInt32();
-                sourcePointer = datareader.ReadInt32();
+                Databytes = datareader.ReadBytesAtPosition(0, 16 + (hullShader ? 1 : 0));
+                BlockIdRef = datareader.ReadInt32();
+                Arg0 = datareader.ReadInt32();
+                SourceRef = datareader.ReadInt32();
+                SourcePointer = datareader.ReadInt32();
                 if (hullShader)
                 {
-                    hullShaderArg = datareader.ReadByte();
+                    HullShaderArg = datareader.ReadByte();
                 }
             }
         }
 
         public class PsEndBlock
         {
-            public int blockIdRef { get; }
-            public int arg0 { get; }
-            public int sourceRef { get; }
-            public int sourcePointer { get; }
-            public bool hasData0 { get; }
-            public bool hasData1 { get; }
-            public bool hasData2 { get; }
-            public byte[] data0 { get; }
-            public byte[] data1 { get; }
-            public byte[] data2 { get; }
+            public int BlockIdRef { get; }
+            public int Arg0 { get; }
+            public int SourceRef { get; }
+            public int SourcePointer { get; }
+            public bool HasData0 { get; }
+            public bool HasData1 { get; }
+            public bool HasData2 { get; }
+            public byte[] Data0 { get; }
+            public byte[] Data1 { get; }
+            public byte[] Data2 { get; }
             public PsEndBlock(ShaderDataReader datareader)
             {
-                blockIdRef = datareader.ReadInt32();
-                arg0 = datareader.ReadInt32();
-                sourceRef = datareader.ReadInt32();
-                sourcePointer = datareader.ReadInt32();
+                BlockIdRef = datareader.ReadInt32();
+                Arg0 = datareader.ReadInt32();
+                SourceRef = datareader.ReadInt32();
+                SourcePointer = datareader.ReadInt32();
                 int flag0 = datareader.ReadByte();
                 int flag1 = datareader.ReadByte();
                 int flag2 = datareader.ReadByte();
@@ -362,21 +362,21 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new ShaderParserException("unexpected data");
                 }
-                hasData0 = flag0 == 0;
-                hasData1 = flag1 == 0;
-                hasData2 = flag2 == 0;
+                HasData0 = flag0 == 0;
+                HasData1 = flag1 == 0;
+                HasData2 = flag2 == 0;
 
-                if (hasData0)
+                if (HasData0)
                 {
-                    data0 = datareader.ReadBytes(16);
+                    Data0 = datareader.ReadBytes(16);
                 }
-                if (hasData1)
+                if (HasData1)
                 {
-                    data1 = datareader.ReadBytes(20);
+                    Data1 = datareader.ReadBytes(20);
                 }
-                if (hasData2)
+                if (HasData2)
                 {
-                    data2 = datareader.ReadBytes(75);
+                    Data2 = datareader.ReadBytes(75);
                 }
             }
         }
@@ -385,66 +385,66 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (outputWriter != null)
             {
-                datareader.outputWriter = outputWriter;
+                DataReader.OutputWriter = outputWriter;
             }
-            datareader.BaseStream.Position = 0;
-            if (vcsProgramType == VcsProgramType.Features)
+            DataReader.BaseStream.Position = 0;
+            if (VcsProgramType == VcsProgramType.Features)
             {
-                datareader.Comment("Zframe byte data (encoding for features files has not been determined)");
-                datareader.ShowBytes((int)datareader.BaseStream.Length);
+                DataReader.Comment("Zframe byte data (encoding for features files has not been determined)");
+                DataReader.ShowBytes((int)DataReader.BaseStream.Length);
                 return;
             }
 
             ShowZDataSection(-1);
             ShowZFrameHeader();
             // this applies only to vs files (ps, gs and psrs files don't have this section)
-            if (vcsProgramType == VcsProgramType.VertexShader)
+            if (VcsProgramType == VcsProgramType.VertexShader)
             {
-                var blockCountInput = datareader.ReadInt16AtPosition();
-                datareader.ShowByteCount("Unknown additional parameters, non 'FF FF' entries point to configurations (block IDs)");
-                datareader.ShowBytes(2, breakLine: false);
-                datareader.TabComment($"nr of data-blocks ({blockCountInput})");
-                datareader.ShowBytes(blockCountInput * 2);
-                datareader.OutputWriteLine("");
+                var blockCountInput = DataReader.ReadInt16AtPosition();
+                DataReader.ShowByteCount("Unknown additional parameters, non 'FF FF' entries point to configurations (block IDs)");
+                DataReader.ShowBytes(2, breakLine: false);
+                DataReader.TabComment($"nr of data-blocks ({blockCountInput})");
+                DataReader.ShowBytes(blockCountInput * 2);
+                DataReader.OutputWriteLine("");
             }
-            var blockCount = datareader.ReadInt16AtPosition();
-            datareader.ShowByteCount("Data blocks");
-            datareader.ShowBytes(2, breakLine: false);
-            datareader.TabComment($"nr of data-blocks ({blockCount})");
-            datareader.OutputWriteLine("");
+            var blockCount = DataReader.ReadInt16AtPosition();
+            DataReader.ShowByteCount("Data blocks");
+            DataReader.ShowBytes(2, breakLine: false);
+            DataReader.TabComment($"nr of data-blocks ({blockCount})");
+            DataReader.OutputWriteLine("");
             for (var i = 0; i < blockCount; i++)
             {
                 ShowZDataSection(i);
             }
-            datareader.BreakLine();
-            datareader.ShowByteCount("Unknown additional parameters, non 'FF FF' entries point to active block IDs");
-            var blockCountOutput = datareader.ReadInt16AtPosition();
-            datareader.ShowBytes(2, breakLine: false);
-            datareader.TabComment($"nr of data-blocks ({blockCountOutput})", 1);
-            datareader.ShowBytes(blockCountOutput * 2);
-            datareader.BreakLine();
-            datareader.ShowByteCount();
-            var flagbyte = datareader.ReadByteAtPosition();
-            datareader.ShowBytes(1, $"possible control byte ({flagbyte}) or flags ({Convert.ToString(flagbyte, 2).PadLeft(8, '0')})");
-            datareader.ShowBytes(1, "values seen (0,1,2)");
-            datareader.ShowBytes(1, "always 0");
-            datareader.ShowBytes(1, "always 0");
-            datareader.ShowBytes(1, "values seen (0,1)");
-            if (vcsVersion >= 66)
+            DataReader.BreakLine();
+            DataReader.ShowByteCount("Unknown additional parameters, non 'FF FF' entries point to active block IDs");
+            var blockCountOutput = DataReader.ReadInt16AtPosition();
+            DataReader.ShowBytes(2, breakLine: false);
+            DataReader.TabComment($"nr of data-blocks ({blockCountOutput})", 1);
+            DataReader.ShowBytes(blockCountOutput * 2);
+            DataReader.BreakLine();
+            DataReader.ShowByteCount();
+            var flagbyte = DataReader.ReadByteAtPosition();
+            DataReader.ShowBytes(1, $"possible control byte ({flagbyte}) or flags ({Convert.ToString(flagbyte, 2).PadLeft(8, '0')})");
+            DataReader.ShowBytes(1, "values seen (0,1,2)");
+            DataReader.ShowBytes(1, "always 0");
+            DataReader.ShowBytes(1, "always 0");
+            DataReader.ShowBytes(1, "values seen (0,1)");
+            if (VcsVersion >= 66)
             {
-                datareader.ShowBytes(1, "added with v66");
+                DataReader.ShowBytes(1, "added with v66");
             }
-            datareader.BreakLine();
-            datareader.ShowByteCount($"Start of source section, {datareader.BaseStream.Position} is " +
+            DataReader.BreakLine();
+            DataReader.ShowByteCount($"Start of source section, {DataReader.BaseStream.Position} is " +
                 $"the base offset for end-section source pointers");
-            var gpuSourceCount = datareader.ReadInt32AtPosition();
-            datareader.ShowBytes(4, $"gpu source files ({gpuSourceCount})");
-            datareader.ShowBytes(1, "unknown boolean, values seen 0,1", tabLen: 13);
-            datareader.BreakLine();
+            var gpuSourceCount = DataReader.ReadInt32AtPosition();
+            DataReader.ShowBytes(4, $"gpu source files ({gpuSourceCount})");
+            DataReader.ShowBytes(1, "unknown boolean, values seen 0,1", tabLen: 13);
+            DataReader.BreakLine();
 
-            if (vcsPlatformType == VcsPlatformType.PC)
+            if (VcsPlatformType == VcsPlatformType.PC)
             {
-                switch (vcsShaderModelType)
+                switch (VcsShaderModelType)
                 {
                     case VcsShaderModelType._20:
                     case VcsShaderModelType._2b:
@@ -459,12 +459,12 @@ namespace ValveResourceFormat.CompiledShader
                         ShowDxbcSources(gpuSourceCount);
                         break;
                     default:
-                        throw new ShaderParserException($"Unknown or unsupported model type {vcsPlatformType} {vcsShaderModelType}");
+                        throw new ShaderParserException($"Unknown or unsupported model type {VcsPlatformType} {VcsShaderModelType}");
                 }
             }
             else
             {
-                switch (vcsPlatformType)
+                switch (VcsPlatformType)
                 {
                     case VcsPlatformType.PCGL:
                     case VcsPlatformType.MOBILE_GLES:
@@ -476,66 +476,66 @@ namespace ValveResourceFormat.CompiledShader
                         ShowVulkanSources(gpuSourceCount);
                         break;
                     default:
-                        throw new ShaderParserException($"Unknown or unsupported platform type {vcsPlatformType}");
+                        throw new ShaderParserException($"Unknown or unsupported platform type {VcsPlatformType}");
                 }
             }
 
             //  End blocks for vs, gs, cs, ds and hs files
-            if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.GeometryShader ||
-                vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.DomainShader ||
-                vcsProgramType == VcsProgramType.HullShader)
+            if (VcsProgramType == VcsProgramType.VertexShader || VcsProgramType == VcsProgramType.GeometryShader ||
+                VcsProgramType == VcsProgramType.ComputeShader || VcsProgramType == VcsProgramType.DomainShader ||
+                VcsProgramType == VcsProgramType.HullShader)
             {
-                ShowZAllEndBlocksTypeVs(hullShader: vcsProgramType == VcsProgramType.HullShader);
-                datareader.BreakLine();
+                ShowZAllEndBlocksTypeVs(hullShader: VcsProgramType == VcsProgramType.HullShader);
+                DataReader.BreakLine();
             }
             //  End blocks for ps and psrs files
-            if (vcsProgramType == VcsProgramType.PixelShader || vcsProgramType == VcsProgramType.PixelShaderRenderState)
+            if (VcsProgramType == VcsProgramType.PixelShader || VcsProgramType == VcsProgramType.PixelShaderRenderState)
             {
-                datareader.ShowByteCount();
-                var nrEndBlocks = datareader.ReadInt32AtPosition();
-                datareader.ShowBytes(4, breakLine: false);
-                datareader.TabComment($"nr of end blocks ({nrEndBlocks})");
-                datareader.OutputWriteLine("");
+                DataReader.ShowByteCount();
+                var nrEndBlocks = DataReader.ReadInt32AtPosition();
+                DataReader.ShowBytes(4, breakLine: false);
+                DataReader.TabComment($"nr of end blocks ({nrEndBlocks})");
+                DataReader.OutputWriteLine("");
                 for (var i = 0; i < nrEndBlocks; i++)
                 {
-                    datareader.ShowByteCount($"End-block[{i}]");
-                    var blockId = datareader.ReadInt16AtPosition();
-                    datareader.ShowBytes(4, breakLine: false);
-                    datareader.TabComment($"blockId ref ({blockId})");
-                    datareader.ShowBytes(4, breakLine: false);
-                    datareader.TabComment("always 0");
-                    var sourceReference = datareader.ReadInt16AtPosition();
-                    datareader.ShowBytes(4, breakLine: false);
-                    datareader.TabComment($"source ref ({sourceReference})");
-                    var glslPointer = datareader.ReadUInt32AtPosition();
-                    datareader.ShowBytes(4, breakLine: false);
-                    datareader.TabComment($"glsl source pointer ({glslPointer})");
-                    var hasData0 = datareader.ReadByteAtPosition(0) == 0;
-                    var hasData1 = datareader.ReadByteAtPosition(1) == 0;
-                    var hasData2 = datareader.ReadByteAtPosition(2) == 0;
-                    datareader.ShowBytes(3, breakLine: false);
-                    datareader.TabComment($"(data0={hasData0}, data1={hasData1}, data2={hasData2})", 7);
+                    DataReader.ShowByteCount($"End-block[{i}]");
+                    var blockId = DataReader.ReadInt16AtPosition();
+                    DataReader.ShowBytes(4, breakLine: false);
+                    DataReader.TabComment($"blockId ref ({blockId})");
+                    DataReader.ShowBytes(4, breakLine: false);
+                    DataReader.TabComment("always 0");
+                    var sourceReference = DataReader.ReadInt16AtPosition();
+                    DataReader.ShowBytes(4, breakLine: false);
+                    DataReader.TabComment($"source ref ({sourceReference})");
+                    var glslPointer = DataReader.ReadUInt32AtPosition();
+                    DataReader.ShowBytes(4, breakLine: false);
+                    DataReader.TabComment($"glsl source pointer ({glslPointer})");
+                    var hasData0 = DataReader.ReadByteAtPosition(0) == 0;
+                    var hasData1 = DataReader.ReadByteAtPosition(1) == 0;
+                    var hasData2 = DataReader.ReadByteAtPosition(2) == 0;
+                    DataReader.ShowBytes(3, breakLine: false);
+                    DataReader.TabComment($"(data0={hasData0}, data1={hasData1}, data2={hasData2})", 7);
                     if (hasData0)
                     {
-                        datareader.OutputWriteLine("// data-section 0");
-                        datareader.ShowBytes(16);
+                        DataReader.OutputWriteLine("// data-section 0");
+                        DataReader.ShowBytes(16);
                     }
                     if (hasData1)
                     {
-                        datareader.OutputWriteLine("// data-section 1");
-                        datareader.ShowBytes(20);
+                        DataReader.OutputWriteLine("// data-section 1");
+                        DataReader.ShowBytes(20);
                     }
                     if (hasData2)
                     {
-                        datareader.OutputWriteLine("// data-section 2");
-                        datareader.ShowBytes(3);
-                        datareader.ShowBytes(8);
-                        datareader.ShowBytes(64, 32);
+                        DataReader.OutputWriteLine("// data-section 2");
+                        DataReader.ShowBytes(3);
+                        DataReader.ShowBytes(8);
+                        DataReader.ShowBytes(64, 32);
                     }
-                    datareader.OutputWriteLine("");
+                    DataReader.OutputWriteLine("");
                 }
             }
-            datareader.ShowEndOfFile();
+            DataReader.ShowEndOfFile();
         }
 
         private bool prevBlockWasZero;
@@ -546,14 +546,14 @@ namespace ValveResourceFormat.CompiledShader
         }
         public int ShowZBlockDataHeader(int blockId)
         {
-            var arg0 = datareader.ReadInt32AtPosition();
-            var arg1 = datareader.ReadInt32AtPosition(4);
-            var arg2 = datareader.ReadInt32AtPosition(8);
+            var arg0 = DataReader.ReadInt32AtPosition();
+            var arg1 = DataReader.ReadInt32AtPosition(4);
+            var arg2 = DataReader.ReadInt32AtPosition(8);
 
             if (blockId != -1 && arg0 == 0 && arg1 == 0 && arg2 == 0)
             {
-                datareader.ShowBytes(12, breakLine: false);
-                datareader.TabComment($"data-block[{blockId}]");
+                DataReader.ShowBytes(12, breakLine: false);
+                DataReader.TabComment($"data-block[{blockId}]");
                 return 0;
             }
             var comment = "";
@@ -565,18 +565,18 @@ namespace ValveResourceFormat.CompiledShader
             {
                 comment = $"data-block[{blockId}]";
             }
-            var blockSize = datareader.ReadInt32AtPosition();
+            var blockSize = DataReader.ReadInt32AtPosition();
             if (prevBlockWasZero)
             {
-                datareader.OutputWriteLine("");
+                DataReader.OutputWriteLine("");
             }
-            datareader.ShowByteCount(comment);
-            datareader.ShowBytesWithIntValue();
-            datareader.ShowBytesWithIntValue();
-            datareader.ShowBytesWithIntValue();
+            DataReader.ShowByteCount(comment);
+            DataReader.ShowBytesWithIntValue();
+            DataReader.ShowBytesWithIntValue();
+            DataReader.ShowBytesWithIntValue();
             if (blockId == -1 && arg0 == 0 && arg1 == 0 && arg2 == 0)
             {
-                datareader.BreakLine();
+                DataReader.BreakLine();
             }
             return blockSize * 4;
         }
@@ -591,52 +591,52 @@ namespace ValveResourceFormat.CompiledShader
             {
                 prevBlockWasZero = false;
             }
-            datareader.Comment($"{byteSize / 4}*4 bytes");
-            datareader.ShowBytes(byteSize);
-            datareader.BreakLine();
+            DataReader.Comment($"{byteSize / 4}*4 bytes");
+            DataReader.ShowBytes(byteSize);
+            DataReader.BreakLine();
         }
         public void ShowZFrameHeader()
         {
-            datareader.ShowByteCount("Frame header");
-            var nrArgs = datareader.ReadUInt16AtPosition();
-            datareader.ShowBytes(2, breakLine: false);
-            datareader.TabComment($"nr of arguments ({nrArgs})");
-            datareader.OutputWriteLine("");
+            DataReader.ShowByteCount("Frame header");
+            var nrArgs = DataReader.ReadUInt16AtPosition();
+            DataReader.ShowBytes(2, breakLine: false);
+            DataReader.TabComment($"nr of arguments ({nrArgs})");
+            DataReader.OutputWriteLine("");
 
             for (var i = 0; i < nrArgs; i++)
             {
                 ShowMurmurString();
-                int headerOperator = datareader.ReadByteAtPosition();
-                datareader.ShowBytes(3, "header-code");
+                int headerOperator = DataReader.ReadByteAtPosition();
+                DataReader.ShowBytes(3, "header-code");
                 if (headerOperator == 0x0e)
                 {
-                    datareader.BreakLine();
+                    DataReader.BreakLine();
                     continue;
                 }
-                var dynExpLen = datareader.ReadInt32AtPosition();
-                datareader.ShowBytes(4, $"dynamic expression length = {dynExpLen}");
+                var dynExpLen = DataReader.ReadInt32AtPosition();
+                DataReader.ShowBytes(4, $"dynamic expression length = {dynExpLen}");
                 if (dynExpLen > 0)
                 {
                     ShowDynamicExpression(dynExpLen);
-                    datareader.BreakLine();
+                    DataReader.BreakLine();
                     continue;
                 }
                 if (headerOperator == 1)
                 {
-                    datareader.ShowBytes(4, "header argument\n");
+                    DataReader.ShowBytes(4, "header argument\n");
                 }
                 if (headerOperator == 5)
                 {
-                    datareader.ShowBytes(4, "header argument\n");
+                    DataReader.ShowBytes(4, "header argument\n");
                 }
                 if (headerOperator == 9)
                 {
-                    datareader.ShowBytes(1, "header argument\n");
+                    DataReader.ShowBytes(1, "header argument\n");
                 }
             }
             if (nrArgs > 0)
             {
-                datareader.BreakLine();
+                DataReader.BreakLine();
             }
         }
 
@@ -645,84 +645,84 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var i = 0; i < dxilSourceCount; i++)
             {
-                var sourceOffset = datareader.ReadInt32AtPosition();
-                datareader.ShowByteCount();
-                datareader.ShowBytes(4, $"offset to end of source {sourceOffset} (taken from {datareader.BaseStream.Position + 4})");
+                var sourceOffset = DataReader.ReadInt32AtPosition();
+                DataReader.ShowByteCount();
+                DataReader.ShowBytes(4, $"offset to end of source {sourceOffset} (taken from {DataReader.BaseStream.Position + 4})");
                 var additionalSourceBytes = 0;
                 if (sourceOffset > 0)
                 {
-                    datareader.ShowBytes(4);
-                    var unknown_prog_uint16 = (int)datareader.ReadUInt16AtPosition(2);
-                    datareader.ShowBytes(4, $"({unknown_prog_uint16}) the first ({unknown_prog_uint16} * 4) " +
+                    DataReader.ShowBytes(4);
+                    var unknown_prog_uint16 = (int)DataReader.ReadUInt16AtPosition(2);
+                    DataReader.ShowBytes(4, $"({unknown_prog_uint16}) the first ({unknown_prog_uint16} * 4) " +
                         $"bytes look like header data that may need to be processed");
-                    datareader.BreakLine();
-                    datareader.ShowByteCount($"DXIL-SOURCE[{i}]");
+                    DataReader.BreakLine();
+                    DataReader.ShowByteCount($"DXIL-SOURCE[{i}]");
                     var sourceSize = sourceOffset - 8;
                     if (unknown_prog_uint16 > 0)
                     {
-                        datareader.ShowBytes(unknown_prog_uint16 * 4);
+                        DataReader.ShowBytes(unknown_prog_uint16 * 4);
                     }
                     additionalSourceBytes = sourceSize - unknown_prog_uint16 * 4;
                 }
-                var endOfSource = (int)datareader.BaseStream.Position + additionalSourceBytes;
+                var endOfSource = (int)DataReader.BaseStream.Position + additionalSourceBytes;
                 if (additionalSourceBytes > SOURCE_BYTES_TO_SHOW)
                 {
-                    datareader.ShowBytes(SOURCE_BYTES_TO_SHOW, breakLine: false);
-                    datareader.OutputWrite(" ");
-                    var remainingBytes = endOfSource - (int)datareader.BaseStream.Position;
+                    DataReader.ShowBytes(SOURCE_BYTES_TO_SHOW, breakLine: false);
+                    DataReader.OutputWrite(" ");
+                    var remainingBytes = endOfSource - (int)DataReader.BaseStream.Position;
                     if (remainingBytes < 50)
                     {
-                        datareader.ShowBytes(remainingBytes);
+                        DataReader.ShowBytes(remainingBytes);
                     }
                     else
                     {
-                        datareader.Comment($"... ({endOfSource - datareader.BaseStream.Position} bytes of data not shown)");
+                        DataReader.Comment($"... ({endOfSource - DataReader.BaseStream.Position} bytes of data not shown)");
                     }
                 }
                 else if (additionalSourceBytes <= SOURCE_BYTES_TO_SHOW && additionalSourceBytes > 0)
                 {
-                    datareader.ShowBytes(additionalSourceBytes);
+                    DataReader.ShowBytes(additionalSourceBytes);
                 }
                 else
                 {
-                    datareader.OutputWriteLine("// no source present");
+                    DataReader.OutputWriteLine("// no source present");
                 }
-                datareader.BaseStream.Position = endOfSource;
-                datareader.BreakLine();
-                datareader.ShowByteCount();
-                datareader.ShowBytes(16, "DXIL(hlsl) Editor ref.");
-                datareader.BreakLine();
+                DataReader.BaseStream.Position = endOfSource;
+                DataReader.BreakLine();
+                DataReader.ShowByteCount();
+                DataReader.ShowBytes(16, "DXIL(hlsl) Editor ref.");
+                DataReader.BreakLine();
             }
         }
         private void ShowDxbcSources(int dxbcSourceCount)
         {
             for (var sourceId = 0; sourceId < dxbcSourceCount; sourceId++)
             {
-                var sourceSize = datareader.ReadInt32AtPosition();
-                datareader.ShowByteCount();
-                datareader.ShowBytes(4, $"Source size, {sourceSize} bytes");
-                datareader.BreakLine();
-                var endOfSource = (int)datareader.BaseStream.Position + sourceSize;
-                datareader.ShowByteCount($"DXBC-SOURCE[{sourceId}]");
+                var sourceSize = DataReader.ReadInt32AtPosition();
+                DataReader.ShowByteCount();
+                DataReader.ShowBytes(4, $"Source size, {sourceSize} bytes");
+                DataReader.BreakLine();
+                var endOfSource = (int)DataReader.BaseStream.Position + sourceSize;
+                DataReader.ShowByteCount($"DXBC-SOURCE[{sourceId}]");
                 if (sourceSize == 0)
                 {
-                    datareader.OutputWriteLine("// no source present");
+                    DataReader.OutputWriteLine("// no source present");
                 }
                 if (sourceSize > SOURCE_BYTES_TO_SHOW)
                 {
-                    datareader.ShowBytes(SOURCE_BYTES_TO_SHOW, breakLine: false);
-                    datareader.OutputWrite(" ");
-                    datareader.Comment($"... ({endOfSource - datareader.BaseStream.Position} bytes of data not shown)");
+                    DataReader.ShowBytes(SOURCE_BYTES_TO_SHOW, breakLine: false);
+                    DataReader.OutputWrite(" ");
+                    DataReader.Comment($"... ({endOfSource - DataReader.BaseStream.Position} bytes of data not shown)");
                 }
                 else if (sourceSize <= SOURCE_BYTES_TO_SHOW && sourceSize > 0)
                 {
-                    datareader.ShowBytes(sourceSize);
+                    DataReader.ShowBytes(sourceSize);
                 }
-                datareader.BaseStream.Position = endOfSource;
-                datareader.BreakLine();
-                datareader.ShowByteCount();
-                datareader.ShowBytes(16, "DXBC(hlsl) Editor ref.");
-                datareader.BreakLine();
+                DataReader.BaseStream.Position = endOfSource;
+                DataReader.BreakLine();
+                DataReader.ShowByteCount();
+                DataReader.ShowBytes(16, "DXBC(hlsl) Editor ref.");
+                DataReader.BreakLine();
             }
         }
 
@@ -731,37 +731,37 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var i = 0; i < vulkanSourceCount; i++)
             {
-                var offsetToEditorId = datareader.ReadInt32AtPosition();
+                var offsetToEditorId = DataReader.ReadInt32AtPosition();
                 if (offsetToEditorId == 0)
                 {
-                    datareader.ShowBytes(4);
-                    datareader.OutputWriteLine("// no source present");
-                    datareader.BreakLine();
+                    DataReader.ShowBytes(4);
+                    DataReader.OutputWriteLine("// no source present");
+                    DataReader.BreakLine();
                 }
                 else
                 {
-                    datareader.ShowByteCount();
-                    datareader.ShowBytes(4, $"({offsetToEditorId}) offset to Editor ref. ID ");
-                    var endOfSourceOffset = (int)datareader.BaseStream.Position + offsetToEditorId;
-                    var arg0 = datareader.ReadInt32AtPosition();
-                    datareader.ShowBytes(4, $"({arg0}) values seen for Vulkan sources are (2,3)");
-                    var offset2 = datareader.ReadInt32AtPosition();
-                    datareader.ShowBytes(4, $"({offset2}) - looks like an offset, unknown significance");
-                    datareader.BreakLine();
-                    datareader.ShowByteCount($"VULKAN-SOURCE[{i}]");
+                    DataReader.ShowByteCount();
+                    DataReader.ShowBytes(4, $"({offsetToEditorId}) offset to Editor ref. ID ");
+                    var endOfSourceOffset = (int)DataReader.BaseStream.Position + offsetToEditorId;
+                    var arg0 = DataReader.ReadInt32AtPosition();
+                    DataReader.ShowBytes(4, $"({arg0}) values seen for Vulkan sources are (2,3)");
+                    var offset2 = DataReader.ReadInt32AtPosition();
+                    DataReader.ShowBytes(4, $"({offset2}) - looks like an offset, unknown significance");
+                    DataReader.BreakLine();
+                    DataReader.ShowByteCount($"VULKAN-SOURCE[{i}]");
                     var sourceSize = offsetToEditorId - 8;
                     var bytesToShow = VULKAN_SOURCE_BYTES_TO_SHOW > sourceSize ? sourceSize : VULKAN_SOURCE_BYTES_TO_SHOW;
-                    datareader.ShowBytes(bytesToShow);
+                    DataReader.ShowBytes(bytesToShow);
                     var bytesNotShown = sourceSize - bytesToShow;
                     if (bytesNotShown > 0)
                     {
-                        datareader.Comment($"... {bytesNotShown} bytes of data not shown)");
+                        DataReader.Comment($"... {bytesNotShown} bytes of data not shown)");
                     }
-                    datareader.BreakLine();
-                    datareader.BaseStream.Position = endOfSourceOffset;
+                    DataReader.BreakLine();
+                    DataReader.BaseStream.Position = endOfSourceOffset;
                 }
-                datareader.ShowBytes(16, "Vulkan Editor ref. ID");
-                datareader.BreakLine();
+                DataReader.ShowBytes(16, "Vulkan Editor ref. ID");
+                DataReader.BreakLine();
             }
         }
 
@@ -770,83 +770,83 @@ namespace ValveResourceFormat.CompiledShader
             for (var sourceId = 0; sourceId < glslSourceCount; sourceId++)
             {
                 var sourceSize = ShowGlslSourceOffsets();
-                var sourceOffset = (int)datareader.BaseStream.Position;
+                var sourceOffset = (int)DataReader.BaseStream.Position;
                 ShowZGlslSourceSummary(sourceId);
-                datareader.ShowByteCount();
-                var fileIdBytes = datareader.ReadBytes(16);
+                DataReader.ShowByteCount();
+                var fileIdBytes = DataReader.ReadBytes(16);
                 var fileIdStr = BytesToString(fileIdBytes);
-                datareader.OutputWrite(fileIdStr);
-                datareader.TabComment($" Editor ref.");
-                datareader.BreakLine();
+                DataReader.OutputWrite(fileIdStr);
+                DataReader.TabComment($" Editor ref.");
+                DataReader.BreakLine();
             }
         }
         public int ShowGlslSourceOffsets()
         {
-            datareader.ShowByteCount("glsl source offsets");
-            var offset1 = datareader.ReadUInt32AtPosition();
-            datareader.ShowBytesWithIntValue();
+            DataReader.ShowByteCount("glsl source offsets");
+            var offset1 = DataReader.ReadUInt32AtPosition();
+            DataReader.ShowBytesWithIntValue();
             if (offset1 == 0)
             {
                 return 0;
             }
-            datareader.ShowBytes(4, breakLine: false);
-            datareader.TabComment("always 3");
-            var sourceSize = datareader.ReadInt32AtPosition() - 1; // one less because of null-term
-            datareader.ShowBytesWithIntValue();
-            datareader.BreakLine();
+            DataReader.ShowBytes(4, breakLine: false);
+            DataReader.TabComment("always 3");
+            var sourceSize = DataReader.ReadInt32AtPosition() - 1; // one less because of null-term
+            DataReader.ShowBytesWithIntValue();
+            DataReader.BreakLine();
             return sourceSize;
         }
         public void ShowZGlslSourceSummary(int sourceId)
         {
-            var bytesToRead = datareader.ReadInt32AtPosition(-4);
-            var endOfSource = (int)datareader.BaseStream.Position + bytesToRead;
-            datareader.ShowByteCount($"GLSL-SOURCE[{sourceId}]");
+            var bytesToRead = DataReader.ReadInt32AtPosition(-4);
+            var endOfSource = (int)DataReader.BaseStream.Position + bytesToRead;
+            DataReader.ShowByteCount($"GLSL-SOURCE[{sourceId}]");
             if (bytesToRead == 0)
             {
-                datareader.OutputWriteLine("// no source present");
+                DataReader.OutputWriteLine("// no source present");
             }
             if (bytesToRead > SOURCE_BYTES_TO_SHOW)
             {
-                datareader.ShowBytes(SOURCE_BYTES_TO_SHOW);
-                datareader.Comment($"... ({endOfSource - datareader.BaseStream.Position} bytes of data not shown)");
+                DataReader.ShowBytes(SOURCE_BYTES_TO_SHOW);
+                DataReader.Comment($"... ({endOfSource - DataReader.BaseStream.Position} bytes of data not shown)");
             }
             else if (bytesToRead <= SOURCE_BYTES_TO_SHOW && bytesToRead > 0)
             {
-                datareader.ShowBytes(bytesToRead);
+                DataReader.ShowBytes(bytesToRead);
             }
-            datareader.BaseStream.Position = endOfSource;
-            datareader.BreakLine();
+            DataReader.BaseStream.Position = endOfSource;
+            DataReader.BreakLine();
         }
         public void ShowZAllEndBlocksTypeVs(bool hullShader = false)
         {
-            datareader.ShowByteCount();
-            var nr_end_blocks = datareader.ReadInt32AtPosition();
-            datareader.ShowBytes(4, breakLine: false);
-            datareader.TabComment($"nr end blocks ({nr_end_blocks})");
-            datareader.BreakLine();
+            DataReader.ShowByteCount();
+            var nr_end_blocks = DataReader.ReadInt32AtPosition();
+            DataReader.ShowBytes(4, breakLine: false);
+            DataReader.TabComment($"nr end blocks ({nr_end_blocks})");
+            DataReader.BreakLine();
             for (var i = 0; i < nr_end_blocks; i++)
             {
-                datareader.ShowBytes(16 + (hullShader ? 1 : 0));
+                DataReader.ShowBytes(16 + (hullShader ? 1 : 0));
             }
         }
         private void ShowMurmurString()
         {
-            var nulltermstr = datareader.ReadNullTermStringAtPosition();
-            var murmur32 = datareader.ReadUInt32AtPosition(nulltermstr.Length + 1);
+            var nulltermstr = DataReader.ReadNullTermStringAtPosition();
+            var murmur32 = DataReader.ReadUInt32AtPosition(nulltermstr.Length + 1);
             var murmurCheck = MurmurHash2.Hash(nulltermstr.ToLower(), ShaderFile.PI_MURMURSEED);
             if (murmur32 != murmurCheck)
             {
                 throw new ShaderParserException("not a murmur string!");
             }
-            datareader.Comment($"{nulltermstr} | 0x{murmur32:x08}");
-            datareader.ShowBytes(nulltermstr.Length + 1 + 4);
+            DataReader.Comment($"{nulltermstr} | 0x{murmur32:x08}");
+            DataReader.ShowBytes(nulltermstr.Length + 1 + 4);
         }
         private void ShowDynamicExpression(int dynExpLen)
         {
-            var dynExpDatabytes = datareader.ReadBytesAtPosition(0, dynExpLen);
+            var dynExpDatabytes = DataReader.ReadBytesAtPosition(0, dynExpLen);
             var dynExp = ParseDynamicExpression(dynExpDatabytes);
-            datareader.OutputWriteLine($"// {dynExp}");
-            datareader.ShowBytes(dynExpLen);
+            DataReader.OutputWriteLine($"// {dynExp}");
+            DataReader.ShowBytes(dynExpLen);
         }
     }
 

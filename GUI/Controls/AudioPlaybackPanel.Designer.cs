@@ -130,7 +130,7 @@ namespace GUI.Controls
             this.trackBarPosition.Name = "trackBarPosition";
             this.trackBarPosition.Size = new System.Drawing.Size(600, 45);
             this.trackBarPosition.TabIndex = 16;
-            this.trackBarPosition.Scroll += new System.EventHandler(this.trackBarPosition_Scroll);
+            this.trackBarPosition.Scroll += new System.EventHandler(this.OnTrackBarPositionScroll);
             // 
             // playbackTimer
             // 
