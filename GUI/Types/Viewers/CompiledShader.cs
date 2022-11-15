@@ -77,7 +77,7 @@ namespace GUI.Types.Viewers
                 // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                 foreach (var vcsEntry in vcsEntries)
                 {
-                    if (vcsEntry.FileName.StartsWith(vcsCollectionName))
+                    if (vcsEntry.FileName.StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVcsProgramType($"{vcsEntry.FileName}.vcs");
                         vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
@@ -94,7 +94,7 @@ namespace GUI.Types.Viewers
                 var vcsCollectionName = filename[..filename.LastIndexOf('_')];
                 foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
                 {
-                    if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName))
+                    if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVcsProgramType(vcsFile);
                         ShaderFile relatedShaderFile = new();

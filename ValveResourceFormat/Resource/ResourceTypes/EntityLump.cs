@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -146,7 +147,7 @@ namespace ValveResourceFormat.ResourceTypes
             var index = 0;
             foreach (var entity in GetEntities())
             {
-                builder.AppendLine($"===={index++}====");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"===={index++}====");
 
                 foreach (var property in entity.Properties)
                 {
@@ -154,7 +155,7 @@ namespace ValveResourceFormat.ResourceTypes
                     if (value.GetType() == typeof(byte[]))
                     {
                         var tmp = value as byte[];
-                        value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString()).ToArray())}]";
+                        value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray())}]";
                     }
 
                     string key;
@@ -181,7 +182,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    builder.AppendLine($"{key,-30} {types[property.Value.Type],-10} {value}");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"{key,-30} {types[property.Value.Type],-10} {value}");
                 }
 
                 if (entity.Connections != null)
@@ -196,7 +197,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         if (delay > 0)
                         {
-                            builder.Append($"Delay={delay} ");
+                            builder.Append(CultureInfo.InvariantCulture, $"Delay={delay} ");
                         }
 
                         var timesToFire = connection.GetInt32Property("m_nTimesToFire");
@@ -236,7 +237,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var unknownKey in unknownKeys)
                 {
-                    builder.AppendLine($"key={unknownKey.Key} hits={unknownKey.Value}");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"key={unknownKey.Key} hits={unknownKey.Value}");
                 }
             }
 

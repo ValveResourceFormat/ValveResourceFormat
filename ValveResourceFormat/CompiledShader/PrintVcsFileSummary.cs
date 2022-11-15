@@ -57,7 +57,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
                 {
-                    output.Write($" \\\\{relatedFile.Replace("/", "\\")}");
+                    output.Write($" \\\\{relatedFile.Replace("/", "\\", StringComparison.Ordinal)}");
                 }
                 output.BreakLine();
             }
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.Write("Related files:");
                 foreach (var relatedFile in relatedFiles)
                 {
-                    output.Write($" \\\\{relatedFile.Replace("/", "\\")}");
+                    output.Write($" \\\\{relatedFile.Replace("/", "\\", StringComparison.Ordinal)}");
                 }
                 output.BreakLine();
             }
@@ -528,7 +528,7 @@ namespace ValveResourceFormat.CompiledShader
             List<string> abbreviations = new();
             foreach (var sfBlock in shaderFile.SfBlocks)
             {
-                var sfShortName = ShortenShaderParam(sfBlock.Name0).ToLower();
+                var sfShortName = ShortenShaderParam(sfBlock.Name0).ToLowerInvariant();
                 abbreviations.Add($"{sfBlock.Name0}({sfShortName})");
                 sfNames.Add(sfShortName);
             }

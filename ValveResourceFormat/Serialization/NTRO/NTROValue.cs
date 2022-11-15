@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Serialization.NTRO
 {
@@ -53,7 +55,7 @@ namespace ValveResourceFormat.Serialization.NTRO
 
                 case DataType.Boolean:
                     // Booleans ToString() returns "True" and "False", we want "true" and "false"
-                    writer.WriteLine(Value.ToString().ToLower());
+                    writer.WriteLine(Value.ToString().ToLowerInvariant());
                     break;
 
                 case DataType.UInt16: // TODO: Valve print it as hex, why?
@@ -90,7 +92,7 @@ namespace ValveResourceFormat.Serialization.NTRO
 
                 case DataType.Quaternion:
                     var quaternion = (Value as NTROStruct).ToQuaternion();
-                    writer.WriteLine("{{x: {0:F2}, y: {1:F2}, z: {2:F2}, w: {3}}}", quaternion.X, quaternion.Y, quaternion.Z, quaternion.W.ToString("F2"));
+                    writer.WriteLine("{{x: {0:F2}, y: {1:F2}, z: {2:F2}, w: {3}}}", quaternion.X, quaternion.Y, quaternion.Z, quaternion.W.ToString("F2", CultureInfo.InvariantCulture));
                     break;
 
                 case DataType.Vector:
@@ -133,7 +135,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 default:
-                    throw new NotImplementedException(string.Format("Unknown data type: {0}", Value.GetType()));
+                    throw new UnexpectedMagicException("Unknown data type", (int)Type, nameof(Type));
             }
         }
     }

@@ -1,6 +1,7 @@
 //#define DEBUG_SHADERS
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -101,7 +102,7 @@ namespace GUI.Types.Renderer
 
             const string renderMode = "renderMode_";
             var renderModes = defines
-                .Where(k => k.StartsWith(renderMode))
+                .Where(k => k.StartsWith(renderMode, StringComparison.InvariantCulture))
                 .Select(k => k[renderMode.Length..])
                 .ToList();
 
@@ -211,7 +212,7 @@ namespace GUI.Types.Renderer
                 includedCode = ResolveIncludes(includedCode);
 
                 //Replace the include with the code
-                source = source.Replace(define.Value, includedCode);
+                source = source.Replace(define.Value, includedCode, StringComparison.InvariantCulture);
             }
 
             return source;
@@ -247,7 +248,7 @@ namespace GUI.Types.Renderer
                 case "multiblend.vfx":
                     return "multiblend";
                 default:
-                    if (shaderName.StartsWith("vr_"))
+                    if (shaderName.StartsWith("vr_", StringComparison.InvariantCulture))
                     {
                         return "vr_standard";
                     }

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Windows.Forms;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -18,7 +19,7 @@ namespace GUI.Controls
             InitializeComponent();
 
             waveStream = inputStream;
-            labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff");
+            labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e)
@@ -153,7 +154,7 @@ namespace GUI.Controls
         {
             var currentTime = waveStream.CurrentTime;
             trackBarPosition.Value = Math.Min(trackBarPosition.Maximum, (int)(100 * currentTime.TotalSeconds / waveStream.TotalTime.TotalSeconds));
-            labelCurrentTime.Text = currentTime.ToString("mm\\:ss\\.ff");
+            labelCurrentTime.Text = currentTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
         }
     }
 }

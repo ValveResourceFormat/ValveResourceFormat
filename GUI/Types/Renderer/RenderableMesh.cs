@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
@@ -49,7 +50,7 @@ namespace GUI.Types.Renderer
             {
                 // Recycle old shader parameters that are not render modes since we are scrapping those anyway
                 var parameters = call.Shader.Parameters
-                    .Where(kvp => !kvp.Key.StartsWith("renderMode"))
+                    .Where(kvp => !kvp.Key.StartsWith("renderMode", StringComparison.InvariantCulture))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                 if (renderMode != null && call.Shader.RenderModes.Contains(renderMode))
@@ -196,15 +197,15 @@ namespace GUI.Types.Renderer
             var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
 
             var indexBuffer = default(DrawBuffer);
-            indexBuffer.Id = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_hBuffer"));
-            indexBuffer.Offset = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_nBindOffsetBytes"));
+            indexBuffer.Id = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_hBuffer"), CultureInfo.InvariantCulture);
+            indexBuffer.Offset = Convert.ToUInt32(indexBufferObject.GetProperty<object>("m_nBindOffsetBytes"), CultureInfo.InvariantCulture);
             drawCall.IndexBuffer = indexBuffer;
 
             var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
             //drawCall.BaseVertex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nBaseVertex"));
             //drawCall.VertexCount = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nVertexCount"));
-            drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex")) * indexElementSize;
-            drawCall.IndexCount = Convert.ToInt32(objectDrawCall.GetProperty<object>("m_nIndexCount"));
+            drawCall.StartIndex = Convert.ToUInt32(objectDrawCall.GetProperty<object>("m_nStartIndex"), CultureInfo.InvariantCulture) * indexElementSize;
+            drawCall.IndexCount = Convert.ToInt32(objectDrawCall.GetProperty<object>("m_nIndexCount"), CultureInfo.InvariantCulture);
 
             if (objectDrawCall.ContainsKey("m_vTintColor"))
             {
@@ -230,8 +231,8 @@ namespace GUI.Types.Renderer
             var m_vertexBuffer = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
 
             var vertexBuffer = default(DrawBuffer);
-            vertexBuffer.Id = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_hBuffer"));
-            vertexBuffer.Offset = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_nBindOffsetBytes"));
+            vertexBuffer.Id = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_hBuffer"), CultureInfo.InvariantCulture);
+            vertexBuffer.Offset = Convert.ToUInt32(m_vertexBuffer.GetProperty<object>("m_nBindOffsetBytes"), CultureInfo.InvariantCulture);
             drawCall.VertexBuffer = vertexBuffer;
 
             drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(

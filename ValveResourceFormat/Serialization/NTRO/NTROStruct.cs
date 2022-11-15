@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace ValveResourceFormat.Serialization.NTRO
@@ -21,7 +22,7 @@ namespace ValveResourceFormat.Serialization.NTRO
             Contents = new Dictionary<string, NTROValue>();
             for (var i = 0; i < values.Length; i++)
             {
-                Contents.Add(i.ToString(), values[i]);
+                Contents.Add(i.ToString(CultureInfo.InvariantCulture), values[i]);
             }
         }
 

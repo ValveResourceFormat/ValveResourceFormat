@@ -226,7 +226,7 @@ namespace ValveResourceFormat.CompiledShader
             List<string> dParamNames = new();
             foreach (var dBlock in shaderFile.DBlocks)
             {
-                dParamNames.Add(ShortenShaderParam(dBlock.Name0).ToLower());
+                dParamNames.Add(ShortenShaderParam(dBlock.Name0).ToLowerInvariant());
             }
             var configNames = CombineStringsSpaceSep(dParamNames.ToArray(), 6);
             configNames = $"{new string(' ', 5)}{configNames}";
@@ -266,7 +266,7 @@ namespace ValveResourceFormat.CompiledShader
             List<string> abbreviations = new();
             foreach (var dBlock in shaderFile.DBlocks)
             {
-                var abbreviation = $"{dBlock.Name0}({ShortenShaderParam(dBlock.Name0).ToLower()})";
+                var abbreviation = $"{dBlock.Name0}({ShortenShaderParam(dBlock.Name0).ToLowerInvariant()})";
                 abbreviations.Add(abbreviation);
             }
             if (abbreviations.Count == 0)

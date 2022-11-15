@@ -148,7 +148,7 @@ namespace GUI.Types.Renderer
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
                 var isTrigger =
-                    classname.Contains("trigger") ||
+                    classname.Contains("trigger", StringComparison.InvariantCulture) ||
                     classname == "post_processing_volume";
 
                 var positionVector = EntityTransformHelper.ParseVector(position);

@@ -83,7 +83,7 @@ namespace GUI.Types.Renderer
         private void OnSaveCameraRequest(object sender, EventArgs e)
         {
             var cam = Scene.MainCamera;
-            var saveName = string.Format("Saved Camera #{0}", Settings.Config.SavedCameras.Count + 1);
+            var saveName = $"Saved Camera #{Settings.Config.SavedCameras.Count + 1}";
 
             Settings.Config.SavedCameras.Add(saveName, new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw });
             Settings.Save();

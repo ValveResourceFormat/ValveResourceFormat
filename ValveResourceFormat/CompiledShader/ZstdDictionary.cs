@@ -100,6 +100,8 @@
  *
  *
  */
+using System;
+
 namespace ValveResourceFormat.CompiledShader
 {
     public static class ZstdDictionary
@@ -112,7 +114,7 @@ namespace ValveResourceFormat.CompiledShader
                 zstdDict = new byte[65536];
                 // ascii characters 0x30 = '0' to 0x6f = 'o' are used to encode the dictionary (base 64)
                 // because '\' cannot be stored in a string 'p' is used as a placeholder
-                var zstd = Zstd2bc2fa87.Replace("p", "\\");
+                var zstd = Zstd2bc2fa87.Replace("p", "\\", StringComparison.InvariantCulture);
                 byte[] b = null;
                 for (var i = 0; i < zstdDict.Length; i++)
                 {

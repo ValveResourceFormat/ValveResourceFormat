@@ -7,6 +7,7 @@ using ValveResourceFormat.Serialization;
 using System.Numerics;
 using System.Linq;
 using ValveResourceFormat.Serialization.NTRO;
+using System.Globalization;
 
 namespace GUI.Types.Renderer
 {
@@ -29,7 +30,7 @@ namespace GUI.Types.Renderer
 
             var bindPose = phys.Data.GetArray("m_bindPose")
                  .Select(v => Matrix4x4FromArray(v
-                    .Select(m => Convert.ToSingle(m.Value))
+                    .Select(m => Convert.ToSingle(m.Value, CultureInfo.InvariantCulture))
                     .ToArray()))
                  .ToArray();
 

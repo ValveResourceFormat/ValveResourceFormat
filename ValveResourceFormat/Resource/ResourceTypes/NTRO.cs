@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.NTRO;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -128,7 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    throw new NotImplementedException(string.Format("Unknown indirection. ({0})", indirection));
+                    throw new UnexpectedMagicException("Unknown indirection", indirection, nameof(indirection));
                 }
             }
 

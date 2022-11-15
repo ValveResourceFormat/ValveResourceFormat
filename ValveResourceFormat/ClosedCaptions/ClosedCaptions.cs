@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -44,7 +45,7 @@ namespace ValveResourceFormat.ClosedCaptions
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filename, Stream input)
         {
-            if (!filename.StartsWith("subtitles_"))
+            if (!filename.StartsWith("subtitles_", StringComparison.Ordinal))
             {
                 // TODO: Throw warning?
             }

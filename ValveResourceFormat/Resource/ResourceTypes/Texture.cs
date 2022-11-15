@@ -486,7 +486,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadBGRA8888(skiaBitmap, GetTextureSpan());
 
                 default:
-                    throw new NotImplementedException(string.Format("Unhandled image type: {0}", Format));
+                    throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
             }
 
             return skiaBitmap;

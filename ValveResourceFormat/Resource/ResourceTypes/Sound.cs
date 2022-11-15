@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
@@ -352,31 +353,31 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var output = new StringBuilder();
 
-            output.AppendLine($"SoundType: {SoundType}");
-            output.AppendLine($"Sample Rate: {SampleRate}");
-            output.AppendLine($"Bits: {Bits}");
-            output.AppendLine($"SampleSize: {SampleSize}");
-            output.AppendLine($"SampleCount: {SampleCount}");
-            output.AppendLine($"Format: {AudioFormat}");
-            output.AppendLine($"Channels: {Channels}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"SoundType: {SoundType}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"Sample Rate: {SampleRate}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"Bits: {Bits}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"SampleSize: {SampleSize}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"SampleCount: {SampleCount}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"Format: {AudioFormat}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"Channels: {Channels}");
 
             var loopStart = TimeSpan.FromSeconds(LoopStart);
-            output.AppendLine($"LoopStart: ({loopStart}) {LoopStart}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"LoopStart: ({loopStart}) {LoopStart}");
 
             var loopEnd = TimeSpan.FromSeconds(LoopEnd);
-            output.AppendLine($"LoopEnd: ({loopEnd}) {LoopEnd}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"LoopEnd: ({loopEnd}) {LoopEnd}");
 
             var duration = TimeSpan.FromSeconds(Duration);
-            output.AppendLine($"Duration: {duration} ({Duration})");
+            output.AppendLine(CultureInfo.InvariantCulture, $"Duration: {duration} ({Duration})");
 
-            output.AppendLine($"StreamingDataSize: {StreamingDataSize}");
+            output.AppendLine(CultureInfo.InvariantCulture, $"StreamingDataSize: {StreamingDataSize}");
 
             if (Sentence != null)
             {
-                output.AppendLine($"Sentence[{Sentence.RunTimePhonemes.Length}]:");
+                output.AppendLine(CultureInfo.InvariantCulture, $"Sentence[{Sentence.RunTimePhonemes.Length}]:");
                 foreach (var phoneme in Sentence.RunTimePhonemes)
                 {
-                    output.AppendLine($"\tPhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
+                    output.AppendLine(CultureInfo.InvariantCulture, $"\tPhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
                 }
             }
 

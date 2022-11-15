@@ -140,7 +140,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             foreach (var externalVarName in renderAttributesUsed)
             {
-                var murmur32 = MurmurHash2.Hash(externalVarName.ToLower(), MURMUR2SEED);
+                var murmur32 = MurmurHash2.Hash(externalVarName.ToLowerInvariant(), MURMUR2SEED);
 
                 ExternalVarsReference.AddOrUpdate(murmur32, externalVarName, (k, v) => externalVarName);
             }
@@ -287,7 +287,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (op == OPCODE.FLOAT)
             {
                 var floatVal = dataReader.ReadSingle();
-                var floatLiteral = string.Format("{0:g}", floatVal);
+                var floatLiteral = $"{floatVal:g}";
                 // if a float leads with "0." remove the 0 (as how Valve likes it)
                 if (floatLiteral.Length > 1 && floatLiteral[..2] == "0.")
                 {

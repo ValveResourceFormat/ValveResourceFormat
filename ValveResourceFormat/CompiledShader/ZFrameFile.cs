@@ -262,7 +262,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 Name0 = datareader.ReadNullTermString();
                 Murmur32 = datareader.ReadUInt32();
-                var murmurCheck = MurmurHash2.Hash(Name0.ToLower(), ShaderFile.PI_MURMURSEED);
+                var murmurCheck = MurmurHash2.Hash(Name0.ToLowerInvariant(), ShaderFile.PI_MURMURSEED);
                 if (Murmur32 != murmurCheck)
                 {
                     throw new ShaderParserException("Murmur check failed on header name");
@@ -833,7 +833,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             var nulltermstr = DataReader.ReadNullTermStringAtPosition();
             var murmur32 = DataReader.ReadUInt32AtPosition(nulltermstr.Length + 1);
-            var murmurCheck = MurmurHash2.Hash(nulltermstr.ToLower(), ShaderFile.PI_MURMURSEED);
+            var murmurCheck = MurmurHash2.Hash(nulltermstr.ToLowerInvariant(), ShaderFile.PI_MURMURSEED);
             if (murmur32 != murmurCheck)
             {
                 throw new ShaderParserException("not a murmur string!");

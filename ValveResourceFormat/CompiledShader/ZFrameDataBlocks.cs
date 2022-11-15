@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -35,7 +36,7 @@ namespace ValveResourceFormat.CompiledShader
         public string GetEditorRefIdAsString()
         {
             var stringId = ShaderUtilHelpers.BytesToString(EditorRefId);
-            stringId = stringId.Replace(" ", "").ToLower();
+            stringId = stringId.Replace(" ", "", StringComparison.InvariantCulture).ToLowerInvariant();
             return stringId;
         }
         public abstract string GetBlockName();

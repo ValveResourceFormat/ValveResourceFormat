@@ -441,7 +441,7 @@ public sealed class MaterialExtract
         if (attributes.Any())
         {
             // Some attributes are actually SystemAttributes
-            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLower())).ToList();
+            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLowerInvariant())).ToList();
             attributes = attributes.Except(systemAttributes).ToList();
 
             if (attributes.Any())
@@ -459,12 +459,12 @@ public sealed class MaterialExtract
 
         if (editInfo is ResourceEditInfo2 redi2)
         {
-            subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.ToLower() == "subrectdefinition").FirstOrDefault().Value as string;
+            subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.ToLowerInvariant() == "subrectdefinition").FirstOrDefault().Value as string;
         }
         else
         {
             var extraStringData = (Blocks.ResourceEditInfoStructs.ExtraStringData)editInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            subrectDefinition = extraStringData.List.Where(x => x.Name.ToLower() == "subrectdefinition").FirstOrDefault()?.Value;
+            subrectDefinition = extraStringData.List.Where(x => x.Name.ToLowerInvariant() == "subrectdefinition").FirstOrDefault()?.Value;
         }
 
         if (subrectDefinition != null)

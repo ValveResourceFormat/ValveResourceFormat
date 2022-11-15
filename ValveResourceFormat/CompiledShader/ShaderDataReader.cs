@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace ValveResourceFormat.CompiledShader
@@ -119,7 +120,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             var intval = ReadInt32AtPosition();
             ShowBytes(4, breakLine: false);
-            TabComment(intval.ToString());
+            TabComment(intval.ToString(CultureInfo.InvariantCulture));
         }
 
         public void ShowByteCount(string message = null)

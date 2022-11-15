@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes;
@@ -64,7 +65,7 @@ namespace ValveResourceFormat.IO
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
             // TODO: This needs to support embedded ANIM somehow
-            var animation = animArray.FirstOrDefault(a => a != null && a.EndsWith($"{animationName}.vanim"));
+            var animation = animArray.FirstOrDefault(a => a != null && a.EndsWith($"{animationName}.vanim", StringComparison.InvariantCulture));
 
             if (animation != default)
             {

@@ -87,7 +87,7 @@ namespace GUI.Types.Renderer
 
         public override string ToString()
         {
-            return string.Format("AABB [({0},{1},{2}) -> ({3},{4},{5}))", Min.X, Min.Y, Min.Z, Max.X, Max.Y, Max.Z);
+            return $"AABB [({Min.X},{Min.Y},{Min.Z}) -> ({Max.X},{Max.Y},{Max.Z}))";
         }
     }
 }

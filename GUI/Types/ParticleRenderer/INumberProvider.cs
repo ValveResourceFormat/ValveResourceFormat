@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
@@ -45,7 +46,7 @@ namespace GUI.Types.ParticleRenderer
             }
             else
             {
-                return new LiteralNumberProvider(Convert.ToDouble(property));
+                return new LiteralNumberProvider(Convert.ToDouble(property, CultureInfo.InvariantCulture));
             }
         }
 

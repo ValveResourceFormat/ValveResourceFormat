@@ -16,7 +16,7 @@ namespace ValveResourceFormat.CompiledShader
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
             }
 
-            var vcsProgramType = fileTokens[^1].ToLower() switch
+            var vcsProgramType = fileTokens[^1].ToLowerInvariant() switch
             {
                 "features.vcs" => VcsProgramType.Features,
                 "vs.vcs" => VcsProgramType.VertexShader,
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.CompiledShader
                 _ => VcsProgramType.Undetermined
             };
 
-            var vcsPlatformType = fileTokens[^3].ToLower() switch
+            var vcsPlatformType = fileTokens[^3].ToLowerInvariant() switch
             {
                 "pc" => VcsPlatformType.PC,
                 "pcgl" => VcsPlatformType.PCGL,
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.CompiledShader
 
             if (vcsPlatformType == VcsPlatformType.VULKAN)
             {
-                vcsPlatformType = fileTokens[^4].ToLower() switch
+                vcsPlatformType = fileTokens[^4].ToLowerInvariant() switch
                 {
                     "android" => VcsPlatformType.ANDROID_VULKAN,
                     "ios" => VcsPlatformType.IOS_VULKAN,
@@ -49,7 +49,7 @@ namespace ValveResourceFormat.CompiledShader
                 };
             }
 
-            var vcsShaderModelType = fileTokens[^2].ToLower() switch
+            var vcsShaderModelType = fileTokens[^2].ToLowerInvariant() switch
             {
                 "20" => VcsShaderModelType._20,
                 "2b" => VcsShaderModelType._2b,
@@ -79,7 +79,7 @@ namespace ValveResourceFormat.CompiledShader
             return Path.GetFileName(filenamepath).Split("_").Length < 4 ?
                 VcsProgramType.Undetermined
             :
-             Path.GetFileName(filenamepath).Split("_")[^1].ToLower() switch
+             Path.GetFileName(filenamepath).Split("_")[^1].ToLowerInvariant() switch
              {
                  "features.vcs" => VcsProgramType.Features,
                  "vs.vcs" => VcsProgramType.VertexShader,
@@ -258,7 +258,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             try
             {
-                return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR");
+                return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
             }
             catch (Exception)
             {
