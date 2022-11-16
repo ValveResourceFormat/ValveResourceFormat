@@ -12,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         protected Resource Resource { get; private set; }
         public IKeyValueCollection Data { get; private set; }
+        public bool UpgradeToKV3 { get; private set; }
 
         private ResourceData BackingData;
 
@@ -20,10 +21,11 @@ namespace ValveResourceFormat.ResourceTypes
             KVBlockType = BlockType.DATA;
         }
 
-        public KeyValuesOrNTRO(BlockType type, string introspectionStructName)
+        public KeyValuesOrNTRO(BlockType type, string introspectionStructName, bool upgradeToKV3 = false)
         {
             KVBlockType = type;
             IntrospectionStructName = introspectionStructName;
+            UpgradeToKV3 = upgradeToKV3;
         }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -50,7 +52,7 @@ namespace ValveResourceFormat.ResourceTypes
                     Size = Size,
                 };
                 ntro.Read(reader, resource);
-                Data = ntro.Output;
+                Data = UpgradeToKV3 ? ntro.Output.ToKVObject() : ntro.Output;
                 BackingData = ntro;
             }
         }

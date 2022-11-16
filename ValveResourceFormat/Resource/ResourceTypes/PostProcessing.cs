@@ -3,8 +3,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class PostProcessing : BinaryKV3
+    public class PostProcessing : KeyValuesOrNTRO
     {
+        public PostProcessing() : base(BlockType.DATA, "PostProcessingResource_t", upgradeToKV3: true)
+        { }
+
         public IKeyValueCollection GetTonemapParams()
         {
             if (Data.GetProperty<bool>("m_bHasTonemapParams"))
@@ -47,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public bool HasColorCorrection()
         {
-            if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value))
+            if ((Data as KVObject).Properties.TryGetValue("m_bHasColorCorrection", out var value))
             {
                 return (bool)value.Value;
             }
