@@ -1,0 +1,29 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using NUnit.Framework;
+using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
+
+namespace Tests
+{
+    [TestFixture]
+    public class PostProcessingTest
+    {
+        [Test]
+        public void TestPostProcessing()
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "a1_intro_world_courtyard.vpost_c");
+            using var resource = new Resource
+            {
+                FileName = file,
+            };
+            resource.Read(file);
+
+            var postProcessing = (PostProcessing)resource.DataBlock;
+
+            Assert.That(postProcessing.ToValvePostProcessing(), Is.Not.Empty);
+        }
+    }
+}
