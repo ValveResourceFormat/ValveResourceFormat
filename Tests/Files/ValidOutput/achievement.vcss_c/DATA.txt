@@ -1,0 +1,596 @@
+
+ .Achievement{
+
+     height: 184px;
+     width: 322px;
+     margin: 0px 12px 24px 12px;
+
+
+     brightness: 1;
+     saturation: 1;
+     opacity: 1;
+     overflow: noclip;
+ }
+
+
+
+ .AchievementCell.Current{
+
+     z-index:4;
+ }
+ .AchievementCell{
+
+  border: 1px solid black;
+  border-top: 0px;
+  border-top-color: #5D738E00;
+  border-left-color: #ffffff04;
+  border-bottom-color: #ffffff03;
+  border-right-color: #ffffff04;
+  background-color: secondaryGradient;
+  transform: translateY(33px);
+  height: 150px;
+  width: 100%;
+
+  overflow: noclip;
+  transition-property: transform, opacity,wash-color;
+  transition-duration: 0.24s;
+  transition-timing-function: ease-in-out;
+ }
+
+ .AchievementFooter{
+
+
+  background-color: gradient( linear, 0% 0%, 100% 0%, from( #000000 ), to( #00000011 ) );
+     width: 100%;
+     vertical-align: bottom;
+     flow-children: none;
+     height: 52px;
+     overflow: noclip;
+  background-size: 100%;
+ }
+
+
+ .Hidden{
+
+     opacity: 0;
+ }
+
+ .AchievementName{
+
+     max-width: 234px;
+     vertical-align: top;
+  color: accentColor;
+     font-size: 17px;
+     text-transform: uppercase;
+     width:220px;
+     margin-left: 7px;
+ }
+
+
+
+ .AchievementDescription{
+
+     width: 202px;
+     color: secondaryUltraBrightColor;
+     font-size: 18px;
+     margin-left: 106px;
+     margin-right: 12px;
+     margin-top: 8px;
+     font-weight: thin;
+     line-height: 18px;
+
+     transition-property: color;
+     transition-duration: 0.32s;
+ }
+
+ .AchievementImageContainer{
+
+    width:100%;
+    height: 100%;
+ }
+
+ #AchievementImage{
+
+     width: 84px;
+     height: 84px;
+     margin: 6px;
+ }
+
+ .Achievement.NotAchieved #AchievementImage{
+
+     saturation: 0;
+     brightness: 0.8;
+ }
+
+ .AchievementImageContainer Image{
+
+     wash-color: white;
+  contrast: 1;
+  saturation: 1;
+ }
+
+ .AchievementQuantity{
+
+  color: white;
+  font-weight: bold;
+  text-shadow: 2px 2px 0px 2.0 black;
+  font-size: 30px;
+  margin-top: 58px;
+  margin-left: 6px;
+  width: 79px;
+  text-align: right;
+  text-overflow: shrink;
+
+  visibility: collapse;
+ }
+ .ShowAchievementQuantity .AchievementQuantity{
+
+  visibility: visible;
+ }
+
+ .AchievementProgressBarContainer{
+
+     width:100%;
+     vertical-align: bottom;
+     margin-bottom: 8px;
+ }
+
+ #AchievementProgressBar{
+
+     horizontal-align: right;
+     vertical-align: bottom;
+     width: 140px;
+     border: 1px solid gray;
+     margin-left: 6px;
+     margin-right: 76px;
+     height: 4px;
+     border: 0px solid transparent;
+     box-shadow: none;
+ }
+
+
+
+ #AchievementProgressBar .ProgressBarLeft{
+
+     background-color: secondaryBrightColor;
+ }
+
+ .AchievementStatus{
+
+     color: secondaryBrightColor;
+     font-size: 14px;
+     text-transform: uppercase;
+     text-align:center;
+     horizontal-align: left;
+     margin-left: 106px;
+     margin-bottom: 2px;
+     text-shadow: 1px 1px 1px 1 black;
+ }
+
+ .AchievementFirstLine{
+
+     flow-children:right;
+     margin-left: 12px;
+     margin-right: 12px;
+     margin-bottom: 4px;
+     width:100%;
+     vertical-align: bottom;
+ }
+
+ .AchievementReward{
+
+     color: white;
+     text-shadow: -1px 1px 8px 2 #000000bb;
+     font-size: 18px;
+     text-transform: uppercase;
+     font-weight: normal;
+     horizontal-align: center;
+     margin-left: 1px;
+     margin-top: 3px;
+ }
+
+
+
+
+
+ .AchievementCell.Current.Hovered,.AchievementCell.Hovered{
+
+
+  z-index: 5;
+ }
+
+
+
+ .XPCircle{
+
+     width: 62px;
+     height: 62px;
+     margin: 0px;
+     margin-right: 8px;
+     margin-top: 80px;
+     padding: 0px;
+
+     padding-top: 8px;
+
+  horizontal-align: right;
+  flow-children: down;
+  border-radius: 50%;
+
+  transition-property: brightness, pre-transform-scale2d;
+  transition-duration: .25s;
+ }
+
+ .PTS{
+
+     background-image: bp_total_points;
+     background-size: cover;
+     width: 22px;
+     height: 22px;
+     margin-top: -6px;
+     horizontal-align: center;
+ }
+
+ .BackRowHittest{
+
+  border: 1px solid;
+  border-bottom: 0px;
+
+  border-top-color: #ffffff08;
+     border-left-color: #ffffff06;
+     border-bottom-color: #36506D00;
+     border-right-color: #ffffff06;
+     width: 100%;
+     height: 33px;
+     z-index: 4;
+     flow-children:right;
+     background-color: gradient( linear, 0% 0%, 100% 0%, from( secondaryUltraDarkColor ), to( secondaryDarkColor ) );
+ }
+
+ .CheckAndName{
+
+     width: 244px;
+     vertical-align: bottom;
+     flow-children: right;
+     height: 46px;
+ }
+
+ .Collapsed{
+
+  visibility:collapse;
+ }
+
+ .NoGold .Found{
+
+  visibility:collapse;
+ }
+
+ .AchievementCircle{
+
+     width: 32px;
+     height: 22px;
+  padding: 0px 5px;
+  vertical-align:center;
+
+     visibility:collapse;
+
+  transition-property: brightness;
+  transition-duration: .25s;
+ }
+
+ .AchievementCircle > Panel{
+
+  width: 22px;
+  height: 22px;
+
+     border: 2px solid #484848;
+  border-radius: 50%;
+
+  background-image: url( "s2r://panorama/images/compendium/spring2016/achievements_pip_not_active_png.vtex");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 55%;
+ }
+
+ .AchievementCircle.Active{
+
+     visibility: visible;
+ }
+
+ .AchievementCircle.Current > Panel{
+
+  background-image: none;
+  border: 2px solid #ffffff66;
+ }
+
+ .AchievementCircle.RelatedAchievementButton > Panel{
+
+  background-image: none;
+  border: 2px solid #ffffff66;
+ }
+
+ .AchievementCircle.Completed > Panel{
+
+  background-color: secondaryBrightColor;
+  wash-color: secondaryBrightColor;
+  box-shadow: secondaryBrightColor&66 0px 0px 8px 0px ;
+
+  background-image: url( "s2r://panorama/images/control_icons/check_png.vtex");
+  border: 2px solid #ffffff;
+ }
+
+ .AchievementCircle:hover{
+
+  brightness: 4;
+ }
+
+ .AchievementCircle.Current:hover{
+
+  brightness: 2;
+ }
+
+ .AchievementCircle.Completed:hover{
+
+  brightness: 2;
+ }
+
+ .RelatedActionsAchievement .AchievementProgressBarContainer{
+
+  visibility:collapse;
+ }
+
+ #RelatedActionContainer{
+
+  visibility: collapse;
+  vertical-align:bottom;
+  margin-bottom:60px;
+  margin-left:100px;
+  flow-children:right;
+ }
+
+ .RelatedActionsAchievement #RelatedActionContainer{
+
+  visibility:visible;
+ }
+
+ .AchievementImageContainer .RelatedImage{
+
+  margin-right:2px;
+  width: 35px;
+  height: 35px;
+  saturation:0;
+  opacity:0.5;
+ }
+
+ .AchievementImageContainer .RelatedImage.Completed{
+
+  opacity:1;
+  saturation:1;
+ }
+
+
+
+ .TI10Compendium .Achievement{
+
+     height: 102px;
+     width: 306px;
+     margin: 4px 4px;
+     border: 1px solid white;
+  border-brush: gradient( linear, 30% 100%, 80% 0%, from( #643f0b ), color-stop( 0.08, #754705 ),color-stop( 0.38, #c0780b ),color-stop( 0.68, #c0780b ),color-stop( 0.8, #754705 ), to( #643f0b ) );
+ }
+
+ .AspectRatio16x10 .TI10Compendium .Achievement{
+
+     ui-scale: 88%;
+ }
+
+ .TI10Compendium .AchievementCell:not(.Current){
+
+     opacity: 0;
+ }
+
+ .TI10Compendium .AchievementCell.Hovered:not(.Current){
+
+     opacity: 1;
+ }
+
+ .TI10Compendium .AchievementCell{
+
+     width: 100%;
+     height: 76px;
+     margin-top: 20px;
+     vertical-align: bottom;
+     transform: translateY(0px);
+     background-color: gradient( linear, 0% 0%, 0% 100%, from( #000f ), to( #111f ) );
+
+  border: 0px solid transparent;
+  overflow: noclip;
+  transition-property: transform, opacity,wash-color;
+  transition-duration: 0.24s;
+  transition-timing-function: ease-in-out;
+ }
+
+ .TI10Compendium #AchievementImage{
+
+     width: 48px;
+     height: 48px;
+     margin: 6px;
+     hue-rotation: -10deg;
+ }
+
+ .TI10Compendium .AchievementQuantity{
+
+     width: 26px;
+     height: 26px;
+     font-size: 18px;
+     font-weight: normal;
+     vertical-align: bottom;
+     background-color: #000e;
+     border-radius: 50%;
+     padding: 0px;
+     padding-top: 1px;
+     padding-right: 1px;
+     text-align: center;
+     margin: 2px;
+     margin-left: 32px;
+     margin-bottom: 12px;
+     border: 1px solid white;
+  border-brush: gradient( linear, 30% 100%, 80% 0%, from( #643f0b ), color-stop( 0.08, #754705 ),color-stop( 0.38, #c0780b ),color-stop( 0.68, #c0780b ),color-stop( 0.8, #754705 ), to( #643f0b ) );
+ }
+
+ .TI10Compendium .CheckAndName{
+
+     horizontal-align: right;
+     vertical-align: top;
+     ignore-parent-flow: true;
+ }
+
+ .TI10Compendium .AchievementName{
+
+     font-size: 14px;
+     margin-top: 0px;
+     margin-left: 1px;
+     color: #FFD88F;
+ }
+
+ .TI10Compendium .AchievementDescription{
+
+     color: #f5e9d7;
+     width: 100%;
+     margin-left: 64px;
+     font-size: 14px;
+     margin-top: 14px;
+ }
+
+ .TI10Compendium .AchievementFooter{
+
+     visibility: collapse;
+ }
+
+
+ .TI10Compendium .XPCircle{
+
+     width: fit-children;
+     height: fit-children;
+     margin: 0px;
+     margin: 0px;
+     vertical-align: bottom;
+     padding: 0px;
+     padding-top: 8px;
+     margin-bottom: 6px;
+     margin-right: 8px;
+
+  horizontal-align: right;
+  flow-children: left;
+  border-radius: 0%;
+
+     wash-color: #EEB66F;
+ }
+
+ .TI10Compendium .PTS{
+
+     vertical-align: middle;
+     background-image: url( "s2r://panorama/images/compendium/compendium_point_icon_psd.vtex");
+     background-size: cover;
+     width: 20px;
+     height: 20px;
+     margin-top: 0px;
+     horizontal-align: center;
+ }
+
+ .TI10Compendium .AchievementReward{
+
+     font-weight: normal;
+     horizontal-align: center;
+     margin-left: 3px;
+     margin-top: 0px;
+ }
+
+ .TI10Compendium .BackRowHittest{
+
+     z-index: 20;
+     opacity: 1;
+     border: 0px solid transparent;
+     height: 24px;
+     z-index: 20;
+     flow-children:right;
+     background-color: black;
+     padding-left: 4px;
+     padding-top: 6px;
+ }
+
+ .TI10Compendium .AchievementCircle{
+
+     ui-scale: 80%;
+ }
+
+
+ .TI10Compendium .AchievementProgressBarContainer{
+
+     width:100%;
+     vertical-align: bottom;
+     margin-bottom: 8px;
+ }
+
+ .TI10Compendium #AchievementProgressBar{
+
+     horizontal-align: center;
+     vertical-align: bottom;
+     width: 140px;
+     border: 1px solid gray;
+     height: 4px;
+     border: 0px solid transparent;
+     box-shadow: none;
+     margin: 0;
+ }
+
+
+ .TI10Compendium .AchievementStatus{
+
+     color: secondaryBrightColor;
+     font-size: 14px;
+     text-transform: uppercase;
+     text-align:center;
+     horizontal-align: center;
+     margin-left: 0px;
+     margin-bottom: 4px;
+     text-shadow: 1px 1px 1px 1 black;
+ }
+
+
+ .TI10Compendium .AchievementCircle > Panel,.TI10Compendium .AchievementCircle.Current > Panel{
+
+
+  border-brush: gradient( linear, 30% 100%, 80% 0%, from( #643f0b ), color-stop( 0.08, #754705 ),color-stop( 0.38, #c0780b ),color-stop( 0.68, #c0780b ),color-stop( 0.8, #754705 ), to( #643f0b ) );
+ }
+
+
+ .TI10Compendium #AchievementProgressBar .ProgressBarLeft{
+
+     background-color: #F5A027;
+     wash-color: white;
+     background-image: url("s2r://panorama/images/compendium/international2020/compendium/foil_1k_psd.vtex");
+     background-size: 200px auto;
+     background-position: center 0px;
+ }
+
+
+ .TI10Compendium .AchievementCircle.Completed > Panel{
+
+  background-color: gradient( linear, 30% 100%, 80% 0%, from( #643f0b ), color-stop( 0.08, #754705 ),color-stop( 0.38, #c0780b ),color-stop( 0.68, #c0780b ),color-stop( 0.8, #754705 ), to( #643f0b ) );
+     border-brush: gradient( linear, 30% 100%, 80% 0%, from( #643f0b ), color-stop( 0.08, #754705 ),color-stop( 0.38, #ffb341 ),color-stop( 0.68, #ecbe5a ),color-stop( 0.8, #e0a148 ), to( #643f0b ) );
+  box-shadow: rgb(148, 79, 0) 0px 0px 8px 0px ;
+  wash-color: white;
+  background-image: url( "s2r://panorama/images/control_icons/check_png.vtex");
+  border: 2px solid #ffffff;
+ }
+
+
+ .TI10Compendium .AchievementCircle.Completed:hover{
+
+     brightness: 1;
+ }
+
+ .TI10Compendium .AchievementCircle.Completed:hover > Panel{
+
+     background-color: gradient( linear, 30% 100%, 80% 0%, from( #754705 ), color-stop( 0.08, #c0780b ),color-stop( 0.38, #f1ac43 ),color-stop( 0.68, #f1ac43 ),color-stop( 0.8, #c0780b ), to( #754705 ) );
+}
