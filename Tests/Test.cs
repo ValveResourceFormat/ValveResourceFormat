@@ -2,12 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
 namespace Tests
@@ -92,8 +90,6 @@ namespace Tests
 
         static void VerifyResources(Dictionary<string, Resource> resources)
         {
-            SoundWavCorrectlyExports(resources["beep.vsnd_c"]);
-
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
             var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
             var exceptions = new StringBuilder();
@@ -143,17 +139,6 @@ namespace Tests
             }
         }
 
-        static void SoundWavCorrectlyExports(Resource resource)
-        {
-            Assert.AreEqual(ResourceType.Sound, resource.ResourceType);
-
-            using var hash = SHA256.Create();
-            using var sound = ((Sound)resource.DataBlock).GetSoundStream();
-            var actualHash = BitConverter.ToString(hash.ComputeHash(sound)).Replace("-", "", StringComparison.Ordinal);
-
-            Assert.AreEqual("1F8BF83F3E827A3C02C6AE6B6BD23BBEBD4E18C4F877D092CF0C5B800DAAB2B7", actualHash);
-        }
-
         [Test]
         public void InvalidResourceThrows()
         {
@@ -174,18 +159,6 @@ namespace Tests
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
 
             Assert.That(ex.Message, Does.Contain("Use ValvePak"));
-        }
-
-        [Test]
-        public void CompiledShaderInResourceThrows()
-        {
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Shaders", "error_pcgl_40_ps.vcs");
-
-            using var resource = new Resource();
-
-            var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
-
-            Assert.That(ex.Message, Does.Contain("Use CompiledShader"));
         }
     }
 }

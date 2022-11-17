@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using NUnit.Framework;
+using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -60,6 +61,18 @@ namespace Tests
             Assert.AreEqual(VcsProgramType.VertexShader, ComputeVCSFileName(filenamepath9).Item1);
             Assert.AreEqual(VcsPlatformType.ANDROID_VULKAN, ComputeVCSFileName(filenamepath9).Item2);
             Assert.AreEqual(VcsShaderModelType._40, ComputeVCSFileName(filenamepath9).Item3);
+        }
+
+        [Test]
+        public void CompiledShaderInResourceThrows()
+        {
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Shaders", "error_pcgl_40_ps.vcs");
+
+            using var resource = new Resource();
+
+            var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
+
+            Assert.That(ex.Message, Does.Contain("Use CompiledShader"));
         }
     }
 }
