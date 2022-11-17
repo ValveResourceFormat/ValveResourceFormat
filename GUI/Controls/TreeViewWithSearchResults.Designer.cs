@@ -44,6 +44,7 @@ namespace GUI.Controls
             // 
             this.mainSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainSplitContainer.Location = new System.Drawing.Point(0, 0);
+            this.mainSplitContainer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.mainSplitContainer.Name = "mainSplitContainer";
             // 
             // mainSplitContainer.Panel1
@@ -53,36 +54,39 @@ namespace GUI.Controls
             // mainSplitContainer.Panel2
             // 
             this.mainSplitContainer.Panel2.Controls.Add(this.mainListView);
-            this.mainSplitContainer.Size = new System.Drawing.Size(437, 305);
-            this.mainSplitContainer.SplitterDistance = 145;
+            this.mainSplitContainer.Size = new System.Drawing.Size(510, 352);
+            this.mainSplitContainer.SplitterDistance = 169;
+            this.mainSplitContainer.SplitterWidth = 5;
             this.mainSplitContainer.TabIndex = 0;
             // 
             // mainTreeView
             // 
             this.mainTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTreeView.Location = new System.Drawing.Point(0, 0);
+            this.mainTreeView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.mainTreeView.Name = "mainTreeView";
-            this.mainTreeView.Size = new System.Drawing.Size(145, 305);
+            this.mainTreeView.Size = new System.Drawing.Size(169, 352);
             this.mainTreeView.TabIndex = 0;
             // 
             // mainListView
             // 
             this.mainListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainListView.Location = new System.Drawing.Point(0, 0);
+            this.mainListView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.mainListView.Name = "mainListView";
-            this.mainListView.Size = new System.Drawing.Size(288, 305);
+            this.mainListView.Size = new System.Drawing.Size(336, 352);
             this.mainListView.TabIndex = 0;
             this.mainListView.UseCompatibleStateImageBehavior = false;
             this.mainListView.View = System.Windows.Forms.View.Details;
-            this.mainListView.MultiSelect = false;
             // 
             // TreeViewWithSearchResults
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.mainSplitContainer);
+            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.Name = "TreeViewWithSearchResults";
-            this.Size = new System.Drawing.Size(437, 305);
+            this.Size = new System.Drawing.Size(510, 352);
             this.Load += new System.EventHandler(this.TreeViewWithSearchResults_Load);
             this.mainSplitContainer.Panel1.ResumeLayout(false);
             this.mainSplitContainer.Panel2.ResumeLayout(false);

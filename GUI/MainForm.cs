@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +16,7 @@ using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using static System.ComponentModel.Design.ObjectSelectorEditor;
 using Resource = ValveResourceFormat.Resource;
 
 namespace GUI
@@ -554,60 +557,94 @@ namespace GUI
 
         private void CopyFileNameToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            TreeNode selectedNode = null;
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+            List<TreeNode> selectedNodes;
 
             if (control is TreeView treeView)
             {
-                selectedNode = treeView.SelectedNode;
+                selectedNodes = new List<TreeNode>
+                {
+                    treeView.SelectedNode
+                };
             }
             else if (control is ListView listView)
             {
-                selectedNode = listView.SelectedItems[0].Tag as TreeNode;
-            }
+                selectedNodes = new List<TreeNode>(listView.SelectedItems.Count);
 
-            if (selectedNode.Tag is PackageEntry packageEntry)
-            {
-                Clipboard.SetText(packageEntry.GetFullPath());
+                foreach (ListViewItem selectedNode in listView.SelectedItems)
+                {
+                    selectedNodes.Add(selectedNode.Tag as TreeNode);
+                }
             }
             else
             {
-                Clipboard.SetText(selectedNode.Name);
+                throw new InvalidDataException("Unknown state");
             }
+
+            var sb = new StringBuilder();
+
+            foreach (var selectedNode in selectedNodes)
+            {
+                if (selectedNode.Tag is PackageEntry packageEntry)
+                {
+                    sb.AppendLine(packageEntry.GetFullPath());
+                }
+                else
+                {
+                    sb.AppendLine(selectedNode.Name);
+                }
+            }
+
+            Clipboard.SetText(sb.ToString().TrimEnd());
         }
 
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            TreeNode selectedNode = null;
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+            List<TreeNode> selectedNodes;
 
             if (control is TreeView treeView)
             {
-                selectedNode = treeView.SelectedNode;
+                selectedNodes = new List<TreeNode>
+                {
+                    treeView.SelectedNode
+                };
             }
             else if (control is ListView listView)
             {
-                selectedNode = listView.SelectedItems[0].Tag as TreeNode;
+                selectedNodes = new List<TreeNode>(listView.SelectedItems.Count);
+
+                foreach (ListViewItem selectedNode in listView.SelectedItems)
+                {
+                    selectedNodes.Add(selectedNode.Tag as TreeNode);
+                }
+            }
+            else
+            {
+                throw new InvalidDataException("Unknown state");
             }
 
-            if (selectedNode.Tag is PackageEntry file)
+            foreach (var selectedNode in selectedNodes)
             {
-                var vrfGuiContext = (VrfGuiContext)selectedNode.TreeView.Tag;
-                vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+                if (selectedNode.Tag is PackageEntry file)
+                {
+                    var vrfGuiContext = (VrfGuiContext)selectedNode.TreeView.Tag;
+                    vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
-                var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(vrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
-                using (var stream = new FileStream(tempPath, FileMode.Create))
-                {
-                    stream.Write(output, 0, output.Length);
-                }
+                    var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(vrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
+                    using (var stream = new FileStream(tempPath, FileMode.Create))
+                    {
+                        stream.Write(output, 0, output.Length);
+                    }
 
-                try
-                {
-                    Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
-                }
-                catch (Exception ex)
-                {
-                    Console.Error.WriteLine(ex.Message);
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine(ex.Message);
+                    }
                 }
             }
         }
@@ -624,24 +661,33 @@ namespace GUI
 
         private static void ExtractFiles(object sender, bool decompile)
         {
-            VrfGuiContext vrfGuiContext = null;
-            TreeNode selectedNode = null;
-
             // the context menu can come from a TreeView or a ListView depending on where the user clicked to extract
             // each option has a difference in where we can get the values to extract
             if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is TreeView)
             {
                 var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
-                selectedNode = tree.SelectedNode;
-                vrfGuiContext = (VrfGuiContext)tree.Tag;
+                var vrfGuiContext = (VrfGuiContext)tree.Tag;
+
+                ExtractFilesFromTreeNode(tree.SelectedNode, vrfGuiContext, decompile);
             }
             else if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is ListView)
             {
                 var listView = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ListView;
-                selectedNode = listView.SelectedItems[0].Tag as TreeNode;
-                vrfGuiContext = (VrfGuiContext)listView.Tag;
-            }
+                var vrfGuiContext = (VrfGuiContext)listView.Tag;
 
+                foreach (ListViewItem selectedNode in listView.SelectedItems)
+                {
+                    ExtractFilesFromTreeNode(selectedNode.Tag as TreeNode, vrfGuiContext, decompile);
+                }
+            }
+            else
+            {
+                throw new InvalidDataException("Unknown state");
+            }
+        }
+
+        private static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
+        {
             if (selectedNode.Tag.GetType() == typeof(PackageEntry))
             {
                 // We are a file
