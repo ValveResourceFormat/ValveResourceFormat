@@ -28,6 +28,12 @@ namespace Tests
                 shader.PrintSummary();
 
                 Console.SetOut(originalOutput);
+
+                if (shader.ZframesLookup.Count > 0)
+                {
+                    var zframe = shader.GetDecompressedZFrame(0);
+                    Assert.That(zframe, Is.Not.Empty);
+                }
             }
         }
 
