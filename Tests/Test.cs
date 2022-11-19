@@ -29,7 +29,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var resource = new Resource
+                using var resource = new Resource
                 {
                     FileName = file,
                 };
@@ -51,6 +51,8 @@ namespace Tests
                 var attribute = "." + ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false).First()).Extension;
 
                 Assert.AreEqual(extension, attribute, file);
+
+                InternalTestExtraction.Test(resource);
             }
 
             Assert.Multiple(() => VerifyResources(resources));
@@ -70,7 +72,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                var resource = new Resource
+                using var resource = new Resource
                 {
                     FileName = file,
                 };
@@ -81,11 +83,7 @@ namespace Tests
                 ms.Seek(0, SeekOrigin.Begin);
 
                 resource.Read(ms);
-
-                resources.Add(Path.GetFileName(file), resource);
             }
-
-            Assert.Multiple(() => VerifyResources(resources));
         }
 
         static void VerifyResources(Dictionary<string, Resource> resources)

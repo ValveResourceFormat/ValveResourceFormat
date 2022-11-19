@@ -125,6 +125,13 @@ namespace Decompiler
                 return 1;
             }
 
+            if (CollectStats && OutputFile != null)
+            {
+                Console.Error.WriteLine("Do not use --stats with --output.");
+
+                return 1;
+            }
+
             var paths = new List<string>();
 
             if (Directory.Exists(InputFile))
@@ -360,62 +367,7 @@ namespace Decompiler
 
                 if (CollectStats)
                 {
-                    var id = $"{resource.ResourceType}_{resource.Version}";
-                    var info = string.Empty;
-
-                    switch (resource.ResourceType)
-                    {
-                        case ResourceType.Texture:
-                            var texture = (Texture)resource.DataBlock;
-                            info = texture.Format.ToString();
-                            break;
-
-                        case ResourceType.Sound:
-                            info = ((Sound)resource.DataBlock).SoundType.ToString();
-                            break;
-                    }
-
-                    if (OutputFile == null)
-                    {
-                        // Test extraction code flow while collecting stats
-                        using var _ = FileExtract.Extract(resource, null);
-                    }
-
-                    if (!string.IsNullOrEmpty(info))
-                    {
-                        id = string.Concat(id, "_", info);
-                    }
-
-                    lock (stats)
-                    {
-                        if (stats.ContainsKey(id))
-                        {
-                            if (stats[id].Count++ < 10)
-                            {
-                                stats[id].FilePaths.Add(path);
-                            }
-                        }
-                        else
-                        {
-                            stats.Add(id, new ResourceStat(resource, info, path));
-                        }
-                    }
-
-                    if (resource.EditInfo != null && resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
-                    {
-                        lock (uniqueSpecialDependancies)
-                        {
-                            foreach (var dep in ((ValveResourceFormat.Blocks.ResourceEditInfoStructs.SpecialDependencies)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies]).List)
-                            {
-                                uniqueSpecialDependancies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
-                            }
-                        }
-                    }
-
-                    foreach (var block in resource.Blocks)
-                    {
-                        block.ToString();
-                    }
+                    TestAndCollectStats(resource, path);
                 }
 
                 if (OutputFile != null)
@@ -973,6 +925,67 @@ namespace Decompiler
             }
 
             return Path.GetFullPath(OutputFile);
+        }
+
+        /// <summary>
+        /// This method tries to run through all the code paths for a particular resource,
+        /// which allows us to quickly find exceptions when running --stats over an entire game folder.
+        /// </summary>
+        private void TestAndCollectStats(Resource resource, string path)
+        {
+            ValveResourceFormat.Utils.InternalTestExtraction.Test(resource);
+
+            // The rest of this code gathers various statistics
+            var id = $"{resource.ResourceType}_{resource.Version}";
+            var info = string.Empty;
+
+            switch (resource.ResourceType)
+            {
+                case ResourceType.Texture:
+                    var texture = (Texture)resource.DataBlock;
+                    info = texture.Format.ToString();
+                    break;
+
+                case ResourceType.Sound:
+                    info = ((Sound)resource.DataBlock).SoundType.ToString();
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(info))
+            {
+                id = string.Concat(id, "_", info);
+            }
+
+            lock (stats)
+            {
+                if (stats.ContainsKey(id))
+                {
+                    if (stats[id].Count++ < 10)
+                    {
+                        stats[id].FilePaths.Add(path);
+                    }
+                }
+                else
+                {
+                    stats.Add(id, new ResourceStat(resource, info, path));
+                }
+            }
+
+            if (resource.EditInfo != null && resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
+            {
+                lock (uniqueSpecialDependancies)
+                {
+                    foreach (var dep in ((ValveResourceFormat.Blocks.ResourceEditInfoStructs.SpecialDependencies)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies]).List)
+                    {
+                        uniqueSpecialDependancies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
+                    }
+                }
+            }
+
+            foreach (var block in resource.Blocks)
+            {
+                block.ToString();
+            }
         }
 
         private void LogException(Exception e, string path, string parentPath = null)
