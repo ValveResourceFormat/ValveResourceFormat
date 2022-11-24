@@ -5,7 +5,6 @@ using System.Linq;
 using System.Numerics;
 using SharpGLTF.IO;
 using SharpGLTF.Schema2;
-using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -45,7 +44,6 @@ namespace ValveResourceFormat.IO
 
         private string DstDir;
         private readonly IDictionary<string, Node> LoadedUnskinnedMeshDictionary = new Dictionary<string, Node>();
-
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
@@ -839,70 +837,100 @@ namespace ValveResourceFormat.IO
             }
 
             material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
+            using var ormTexture = new TextureExtract.TexturePacker { DefaultColor = new SkiaSharp.SKColor(255, 255, 0, 255) };
+
+            var allGltfInputs = MaterialExtract.GltfTextureMappings.Values.SelectMany(x => x);
+            var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Item2)));
+            var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
 
             //share sampler for all textures
             var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
 
-            foreach (var renderTexture in renderMaterial.TextureParams)
+            void TrySetupTexture(string textureName, Resource textureResource, List<ValueTuple<MaterialExtract.Channel, string>> renderTextureInputs)
             {
-                var texturePath = renderTexture.Value;
+                ProgressReporter?.Report($"Exporting texture: {textureResource.FileName}");
+                var fileName = Path.GetFileName(textureResource.FileName);
+                var ormFileName = Path.GetFileNameWithoutExtension(fileName) + "_rm.png";
+                var exportedTexturePath = Path.ChangeExtension(Path.Join(DstDir, fileName), "png");
 
-                var fileName = Path.GetFileNameWithoutExtension(texturePath);
+                using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+                using var pixels = bitmap.PeekPixels();
 
-                ProgressReporter?.Report($"Exporting texture: {texturePath}");
+                string gltfBestMatch = null;
 
-                var textureResource = FileLoader.LoadFile(texturePath + "_c");
-
-                if (textureResource == null)
+                void WriteTexture(ReadOnlySpan<byte> pngData, string gltfName, int index, int count)
                 {
-                    continue;
+                    gltfBestMatch = gltfName;
+                    renderTextureInputs.RemoveRange(index, count);
+                    using var fs = File.Open(exportedTexturePath, FileMode.Create);
+                    fs.Write(pngData);
                 }
 
-                var exportedTexturePath = Path.Join(DstDir, fileName);
-                exportedTexturePath = Path.ChangeExtension(exportedTexturePath, "png");
-
-                using (var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap())
+                // Try to find a glTF entry that best matches this texture
+                foreach (var (gltfTexture, gltfInputs) in MaterialExtract.GltfTextureMappings)
                 {
-                    using var pixels = bitmap.PeekPixels();
-
-                    if (renderTexture.Key.StartsWith("g_tColor", StringComparison.Ordinal) && material.Alpha == AlphaMode.OPAQUE)
+                    // Render texture matches the glTF spec.
+                    if (Enumerable.SequenceEqual(renderTextureInputs, gltfInputs, blendInputComparer))
                     {
-                        var bitmapSpan = pixels.GetPixelSpan<SKColor>();
-
-                        // expensive transparency workaround for color maps
-                        for (var i = 0; i < bitmapSpan.Length; i++)
-                        {
-                            bitmapSpan[i] = bitmapSpan[i].WithAlpha(255);
-                        }
+                        WriteTexture(TextureExtract.ToPngImage(bitmap), gltfTexture, 0, renderTextureInputs.Count);
+                        break;
                     }
 
-                    using var fs = File.Open(exportedTexturePath, FileMode.Create);
-                    pixels.Encode(fs, SKEncodedImageFormat.Png, 100);
+                    // RGB matches, alpha differs/missing, so write RGB.
+                    if (gltfInputs[0].Item1 == MaterialExtract.Channel.RGB && blendInputComparer.Equals(renderTextureInputs[0], gltfInputs[0]))
+                    {
+                        var png = renderTextureInputs.Count == 1
+                            ? TextureExtract.ToPngImage(bitmap)
+                            : TextureExtract.ToPngImageChannels(bitmap, renderTextureInputs[0].Item1);
+
+                        WriteTexture(png, gltfTexture, 0, 1);
+                        break;
+                    }
+
+                    // Render texture likely missing unpack info, otherwise texture types match.
+                    if (renderTextureInputs[0].Item1 == MaterialExtract.Channel.RGBA && blendNameComparer.Equals(renderTextureInputs[0].Item2, gltfInputs[0].Item2))
+                    {
+                        var png = gltfInputs[0].Item1 > MaterialExtract.Channel._Single
+                            ? TextureExtract.ToPngImage(bitmap)
+                            : TextureExtract.ToPngImageChannels(bitmap, gltfInputs[0].Item1);
+
+                        WriteTexture(png, gltfTexture, 0, 1);
+                        break;
+                    }
                 }
 
-                var image = model.UseImage(exportedTexturePath);
-                image.Name = fileName + $"_{model.LogicalImages.Count - 1}";
-
-                var tex = model.UseTexture(image);
-                tex.Name = fileName + $"_{model.LogicalTextures.Count - 1}";
-                tex.Sampler = sampler;
-
-                switch (renderTexture.Key)
+                // Collect any leftover channel/maps to new images
+                foreach (var (channel, textureType) in renderTextureInputs)
                 {
-                    case "g_tColor":
-                    case "g_tColor1":
-                    case "g_tColor2":
-                    case "g_tColorA":
-                    case "g_tColorB":
-                    case "g_tColorC":
-                        var channel = material.FindChannel("BaseColor");
-                        if (channel?.Texture != null && renderTexture.Key != "g_tColor")
+                    if (gltfBestMatch != "MetallicRoughness")
+                    {
+                        if (blendNameComparer.Equals(textureType, "TextureRoughness"))
                         {
-                            break;
+                            ormTexture.Collect(pixels, ormFileName, channel, MaterialExtract.Channel.G);
                         }
+                        else if (blendNameComparer.Equals(textureType, "TextureSpecularMask"))
+                        {
+                            ormTexture.Collect(pixels, ormFileName, channel, MaterialExtract.Channel.G, invert: true);
+                        }
+                        else if (blendNameComparer.Equals(textureType, "TextureMetalness") || blendNameComparer.Equals(textureType, "TextureMetalnessMask"))
+                        {
+                            ormTexture.Collect(pixels, ormFileName, channel, MaterialExtract.Channel.B);
+                        }
+                    }
+                }
 
-                        channel?.SetTexture(0, tex);
+                if (gltfBestMatch is not null)
+                {
+                    var image = model.UseImage(exportedTexturePath);
+                    image.Name = $"{fileName}_{model.LogicalImages.Count - 1}";
 
+                    var tex = model.UseTexture(image, sampler);
+                    tex.Name = $"{fileName}_{model.LogicalTextures.Count - 1}";
+
+                    material.FindChannel(gltfBestMatch)?.SetTexture(0, tex);
+
+                    if (gltfBestMatch == "BaseColor")
+                    {
                         material.Extras = JsonContent.CreateFrom(new Dictionary<string, object>
                         {
                             ["baseColorTexture"] = new Dictionary<string, object>
@@ -910,43 +938,43 @@ namespace ValveResourceFormat.IO
                                 { "index", image.LogicalIndex },
                             },
                         });
-
-                        break;
-                    case "g_tNormal":
-                        material.FindChannel("Normal")?.SetTexture(0, tex);
-                        break;
-                    case "g_tAmbientOcclusion":
-                        material.FindChannel("Occlusion")?.SetTexture(0, tex);
-                        break;
-                    case "g_tEmissive":
-                        material.FindChannel("Emissive")?.SetTexture(0, tex);
-                        break;
-                    case "g_tShadowFalloff":
-                    // example: tongue_gman, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
-                    case "g_tCombinedMasks":
-                    // example: models/characters/gman/materials/gman_head_mouth_mask_tga_bb35dc38.vtex
-                    case "g_tDiffuseFalloff":
-                    // example: materials/default/default_skin_diffusewarp_tga_e58a9ed.vtex
-                    case "g_tIris":
-                    // example:
-                    case "g_tIrisMask":
-                    // example: models/characters/gman/materials/gman_eye_iris_mask_tga_a5bb4a1e.vtex
-                    case "g_tTintColor":
-                    // example: models/characters/lazlo/eyemeniscus_vmat_g_ttintcolor_a00ef19e.vtex
-                    case "g_tAnisoGloss":
-                    // example: gordon_beard, models/characters/gordon/materials/gordon_hair_normal_tga_272a44e9.vtex
-                    case "g_tBentNormal":
-                    // example: gman_teeth, materials/default/default_skin_shadowwarp_tga_f2855b6e.vtex
-                    case "g_tFresnelWarp":
-                    // example: brewmaster_color, materials/default/default_fresnelwarprim_tga_d9279d65.vtex
-                    case "g_tMasks1":
-                    // example: brewmaster_color, materials/models/heroes/brewmaster/brewmaster_base_metalnessmask_psd_58eaa40f.vtex
-                    case "g_tMasks2":
-                    // example: brewmaster_color,materials/models/heroes/brewmaster/brewmaster_base_specmask_psd_63e9fb90.vtex
-                    default:
-                        Console.Error.WriteLine($"Warning: Unsupported Texture Type {renderTexture.Key}");
-                        break;
+                    }
                 }
+            }
+
+            foreach (var renderTexture in renderMaterial.TextureParams)
+            {
+                var texturePath = renderTexture.Value;
+                var textureResource = FileLoader.LoadFile(texturePath + "_c");
+
+                if (textureResource == null)
+                {
+                    continue;
+                }
+
+                // TODO: get the signature directly instead of forming UnpackInfos
+                var inputImages = MaterialExtract.GetInputImagesForTexture(renderTexture.Key, texturePath, renderMaterial, false, false).Select(x => x.ToValueTuple()).ToList();
+
+                // Preemptive check so as to not perform any unnecessary GenerateBitmap
+                if (inputImages.Count == 0 || !inputImages.Any(input => allGltfInputs.Any(gltfInput => blendNameComparer.Equals(input.Item2, gltfInput.Item2))))
+                {
+                    continue;
+                }
+
+                TrySetupTexture(renderTexture.Key, textureResource, inputImages);
+            }
+
+            if (ormTexture.Bitmap is not null)
+            {
+                var finalDest = Path.Combine(DstDir, ormTexture.FileName);
+                using (var fs = File.Open(finalDest, FileMode.Create))
+                {
+                    fs.Write(TextureExtract.ToPngImage(ormTexture.Bitmap));
+                }
+
+                var metallicRoughness = material.FindChannel("MetallicRoughness");
+                metallicRoughness?.SetTexture(0, model.UseTexture(model.UseImage(finalDest), sampler));
+                metallicRoughness?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
             }
 
             return material;
