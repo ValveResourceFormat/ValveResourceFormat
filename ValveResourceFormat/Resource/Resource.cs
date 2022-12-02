@@ -451,6 +451,9 @@ namespace ValveResourceFormat
                 case ResourceType.ArtifactItem:
                     return new Plaintext();
 
+                case ResourceType.Shader:
+                    return new SboxShader();
+
                 case ResourceType.PhysicsCollisionMesh:
                     return new PhysAggregateData();
 
