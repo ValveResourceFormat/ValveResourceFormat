@@ -112,6 +112,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Data = ParseBinaryKV3(outRead, null, true);
+
+            var trailer = outRead.ReadUInt32();
+            if (trailer != 0xFFFFFFFF)
+            {
+                throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
+            }
         }
 
         private void ReadVersion3(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
