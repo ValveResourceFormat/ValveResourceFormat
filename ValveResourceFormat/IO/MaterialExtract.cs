@@ -181,6 +181,11 @@ public sealed class MaterialExtract
 
         foreach (var (type, filePath) in material.TextureParams)
         {
+            if (vmat.ExternalRefsHandled.ContainsKey(filePath + "_c"))
+            {
+                continue;
+            }
+
             var texture = fileLoader?.LoadFile(filePath + "_c");
             if (texture is null)
             {
