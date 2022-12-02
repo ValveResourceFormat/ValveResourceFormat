@@ -42,7 +42,19 @@ public sealed class MaterialExtract
             ["g_tSpecular"] = new[] { (Channel.R, "TextureReflectance"), (Channel.G, "TextureSelfIllum"), (Channel.B, "TextureBloom") },
         },
 
-        //["multiblend"] = null,
+        ["multiblend"] = new()
+        {
+            ["g_tColor0"] = new[] { (Channel.RGB, "TextureColor0") },
+            ["g_tColor1"] = new[] { (Channel.RGB, "TextureColor1"), (Channel.A, "TextureRevealMask1") },
+            ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor2"), (Channel.A, "TextureRevealMask2") },
+            ["g_tColor3"] = new[] { (Channel.RGB, "TextureColor3"), (Channel.A, "TextureRevealMask3") },
+            ["g_tSpecular0"] = new[] { (Channel.R, "TextureReflectance0"), (Channel.G, "TextureSelfIllum0"), (Channel.B, "TextureBloom0") },
+            ["g_tSpecular1"] = new[] { (Channel.R, "TextureReflectance1"), (Channel.G, "TextureSelfIllum1"), (Channel.B, "TextureBloom1") },
+            ["g_tSpecular2"] = new[] { (Channel.R, "TextureReflectance2"), (Channel.G, "TextureSelfIllum2"), (Channel.B, "TextureBloom2") },
+            ["g_tSpecular3"] = new[] { (Channel.R, "TextureReflectance3"), (Channel.G, "TextureSelfIllum3"), (Channel.B, "TextureBloom3") },
+            ["g_tTintMasks"] = new[] { (Channel.R, "TextureTintMask0"), (Channel.G, "TextureTintMask1"), (Channel.B, "TextureTintMask2"), (Channel.A, "TextureTintMask3") },
+            ["g_tTint2Masks"] = new[] { (Channel.R, "TextureTint2Mask0"), (Channel.G, "TextureTint2Mask1"), (Channel.B, "TextureTint2Mask2"), (Channel.A, "TextureTint2Mask3") },
+        },
 
         ["hero"] = new()
         {
@@ -53,6 +65,8 @@ public sealed class MaterialExtract
             ["g_tFresnelWarp"] = new[] { (Channel.R, "TextureFresnelWarpRim"), (Channel.G, "TextureFresnelWarpColor"), (Channel.B, "TextureFresnelWarpSpec") },
             ["g_tMasks1"] = new[] { (Channel.R, "TextureDetailMask"), (Channel.G, "TextureDiffuseWarpMask"), (Channel.B, "TextureMetalnessMask"), (Channel.A, "TextureSelfIllumMask") },
             ["g_tMasks2"] = new[] { (Channel.R, "TextureSpecularMask"), (Channel.G, "TextureRimMask"), (Channel.B, "TextureTintByBaseMask"), (Channel.A, "TextureSpecularExponent") },
+            ["g_tDetail"] = new[] { (Channel.RGBA, "TextureDetail") },
+            ["g_tDetail2"] = new[] { (Channel.RGBA, "TextureDetail2") },
         },
 
         ["grasstile_preview"] = new()
@@ -144,6 +158,7 @@ public sealed class MaterialExtract
         { "TextureRimMask", "_rimmask" },
         { "TextureTintByBaseMask", "_basetintmask" },
         { "TextureSpecularExponent", "_specexp" },
+        { "TextureRevealMask", "_blend" },
 
         { "TextureColor", "_color" },
         { "TextureNormal", "_normal" },
