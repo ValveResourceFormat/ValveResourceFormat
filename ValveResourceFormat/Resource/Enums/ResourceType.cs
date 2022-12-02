@@ -138,5 +138,8 @@ namespace ValveResourceFormat
 
         [Extension("sbox")] // TODO: Managed resources can have any extension
         SboxManagedResource,
+
+        [Extension("shader")]
+        Shader, // This is for sbox
     }
 }
