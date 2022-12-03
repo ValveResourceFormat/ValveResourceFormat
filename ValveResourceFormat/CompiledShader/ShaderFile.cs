@@ -283,8 +283,6 @@ namespace ValveResourceFormat.CompiledShader
         }
 #pragma warning restore CA1024
 
-        private uint zFrameCount;
-
         public void PrintByteDetail(bool shortenOutput = true, HandleOutputWrite outputWriter = null)
         {
             DataReader.OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
@@ -374,7 +372,7 @@ namespace ValveResourceFormat.CompiledShader
                 DataReader.BreakLine();
             }
 
-            PrintZframes(shortenOutput);
+            PrintZframes(shortenOutput, out var zFrameCount);
             if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
             {
                 DataReader.Comment("rest of data contains compressed zframes");
@@ -392,7 +390,7 @@ namespace ValveResourceFormat.CompiledShader
         private const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
         private const int MAX_ZFRAME_BYTES_TO_SHOW = 96;
 
-        private void PrintZframes(bool shortenOutput)
+        private void PrintZframes(bool shortenOutput, out uint zFrameCount)
         {
             //
             // The zFrameIds and zFrameDataOffsets are read as two separate lists before the data section starts
