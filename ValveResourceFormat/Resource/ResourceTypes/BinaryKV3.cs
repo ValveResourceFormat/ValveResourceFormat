@@ -28,7 +28,6 @@ namespace ValveResourceFormat.ResourceTypes
         public Guid Encoding { get; private set; }
         public Guid Format { get; private set; }
 
-        private BinaryReader RawBinaryReader;
         private string[] stringArray;
         private byte[] typesArray;
         private BinaryReader uncompressedBlockDataReader;
@@ -51,35 +50,40 @@ namespace ValveResourceFormat.ResourceTypes
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
-            using var outStream = new MemoryStream();
-            using var outWrite = new BinaryWriter(outStream, System.Text.Encoding.UTF8, true);
-            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true); // Why why why why why why why
 
             var magic = reader.ReadUInt32();
 
-            if (magic == MAGIC2)
+            switch (magic)
             {
-                ReadVersion2(reader, outWrite, outRead);
-
-                return;
+                case MAGIC: ReadVersion1(reader); break;
+                case MAGIC2: ReadVersion2(reader); break;
+                case MAGIC3: ReadVersion3(reader); break;
+                default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
+        }
 
-            if (magic == MAGIC3)
-            {
-                RawBinaryReader = reader;
-                ReadVersion3(reader, outWrite, outRead);
-                RawBinaryReader = null;
+        private void DecompressLZ4(BinaryReader reader, MemoryStream outStream)
+        {
+            var uncompressedSize = reader.ReadUInt32();
+            var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
 
-                return;
-            }
+            var input = reader.ReadBytes(compressedSize);
+            var output = new Span<byte>(new byte[uncompressedSize]);
 
-            if (magic != MAGIC)
-            {
-                throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
-            }
+            LZ4Codec.Decode(input, output);
 
+            outStream.Write(output);
+            outStream.Seek(0, SeekOrigin.Begin);
+        }
+
+        private void ReadVersion1(BinaryReader reader)
+        {
             Encoding = new Guid(reader.ReadBytes(16));
             Format = new Guid(reader.ReadBytes(16));
+
+            using var outStream = new MemoryStream();
+            using var outWrite = new BinaryWriter(outStream, System.Text.Encoding.UTF8, true);
+            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
 
             // Valve's implementation lives in LoadKV3Binary()
             // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
@@ -92,12 +96,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_LZ4) == 0)
             {
-                DecompressLZ4(reader, outWrite);
+                DecompressLZ4(reader, outStream);
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_UNCOMPRESSED) == 0)
             {
                 reader.BaseStream.CopyTo(outStream);
-                outStream.Position = 0;
+                outStream.Seek(0, SeekOrigin.Begin);
             }
             else
             {
@@ -112,15 +116,86 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Data = ParseBinaryKV3(outRead, null, true);
+        }
+        private void ReadVersion2(BinaryReader reader)
+        {
+            Format = new Guid(reader.ReadBytes(16));
 
-            var trailer = outRead.ReadUInt32();
-            if (trailer != 0xFFFFFFFF)
+            var compressionMethod = reader.ReadInt32();
+            var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
+            var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
+            var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
+
+            using var outStream = new MemoryStream();
+
+            if (compressionMethod == 0)
             {
-                throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
+                var length = reader.ReadInt32();
+
+                var output = new Span<byte>(new byte[length]);
+                reader.Read(output);
+                outStream.Write(output);
+                outStream.Seek(0, SeekOrigin.Begin);
             }
+            else if (compressionMethod == 1)
+            {
+                DecompressLZ4(reader, outStream);
+            }
+            else
+            {
+                throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
+            }
+
+            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
+
+            currentBinaryBytesOffset = 0;
+            outRead.BaseStream.Position = countOfBinaryBytes;
+
+            if (outRead.BaseStream.Position % 4 != 0)
+            {
+                // Align to % 4 after binary blobs
+                outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
+            }
+
+            var countOfStrings = outRead.ReadInt32();
+            var kvDataOffset = outRead.BaseStream.Position;
+
+            // Subtract one integer since we already read it (countOfStrings)
+            outRead.BaseStream.Position += (countOfIntegers - 1) * 4;
+
+            if (outRead.BaseStream.Position % 8 != 0)
+            {
+                // Align to % 8 for the start of doubles
+                outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
+            }
+
+            currentEightBytesOffset = outRead.BaseStream.Position;
+
+            outRead.BaseStream.Position += countOfEightByteValues * 8;
+
+            stringArray = new string[countOfStrings];
+
+            for (var i = 0; i < countOfStrings; i++)
+            {
+                stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
+            }
+
+            // bytes after the string table is kv types, minus 4 static bytes at the end
+            var typesLength = outRead.BaseStream.Length - 4 - outRead.BaseStream.Position;
+            typesArray = new byte[typesLength];
+
+            for (var i = 0; i < typesLength; i++)
+            {
+                typesArray[i] = outRead.ReadByte();
+            }
+
+            // Move back to the start of the KV data for reading.
+            outRead.BaseStream.Position = kvDataOffset;
+
+            Data = ParseBinaryKV3(outRead, null, true);
         }
 
-        private void ReadVersion3(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
+        private void ReadVersion3(BinaryReader reader)
         {
             Format = new Guid(reader.ReadBytes(16));
 
@@ -151,6 +226,8 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
             }
 
+            using var outStream = new MemoryStream();
+
             if (compressionMethod == 0)
             {
                 if (compressionDictionaryId != 0)
@@ -165,7 +242,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 var output = new Span<byte>(new byte[compressedSize]);
                 reader.Read(output);
-                outWrite.Write(output);
+                outStream.Write(output);
             }
             else if (compressionMethod == 1)
             {
@@ -184,8 +261,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 LZ4Codec.Decode(input, output);
 
-                outWrite.Write(output);
-                outWrite.BaseStream.Position = 0;
+                outStream.Write(output);
             }
             else if (compressionMethod == 2)
             {
@@ -211,13 +287,15 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {totalSize} bytes)");
                 }
 
-                outWrite.Write(output);
-                outWrite.BaseStream.Position = 0;
+                outStream.Write(output);
             }
             else
             {
                 throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
             }
+
+            outStream.Seek(0, SeekOrigin.Begin);
+            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
 
             currentBinaryBytesOffset = 0;
             outRead.BaseStream.Position = countOfBinaryBytes;
@@ -298,7 +376,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     for (var i = 0; i < blockCount; i++)
                     {
-                        RawBinaryReader.BaseStream.CopyTo(uncompressedBlocks, uncompressedBlockLengthArray[i]);
+                        reader.BaseStream.CopyTo(uncompressedBlocks, uncompressedBlockLengthArray[i]);
                     }
                 }
                 else if (compressionMethod == 1)
@@ -311,7 +389,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var input = new Span<byte>(new byte[compressedBlockLength]);
                         var output = new Span<byte>(new byte[compressionFrameSize]);
 
-                        RawBinaryReader.Read(input);
+                        reader.Read(input);
 
                         if (lz4decoder.DecodeAndDrain(input, output, out var decoded) && decoded > 0)
                         {
@@ -354,93 +432,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 uncompressedBlockDataReader.Dispose();
             }
-        }
-
-        private void ReadVersion2(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
-        {
-            Format = new Guid(reader.ReadBytes(16));
-
-            var compressionMethod = reader.ReadInt32();
-            var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
-            var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
-            var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
-
-            if (compressionMethod == 0)
-            {
-                var length = reader.ReadInt32();
-
-                var output = new Span<byte>(new byte[length]);
-                reader.Read(output);
-                outWrite.Write(output);
-            }
-            else if (compressionMethod == 1)
-            {
-                DecompressLZ4(reader, outWrite);
-            }
-            else
-            {
-                throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-            }
-
-            currentBinaryBytesOffset = 0;
-            outRead.BaseStream.Position = countOfBinaryBytes;
-
-            if (outRead.BaseStream.Position % 4 != 0)
-            {
-                // Align to % 4 after binary blobs
-                outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
-            }
-
-            var countOfStrings = outRead.ReadInt32();
-            var kvDataOffset = outRead.BaseStream.Position;
-
-            // Subtract one integer since we already read it (countOfStrings)
-            outRead.BaseStream.Position += (countOfIntegers - 1) * 4;
-
-            if (outRead.BaseStream.Position % 8 != 0)
-            {
-                // Align to % 8 for the start of doubles
-                outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
-            }
-
-            currentEightBytesOffset = outRead.BaseStream.Position;
-
-            outRead.BaseStream.Position += countOfEightByteValues * 8;
-
-            stringArray = new string[countOfStrings];
-
-            for (var i = 0; i < countOfStrings; i++)
-            {
-                stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
-            }
-
-            // bytes after the string table is kv types, minus 4 static bytes at the end
-            var typesLength = outRead.BaseStream.Length - 4 - outRead.BaseStream.Position;
-            typesArray = new byte[typesLength];
-
-            for (var i = 0; i < typesLength; i++)
-            {
-                typesArray[i] = outRead.ReadByte();
-            }
-
-            // Move back to the start of the KV data for reading.
-            outRead.BaseStream.Position = kvDataOffset;
-
-            Data = ParseBinaryKV3(outRead, null, true);
-        }
-
-        private void DecompressLZ4(BinaryReader reader, BinaryWriter outWrite)
-        {
-            var uncompressedSize = reader.ReadUInt32();
-            var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
-
-            var input = reader.ReadBytes(compressedSize);
-            var output = new Span<byte>(new byte[uncompressedSize]);
-
-            LZ4Codec.Decode(input, output);
-
-            outWrite.Write(output);
-            outWrite.BaseStream.Position = 0;
         }
 
         private (KVType Type, KVFlag Flag) ReadType(BinaryReader reader)
