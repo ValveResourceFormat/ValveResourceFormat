@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  actions: write
+  contents: write
+
 on:
   push:
   pull_request:
