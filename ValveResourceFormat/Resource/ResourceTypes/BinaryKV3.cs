@@ -92,7 +92,9 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_COMPRESSED) == 0)
             {
-                BlockCompress.FastDecompress(reader, outWrite, outRead);
+                var decompressed = BlockCompress.FastDecompress(reader);
+                outStream.Write(decompressed);
+                outStream.Seek(0, SeekOrigin.Begin);
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_LZ4) == 0)
             {

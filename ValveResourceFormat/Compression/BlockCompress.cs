@@ -1,96 +1,68 @@
+using System;
 using System.IO;
-using System.Text;
 
 namespace ValveResourceFormat.Compression
 {
     public static class BlockCompress
     {
-        public static Stream Decompress(BinaryReader reader)
+        public static ReadOnlySpan<byte> FastDecompress(BinaryReader reader)
         {
-            var outStream = new MemoryStream();
+            var decompressedSize = reader.ReadUInt32();
 
-            // Make sure reader/writer don't close the stream once they're done.
-            using var outWriter = new BinaryWriter(outStream, Encoding.Default, true);
-            using var outReader = new BinaryReader(outStream, Encoding.Default, true);
-
-            FastDecompress(reader, outWriter, outReader);
-
-            return outStream;
-        }
-
-        public static Stream Decompress(BinaryReader reader, uint length)
-        {
-            // Inefficient, copies data while that should technically not be required
-            using var tempStream = new MemoryStream(reader.ReadBytes((int)length));
-            using var tempReader = new BinaryReader(tempStream);
-
-            return Decompress(tempReader);
-        }
-
-        // TODO: Make private and use the sane interface instead.
-        public static void FastDecompress(BinaryReader reader, BinaryWriter outWrite, BinaryReader outRead)
-        {
-            // It is flags, right?
-            var flags = reader.ReadBytes(4); // TODO: Figure out what this is
-
-            // outWrite.Write(flags);
-            if ((flags[3] & 0x80) > 0)
+            // Valve sets fourth byte in the compressed buffer to 0x80 to indicate that the data is uncompressed,
+            // 0x80000000 is 2147483648 which automatically makes any number higher than max signed 32-bit integer.
+            if (decompressedSize > int.MaxValue)
             {
-                outWrite.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
+                return reader.ReadBytes((int)decompressedSize & 0x7FFFFFFF);
             }
-            else
+
+            var result = new Span<byte>(new byte[decompressedSize]);
+            var position = 0;
+            ushort blockMask = 0;
+            var i = 0;
+
+            while (position < decompressedSize)
             {
-                var running = true;
-                while (reader.BaseStream.Position != reader.BaseStream.Length && running)
+                if (i == 0)
                 {
-                    try
+                    blockMask = reader.ReadUInt16();
+                    i = 16;
+                }
+
+                if ((blockMask & 1) > 0)
+                {
+                    var offsetSize = reader.ReadUInt16();
+                    var offset = (offsetSize >> 4) + 1;
+                    var size = (offsetSize & 0xF) + 3;
+                    var positionSource = position - offset;
+
+                    if (offset == 1)
                     {
-                        var blockMask = reader.ReadUInt16();
-                        for (var i = 0; i < 16; i++)
+                        // This path is seemingly useless, because it produces equal results.
+                        // Is this draw of the luck because `result` is initialized to zeroes?
+                        while (size-- > 0)
                         {
-                            // is the ith bit 1
-                            if ((blockMask & (1 << i)) > 0)
-                            {
-                                var offsetSize = reader.ReadUInt16();
-                                var offset = ((offsetSize & 0xFFF0) >> 4) + 1;
-                                var size = (offsetSize & 0x000F) + 3;
-
-                                var lookupSize = (offset < size) ? offset : size; // If the offset is larger or equal to the size, use the size instead.
-
-                                // Kill me now
-                                var p = outRead.BaseStream.Position;
-                                outRead.BaseStream.Position = p - offset;
-                                var data = outRead.ReadBytes(lookupSize);
-                                outWrite.BaseStream.Position = p;
-
-                                while (size > 0)
-                                {
-                                    outWrite.Write(data, 0, (lookupSize < size) ? lookupSize : size);
-                                    size -= lookupSize;
-                                }
-                            }
-                            else
-                            {
-                                var data = reader.ReadByte();
-                                outWrite.Write(data);
-                            }
-
-                            //TODO: is there a better way of making an unsigned 12bit number?
-                            if (outWrite.BaseStream.Length == (flags[2] << 16) + (flags[1] << 8) + flags[0])
-                            {
-                                running = false;
-                                break;
-                            }
+                            result[position++] = result[positionSource];
                         }
                     }
-                    catch (EndOfStreamException)
+                    else
                     {
-                        break;
+                        while (size-- > 0)
+                        {
+                            result[position++] = result[positionSource++];
+                        }
                     }
                 }
+                else
+                {
+                    result[position++] = reader.ReadByte();
+                }
+
+                blockMask >>= 1;
+                i--;
             }
 
-            outRead.BaseStream.Position = 0;
+            return result;
         }
     }
 }

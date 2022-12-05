@@ -43,7 +43,8 @@ namespace ValveResourceFormat.Blocks
             reader.BaseStream.Position = Offset;
 
             // Decompress SNAP block compression
-            using var decompressedStream = BlockCompress.Decompress(reader, Size);
+            var decompressed = BlockCompress.FastDecompress(reader);
+            using var decompressedStream = new MemoryStream(decompressed.ToArray());
             using var innerReader = new BinaryReader(decompressedStream);
 
             // Get DATA block to know how to read SNAP data
