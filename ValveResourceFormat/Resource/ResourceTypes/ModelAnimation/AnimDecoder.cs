@@ -13,8 +13,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     return 16;
                 case AnimDecoderType.CCompressedFullVector3:
                     return 12;
-                case AnimDecoderType.CCompressedStaticVector3:
                 case AnimDecoderType.CCompressedAnimVector3:
+                case AnimDecoderType.CCompressedDeltaVector3:
                 case AnimDecoderType.CCompressedAnimQuaternion:
                     return 6;
             }

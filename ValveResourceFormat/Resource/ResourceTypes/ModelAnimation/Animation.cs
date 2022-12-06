@@ -252,11 +252,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 elements.Add(containerReader.ReadInt16());
             }
 
+            using var baseFrameContainerReader = new BinaryReader(new MemoryStream(container));
+            baseFrameContainerReader.BaseStream.Position = containerReader.BaseStream.Position;
+
             // Skip data to find the data for the current frame.
             // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
-            if (containerReader.BaseStream.Position + (decoder.Size() * frame * numBones) < containerReader.BaseStream.Length)
+            containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
+            if (decoder == AnimDecoderType.CCompressedDeltaVector3)
             {
-                containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
+                // Structure is | Bone 0 - Base Frame | Bone 1 - Base Frame | Bone 0 - Frame 0 | Bone 1 - Frame 0|
+                containerReader.BaseStream.Position += 12 * numBones;
             }
 
             // Read animation data for all bones
@@ -270,11 +275,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 {
                     case AnimDecoderType.CCompressedStaticFullVector3:
                     case AnimDecoderType.CCompressedFullVector3:
-                    case AnimDecoderType.CCompressedDeltaVector3:
                         outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
                             containerReader.ReadSingle(),
                             containerReader.ReadSingle(),
                             containerReader.ReadSingle()));
+                        break;
+                    case AnimDecoderType.CCompressedDeltaVector3:
+                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
+                            baseFrameContainerReader.ReadSingle() + ReadHalfFloat(containerReader),
+                            baseFrameContainerReader.ReadSingle() + ReadHalfFloat(containerReader),
+                            baseFrameContainerReader.ReadSingle() + ReadHalfFloat(containerReader)));
                         break;
                     case AnimDecoderType.CCompressedAnimVector3:
                     case AnimDecoderType.CCompressedStaticVector3:
