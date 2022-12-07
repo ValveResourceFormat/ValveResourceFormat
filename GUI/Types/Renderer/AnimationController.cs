@@ -42,7 +42,7 @@ namespace GUI.Types.Renderer
         {
             activeAnimation = animation;
             Time = 0f;
-            updateHandler(activeAnimation, Frame);
+            updateHandler(activeAnimation, -1);
         }
 
         public void RegisterUpdateHandler(Action<Animation, int> handler)

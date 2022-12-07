@@ -67,6 +67,17 @@ namespace GUI.Types.Renderer
             });
             animationPlayPause.Enabled = false;
             animationTrackBar.Enabled = false;
+
+            var previousPaused = false;
+            animationTrackBar.TrackBar.MouseDown += (_, __) =>
+            {
+                previousPaused = modelSceneNode.AnimationController.IsPaused;
+                modelSceneNode.AnimationController.IsPaused = true;
+            };
+            animationTrackBar.TrackBar.MouseUp += (_, __) =>
+            {
+                modelSceneNode.AnimationController.IsPaused = previousPaused;
+            };
         }
 
         protected override void LoadScene()
@@ -129,18 +140,23 @@ namespace GUI.Types.Renderer
 
                 modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>
                 {
-                    if (animationTrackBar.TrackBar.Value != frame)
+                    if (frame == -1)
                     {
-                        animationTrackBar.UpdateValueSilently(frame);
+                        var maximum = animation == null ? 1 : animation.FrameCount - 1;
+                        if (animationTrackBar.TrackBar.Maximum != maximum)
+                        {
+                            animationTrackBar.TrackBar.Maximum = maximum;
+                            animationTrackBar.TrackBar.TickFrequency = maximum / 10;
+                        }
+                        animationTrackBar.Enabled = animation != null;
+                        animationPlayPause.Enabled = animation != null;
+
+                        frame = 0;
                     }
-                    var maximum = animation == null ? 1 : animation.FrameCount - 1;
-                    if (animationTrackBar.TrackBar.Maximum != maximum)
+                    else if (animationTrackBar.TrackBar.Value != frame)
                     {
-                        animationTrackBar.TrackBar.Maximum = maximum;
-                        animationTrackBar.TrackBar.TickFrequency = maximum / 10;
+                        animationTrackBar.TrackBar.Value = frame;
                     }
-                    animationTrackBar.Enabled = animation != null;
-                    animationPlayPause.Enabled = animation != null;
                 });
             }
             else

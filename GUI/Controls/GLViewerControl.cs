@@ -138,15 +138,9 @@ namespace GUI.Controls
         public GLViewerTrackBarControl AddTrackBar(Action<int> changeCallback)
         {
             var trackBar = new GLViewerTrackBarControl();
-            trackBar.TrackBar.ValueChanged += (_, __) =>
+            trackBar.TrackBar.Scroll += (_, __) =>
             {
-                if (trackBar.IgnoreValueChanged)
-                {
-                    return;
-                }
                 changeCallback(trackBar.TrackBar.Value);
-
-                GLControl.Focus();
             };
 
             controlsPanel.Controls.Add(trackBar);
