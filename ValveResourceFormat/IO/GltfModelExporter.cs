@@ -820,6 +820,11 @@ namespace ValveResourceFormat.IO
                 material.DoubleSided = true;
             }
 
+            if (renderMaterial.IntParams.GetValueOrDefault("F_UNLIT") > 0)
+            {
+                material.WithUnlit();
+            }
+
             // assume non-metallic unless prompted
             float metalValue = 0;
 
