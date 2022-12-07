@@ -8,16 +8,11 @@ namespace GUI.Controls
         public TrackBar TrackBar => trackBar;
         public bool IgnoreValueChanged { get; private set; }
 
-        private GLViewerTrackBarControl()
+        public GLViewerTrackBarControl()
         {
             InitializeComponent();
-        }
 
-        public GLViewerTrackBarControl(string name)
-            : this()
-        {
             IgnoreValueChanged = false;
-            trackBarLabel.Text = name;
             trackBar.Value = 0;
         }
 

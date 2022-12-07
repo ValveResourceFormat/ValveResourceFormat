@@ -43,17 +43,18 @@ namespace GUI.Controls
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.glControlContainer.BackColor = System.Drawing.Color.Black;
-            this.glControlContainer.Location = new System.Drawing.Point(192, 0);
+            this.glControlContainer.Location = new System.Drawing.Point(220, 0);
+            this.glControlContainer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.glControlContainer.Name = "glControlContainer";
-            this.glControlContainer.Size = new System.Drawing.Size(691, 357);
+            this.glControlContainer.Size = new System.Drawing.Size(810, 412);
             this.glControlContainer.TabIndex = 0;
             // 
             // fpsLabel
             // 
             this.fpsLabel.AutoSize = true;
-            this.fpsLabel.Location = new System.Drawing.Point(1, 7);
+            this.fpsLabel.Location = new System.Drawing.Point(3, 8);
             this.fpsLabel.Name = "fpsLabel";
-            this.fpsLabel.Size = new System.Drawing.Size(39, 13);
+            this.fpsLabel.Size = new System.Drawing.Size(38, 15);
             this.fpsLabel.TabIndex = 3;
             this.fpsLabel.Text = "FPS: 0";
             // 
@@ -62,18 +63,20 @@ namespace GUI.Controls
             this.controlsPanel.Controls.Add(this.fpsLabel);
             this.controlsPanel.Dock = System.Windows.Forms.DockStyle.Left;
             this.controlsPanel.Location = new System.Drawing.Point(0, 0);
+            this.controlsPanel.Margin = new System.Windows.Forms.Padding(0);
             this.controlsPanel.Name = "controlsPanel";
-            this.controlsPanel.Size = new System.Drawing.Size(192, 357);
+            this.controlsPanel.Size = new System.Drawing.Size(220, 412);
             this.controlsPanel.TabIndex = 4;
             // 
             // GLViewerControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.controlsPanel);
             this.Controls.Add(this.glControlContainer);
+            this.Margin = new System.Windows.Forms.Padding(0);
             this.Name = "GLViewerControl";
-            this.Size = new System.Drawing.Size(883, 357);
+            this.Size = new System.Drawing.Size(1030, 412);
             this.controlsPanel.ResumeLayout(false);
             this.controlsPanel.PerformLayout();
             this.ResumeLayout(false);

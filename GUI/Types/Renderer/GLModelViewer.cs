@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
                     modelSceneNode.AnimationController.IsPaused = !isChecked;
                 }
             });
-            animationTrackBar = ViewerControl.AddTrackBar("Animation Frame", frame =>
+            animationTrackBar = ViewerControl.AddTrackBar(frame =>
             {
                 if (modelSceneNode != null)
                 {
@@ -137,6 +137,7 @@ namespace GUI.Types.Renderer
                     if (animationTrackBar.TrackBar.Maximum != maximum)
                     {
                         animationTrackBar.TrackBar.Maximum = maximum;
+                        animationTrackBar.TrackBar.TickFrequency = maximum / 10;
                     }
                     animationTrackBar.Enabled = animation != null;
                     animationPlayPause.Enabled = animation != null;

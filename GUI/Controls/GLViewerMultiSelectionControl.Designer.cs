@@ -35,9 +35,9 @@ namespace GUI.Controls
             // selectionNameLabel
             // 
             this.selectionNameLabel.AutoSize = true;
-            this.selectionNameLabel.Location = new System.Drawing.Point(0, 2);
+            this.selectionNameLabel.Location = new System.Drawing.Point(3, 2);
             this.selectionNameLabel.Name = "selectionNameLabel";
-            this.selectionNameLabel.Size = new System.Drawing.Size(40, 13);
+            this.selectionNameLabel.Size = new System.Drawing.Size(41, 15);
             this.selectionNameLabel.TabIndex = 0;
             this.selectionNameLabel.Text = "Select:";
             // 
@@ -48,9 +48,10 @@ namespace GUI.Controls
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListBox.CheckOnClick = true;
             this.checkedListBox.FormattingEnabled = true;
-            this.checkedListBox.Location = new System.Drawing.Point(4, 19);
+            this.checkedListBox.Location = new System.Drawing.Point(3, 18);
+            this.checkedListBox.Margin = new System.Windows.Forms.Padding(0);
             this.checkedListBox.Name = "checkedListBox";
-            this.checkedListBox.Size = new System.Drawing.Size(176, 79);
+            this.checkedListBox.Size = new System.Drawing.Size(215, 76);
             this.checkedListBox.TabIndex = 1;
             // 
             // GLViewerMultiSelectionControl
@@ -59,7 +60,7 @@ namespace GUI.Controls
             this.Controls.Add(this.checkedListBox);
             this.Controls.Add(this.selectionNameLabel);
             this.Name = "GLViewerMultiSelectionControl";
-            this.Size = new System.Drawing.Size(183, 101);
+            this.Size = new System.Drawing.Size(220, 100);
             this.ResumeLayout(false);
             this.PerformLayout();
 

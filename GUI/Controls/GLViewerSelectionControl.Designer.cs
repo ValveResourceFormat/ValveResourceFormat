@@ -35,21 +35,23 @@ namespace GUI.Controls
             // selectionNameLabel
             // 
             this.selectionNameLabel.AutoSize = true;
-            this.selectionNameLabel.Location = new System.Drawing.Point(0, 2);
+            this.selectionNameLabel.Location = new System.Drawing.Point(3, 2);
             this.selectionNameLabel.Name = "selectionNameLabel";
-            this.selectionNameLabel.Size = new System.Drawing.Size(40, 13);
+            this.selectionNameLabel.Size = new System.Drawing.Size(41, 15);
             this.selectionNameLabel.TabIndex = 0;
             this.selectionNameLabel.Text = "Select:";
             // 
             // comboBox
             // 
-            this.comboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.comboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBox.FormattingEnabled = true;
             this.comboBox.Location = new System.Drawing.Point(3, 18);
+            this.comboBox.Margin = new System.Windows.Forms.Padding(0);
             this.comboBox.Name = "comboBox";
-            this.comboBox.Size = new System.Drawing.Size(174, 21);
+            this.comboBox.Size = new System.Drawing.Size(214, 23);
             this.comboBox.TabIndex = 1;
             // 
             // GLViewerSelectionControl
@@ -57,10 +59,9 @@ namespace GUI.Controls
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.Controls.Add(this.comboBox);
             this.Controls.Add(this.selectionNameLabel);
-            this.Margin = new System.Windows.Forms.Padding(0);
             this.MinimumSize = new System.Drawing.Size(0, 41);
             this.Name = "GLViewerSelectionControl";
-            this.Size = new System.Drawing.Size(180, 41);
+            this.Size = new System.Drawing.Size(220, 45);
             this.ResumeLayout(false);
             this.PerformLayout();
 

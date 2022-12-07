@@ -43,7 +43,7 @@
             label1.AutoSize = true;
             label1.Location = new System.Drawing.Point(3, 0);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(123, 13);
+            label1.Size = new System.Drawing.Size(134, 15);
             label1.TabIndex = 1;
             label1.Text = "Saved camera positions:";
             // 
@@ -53,17 +53,18 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.cmbPositions.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cmbPositions.FormattingEnabled = true;
-            this.cmbPositions.Location = new System.Drawing.Point(3, 16);
+            this.cmbPositions.Location = new System.Drawing.Point(3, 18);
             this.cmbPositions.Name = "cmbPositions";
-            this.cmbPositions.Size = new System.Drawing.Size(168, 21);
+            this.cmbPositions.Size = new System.Drawing.Size(214, 23);
             this.cmbPositions.TabIndex = 0;
             this.cmbPositions.SelectedIndexChanged += new System.EventHandler(this.CmbPositions_SelectedIndexChanged);
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(3, 43);
+            this.btnSave.Location = new System.Drawing.Point(4, 47);
+            this.btnSave.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(40, 29);
+            this.btnSave.Size = new System.Drawing.Size(60, 33);
             this.btnSave.TabIndex = 2;
             this.btnSave.Text = "Save";
             this.btnSave.UseVisualStyleBackColor = true;
@@ -71,9 +72,10 @@
             // 
             // btnDelete
             // 
-            this.btnDelete.Location = new System.Drawing.Point(110, 43);
+            this.btnDelete.Location = new System.Drawing.Point(156, 47);
+            this.btnDelete.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(55, 29);
+            this.btnDelete.Size = new System.Drawing.Size(60, 33);
             this.btnDelete.TabIndex = 3;
             this.btnDelete.Text = "Delete";
             this.btnDelete.UseVisualStyleBackColor = true;
@@ -81,9 +83,10 @@
             // 
             // btnRestore
             // 
-            this.btnRestore.Location = new System.Drawing.Point(49, 43);
+            this.btnRestore.Location = new System.Drawing.Point(78, 47);
+            this.btnRestore.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.btnRestore.Name = "btnRestore";
-            this.btnRestore.Size = new System.Drawing.Size(55, 29);
+            this.btnRestore.Size = new System.Drawing.Size(60, 33);
             this.btnRestore.TabIndex = 4;
             this.btnRestore.Text = "Restore";
             this.btnRestore.UseVisualStyleBackColor = true;
@@ -91,7 +94,7 @@
             // 
             // SavedCameraPositionsControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.btnRestore);
             this.Controls.Add(this.btnDelete);
@@ -99,7 +102,7 @@
             this.Controls.Add(label1);
             this.Controls.Add(this.cmbPositions);
             this.Name = "SavedCameraPositionsControl";
-            this.Size = new System.Drawing.Size(174, 81);
+            this.Size = new System.Drawing.Size(220, 86);
             this.ResumeLayout(false);
             this.PerformLayout();
 

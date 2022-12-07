@@ -37,7 +37,7 @@ namespace GUI.Controls
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkBox.AutoSize = true;
-            this.checkBox.Location = new System.Drawing.Point(4, 4);
+            this.checkBox.Location = new System.Drawing.Point(6, 4);
             this.checkBox.Name = "checkBox";
             this.checkBox.Size = new System.Drawing.Size(15, 14);
             this.checkBox.TabIndex = 0;
@@ -47,10 +47,9 @@ namespace GUI.Controls
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.Controls.Add(this.checkBox);
-            this.Margin = new System.Windows.Forms.Padding(0);
             this.MinimumSize = new System.Drawing.Size(0, 23);
             this.Name = "GLViewerCheckboxControl";
-            this.Size = new System.Drawing.Size(180, 23);
+            this.Size = new System.Drawing.Size(220, 25);
             this.ResumeLayout(false);
             this.PerformLayout();
 
