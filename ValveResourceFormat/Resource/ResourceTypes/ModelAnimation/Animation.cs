@@ -233,7 +233,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var container = segment.GetArray<byte>("m_container");
             using var containerReader = new BinaryReader(new MemoryStream(container));
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
-            var elementBones = new int[decodeKey.GetProperty<int>("m_nChannelElements")];
+            var elementBones = new int[decodeKey.GetInt32Property("m_nChannelElements")];
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
                 elementBones[elementIndexArray[i]] = i;
