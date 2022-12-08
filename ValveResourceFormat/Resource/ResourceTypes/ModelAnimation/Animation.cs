@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.NTRO;
+using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -15,17 +16,49 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int FrameCount { get; private set; }
         public IReadOnlyList<Frame> Frames { get; private set; }
 
-        private Animation(
-            IKeyValueCollection animDesc,
-            IKeyValueCollection decodeKey,
-            AnimDecoderType[] decoderArray,
-            IKeyValueCollection[] segmentArray)
+        private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
         {
-            Name = string.Empty;
-            Fps = 0;
-            Frames = Array.Empty<Frame>();
+            // Get animation properties
+            Name = animDesc.GetProperty<string>("m_name");
+            Fps = animDesc.GetFloatProperty("fps");
 
-            ConstructFromDesc(animDesc, decodeKey, decoderArray, segmentArray);
+            var pDataObject = animDesc.GetProperty<object>("m_pData");
+            var pData = pDataObject is NTROValue[] ntroArray
+                ? ntroArray[0].ValueObject as IKeyValueCollection
+                : pDataObject as IKeyValueCollection;
+            FrameCount = pData.GetInt32Property("m_nFrames");
+
+            var frameBlockArray = pData.GetArray("m_frameblockArray");
+            var frameBlocks = new AnimationFrameBlock[frameBlockArray.Length];
+            for (var i = 0; i < frameBlockArray.Length; i++)
+            {
+                frameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
+            }
+
+            var frameArray = new Frame[FrameCount];
+            for (var frameIndex = 0; frameIndex < FrameCount; frameIndex++)
+            {
+                var frame = new Frame();
+                // Read all frame blocks
+                foreach (var frameBlock in frameBlocks)
+                {
+                    // Only consider blocks that actual contain info for this frame
+                    if (frameIndex >= frameBlock.StartFrame && frameIndex <= frameBlock.EndFrame)
+                    {
+                        foreach (var segmentIndex in frameBlock.SegmentIndexArray)
+                        {
+                            var segment = segmentArray[segmentIndex];
+                            // Segment could be null for unknown decoders
+                            if (segment != null)
+                            {
+                                segment.Read(frameIndex - frameBlock.StartFrame, frame);
+                            }
+                        }
+                    }
+                }
+                frameArray[frameIndex] = frame;
+            }
+            Frames = frameArray;
         }
 
         public static IEnumerable<Animation> FromData(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
@@ -38,29 +71,90 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 return Enumerable.Empty<Animation>();
             }
 
-            var decoderArray = MakeDecoderArray(animationData.GetArray("m_decoderArray"));
-            var segmentArray = animationData.GetArray("m_segmentArray");
-
-            var animations = new List<Animation>();
-
-            foreach (var anim in animArray)
+            var decoderArrayKV = animationData.GetArray("m_decoderArray");
+            var decoderArray = new string[decoderArrayKV.Length];
+            for (var i = 0; i < decoderArrayKV.Length; i++)
             {
-                // Here be dragons. Animation decoding is complicated, and we have not
-                // fully figured it out, especially all of the decoder types.
-                // If an animation decoder throws, this prevents the model from loading or exporting,
-                // so we catch all exceptions here and skip over the animation.
-                // Obviously we want to properly support animation decoding, but we are not there yet.
-                try
+                decoderArray[i] = decoderArrayKV[i].GetProperty<string>("m_szName");
+            }
+
+            var channelElements = decodeKey.GetInt32Property("m_nChannelElements");
+            var dataChannelArrayKV = decodeKey.GetArray("m_dataChannelArray");
+            var dataChannelArray = new AnimationDataChannel[dataChannelArrayKV.Length];
+            for (var i = 0; i < dataChannelArrayKV.Length; i++)
+            {
+                dataChannelArray[i] = new AnimationDataChannel(dataChannelArrayKV[i], channelElements);
+            }
+
+            var segmentArrayKV = animationData.GetArray("m_segmentArray");
+            var segmentArray = new AnimationSegmentDecoder[segmentArrayKV.Length];
+            for (var i = 0; i < segmentArrayKV.Length; i++)
+            {
+                var segmentKV = segmentArrayKV[i];
+                var container = segmentKV.GetArray<byte>("m_container");
+                var localChannel = dataChannelArray[segmentKV.GetInt32Property("m_nLocalChannel")];
+                using var containerReader = new BinaryReader(new MemoryStream(container));
+                // Read header
+                var decoder = decoderArray[containerReader.ReadInt16()];
+                var cardinality = containerReader.ReadInt16();
+                var numBones = containerReader.ReadInt16();
+                var totalLength = containerReader.ReadInt16();
+
+                // Read bone list
+                var elements = new int[numBones];
+                for (var j = 0; j < numBones; j++)
                 {
-                    animations.Add(new Animation(anim, decodeKey, decoderArray, segmentArray));
+                    elements[j] = containerReader.ReadInt16();
                 }
-                catch (Exception e)
+
+                var containerSegment = new ArraySegment<byte>(
+                    container,
+                    (int)containerReader.BaseStream.Position,
+                    container.Length - (int)containerReader.BaseStream.Position
+                );
+
+                // Look at the decoder to see what to read
+                switch (decoder)
                 {
-                    Console.Error.WriteLine(e);
+                    case "CCompressedStaticFullVector3":
+                        segmentArray[i] = new CCompressedStaticFullVector3(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedFullVector3":
+                        segmentArray[i] = new CCompressedFullVector3(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedDeltaVector3":
+                        segmentArray[i] = new CCompressedDeltaVector3(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedAnimVector3":
+                        segmentArray[i] = new CCompressedAnimVector3(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedStaticVector3":
+                        segmentArray[i] = new CCompressedStaticVector3(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedAnimQuaternion":
+                        segmentArray[i] = new CCompressedAnimQuaternion(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedStaticQuaternion":
+                        segmentArray[i] = new CCompressedStaticQuaternion(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedFullQuaternion":
+                        segmentArray[i] = new CCompressedFullQuaternion(containerSegment, elements, localChannel);
+                        break;
+#if DEBUG
+                    default:
+                        if (localChannel.ChannelAttribute != "data")
+                        {
+                            Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.ChannelAttribute}'");
+                        }
+
+                        break;
+#endif
                 }
             }
 
-            return animations;
+            return animArray
+                .Select(anim => new Animation(anim, segmentArray))
+                .ToArray();
         }
 
         public static IEnumerable<Animation> FromResource(Resource resource, IKeyValueCollection decodeKey)
@@ -162,225 +256,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return frame;
-        }
-
-        /// <summary>
-        /// Construct an animation class from the animation description.
-        /// </summary>
-        private void ConstructFromDesc(
-            IKeyValueCollection animDesc,
-            IKeyValueCollection decodeKey,
-            AnimDecoderType[] decoderArray,
-            IKeyValueCollection[] segmentArray)
-        {
-            // Get animation properties
-            Name = animDesc.GetProperty<string>("m_name");
-            Fps = animDesc.GetFloatProperty("fps");
-
-            var pDataObject = animDesc.GetProperty<object>("m_pData");
-            var pData = pDataObject is NTROValue[] ntroArray
-                ? ntroArray[0].ValueObject as IKeyValueCollection
-                : pDataObject as IKeyValueCollection;
-            var frameBlockArray = pData.GetArray("m_frameblockArray");
-
-            FrameCount = (int)pData.GetIntegerProperty("m_nFrames");
-            var frameArray = new Frame[FrameCount];
-
-            // Figure out each frame
-            for (var frame = 0; frame < FrameCount; frame++)
-            {
-                // Create new frame object
-                frameArray[frame] = new Frame();
-
-                // Read all frame blocks
-                foreach (var frameBlock in frameBlockArray)
-                {
-                    var startFrame = frameBlock.GetIntegerProperty("m_nStartFrame");
-                    var endFrame = frameBlock.GetIntegerProperty("m_nEndFrame");
-
-                    // Only consider blocks that actual contain info for this frame
-                    if (frame >= startFrame && frame <= endFrame)
-                    {
-                        var segmentIndexArray = frameBlock.GetIntegerArray("m_segmentIndexArray");
-
-                        foreach (var segmentIndex in segmentIndexArray)
-                        {
-                            var segment = segmentArray[segmentIndex];
-                            ReadSegment(frame - startFrame, segment, decodeKey, decoderArray, ref frameArray[frame]);
-                        }
-                    }
-                }
-            }
-            Frames = frameArray;
-        }
-
-        /// <summary>
-        /// Read segment.
-        /// </summary>
-        private void ReadSegment(long frame, IKeyValueCollection segment, IKeyValueCollection decodeKey, AnimDecoderType[] decoderArray, ref Frame outFrame)
-        {
-            // Clamp the frame number to be between 0 and the maximum frame
-            frame = frame < 0 ? 0 : frame;
-            frame = frame >= FrameCount ? FrameCount - 1 : frame;
-
-            var localChannel = segment.GetIntegerProperty("m_nLocalChannel");
-            var dataChannel = decodeKey.GetArray("m_dataChannelArray")[localChannel];
-            var boneNames = dataChannel.GetArray<string>("m_szElementNameArray");
-
-            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
-
-            // Read container
-            var container = segment.GetArray<byte>("m_container");
-            using var containerReader = new BinaryReader(new MemoryStream(container));
-            var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
-            var elementBones = new int[decodeKey.GetInt32Property("m_nChannelElements")];
-            for (var i = 0; i < elementIndexArray.Length; i++)
-            {
-                elementBones[elementIndexArray[i]] = i;
-            }
-
-            // Read header
-            var decoder = decoderArray[containerReader.ReadInt16()];
-            var cardinality = containerReader.ReadInt16();
-            var numBones = containerReader.ReadInt16();
-            var totalLength = containerReader.ReadInt16();
-
-            // Read bone list
-            var elements = new List<int>();
-            for (var i = 0; i < numBones; i++)
-            {
-                elements.Add(containerReader.ReadInt16());
-            }
-
-            using var baseFrameContainerReader = new BinaryReader(new MemoryStream(container));
-            baseFrameContainerReader.BaseStream.Position = containerReader.BaseStream.Position;
-
-            // Skip data to find the data for the current frame.
-            // Structure is just | Bone 0 - Frame 0 | Bone 1 - Frame 0 | Bone 0 - Frame 1 | Bone 1 - Frame 1|
-            containerReader.BaseStream.Position += decoder.Size() * frame * numBones;
-            if (decoder == AnimDecoderType.CCompressedDeltaVector3)
-            {
-                // Structure is | Bone 0 - Base Frame | Bone 1 - Base Frame | Bone 0 - Frame 0 | Bone 1 - Frame 0|
-                containerReader.BaseStream.Position += 12 * numBones;
-            }
-
-            // Read animation data for all bones
-            for (var element = 0; element < numBones; element++)
-            {
-                // Get the bone we are reading for
-                var bone = elementBones[elements[element]];
-
-                // Look at the decoder to see what to read
-                switch (decoder)
-                {
-                    case AnimDecoderType.CCompressedStaticFullVector3:
-                    case AnimDecoderType.CCompressedFullVector3:
-                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
-                            containerReader.ReadSingle(),
-                            containerReader.ReadSingle(),
-                            containerReader.ReadSingle()));
-                        break;
-                    case AnimDecoderType.CCompressedDeltaVector3:
-                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
-                            baseFrameContainerReader.ReadSingle() + ReadHalfFloat(containerReader),
-                            baseFrameContainerReader.ReadSingle() + ReadHalfFloat(containerReader),
-                            baseFrameContainerReader.ReadSingle() + ReadHalfFloat(containerReader)));
-                        break;
-                    case AnimDecoderType.CCompressedAnimVector3:
-                    case AnimDecoderType.CCompressedStaticVector3:
-                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Vector3(
-                            ReadHalfFloat(containerReader),
-                            ReadHalfFloat(containerReader),
-                            ReadHalfFloat(containerReader)));
-                        break;
-                    case AnimDecoderType.CCompressedAnimQuaternion:
-                    case AnimDecoderType.CCompressedStaticQuaternion:
-                        outFrame.SetAttribute(boneNames[bone], channelAttribute, ReadQuaternion(containerReader));
-                        break;
-                    case AnimDecoderType.CCompressedFullQuaternion:
-                        outFrame.SetAttribute(boneNames[bone], channelAttribute, new Quaternion(
-                           containerReader.ReadSingle(),
-                           containerReader.ReadSingle(),
-                           containerReader.ReadSingle(),
-                           containerReader.ReadSingle()));
-                        break;
-#if DEBUG
-                    default:
-                        if (channelAttribute != "data")
-                        {
-                            Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{channelAttribute}'");
-                        }
-
-                        break;
-#endif
-                }
-            }
-        }
-
-        /// <summary>
-        /// Read a half-precision float from a binary reader.
-        /// </summary>
-        /// <param name="reader">Binary ready.</param>
-        /// <returns>float.</returns>
-        private static float ReadHalfFloat(BinaryReader reader)
-        {
-            return HalfTypeHelper.Convert(reader.ReadUInt16());
-        }
-
-        /// <summary>
-        /// Read and decode encoded quaternion.
-        /// </summary>
-        /// <param name="reader">Binary reader.</param>
-        /// <returns>Quaternion.</returns>
-        private static Quaternion ReadQuaternion(BinaryReader reader)
-        {
-            var bytes = reader.ReadBytes(6);
-
-            // Values
-            var i1 = bytes[0] + ((bytes[1] & 63) << 8);
-            var i2 = bytes[2] + ((bytes[3] & 63) << 8);
-            var i3 = bytes[4] + ((bytes[5] & 63) << 8);
-
-            // Signs
-            var s1 = bytes[1] & 128;
-            var s2 = bytes[3] & 128;
-            var s3 = bytes[5] & 128;
-
-            var c = (float)Math.Sin(Math.PI / 4.0f) / 16384.0f;
-            var x = (bytes[1] & 64) == 0 ? c * (i1 - 16384) : c * i1;
-            var y = (bytes[3] & 64) == 0 ? c * (i2 - 16384) : c * i2;
-            var z = (bytes[5] & 64) == 0 ? c * (i3 - 16384) : c * i3;
-
-            var w = (float)Math.Sqrt(1 - (x * x) - (y * y) - (z * z));
-
-            // Apply sign 3
-            if (s3 == 128)
-            {
-                w *= -1;
-            }
-
-            // Apply sign 1 and 2
-            if (s1 == 128)
-            {
-                return s2 == 128 ? new Quaternion(y, z, w, x) : new Quaternion(z, w, x, y);
-            }
-
-            return s2 == 128 ? new Quaternion(w, x, y, z) : new Quaternion(x, y, z, w);
-        }
-
-        /// <summary>
-        /// Transform the decoder array to a mapping of index to type ID.
-        /// </summary>
-        private static AnimDecoderType[] MakeDecoderArray(IKeyValueCollection[] decoderArray)
-        {
-            var array = new AnimDecoderType[decoderArray.Length];
-            for (var i = 0; i < decoderArray.Length; i++)
-            {
-                var decoder = decoderArray[i];
-                array[i] = AnimDecoder.FromString(decoder.GetProperty<string>("m_szName"));
-            }
-
-            return array;
         }
 
         /// <summary>
