@@ -444,18 +444,17 @@ namespace ValveResourceFormat.IO
             {
                 ImageWriting = ResourceWriteMode.SatelliteFile,
                 ImageWriteCallback = ImageWriteCallback,
-                JsonIndented = true
+                JsonIndented = true,
+                MergeBuffers = true
             };
 
             // See https://github.com/KhronosGroup/glTF/blob/0bc36d536946b13c4807098f9cf62ddff738e7a5/specification/2.0/README.md#buffers-and-buffer-views
-            // Disable merging buffers if the buffer size is over 1GiB, otherwise this will
+            // Disable merging buffers if the buffer size is >=2GiB, otherwise this will
             // cause SharpGLTF to run past the int32 limitation and crash.
             var totalSize = exportedModel.LogicalBuffers.Sum(buffer => (long)buffer.Content.Length);
-            settings.MergeBuffers = totalSize <= 1_074_000_000;
-
-            if (!settings.MergeBuffers)
+            if (totalSize > int.MaxValue)
             {
-                throw new NotSupportedException("VRF does not properly support big model (>1GiB) exports yet due to glTF limitations. See https://github.com/SteamDatabase/ValveResourceFormat/issues/379");
+                throw new NotSupportedException("VRF does not properly support big model (>=2GiB) exports yet due to glTF limitations. See https://github.com/SteamDatabase/ValveResourceFormat/issues/379");
             }
 
             exportedModel.Save(filePath, settings);
