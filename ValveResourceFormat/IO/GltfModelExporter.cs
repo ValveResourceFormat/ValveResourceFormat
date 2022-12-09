@@ -7,7 +7,6 @@ using SharpGLTF.IO;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -106,19 +105,7 @@ namespace ValveResourceFormat.IO
 
                 foreach (var (Model, Name, Transform) in worldNodeModels)
                 {
-                    var meshes = LoadModelMeshes(Model, Name);
-                    for (var i = 0; i < meshes.Length; i++)
-                    {
-                        var node = AddMeshNode(exportedModel, scene, Model,
-                            meshes[i].Name, meshes[i].Mesh, Model.GetSkeleton(i));
-
-                        if (node == null)
-                        {
-                            continue;
-                        }
-                        // Swap Rotate upright, scale inches to meters.
-                        node.WorldMatrix = Transform * TRANSFORMSOURCETOGLTF;
-                    }
+                    LoadModel(exportedModel, scene, Model, Name, Transform);
                 }
             }
 
@@ -172,25 +159,7 @@ namespace ValveResourceFormat.IO
 
                 var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 // Add meshes and their skeletons
-                var meshes = LoadModelMeshes(model, Path.GetFileNameWithoutExtension(modelName));
-                for (var i = 0; i < meshes.Length; i++)
-                {
-                    var meshName = meshes[i].Name;
-                    if (skinName != null)
-                    {
-                        meshName += "." + skinName;
-                    }
-                    var node = AddMeshNode(exportedModel, scene, model,
-                        meshName, meshes[i].Mesh, model.GetSkeleton(i),
-                        skinName != null ? GetSkinPathFromModel(model, skinName) : null);
-
-                    if (node == null)
-                    {
-                        continue;
-                    }
-                    // Swap Rotate upright, scale inches to meters.
-                    node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
-                }
+                LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName), transform, skinName);
             }
 
             foreach (var childEntityName in entityLump.GetChildEntityNames())
@@ -246,19 +215,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var (Model, Name, Transform) in worldNodeModels)
             {
-                var meshes = LoadModelMeshes(Model, Name);
-                for (var i = 0; i < meshes.Length; i++)
-                {
-                    var node = AddMeshNode(exportedModel, scene, Model,
-                        meshes[i].Name, meshes[i].Mesh, Model.GetSkeleton(i));
-
-                    if (node == null)
-                    {
-                        continue;
-                    }
-                    // Swap Rotate upright, scale inches to meters, after local transform.
-                    node.WorldMatrix = Transform * TRANSFORMSOURCETOGLTF;
-                }
+                LoadModel(exportedModel, scene, Model, Name, Transform);
             }
 
             WriteModelFile(exportedModel, fileName);
@@ -309,21 +266,34 @@ namespace ValveResourceFormat.IO
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
             // Add meshes and their skeletons
-            var meshes = LoadModelMeshes(model, resourceName);
-            for (var i = 0; i < meshes.Length; i++)
-            {
-                var node = AddMeshNode(exportedModel, scene, model,
-                    meshes[i].Name, meshes[i].Mesh, model.GetSkeleton(i));
-
-                if (node == null)
-                {
-                    continue;
-                }
-                // Swap Rotate upright, scale inches to meters.
-                node.WorldMatrix = TRANSFORMSOURCETOGLTF;
-            }
+            LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity);
 
             WriteModelFile(exportedModel, fileName);
+        }
+
+        private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name, Matrix4x4 transform, string skinName = null)
+        {
+            transform *= TRANSFORMSOURCETOGLTF;
+            var meshes = LoadModelMeshes(model, name);
+            var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
+            for (var i = 0; i < meshes.Length; i++)
+            {
+                var meshName = meshes[i].Name;
+                if (skinName != null)
+                {
+                    meshName += "." + skinName;
+                }
+
+                var node = AddMeshNode(exportedModel, scene, model,
+                    meshName, meshes[i].Mesh, model.GetSkeleton(i),
+                    skinMaterialPath);
+
+                if (node != null)
+                {
+                    // Swap Rotate upright, scale inches to meters.
+                    node.WorldMatrix = transform;
+                }
+            }
         }
 
         /// <summary>
