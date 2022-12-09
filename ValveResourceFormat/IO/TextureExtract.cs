@@ -96,6 +96,7 @@ public sealed class TextureExtract
     public TextureContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
         var bitmap = texture.GenerateBitmap();
+        bitmap.SetImmutable();
 
         var vtex = new TextureContentFile()
         {
@@ -176,11 +177,12 @@ public sealed class TextureExtract
         // Wipes out the alpha channel
         if (channel == Channel.RGB)
         {
-            using var _bitmap = bitmap.Copy();
-            using var _pixelmap = _bitmap.PeekPixels();
-            using var newPixelmap = _pixelmap.WithAlphaType(SKAlphaType.Opaque);
+            using var newBitmap = new SKBitmap(bitmap.Info);
+            using var newPixelmap = newBitmap.PeekPixels();
+            using var pixelmap = bitmap.PeekPixels();
+            pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
 
-            return EncodePng(newPixelmap);
+            return EncodePng(newPixelmap.WithAlphaType(SKAlphaType.Opaque));
         }
 
         if (channel == Channel.RGBA)
