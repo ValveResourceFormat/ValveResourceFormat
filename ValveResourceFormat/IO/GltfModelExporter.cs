@@ -279,8 +279,7 @@ namespace ValveResourceFormat.IO
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name, Matrix4x4 transform, string skinName = null)
         {
-            var modelNode = scene.CreateNode(name);
-            var (boneNodes, skeletonNode) = CreateGltfSkeleton(modelNode, model);
+            var (boneNodes, skeletonNode) = CreateGltfSkeleton(scene, model, name);
 
             if (skeletonNode != null)
             {
@@ -377,9 +376,12 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            // Swap Rotate upright, scale inches to meters.
+            transform *= TRANSFORMSOURCETOGLTF;
+
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
             var meshIndex = 0;
-            foreach (var m in LoadModelMeshes(model))
+            foreach (var m in LoadModelMeshes(model, name))
             {
                 var meshName = m.Name;
                 if (skinName != null)
@@ -387,16 +389,22 @@ namespace ValveResourceFormat.IO
                     meshName += "." + skinName;
                 }
 
-                AddMeshNode(exportedModel, modelNode,
+                var node = AddMeshNode(exportedModel, scene,
                     meshName, m.Mesh, model.GetSkeleton(meshIndex),
                     skinMaterialPath, boneNodes, skeletonNode);
+                if (node != null)
+                {
+                    node.WorldMatrix = transform;
+                }
                 meshIndex++;
             }
 
             // Even though that's not documented, order matters.
             // WorldMatrix should only be set after everything else.
-            // Swap Rotate upright, scale inches to meters.
-            modelNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+            if (skeletonNode != null)
+            {
+                skeletonNode.WorldMatrix = transform;
+            }
         }
 
         /// <summary>
@@ -405,11 +413,11 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model)
+        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model, string modelName)
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
-                .Select((m, i) => (m.Mesh, $"Embedded.{i}"));
+                .Select((m, i) => (m.Mesh, $"{modelName}.Embedded.{i}"));
 
             var refMeshes = model.GetReferenceMeshNamesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
@@ -454,7 +462,7 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private Node AddMeshNode(ModelRoot exportedModel, IVisualNodeContainer container, string name,
+        private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
             VMesh mesh, Skeleton skeleton, string skinMaterialPath = null,
             Dictionary<string, Node> boneNodes = null, Node skeletonNode = null)
         {
@@ -463,10 +471,10 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
+            var newNode = scene.CreateNode(name);
             if (LoadedUnskinnedMeshDictionary.TryGetValue(name, out var existingNode))
             {
                 // Make a new node that uses the existing mesh
-                var newNode = container.CreateNode(name);
                 newNode.Mesh = existingNode.Mesh;
                 return newNode;
             }
@@ -479,12 +487,11 @@ namespace ValveResourceFormat.IO
             {
                 var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
 
-                container.CreateNode(name)
-                    .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+                newNode.WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
 
                 return null;
             }
-            var node = container.CreateNode(name).WithMesh(exportedMesh);
+            var node = newNode.WithMesh(exportedMesh);
             LoadedUnskinnedMeshDictionary.Add(name, node);
             return node;
         }
@@ -738,7 +745,7 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        private (Dictionary<string, Node> boneNodes, Node skeletonNode) CreateGltfSkeleton(IVisualNodeContainer container, VModel model)
+        private (Dictionary<string, Node> boneNodes, Node skeletonNode) CreateGltfSkeleton(Scene scene, VModel model, string modelName)
         {
             var skeleton = model.GetSkeleton(0);
             if (skeleton == null)
@@ -746,7 +753,7 @@ namespace ValveResourceFormat.IO
                 return (null, null);
             }
 
-            var skeletonNode = container.CreateNode("skeleton");
+            var skeletonNode = scene.CreateNode(modelName);
             var boneNodes = new Dictionary<string, Node>();
             foreach (var root in skeleton.Roots)
             {
