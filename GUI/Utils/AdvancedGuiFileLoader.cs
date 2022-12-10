@@ -77,7 +77,7 @@ namespace GUI.Utils
             var paths = Settings.Config.GameSearchPaths.ToList();
             var packages = CurrentGamePackages.ToList();
 
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)))
             {
                 paths.Remove(searchPath);
 
@@ -144,6 +144,11 @@ namespace GUI.Utils
             CachedResources[file] = resource;
 
             return resource;
+        }
+
+        public void AddPackageToSearch(Package package)
+        {
+            CurrentGamePackages.Add(package);
         }
 
         private void FindAndLoadSearchPaths()

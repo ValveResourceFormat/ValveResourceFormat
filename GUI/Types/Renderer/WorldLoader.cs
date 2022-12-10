@@ -122,6 +122,24 @@ namespace GUI.Types.Renderer
                     var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
                     var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
 
+                    if (skyboxPackage == null && guiContext.ParentGuiContext != null)
+                    {
+                        var mapName = Path.GetFileNameWithoutExtension(guiContext.ParentGuiContext.FileName);
+                        var mapsFolder = Path.GetDirectoryName(guiContext.ParentGuiContext.FileName);
+                        var skyboxVpk = Path.Join(mapsFolder, mapName, $"{Path.GetFileNameWithoutExtension(targetmapname)}.vpk");
+
+                        if (File.Exists(skyboxVpk))
+                        {
+                            var skyboxNewPackage = new SteamDatabase.ValvePak.Package();
+                            skyboxNewPackage.Read(skyboxVpk);
+
+                            guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(skyboxNewPackage);
+
+                            skyboxWorldPath = $"maps/{mapName}/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
+                            skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
+                        }
+                    }
+
                     if (skyboxPackage != null)
                     {
                         result.Skybox = (World)skyboxPackage.DataBlock;
