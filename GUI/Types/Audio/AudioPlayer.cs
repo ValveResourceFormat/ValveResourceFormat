@@ -35,7 +35,7 @@ namespace GUI.Types.Audio
 
                 var msg = new Label
                 {
-                    Text = $"NAudio Exception: {e.Message}",
+                    Text = $"NAudio Exception: {e}",
                     Dock = DockStyle.Fill,
                 };
 

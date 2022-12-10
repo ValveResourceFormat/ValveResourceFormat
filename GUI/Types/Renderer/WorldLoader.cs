@@ -199,7 +199,7 @@ namespace GUI.Types.Renderer
                         }
                         catch (Exception e)
                         {
-                            Console.Error.WriteLine($"Failed to setup particle '{particle}': {e.Message}");
+                            Console.Error.WriteLine($"Failed to setup particle '{particle}': {e}");
                         }
                     }
 
