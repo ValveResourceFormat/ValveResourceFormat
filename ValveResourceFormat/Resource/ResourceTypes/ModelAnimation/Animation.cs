@@ -140,6 +140,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     case "CCompressedFullQuaternion":
                         segmentArray[i] = new CCompressedFullQuaternion(containerSegment, elements, localChannel);
                         break;
+                    case "CCompressedStaticFloat":
+                        segmentArray[i] = new CCompressedStaticFloat(containerSegment, elements, localChannel);
+                        break;
+                    case "CCompressedFullFloat":
+                        segmentArray[i] = new CCompressedFullFloat(containerSegment, elements, localChannel);
+                        break;
 #if DEBUG
                     default:
                         if (localChannel.ChannelAttribute != "data")
@@ -205,7 +211,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             if (transforms.Bones.ContainsKey(bone.Name))
             {
                 var transform = transforms.Bones[bone.Name];
-                transformMatrix = Matrix4x4.CreateFromQuaternion(transform.Angle) * Matrix4x4.CreateTranslation(transform.Position);
+                transformMatrix = Matrix4x4.CreateScale(transform.Scale)
+                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
+                    * Matrix4x4.CreateTranslation(transform.Position);
             }
 
             // Apply tranformation
@@ -250,9 +258,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Interpolate bone positions and angles
             foreach (var bonePair in frame1.Bones)
             {
-                var position = Vector3.Lerp(frame1.Bones[bonePair.Key].Position, frame2.Bones[bonePair.Key].Position, t);
-                var angle = Quaternion.Slerp(frame1.Bones[bonePair.Key].Angle, frame2.Bones[bonePair.Key].Angle, t);
-                frame.Bones[bonePair.Key] = new FrameBone(position, angle);
+                var frame1Bone = frame1.Bones[bonePair.Key];
+                var frame2Bone = frame1.Bones[bonePair.Key];
+                var position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
+                var angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
+                var scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
+                frame.Bones[bonePair.Key] = new FrameBone(position, angle, scale);
             }
 
             return frame;

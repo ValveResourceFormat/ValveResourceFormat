@@ -1,19 +1,18 @@
 using System;
-using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedStaticQuaternion : AnimationSegmentDecoder
+    public class CCompressedStaticFloat : AnimationSegmentDecoder
     {
-        public Quaternion[] Data { get; }
+        public float[] Data { get; }
 
-        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
+        public CCompressedStaticFloat(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
         {
-            Data = new Quaternion[elements.Length];
+            Data = new float[elements.Length];
             // Static data has only one frame of data, so prefetch all data to avoid unnecessary GC
             for (var i = 0; i < elements.Length; i++)
             {
-                Data[i] = SegmentHelpers.ReadQuaternion(data.Slice(i * 6));
+                Data[i] = BitConverter.ToSingle(data.Slice(i * 4));
             }
         }
 

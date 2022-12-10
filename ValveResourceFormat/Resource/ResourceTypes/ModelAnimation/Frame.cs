@@ -53,11 +53,31 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        public void SetAttribute(string bone, string attribute, float data)
+        {
+            switch (attribute)
+            {
+                case "Scale":
+                    GetBone(bone).Scale = data;
+                    break;
+
+                case "data":
+                    //ignore
+                    break;
+
+#if DEBUG
+                default:
+                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with float data");
+                    break;
+#endif
+            }
+        }
+
         private FrameBone GetBone(string name)
         {
             if (!Bones.TryGetValue(name, out var bone))
             {
-                bone = new FrameBone(new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 1));
+                bone = new FrameBone(new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 1), 1);
 
                 Bones[name] = bone;
             }

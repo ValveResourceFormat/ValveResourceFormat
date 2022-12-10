@@ -28,7 +28,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         {
             for (var element = 0; element < Elements.Length; element++)
             {
-                // Get the bone we are reading for
                 outFrame.SetAttribute(
                     LocalChannel.BoneNames[Elements[element]],
                     LocalChannel.ChannelAttribute,
