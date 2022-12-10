@@ -273,8 +273,53 @@ namespace ValveResourceFormat.IO
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name, Matrix4x4 transform, string skinName = null)
         {
-            transform *= TRANSFORMSOURCETOGLTF;
-            var meshes = LoadModelMeshes(model, name);
+            var meshes = LoadModelMeshes(model);
+            if (meshes.Length == 0)
+            {
+                return;
+            }
+
+            var modelNode = scene.CreateNode(name);
+            var (boneNodes, skeletonNode) = CreateGltfSkeleton(modelNode, model);
+
+            if (skeletonNode != null)
+            {
+                var animations = AnimationGroupLoader.GetAllAnimations(model, FileLoader);
+                // Add animations
+                foreach (var animation in animations)
+                {
+                    var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
+                    var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
+                    var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
+
+                    for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
+                    {
+                        var time = frameIndex / (float)animation.Fps;
+                        foreach (var boneFrame in animation.Frames[frameIndex].Bones)
+                        {
+                            var bone = boneFrame.Key;
+                            if (!rotationDict.ContainsKey(bone))
+                            {
+                                rotationDict[bone] = new Dictionary<float, Quaternion>();
+                                translationDict[bone] = new Dictionary<float, Vector3>();
+                            }
+                            rotationDict[bone].Add(time, boneFrame.Value.Angle);
+                            translationDict[bone].Add(time, boneFrame.Value.Position);
+                        }
+                    }
+
+                    foreach (var bone in rotationDict.Keys)
+                    {
+                        var jointNode = boneNodes.GetValueOrDefault(bone);
+                        if (jointNode != null)
+                        {
+                            exportedAnimation.CreateRotationChannel(jointNode, rotationDict[bone], true);
+                            exportedAnimation.CreateTranslationChannel(jointNode, translationDict[bone], true);
+                        }
+                    }
+                }
+            }
+
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
             for (var i = 0; i < meshes.Length; i++)
             {
@@ -284,16 +329,15 @@ namespace ValveResourceFormat.IO
                     meshName += "." + skinName;
                 }
 
-                var node = AddMeshNode(exportedModel, scene, model,
+                AddMeshNode(exportedModel, modelNode,
                     meshName, meshes[i].Mesh, model.GetSkeleton(i),
-                    skinMaterialPath);
-
-                if (node != null)
-                {
-                    // Swap Rotate upright, scale inches to meters.
-                    node.WorldMatrix = transform;
-                }
+                    skinMaterialPath, boneNodes, skeletonNode);
             }
+
+            // Even though that's not documented, order matters.
+            // WorldMatrix should only be set after everything else.
+            // Swap Rotate upright, scale inches to meters.
+            modelNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
         }
 
         /// <summary>
@@ -302,7 +346,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private (VMesh Mesh, string Name)[] LoadModelMeshes(VModel model, string modelName)
+        private (VMesh Mesh, string Name)[] LoadModelMeshes(VModel model)
         {
             var refMeshes = model.GetRefMeshes().ToArray();
             var meshes = new (VMesh, string)[refMeshes.Length];
@@ -316,7 +360,7 @@ namespace ValveResourceFormat.IO
                 if (string.IsNullOrEmpty(meshReference))
                 {
                     // If refmesh is null, take an embedded mesh
-                    meshes[i] = (embeddedMeshes[embeddedMeshIndex++], $"{modelName}.Embedded.{embeddedMeshIndex}");
+                    meshes[i] = (embeddedMeshes[embeddedMeshIndex++], $"Embedded.{embeddedMeshIndex}");
                 }
                 else
                 {
@@ -348,7 +392,7 @@ namespace ValveResourceFormat.IO
 
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
-            var node = AddMeshNode(exportedModel, scene, null, name, mesh, null);
+            var node = AddMeshNode(exportedModel, scene, name, mesh, null, null);
 
             if (node != null)
             {
@@ -359,8 +403,9 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private Node AddMeshNode(ModelRoot exportedModel, Scene scene, VModel model, string name,
-            VMesh mesh, Skeleton skeleton, string skinMaterialPath = null)
+        private Node AddMeshNode(ModelRoot exportedModel, IVisualNodeContainer container, string name,
+            VMesh mesh, Skeleton skeleton, string skinMaterialPath = null,
+            Dictionary<string, Node> boneNodes = null, Node skeletonNode = null)
         {
             if (mesh.GetData().GetArray("m_sceneObjects").Length == 0)
             {
@@ -370,7 +415,7 @@ namespace ValveResourceFormat.IO
             if (LoadedUnskinnedMeshDictionary.TryGetValue(name, out var existingNode))
             {
                 // Make a new node that uses the existing mesh
-                var newNode = scene.CreateNode(name);
+                var newNode = container.CreateNode(name);
                 newNode.Mesh = existingNode.Mesh;
                 return newNode;
             }
@@ -379,52 +424,16 @@ namespace ValveResourceFormat.IO
             var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-            if (hasJoints && hasVertexJoints && model != null)
+            if (hasJoints && hasVertexJoints && skeleton != null)
             {
-                var skeletonNode = scene.CreateNode(name);
-                var joints = CreateGltfSkeleton(skeleton, skeletonNode);
+                var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
 
-                scene.CreateNode(name)
+                container.CreateNode(name)
                     .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
 
-                // Add animations
-                var animations = AnimationGroupLoader.GetAllAnimations(model, FileLoader);
-                foreach (var animation in animations)
-                {
-                    var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
-                    var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
-                    var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
-
-                    var time = 0f;
-                    foreach (var frame in animation.Frames)
-                    {
-                        foreach (var boneFrame in frame.Bones)
-                        {
-                            var bone = boneFrame.Key;
-                            if (!rotationDict.ContainsKey(bone))
-                            {
-                                rotationDict[bone] = new Dictionary<float, Quaternion>();
-                                translationDict[bone] = new Dictionary<float, Vector3>();
-                            }
-                            rotationDict[bone].Add(time, boneFrame.Value.Angle);
-                            translationDict[bone].Add(time, boneFrame.Value.Position);
-                        }
-                        time += 1 / animation.Fps;
-                    }
-
-                    foreach (var bone in rotationDict.Keys)
-                    {
-                        var jointNode = joints.FirstOrDefault(n => n.Name == bone);
-                        if (jointNode != null)
-                        {
-                            exportedAnimation.CreateRotationChannel(jointNode, rotationDict[bone], true);
-                            exportedAnimation.CreateTranslationChannel(jointNode, translationDict[bone], true);
-                        }
-                    }
-                }
-                return skeletonNode;
+                return null;
             }
-            var node = scene.CreateNode(name).WithMesh(exportedMesh);
+            var node = container.CreateNode(name).WithMesh(exportedMesh);
             LoadedUnskinnedMeshDictionary.Add(name, node);
             return node;
         }
@@ -678,48 +687,64 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        private Node[] CreateGltfSkeleton(Skeleton skeleton, Node skeletonNode)
+        private (Dictionary<string, Node> boneNodes, Node skeletonNode) CreateGltfSkeleton(IVisualNodeContainer container, VModel model)
         {
-            var joints = new List<(Node Node, List<int> Indices)>();
-
-            foreach (var root in skeleton.Roots)
+            var skeleton = model.GetSkeleton(0);
+            if (skeleton == null)
             {
-                joints.AddRange(CreateBonesRecursive(root, skeletonNode));
+                return (null, null);
             }
 
-            var animationJoints = joints.Where(j => j.Indices.Any()).ToList();
+            var skeletonNode = container.CreateNode("skeleton");
+            var boneNodes = new Dictionary<string, Node>();
+            foreach (var root in skeleton.Roots)
+            {
+                CreateBonesRecursive(root, skeletonNode, boneNodes);
+            }
+            return (boneNodes, skeletonNode);
+        }
+
+        private void CreateBonesRecursive(Bone bone, Node parent, Dictionary<string, Node> boneNodes)
+        {
+            var node = parent.CreateNode(bone.Name)
+                .WithLocalTranslation(bone.Position)
+                .WithLocalRotation(bone.Angle);
+            boneNodes.Add(bone.Name, node);
+
+            // Recurse into children
+            foreach (var child in bone.Children)
+            {
+                CreateBonesRecursive(child, node, boneNodes);
+            }
+        }
+
+        private static Node[] GetGltfSkeletonJoints(Skeleton skeleton, Dictionary<string, Node> boneNodes, Node skeletonNode)
+        {
+            var animationJoints = skeleton.Bones
+                .Where(bone => bone != null && bone.SkinIndices.Any())
+                .Select(bone => (boneNodes.GetValueOrDefault(bone.Name, null), bone.SkinIndices))
+                .ToList();
+
             var numJoints = animationJoints.Any()
-                ? animationJoints.Where(j => j.Indices.Any()).Max(j => j.Indices.Max())
+                ? animationJoints.Max(j => j.SkinIndices.Max()) + 1
                 : 0;
-            var result = new Node[numJoints + 1];
+            var result = new Node[numJoints];
 
             foreach (var joint in animationJoints)
             {
-                foreach (var index in joint.Indices)
+                foreach (var index in joint.SkinIndices)
                 {
-                    result[index] = joint.Node;
+                    result[index] = joint.Item1;
                 }
             }
 
             // Fill null indices with some dummy node
-            for (var i = 0; i < numJoints + 1; i++)
+            for (var i = 0; i < numJoints; i++)
             {
                 result[i] ??= skeletonNode.CreateNode();
             }
 
             return result;
-        }
-
-        private IEnumerable<(Node Node, List<int> Indices)> CreateBonesRecursive(Bone bone, Node parent)
-        {
-            var node = parent.CreateNode(bone.Name)
-                .WithLocalTranslation(bone.Position)
-                .WithLocalRotation(bone.Angle);
-
-            // Recurse into children
-            return bone.Children
-                .SelectMany(child => CreateBonesRecursive(child, node))
-                .Append((node, bone.SkinIndices));
         }
 
         private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, string materialName)
