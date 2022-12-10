@@ -199,7 +199,7 @@ namespace GUI.Forms
                         }
                         catch (Exception e)
                         {
-                            await Console.Error.WriteLineAsync($"Failed to extract '{packageFile.GetFullPath()}' - {e.Message}").ConfigureAwait(false);
+                            await Console.Error.WriteLineAsync($"Failed to extract '{packageFile.GetFullPath()}': {e}").ConfigureAwait(false);
                             contentFile?.Dispose();
                             continue;
                         }
@@ -264,7 +264,7 @@ namespace GUI.Forms
                 }
                 catch (Exception e)
                 {
-                    await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}' - {e.Message}").ConfigureAwait(false);
+                    await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}': {e}").ConfigureAwait(false);
                     continue;
                 }
 
