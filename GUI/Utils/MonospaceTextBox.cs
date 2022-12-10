@@ -7,7 +7,19 @@ namespace GUI.Utils
     {
         public MonospaceTextBox() : base()
         {
-            Font = new Font(FontFamily.GenericMonospace, 9);
+            const int FontSize = 9;
+
+            try
+            {
+                using var font = new FontFamily("Cascadia Mono");
+                Font = new Font(font, FontSize);
+
+            }
+            catch
+            {
+                Font = new Font(FontFamily.GenericMonospace, FontSize);
+            }
+
             Dock = DockStyle.Fill;
             ScrollBars = ScrollBars.Both;
             BorderStyle = BorderStyle.None;
