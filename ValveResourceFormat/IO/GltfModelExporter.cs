@@ -290,11 +290,16 @@ namespace ValveResourceFormat.IO
                 {
                     var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
                     var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
+                    var lastRotationDict = new Dictionary<string, Quaternion>();
+                    var rotationOmittedSet = new HashSet<string>();
                     var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
+                    var lastTranslationDict = new Dictionary<string, Vector3>();
+                    var translationOmittedSet = new HashSet<string>();
 
                     for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
                     {
                         var time = frameIndex / (float)animation.Fps;
+                        var prevFrameTime = (frameIndex - 1) / (float)animation.Fps;
                         foreach (var boneFrame in animation.Frames[frameIndex].Bones)
                         {
                             var bone = boneFrame.Key;
@@ -303,8 +308,38 @@ namespace ValveResourceFormat.IO
                                 rotationDict[bone] = new Dictionary<float, Quaternion>();
                                 translationDict[bone] = new Dictionary<float, Vector3>();
                             }
-                            rotationDict[bone].Add(time, boneFrame.Value.Angle);
-                            translationDict[bone].Add(time, boneFrame.Value.Position);
+
+                            if (!lastRotationDict.TryGetValue(bone, out var lastRotation) || lastRotation != boneFrame.Value.Angle)
+                            {
+                                if (rotationOmittedSet.Remove(bone))
+                                {
+                                    // Restore keyframe before current frame, as otherwise interpolation will
+                                    // begin from the first instance of identical frame, and not from previous frame
+                                    rotationDict[bone].Add(prevFrameTime, lastRotation);
+                                }
+                                rotationDict[bone].Add(time, boneFrame.Value.Angle);
+                                lastRotationDict[bone] = boneFrame.Value.Angle;
+                            }
+                            else
+                            {
+                                rotationOmittedSet.Add(bone);
+                            }
+
+                            if (!lastTranslationDict.TryGetValue(bone, out var lastTranslation) || lastTranslation != boneFrame.Value.Position)
+                            {
+                                if (translationOmittedSet.Remove(bone))
+                                {
+                                    // Restore keyframe before current frame, as otherwise interpolation will
+                                    // begin from the first instance of identical frame, and not from previous frame
+                                    translationDict[bone].Add(prevFrameTime, lastTranslation);
+                                }
+                                translationDict[bone].Add(time, boneFrame.Value.Position);
+                                lastTranslationDict[bone] = boneFrame.Value.Position;
+                            }
+                            else
+                            {
+                                translationOmittedSet.Add(bone);
+                            }
                         }
                     }
 
