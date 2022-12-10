@@ -77,7 +77,7 @@ namespace GUI.Utils
             var paths = Settings.Config.GameSearchPaths.ToList();
             var packages = CurrentGamePackages.ToList();
 
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)))
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
             {
                 paths.Remove(searchPath);
 
