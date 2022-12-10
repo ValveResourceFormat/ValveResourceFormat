@@ -295,6 +295,9 @@ namespace ValveResourceFormat.IO
                     var translationDict = new Dictionary<string, Dictionary<float, Vector3>>();
                     var lastTranslationDict = new Dictionary<string, Vector3>();
                     var translationOmittedSet = new HashSet<string>();
+                    var scaleDict = new Dictionary<string, Dictionary<float, Vector3>>();
+                    var lastScaleDict = new Dictionary<string, Vector3>();
+                    var scaleOmittedSet = new HashSet<string>();
 
                     for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
                     {
@@ -307,6 +310,7 @@ namespace ValveResourceFormat.IO
                             {
                                 rotationDict[bone] = new Dictionary<float, Quaternion>();
                                 translationDict[bone] = new Dictionary<float, Vector3>();
+                                scaleDict[bone] = new Dictionary<float, Vector3>();
                             }
 
                             if (!lastRotationDict.TryGetValue(bone, out var lastRotation) || lastRotation != boneFrame.Value.Angle)
@@ -340,6 +344,23 @@ namespace ValveResourceFormat.IO
                             {
                                 translationOmittedSet.Add(bone);
                             }
+
+                            var scaleVec = new Vector3(boneFrame.Value.Scale, boneFrame.Value.Scale, boneFrame.Value.Scale);
+                            if (!lastScaleDict.TryGetValue(bone, out var lastScale) || lastScale != scaleVec)
+                            {
+                                if (scaleOmittedSet.Remove(bone))
+                                {
+                                    // Restore keyframe before current frame, as otherwise interpolation will
+                                    // begin from the first instance of identical frame, and not from previous frame
+                                    scaleDict[bone].Add(prevFrameTime, lastScale);
+                                }
+                                scaleDict[bone].Add(time, scaleVec);
+                                lastScaleDict[bone] = scaleVec;
+                            }
+                            else
+                            {
+                                scaleOmittedSet.Add(bone);
+                            }
                         }
                     }
 
@@ -350,6 +371,7 @@ namespace ValveResourceFormat.IO
                         {
                             exportedAnimation.CreateRotationChannel(jointNode, rotationDict[bone], true);
                             exportedAnimation.CreateTranslationChannel(jointNode, translationDict[bone], true);
+                            exportedAnimation.CreateScaleChannel(jointNode, scaleDict[bone], true);
                         }
                     }
                 }
