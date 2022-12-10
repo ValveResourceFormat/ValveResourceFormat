@@ -713,7 +713,8 @@ namespace ValveResourceFormat.IO
         private IEnumerable<(Node Node, List<int> Indices)> CreateBonesRecursive(Bone bone, Node parent)
         {
             var node = parent.CreateNode(bone.Name)
-                .WithLocalTransform(bone.BindPose);
+                .WithLocalTranslation(bone.Position)
+                .WithLocalRotation(bone.Angle);
 
             // Recurse into children
             return bone.Children
