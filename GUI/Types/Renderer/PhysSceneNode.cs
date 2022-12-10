@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Linq;
 using ValveResourceFormat.Serialization.NTRO;
 using System.Globalization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
@@ -90,14 +91,31 @@ namespace GUI.Types.Renderer
                 foreach (var h in hulls)
                 {
                     var hull = h.GetSubCollection("m_Hull");
+
+                    // NTRO and some older KV3 versions had arrays, new KV3 has binary blobs
+                    var isOldNonBinaryBlobs = hull is NTROStruct || ((KVObject)hull).Properties["m_Edges"].Type == KVType.ARRAY;
+
                     //m_vCentroid
                     //m_flMaxAngularRadius
                     //m_Vertices
-                    var vertices = hull.GetArray("m_Vertices");
+                    IEnumerable<Vector3> vertices = null;
+                    if (isOldNonBinaryBlobs)
+                    {
+                        var verticesArr = hull.GetArray("m_Vertices");
+                        vertices = verticesArr.Select(v => v.ToVector3());
+                    }
+                    else
+                    {
+                        var verticesBlob = hull.GetArray<byte>("m_Vertices");
+                        vertices = Enumerable.Range(0, verticesBlob.Length / 12)
+                            .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
+                                BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
+                                BitConverter.ToSingle(verticesBlob, (i * 12) + 8)));
+                    }
                     var vertOffset = verts.Count / 7;
                     foreach (var v in vertices)
                     {
-                        var vec = v.ToVector3();
+                        var vec = v;
                         if (bindPose.Any())
                         {
                             vec = Vector3.Transform(vec, bindPose[p]);
@@ -113,12 +131,30 @@ namespace GUI.Types.Renderer
                         verts.Add(1);
                     }
                     //m_Planes
-                    var edges = hull.GetArray("m_Edges");
+                    (int origin, int next)[] edges = null;
+                    if (isOldNonBinaryBlobs)
+                    {
+                        var edgesArr = hull.GetArray("m_Edges");
+                        edges = edgesArr
+                            .Select(e => (e.GetInt32Property("m_nOrigin"), e.GetInt32Property("m_nNext")))
+                            .ToArray();
+                    }
+                    else
+                    {
+                        var kv = (KVObject)hull;
+
+                        //KV3 has edges as blob
+                        // 0 - m_nNext, 1 - m_nTwin, 2 - m_nOrigin, 3 - m_nFace
+                        var edgesBlob = hull.GetArray<byte>("m_Edges");
+                        edges = Enumerable.Range(0, edgesBlob.Length / 4)
+                            .Select(i => ((int)edgesBlob[i * 4 + 2], (int)edgesBlob[i * 4 + 1]))
+                            .ToArray();
+                    }
                     foreach (var e in edges)
                     {
-                        inds.Add((int)(vertOffset + e.GetIntegerProperty("m_nOrigin")));
-                        var next = edges[e.GetIntegerProperty("m_nNext")];
-                        inds.Add((int)(vertOffset + next.GetIntegerProperty("m_nOrigin")));
+                        inds.Add(vertOffset + e.origin);
+                        var next = edges[e.next];
+                        inds.Add(vertOffset + next.origin);
                     }
                     //m_Faces
                     var bounds = hull.GetSubCollection("m_Bounds");
