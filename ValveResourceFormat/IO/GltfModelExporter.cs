@@ -383,36 +383,28 @@ namespace ValveResourceFormat.IO
         /// <returns>A tuple of meshes and their names.</returns>
         private (VMesh Mesh, string Name)[] LoadModelMeshes(VModel model)
         {
-            var refMeshes = model.GetRefMeshes().ToArray();
-            var meshes = new (VMesh, string)[refMeshes.Length];
+            var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
+                .Where(m => (m.LoDMask & 1) != 0)
+                .Select((m, i) => (m.Mesh, $"Embedded.{i}"));
 
-            var embeddedMeshIndex = 0;
-            var embeddedMeshes = model.GetEmbeddedMeshes().ToArray();
-
-            for (var i = 0; i < meshes.Length; i++)
-            {
-                var meshReference = refMeshes[i];
-                if (string.IsNullOrEmpty(meshReference))
-                {
-                    // If refmesh is null, take an embedded mesh
-                    meshes[i] = (embeddedMeshes[embeddedMeshIndex++], $"Embedded.{embeddedMeshIndex}");
-                }
-                else
+            var refMeshes = model.GetReferenceMeshNamesAndLoD()
+                .Where(m => (m.LoDMask & 1) != 0)
+                .Select(m =>
                 {
                     // Load mesh from file
-                    var meshResource = FileLoader.LoadFile(meshReference + "_c");
+                    var meshResource = FileLoader.LoadFile(m.MeshName + "_c");
+                    var nodeName = Path.GetFileNameWithoutExtension(m.MeshName);
                     if (meshResource == null)
                     {
-                        continue;
+                        return (null, nodeName);
                     }
 
-                    var nodeName = Path.GetFileNameWithoutExtension(meshReference);
                     var mesh = new VMesh(meshResource);
-                    meshes[i] = (mesh, nodeName);
-                }
-            }
+                    return (mesh, nodeName);
+                })
+                .Where(m => m.mesh != null);
 
-            return meshes;
+            return embeddedMeshes.Concat(refMeshes).ToArray();
         }
 
         /// <summary>
