@@ -141,9 +141,6 @@ namespace GUI.Types.Renderer
                     }
                     else
                     {
-                        var kv = (KVObject)hull;
-
-                        //KV3 has edges as blob
                         // 0 - m_nNext, 1 - m_nTwin, 2 - m_nOrigin, 3 - m_nFace
                         var edgesBlob = hull.GetArray<byte>("m_Edges");
                         edges = Enumerable.Range(0, edgesBlob.Length / 4)
