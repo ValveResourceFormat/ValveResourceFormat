@@ -46,6 +46,8 @@ namespace GUI.Types.Renderer
         private ICollection<string> activeMeshGroups = new HashSet<string>();
         private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
 
+        private AnimationFrameCache animationFrameCache = new AnimationFrameCache();
+
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool loadAnimations = true)
             : base(scene)
         {
@@ -92,7 +94,7 @@ namespace GUI.Types.Renderer
                     animationMatrices[(j * 16) + 15] = 1.0f;
                 }
 
-                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(AnimationController.Time, skeleton);
+                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(animationFrameCache, AnimationController.Time, skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -258,6 +260,7 @@ namespace GUI.Types.Renderer
         public void SetAnimation(string animationName)
         {
             activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+            animationFrameCache.Clear();
             AnimationController.SetAnimation(activeAnimation);
 
             if (activeAnimation != default)

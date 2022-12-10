@@ -32,17 +32,14 @@ namespace Tests
             Assert.That(animations[0].Name, Is.EqualTo("ref_pose"));
             Assert.That(animations[0].Fps, Is.EqualTo(30));
             Assert.That(animations[0].FrameCount, Is.EqualTo(1));
-            Assert.That(animations[0].Frames.Count, Is.EqualTo(animations[0].FrameCount));
 
             Assert.That(animations[1].Name, Is.EqualTo("box_creature_leggy_idle"));
             Assert.That(animations[1].Fps, Is.EqualTo(30));
             Assert.That(animations[1].FrameCount, Is.EqualTo(49));
-            Assert.That(animations[1].Frames.Count, Is.EqualTo(animations[1].FrameCount));
 
             Assert.That(animations[2].Name, Is.EqualTo("box_creature_leggy_walk"));
             Assert.That(animations[2].Fps, Is.EqualTo(30));
             Assert.That(animations[2].FrameCount, Is.EqualTo(25));
-            Assert.That(animations[2].Frames.Count, Is.EqualTo(animations[2].FrameCount));
         }
     }
 }
