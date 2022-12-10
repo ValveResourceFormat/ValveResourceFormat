@@ -193,7 +193,7 @@ namespace ValveResourceFormat.Compression
             return data;
         }
 
-        public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, byte[] vertexBuffer)
+        public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, Span<byte> buffer)
         {
             if (vertexSize <= 0 || vertexSize > 256)
             {
@@ -205,22 +205,20 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Vertex size is expected to be a multiple of 4.");
             }
 
-            if (vertexBuffer.Length < 1 + vertexSize)
+            if (buffer.Length < 1 + vertexSize)
             {
                 throw new ArgumentException("Vertex buffer is too short.");
             }
 
-            var vertexSpan = new Span<byte>(vertexBuffer);
-
-            var header = vertexSpan[0];
-            vertexSpan = vertexSpan[1..];
+            var header = buffer[0];
+            buffer = buffer[1..];
             if (header != VertexHeader)
             {
                 throw new ArgumentException($"Invalid vertex buffer header, expected {VertexHeader} but got {header}.");
             }
 
             var lastVertex = new byte[vertexSize];
-            vertexSpan.Slice(vertexBuffer.Length - 1 - vertexSize, vertexSize).CopyTo(lastVertex);
+            buffer.Slice(buffer.Length - 1 - vertexSize, vertexSize).CopyTo(lastVertex);
 
             var vertexBlockSize = GetVertexBlockSize(vertexSize);
 
@@ -234,7 +232,7 @@ namespace ValveResourceFormat.Compression
                     ? vertexBlockSize
                     : vertexCount - vertexOffset;
 
-                vertexSpan = DecodeVertexBlock(vertexSpan, result[(vertexOffset * vertexSize)..], blockSize, vertexSize, lastVertex);
+                buffer = DecodeVertexBlock(buffer, result[(vertexOffset * vertexSize)..], blockSize, vertexSize, lastVertex);
 
                 vertexOffset += blockSize;
             }
