@@ -41,6 +41,7 @@ namespace ValveResourceFormat.IO
         public IProgress<string> ProgressReporter { get; set; }
         public IFileLoader FileLoader { get; set; }
         public bool ExportMaterials { get; set; } = true;
+        public bool AdaptTextures { get; set; } = true;
 
         private string DstDir;
         private readonly IDictionary<string, Node> LoadedUnskinnedMeshDictionary = new Dictionary<string, Node>();
@@ -874,6 +875,18 @@ namespace ValveResourceFormat.IO
                 // Try to find a glTF entry that best matches this texture
                 foreach (var (gltfTexture, gltfInputs) in MaterialExtract.GltfTextureMappings)
                 {
+                    if (!AdaptTextures)
+                    {
+                        // If we're not adapting textures, blindly match the first input by name.
+                        if (blendNameComparer.Equals(renderTextureInputs[0].Item2, gltfInputs[0].Item2))
+                        {
+                            WriteTexture(TextureExtract.ToPngImage(bitmap), gltfTexture, 0, 1);
+                            break;
+                        }
+
+                        continue;
+                    }
+
                     // Render texture matches the glTF spec.
                     if (Enumerable.SequenceEqual(renderTextureInputs, gltfInputs, blendInputComparer))
                     {
@@ -905,9 +918,9 @@ namespace ValveResourceFormat.IO
                 }
 
                 // Collect any leftover channel/maps to new images
-                foreach (var (channel, textureType) in renderTextureInputs)
+                if (AdaptTextures && gltfBestMatch != "MetallicRoughness")
                 {
-                    if (gltfBestMatch != "MetallicRoughness")
+                    foreach (var (channel, textureType) in renderTextureInputs)
                     {
                         if (blendNameComparer.Equals(textureType, "TextureRoughness"))
                         {
