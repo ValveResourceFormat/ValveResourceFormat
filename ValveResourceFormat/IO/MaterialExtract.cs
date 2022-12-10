@@ -87,6 +87,13 @@ public sealed class MaterialExtract
             ["g_tRoughness"] = new[] { (Channel.R, "TextureRoughness"), },
         },
 
+        ["vr_standard"] = new()
+        {
+            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
+            ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor") },
+            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
+        },
+
         ["vr_complex"] = new()
         {
             ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, string.Empty) }, // Alpha can be metal or translucency
