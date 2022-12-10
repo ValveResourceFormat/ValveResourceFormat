@@ -44,7 +44,7 @@ namespace ValveResourceFormat.IO
         public bool AdaptTextures { get; set; } = true;
 
         private string DstDir;
-        private readonly IDictionary<string, Node> LoadedUnskinnedMeshDictionary = new Dictionary<string, Node>();
+        private readonly IDictionary<string, Mesh> LoadedMeshDictionary = new Dictionary<string, Mesh>();
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
@@ -73,7 +73,7 @@ namespace ValveResourceFormat.IO
             }
             finally
             {
-                LoadedUnskinnedMeshDictionary.Clear();
+                LoadedMeshDictionary.Clear();
             }
         }
 
@@ -472,28 +472,27 @@ namespace ValveResourceFormat.IO
             }
 
             var newNode = scene.CreateNode(name);
-            if (LoadedUnskinnedMeshDictionary.TryGetValue(name, out var existingNode))
+            if (LoadedMeshDictionary.TryGetValue(name, out var existingMesh))
             {
                 // Make a new node that uses the existing mesh
-                newNode.Mesh = existingNode.Mesh;
+                newNode.Mesh = existingMesh;
                 return newNode;
             }
 
             var hasJoints = skeleton != null && skeleton.AnimationTextureSize > 0;
             var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath);
+            LoadedMeshDictionary.Add(name, exportedMesh);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-            if (hasJoints && hasVertexJoints && skeleton != null)
+            if (!hasJoints || !hasVertexJoints || skeleton == null)
             {
-                var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
-
-                newNode.WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
-
-                return null;
+                return newNode.WithMesh(exportedMesh);
             }
-            var node = newNode.WithMesh(exportedMesh);
-            LoadedUnskinnedMeshDictionary.Add(name, node);
-            return node;
+
+            var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
+            newNode.WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+            // WorldMatrix is set only once on skeletonNode
+            return null;
         }
 
         private static ModelRoot CreateModelRoot(string resourceName, out Scene scene)
