@@ -13,6 +13,7 @@ namespace GUI.Utils
             BorderStyle = BorderStyle.None;
             ReadOnly = true;
             Multiline = true;
+            WordWrap = false;
         }
     }
 }
