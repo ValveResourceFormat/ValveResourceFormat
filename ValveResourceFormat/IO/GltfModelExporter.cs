@@ -51,22 +51,29 @@ namespace ValveResourceFormat.IO
 
         public void Export(Resource resource, string targetPath)
         {
-            switch (resource.ResourceType)
+            try
             {
-                case ResourceType.Mesh:
-                    ExportToFile(resource.FileName, targetPath, new VMesh(resource));
-                    break;
-                case ResourceType.Model:
-                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
-                    break;
-                case ResourceType.WorldNode:
-                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
-                    break;
-                case ResourceType.World:
-                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
-                    break;
-                default:
-                    throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
+                switch (resource.ResourceType)
+                {
+                    case ResourceType.Mesh:
+                        ExportToFile(resource.FileName, targetPath, new VMesh(resource));
+                        break;
+                    case ResourceType.Model:
+                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
+                        break;
+                    case ResourceType.WorldNode:
+                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
+                        break;
+                    case ResourceType.World:
+                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
+                        break;
+                    default:
+                        throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
+                }
+            }
+            finally
+            {
+                LoadedUnskinnedMeshDictionary.Clear();
             }
         }
 
