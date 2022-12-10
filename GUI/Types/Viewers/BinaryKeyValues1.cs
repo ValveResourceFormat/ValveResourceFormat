@@ -46,13 +46,10 @@ namespace GUI.Types.Viewers
 
             var text = reader.ReadToEnd();
 
-            var control = new TextBox();
-            control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-            control.Text = Utils.Utils.NormalizeLineEndings(text);
-            control.Dock = DockStyle.Fill;
-            control.Multiline = true;
-            control.ReadOnly = true;
-            control.ScrollBars = ScrollBars.Both;
+            var control = new MonospaceTextBox
+            {
+                Text = Utils.Utils.NormalizeLineEndings(text),
+            };
 
             var tab = new TabPage();
             tab.Controls.Add(control);

@@ -102,12 +102,8 @@ namespace GUI.Types.Viewers
                     }
                     catch (Exception e)
                     {
-                        var control = new TextBox
+                        var control = new MonospaceTextBox
                         {
-                            Dock = DockStyle.Fill,
-                            Font = new Font(FontFamily.GenericMonospace, 8),
-                            Multiline = true,
-                            ReadOnly = true,
                             Text = e.ToString(),
                         };
 
@@ -336,16 +332,14 @@ namespace GUI.Types.Viewers
                 var tab2 = new TabPage(block.Type.ToString());
                 try
                 {
-                    var control = new TextBox();
-                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
+                    var control = new MonospaceTextBox();
 
                     if (block.Type == BlockType.DATA)
                     {
                         if (block is BinaryKV3 blockKeyvalues)
                         {
                             // Wrap it around a KV3File object to get the header.
-                            control.Text =
-                                Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
+                            control.Text = Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
                         }
                         else
                         {
@@ -364,10 +358,6 @@ namespace GUI.Types.Viewers
                         control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
                     }
 
-                    control.Dock = DockStyle.Fill;
-                    control.Multiline = true;
-                    control.ReadOnly = true;
-                    control.ScrollBars = ScrollBars.Both;
                     tab2.Controls.Add(control);
                 }
                 catch (Exception e)
@@ -391,13 +381,11 @@ namespace GUI.Types.Viewers
 
                 static void AddContentTab(TabControl resTabs, string name, string text)
                 {
-                    var control = new TextBox();
-                    control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-                    control.Text = Utils.Utils.NormalizeLineEndings(text);
-                    control.Dock = DockStyle.Fill;
-                    control.Multiline = true;
-                    control.ReadOnly = true;
-                    control.ScrollBars = ScrollBars.Both;
+                    var control = new MonospaceTextBox
+                    {
+                        Text = Utils.Utils.NormalizeLineEndings(text),
+                    };
+
                     var tab = new TabPage(name);
                     tab.Controls.Add(control);
                     resTabs.TabPages.Add(tab);

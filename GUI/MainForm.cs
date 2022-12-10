@@ -392,12 +392,8 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        var control = new TextBox
+                        var control = new MonospaceTextBox
                         {
-                            Dock = DockStyle.Fill,
-                            Font = new Font(FontFamily.GenericMonospace, 8),
-                            Multiline = true,
-                            ReadOnly = true,
                             Text = ex.ToString(),
                         };
 

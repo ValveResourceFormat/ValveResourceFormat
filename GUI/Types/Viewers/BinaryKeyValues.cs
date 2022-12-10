@@ -36,13 +36,10 @@ namespace GUI.Types.Viewers
 
             kv3stream.Close();
 
-            var control = new TextBox();
-            control.Font = new Font(FontFamily.GenericMonospace, control.Font.Size);
-            control.Text = Utils.Utils.NormalizeLineEndings(kv3.ToString());
-            control.Dock = DockStyle.Fill;
-            control.Multiline = true;
-            control.ReadOnly = true;
-            control.ScrollBars = ScrollBars.Both;
+            var control = new MonospaceTextBox
+            {
+                Text = Utils.Utils.NormalizeLineEndings(kv3.ToString()),
+            };
             tab.Controls.Add(control);
 
             return tab;

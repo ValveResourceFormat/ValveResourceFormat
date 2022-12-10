@@ -31,12 +31,8 @@ namespace GUI.Types.Viewers
             if (!input.Contains<byte>(0x00))
             {
                 var textTab = new TabPage("Text");
-                var text = new TextBox
+                var text = new MonospaceTextBox
                 {
-                    Dock = DockStyle.Fill,
-                    ScrollBars = ScrollBars.Vertical,
-                    Multiline = true,
-                    ReadOnly = true,
                     Text = Utils.Utils.NormalizeLineEndings(System.Text.Encoding.UTF8.GetString(input)),
                 };
                 textTab.Controls.Add(text);

@@ -26,12 +26,8 @@ namespace GUI.Types.Viewers
                 toolsAssetInfo.Read(vrfGuiContext.FileName);
             }
 
-            var text = new TextBox
+            var text = new MonospaceTextBox
             {
-                Dock = DockStyle.Fill,
-                ScrollBars = ScrollBars.Vertical,
-                Multiline = true,
-                ReadOnly = true,
                 Text = Utils.Utils.NormalizeLineEndings(toolsAssetInfo.ToString()),
             };
             tab.Controls.Add(text);

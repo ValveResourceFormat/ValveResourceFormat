@@ -73,14 +73,8 @@ namespace GUI.Utils
         public TabPage CreateTab()
         {
             var bgColor = Color.FromArgb(37, 37, 37);
-            var control = new TextBox
+            var control = new MonospaceTextBox
             {
-                Dock = DockStyle.Fill,
-                Multiline = true,
-                ReadOnly = true,
-                WordWrap = true,
-                ScrollBars = ScrollBars.Vertical,
-                BorderStyle = BorderStyle.None,
                 BackColor = bgColor,
                 ForeColor = Color.FromArgb(240, 240, 240),
             };
@@ -88,7 +82,6 @@ namespace GUI.Utils
             var tab = new TabPage("Console")
             {
                 BackColor = bgColor,
-                Padding = new Padding(10, 10, 0, 10),
             };
             tab.Controls.Add(control);
 
