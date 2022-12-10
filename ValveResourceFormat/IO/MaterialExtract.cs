@@ -26,9 +26,9 @@ public sealed class MaterialExtract
         G,
         B,
         A,
-        _OneChannel,
+        _Single,
         GA,
-        _TwoChannels,
+        _Double,
         RGB,
         RGBA
     }
@@ -83,6 +83,13 @@ public sealed class MaterialExtract
             ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
             ["g_tMetalnessReflectanceFresnel"] = new[] { (Channel.R, "TextureMetalness"), (Channel.G, "TextureReflectance"), (Channel.B, "TextureFresnel") },
             ["g_tRoughness"] = new[] { (Channel.R, "TextureRoughness"), },
+        },
+
+        ["vr_standard"] = new()
+        {
+            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
+            ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor") },
+            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
         },
 
         ["vr_complex"] = new()
@@ -147,6 +154,15 @@ public sealed class MaterialExtract
         }
     };
 
+    public static readonly Dictionary<string, ChannelMapping[]> GltfTextureMappings = new()
+    {
+        ["BaseColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
+        ["Normal"] = new[] { (Channel.RGB, "TextureNormal") },
+        ["MetallicRoughness"] = new[] { (Channel.R, string.Empty), (Channel.G, "TextureRoughness"), (Channel.B, "TextureMetalness") },
+        ["Occlusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
+        ["Emissive"] = new[] { (Channel.R, "TextureSelfIllumMask") },
+    };
+
     public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
     {
         { "TextureDetailMask", "_detailmask" },
@@ -207,7 +223,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            var images = GetInputImagesForTexture(type, filePath, true, material.IntParams, material.VectorParams);
+            var images = GetTextureUnpackInfos(type, filePath, material, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
             vmat.ExternalRefsHandled.Add(filePath + "_c", vtex);
@@ -265,80 +281,73 @@ public sealed class MaterialExtract
         return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : "png");
     }
 
-    public IEnumerable<UnpackInfo> GetInputImagesForTexture(string textureType, string texturePath, bool omitDefault,
-            Dictionary<string, long> intParams, Dictionary<string, Vector4> vectorParams)
+    public static IEnumerable<ChannelMapping> GetTextureInputs(string shaderName, string textureType, Dictionary<string, long> featureState)
     {
-        var shader = material.ShaderName[..^4]; // strip '.vfx'
+        shaderName = shaderName[..^4]; // strip '.vfx'
 
-        if (TextureMappings.TryGetValue(shader, out var mappings) && mappings.TryGetValue(textureType, out var channelMappings))
+        if (!(TextureMappings.TryGetValue(shaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings)))
         {
-            var isInput0 = true;
-            foreach (var mapping in channelMappings)
-            {
-                var (channel, newTextureType) = mapping;
-                if (newTextureType.Length == 0 && !TryFigureOutNonStaticMap(shader, textureType, intParams, out newTextureType))
-                {
-                    continue;
-                }
-
-                if (vectorParams.ContainsKey(newTextureType))
-                {
-                    continue;
-                }
-
-                string desiredSuffix = null;
-                if (!isInput0)
-                {
-                    desiredSuffix = "-" + channel;
-                    foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
-                    {
-                        // Allow matching TextureColorB with TextureColor
-                        if (newTextureType.StartsWith(commonType, StringComparison.OrdinalIgnoreCase))
-                        {
-                            desiredSuffix = commonSuffix;
-                            break;
-                        }
-                    }
-                }
-
-                var keepOriginalExtension = false;
-                if (isInput0 && IsDefaultTexture(texturePath))
-                {
-                    if (omitDefault)
-                    {
-                        isInput0 = false;
-                        continue;
-                    }
-
-                    keepOriginalExtension = true;
-                }
-
-                var fileName = OutTextureName(texturePath, keepOriginalExtension, desiredSuffix);
-
-                yield return new UnpackInfo
-                {
-                    TextureType = newTextureType,
-                    FileName = fileName,
-                    Channel = channel
-                };
-
-                isInput0 = false;
-            }
-
+            yield return (Channel.RGBA, textureType.Replace("g_t", "Texture", StringComparison.Ordinal));
             yield break;
         }
 
-        // No pack info for this texture, so just clean up filename and try to guess its type.
-        var guessedTextureType = textureType.Replace("g_t", "Texture", StringComparison.Ordinal);
-        if (!vectorParams.ContainsKey(guessedTextureType))
+        foreach (var mapping in channelMappings)
         {
-            Console.WriteLine($"Missing pack info for {textureType} in {shader}");
+            var (channel, newTextureType) = mapping;
+            if (newTextureType.Length == 0 && !TryFigureOutNonStaticMap(shaderName, textureType, featureState, out newTextureType))
+            {
+                continue;
+            }
+
+            yield return (channel, newTextureType);
+        }
+    }
+
+    public static IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Material material, bool omitDefaults, bool omitUniforms)
+    {
+        var isInput0 = true;
+        foreach (var (channel, newTextureType) in GetTextureInputs(material.ShaderName, textureType, material.IntParams))
+        {
+            if (omitUniforms && material.VectorParams.ContainsKey(newTextureType))
+            {
+                continue;
+            }
+
+            string desiredSuffix = null;
+            if (!isInput0)
+            {
+                desiredSuffix = "-" + channel;
+                foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
+                {
+                    // Allow matching TextureColorB with TextureColor
+                    if (newTextureType.StartsWith(commonType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        desiredSuffix = commonSuffix;
+                        break;
+                    }
+                }
+            }
+
+            var keepOriginalExtension = false;
+            if (isInput0 && IsDefaultTexture(texturePath))
+            {
+                if (omitDefaults)
+                {
+                    isInput0 = false;
+                    continue;
+                }
+
+                keepOriginalExtension = true;
+            }
+
             yield return new UnpackInfo
             {
-                TextureType = guessedTextureType,
-                FileName = OutTextureName(texturePath, false),
-                Channel = Channel.RGBA
+                TextureType = newTextureType,
+                FileName = OutTextureName(texturePath, keepOriginalExtension, desiredSuffix),
+                Channel = channel
             };
+
+            isInput0 = false;
         }
     }
 
@@ -401,7 +410,7 @@ public sealed class MaterialExtract
         var originalTextures = new KVObject("VRF Original Textures", new List<KVObject>());
         foreach (var (key, value) in material.TextureParams)
         {
-            foreach (var unpackInfo in GetInputImagesForTexture(key, value, false, material.IntParams, material.VectorParams))
+            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, material, false, true))
             {
                 root.Add(new KVObject(unpackInfo.TextureType, unpackInfo.FileName));
             }
@@ -500,5 +509,64 @@ public sealed class MaterialExtract
         using var ms = new MemoryStream();
         KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
         return Encoding.UTF8.GetString(ms.ToArray());
+    }
+
+    /// <summary>
+    /// TextureColorA will be equal to TextureColor, as they are both the first layer
+    /// </summary>
+    internal sealed class LayeredTextureNameComparer : IEqualityComparer<string>
+    {
+        public readonly HashSet<string> _unlayeredTextures;
+
+        public LayeredTextureNameComparer(HashSet<string> unlayeredTextures)
+        {
+            _unlayeredTextures = unlayeredTextures;
+        }
+
+        public bool Equals(string layered, string unlayered)
+        {
+            if (layered.Equals(unlayered, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            var valid = _unlayeredTextures.Contains(unlayered);
+            if (!valid && !_unlayeredTextures.Contains(layered))
+            {
+                return false;
+            }
+
+            if (!valid)
+            {
+                (layered, unlayered) = (unlayered, layered);
+            }
+
+            if (unlayered.StartsWith("Texture", StringComparison.Ordinal))
+            {
+                unlayered = unlayered[7..];
+            }
+
+            var layerNameConventions = new[] { $"Texture{unlayered}A", $"Texture{unlayered}0", $"TextureLayer1{unlayered}" };
+            return layerNameConventions.Contains(layered, StringComparer.Ordinal);
+        }
+
+        public int GetHashCode(string str) => str.GetHashCode(StringComparison.Ordinal);
+    }
+
+    internal sealed class ChannelMappingComparer : IEqualityComparer<ChannelMapping>
+    {
+        private readonly LayeredTextureNameComparer _layeredTextureNameComparer;
+
+        public ChannelMappingComparer(LayeredTextureNameComparer layeredTextureNameComparer)
+        {
+            _layeredTextureNameComparer = layeredTextureNameComparer;
+        }
+
+        public bool Equals(ChannelMapping x, ChannelMapping y)
+        {
+            return x.Item1 == y.Item1 && _layeredTextureNameComparer.Equals(x.Item2, y.Item2);
+        }
+
+        public int GetHashCode(ChannelMapping obj) => obj.GetHashCode();
     }
 }

@@ -96,6 +96,7 @@ public sealed class TextureExtract
     public TextureContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
         var bitmap = texture.GenerateBitmap();
+        bitmap.SetImmutable();
 
         var vtex = new TextureContentFile()
         {
@@ -131,7 +132,7 @@ public sealed class TextureExtract
 
     public static byte[] ToPngImageChannels(SKBitmap bitmap, Channel channel)
     {
-        if (channel < Channel._OneChannel)
+        if (channel < Channel._Single)
         {
             using var newBitmap = new SKBitmap(bitmap.Width, bitmap.Height, SKColorType.Gray8, SKAlphaType.Opaque);
             using var newPixelmap = newBitmap.PeekPixels();
@@ -156,7 +157,7 @@ public sealed class TextureExtract
         }
 
         // Shift a combination of two channels to RG
-        if (channel < Channel._TwoChannels && channel == Channel.GA)
+        if (channel < Channel._Double && channel == Channel.GA)
         {
             using var newBitmap = new SKBitmap(bitmap.Info);
             using var newPixelmap = newBitmap.PeekPixels();
@@ -173,13 +174,15 @@ public sealed class TextureExtract
             return EncodePng(newPixelmap);
         }
 
+        // Wipes out the alpha channel
         if (channel == Channel.RGB)
         {
-            using var _bitmap = bitmap.Copy();
-            using var _pixelmap = _bitmap.PeekPixels();
-            using var newPixelmap = _pixelmap.WithAlphaType(SKAlphaType.Opaque);
+            using var newBitmap = new SKBitmap(bitmap.Info);
+            using var newPixelmap = newBitmap.PeekPixels();
+            using var pixelmap = bitmap.PeekPixels();
+            pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
 
-            return EncodePng(newPixelmap);
+            return EncodePng(newPixelmap.WithAlphaType(SKAlphaType.Opaque));
         }
 
         if (channel == Channel.RGBA)
@@ -188,6 +191,133 @@ public sealed class TextureExtract
         }
 
         throw new InvalidOperationException($"{channel} is not a valid channel to extract.");
+    }
+
+    public static void CopyChannel(SKPixmap srcPixels, Channel srcChannel, SKPixmap dstPixels, Channel dstChannel, bool invert)
+    {
+        if (srcChannel >= Channel._Single)
+        {
+            throw new ArgumentOutOfRangeException(nameof(srcChannel), "Can only copy individual channels.");
+        }
+
+        if (dstChannel >= Channel._Single)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dstChannel), "Can only copy individual channels.");
+        }
+
+        var srcPixelSpan = srcPixels.GetPixelSpan<SKColor>();
+        var pixelSpan = dstPixels.GetPixelSpan<SKColor>();
+
+        var inv = (byte)(invert ? 0xFF : 0x00);
+
+#pragma warning disable CS8509 // non exhaustive switch
+        for (var i = 0; i < srcPixelSpan.Length; i++)
+        {
+            pixelSpan[i] = dstChannel switch
+            {
+                Channel.R => srcChannel switch
+                {
+                    Channel.R => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Red ^ inv)),
+                    Channel.G => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Green ^ inv)),
+                    Channel.B => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    Channel.A => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                },
+                Channel.G => srcChannel switch
+                {
+                    Channel.R => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Red ^ inv)),
+                    Channel.G => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Green ^ inv)),
+                    Channel.B => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    Channel.A => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                },
+                Channel.B => srcChannel switch
+                {
+                    Channel.R => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Red ^ inv)),
+                    Channel.G => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Green ^ inv)),
+                    Channel.B => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    Channel.A => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                },
+                Channel.A => srcChannel switch
+                {
+                    Channel.R => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Red ^ inv)),
+                    Channel.G => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Green ^ inv)),
+                    Channel.B => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    Channel.A => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                },
+            };
+        }
+#pragma warning restore CS8509 // non exhaustive switch
+    }
+
+    /// <summary>
+    /// Packs masks to a new texture.
+    /// </summary>
+    public class TexturePacker : IDisposable
+    {
+        public SKColor DefaultColor { get; init; } = SKColors.Black;
+        public SKBitmap Bitmap { get; private set; }
+        public string FileName { get; private set; }
+
+        public void Collect(SKPixmap srcPixels, string fileName, Channel srcChannel, Channel dstChannel, bool invert = false)
+        {
+            FileName ??= fileName;
+            if (Bitmap is null)
+            {
+                Bitmap = new SKBitmap(srcPixels.Width, srcPixels.Height, true);
+                if (DefaultColor != SKColors.Black)
+                {
+                    using var pixels = Bitmap.PeekPixels();
+                    pixels.GetPixelSpan<SKColor>().Fill(DefaultColor);
+                }
+            }
+
+
+            if (Bitmap.Width < srcPixels.Width || Bitmap.Height < srcPixels.Height)
+            {
+                var newBitmap = new SKBitmap(srcPixels.Width, srcPixels.Height, true);
+                using (Bitmap)
+                {
+                    // Scale Bitmap up to srcPixels size
+                    using var oldPixels = Bitmap.PeekPixels();
+                    using var newPixels = newBitmap.PeekPixels();
+                    if (!oldPixels.ScalePixels(newPixels, SKFilterQuality.Low))
+                    {
+                        throw new InvalidOperationException($"Failed to scale up pixels of {FileName}");
+                    }
+                }
+                Bitmap = newBitmap;
+            }
+            else if (Bitmap.Width > srcPixels.Width || Bitmap.Height > srcPixels.Height)
+            {
+                // Scale srcPixels up to Bitmap size
+                using var newSrcBitmap = new SKBitmap(Bitmap.Width, Bitmap.Height, true);
+                using var newSrcPixels = newSrcBitmap.PeekPixels();
+                if (!srcPixels.ScalePixels(newSrcPixels, SKFilterQuality.Low))
+                {
+                    throw new InvalidOperationException($"Failed to scale up incoming pixels for {FileName}");
+                }
+                using var dstPixels2 = Bitmap.PeekPixels();
+                CopyChannel(newSrcPixels, srcChannel, dstPixels2, dstChannel, invert);
+                return;
+            }
+
+            using var dstPixels = Bitmap.PeekPixels();
+            CopyChannel(srcPixels, srcChannel, dstPixels, dstChannel, invert);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (Bitmap != null && disposing)
+            {
+                Bitmap.Dispose();
+                Bitmap = null;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
     }
 
     private static byte[] EncodePng(SKBitmap bitmap)

@@ -85,6 +85,9 @@ namespace Decompiler
         [Option("--gltf_export_materials", "Whether to export materials during glTF exports.", CommandOptionType.NoValue)]
         public bool GltfExportMaterials { get; }
 
+        [Option("--gltf_textures_adapt", "Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).", CommandOptionType.NoValue)]
+        public bool GltfExportAdaptTextures { get; }
+
         private string[] ExtFilterList;
         private bool IsInputFolder;
 
@@ -836,6 +839,7 @@ namespace Decompiler
                             var gltfModelExporter = new GltfModelExporter
                             {
                                 ExportMaterials = GltfExportMaterials,
+                                AdaptTextures = GltfExportAdaptTextures,
                                 ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
                                 FileLoader = fileLoader
                             };
