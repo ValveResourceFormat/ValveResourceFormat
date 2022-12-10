@@ -279,12 +279,6 @@ namespace ValveResourceFormat.IO
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name, Matrix4x4 transform, string skinName = null)
         {
-            var meshes = LoadModelMeshes(model);
-            if (meshes.Length == 0)
-            {
-                return;
-            }
-
             var modelNode = scene.CreateNode(name);
             var (boneNodes, skeletonNode) = CreateGltfSkeleton(modelNode, model);
 
@@ -384,17 +378,19 @@ namespace ValveResourceFormat.IO
             }
 
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
-            for (var i = 0; i < meshes.Length; i++)
+            var meshIndex = 0;
+            foreach (var m in LoadModelMeshes(model))
             {
-                var meshName = meshes[i].Name;
+                var meshName = m.Name;
                 if (skinName != null)
                 {
                     meshName += "." + skinName;
                 }
 
                 AddMeshNode(exportedModel, modelNode,
-                    meshName, meshes[i].Mesh, model.GetSkeleton(i),
+                    meshName, m.Mesh, model.GetSkeleton(meshIndex),
                     skinMaterialPath, boneNodes, skeletonNode);
+                meshIndex++;
             }
 
             // Even though that's not documented, order matters.
@@ -409,7 +405,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private (VMesh Mesh, string Name)[] LoadModelMeshes(VModel model)
+        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model)
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
@@ -432,7 +428,7 @@ namespace ValveResourceFormat.IO
                 })
                 .Where(m => m.mesh != null);
 
-            return embeddedMeshes.Concat(refMeshes).ToArray();
+            return embeddedMeshes.Concat(refMeshes);
         }
 
         /// <summary>
