@@ -979,8 +979,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                // TODO: get the signature directly instead of forming UnpackInfos
-                var inputImages = MaterialExtract.GetInputImagesForTexture(renderTexture.Key, texturePath, renderMaterial, false, false).Select(x => x.ToValueTuple()).ToList();
+                var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, renderTexture.Key, renderMaterial.IntParams).ToList();
 
                 // Preemptive check so as to not perform any unnecessary GenerateBitmap
                 if (inputImages.Count == 0 || !inputImages.Any(input => allGltfInputs.Any(gltfInput => blendNameComparer.Equals(input.Item2, gltfInput.Item2))))
