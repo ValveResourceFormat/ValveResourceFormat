@@ -242,13 +242,13 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16_FLOAT:
                     {
-                        var shorts = new ushort[2];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+                        var halfs = new Half[2];
+                        Buffer.BlockCopy(vertexBuffer.Data, offset, halfs, 0, 4);
 
                         result = new[]
                         {
-                            HalfTypeHelper.Convert(shorts[0]),
-                            HalfTypeHelper.Convert(shorts[1]),
+                            (float)halfs[0],
+                            (float)halfs[1],
                         };
                         break;
                     }
