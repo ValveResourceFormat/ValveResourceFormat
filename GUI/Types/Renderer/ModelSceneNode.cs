@@ -45,6 +45,8 @@ namespace GUI.Types.Renderer
         private ICollection<string> activeMeshGroups = new HashSet<string>();
         private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
 
+        private bool loadedAnimations;
+
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool loadAnimations = true)
             : base(scene)
         {

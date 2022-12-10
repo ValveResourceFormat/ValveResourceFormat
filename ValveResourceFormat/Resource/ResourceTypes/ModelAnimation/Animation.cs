@@ -11,16 +11,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Animation
     {
-        public string Name { get; private set; }
-        public float Fps { get; private set; }
-        public int FrameCount { get; private set; }
-        public IReadOnlyList<Frame> Frames { get; private set; }
+        public string Name { get; }
+        public float Fps { get; }
+        public int FrameCount { get; }
+        private AnimationFrameBlock[] FrameBlocks { get; }
+        private AnimationSegmentDecoder[] SegmentArray { get; }
 
         private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
         {
             // Get animation properties
             Name = animDesc.GetProperty<string>("m_name");
             Fps = animDesc.GetFloatProperty("fps");
+            SegmentArray = segmentArray;
 
             var pDataObject = animDesc.GetProperty<object>("m_pData");
             var pData = pDataObject is NTROValue[] ntroArray
@@ -29,36 +31,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");
-            var frameBlocks = new AnimationFrameBlock[frameBlockArray.Length];
+            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Length];
             for (var i = 0; i < frameBlockArray.Length; i++)
             {
-                frameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
+                FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
             }
-
-            var frameArray = new Frame[FrameCount];
-            for (var frameIndex = 0; frameIndex < FrameCount; frameIndex++)
-            {
-                var frame = new Frame();
-                // Read all frame blocks
-                foreach (var frameBlock in frameBlocks)
-                {
-                    // Only consider blocks that actual contain info for this frame
-                    if (frameIndex >= frameBlock.StartFrame && frameIndex <= frameBlock.EndFrame)
-                    {
-                        foreach (var segmentIndex in frameBlock.SegmentIndexArray)
-                        {
-                            var segment = segmentArray[segmentIndex];
-                            // Segment could be null for unknown decoders
-                            if (segment != null)
-                            {
-                                segment.Read(frameIndex - frameBlock.StartFrame, frame);
-                            }
-                        }
-                    }
-                }
-                frameArray[frameIndex] = frame;
-            }
-            Frames = frameArray;
         }
 
         public static IEnumerable<Animation> FromData(IKeyValueCollection animationData, IKeyValueCollection decodeKey)
@@ -172,22 +149,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get animation matrices as an array.
         /// </summary>
-        public float[] GetAnimationMatricesAsArray(float time, Skeleton skeleton)
+        public float[] GetAnimationMatricesAsArray(AnimationFrameCache frameCache, float time, Skeleton skeleton)
         {
-            var matrices = GetAnimationMatrices(time, skeleton);
+            var matrices = GetAnimationMatrices(frameCache, time, skeleton);
             return Flatten(matrices);
         }
 
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
-        public Matrix4x4[] GetAnimationMatrices(float time, Skeleton skeleton)
+        public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, float time, Skeleton skeleton)
         {
             // Create output array
             var matrices = new Matrix4x4[skeleton.AnimationTextureSize + 1];
 
             // Get bone transformations
-            var transforms = GetTransformsAtTime(time);
+            var transforms = frameCache.GetFrame(this, time);
 
             foreach (var root in skeleton.Roots)
             {
@@ -195,6 +172,27 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return matrices;
+        }
+
+        public void DecodeFrame(int frameIndex, Frame outFrame)
+        {
+            // Read all frame blocks
+            foreach (var frameBlock in FrameBlocks)
+            {
+                // Only consider blocks that actual contain info for this frame
+                if (frameIndex >= frameBlock.StartFrame && frameIndex <= frameBlock.EndFrame)
+                {
+                    foreach (var segmentIndex in frameBlock.SegmentIndexArray)
+                    {
+                        var segment = SegmentArray[segmentIndex];
+                        // Segment could be null for unknown decoders
+                        if (segment != null)
+                        {
+                            segment.Read(frameIndex - frameBlock.StartFrame, outFrame);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -231,42 +229,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 GetAnimationMatrixRecursive(child, transformed, invBindPose, transforms, ref matrices);
             }
-        }
-
-        /// <summary>
-        /// Get the transformation matrices at a time.
-        /// </summary>
-        /// <param name="time">The time to get the transformation for.</param>
-        private Frame GetTransformsAtTime(float time)
-        {
-            // Create output frame
-            var frame = new Frame();
-
-            if (FrameCount == 0)
-            {
-                return frame;
-            }
-
-            // Calculate the index of the current frame
-            var frameIndex = (int)(time * Fps) % FrameCount;
-            var t = ((time * Fps) - frameIndex) % 1;
-
-            // Get current and next frame
-            var frame1 = Frames[frameIndex];
-            var frame2 = Frames[(frameIndex + 1) % FrameCount];
-
-            // Interpolate bone positions and angles
-            foreach (var bonePair in frame1.Bones)
-            {
-                var frame1Bone = frame1.Bones[bonePair.Key];
-                var frame2Bone = frame2.Bones[bonePair.Key];
-                var position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
-                var angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                var scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
-                frame.Bones[bonePair.Key] = new FrameBone(position, angle, scale);
-            }
-
-            return frame;
         }
 
         /// <summary>

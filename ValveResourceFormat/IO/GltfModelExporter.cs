@@ -298,8 +298,10 @@ namespace ValveResourceFormat.IO
             {
                 var animations = AnimationGroupLoader.GetAllAnimations(model, FileLoader);
                 // Add animations
+                var frame = new Frame();
                 foreach (var animation in animations)
                 {
+                    frame.Bones.Clear();
                     var exportedAnimation = exportedModel.UseAnimation(animation.Name);
                     var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
                     var lastRotationDict = new Dictionary<string, Quaternion>();
@@ -313,9 +315,10 @@ namespace ValveResourceFormat.IO
 
                     for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
                     {
+                        animation.DecodeFrame(frameIndex, frame);
                         var time = frameIndex / (float)animation.Fps;
                         var prevFrameTime = (frameIndex - 1) / (float)animation.Fps;
-                        foreach (var boneFrame in animation.Frames[frameIndex].Bones)
+                        foreach (var boneFrame in frame.Bones)
                         {
                             var bone = boneFrame.Key;
                             if (!rotationDict.ContainsKey(bone))

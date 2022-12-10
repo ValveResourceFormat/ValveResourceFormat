@@ -7,6 +7,7 @@ namespace GUI.Types.Renderer
     {
         private Action<Animation, int> updateHandler = (_, __) => { };
         private Animation activeAnimation;
+        private AnimationFrameCache animationFrameCache = new();
         private float Time;
 
         public bool IsPaused { get; set; }
@@ -47,13 +48,14 @@ namespace GUI.Types.Renderer
 
         public void SetAnimation(Animation animation)
         {
+            animationFrameCache.Clear();
             activeAnimation = animation;
             Time = 0f;
             updateHandler(activeAnimation, -1);
         }
 
         public float[] GetAnimationMatricesAsArray(Skeleton skeleton)
-            => activeAnimation.GetAnimationMatricesAsArray(Time, skeleton);
+            => activeAnimation.GetAnimationMatricesAsArray(animationFrameCache, Time, skeleton);
 
         public void RegisterUpdateHandler(Action<Animation, int> handler)
         {
