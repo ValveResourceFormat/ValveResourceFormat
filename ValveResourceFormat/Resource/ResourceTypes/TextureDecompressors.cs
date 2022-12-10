@@ -114,7 +114,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var i = 0; i < span.Length; i++)
             {
-                var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                var hr = (byte)((float)r.ReadHalf() * 255);
 
                 span[i] = new SKColor(hr, 0, 0, 255);
             }
@@ -130,8 +130,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var i = 0; i < span.Length; i++)
             {
-                var hr = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
-                var hg = (byte)(HalfTypeHelper.Convert(r.ReadUInt16()) * 255);
+                var hr = (byte)((float)r.ReadHalf() * 255);
+                var hg = (byte)((float)r.ReadHalf() * 255);
 
                 span[i] = new SKColor(hr, hg, 0, 255);
             }
@@ -222,9 +222,9 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
-                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i, 2)));
-                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 2, 2)));
-                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 4, 2)));
+                var hr = (float)BitConverter.ToHalf(bytes.Slice(i, 2));
+                var hg = (float)BitConverter.ToHalf(bytes.Slice(i + 2, 2));
+                var hb = (float)BitConverter.ToHalf(bytes.Slice(i + 4, 2));
                 var lum = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 log += Math.Log(0.0000000001d + lum);
             }
@@ -233,10 +233,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (int i = 0, j = 0; i < bytes.Length; i += 8, j += 4)
             {
-                var hr = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i, 2)));
-                var hg = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 2, 2)));
-                var hb = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 4, 2)));
-                var ha = HalfTypeHelper.Convert(BitConverter.ToUInt16(bytes.Slice(i + 6, 2)));
+                var hr = (float)BitConverter.ToHalf(bytes.Slice(i, 2));
+                var hg = (float)BitConverter.ToHalf(bytes.Slice(i + 2, 2));
+                var hb = (float)BitConverter.ToHalf(bytes.Slice(i + 4, 2));
+                var ha = (float)BitConverter.ToHalf(bytes.Slice(i + 6, 2));
 
                 var y = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 var u = (hb - y) * 0.565f;
