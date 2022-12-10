@@ -287,7 +287,7 @@ namespace ValveResourceFormat.IO
                 // Add animations
                 foreach (var animation in animations)
                 {
-                    var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
+                    var exportedAnimation = exportedModel.UseAnimation(animation.Name);
                     var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
                     var lastRotationDict = new Dictionary<string, Quaternion>();
                     var rotationOmittedSet = new HashSet<string>();
