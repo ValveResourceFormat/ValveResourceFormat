@@ -16,6 +16,9 @@ namespace GUI.Controls
 {
     internal partial class GLViewerControl : UserControl
     {
+        private const long TicksPerSecond = 10_000_000;
+        private static readonly float TickFrequency = TicksPerSecond / Stopwatch.Frequency;
+
         public GLControl GLControl { get; }
 
         private int currentControlsHeight = 35;
@@ -31,9 +34,11 @@ namespace GUI.Controls
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
 
-        private readonly Stopwatch stopwatch;
-
         private static bool hasCheckedOpenGL;
+
+        long lastFpsUpdate;
+        long lastUpdate;
+        int frames;
 
         public GLViewerControl()
         {
@@ -41,8 +46,6 @@ namespace GUI.Controls
             Dock = DockStyle.Fill;
 
             Camera = new Camera();
-
-            stopwatch = new Stopwatch();
 
             // Initialize GL control
             var flags = GraphicsContextFlags.ForwardCompatible;
@@ -65,9 +68,9 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
         }
 
-        private void SetFps(double fps)
+        private void SetFps(int fps)
         {
-            fpsLabel.Text = $"FPS: {Math.Round(fps).ToString(CultureInfo.InvariantCulture)}";
+            fpsLabel.Text = fps.ToString(CultureInfo.InvariantCulture);
         }
 
         public void AddControl(Control control)
@@ -193,8 +196,6 @@ namespace GUI.Controls
 
             CheckOpenGL();
 
-            stopwatch.Start();
-
             GLLoad?.Invoke(this, e);
 
             HandleResize();
@@ -213,9 +214,11 @@ namespace GUI.Controls
                 return;
             }
 
-            var elapsed = stopwatch.ElapsedMilliseconds;
+            var currentTime = Stopwatch.GetTimestamp();
+            var elapsed = currentTime - lastUpdate;
+            lastUpdate = currentTime;
 
-            if (elapsed < 1)
+            if (elapsed <= TickFrequency)
             {
                 GLControl.SwapBuffers();
                 GLControl.Invalidate();
@@ -223,13 +226,10 @@ namespace GUI.Controls
                 return;
             }
 
-            var frameTime = elapsed / 1000f;
-            stopwatch.Restart();
+            var frameTime = elapsed * TickFrequency / TicksPerSecond;
 
             Camera.Tick(frameTime);
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
-
-            SetFps(1f / frameTime);
 
             GL.ClearColor(Settings.BackgroundColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -238,6 +238,17 @@ namespace GUI.Controls
 
             GLControl.SwapBuffers();
             GLControl.Invalidate();
+
+            frames++;
+
+            var fpsElapsed = (currentTime - lastFpsUpdate) * TickFrequency;
+
+            if (fpsElapsed >= TicksPerSecond)
+            {
+                SetFps(frames);
+                lastFpsUpdate = currentTime;
+                frames = 0;
+            }
         }
 
         private void OnResize(object sender, EventArgs e)

@@ -34,6 +34,7 @@ namespace GUI.Controls
             this.glControlContainer = new System.Windows.Forms.Panel();
             this.fpsLabel = new System.Windows.Forms.Label();
             this.controlsPanel = new System.Windows.Forms.Panel();
+            this.label1 = new System.Windows.Forms.Label();
             this.controlsPanel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -51,15 +52,16 @@ namespace GUI.Controls
             // 
             // fpsLabel
             // 
-            this.fpsLabel.AutoSize = true;
-            this.fpsLabel.Location = new System.Drawing.Point(3, 8);
+            this.fpsLabel.Location = new System.Drawing.Point(32, 8);
+            this.fpsLabel.Margin = new System.Windows.Forms.Padding(0, 0, 3, 0);
             this.fpsLabel.Name = "fpsLabel";
-            this.fpsLabel.Size = new System.Drawing.Size(38, 15);
-            this.fpsLabel.TabIndex = 3;
-            this.fpsLabel.Text = "FPS: 0";
+            this.fpsLabel.Size = new System.Drawing.Size(100, 15);
+            this.fpsLabel.TabIndex = 4;
+            this.fpsLabel.Text = "0";
             // 
             // controlsPanel
             // 
+            this.controlsPanel.Controls.Add(this.label1);
             this.controlsPanel.Controls.Add(this.fpsLabel);
             this.controlsPanel.Dock = System.Windows.Forms.DockStyle.Left;
             this.controlsPanel.Location = new System.Drawing.Point(0, 0);
@@ -67,6 +69,16 @@ namespace GUI.Controls
             this.controlsPanel.Name = "controlsPanel";
             this.controlsPanel.Size = new System.Drawing.Size(220, 412);
             this.controlsPanel.TabIndex = 4;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(3, 8);
+            this.label1.Margin = new System.Windows.Forms.Padding(3, 0, 0, 0);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(29, 15);
+            this.label1.TabIndex = 3;
+            this.label1.Text = "FPS:";
             // 
             // GLViewerControl
             // 
@@ -88,5 +100,6 @@ namespace GUI.Controls
         private Panel glControlContainer;
         private Label fpsLabel;
         private Panel controlsPanel;
+        private Label label1;
     }
 }
