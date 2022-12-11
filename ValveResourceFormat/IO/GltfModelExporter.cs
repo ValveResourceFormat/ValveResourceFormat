@@ -521,8 +521,9 @@ namespace ValveResourceFormat.IO
             return exportedModel;
         }
 
-        private static void WriteModelFile(ModelRoot exportedModel, string filePath)
+        private void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
+            ProgressReporter.Report("Writing model to file...");
             var settings = new WriteSettings
             {
                 ImageWriting = ResourceWriteMode.SatelliteFile,
