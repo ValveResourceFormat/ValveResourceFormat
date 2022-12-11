@@ -65,9 +65,9 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
         }
 
-        private void SetFps(double fps)
+        private void SetFps(int fps)
         {
-            fpsLabel.Text = $"FPS: {Math.Round(fps).ToString(CultureInfo.InvariantCulture)}";
+            fpsLabel.Text = fps.ToString(CultureInfo.InvariantCulture);
         }
 
         public void AddControl(Control control)
@@ -229,7 +229,7 @@ namespace GUI.Controls
             Camera.Tick(frameTime);
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
 
-            SetFps(1f / frameTime);
+            SetFps((int)(1f / frameTime));
 
             GL.ClearColor(Settings.BackgroundColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
