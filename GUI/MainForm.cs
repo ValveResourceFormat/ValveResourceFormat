@@ -690,12 +690,21 @@ namespace GUI
             {
                 var tabPage = FetchToolstripTabContext(sender);
 
-                if (tabPage.Tag is not ExportData exportData || exportData.PackageEntry == null)
+                if (tabPage.Tag is not ExportData exportData)
                 {
                     throw new InvalidDataException("There is no export data for this tab");
                 }
 
-                ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
+                if (exportData.PackageEntry != null)
+                {
+                    ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
+                }
+                else
+                {
+                    var output = File.ReadAllBytes(exportData.VrfGuiContext.FileName);
+
+                    ExtractFileFromByteArray(Path.GetFileName(exportData.VrfGuiContext.FileName), output, exportData.VrfGuiContext, decompile);
+                }
             }
             else
             {
@@ -705,10 +714,13 @@ namespace GUI
 
         private static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            var fileName = file.GetFileName();
-
             vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
+            ExtractFileFromByteArray(file.GetFileName(), output, vrfGuiContext, decompile);
+        }
+
+        private static void ExtractFileFromByteArray(string fileName, byte[] output, VrfGuiContext vrfGuiContext, bool decompile)
+        {
             if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
             {
                 using var resource = new Resource
