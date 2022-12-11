@@ -43,7 +43,6 @@ namespace GUI
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.findToolStripButton = new System.Windows.Forms.ToolStripMenuItem();
             this.recoverDeletedToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.exportToolStripButton = new System.Windows.Forms.ToolStripDropDownButton();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainTabs = new System.Windows.Forms.TabControl();
@@ -52,6 +51,8 @@ namespace GUI
             this.closeToolStripMenuItemsToRight = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItemsToLeft = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItems = new System.Windows.Forms.ToolStripMenuItem();
+            this.exportAsIsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.decompileExportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.vpkContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.extractToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.decompileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -71,13 +72,12 @@ namespace GUI
             this.openToolStripMenuItem,
             this.findToolStripButton,
             this.recoverDeletedToolStripMenuItem,
-            this.exportToolStripButton,
             this.settingsToolStripMenuItem,
             this.aboutToolStripMenuItem});
             this.menuStrip.Location = new System.Drawing.Point(0, 0);
             this.menuStrip.Name = "menuStrip";
             this.menuStrip.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-            this.menuStrip.Size = new System.Drawing.Size(1101, 27);
+            this.menuStrip.Size = new System.Drawing.Size(1101, 24);
             this.menuStrip.TabIndex = 0;
             this.menuStrip.Text = "menuStrip1";
             // 
@@ -87,7 +87,7 @@ namespace GUI
             this.openToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
             this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(64, 23);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(64, 20);
             this.openToolStripMenuItem.Text = "&Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.OpenToolStripMenuItem_Click);
             // 
@@ -99,7 +99,7 @@ namespace GUI
             this.findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.findToolStripButton.Name = "findToolStripButton";
             this.findToolStripButton.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.F)));
-            this.findToolStripButton.Size = new System.Drawing.Size(58, 23);
+            this.findToolStripButton.Size = new System.Drawing.Size(58, 20);
             this.findToolStripButton.Text = "&Find";
             this.findToolStripButton.Click += new System.EventHandler(this.FindToolStripMenuItem_Click);
             // 
@@ -110,27 +110,16 @@ namespace GUI
             this.recoverDeletedToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.recoverDeletedToolStripMenuItem.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.recoverDeletedToolStripMenuItem.Name = "recoverDeletedToolStripMenuItem";
-            this.recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(143, 23);
+            this.recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(143, 20);
             this.recoverDeletedToolStripMenuItem.Text = "Recover deleted files";
             this.recoverDeletedToolStripMenuItem.Click += new System.EventHandler(this.RecoverDeletedToolStripMenuItem_Click);
-            // 
-            // exportToolStripButton
-            // 
-            this.exportToolStripButton.Enabled = false;
-            this.exportToolStripButton.Image = ((System.Drawing.Image)(resources.GetObject("exportToolStripButton.Image")));
-            this.exportToolStripButton.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
-            this.exportToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.exportToolStripButton.Name = "exportToolStripButton";
-            this.exportToolStripButton.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.exportToolStripButton.Size = new System.Drawing.Size(78, 20);
-            this.exportToolStripButton.Text = "Export";
             // 
             // settingsToolStripMenuItem
             // 
             this.settingsToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("settingsToolStripMenuItem.Image")));
             this.settingsToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(77, 23);
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(77, 20);
             this.settingsToolStripMenuItem.Text = "Settings";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.OnSettingsItemClick);
             // 
@@ -139,7 +128,7 @@ namespace GUI
             this.aboutToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("aboutToolStripMenuItem.Image")));
             this.aboutToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(68, 23);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(68, 20);
             this.aboutToolStripMenuItem.Text = "About";
             this.aboutToolStripMenuItem.Click += new System.EventHandler(this.OnAboutItemClick);
             // 
@@ -147,12 +136,12 @@ namespace GUI
             // 
             this.mainTabs.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.mainTabs.Location = new System.Drawing.Point(0, 27);
+            this.mainTabs.Location = new System.Drawing.Point(0, 24);
             this.mainTabs.Margin = new System.Windows.Forms.Padding(0);
             this.mainTabs.Name = "mainTabs";
             this.mainTabs.Padding = new System.Drawing.Point(0, 0);
             this.mainTabs.SelectedIndex = 0;
-            this.mainTabs.Size = new System.Drawing.Size(1101, 505);
+            this.mainTabs.Size = new System.Drawing.Size(1101, 508);
             this.mainTabs.TabIndex = 1;
             this.mainTabs.MouseClick += new System.Windows.Forms.MouseEventHandler(this.OnTabClick);
             // 
@@ -163,10 +152,12 @@ namespace GUI
             this.closeToolStripMenuItem,
             this.closeToolStripMenuItemsToRight,
             this.closeToolStripMenuItemsToLeft,
-            this.closeToolStripMenuItems});
+            this.closeToolStripMenuItems,
+            this.exportAsIsToolStripMenuItem,
+            this.decompileExportToolStripMenuItem});
             this.tabContextMenuStrip.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
             this.tabContextMenuStrip.Name = "contextMenuStrip1";
-            this.tabContextMenuStrip.Size = new System.Drawing.Size(234, 146);
+            this.tabContextMenuStrip.Size = new System.Drawing.Size(234, 184);
             // 
             // closeToolStripMenuItem
             // 
@@ -202,6 +193,22 @@ namespace GUI
             this.closeToolStripMenuItems.Size = new System.Drawing.Size(233, 30);
             this.closeToolStripMenuItems.Text = "Close &all tabs";
             this.closeToolStripMenuItems.Click += new System.EventHandler(this.CloseToolStripMenuItems_Click);
+            // 
+            // exportAsIsToolStripMenuItem
+            // 
+            this.exportAsIsToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("exportAsIsToolStripMenuItem.Image")));
+            this.exportAsIsToolStripMenuItem.Name = "exportAsIsToolStripMenuItem";
+            this.exportAsIsToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            this.exportAsIsToolStripMenuItem.Text = "Export as is";
+            this.exportAsIsToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
+            // 
+            // decompileExportToolStripMenuItem
+            // 
+            this.decompileExportToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("decompileExportToolStripMenuItem.Image")));
+            this.decompileExportToolStripMenuItem.Name = "decompileExportToolStripMenuItem";
+            this.decompileExportToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            this.decompileExportToolStripMenuItem.Text = "Decompile && export";
+            this.decompileExportToolStripMenuItem.Click += new System.EventHandler(this.DecompileToolStripMenuItem_Click);
             // 
             // vpkContextMenu
             // 
@@ -291,7 +298,6 @@ namespace GUI
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToRight;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItems;
         private System.Windows.Forms.ToolStripMenuItem findToolStripButton;
-        private System.Windows.Forms.ToolStripDropDownButton exportToolStripButton;
         private System.Windows.Forms.ToolStripMenuItem openWithDefaultAppToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem decompileToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
@@ -299,6 +305,8 @@ namespace GUI
         private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
         private ToolStripMenuItem recoverDeletedToolStripMenuItem;
+        private ToolStripMenuItem exportAsIsToolStripMenuItem;
+        private ToolStripMenuItem decompileExportToolStripMenuItem;
     }
 }
 

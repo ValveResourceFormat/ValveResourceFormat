@@ -211,10 +211,9 @@ namespace GUI.Types.Viewers
             {
                 var parentGuiContext = (VrfGuiContext)node.TreeView.Tag;
                 var file = node.Tag as PackageEntry;
-                parentGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), parentGuiContext);
-                Program.MainForm.OpenFile(output, vrfGuiContext);
+                Program.MainForm.OpenFile(vrfGuiContext, file);
             }
         }
 
