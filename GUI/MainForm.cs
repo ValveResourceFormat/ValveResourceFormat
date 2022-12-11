@@ -29,7 +29,6 @@ namespace GUI
         private ImageList ImageList;
 #pragma warning restore CA2213
         public ContextMenuStrip VpkContextMenu => vpkContextMenu; // TODO
-        public ToolStripDropDownButton ExportToolStripButton => exportToolStripButton; // TODO
 
         public MainForm()
         {

@@ -96,9 +96,6 @@ namespace GUI.Types.Viewers
                             tex.ActualWidth, tex.ActualHeight);
 
                         tab2.Controls.Add(control);
-                        Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs,
-                            $"Export {Path.GetFileName(vrfGuiContext.FileName)} as an image", vrfGuiContext.FileName,
-                            new ExportData { Resource = resource });
                     }
                     catch (Exception e)
                     {
@@ -134,21 +131,6 @@ namespace GUI.Types.Viewers
 
                     break;
 
-                case ResourceType.PanoramaLayout:
-                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as XML",
-                        vrfGuiContext.FileName, new ExportData { Resource = resource });
-                    break;
-
-                case ResourceType.PanoramaScript:
-                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as JS",
-                        vrfGuiContext.FileName, new ExportData { Resource = resource });
-                    break;
-
-                case ResourceType.PanoramaStyle:
-                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as CSS",
-                        vrfGuiContext.FileName, new ExportData { Resource = resource });
-                    break;
-
                 case ResourceType.Particle:
                     var viewerControl = new GLParticleViewer(vrfGuiContext);
                     viewerControl.Load += (_, __) =>
@@ -168,11 +150,6 @@ namespace GUI.Types.Viewers
                     var soundTab = new TabPage("SOUND");
                     var ap = new AudioPlayer(resource, soundTab);
                     resTabs.TabPages.Add(soundTab);
-
-                    Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs,
-                        $"Export {Path.GetFileName(vrfGuiContext.FileName)} as {((Sound)resource.DataBlock).SoundType}", vrfGuiContext.FileName,
-                        new ExportData { Resource = resource });
-
                     break;
 
                 case ResourceType.World:
@@ -223,12 +200,6 @@ namespace GUI.Types.Viewers
                     physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock).ViewerControl);
                     resTabs.TabPages.Add(physRendererTab);
                     break;
-            }
-
-            if (GltfModelExporter.CanExport(resource))
-            {
-                Program.MainForm.Invoke(new ExportDel(AddToExport), resTabs, $"Export {Path.GetFileName(vrfGuiContext.FileName)} as glTF / GLB",
-                    vrfGuiContext.FileName, new ExportData { Resource = resource, VrfGuiContext = vrfGuiContext });
             }
 
             foreach (var block in resource.Blocks)
@@ -452,40 +423,6 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(resTabs);
 
             return tab;
-        }
-
-        private delegate void ExportDel(Control control, string name, string filename, ExportData data);
-
-        private void AddToExport(Control control, string name, string filename, ExportData data)
-        {
-            Program.MainForm.ExportToolStripButton.Enabled = true;
-
-            var ts = new ToolStripMenuItem
-            {
-                Size = new Size(150, 20),
-                Text = name,
-                ToolTipText = filename,
-                Tag = data,
-            };
-            //This is required for the dialog to know the default name and path.
-            //This makes it trivial to dump without exploring our nested TabPages.
-            ts.Click += ExportToolStripMenuItem_Click;
-
-            Program.MainForm.ExportToolStripButton.DropDownItems.Add(ts);
-
-            void ControlExposed(object sender, EventArgs e)
-            {
-                control.Disposed -= ControlExposed;
-                ts.Click -= ExportToolStripMenuItem_Click;
-                Program.MainForm.ExportToolStripButton.DropDownItems.Remove(ts);
-
-                if (Program.MainForm.ExportToolStripButton.DropDownItems.Count == 0)
-                {
-                    Program.MainForm.ExportToolStripButton.Enabled = false;
-                }
-            }
-
-            control.Disposed += ControlExposed;
         }
 
         private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
