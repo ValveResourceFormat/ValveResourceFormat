@@ -142,6 +142,10 @@ namespace GUI.Controls
             control.ImageList = imageList;
             control.ShowRootLines = false;
 
+            // Setting TreeViewNodeSorter causes TreeView to resort all the entries, which it does by clearing
+            // nodes and adding them back in, so take the performance hit and set it before adding our nodes
+            control.TreeViewNodeSorter = new TreeViewFileSorter();
+
             control.GenerateIconList(vrfGuiContext.CurrentPackage.Entries.Keys.ToList());
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
@@ -157,7 +161,6 @@ namespace GUI.Controls
                 }
             }
 
-            control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
         }
 
