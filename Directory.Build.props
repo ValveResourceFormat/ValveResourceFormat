@@ -10,7 +10,6 @@
   </PropertyGroup>
   <PropertyGroup>
     <Deterministic>true</Deterministic>
-    <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <NeutralLanguage>en</NeutralLanguage>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

@@ -47,31 +47,31 @@ jobs:
 
     - name: Publish GUI
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime win-x64 GUI/GUI.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime win-x64 GUI/GUI.csproj
 
     - name: Publish Decompiler (Windows x64)
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (Linux x64)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (Linux arm)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-arm Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime linux-arm Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (Linux arm64)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime linux-arm64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime linux-arm64 Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (macOS x64)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
 
     - name: Publish Decompiler (macOS arm64)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release -p:PublishSingleFile=true --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release -p:PublishSingleFile=true -p:DebugType=embedded --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
 
     - name: Upload GUI
       uses: actions/upload-artifact@v3
