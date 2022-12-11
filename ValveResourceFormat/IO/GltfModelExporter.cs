@@ -524,6 +524,7 @@ namespace ValveResourceFormat.IO
         private void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
             ProgressReporter.Report("Writing model to file...");
+
             var settings = new WriteSettings
             {
                 ImageWriting = ResourceWriteMode.SatelliteFile,
@@ -531,6 +532,13 @@ namespace ValveResourceFormat.IO
                 JsonIndented = true,
                 MergeBuffers = true
             };
+
+            // If no file path is provided, validate the schema without writing a file
+            if (filePath == null)
+            {
+                exportedModel.WriteGLB(Stream.Null, settings);
+                return;
+            }
 
             // See https://github.com/KhronosGroup/glTF/blob/0bc36d536946b13c4807098f9cf62ddff738e7a5/specification/2.0/README.md#buffers-and-buffer-views
             // Disable merging buffers if the buffer size is >=2GiB, otherwise this will

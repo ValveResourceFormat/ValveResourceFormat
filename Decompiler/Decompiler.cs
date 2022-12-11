@@ -88,6 +88,9 @@ namespace Decompiler
         [Option("--gltf_textures_adapt", "Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).", CommandOptionType.NoValue)]
         public bool GltfExportAdaptTextures { get; }
 
+        [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue)]
+        public bool GltfTest { get; }
+
         private string[] ExtFilterList;
         private bool IsInputFolder;
 
@@ -657,6 +660,11 @@ namespace Decompiler
                         {
                             foreach (var file in entry.Value)
                             {
+                                if (FileFilter != null && !FixPathSlashes(file.GetFullPath()).StartsWith(FileFilter, StringComparison.Ordinal))
+                                {
+                                    continue;
+                                }
+
                                 queue.Enqueue(file);
                             }
                         }
@@ -690,6 +698,11 @@ namespace Decompiler
                         {
                             foreach (var file in entry.Value)
                             {
+                                if (FileFilter != null && !FixPathSlashes(file.GetFullPath()).StartsWith(FileFilter, StringComparison.Ordinal))
+                                {
+                                    continue;
+                                }
+
                                 package.ReadEntry(file, out var output);
 
                                 using var entryStream = new MemoryStream(output);
@@ -937,8 +950,6 @@ namespace Decompiler
         /// </summary>
         private void TestAndCollectStats(Resource resource, string path)
         {
-            ValveResourceFormat.Utils.InternalTestExtraction.Test(resource);
-
             // The rest of this code gathers various statistics
             var id = $"{resource.ResourceType}_{resource.Version}";
             var info = string.Empty;
@@ -989,6 +1000,19 @@ namespace Decompiler
             foreach (var block in resource.Blocks)
             {
                 block.ToString();
+            }
+
+            ValveResourceFormat.Utils.InternalTestExtraction.Test(resource);
+
+            if (GltfTest && GltfModelExporter.CanExport(resource))
+            {
+                var gltfModelExporter = new GltfModelExporter
+                {
+                    ExportMaterials = false,
+                    ProgressReporter = new Progress<string>(progress => { }),
+                    FileLoader = new NullFileLoader(),
+                };
+                gltfModelExporter.Export(resource, null, null);
             }
         }
 
