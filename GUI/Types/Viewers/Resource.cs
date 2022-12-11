@@ -269,11 +269,9 @@ namespace GUI.Types.Viewers
 
                         if (file != null)
                         {
-                            vrfGuiContext.CurrentPackage.ReadEntry(file, out var fileContents);
-
                             var newVrfGuiContext = new VrfGuiContext(file.GetFileName(), vrfGuiContext);
 
-                            Program.MainForm.OpenFile(fileContents, newVrfGuiContext);
+                            Program.MainForm.OpenFile(newVrfGuiContext, file);
                         }
                     };
                     externalRefsTab.Controls.Add(externalRefs);

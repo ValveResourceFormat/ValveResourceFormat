@@ -52,6 +52,8 @@ namespace GUI
             this.closeToolStripMenuItemsToRight = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItemsToLeft = new System.Windows.Forms.ToolStripMenuItem();
             this.closeToolStripMenuItems = new System.Windows.Forms.ToolStripMenuItem();
+            this.exportAsIsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.decompileExportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.vpkContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.extractToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.decompileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -163,10 +165,12 @@ namespace GUI
             this.closeToolStripMenuItem,
             this.closeToolStripMenuItemsToRight,
             this.closeToolStripMenuItemsToLeft,
-            this.closeToolStripMenuItems});
+            this.closeToolStripMenuItems,
+            this.exportAsIsToolStripMenuItem,
+            this.decompileExportToolStripMenuItem});
             this.tabContextMenuStrip.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Table;
             this.tabContextMenuStrip.Name = "contextMenuStrip1";
-            this.tabContextMenuStrip.Size = new System.Drawing.Size(234, 146);
+            this.tabContextMenuStrip.Size = new System.Drawing.Size(234, 206);
             // 
             // closeToolStripMenuItem
             // 
@@ -202,6 +206,22 @@ namespace GUI
             this.closeToolStripMenuItems.Size = new System.Drawing.Size(233, 30);
             this.closeToolStripMenuItems.Text = "Close &all tabs";
             this.closeToolStripMenuItems.Click += new System.EventHandler(this.CloseToolStripMenuItems_Click);
+            // 
+            // exportAsIsToolStripMenuItem
+            //
+            this.exportAsIsToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("extractToolStripMenuItem.Image")));
+            this.exportAsIsToolStripMenuItem.Name = "exportAsIsToolStripMenuItem";
+            this.exportAsIsToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            this.exportAsIsToolStripMenuItem.Text = "Export as is";
+            this.exportAsIsToolStripMenuItem.Click += new System.EventHandler(this.ExtractToolStripMenuItem_Click);
+            // 
+            // decompileExportToolStripMenuItem
+            //
+            this.decompileExportToolStripMenuItem.Image = ((System.Drawing.Image)(resources.GetObject("decompileToolStripMenuItem.Image")));
+            this.decompileExportToolStripMenuItem.Name = "decompileExportToolStripMenuItem";
+            this.decompileExportToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            this.decompileExportToolStripMenuItem.Text = "Decompile && export";
+            this.decompileExportToolStripMenuItem.Click += new System.EventHandler(this.DecompileToolStripMenuItem_Click);
             // 
             // vpkContextMenu
             // 
@@ -299,6 +319,8 @@ namespace GUI
         private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
         private ToolStripMenuItem recoverDeletedToolStripMenuItem;
+        private ToolStripMenuItem exportAsIsToolStripMenuItem;
+        private ToolStripMenuItem decompileExportToolStripMenuItem;
     }
 }
 

@@ -16,7 +16,6 @@ using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using static System.ComponentModel.Design.ObjectSelectorEditor;
 using Resource = ValveResourceFormat.Resource;
 
 namespace GUI
@@ -361,14 +360,19 @@ namespace GUI
             }
 
             var vrfGuiContext = new VrfGuiContext(fileName, null);
-            OpenFile(null, vrfGuiContext);
+            OpenFile(vrfGuiContext, null);
         }
 
-        public void OpenFile(byte[] input, VrfGuiContext vrfGuiContext)
+        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
             var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
-                ToolTipText = vrfGuiContext.FileName
+                ToolTipText = vrfGuiContext.FileName,
+                Tag = new ExportData
+                {
+                    PackageEntry = file,
+                    VrfGuiContext = vrfGuiContext,
+                }
             };
 
             var parentContext = vrfGuiContext.ParentGuiContext;
@@ -385,7 +389,7 @@ namespace GUI
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(input, vrfGuiContext));
+            var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file));
 
             task.ContinueWith(
                 t =>
@@ -433,10 +437,16 @@ namespace GUI
                 TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        private TabPage ProcessFile(byte[] input, VrfGuiContext vrfGuiContext)
+        private TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
             uint magic = 0;
             ushort magicResourceVersion = 0;
+            byte[] input = null;
+
+            if (file != null)
+            {
+                vrfGuiContext.CurrentPackage.ReadEntry(file, out input, validateCrc: file.CRC32 > 0);
+            }
 
             if (input != null)
             {
@@ -657,18 +667,18 @@ namespace GUI
 
         private static void ExtractFiles(object sender, bool decompile)
         {
-            // the context menu can come from a TreeView or a ListView depending on where the user clicked to extract
-            // each option has a difference in where we can get the values to extract
-            if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is TreeView)
+            var owner = (ContextMenuStrip)((ToolStripMenuItem)sender).Owner;
+
+            // Clicking context menu item in left side of the package view
+            if (owner.SourceControl is TreeView tree)
             {
-                var tree = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TreeView;
                 var vrfGuiContext = (VrfGuiContext)tree.Tag;
 
                 ExtractFilesFromTreeNode(tree.SelectedNode, vrfGuiContext, decompile);
             }
-            else if (((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl is ListView)
+            // Clicking context menu item in right side of the package view
+            else if (owner.SourceControl is ListView listView)
             {
-                var listView = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ListView;
                 var vrfGuiContext = (VrfGuiContext)listView.Tag;
 
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
@@ -676,57 +686,73 @@ namespace GUI
                     ExtractFilesFromTreeNode(selectedNode.Tag as TreeNode, vrfGuiContext, decompile);
                 }
             }
+            // Clicking context menu item when right clicking a tab
+            else if (owner.SourceControl is TabControl)
+            {
+                var tabPage = FetchToolstripTabContext(sender);
+
+                if (tabPage.Tag is not ExportData exportData || exportData.PackageEntry == null)
+                {
+                    throw new InvalidDataException("There is no export data for this tab");
+                }
+
+                ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
+            }
             else
             {
                 throw new InvalidDataException("Unknown state");
             }
         }
 
-        private static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
+        private static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            if (selectedNode.Tag.GetType() == typeof(PackageEntry))
+            var fileName = file.GetFileName();
+
+            vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+
+            if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
             {
-                // We are a file
-                var file = selectedNode.Tag as PackageEntry;
-                var fileName = file.GetFileName();
-
-                vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
-
-                if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
+                using var resource = new Resource
                 {
-                    using var resource = new Resource
-                    {
-                        FileName = fileName,
-                    };
-                    using var memory = new MemoryStream(output);
-
-                    resource.Read(memory);
-
-                    ExportFile.Export(fileName, new ExportData
-                    {
-                        Resource = resource,
-                        VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
-                    });
-
-                    return;
-                }
-
-                var dialog = new SaveFileDialog
-                {
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                    Filter = "All files (*.*)|*.*",
                     FileName = fileName,
                 };
-                var userOK = dialog.ShowDialog();
+                using var memory = new MemoryStream(output);
 
-                if (userOK == DialogResult.OK)
+                resource.Read(memory);
+
+                ExportFile.Export(fileName, new ExportData
                 {
-                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
-                    Settings.Save();
+                    Resource = resource,
+                    VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
+                });
 
-                    using var stream = dialog.OpenFile();
-                    stream.Write(output, 0, output.Length);
-                }
+                return;
+            }
+
+            var dialog = new SaveFileDialog
+            {
+                InitialDirectory = Settings.Config.SaveDirectory,
+                Filter = "All files (*.*)|*.*",
+                FileName = fileName,
+            };
+            var userOK = dialog.ShowDialog();
+
+            if (userOK == DialogResult.OK)
+            {
+                Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                Settings.Save();
+
+                using var stream = dialog.OpenFile();
+                stream.Write(output, 0, output.Length);
+            }
+        }
+
+        private static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            if (selectedNode.Tag is PackageEntry file)
+            {
+                // We are a file
+                ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
             }
             else
             {
