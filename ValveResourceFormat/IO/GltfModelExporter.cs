@@ -18,6 +18,7 @@ using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
+using System.Threading;
 
 namespace ValveResourceFormat.IO
 {
@@ -44,26 +45,32 @@ namespace ValveResourceFormat.IO
         public bool AdaptTextures { get; set; } = true;
 
         private string DstDir;
-        private readonly IDictionary<string, Node> LoadedUnskinnedMeshDictionary = new Dictionary<string, Node>();
+        private CancellationToken? CancellationToken;
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
 
-        public void Export(Resource resource, string targetPath)
+        /// <summary>
+        /// Export a Valve resource to Gltf.
+        /// </summary>
+        /// <param name="resource">The resource being exported.</param>
+        /// <param name="targetPath">Target file name.</param>
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void Export(Resource resource, string targetPath, CancellationToken? cancellationToken)
         {
             switch (resource.ResourceType)
             {
                 case ResourceType.Mesh:
-                    ExportToFile(resource.FileName, targetPath, new VMesh(resource));
+                    ExportToFile(resource.FileName, targetPath, new VMesh(resource), cancellationToken);
                     break;
                 case ResourceType.Model:
-                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
+                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock, cancellationToken);
                     break;
                 case ResourceType.WorldNode:
-                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
+                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock, cancellationToken);
                     break;
                 case ResourceType.World:
-                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
+                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock, cancellationToken);
                     break;
                 default:
                     throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
@@ -76,8 +83,10 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="world">The world resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VWorld world)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VWorld world, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             if (FileLoader == null)
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
@@ -85,6 +94,7 @@ namespace ValveResourceFormat.IO
 
             DstDir = Path.GetDirectoryName(fileName);
             var exportedModel = CreateModelRoot(resourceName, out var scene);
+            var loadedMeshDictionary = new Dictionary<string, Mesh>();
 
             // First the WorldNodes
             foreach (var worldNodeName in world.GetWorldNodeNames())
@@ -104,7 +114,7 @@ namespace ValveResourceFormat.IO
 
                 foreach (var (Model, Name, Transform) in worldNodeModels)
                 {
-                    LoadModel(exportedModel, scene, Model, Name, Transform);
+                    LoadModel(exportedModel, scene, Model, Name, Transform, loadedMeshDictionary);
                 }
             }
 
@@ -123,13 +133,14 @@ namespace ValveResourceFormat.IO
 
                 var entityLump = (VEntityLump)entityLumpResource.DataBlock;
 
-                LoadEntityMeshes(exportedModel, scene, entityLump);
+                LoadEntityMeshes(exportedModel, scene, entityLump, loadedMeshDictionary);
             }
 
             WriteModelFile(exportedModel, fileName);
         }
 
-        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump)
+        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump,
+            Dictionary<string, Mesh> loadedMeshDictionary)
         {
             foreach (var entity in entityLump.GetEntities())
             {
@@ -158,7 +169,8 @@ namespace ValveResourceFormat.IO
 
                 var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 // Add meshes and their skeletons
-                LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName), transform, skinName);
+                LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
+                    transform, loadedMeshDictionary, skinName);
             }
 
             foreach (var childEntityName in entityLump.GetChildEntityNames())
@@ -174,7 +186,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var childEntityLump = (VEntityLump)childEntityLumpResource.DataBlock;
-                LoadEntityMeshes(exportedModel, scene, childEntityLump);
+                LoadEntityMeshes(exportedModel, scene, childEntityLump, loadedMeshDictionary);
             }
         }
 
@@ -201,8 +213,10 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="worldNode">The worldNode resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VWorldNode worldNode)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VWorldNode worldNode, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             if (FileLoader == null)
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
@@ -211,10 +225,11 @@ namespace ValveResourceFormat.IO
             DstDir = Path.GetDirectoryName(fileName);
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var worldNodeModels = LoadWorldNodeModels(worldNode);
+            var loadedMeshDictionary = new Dictionary<string, Mesh>();
 
             foreach (var (Model, Name, Transform) in worldNodeModels)
             {
-                LoadModel(exportedModel, scene, Model, Name, Transform);
+                LoadModel(exportedModel, scene, Model, Name, Transform, loadedMeshDictionary);
             }
 
             WriteModelFile(exportedModel, fileName);
@@ -253,8 +268,10 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="model">The model resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VModel model)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VModel model, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             if (FileLoader == null)
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
@@ -265,21 +282,17 @@ namespace ValveResourceFormat.IO
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
             // Add meshes and their skeletons
-            LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity);
+            var loadedMeshDictionary = new Dictionary<string, Mesh>();
+            LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity, loadedMeshDictionary);
 
             WriteModelFile(exportedModel, fileName);
         }
 
-        private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name, Matrix4x4 transform, string skinName = null)
+        private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
+            Matrix4x4 transform, IDictionary<string, Mesh> loadedMeshDictionary, string skinName = null)
         {
-            var meshes = LoadModelMeshes(model);
-            if (meshes.Length == 0)
-            {
-                return;
-            }
-
-            var modelNode = scene.CreateNode(name);
-            var (boneNodes, skeletonNode) = CreateGltfSkeleton(modelNode, model);
+            CancellationToken?.ThrowIfCancellationRequested();
+            var (boneNodes, skeletonNode) = CreateGltfSkeleton(scene, model, name);
 
             if (skeletonNode != null)
             {
@@ -287,7 +300,7 @@ namespace ValveResourceFormat.IO
                 // Add animations
                 foreach (var animation in animations)
                 {
-                    var exportedAnimation = exportedModel.CreateAnimation(animation.Name);
+                    var exportedAnimation = exportedModel.UseAnimation(animation.Name);
                     var rotationDict = new Dictionary<string, Dictionary<float, Quaternion>>();
                     var lastRotationDict = new Dictionary<string, Quaternion>();
                     var rotationOmittedSet = new HashSet<string>();
@@ -376,24 +389,35 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            // Swap Rotate upright, scale inches to meters.
+            transform *= TRANSFORMSOURCETOGLTF;
+
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
-            for (var i = 0; i < meshes.Length; i++)
+            var meshIndex = 0;
+            foreach (var m in LoadModelMeshes(model, name))
             {
-                var meshName = meshes[i].Name;
+                var meshName = m.Name;
                 if (skinName != null)
                 {
                     meshName += "." + skinName;
                 }
 
-                AddMeshNode(exportedModel, modelNode,
-                    meshName, meshes[i].Mesh, model.GetSkeleton(i),
+                var node = AddMeshNode(exportedModel, scene, meshName,
+                    m.Mesh, model.GetSkeleton(meshIndex), loadedMeshDictionary,
                     skinMaterialPath, boneNodes, skeletonNode);
+                if (node != null)
+                {
+                    node.WorldMatrix = transform;
+                }
+                meshIndex++;
             }
 
             // Even though that's not documented, order matters.
             // WorldMatrix should only be set after everything else.
-            // Swap Rotate upright, scale inches to meters.
-            modelNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+            if (skeletonNode != null)
+            {
+                skeletonNode.WorldMatrix = transform;
+            }
         }
 
         /// <summary>
@@ -402,11 +426,11 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private (VMesh Mesh, string Name)[] LoadModelMeshes(VModel model)
+        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model, string modelName)
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
-                .Select((m, i) => (m.Mesh, $"Embedded.{i}"));
+                .Select((m, i) => (m.Mesh, $"{modelName}.Embedded.{i}"));
 
             var refMeshes = model.GetReferenceMeshNamesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
@@ -425,7 +449,7 @@ namespace ValveResourceFormat.IO
                 })
                 .Where(m => m.mesh != null);
 
-            return embeddedMeshes.Concat(refMeshes).ToArray();
+            return embeddedMeshes.Concat(refMeshes);
         }
 
         /// <summary>
@@ -434,13 +458,16 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="mesh">The mesh resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VMesh mesh)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VMesh mesh, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             DstDir = Path.GetDirectoryName(fileName);
 
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
-            var node = AddMeshNode(exportedModel, scene, name, mesh, null, null);
+            var loadedMeshDictionary = new Dictionary<string, Mesh>();
+            var node = AddMeshNode(exportedModel, scene, name, mesh, null, loadedMeshDictionary);
 
             if (node != null)
             {
@@ -451,8 +478,9 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private Node AddMeshNode(ModelRoot exportedModel, IVisualNodeContainer container, string name,
-            VMesh mesh, Skeleton skeleton, string skinMaterialPath = null,
+        private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
+            VMesh mesh, Skeleton skeleton, IDictionary<string, Mesh> loadedMeshDictionary,
+            string skinMaterialPath = null,
             Dictionary<string, Node> boneNodes = null, Node skeletonNode = null)
         {
             if (mesh.GetData().GetArray("m_sceneObjects").Length == 0)
@@ -460,30 +488,28 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            if (LoadedUnskinnedMeshDictionary.TryGetValue(name, out var existingNode))
+            var newNode = scene.CreateNode(name);
+            if (loadedMeshDictionary.TryGetValue(name, out var existingMesh))
             {
                 // Make a new node that uses the existing mesh
-                var newNode = container.CreateNode(name);
-                newNode.Mesh = existingNode.Mesh;
+                newNode.Mesh = existingMesh;
                 return newNode;
             }
 
             var hasJoints = skeleton != null && skeleton.AnimationTextureSize > 0;
             var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath);
+            loadedMeshDictionary.Add(name, exportedMesh);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-            if (hasJoints && hasVertexJoints && skeleton != null)
+            if (!hasJoints || !hasVertexJoints || skeleton == null)
             {
-                var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
-
-                container.CreateNode(name)
-                    .WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
-
-                return null;
+                return newNode.WithMesh(exportedMesh);
             }
-            var node = container.CreateNode(name).WithMesh(exportedMesh);
-            LoadedUnskinnedMeshDictionary.Add(name, node);
-            return node;
+
+            var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
+            newNode.WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+            // WorldMatrix is set only once on skeletonNode
+            return null;
         }
 
         private static ModelRoot CreateModelRoot(string resourceName, out Scene scene)
@@ -495,8 +521,9 @@ namespace ValveResourceFormat.IO
             return exportedModel;
         }
 
-        private static void WriteModelFile(ModelRoot exportedModel, string filePath)
+        private void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
+            ProgressReporter.Report("Writing model to file...");
             var settings = new WriteSettings
             {
                 ImageWriting = ResourceWriteMode.SatelliteFile,
@@ -539,7 +566,8 @@ namespace ValveResourceFormat.IO
             return uri;
         }
 
-        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints, string skinMaterialPath = null)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints,
+            string skinMaterialPath)
         {
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -553,6 +581,7 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
                 {
+                    CancellationToken?.ThrowIfCancellationRequested();
                     var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
                     var vertexBufferIndex = (int)vertexBufferInfo.GetIntegerProperty("m_hBuffer");
                     var vertexBuffer = vbib.VertexBuffers[vertexBufferIndex];
@@ -727,7 +756,8 @@ namespace ValveResourceFormat.IO
                     }
 
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
-                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, materialNameTrimmed);
+                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model,
+                        materialNameTrimmed);
                     primitive.WithMaterial(bestMaterial);
                 }
             }
@@ -735,7 +765,7 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        private (Dictionary<string, Node> boneNodes, Node skeletonNode) CreateGltfSkeleton(IVisualNodeContainer container, VModel model)
+        private (Dictionary<string, Node> boneNodes, Node skeletonNode) CreateGltfSkeleton(Scene scene, VModel model, string modelName)
         {
             var skeleton = model.GetSkeleton(0);
             if (skeleton == null)
@@ -743,7 +773,7 @@ namespace ValveResourceFormat.IO
                 return (null, null);
             }
 
-            var skeletonNode = container.CreateNode("skeleton");
+            var skeletonNode = scene.CreateNode(modelName);
             var boneNodes = new Dictionary<string, Node>();
             foreach (var root in skeleton.Roots)
             {
@@ -795,7 +825,8 @@ namespace ValveResourceFormat.IO
             return result;
         }
 
-        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, string materialName)
+        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model,
+            string materialName)
         {
             var material = model
                     .CreateMaterial(materialName)
@@ -971,6 +1002,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var renderTexture in renderMaterial.TextureParams)
             {
+                CancellationToken?.ThrowIfCancellationRequested();
                 var texturePath = renderTexture.Value;
                 var textureResource = FileLoader.LoadFile(texturePath + "_c");
 

@@ -29,6 +29,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var remapTableStarts = modelData.GetIntegerArray("m_remappingTableStarts");
 
+            if (remapTableStarts.Length <= meshIndex)
+            {
+                return null;
+            }
+
             var start = (int)remapTableStarts[meshIndex];
             var end = meshIndex < remapTableStarts.Length - 1
                 ? (int)remapTableStarts[meshIndex + 1]

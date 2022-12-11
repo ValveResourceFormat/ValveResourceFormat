@@ -788,6 +788,14 @@ namespace Decompiler
             }
 
             var fileLoader = new BasicVpkFileLoader(package);
+            var gltfModelExporter = new GltfModelExporter
+            {
+                ExportMaterials = GltfExportMaterials,
+                AdaptTextures = GltfExportAdaptTextures,
+                ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
+                FileLoader = fileLoader
+            };
+
             var entries = package.Entries[type];
 
             foreach (var file in entries)
@@ -836,15 +844,7 @@ namespace Decompiler
 
                             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
-                            var gltfModelExporter = new GltfModelExporter
-                            {
-                                ExportMaterials = GltfExportMaterials,
-                                AdaptTextures = GltfExportAdaptTextures,
-                                ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
-                                FileLoader = fileLoader
-                            };
-
-                            gltfModelExporter.Export(resource, outputFile);
+                            gltfModelExporter.Export(resource, outputFile, null);
 
                             continue;
                         }
