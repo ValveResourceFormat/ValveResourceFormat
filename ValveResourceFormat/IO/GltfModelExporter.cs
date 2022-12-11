@@ -18,6 +18,7 @@ using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
+using System.Threading;
 
 namespace ValveResourceFormat.IO
 {
@@ -45,27 +46,34 @@ namespace ValveResourceFormat.IO
 
         private string DstDir;
         private readonly IDictionary<string, Mesh> LoadedMeshDictionary = new Dictionary<string, Mesh>();
+        private CancellationToken? CancellationToken;
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
 
-        public void Export(Resource resource, string targetPath)
+        /// <summary>
+        /// Export a Valve resource to Gltf.
+        /// </summary>
+        /// <param name="resource">The resource being exported.</param>
+        /// <param name="targetPath">Target file name.</param>
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void Export(Resource resource, string targetPath, CancellationToken? cancellationToken)
         {
             try
             {
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Mesh:
-                        ExportToFile(resource.FileName, targetPath, new VMesh(resource));
+                        ExportToFile(resource.FileName, targetPath, new VMesh(resource), cancellationToken);
                         break;
                     case ResourceType.Model:
-                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock, cancellationToken);
                         break;
                     case ResourceType.WorldNode:
-                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock, cancellationToken);
                         break;
                     case ResourceType.World:
-                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock, cancellationToken);
                         break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
@@ -83,8 +91,10 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="world">The world resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VWorld world)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VWorld world, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             if (FileLoader == null)
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
@@ -208,8 +218,10 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="worldNode">The worldNode resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VWorldNode worldNode)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VWorldNode worldNode, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             if (FileLoader == null)
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
@@ -260,8 +272,10 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="model">The model resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VModel model)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VModel model, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             if (FileLoader == null)
             {
                 throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
@@ -277,8 +291,10 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name, Matrix4x4 transform, string skinName = null)
+        private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
+            Matrix4x4 transform, string skinName = null)
         {
+            CancellationToken?.ThrowIfCancellationRequested();
             var (boneNodes, skeletonNode) = CreateGltfSkeleton(scene, model, name);
 
             if (skeletonNode != null)
@@ -445,13 +461,15 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="mesh">The mesh resource to export.</param>
-        public void ExportToFile(string resourceName, string fileName, VMesh mesh)
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void ExportToFile(string resourceName, string fileName, VMesh mesh, CancellationToken? cancellationToken)
         {
+            CancellationToken = cancellationToken;
             DstDir = Path.GetDirectoryName(fileName);
 
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
-            var node = AddMeshNode(exportedModel, scene, name, mesh, null, null);
+            var node = AddMeshNode(exportedModel, scene, name, mesh, null);
 
             if (node != null)
             {
@@ -548,7 +566,8 @@ namespace ValveResourceFormat.IO
             return uri;
         }
 
-        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints, string skinMaterialPath = null)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints,
+            string skinMaterialPath)
         {
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -562,6 +581,7 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
                 {
+                    CancellationToken?.ThrowIfCancellationRequested();
                     var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
                     var vertexBufferIndex = (int)vertexBufferInfo.GetIntegerProperty("m_hBuffer");
                     var vertexBuffer = vbib.VertexBuffers[vertexBufferIndex];
@@ -736,7 +756,8 @@ namespace ValveResourceFormat.IO
                     }
 
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
-                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model, materialNameTrimmed);
+                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model,
+                        materialNameTrimmed);
                     primitive.WithMaterial(bestMaterial);
                 }
             }
@@ -804,7 +825,8 @@ namespace ValveResourceFormat.IO
             return result;
         }
 
-        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model, string materialName)
+        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model,
+            string materialName)
         {
             var material = model
                     .CreateMaterial(materialName)
@@ -980,6 +1002,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var renderTexture in renderMaterial.TextureParams)
             {
+                CancellationToken?.ThrowIfCancellationRequested();
                 var texturePath = renderTexture.Value;
                 var textureResource = FileLoader.LoadFile(texturePath + "_c");
 

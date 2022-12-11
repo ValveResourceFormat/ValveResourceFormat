@@ -180,7 +180,8 @@ namespace GUI.Forms
 
                             if (GltfModelExporter.CanExport(resource))
                             {
-                                gltfExporter.Export(resource, Path.ChangeExtension(outFilePath, "glb"));
+                                gltfExporter.Export(resource, Path.ChangeExtension(outFilePath, "glb"),
+                                    cancellationTokenSource.Token);
                                 continue;
                             }
 
@@ -246,6 +247,7 @@ namespace GUI.Forms
         {
             foreach (var contentSubFile in contentFile.SubFiles)
             {
+                cancellationTokenSource.Token.ThrowIfCancellationRequested();
                 contentSubFile.FileName = Path.Combine(contentRelativeFolder, contentSubFile.FileName).Replace(Path.DirectorySeparatorChar, '/');
                 var fullPath = Path.Combine(path, contentSubFile.FileName);
 

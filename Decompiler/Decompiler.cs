@@ -844,7 +844,7 @@ namespace Decompiler
 
                             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
-                            gltfModelExporter.Export(resource, outputFile);
+                            gltfModelExporter.Export(resource, outputFile, null);
 
                             continue;
                         }

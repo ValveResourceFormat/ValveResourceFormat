@@ -62,7 +62,7 @@ namespace GUI.Types.Exporter
                         FileLoader = exportData.VrfGuiContext.FileLoader,
                     };
 
-                    exporter.Export(resource, dialog.FileName);
+                    exporter.Export(resource, dialog.FileName, null);
                 }
                 else
                 {
