@@ -259,7 +259,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             foreach (var bonePair in frame1.Bones)
             {
                 var frame1Bone = frame1.Bones[bonePair.Key];
-                var frame2Bone = frame1.Bones[bonePair.Key];
+                var frame2Bone = frame2.Bones[bonePair.Key];
                 var position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
                 var angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
                 var scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
