@@ -47,6 +47,7 @@ namespace GUI.Types.Renderer
         private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
 
         private AnimationFrameCache animationFrameCache = new AnimationFrameCache();
+        private bool loadedAnimations;
 
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool loadAnimations = true)
             : base(scene)
@@ -68,7 +69,6 @@ namespace GUI.Types.Renderer
             // Load required resources
             if (loadAnimations)
             {
-                LoadSkeletons();
                 LoadAnimations();
             }
         }
@@ -157,6 +157,22 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void LoadAnimations()
+        {
+            if (loadedAnimations)
+            {
+                return;
+            }
+            loadedAnimations = true;
+            animations.AddRange(Model.GetAllAnimations(Scene.GuiContext.FileLoader));
+
+            if (animations.Any())
+            {
+                LoadSkeletons();
+                SetupAnimationTextures();
+            }
+        }
+
         private void LoadMeshes()
         {
             // Get embedded meshes
@@ -207,53 +223,6 @@ namespace GUI.Types.Renderer
                     GL.BindTexture(TextureTarget.Texture2D, 0);
 
                     animationTextures[i] = animationTexture;
-                }
-            }
-        }
-
-        private void LoadAnimations()
-        {
-            animations.AddRange(AnimationGroupLoader.GetAllAnimations(Model, Scene.GuiContext.FileLoader));
-
-            if (animations.Any())
-            {
-                SetupAnimationTextures();
-            }
-        }
-
-        public void LoadAnimation(string animationName)
-        {
-            var animGroupPaths = Model.GetReferencedAnimationGroupNames();
-            var embeddedAnims = Model.GetEmbeddedAnimations();
-
-            if (!animGroupPaths.Any() && !embeddedAnims.Any())
-            {
-                return;
-            }
-
-            if (skeletons == default)
-            {
-                LoadSkeletons();
-                SetupAnimationTextures();
-            }
-
-            // Get embedded animations
-            var embeddedAnim = embeddedAnims.FirstOrDefault(a => a.Name == animationName);
-            if (embeddedAnim != default)
-            {
-                animations.Add(embeddedAnim);
-                return;
-            }
-
-            // Load animations from referenced animation groups
-            foreach (var animGroupPath in animGroupPaths)
-            {
-                var animGroup = Scene.GuiContext.LoadFileByAnyMeansNecessary(animGroupPath + "_c");
-                var foundAnimations = AnimationGroupLoader.TryLoadSingleAnimationFileFromGroup(animGroup, animationName, Scene.GuiContext.FileLoader);
-                if (foundAnimations != default)
-                {
-                    animations.AddRange(foundAnimations);
-                    return;
                 }
             }
         }

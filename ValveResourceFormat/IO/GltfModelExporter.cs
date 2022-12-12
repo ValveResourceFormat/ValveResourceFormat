@@ -296,7 +296,7 @@ namespace ValveResourceFormat.IO
 
             if (skeletonNode != null)
             {
-                var animations = AnimationGroupLoader.GetAllAnimations(model, FileLoader);
+                var animations = model.GetAllAnimations(FileLoader);
                 // Add animations
                 var frame = new Frame();
                 foreach (var animation in animations)
