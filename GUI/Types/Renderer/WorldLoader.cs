@@ -273,7 +273,7 @@ namespace GUI.Types.Renderer
 
                 if (animation != default)
                 {
-                    modelNode.LoadAnimation(animation); // Load only this animation
+                    modelNode.LoadAnimations();
                     modelNode.SetAnimation(animation);
                 }
 

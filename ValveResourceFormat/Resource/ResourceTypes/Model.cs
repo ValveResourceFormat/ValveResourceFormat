@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 
@@ -8,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Model : KeyValuesOrNTRO
     {
-        private List<Animation> CachedEmbeddedAnimations;
+        private List<Animation> CachedAnimations;
 
         public Skeleton GetSkeleton(int meshIndex)
         {
@@ -80,35 +81,55 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
-            if (CachedEmbeddedAnimations != null)
+            var embeddedAnimations = new List<Animation>();
+
+            if (!Resource.ContainsBlockType(BlockType.CTRL))
             {
-                return CachedEmbeddedAnimations;
+                return embeddedAnimations;
             }
 
-            CachedEmbeddedAnimations = new List<Animation>();
+            var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+            var embeddedAnimation = ctrl.Data.GetSubCollection("embedded_animation");
 
-            if (Resource.ContainsBlockType(BlockType.CTRL))
+            if (embeddedAnimation == null)
             {
-                var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-                var embeddedAnimation = ctrl.Data.GetSubCollection("embedded_animation");
+                return embeddedAnimations;
+            }
 
-                if (embeddedAnimation == null)
+            var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
+            var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
+
+            var animationGroup = Resource.GetBlockByIndex(groupDataBlockIndex) as KeyValuesOrNTRO;
+            var decodeKey = animationGroup.Data.GetSubCollection("m_decodeKey");
+
+            var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
+
+            return Animation.FromData(animationDataBlock.Data, decodeKey);
+        }
+
+        public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
+        {
+            if (CachedAnimations != null)
+            {
+                return CachedAnimations;
+            }
+
+            var animGroupPaths = GetReferencedAnimationGroupNames();
+            var animations = GetEmbeddedAnimations().ToList();
+
+            // Load animations from referenced animation groups
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                var animGroup = fileLoader.LoadFile(animGroupPath + "_c");
+                if (animGroup != default)
                 {
-                    return CachedEmbeddedAnimations;
+                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader));
                 }
-
-                var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
-                var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
-
-                var animationGroup = Resource.GetBlockByIndex(groupDataBlockIndex) as KeyValuesOrNTRO;
-                var decodeKey = animationGroup.Data.GetSubCollection("m_decodeKey");
-
-                var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
-
-                CachedEmbeddedAnimations.AddRange(Animation.FromData(animationDataBlock.Data, decodeKey));
             }
 
-            return CachedEmbeddedAnimations;
+            CachedAnimations = animations.ToList();
+
+            return CachedAnimations;
         }
 
         public IEnumerable<string> GetMeshGroups()
