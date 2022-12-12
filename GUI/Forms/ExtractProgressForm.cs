@@ -9,14 +9,12 @@ using GUI.Types.Exporter;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using Exception = System.Exception;
 
 namespace GUI.Forms
 {
     public partial class ExtractProgressForm : Form
     {
-        private readonly Package package;
-        private readonly TreeNode root;
+        private bool decompile;
         private readonly string path;
         private readonly ExportData exportData;
         private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted;
@@ -32,9 +30,9 @@ namespace GUI.Forms
             ResourceType.Texture,
         };
 
-        public bool Decompile => exportData != null;
+        public Action<ExtractProgressForm> ShownCallback { get; init; }
 
-        public ExtractProgressForm(Package package, TreeNode root, string path, ExportData exportData = null)
+        public ExtractProgressForm(ExportData exportData, string path, bool decompile)
         {
             InitializeComponent();
 
@@ -49,50 +47,44 @@ namespace GUI.Forms
             filesToExtract = new Queue<PackageEntry>();
             extractedFiles = new HashSet<string>();
 
-            this.package = package;
-            this.root = root;
             this.path = path;
+            this.decompile = decompile;
             this.exportData = exportData;
 
-            if (Decompile)
+            if (decompile)
             {
                 gltfExporter = new GltfModelExporter()
                 {
                     FileLoader = exportData.VrfGuiContext.FileLoader,
+                    ProgressReporter = new Progress<string>(SetProgress),
                 };
             }
         }
 
         protected override void OnShown(EventArgs e)
         {
+            if (ShownCallback != null)
+            {
+                ShownCallback(this);
+                return;
+            }
+
             Task
                 .Run(
                 async () =>
                 {
-                    Invoke((Action)(() =>
-                    {
-                        extractStatusLabel.Text = "Calculating...";
-                        extractProgressBar.Style = ProgressBarStyle.Marquee;
-                    }));
-
                     Console.WriteLine($"Folder export started to \"{path}\"");
-                    CalculateFilesToExtract(root);
 
-                    Invoke((Action)(() =>
-                    {
-                        extractProgressBar.Style = ProgressBarStyle.Continuous;
-                    }));
-
-                    if (Decompile)
+                    if (decompile)
                     {
                         foreach (var resourceType in ExtractOrder)
                         {
-                            Invoke(() => Text = $"Extracting {resourceType}s...");
+                            SetProgress($"Extracting {resourceType}s...");
                             var extension = FileExtract.GetExtension(resourceType);
                             await ExtractFilesAsync(filesToExtractSorted[extension + "_c"]).ConfigureAwait(false);
                         }
 
-                        Invoke(() => Text = $"Extracting files...");
+                        SetProgress("Extracting files...");
                     }
 
                     await ExtractFilesAsync(filesToExtract).ConfigureAwait(false);
@@ -100,9 +92,14 @@ namespace GUI.Forms
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
                 {
+                    if (t.IsFaulted)
+                    {
+                        Console.WriteLine(t.Exception);
+                    }
+
                     if (!t.IsCanceled)
                     {
-                        Invoke((Action)Close);
+                        Invoke(Close);
                     }
                 });
         }
@@ -112,17 +109,13 @@ namespace GUI.Forms
             cancellationTokenSource.Cancel();
         }
 
-        private void CalculateFilesToExtract(TreeNode root)
+        public void QueueFiles(TreeNode root)
         {
-            cancellationTokenSource.Token.ThrowIfCancellationRequested();
-
             foreach (TreeNode node in root.Nodes)
             {
-                if (node.Tag.GetType() == typeof(PackageEntry))
+                if (node.Tag is PackageEntry file)
                 {
-                    var file = node.Tag as PackageEntry;
-
-                    if (Decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
+                    if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
                     {
                         specializedQueue.Enqueue(file);
                         continue;
@@ -132,7 +125,7 @@ namespace GUI.Forms
                 }
                 else
                 {
-                    CalculateFilesToExtract(node);
+                    QueueFiles(node);
                 }
             }
         }
@@ -151,95 +144,101 @@ namespace GUI.Forms
                     continue;
                 }
 
-                Invoke((Action)(() =>
+                Invoke(() =>
                 {
                     extractProgressBar.Value = 100 - (int)(filesToExtract.Count / (float)initialCount * 100.0f);
-                    extractStatusLabel.Text = $"Extracting {packageFile.GetFullPath()}";
-                }));
+                });
+
+                SetProgress($"Extracting {packageFile.GetFullPath()}");
+
+                exportData.VrfGuiContext.CurrentPackage.ReadEntry(packageFile, out var output, false);
 
                 var outFilePath = Path.Combine(path, packageFile.GetFullPath());
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
-                package.ReadEntry(packageFile, out var output, false);
-
                 Directory.CreateDirectory(outFolder);
 
-                if (Decompile && outFilePath.EndsWith("_c", StringComparison.Ordinal))
+                if (!decompile || !outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
-                    ContentFile contentFile = null;
-
-                    using (var resource = new Resource
-                    {
-                        FileName = packageFile.GetFullPath(),
-                    })
-                    using (var memory = new MemoryStream(output))
-                    {
-                        try
-                        {
-                            resource.Read(memory);
-
-                            if (GltfModelExporter.CanExport(resource))
-                            {
-                                gltfExporter.Export(resource, Path.ChangeExtension(outFilePath, "glb"),
-                                    cancellationTokenSource.Token);
-                                continue;
-                            }
-
-                            var extension = FileExtract.GetExtension(resource);
-
-                            if (extension == null)
-                            {
-                                outFilePath = outFilePath[..^2];
-                            }
-                            else
-                            {
-                                outFilePath = Path.ChangeExtension(outFilePath, extension);
-                            }
-
-                            contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader);
-                        }
-                        catch (Exception e)
-                        {
-                            await Console.Error.WriteLineAsync($"Failed to extract '{packageFile.GetFullPath()}': {e}").ConfigureAwait(false);
-                            contentFile?.Dispose();
-                            continue;
-                        }
-                    }
-
-                    using (contentFile)
-                    {
-                        if (contentFile.Data.Length > 0)
-                        {
-                            Console.WriteLine($"+ {outFilePath.Remove(0, path.Length + 1)}");
-                            await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
-                        }
-
-                        // Handle the subfiles of external refs directly
-                        if (contentFile.SubFilesAreExternal)
-                        {
-                            foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
-                            {
-                                Invoke(() => extractStatusLabel.Text = $"Extracting {refFileName}");
-                                extractedFiles.Add(refFileName);
-                                await ExtractSubfiles(Path.GetDirectoryName(refFileName), refContentFile).ConfigureAwait(false);
-                            }
-                            continue;
-                        }
-
-                        extractedFiles.Add(packageFile.GetFullPath());
-                        foreach (var handledFile in contentFile.ExternalRefsHandled.Keys)
-                        {
-                            extractedFiles.Add(handledFile);
-                        }
-
-                        await ExtractSubfiles(Path.GetDirectoryName(packageFile.GetFullPath()), contentFile).ConfigureAwait(false);
-                    }
-
+                    // Extract as is
+                    await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
                     continue;
                 }
 
-                // Extract as is
-                await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
+                using var resource = new Resource
+                {
+                    FileName = packageFile.GetFullPath(),
+                };
+                using var memory = new MemoryStream(output);
+                resource.Read(memory);
+
+                if (GltfModelExporter.CanExport(resource))
+                {
+                    outFilePath = Path.ChangeExtension(outFilePath, "glb");
+                }
+
+                await ExtractFile(resource, packageFile.GetFullPath(), outFilePath).ConfigureAwait(false);
+            }
+        }
+
+        public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath)
+        {
+            if (GltfModelExporter.CanExport(resource) && Path.GetExtension(outFilePath) is ".glb" or ".gltf")
+            {
+                gltfExporter.Export(resource, outFilePath, cancellationTokenSource.Token);
+                return;
+            }
+
+            var extension = FileExtract.GetExtension(resource);
+
+            if (extension == null)
+            {
+                outFilePath = outFilePath[..^2]; // remove "_c"
+            }
+            else
+            {
+                outFilePath = Path.ChangeExtension(outFilePath, extension);
+            }
+
+            ContentFile contentFile = null;
+
+            try
+            {
+                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader);
+
+                if (contentFile.Data.Length > 0)
+                {
+                    Console.WriteLine($"+ {outFilePath.Remove(0, path.Length + 1)}");
+                    await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
+                }
+
+                // Handle the subfiles of external refs directly
+                if (contentFile.SubFilesAreExternal)
+                {
+                    foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
+                    {
+                        SetProgress($"Extracting {refFileName}");
+                        extractedFiles.Add(refFileName);
+                        await ExtractSubfiles(Path.GetDirectoryName(refFileName), refContentFile).ConfigureAwait(false);
+                    }
+                    return;
+                }
+
+                extractedFiles.Add(inFilePath);
+                foreach (var handledFile in contentFile.ExternalRefsHandled.Keys)
+                {
+                    extractedFiles.Add(handledFile);
+                }
+
+                await ExtractSubfiles(Path.GetDirectoryName(inFilePath), contentFile).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                await Console.Error.WriteLineAsync($"Failed to extract '{inFilePath}': {e}").ConfigureAwait(false);
+            }
+            finally
+            {
+                contentFile?.Dispose();
             }
         }
 
@@ -282,6 +281,14 @@ namespace GUI.Forms
         private void CancelButton_Click(object sender, EventArgs e)
         {
             Close();
+        }
+
+        public void SetProgress(string text)
+        {
+            Invoke(() =>
+            {
+                extractStatusLabel.Text = text;
+            });
         }
     }
 }

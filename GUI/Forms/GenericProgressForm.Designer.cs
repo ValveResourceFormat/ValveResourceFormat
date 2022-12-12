@@ -67,7 +67,7 @@ namespace GUI.Forms
             this.extractProgressBar.Margin = new System.Windows.Forms.Padding(23, 17, 23, 17);
             this.extractProgressBar.Name = "extractProgressBar";
             this.extractProgressBar.Size = new System.Drawing.Size(658, 30);
-            this.extractProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
+            this.extractProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
             this.extractProgressBar.TabIndex = 0;
             // 
             // extractStatusLabel

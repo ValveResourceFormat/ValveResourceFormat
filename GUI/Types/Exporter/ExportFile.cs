@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
@@ -11,9 +12,15 @@ namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
-        public static void Export(string fileName, ExportData exportData)
+        public static void Export(string fileName, byte[] output, ExportData exportData)
         {
-            var resource = exportData.Resource;
+            var resource = new Resource
+            {
+                FileName = fileName,
+            };
+            var memory = new MemoryStream(output);
+            resource.Read(memory);
+
             var extension = FileExtract.GetExtension(resource);
 
             if (extension == null)
@@ -50,38 +57,26 @@ namespace GUI.Types.Exporter
 
             Console.WriteLine($"Export for \"{fileName}\" started to \"{Path.GetFileName(dialog.FileName)}\"");
 
-            Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+            var directory = Path.GetDirectoryName(dialog.FileName);
+            Settings.Config.SaveDirectory = directory;
             Settings.Save();
 
-            var extractDialog = new GenericProgressForm();
-            extractDialog.OnProcess += (_, __) =>
+            var extractDialog = new ExtractProgressForm(exportData, directory, true)
             {
-                if (GltfModelExporter.CanExport(resource) && dialog.FilterIndex <= 2)
+                ShownCallback = (form) =>
                 {
-                    var exporter = new GltfModelExporter
+                    form.SetProgress($"Extracting {fileName}");
+
+                    Task.Run(async () =>
                     {
-                        ProgressReporter = new Progress<string>(extractDialog.SetProgress),
-                        FileLoader = exportData.VrfGuiContext.FileLoader,
-                    };
-
-                    exporter.Export(resource, dialog.FileName, null);
-                }
-                else
-                {
-                    using var contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext?.FileLoader);
-                    using var stream = dialog.OpenFile();
-                    stream.Write(contentFile.Data);
-
-                    foreach (var contentSubFile in contentFile.SubFiles)
+                        await form.ExtractFile(resource, fileName, dialog.FileName).ConfigureAwait(false);
+                    }).ContinueWith(t =>
                     {
-                        Console.WriteLine($"Export for \"{fileName}\" also writing \"{contentSubFile.FileName}\"");
-                        var subFilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName), contentSubFile.FileName);
-                        using var subFileStream = File.OpenWrite(subFilePath);
-                        subFileStream.Write(contentSubFile.Extract.Invoke());
-                    }
+                        memory.Dispose();
+                        resource.Dispose();
+                        form.Invoke(form.Close);
+                    });
                 }
-
-                Console.WriteLine($"Export for \"{fileName}\" completed");
             };
             extractDialog.ShowDialog();
         }
@@ -97,17 +92,8 @@ namespace GUI.Types.Exporter
         {
             if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
             {
-                using var resource = new Resource
+                Export(fileName, output, new ExportData
                 {
-                    FileName = fileName,
-                };
-                using var memory = new MemoryStream(output);
-
-                resource.Read(memory);
-
-                Export(fileName, new ExportData
-                {
-                    Resource = resource,
                     VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
                 });
 
@@ -126,6 +112,8 @@ namespace GUI.Types.Exporter
             {
                 Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
                 Settings.Save();
+
+                Console.WriteLine($"Saved \"{Path.GetFileName(dialog.FileName)}\"");
 
                 using var stream = dialog.OpenFile();
                 stream.Write(output, 0, output.Length);
@@ -149,16 +137,13 @@ namespace GUI.Types.Exporter
                     return;
                 }
 
-                ExportData exportData = null;
-                if (decompile)
+                var exportData = new ExportData
                 {
-                    exportData = new ExportData
-                    {
-                        VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
-                    };
-                }
+                    VrfGuiContext = vrfGuiContext,
+                };
 
-                var extractDialog = new ExtractProgressForm(vrfGuiContext.CurrentPackage, selectedNode, dialog.SelectedPath, exportData);
+                var extractDialog = new ExtractProgressForm(exportData, dialog.SelectedPath, decompile);
+                extractDialog.QueueFiles(selectedNode);
                 extractDialog.ShowDialog();
             }
         }
