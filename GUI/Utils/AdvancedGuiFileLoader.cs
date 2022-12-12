@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Linq;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
@@ -56,8 +57,8 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from current vpk");
 #endif
 
-                GuiContext.CurrentPackage.ReadEntry(entry, out var output, false);
-                resource.Read(new MemoryStream(output));
+                var stream = GetPackageEntryStream(GuiContext.CurrentPackage, entry);
+                resource.Read(stream);
                 CachedResources[file] = resource;
 
                 return resource;
@@ -101,11 +102,10 @@ namespace GUI.Utils
                     {
                         Console.WriteLine($"Preloading vpk from parent vpk \"{searchPath}\"");
 
-                        GuiContext.CurrentPackage.ReadEntry(searchPath, out var vpk, false);
-                        var ms = new MemoryStream(vpk);
+                        var stream = GetPackageEntryStream(GuiContext.CurrentPackage, searchPath);
                         package = new Package();
                         package.SetFileName(searchPath.GetFileName());
-                        package.Read(ms);
+                        package.Read(stream);
                         CachedPackages[searchPath.GetFileName()] = package;
                     }
 
@@ -123,8 +123,8 @@ namespace GUI.Utils
                     Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
-                    package.ReadEntry(entry, out var output, false);
-                    resource.Read(new MemoryStream(output));
+                    var stream = GetPackageEntryStream(package, entry);
+                    resource.Read(stream);
                     CachedResources[file] = resource;
 
                     return resource;
@@ -288,6 +288,20 @@ namespace GUI.Utils
             }
 
             return null;
+        }
+
+        private static Stream GetPackageEntryStream(Package package, PackageEntry entry)
+        {
+            // Files in a vpk that isn't split
+            if (!package.IsDirVPK || entry.ArchiveIndex == 32767 || entry.SmallData.Length > 0)
+            {
+                package.ReadEntry(entry, out var output, false);
+                return new MemoryStream(output);
+            }
+
+            var path = $"{package.FileName}_{entry.ArchiveIndex:D3}.vpk";
+            var stream = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            return stream.CreateViewStream(entry.Offset, entry.Length, MemoryMappedFileAccess.Read);
         }
     }
 }
