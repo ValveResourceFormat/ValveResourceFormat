@@ -152,8 +152,7 @@ namespace GUI.Types.Renderer
                 var model = entity.GetProperty<string>("model");
                 var skin = entity.GetProperty<string>("skin");
                 var particle = entity.GetProperty<string>("effect_name");
-                //var animation = entity.GetProperty<string>("defaultanim");
-                string animation = null;
+                var animation = entity.GetProperty<string>("defaultanim");
 
                 if (scale == null || position == null || angles == null)
                 {

@@ -61,6 +61,10 @@ namespace GUI.Types.Renderer
             LoadMeshes();
             UpdateBoundingBox();
 
+            AnimationController.RegisterUpdateHandler((animation, frame) =>
+            {
+            });
+
             // Load required resources
             if (loadAnimations)
             {
