@@ -424,14 +424,5 @@ namespace GUI.Types.Viewers
 
             return tab;
         }
-
-        private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            //ToolTipText is the full filename
-            var menuItem = (ToolStripMenuItem)sender;
-            var fileName = menuItem.ToolTipText;
-
-            ExportFile.Export(fileName, menuItem.Tag as ExportData);
-        }
     }
 }
