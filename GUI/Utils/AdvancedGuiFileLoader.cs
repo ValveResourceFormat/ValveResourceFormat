@@ -290,7 +290,7 @@ namespace GUI.Utils
             return null;
         }
 
-        private static Stream GetPackageEntryStream(Package package, PackageEntry entry)
+        public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
         {
             // Files in a vpk that isn't split
             if (!package.IsDirVPK || entry.ArchiveIndex == 32767 || entry.SmallData.Length > 0)

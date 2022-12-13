@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Types.Exporter;
+using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -155,8 +156,7 @@ namespace GUI.Forms
 
                 SetProgress($"Extracting {packageFile.GetFullPath()}");
 
-                exportData.VrfGuiContext.CurrentPackage.ReadEntry(packageFile, out var output, false);
-
+                var stream = AdvancedGuiFileLoader.GetPackageEntryStream(exportData.VrfGuiContext.CurrentPackage, packageFile);
                 var outFilePath = Path.Combine(path, packageFile.GetFullPath());
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
@@ -165,7 +165,10 @@ namespace GUI.Forms
                 if (!decompile || !outFilePath.EndsWith("_c", StringComparison.Ordinal))
                 {
                     // Extract as is
-                    await File.WriteAllBytesAsync(outFilePath, output, cancellationTokenSource.Token).ConfigureAwait(false);
+                    var outStream = File.OpenWrite(outFilePath);
+                    await stream.CopyToAsync(outStream).ConfigureAwait(false);
+                    outStream.Close();
+
                     continue;
                 }
 
@@ -173,8 +176,7 @@ namespace GUI.Forms
                 {
                     FileName = packageFile.GetFullPath(),
                 };
-                using var memory = new MemoryStream(output);
-                resource.Read(memory);
+                resource.Read(stream);
 
                 if (GltfModelExporter.CanExport(resource))
                 {
