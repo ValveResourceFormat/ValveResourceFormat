@@ -73,7 +73,7 @@ namespace GUI.Forms
                 .Run(
                 async () =>
                 {
-                    Console.WriteLine($"Folder export started to \"{path}\"");
+                    SetProgress($"Folder export started to \"{path}\"");
 
                     if (decompile)
                     {
@@ -95,12 +95,16 @@ namespace GUI.Forms
                     if (t.IsFaulted)
                     {
                         Console.WriteLine(t.Exception);
+                        SetProgress(t.Exception.ToString());
                     }
 
-                    if (!t.IsCanceled)
+                    Invoke(() =>
                     {
-                        Invoke(Close);
-                    }
+                        Text = "VRF - Export completed";
+                        cancelButton.Text = "Close";
+                    });
+
+                    SetProgress("Export completed.");
                 });
         }
 
@@ -208,7 +212,7 @@ namespace GUI.Forms
 
                 if (contentFile.Data.Length > 0)
                 {
-                    Console.WriteLine($"+ {outFilePath.Remove(0, path.Length + 1)}");
+                    SetProgress($"+ {outFilePath.Remove(0, path.Length + 1)}");
                     await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
 
@@ -235,6 +239,7 @@ namespace GUI.Forms
             catch (Exception e)
             {
                 await Console.Error.WriteLineAsync($"Failed to extract '{inFilePath}': {e}").ConfigureAwait(false);
+                SetProgress($"Failed to extract '{inFilePath}': {e.Message}");
             }
             finally
             {
@@ -252,7 +257,7 @@ namespace GUI.Forms
 
                 if (extractedFiles.Contains(contentSubFile.FileName))
                 {
-                    Console.WriteLine($"\t- {contentSubFile.FileName}");
+                    SetProgress($"\t- {contentSubFile.FileName}");
                     continue;
                 }
 
@@ -266,12 +271,13 @@ namespace GUI.Forms
                 catch (Exception e)
                 {
                     await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}': {e}").ConfigureAwait(false);
+                    SetProgress($"Failed to extract subfile '{contentSubFile.FileName}': {e.Message}");
                     continue;
                 }
 
                 if (subFileData.Length > 0)
                 {
-                    Console.WriteLine($"\t+ {contentSubFile.FileName}");
+                    SetProgress($"\t+ {contentSubFile.FileName}");
                     extractedFiles.Add(contentSubFile.FileName);
                     await File.WriteAllBytesAsync(fullPath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
@@ -285,9 +291,14 @@ namespace GUI.Forms
 
         public void SetProgress(string text)
         {
+            if (Disposing || IsDisposed || cancellationTokenSource.IsCancellationRequested)
+            {
+                return;
+            }
+
             Invoke(() =>
             {
-                extractStatusLabel.Text = text;
+                progressLog.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] {text}{Environment.NewLine}");
             });
         }
     }
