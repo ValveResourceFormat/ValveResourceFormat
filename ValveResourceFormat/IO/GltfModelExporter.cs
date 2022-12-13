@@ -1154,13 +1154,6 @@ namespace ValveResourceFormat.IO
                     return;
                 }
 
-                void WriteTexture(MaterialExtract.Channel channel, string gltfName, int index, int count)
-                {
-                    gltfBestMatch = gltfName;
-                    renderTextureInputs.RemoveRange(index, count);
-                    using var fs = File.Open(exportedTexturePath, FileMode.Create);
-                    fs.Write(TextureExtract.ToPngImageChannels(bitmap, channel));
-                }
 
                 // Try to find a glTF entry that best matches this texture
                 foreach (var (gltfTexture, gltfInputs) in MaterialExtract.GltfTextureMappings)
@@ -1207,7 +1200,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 // Collect any leftover channel/maps to new images
-                if (AdaptTextures && gltfBestMatch != "MetallicRoughness")
+                if (AdaptTextures)
                 {
                     foreach (var (channel, textureType) in renderTextureInputs)
                     {
@@ -1226,10 +1219,10 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                if (gltfBestMatch is not null)
+                void WriteTexture(MaterialExtract.Channel channel, string gltfBestMatch, int index, int count)
                 {
-                    var image = model.UseImage(exportedTexturePath);
-                    image.Name = $"{fileName}_{model.LogicalImages.Count - 1}";
+                    var image = model.UseImage(TextureExtract.ToPngImageChannels(bitmap, channel));
+                    image.Name = fileName;
 
                     var tex = model.UseTexture(image, sampler);
                     tex.Name = $"{fileName}_{model.LogicalTextures.Count - 1}";
@@ -1246,6 +1239,8 @@ namespace ValveResourceFormat.IO
                             },
                         });
                     }
+
+                    renderTextureInputs.RemoveRange(index, count);
                 }
             }
 
@@ -1273,14 +1268,11 @@ namespace ValveResourceFormat.IO
 
             if (occlusionRoughnessMetal.Bitmap is not null)
             {
-                var finalDest = Path.Combine(DstDir, occlusionRoughnessMetal.FileName);
-                using (var fs = File.Open(finalDest, FileMode.Create))
-                {
-                    fs.Write(TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap));
-                }
-
                 var metallicRoughness = material.FindChannel("MetallicRoughness");
-                var tex = model.UseTexture(model.UseImage(finalDest), sampler);
+
+                var image = model.UseImage(TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap));
+                image.Name = occlusionRoughnessMetal.FileName;
+
                 metallicRoughness?.SetTexture(0, tex);
                 metallicRoughness?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
 
