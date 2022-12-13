@@ -130,12 +130,18 @@ namespace GUI.Types.Exporter
             else
             {
                 // We are a folder
-                using var dialog = new FolderBrowserDialog();
+                using var dialog = new FolderBrowserDialog
+                {
+                    InitialDirectory = Settings.Config.SaveDirectory,
+                };
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
                 }
+
+                Settings.Config.SaveDirectory = dialog.SelectedPath;
+                Settings.Save();
 
                 var exportData = new ExportData
                 {
