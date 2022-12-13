@@ -66,6 +66,7 @@ namespace GUI.Forms
         {
             if (ShownCallback != null)
             {
+                extractProgressBar.Style = ProgressBarStyle.Marquee;
                 ShownCallback(this);
                 return;
             }

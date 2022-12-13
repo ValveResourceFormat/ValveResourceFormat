@@ -51,11 +51,8 @@ namespace GUI.Types.Exporter
 
             if (result != DialogResult.OK)
             {
-                Console.WriteLine($"Export for \"{fileName}\" cancelled");
                 return;
             }
-
-            Console.WriteLine($"Export for \"{fileName}\" started to \"{Path.GetFileName(dialog.FileName)}\"");
 
             var directory = Path.GetDirectoryName(dialog.FileName);
             Settings.Config.SaveDirectory = directory;
@@ -65,7 +62,7 @@ namespace GUI.Types.Exporter
             {
                 ShownCallback = (form) =>
                 {
-                    form.SetProgress($"Extracting {fileName}");
+                    form.SetProgress($"Extracting {fileName} to \"{Path.GetFileName(dialog.FileName)}\"");
 
                     Task.Run(async () =>
                     {
