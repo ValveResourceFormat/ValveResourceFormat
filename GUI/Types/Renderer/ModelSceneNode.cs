@@ -39,7 +39,6 @@ namespace GUI.Types.Renderer
         private readonly List<Animation> animations = new();
         private Dictionary<string, string> skinMaterials;
 
-        private Animation activeAnimation;
         private int[] animationTextures;
         private Skeleton[] skeletons;
 
@@ -69,12 +68,10 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
-            if (activeAnimation == null)
+            if (!AnimationController.Update(context.Timestep))
             {
                 return;
             }
-
-            AnimationController.Update(context.Timestep);
 
             for (var i = 0; i < skeletons.Length; i++)
             {
@@ -92,7 +89,7 @@ namespace GUI.Types.Renderer
                     animationMatrices[(j * 16) + 15] = 1.0f;
                 }
 
-                animationMatrices = activeAnimation.GetAnimationMatricesAsArray(AnimationController.Time, skeleton);
+                animationMatrices = AnimationController.GetAnimationMatricesAsArray(skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -257,7 +254,7 @@ namespace GUI.Types.Renderer
 
         public void SetAnimation(string animationName)
         {
-            activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+            var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
             AnimationController.SetAnimation(activeAnimation);
 
             if (activeAnimation != default)

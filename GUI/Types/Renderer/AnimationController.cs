@@ -5,10 +5,10 @@ namespace GUI.Types.Renderer
 {
     public class AnimationController
     {
-        private Action<Animation, int> updateHandler;
+        private Action<Animation, int> updateHandler = (_, __) => { };
         private Animation activeAnimation;
+        private float Time;
 
-        public float Time { get; private set; }
         public bool IsPaused { get; set; }
         public int Frame
         {
@@ -29,13 +29,20 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void Update(float timeStep)
+        public bool Update(float timeStep)
         {
+            if (activeAnimation == null)
+            {
+                return false;
+            }
+
             if (!IsPaused)
             {
                 Time += timeStep;
                 updateHandler(activeAnimation, Frame);
             }
+
+            return true;
         }
 
         public void SetAnimation(Animation animation)
@@ -44,6 +51,9 @@ namespace GUI.Types.Renderer
             Time = 0f;
             updateHandler(activeAnimation, -1);
         }
+
+        public float[] GetAnimationMatricesAsArray(Skeleton skeleton)
+            => activeAnimation.GetAnimationMatricesAsArray(Time, skeleton);
 
         public void RegisterUpdateHandler(Action<Animation, int> handler)
         {
