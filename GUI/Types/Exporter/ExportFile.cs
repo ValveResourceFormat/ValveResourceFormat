@@ -66,7 +66,7 @@ namespace GUI.Types.Exporter
 
                     Task.Run(async () =>
                     {
-                        await form.ExtractFile(resource, fileName, dialog.FileName).ConfigureAwait(false);
+                        await form.ExtractFile(resource, fileName, dialog.FileName, true).ConfigureAwait(false);
                     }).ContinueWith(t =>
                     {
                         memory.Dispose();

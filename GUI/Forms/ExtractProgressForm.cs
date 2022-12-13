@@ -188,7 +188,7 @@ namespace GUI.Forms
             }
         }
 
-        public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath)
+        public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles = false)
         {
             if (GltfModelExporter.CanExport(resource) && Path.GetExtension(outFilePath) is ".glb" or ".gltf")
             {
@@ -219,6 +219,8 @@ namespace GUI.Forms
                     await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
 
+                string contentRelativeFolder;
+
                 // Handle the subfiles of external refs directly
                 if (contentFile.SubFilesAreExternal)
                 {
@@ -226,7 +228,10 @@ namespace GUI.Forms
                     {
                         SetProgress($"Extracting {refFileName}");
                         extractedFiles.Add(refFileName);
-                        await ExtractSubfiles(Path.GetDirectoryName(refFileName), refContentFile).ConfigureAwait(false);
+
+                        contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(refFileName);
+
+                        await ExtractSubfiles(contentRelativeFolder, refContentFile).ConfigureAwait(false);
                     }
                     return;
                 }
@@ -237,7 +242,9 @@ namespace GUI.Forms
                     extractedFiles.Add(handledFile);
                 }
 
-                await ExtractSubfiles(Path.GetDirectoryName(inFilePath), contentFile).ConfigureAwait(false);
+                contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(inFilePath);
+
+                await ExtractSubfiles(contentRelativeFolder, contentFile).ConfigureAwait(false);
             }
             catch (Exception e)
             {
