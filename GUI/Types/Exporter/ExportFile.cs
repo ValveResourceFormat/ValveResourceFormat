@@ -1,17 +1,26 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
+using Resource = ValveResourceFormat.Resource;
 
 namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
-        public static void Export(string fileName, ExportData exportData)
+        public static void Export(string fileName, byte[] output, ExportData exportData)
         {
-            var resource = exportData.Resource;
+            var resource = new Resource
+            {
+                FileName = fileName,
+            };
+            var memory = new MemoryStream(output);
+            resource.Read(memory);
+
             var extension = FileExtract.GetExtension(resource);
 
             if (extension == null)
@@ -30,7 +39,7 @@ namespace GUI.Types.Exporter
                 filter = $"{gltfFilter}|{glbFilter}|{filter}";
             }
 
-            var dialog = new SaveFileDialog
+            using var dialog = new SaveFileDialog
             {
                 FileName = Path.GetFileNameWithoutExtension(fileName),
                 InitialDirectory = Settings.Config.SaveDirectory,
@@ -42,46 +51,104 @@ namespace GUI.Types.Exporter
 
             if (result != DialogResult.OK)
             {
-                Console.WriteLine($"Export for \"{fileName}\" cancelled");
                 return;
             }
 
-            Console.WriteLine($"Export for \"{fileName}\" started to \"{Path.GetFileName(dialog.FileName)}\"");
-
-            Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+            var directory = Path.GetDirectoryName(dialog.FileName);
+            Settings.Config.SaveDirectory = directory;
             Settings.Save();
 
-            var extractDialog = new GenericProgressForm();
-            extractDialog.OnProcess += (_, __) =>
+            var extractDialog = new ExtractProgressForm(exportData, directory, true)
             {
-                if (GltfModelExporter.CanExport(resource) && dialog.FilterIndex <= 2)
+                ShownCallback = (form) =>
                 {
-                    var exporter = new GltfModelExporter
+                    form.SetProgress($"Extracting {fileName} to \"{Path.GetFileName(dialog.FileName)}\"");
+
+                    Task.Run(async () =>
                     {
-                        ProgressReporter = new Progress<string>(extractDialog.SetProgress),
-                        FileLoader = exportData.VrfGuiContext.FileLoader,
-                    };
-
-                    exporter.Export(resource, dialog.FileName, null);
-                }
-                else
-                {
-                    using var contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext?.FileLoader);
-                    using var stream = dialog.OpenFile();
-                    stream.Write(contentFile.Data);
-
-                    foreach (var contentSubFile in contentFile.SubFiles)
+                        await form.ExtractFile(resource, fileName, dialog.FileName, true).ConfigureAwait(false);
+                    }).ContinueWith(t =>
                     {
-                        Console.WriteLine($"Export for \"{fileName}\" also writing \"{contentSubFile.FileName}\"");
-                        var subFilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName), contentSubFile.FileName);
-                        using var subFileStream = File.OpenWrite(subFilePath);
-                        subFileStream.Write(contentSubFile.Extract.Invoke());
-                    }
+                        memory.Dispose();
+                        resource.Dispose();
+                        form.Invoke(form.Close);
+                    });
                 }
-
-                Console.WriteLine($"Export for \"{fileName}\" completed");
             };
             extractDialog.ShowDialog();
+        }
+
+        public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+
+            ExtractFileFromByteArray(file.GetFileName(), output, vrfGuiContext, decompile);
+        }
+
+        public static void ExtractFileFromByteArray(string fileName, byte[] output, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
+            {
+                Export(fileName, output, new ExportData
+                {
+                    VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
+                });
+
+                return;
+            }
+
+            var dialog = new SaveFileDialog
+            {
+                InitialDirectory = Settings.Config.SaveDirectory,
+                Filter = "All files (*.*)|*.*",
+                FileName = fileName,
+            };
+            var userOK = dialog.ShowDialog();
+
+            if (userOK == DialogResult.OK)
+            {
+                Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                Settings.Save();
+
+                Console.WriteLine($"Saved \"{Path.GetFileName(dialog.FileName)}\"");
+
+                using var stream = dialog.OpenFile();
+                stream.Write(output, 0, output.Length);
+            }
+        }
+
+        public static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            if (selectedNode.Tag is PackageEntry file)
+            {
+                // We are a file
+                ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
+            }
+            else
+            {
+                // We are a folder
+                using var dialog = new FolderBrowserDialog
+                {
+                    InitialDirectory = Settings.Config.SaveDirectory,
+                };
+
+                if (dialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                Settings.Config.SaveDirectory = dialog.SelectedPath;
+                Settings.Save();
+
+                var exportData = new ExportData
+                {
+                    VrfGuiContext = vrfGuiContext,
+                };
+
+                var extractDialog = new ExtractProgressForm(exportData, dialog.SelectedPath, decompile);
+                extractDialog.QueueFiles(selectedNode);
+                extractDialog.ShowDialog();
+            }
         }
     }
 }

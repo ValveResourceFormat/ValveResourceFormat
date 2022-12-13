@@ -526,7 +526,7 @@ namespace ValveResourceFormat.IO
 
         private void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
-            ProgressReporter.Report("Writing model to file...");
+            ProgressReporter?.Report("Writing model to file...");
 
             var settings = new WriteSettings
             {

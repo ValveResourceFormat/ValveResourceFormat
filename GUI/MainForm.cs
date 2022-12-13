@@ -16,7 +16,6 @@ using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using Resource = ValveResourceFormat.Resource;
 
 namespace GUI
 {
@@ -673,7 +672,7 @@ namespace GUI
             {
                 var vrfGuiContext = (VrfGuiContext)tree.Tag;
 
-                ExtractFilesFromTreeNode(tree.SelectedNode, vrfGuiContext, decompile);
+                ExportFile.ExtractFilesFromTreeNode(tree.SelectedNode, vrfGuiContext, decompile);
             }
             // Clicking context menu item in right side of the package view
             else if (owner.SourceControl is ListView listView)
@@ -682,7 +681,7 @@ namespace GUI
 
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
                 {
-                    ExtractFilesFromTreeNode(selectedNode.Tag as TreeNode, vrfGuiContext, decompile);
+                    ExportFile.ExtractFilesFromTreeNode(selectedNode.Tag as TreeNode, vrfGuiContext, decompile);
                 }
             }
             // Clicking context menu item when right clicking a tab
@@ -697,92 +696,18 @@ namespace GUI
 
                 if (exportData.PackageEntry != null)
                 {
-                    ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
+                    ExportFile.ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
                 }
                 else
                 {
                     var output = File.ReadAllBytes(exportData.VrfGuiContext.FileName);
 
-                    ExtractFileFromByteArray(Path.GetFileName(exportData.VrfGuiContext.FileName), output, exportData.VrfGuiContext, decompile);
+                    ExportFile.ExtractFileFromByteArray(Path.GetFileName(exportData.VrfGuiContext.FileName), output, exportData.VrfGuiContext, decompile);
                 }
             }
             else
             {
                 throw new InvalidDataException("Unknown state");
-            }
-        }
-
-        private static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
-        {
-            vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
-
-            ExtractFileFromByteArray(file.GetFileName(), output, vrfGuiContext, decompile);
-        }
-
-        private static void ExtractFileFromByteArray(string fileName, byte[] output, VrfGuiContext vrfGuiContext, bool decompile)
-        {
-            if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
-            {
-                using var resource = new Resource
-                {
-                    FileName = fileName,
-                };
-                using var memory = new MemoryStream(output);
-
-                resource.Read(memory);
-
-                ExportFile.Export(fileName, new ExportData
-                {
-                    Resource = resource,
-                    VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
-                });
-
-                return;
-            }
-
-            var dialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                Filter = "All files (*.*)|*.*",
-                FileName = fileName,
-            };
-            var userOK = dialog.ShowDialog();
-
-            if (userOK == DialogResult.OK)
-            {
-                Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
-                Settings.Save();
-
-                using var stream = dialog.OpenFile();
-                stream.Write(output, 0, output.Length);
-            }
-        }
-
-        private static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
-        {
-            if (selectedNode.Tag is PackageEntry file)
-            {
-                // We are a file
-                ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
-            }
-            else
-            {
-                //We are a folder
-                var dialog = new FolderBrowserDialog();
-                if (dialog.ShowDialog() == DialogResult.OK)
-                {
-                    ExportData exportData = null;
-                    if (decompile)
-                    {
-                        exportData = new ExportData
-                        {
-                            VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
-                        };
-                    }
-
-                    var extractDialog = new ExtractProgressForm(vrfGuiContext.CurrentPackage, selectedNode, dialog.SelectedPath, exportData);
-                    extractDialog.ShowDialog();
-                }
             }
         }
 
