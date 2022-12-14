@@ -49,12 +49,12 @@ namespace ValveResourceFormat.ResourceTypes
                 var localMin = sceneObjects[i].GetSubCollection("m_vMinBounds").ToVector3();
                 var localMax = sceneObjects[i].GetSubCollection("m_vMaxBounds").ToVector3();
 
-                minBounds.X = System.Math.Min(minBounds.X, localMin.X);
-                minBounds.Y = System.Math.Min(minBounds.Y, localMin.Y);
-                minBounds.Z = System.Math.Min(minBounds.Z, localMin.Z);
-                maxBounds.X = System.Math.Max(maxBounds.X, localMax.X);
-                maxBounds.Y = System.Math.Max(maxBounds.Y, localMax.Y);
-                maxBounds.Z = System.Math.Max(maxBounds.Z, localMax.Z);
+                minBounds.X = Math.Min(minBounds.X, localMin.X);
+                minBounds.Y = Math.Min(minBounds.Y, localMin.Y);
+                minBounds.Z = Math.Min(minBounds.Z, localMin.Z);
+                maxBounds.X = Math.Max(maxBounds.X, localMax.X);
+                maxBounds.Y = Math.Max(maxBounds.Y, localMax.Y);
+                maxBounds.Z = Math.Max(maxBounds.Z, localMax.Z);
             }
 
             MinBounds = minBounds;
@@ -78,11 +78,8 @@ namespace ValveResourceFormat.ResourceTypes
             return flags switch
             {
                 string flagsString => flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture),
-                long flagsLong =>
-                // TODO: enum
-                (flagsLong & 2) == 2,
-                byte flagsByte =>
-                (flagsByte & 2) == 2,
+                long flagsLong => ((RenderMeshDrawPrimitiveFlags)flagsLong & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
+                byte flagsByte => ((RenderMeshDrawPrimitiveFlags)flagsByte & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
                 _ => false
             };
         }
