@@ -140,12 +140,9 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (meshRenderers.Count > 0)
+            foreach (var mesh in meshRenderers)
             {
-                foreach (var mesh in meshRenderers)
-                {
-                    mesh.SetSkin(skinMaterials);
-                }
+                mesh.SetSkin(skinMaterials);
             }
         }
 
