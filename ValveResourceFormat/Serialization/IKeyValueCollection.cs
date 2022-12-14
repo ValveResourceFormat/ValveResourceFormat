@@ -39,6 +39,9 @@ namespace ValveResourceFormat.Serialization
                 .Select(mapper)
                 .ToArray();
 
+        public static string GetStringProperty(this IKeyValueCollection collection, string name)
+           => collection.GetProperty<string>(name);
+
         public static long GetIntegerProperty(this IKeyValueCollection collection, string name)
             => Convert.ToInt64(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
 
