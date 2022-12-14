@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -177,20 +178,27 @@ namespace GUI.Types.Renderer
         private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, IDictionary<string, bool> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
+            var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
 
-            var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType") switch
+            if (primitiveType is byte primitiveTypeByte)
             {
-                string primitiveTypeString => primitiveTypeString,
-                byte primitiveTypeByte =>
-                (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : ("UNKNOWN_" + primitiveTypeByte),
-                _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
-            };
+                if ((RenderPrimitiveType)primitiveTypeByte == RenderPrimitiveType.RENDER_PRIM_TRIANGLES)
+                {
+                    drawCall.PrimitiveType = PrimitiveType.Triangles;
+                }
+            }
+            else if (primitiveType is string primitiveTypeString)
+            {
+                if (primitiveTypeString == "RENDER_PRIM_TRIANGLES")
+                {
+                    drawCall.PrimitiveType = PrimitiveType.Triangles;
+                }
+            }
 
-            drawCall.PrimitiveType = primitiveType switch
+            if (drawCall.PrimitiveType != PrimitiveType.Triangles)
             {
-                "RENDER_PRIM_TRIANGLES" => PrimitiveType.Triangles,
-                _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")"),
-            };
+                throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
+            }
 
             SetupDrawCallMaterial(drawCall, shaderArguments, material);
 
