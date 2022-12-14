@@ -26,6 +26,8 @@ namespace GUI.Types.Renderer
 
         public float Time { get; private set; }
 
+        public int MeshIndex => mesh.MeshIndex;
+
         private readonly Mesh mesh;
         private readonly List<DrawCall> DrawCallsAll = new();
 
@@ -35,7 +37,7 @@ namespace GUI.Types.Renderer
             this.mesh = mesh;
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
 
-            SetupDrawCalls(mesh, skinMaterials);
+            ConfigureDrawCalls(skinMaterials, true);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
@@ -74,10 +76,27 @@ namespace GUI.Types.Renderer
             AnimationTextureSize = animationTextureSize;
         }
 
+        public void Update(float timeStep)
+        {
+            Time += timeStep;
+        }
+
         public void SetSkin(Dictionary<string, string> skinMaterials)
         {
+            ConfigureDrawCalls(skinMaterials, false);
+        }
+
+        private void ConfigureDrawCalls(Dictionary<string, string> skinMaterials, bool firstSetup)
+        {
             var data = mesh.GetData();
+            var vbib = mesh.VBIB;
             var sceneObjects = data.GetArray("m_sceneObjects");
+
+            if (firstSetup)
+            {
+                // This call has side effects because it uploads to gpu
+                guiContext.MeshBufferCache.GetVertexIndexBuffers(vbib);
+            }
 
             var i = 0;
             foreach (var sceneObject in sceneObjects)
@@ -109,70 +128,28 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("fulltangent", false);
                     }
 
-                    SetupDrawCallMaterial(DrawCallsAll[i++], shaderArguments, material);
-                }
-            }
-        }
-
-        public void Update(float timeStep)
-        {
-            Time += timeStep;
-        }
-
-        private void SetupDrawCalls(Mesh mesh, Dictionary<string, string> skinMaterials)
-        {
-            var vbib = mesh.VBIB;
-            var data = mesh.GetData();
-            var gpuMeshBuffers = guiContext.MeshBufferCache.GetVertexIndexBuffers(vbib);
-
-            //Prepare drawcalls
-            var sceneObjects = data.GetArray("m_sceneObjects");
-
-            foreach (var sceneObject in sceneObjects)
-            {
-                var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
-
-                foreach (var objectDrawCall in objectDrawCalls)
-                {
-                    var materialName = objectDrawCall.GetProperty<string>("m_material") ?? objectDrawCall.GetProperty<string>("m_pMaterial");
-
-                    if (skinMaterials != null && skinMaterials.ContainsKey(materialName))
+                    if (firstSetup)
                     {
-                        materialName = skinMaterials[materialName];
-                    }
+                        // TODO: Don't pass around so much shit
+                        var drawCall = CreateDrawCall(objectDrawCall, vbib, shaderArguments, material);
 
-                    var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var isOverlay = material.Material.IntParams.ContainsKey("F_OVERLAY");
+                        DrawCallsAll.Add(drawCall);
 
-                    // Ignore overlays for now
-                    if (isOverlay)
-                    {
+                        if (drawCall.Material.IsBlended)
+                        {
+                            DrawCallsBlended.Add(drawCall);
+                        }
+                        else
+                        {
+                            DrawCallsOpaque.Add(drawCall);
+                        }
+
                         continue;
                     }
 
-                    var shaderArguments = new Dictionary<string, bool>();
-
-                    if (Mesh.IsCompressedNormalTangent(objectDrawCall))
-                    {
-                        shaderArguments.Add("fulltangent", false);
-                    }
-
-                    // TODO: Don't pass around so much shit
-                    var drawCall = CreateDrawCall(objectDrawCall, vbib, shaderArguments, material);
-
-                    DrawCallsAll.Add(drawCall);
-                    if (drawCall.Material.IsBlended)
-                    {
-                        DrawCallsBlended.Add(drawCall);
-                    }
-                    else
-                    {
-                        DrawCallsOpaque.Add(drawCall);
-                    }
+                    SetupDrawCallMaterial(DrawCallsAll[i++], shaderArguments, material);
                 }
             }
-
-            //drawCalls = drawCalls.OrderBy(x => x.Material.Parameters.Name).ToList();
         }
 
         private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, IDictionary<string, bool> shaderArguments, RenderMaterial material)

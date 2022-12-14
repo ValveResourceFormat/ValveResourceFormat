@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Utils
                     }
                 case ResourceType.Mesh:
                     {
-                        var mesh = new Mesh(resource);
+                        var mesh = new Mesh(resource, 0);
                         break;
                     }
 

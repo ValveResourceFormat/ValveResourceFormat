@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
         private Skeleton[] skeletons;
 
         private ICollection<string> activeMeshGroups = new HashSet<string>();
-        private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
+        private ICollection<RenderableMesh> activeMeshRenderers = new List<RenderableMesh>();
 
         private bool loadedAnimations;
 
@@ -140,12 +140,9 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (meshRenderers.Count > 0)
+            foreach (var mesh in meshRenderers)
             {
-                foreach (var mesh in meshRenderers)
-                {
-                    mesh.SetSkin(skinMaterials);
-                }
+                mesh.SetSkin(skinMaterials);
             }
         }
 
@@ -183,7 +180,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh(new Mesh(newResource), Scene.GuiContext, skinMaterials));
+                meshRenderers.Add(new RenderableMesh(new Mesh(newResource, refMesh.MeshIndex), Scene.GuiContext, skinMaterials));
             }
 
             // Set active meshes to default
@@ -192,7 +189,7 @@ namespace GUI.Types.Renderer
 
         private void LoadSkeletons()
         {
-            skeletons = meshRenderers.Select((_, i) => Model.GetSkeleton(i)).ToArray();
+            skeletons = meshRenderers.Select(mesh => Model.GetSkeleton(mesh.MeshIndex)).ToArray();
         }
 
         private void SetupAnimationTextures()
@@ -260,18 +257,19 @@ namespace GUI.Types.Renderer
                 foreach (var group in activeMeshGroups)
                 {
                     var meshMask = Model.GetActiveMeshMaskForGroup(group).ToArray();
-                    for (var meshIndex = 0; meshIndex < meshRenderers.Count; meshIndex++)
+
+                    foreach (var meshRenderer in meshRenderers)
                     {
-                        if (meshMask[meshIndex] && !activeMeshRenderers.Contains(meshRenderers[meshIndex]))
+                        if (meshMask[meshRenderer.MeshIndex])
                         {
-                            activeMeshRenderers.Add(meshRenderers[meshIndex]);
+                            activeMeshRenderers.Add(meshRenderer);
                         }
                     }
                 }
             }
             else
             {
-                activeMeshRenderers = new HashSet<RenderableMesh>(meshRenderers);
+                activeMeshRenderers = new List<RenderableMesh>(meshRenderers);
             }
         }
 

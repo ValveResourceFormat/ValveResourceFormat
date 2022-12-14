@@ -61,7 +61,7 @@ namespace ValveResourceFormat.IO
             switch (resource.ResourceType)
             {
                 case ResourceType.Mesh:
-                    ExportToFile(resource.FileName, targetPath, new VMesh(resource), cancellationToken);
+                    ExportToFile(resource.FileName, targetPath, new VMesh(resource, 0), cancellationToken);
                     break;
                 case ResourceType.Model:
                     ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock, cancellationToken);
@@ -396,7 +396,7 @@ namespace ValveResourceFormat.IO
             transform *= TRANSFORMSOURCETOGLTF;
 
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
-            var meshIndex = 0;
+
             foreach (var m in LoadModelMeshes(model, name))
             {
                 var meshName = m.Name;
@@ -406,13 +406,12 @@ namespace ValveResourceFormat.IO
                 }
 
                 var node = AddMeshNode(exportedModel, scene, meshName,
-                    m.Mesh, model.GetSkeleton(meshIndex), loadedMeshDictionary,
+                    m.Mesh, model.GetSkeleton(m.Mesh.MeshIndex), loadedMeshDictionary,
                     skinMaterialPath, boneNodes, skeletonNode);
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
                 }
-                meshIndex++;
             }
 
             // Even though that's not documented, order matters.
@@ -447,7 +446,7 @@ namespace ValveResourceFormat.IO
                         return (null, nodeName);
                     }
 
-                    var mesh = new VMesh(meshResource);
+                    var mesh = new VMesh(meshResource, m.MeshIndex);
                     return (mesh, nodeName);
                 })
                 .Where(m => m.mesh != null);
