@@ -48,9 +48,12 @@ namespace ValveResourceFormat.IO
         public IFileLoader FileLoader { get; set; }
         public bool ExportMaterials { get; set; } = true;
         public bool AdaptTextures { get; set; } = true;
+        public bool SatelliteImages { get; set; } = true;
 
         private string DstDir;
         private CancellationToken? CancellationToken;
+
+        private readonly byte[] tempPng = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 73, 69, 78, 68, 174, 66, 96, 130 };
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
@@ -622,7 +625,7 @@ namespace ValveResourceFormat.IO
 
             var settings = new WriteSettings
             {
-                ImageWriting = ResourceWriteMode.SatelliteFile,
+                ImageWriting = SatelliteImages ? ResourceWriteMode.SatelliteFile : ResourceWriteMode.BufferView,
                 ImageWriteCallback = ImageWriteCallback,
                 JsonIndented = true,
                 MergeBuffers = true
@@ -645,28 +648,6 @@ namespace ValveResourceFormat.IO
             }
 
             exportedModel.Save(filePath, settings);
-        }
-
-        private static string ImageWriteCallback(WriteContext ctx, string uri, SharpGLTF.Memory.MemoryImage image)
-        {
-            if (File.Exists(image.SourcePath))
-            {
-                // image.SourcePath is an absolute path, we must make it relative to ctx.CurrentDirectory
-                var currDir = ctx.CurrentDirectory.FullName;
-
-                // if the shared texture can be reached by the model in its directory, reuse the texture.
-                if (image.SourcePath.StartsWith(currDir, StringComparison.OrdinalIgnoreCase))
-                {
-                    // we've found the shared texture!, return the uri relative to the model:
-                    return Path.GetFileName(image.SourcePath);
-                }
-            }
-
-            // we were unable to reuse the shared texture,
-            // default to write our own texture.
-            image.SaveToFile(Path.Combine(ctx.CurrentDirectory.FullName, uri));
-
-            return uri;
         }
 
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot exportedModel, bool includeJoints,
@@ -985,7 +966,7 @@ namespace ValveResourceFormat.IO
                     var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
 
                     // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
-                    var existingMaterial = exportedModel.LogicalMaterials.Where(m => m.Name == materialNameTrimmed).SingleOrDefault();
+                    var existingMaterial = exportedModel.LogicalMaterials.SingleOrDefault(m => m.Name == materialNameTrimmed);
                     if (existingMaterial != null)
                     {
                         ProgressReporter?.Report($"Found existing material: {materialNameTrimmed}");
@@ -1136,24 +1117,19 @@ namespace ValveResourceFormat.IO
 
             void TrySetupTexture(string textureName, Resource textureResource, List<ValueTuple<MaterialExtract.Channel, string>> renderTextureInputs)
             {
-                ProgressReporter?.Report($"Exporting texture: {textureResource.FileName}");
-                var fileName = Path.GetFileName(textureResource.FileName);
-                var ormFileName = Path.GetFileNameWithoutExtension(fileName) + "_orm.png";
-                var exportedTexturePath = Path.ChangeExtension(Path.Join(DstDir, fileName), "png");
+                var ormFileName = Path.GetFileNameWithoutExtension(textureResource.FileName) + "_orm.png";
 
                 using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
-                using var pixels = bitmap.PeekPixels();
-
-                string gltfBestMatch = null;
+                bitmap.SetImmutable();
 
                 // Pack occlusion into the ORM if possible
                 if (AdaptTextures && renderTextureInputs[0].Item1 == MaterialExtract.Channel.R && blendNameComparer.Equals(renderTextureInputs[0].Item2, "TextureAmbientOcclusion"))
                 {
+                    using var pixels = bitmap.PeekPixels();
                     occlusionRoughnessMetal.Collect(pixels, ormFileName, MaterialExtract.Channel.R, MaterialExtract.Channel.R);
                     ormHasOcclusion = true;
                     return;
                 }
-
 
                 // Try to find a glTF entry that best matches this texture
                 foreach (var (gltfTexture, gltfInputs) in MaterialExtract.GltfTextureMappings)
@@ -1202,6 +1178,8 @@ namespace ValveResourceFormat.IO
                 // Collect any leftover channel/maps to new images
                 if (AdaptTextures)
                 {
+                    using var pixels = bitmap.PeekPixels();
+
                     foreach (var (channel, textureType) in renderTextureInputs)
                     {
                         if (blendNameComparer.Equals(textureType, "TextureRoughness"))
@@ -1221,9 +1199,8 @@ namespace ValveResourceFormat.IO
 
                 void WriteTexture(MaterialExtract.Channel channel, string gltfBestMatch, int index, int count)
                 {
-                    var image = model.UseImage(TextureExtract.ToPngImageChannels(bitmap, channel));
-                    image.Name = fileName;
-
+                    var fileName = Path.GetFileName(textureResource.FileName);
+                    var image = LinkAndStoreImage(channel, bitmap, model, fileName);
                     var tex = model.UseTexture(image, sampler);
                     tex.Name = $"{fileName}_{model.LogicalTextures.Count - 1}";
 
@@ -1270,9 +1247,8 @@ namespace ValveResourceFormat.IO
             {
                 var metallicRoughness = material.FindChannel("MetallicRoughness");
 
-                var image = model.UseImage(TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap));
-                image.Name = occlusionRoughnessMetal.FileName;
-
+                var image = LinkAndStoreImage(MaterialExtract.Channel.RGBA, occlusionRoughnessMetal.Bitmap, model, occlusionRoughnessMetal.FileName);
+                var tex = model.UseTexture(image, sampler);
                 metallicRoughness?.SetTexture(0, tex);
                 metallicRoughness?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
 
@@ -1283,6 +1259,44 @@ namespace ValveResourceFormat.IO
             }
 
             return material;
+        }
+
+        private Image LinkAndStoreImage(MaterialExtract.Channel channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
+        {
+            var existingImage = model.LogicalImages.SingleOrDefault(i => i.Name == fileName);
+            if (existingImage is not null)
+            {
+                return existingImage;
+            }
+
+            Image image;
+            ProgressReporter?.Report($"Exporting texture: {fileName}");
+
+            if (!SatelliteImages)
+            {
+                image = model.CreateImage(fileName);
+                image.Content = TextureExtract.ToPngImageChannels(bitmap, channel);
+                return image;
+            }
+
+            fileName = Path.ChangeExtension(fileName, "png");
+            image = model.CreateImage(fileName);
+            image.Content = new SharpGLTF.Memory.MemoryImage(tempPng);
+            image.AlternateWriteFileName = fileName;
+
+            var exportedTexturePath = Path.Join(DstDir, fileName);
+            using (var fs = File.Open(exportedTexturePath, FileMode.Create))
+            {
+                fs.Write(TextureExtract.ToPngImageChannels(bitmap, channel));
+            }
+
+            return image;
+        }
+
+        private static string ImageWriteCallback(WriteContext ctx, string uri, SharpGLTF.Memory.MemoryImage memoryImage)
+        {
+            // Since we've already dumped images to disk, skip glTF image write.
+            return uri;
         }
 
         public static string GetAccessorName(string name, int index)

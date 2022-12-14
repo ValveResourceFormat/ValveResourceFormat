@@ -13,7 +13,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0027" />
+    <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0028" />
     <PackageReference Include="SkiaSharp" Version="2.88.3" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.3" />
     <PackageReference Include="ValveKeyValue" Version="0.8.2.162" />
