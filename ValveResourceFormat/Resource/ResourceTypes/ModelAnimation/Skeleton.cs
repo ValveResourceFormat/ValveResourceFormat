@@ -7,8 +7,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Skeleton
     {
-        private const int BoneUsedByVertexLod0 = 0x00000400;
-
         public List<Bone> Roots { get; private set; } = new List<Bone>();
         public Bone[] Bones { get; private set; } = Array.Empty<Bone>();
         public int AnimationTextureSize { get; }
@@ -69,7 +67,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             //Add all bones to the list
             for (var i = 0; i < boneNames.Length; i++)
             {
-                if ((boneFlags[i] & BoneUsedByVertexLod0) != BoneUsedByVertexLod0)
+                var flags = (ModelSkeletonBoneFlags)boneFlags[i];
+
+                if ((flags & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) == 0)
                 {
                     continue;
                 }
