@@ -97,11 +97,11 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new NotImplementedException("Indirection.Count > 0 && field.Count > 0");
                 }
 
-                var indirection = field.Indirections[0]; // TODO: depth needs fixing?
+                var indirection = (SchemaIndirectionType)field.Indirections[0]; // TODO: depth needs fixing?
 
                 var offset = Reader.ReadUInt32();
 
-                if (indirection == 0x03)
+                if (indirection == SchemaIndirectionType.ResourcePointer)
                 {
                     pointer = true;
 
@@ -116,7 +116,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     Reader.BaseStream.Position += offset - 4;
                 }
-                else if (indirection == 0x04)
+                else if (indirection == SchemaIndirectionType.ResourceArray)
                 {
                     count = Reader.ReadUInt32();
 
@@ -129,7 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    throw new UnexpectedMagicException("Unknown indirection", indirection, nameof(indirection));
+                    throw new UnexpectedMagicException("Unsupported indirection", (int)indirection, nameof(indirection));
                 }
             }
 
