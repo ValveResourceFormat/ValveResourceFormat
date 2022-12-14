@@ -31,7 +31,7 @@ namespace Tests
 
             var classname = entities[0].GetProperty("classname");
             Assert.That(classname, Is.Not.Null);
-            Assert.That(classname.Type, Is.EqualTo(0x1e));
+            Assert.That(classname.Type, Is.EqualTo(EntityFieldType.CString));
             Assert.That(classname.Data, Is.EqualTo("worldspawn"));
 
             var classnameString = entities[0].GetProperty<string>("classname");

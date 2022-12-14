@@ -46,7 +46,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public class EntityProperty
         {
-            public uint Type { get; set; }
+            public EntityFieldType Type { get; set; }
 
             public string Name { get; set; }
 
@@ -81,21 +81,22 @@ namespace ValveResourceFormat.ResourceTypes
 
             void ReadTypedValue(uint keyHash, string keyName)
             {
-                var type = dataReader.ReadUInt32();
+                var type = (EntityFieldType)dataReader.ReadUInt32();
                 var entityProperty = new EntityProperty
                 {
                     Type = type,
                     Name = keyName,
                     Data = type switch
                     {
-                        0x06 => dataReader.ReadBoolean(), // 1 - boolean
-                        0x01 => dataReader.ReadSingle(), // 4 - float
-                        0x09 => dataReader.ReadBytes(4), // 4 - color255
-                        0x05 or 0x25 => dataReader.ReadUInt32(), // 4 - node_id, integer
-                        0x1a => dataReader.ReadUInt64(), // 8 - vector, angle
-                        0x03 or 0x27 => new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()), // 12 - string
-                        0x1e => dataReader.ReadNullTermString(Encoding.UTF8), // null term variable
-                        _ => throw new UnexpectedMagicException("Unknown type", type, nameof(type)),
+                        EntityFieldType.Boolean => dataReader.ReadBoolean(),
+                        EntityFieldType.Float => dataReader.ReadSingle(),
+                        EntityFieldType.Color32 => dataReader.ReadBytes(4),
+                        EntityFieldType.Integer => dataReader.ReadInt32(),
+                        EntityFieldType.UInt => dataReader.ReadUInt32(),
+                        EntityFieldType.Integer64 => dataReader.ReadUInt64(),
+                        EntityFieldType.Vector or EntityFieldType.QAngle => new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()),
+                        EntityFieldType.CString => dataReader.ReadNullTermString(Encoding.UTF8), // null term variable
+                        _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                     }
                 };
                 entity.Properties.Add(keyHash, entityProperty);
@@ -130,19 +131,6 @@ namespace ValveResourceFormat.ResourceTypes
             var knownKeys = StringToken.InvertedTable;
             var builder = new StringBuilder();
             var unknownKeys = new Dictionary<uint, uint>();
-
-            var types = new Dictionary<uint, string>
-            {
-                { 0x01, "float" },
-                { 0x03, "vector" },
-                { 0x05, "node_id" },
-                { 0x06, "boolean" },
-                { 0x09, "color255" },
-                { 0x1a, "integer" },
-                { 0x1e, "string" },
-                { 0x25, "flags" },
-                { 0x27, "angle" },
-            };
 
             var index = 0;
             foreach (var entity in GetEntities())
@@ -182,7 +170,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"{key,-30} {types[property.Value.Type],-10} {value}");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"{key,-30} {property.Value.Type.ToString(),-10} {value}");
                 }
 
                 if (entity.Connections != null)

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -233,8 +234,7 @@ namespace GUI.Types.Renderer
                 var colour = entity.GetProperty("rendercolor");
 
                 // HL Alyx has an entity that puts rendercolor as a string instead of color255
-                // TODO: Make an enum for these types
-                if (colour != default && colour.Type == 0x09)
+                if (colour != default && colour.Type == EntityFieldType.Color32)
                 {
                     var colourBytes = (byte[])colour.Data;
                     objColor.X = colourBytes[0] / 255.0f;
