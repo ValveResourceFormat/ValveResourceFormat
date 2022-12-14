@@ -88,7 +88,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var meshNode = new MeshSceneNode(scene, new Mesh(newResource))
+                    var meshNode = new MeshSceneNode(scene, new Mesh(newResource, 0))
                     {
                         Transform = matrix,
                         Tint = tintColor,

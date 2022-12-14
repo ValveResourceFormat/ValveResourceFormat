@@ -11,20 +11,24 @@ namespace ValveResourceFormat.ResourceTypes
 
         public VBIB VBIB { get; }
 
+        public int MeshIndex { get; private set; }
+
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
 
         // TODO: Mesh class should extend ResourceData and be automatically constructed for mesh files
-        public Mesh(Resource resource)
+        public Mesh(Resource resource, int meshIndex)
         {
+            MeshIndex = meshIndex;
             Data = resource.DataBlock;
             //new format has VBIB block, for old format we can get it from NTRO DATA block
             VBIB = resource.VBIB ?? new VBIB(GetData());
             GetBounds();
         }
 
-        public Mesh(ResourceData data, VBIB vbib)
+        public Mesh(int meshIndex, ResourceData data, VBIB vbib)
         {
+            MeshIndex = meshIndex;
             Data = data;
             VBIB = vbib;
             GetBounds();

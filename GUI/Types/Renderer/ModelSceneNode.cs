@@ -183,7 +183,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh(new Mesh(newResource), Scene.GuiContext, skinMaterials));
+                meshRenderers.Add(new RenderableMesh(new Mesh(newResource, refMesh.MeshIndex), Scene.GuiContext, skinMaterials));
             }
 
             // Set active meshes to default
@@ -192,7 +192,7 @@ namespace GUI.Types.Renderer
 
         private void LoadSkeletons()
         {
-            skeletons = meshRenderers.Select((_, i) => Model.GetSkeleton(i)).ToArray();
+            skeletons = meshRenderers.Select(mesh => Model.GetSkeleton(mesh.MeshIndex)).ToArray();
         }
 
         private void SetupAnimationTextures()

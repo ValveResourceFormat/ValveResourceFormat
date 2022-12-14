@@ -26,6 +26,8 @@ namespace GUI.Types.Renderer
 
         public float Time { get; private set; }
 
+        public int MeshIndex => mesh.MeshIndex;
+
         private readonly Mesh mesh;
         private readonly List<DrawCall> DrawCallsAll = new();
 

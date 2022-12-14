@@ -16,14 +16,26 @@ namespace ValveResourceFormat.ResourceTypes
             return Skeleton.FromModelData(Data, meshIndex);
         }
 
-        public IEnumerable<string> GetRefMeshes()
-            => Data.GetArray<string>("m_refMeshes");
+        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
+        {
+            var refLODGroupMasks = Data.GetIntegerArray("m_refLODGroupMasks");
+            var refMeshes = Data.GetArray<string>("m_refMeshes");
+            var result = new List<(int MeshIndex, string MeshName, long LoDMask)>();
 
-        public IEnumerable<string> GetReferencedMeshNames()
-            => GetRefMeshes().Where(m => m != null);
+            for (var meshIndex = 0; meshIndex < refMeshes.Length; meshIndex++)
+            {
+                var refMesh = refMeshes[meshIndex];
 
-        public IEnumerable<(string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
-            => GetReferencedMeshNames().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r)).Where(m => m.l.Length > 0);
+                if (refMesh == null)
+                {
+                    continue;
+                }
+
+                result.Add((meshIndex, refMesh, refLODGroupMasks[meshIndex]));
+            }
+
+            return result;
+        }
 
         public IEnumerable<(Mesh Mesh, long LoDMask)> GetEmbeddedMeshesAndLoD()
             => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r));
@@ -44,10 +56,11 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var embeddedMesh in embeddedMeshes)
                 {
+                    var meshIndex = (int)embeddedMesh.GetIntegerProperty("mesh_index");
                     var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
                     var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
 
-                    meshes.Add(new Mesh(Resource.GetBlockByIndex(dataBlockIndex) as ResourceData, Resource.GetBlockByIndex(vbibBlockIndex) as VBIB));
+                    meshes.Add(new Mesh(meshIndex, Resource.GetBlockByIndex(dataBlockIndex) as ResourceData, Resource.GetBlockByIndex(vbibBlockIndex) as VBIB));
                 }
             }
 
