@@ -89,23 +89,23 @@ namespace ValveResourceFormat.Serialization.NTRO
             return writer.ToString();
         }
 
-        private static string ValveDataType(DataType type)
+        private static string ValveDataType(SchemaFieldType type)
         {
             return type switch
             {
-                DataType.SByte => "int8",
-                DataType.Byte => "uint8",
-                DataType.Int16 => "int16",
-                DataType.UInt16 => "uint16",
-                DataType.Int32 => "int32",
-                DataType.UInt32 => "uint32",
-                DataType.Int64 => "int64",
-                DataType.UInt64 => "uint64",
-                DataType.Float => "float32",
-                DataType.String => "CResourceString",
-                DataType.Boolean => "bool",
-                DataType.Fltx4 => "fltx4",
-                DataType.Matrix3x4a => "matrix3x4a_t",
+                SchemaFieldType.SByte => "int8",
+                SchemaFieldType.Byte => "uint8",
+                SchemaFieldType.Int16 => "int16",
+                SchemaFieldType.UInt16 => "uint16",
+                SchemaFieldType.Int32 => "int32",
+                SchemaFieldType.UInt32 => "uint32",
+                SchemaFieldType.Int64 => "int64",
+                SchemaFieldType.UInt64 => "uint64",
+                SchemaFieldType.Float => "float32",
+                SchemaFieldType.ResourceString => "CResourceString",
+                SchemaFieldType.Boolean => "bool",
+                SchemaFieldType.Fltx4 => "fltx4",
+                SchemaFieldType.Matrix3x4a => "matrix3x4a_t",
                 _ => type.ToString(),
             };
         }
@@ -177,7 +177,7 @@ namespace ValveResourceFormat.Serialization.NTRO
         {
             if (Contents.TryGetValue(name, out var value))
             {
-                if (value.Type == DataType.Byte)
+                if (value.Type == SchemaFieldType.Byte)
                 {
                     //special case for byte arrays for faster access
                     if (typeof(T) == typeof(byte))

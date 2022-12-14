@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Serialization.NTRO
 
         public override object ValueObject => contents;
 
-        public NTROArray(DataType type, int count, bool pointer = false, bool isIndirection = false)
+        public NTROArray(SchemaFieldType type, int count, bool pointer = false, bool isIndirection = false)
         {
             Type = type; // from NTROValue
             Pointer = pointer; // from NTROValue
@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Serialization.NTRO
         public override KVValue ToKVValue()
         {
             // Merge colors into an aggregate binary blob
-            if (Type is DataType.Color)
+            if (Type is SchemaFieldType.Color)
             {
                 var blob = new byte[Count * 4];
                 for (var i = 0; i < Count; i++)

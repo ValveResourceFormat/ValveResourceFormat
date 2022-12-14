@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Blocks
                 public short OnDiskOffset { get; set; }
                 public List<byte> Indirections { get; private set; }
                 public uint TypeData { get; set; }
-                public DataType Type { get; set; } // TODO: make this an enum?
+                public SchemaFieldType Type { get; set; }
 
                 public Field()
                 {
@@ -246,9 +246,9 @@ namespace ValveResourceFormat.Blocks
                         }
 
                         field.TypeData = reader.ReadUInt32();
-                        field.Type = (DataType)reader.ReadInt16();
+                        field.Type = (SchemaFieldType)reader.ReadInt16();
 
-                        reader.ReadBytes(2); // TODO: ????
+                        reader.ReadBytes(2); // alignment bytes
 
                         diskStruct.FieldIntrospection.Add(field);
                     }
@@ -258,7 +258,7 @@ namespace ValveResourceFormat.Blocks
 
                 diskStruct.StructFlags = reader.ReadByte();
 
-                reader.ReadBytes(3); // TODO: ????
+                reader.ReadBytes(3); // alignment bytes
 
                 ReferencedStructs.Add(diskStruct);
             }

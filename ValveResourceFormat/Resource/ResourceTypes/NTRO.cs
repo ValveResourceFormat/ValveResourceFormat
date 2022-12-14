@@ -139,7 +139,7 @@ namespace ValveResourceFormat.ResourceTypes
             //}
             if (field.Count > 0 || field.Indirections.Count > 0)
             {
-                if (field.Type == DataType.Byte)
+                if (field.Type == SchemaFieldType.Byte)
                 {
                     //special case for byte arrays for faster access
                     var ntroValues = new NTROValue<byte[]>(field.Type, Reader.ReadBytes((int)count), pointer);
@@ -175,42 +175,42 @@ namespace ValveResourceFormat.ResourceTypes
         {
             switch (field.Type)
             {
-                case DataType.Struct:
+                case SchemaFieldType.Struct:
                     var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
                     return new NTROValue<NTROStruct>(field.Type, ReadStructure(newStruct, Reader.BaseStream.Position), pointer);
 
-                case DataType.Enum:
+                case SchemaFieldType.Enum:
                     // TODO: Lookup in ReferencedEnums
                     return new NTROValue<uint>(field.Type, Reader.ReadUInt32(), pointer);
 
-                case DataType.SByte:
+                case SchemaFieldType.SByte:
                     return new NTROValue<sbyte>(field.Type, Reader.ReadSByte(), pointer);
 
-                case DataType.Byte:
+                case SchemaFieldType.Byte:
                     return new NTROValue<byte>(field.Type, Reader.ReadByte(), pointer);
 
-                case DataType.Boolean:
+                case SchemaFieldType.Boolean:
                     return new NTROValue<bool>(field.Type, Reader.ReadByte() == 1, pointer);
 
-                case DataType.Int16:
+                case SchemaFieldType.Int16:
                     return new NTROValue<short>(field.Type, Reader.ReadInt16(), pointer);
 
-                case DataType.UInt16:
+                case SchemaFieldType.UInt16:
                     return new NTROValue<ushort>(field.Type, Reader.ReadUInt16(), pointer);
 
-                case DataType.Int32:
+                case SchemaFieldType.Int32:
                     return new NTROValue<int>(field.Type, Reader.ReadInt32(), pointer);
 
-                case DataType.UInt32:
+                case SchemaFieldType.UInt32:
                     return new NTROValue<uint>(field.Type, Reader.ReadUInt32(), pointer);
 
-                case DataType.Float:
+                case SchemaFieldType.Float:
                     return new NTROValue<float>(field.Type, Reader.ReadSingle(), pointer);
 
-                case DataType.Int64:
+                case SchemaFieldType.Int64:
                     return new NTROValue<long>(field.Type, Reader.ReadInt64(), pointer);
 
-                case DataType.ExternalReference:
+                case SchemaFieldType.ExternalReference:
                     var id = Reader.ReadUInt64();
                     var value = id > 0
                         ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
@@ -218,99 +218,99 @@ namespace ValveResourceFormat.ResourceTypes
 
                     return new NTROValue<string>(field.Type, value, pointer);
 
-                case DataType.UInt64:
+                case SchemaFieldType.UInt64:
                     return new NTROValue<ulong>(field.Type, Reader.ReadUInt64(), pointer);
 
-                case DataType.Vector:
+                case SchemaFieldType.Vector3D:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 
-                case DataType.Quaternion:
+                case SchemaFieldType.Quaternion:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 
-                case DataType.Color:
+                case SchemaFieldType.Color:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer),
-                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer),
-                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer),
-                            new NTROValue<byte>(DataType.Byte, Reader.ReadByte(), pointer)),
+                            new NTROValue<byte>(SchemaFieldType.Byte, Reader.ReadByte(), pointer),
+                            new NTROValue<byte>(SchemaFieldType.Byte, Reader.ReadByte(), pointer),
+                            new NTROValue<byte>(SchemaFieldType.Byte, Reader.ReadByte(), pointer),
+                            new NTROValue<byte>(SchemaFieldType.Byte, Reader.ReadByte(), pointer)),
                         pointer);
 
-                case DataType.Fltx4:
-                case DataType.Vector4D:
-                case DataType.Vector4D_44:
+                case SchemaFieldType.Fltx4:
+                case SchemaFieldType.Vector4D:
+                case SchemaFieldType.FourVectors:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 
-                case DataType.String4:
-                case DataType.String:
+                case SchemaFieldType.Char:
+                case SchemaFieldType.ResourceString:
                     return new NTROValue<string>(field.Type, Reader.ReadOffsetString(Encoding.UTF8), pointer);
 
-                case DataType.Matrix2x4:
+                case SchemaFieldType.Vector2D:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 
-                case DataType.Matrix3x4:
-                case DataType.Matrix3x4a:
+                case SchemaFieldType.Matrix3x4:
+                case SchemaFieldType.Matrix3x4a:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 
-                case DataType.CTransform:
+                case SchemaFieldType.Transform:
                     return new NTROValue<NTROStruct>(
                         field.Type,
                         new NTROStruct(
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(DataType.Float, Reader.ReadSingle(), pointer)),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
+                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 
                 default:
