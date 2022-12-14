@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
         private Skeleton[] skeletons;
 
         private ICollection<string> activeMeshGroups = new HashSet<string>();
-        private ICollection<RenderableMesh> activeMeshRenderers = new HashSet<RenderableMesh>();
+        private ICollection<RenderableMesh> activeMeshRenderers = new List<RenderableMesh>();
 
         private bool loadedAnimations;
 
@@ -257,18 +257,19 @@ namespace GUI.Types.Renderer
                 foreach (var group in activeMeshGroups)
                 {
                     var meshMask = Model.GetActiveMeshMaskForGroup(group).ToArray();
-                    for (var meshIndex = 0; meshIndex < meshRenderers.Count; meshIndex++)
+
+                    foreach (var meshRenderer in meshRenderers)
                     {
-                        if (meshMask[meshIndex] && !activeMeshRenderers.Contains(meshRenderers[meshIndex]))
+                        if (meshMask[meshRenderer.MeshIndex])
                         {
-                            activeMeshRenderers.Add(meshRenderers[meshIndex]);
+                            activeMeshRenderers.Add(meshRenderer);
                         }
                     }
                 }
             }
             else
             {
-                activeMeshRenderers = new HashSet<RenderableMesh>(meshRenderers);
+                activeMeshRenderers = new List<RenderableMesh>(meshRenderers);
             }
         }
 
