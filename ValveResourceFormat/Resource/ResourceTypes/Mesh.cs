@@ -12,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
         public VBIB VBIB { get; }
 
         public int MeshIndex { get; private set; }
+        public string Name { get; private set; }
 
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
@@ -26,9 +27,10 @@ namespace ValveResourceFormat.ResourceTypes
             GetBounds();
         }
 
-        public Mesh(int meshIndex, ResourceData data, VBIB vbib)
+        public Mesh(int meshIndex, string name, ResourceData data, VBIB vbib)
         {
             MeshIndex = meshIndex;
+            Name = name;
             Data = data;
             VBIB = vbib;
             GetBounds();

@@ -397,7 +397,7 @@ namespace ValveResourceFormat.IO
 
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
 
-            foreach (var m in LoadModelMeshes(model, name))
+            foreach (var m in LoadModelMeshes(model))
             {
                 var meshName = m.Name;
                 if (skinName != null)
@@ -428,11 +428,11 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model, string modelName)
+        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model)
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
-                .Select((m, i) => (m.Mesh, $"{modelName}.Embedded.{i}"));
+                .Select(m => (m.Mesh, m.Mesh.Name));
 
             var refMeshes = model.GetReferenceMeshNamesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)

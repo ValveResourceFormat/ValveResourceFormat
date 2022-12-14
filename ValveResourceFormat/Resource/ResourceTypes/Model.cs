@@ -56,11 +56,12 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var embeddedMesh in embeddedMeshes)
                 {
+                    var name = embeddedMesh.GetStringProperty("name");
                     var meshIndex = (int)embeddedMesh.GetIntegerProperty("mesh_index");
                     var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
                     var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
 
-                    meshes.Add(new Mesh(meshIndex, Resource.GetBlockByIndex(dataBlockIndex) as ResourceData, Resource.GetBlockByIndex(vbibBlockIndex) as VBIB));
+                    meshes.Add(new Mesh(meshIndex, name, Resource.GetBlockByIndex(dataBlockIndex) as ResourceData, Resource.GetBlockByIndex(vbibBlockIndex) as VBIB));
                 }
             }
 
