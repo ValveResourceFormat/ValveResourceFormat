@@ -33,7 +33,7 @@ namespace ValveResourceFormat
         Resource = 0x1c,
         TypeUnknown = 0x1d,
         CString = 0x1e,
-        HHcript = 0x1f,
+        HScript = 0x1f,
         Variant = 0x20,
         UInt64 = 0x21,
         Float64 = 0x22,
