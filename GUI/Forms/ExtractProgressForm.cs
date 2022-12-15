@@ -31,7 +31,7 @@ namespace GUI.Forms
             ResourceType.Texture,
         };
 
-        public Action<ExtractProgressForm> ShownCallback { get; init; }
+        public Action<ExtractProgressForm, CancellationToken> ShownCallback { get; init; }
 
         public ExtractProgressForm(ExportData exportData, string path, bool decompile)
         {
@@ -67,47 +67,48 @@ namespace GUI.Forms
             if (ShownCallback != null)
             {
                 extractProgressBar.Style = ProgressBarStyle.Marquee;
-                ShownCallback(this);
+                ShownCallback(this, cancellationTokenSource.Token);
                 return;
             }
 
-            Task
-                .Run(
-                async () =>
+            Task.Run(async () =>
+            {
+                SetProgress($"Folder export started to \"{path}\"");
+
+                if (decompile)
                 {
-                    SetProgress($"Folder export started to \"{path}\"");
-
-                    if (decompile)
+                    foreach (var resourceType in ExtractOrder)
                     {
-                        foreach (var resourceType in ExtractOrder)
-                        {
-                            SetProgress($"Extracting {resourceType}s...");
-                            var extension = FileExtract.GetExtension(resourceType);
-                            await ExtractFilesAsync(filesToExtractSorted[extension + "_c"]).ConfigureAwait(false);
-                        }
-
-                        SetProgress("Extracting files...");
+                        SetProgress($"Extracting {resourceType}s...");
+                        var extension = FileExtract.GetExtension(resourceType);
+                        await ExtractFilesAsync(filesToExtractSorted[extension + "_c"]).ConfigureAwait(false);
                     }
 
-                    await ExtractFilesAsync(filesToExtract).ConfigureAwait(false);
-                },
-                cancellationTokenSource.Token)
-                .ContinueWith((t) =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        Console.WriteLine(t.Exception);
-                        SetProgress(t.Exception.ToString());
-                    }
+                    SetProgress("Extracting files...");
+                }
 
-                    Invoke(() =>
-                    {
-                        Text = "VRF - Export completed";
-                        cancelButton.Text = "Close";
-                    });
+                await ExtractFilesAsync(filesToExtract).ConfigureAwait(false);
+            }, cancellationTokenSource.Token).ContinueWith(ExportContinueWith, CancellationToken.None);
+        }
 
-                    SetProgress("Export completed.");
-                });
+        public void ExportContinueWith(Task t)
+        {
+            if (t.IsFaulted)
+            {
+                Console.Error.WriteLine(t.Exception);
+                SetProgress(t.Exception.ToString());
+            }
+
+            Invoke(() =>
+            {
+                Text = "VRF - Export completed";
+                cancelButton.Text = "Close";
+                extractProgressBar.Value = 100;
+                extractProgressBar.Style = ProgressBarStyle.Blocks;
+                extractProgressBar.Update();
+            });
+
+            SetProgress("Export completed.");
         }
 
         protected override void OnClosing(CancelEventArgs e)

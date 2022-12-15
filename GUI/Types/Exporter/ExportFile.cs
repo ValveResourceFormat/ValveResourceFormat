@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -12,108 +13,109 @@ namespace GUI.Types.Exporter
 {
     public static class ExportFile
     {
-        public static void Export(string fileName, byte[] output, ExportData exportData)
-        {
-            var resource = new Resource
-            {
-                FileName = fileName,
-            };
-            var memory = new MemoryStream(output);
-            resource.Read(memory);
-
-            var extension = FileExtract.GetExtension(resource);
-
-            if (extension == null)
-            {
-                Console.WriteLine($"Export for \"{fileName}\" has no suitable extension");
-                return;
-            }
-
-            var filter = $"{extension} file|*.{extension}";
-
-            if (GltfModelExporter.CanExport(resource))
-            {
-                var gltfFilter = "glTF|*.gltf";
-                var glbFilter = "glTF Binary|*.glb";
-
-                filter = $"{gltfFilter}|{glbFilter}|{filter}";
-            }
-
-            using var dialog = new SaveFileDialog
-            {
-                FileName = Path.GetFileNameWithoutExtension(fileName),
-                InitialDirectory = Settings.Config.SaveDirectory,
-                DefaultExt = extension,
-                Filter = filter,
-            };
-
-            var result = dialog.ShowDialog();
-
-            if (result != DialogResult.OK)
-            {
-                return;
-            }
-
-            var directory = Path.GetDirectoryName(dialog.FileName);
-            Settings.Config.SaveDirectory = directory;
-            Settings.Save();
-
-            var extractDialog = new ExtractProgressForm(exportData, directory, true)
-            {
-                ShownCallback = (form) =>
-                {
-                    form.SetProgress($"Extracting {fileName} to \"{Path.GetFileName(dialog.FileName)}\"");
-
-                    Task.Run(async () =>
-                    {
-                        await form.ExtractFile(resource, fileName, dialog.FileName, true).ConfigureAwait(false);
-                    }).ContinueWith(t =>
-                    {
-                        memory.Dispose();
-                        resource.Dispose();
-                        form.Invoke(form.Close);
-                    });
-                }
-            };
-            extractDialog.ShowDialog();
-        }
-
         public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+            var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.CurrentPackage, file);
 
-            ExtractFileFromByteArray(file.GetFileName(), output, vrfGuiContext, decompile);
+            ExtractFileFromStream(file.GetFileName(), stream, vrfGuiContext, decompile);
         }
 
-        public static void ExtractFileFromByteArray(string fileName, byte[] output, VrfGuiContext vrfGuiContext, bool decompile)
+        public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
         {
             if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
             {
-                Export(fileName, output, new ExportData
+                var exportData = new ExportData
                 {
                     VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
-                });
+                };
 
-                return;
-            }
+                var resource = new Resource
+                {
+                    FileName = fileName,
+                };
+                resource.Read(stream);
 
-            var dialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                Filter = "All files (*.*)|*.*",
-                FileName = fileName,
-            };
-            var userOK = dialog.ShowDialog();
+                var extension = FileExtract.GetExtension(resource);
 
-            if (userOK == DialogResult.OK)
-            {
-                Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                if (extension == null)
+                {
+                    stream.Dispose();
+                    Console.WriteLine($"Export for \"{fileName}\" has no suitable extension");
+                    return;
+                }
+
+                var filter = $"{extension} file|*.{extension}";
+
+                if (GltfModelExporter.CanExport(resource))
+                {
+                    var gltfFilter = "glTF|*.gltf";
+                    var glbFilter = "glTF Binary|*.glb";
+
+                    filter = $"{gltfFilter}|{glbFilter}|{filter}";
+                }
+
+                using var dialog = new SaveFileDialog
+                {
+                    FileName = Path.GetFileNameWithoutExtension(fileName),
+                    InitialDirectory = Settings.Config.SaveDirectory,
+                    DefaultExt = extension,
+                    Filter = filter,
+                };
+
+                var result = dialog.ShowDialog();
+
+                if (result != DialogResult.OK)
+                {
+                    stream.Dispose();
+                    return;
+                }
+
+                var directory = Path.GetDirectoryName(dialog.FileName);
+                Settings.Config.SaveDirectory = directory;
                 Settings.Save();
 
-                Console.WriteLine($"Saved \"{Path.GetFileName(dialog.FileName)}\"");
+                var extractDialog = new ExtractProgressForm(exportData, directory, true)
+                {
+                    ShownCallback = (form, cancellationToken) =>
+                    {
+                        form.SetProgress($"Extracting {fileName} to \"{Path.GetFileName(dialog.FileName)}\"");
 
-                using var stream = dialog.OpenFile();
-                stream.Write(output, 0, output.Length);
+                        Task.Run(async () =>
+                        {
+                            await form.ExtractFile(resource, fileName, dialog.FileName, true).ConfigureAwait(false);
+                        }, cancellationToken).ContinueWith(t =>
+                        {
+                            stream.Dispose();
+                            resource.Dispose();
+
+                            form.ExportContinueWith(t);
+                        }, CancellationToken.None);
+                    }
+                };
+                extractDialog.ShowDialog();
+            }
+            else
+            {
+                var dialog = new SaveFileDialog
+                {
+                    InitialDirectory = Settings.Config.SaveDirectory,
+                    Filter = "All files (*.*)|*.*",
+                    FileName = fileName,
+                };
+                var userOK = dialog.ShowDialog();
+
+                if (userOK == DialogResult.OK)
+                {
+                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    Settings.Save();
+
+                    Console.WriteLine($"Saved \"{Path.GetFileName(dialog.FileName)}\"");
+
+                    using var streamOutput = dialog.OpenFile();
+                    stream.CopyTo(streamOutput);
+                }
+
+                stream.Dispose();
             }
         }
 

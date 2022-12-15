@@ -700,9 +700,9 @@ namespace GUI
                 }
                 else
                 {
-                    var output = File.ReadAllBytes(exportData.VrfGuiContext.FileName);
+                    var fileStream = File.OpenRead(exportData.VrfGuiContext.FileName);
 
-                    ExportFile.ExtractFileFromByteArray(Path.GetFileName(exportData.VrfGuiContext.FileName), output, exportData.VrfGuiContext, decompile);
+                    ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile);
                 }
             }
             else
