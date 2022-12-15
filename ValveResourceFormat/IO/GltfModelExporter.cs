@@ -104,6 +104,7 @@ namespace ValveResourceFormat.IO
                 {
                     continue;
                 }
+
                 var worldResource = FileLoader.LoadFile(worldNodeName + ".vwnod_c");
                 if (worldResource == null)
                 {

@@ -57,6 +57,31 @@ namespace ValveResourceFormat.IO
         public virtual Func<byte[]> Extract { get; set; }
     }
 
+    /// <summary>
+    /// Wrapper around IFileLoader that keeps track of successfully loaded resource paths.
+    /// </summary>
+    public class TrackingFileLoader : IFileLoader
+    {
+        public HashSet<string> LoadedFilePaths { get; } = new HashSet<string>();
+        private readonly IFileLoader fileLoader;
+
+        public Resource LoadFile(string file)
+        {
+            var resource = fileLoader.LoadFile(file);
+            if (resource is not null)
+            {
+                LoadedFilePaths.Add(file.Replace('\\', '/'));
+            }
+
+            return resource;
+        }
+
+        public TrackingFileLoader(IFileLoader fileLoader)
+        {
+            this.fileLoader = fileLoader;
+        }
+    }
+
     public static class FileExtract
     {
         /// <summary>
