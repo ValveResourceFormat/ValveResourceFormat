@@ -2,13 +2,13 @@
 
 <p align="center">
     <a href="https://github.com/SteamDatabase/ValveResourceFormat/actions">
-        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/SteamDatabase/ValveResourceFormat/CI?logo=github&style=for-the-badge&logoColor=fff">
+        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/SteamDatabase/ValveResourceFormat/build.yml?logo=github&style=for-the-badge&branch=master">
     </a>
     <a href="https://www.nuget.org/packages/ValveResourceFormat/">
-        <img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?label=NuGet&logo=nuget&style=for-the-badge&logoColor=fff&colorB=4c1">
+        <img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?logo=nuget&style=for-the-badge">
     </a>
     <a href="https://coveralls.io/github/SteamDatabase/ValveResourceFormat">
-        <img src="https://img.shields.io/coveralls/SteamDatabase/ValveResourceFormat.svg?label=Tests&logo=coveralls&style=for-the-badge&logoColor=fff">
+        <img src="https://img.shields.io/coverallsCoverage/github/SteamDatabase/ValveResourceFormat.svg?logo=coveralls&style=for-the-badge">
     </a>
 </p>
 
