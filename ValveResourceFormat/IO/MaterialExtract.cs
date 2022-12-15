@@ -88,8 +88,11 @@ public sealed class MaterialExtract
         ["vr_standard"] = new()
         {
             ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
+            ["g_tColor1"] = new[] { (Channel.RGB, "TextureColor") },
             ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor") },
             ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
+            ["g_tNormal1"] = new[] { (Channel.RGB, "TextureNormal") },
+            ["g_tNormal2"] = new[] { (Channel.RGB, "TextureNormal") },
         },
 
         ["vr_complex"] = new()
