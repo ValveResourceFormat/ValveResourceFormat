@@ -1,9 +1,13 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using SharpGLTF.Schema2;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
+using Animation = ValveResourceFormat.ResourceTypes.ModelAnimation.Animation;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -171,6 +175,142 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return meshGroupMasks.Select(_ => false);
             }
+        }
+
+        public void GenerateMorphTargets(IFileLoader fileLoader, ModelRoot exportModel)
+        {
+            if (!Resource.ContainsBlockType(BlockType.MRPH))
+            {
+                return;
+            }
+
+            var mrph = Resource.GetBlockByType(BlockType.MRPH) as KeyValuesOrNTRO;
+            if (mrph == null)
+            {
+                return;
+            }
+
+            SharpGLTF.Schema2.Mesh mesh = null;
+            if (exportModel.LogicalMeshes.Count > 0)
+            {
+                mesh = exportModel.LogicalMeshes[0];
+            }
+
+            if (mesh == null)
+            {
+                return;
+            }
+
+            //load vmorf atlas
+            var atlasPath = mrph.Data.GetProperty<string>("m_pTextureAtlas") + "_c";
+            var textureResource = fileLoader.LoadFile(atlasPath);
+            if (textureResource == null)
+            {
+                Console.WriteLine($"morph atlas not found: {atlasPath}");
+                return;
+            }
+
+            var morphDatas = mrph.Data.GetSubCollection("m_morphDatas");
+            var width = mrph.Data.GetInt32Property("m_nWidth");
+            var height = mrph.Data.GetInt32Property("m_nHeight");
+            var bundleTypes = mrph.Data.GetSubCollection("m_bundleTypes");
+
+            var texture = (ResourceTypes.Texture) textureResource.DataBlock;
+            var texWidth = texture.Width;
+            var texHeight = texture.Height;
+            var skiaBitmap = texture.GenerateBitmap();
+
+            int morphIndex = 0;
+            foreach (var pair in morphDatas)
+            {
+                var morphData = pair.Value as IKeyValueCollection;
+                if (morphData == null)
+                {
+                    continue;
+                }
+
+                var morphName = morphData.GetProperty<string>("m_name");
+                Vector3[,] rectData = new Vector3[height, width];
+                for (int i = 0; i < height; i++)
+                {
+                    for (int j = 0; j < width; j++)
+                    {
+                        rectData[i,j] = Vector3.Zero;
+                    }
+                }
+
+                var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
+                foreach (var morphRectData in morphRectDatas)
+                {
+                    var rect = morphRectData.Value as IKeyValueCollection;
+                    var xLeftDst= rect.GetInt32Property("m_nXLeftDst");
+                    var yTopDst = rect.GetInt32Property("m_nYTopDst");
+                    var rectWidth = (int)Math.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0);
+                    var rectHeight = (int)Math.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0);
+                    var bundleDatas = rect.GetSubCollection("m_bundleDatas");
+                    foreach (var bundleData in bundleDatas)
+                    {
+                        //TODO: Just for MORPH_BUNDLE_TYPE_POSITION_SPEED temporary, need improve in the future.
+                        if (bundleTypes.GetStringProperty(bundleData.Key) != "MORPH_BUNDLE_TYPE_POSITION_SPEED")
+                        {
+                            continue;
+                        }
+
+                        var bundle = bundleData.Value as IKeyValueCollection;
+                        var rectU = (int)Math.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
+                        var rectV = (int)Math.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
+                        var ranges = bundle.GetFloatArray("m_ranges");
+                        var offsets = bundle.GetFloatArray("m_offsets");
+
+                        for (var row = rectV; row < rectV + rectHeight; row++)
+                        {
+                            for (var col = rectU; col < rectU + rectWidth; col++)
+                            {
+                                var color = skiaBitmap.GetPixel(col, row);
+                                var dstI = row - rectV + yTopDst;
+                                var dstJ = col - rectU + xLeftDst;
+                                rectData[dstI, dstJ] = new Vector3(
+                                    color.Red / 255f * ranges[0] + offsets[0],
+                                    color.Green / 255f * ranges[1] + offsets[1],
+                                    color.Blue / 255f * ranges[2] + offsets[2]
+                                    );
+                            }
+                        }
+                    }
+                }
+
+                List<byte> flexData = new List<byte>();
+                for (int i = 0; i < height; i++)
+                {
+                    for (int j = 0; j < width; j++)
+                    {
+                        flexData.AddRange(BitConverter.GetBytes(rectData[i,j].X));
+                        flexData.AddRange(BitConverter.GetBytes(rectData[i,j].Y));
+                        flexData.AddRange(BitConverter.GetBytes(rectData[i,j].Z));
+                    }
+                }
+
+                AddMorphToModel(morphName, flexData, mesh, exportModel, morphIndex++);
+            }
+        }
+
+        private static void AddMorphToModel(string morphName, List<byte> flexData, SharpGLTF.Schema2.Mesh mesh, ModelRoot model, int morphIndex)
+        {
+            if (mesh.Primitives.Count <= 0)
+            {
+                return;
+            }
+            var primitive = mesh.Primitives[0];
+            var dict = new Dictionary<string, Accessor>();
+            {
+                var acc = model.CreateAccessor();
+                acc.Name = morphName;
+
+                var buff = model.UseBufferView(flexData.ToArray(), 0, flexData.Count);
+                acc.SetData(buff, 0, flexData.Count / 12, DimensionType.VEC3, EncodingType.FLOAT, false);
+                dict.Add("POSITION", acc);
+            }
+            primitive.SetMorphTargetAccessors(morphIndex, dict);
         }
     }
 }

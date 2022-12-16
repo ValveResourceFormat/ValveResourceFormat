@@ -77,6 +77,11 @@ namespace ValveResourceFormat.Serialization
                 .Select(x => Convert.ToInt64(x, CultureInfo.InvariantCulture))
                 .ToArray();
 
+        public static float[] GetFloatArray(this IKeyValueCollection collection, string name)
+            => collection.GetArray<object>(name)
+                .Select(x => Convert.ToSingle(x, CultureInfo.InvariantCulture))
+                .ToArray();
+
         public static ulong[] GetUnsignedIntegerArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<object>(name)
                 .Select(x => Convert.ToUInt64(x, CultureInfo.InvariantCulture))

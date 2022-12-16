@@ -420,6 +420,9 @@ namespace ValveResourceFormat.IO
             {
                 skeletonNode.WorldMatrix = transform;
             }
+
+            // Handle Morph Block
+            model.GenerateMorphTargets(FileLoader, exportedModel);
         }
 
         /// <summary>
