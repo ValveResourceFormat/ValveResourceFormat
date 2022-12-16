@@ -19,6 +19,7 @@ using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using System.Threading;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
@@ -587,6 +588,9 @@ namespace ValveResourceFormat.IO
             var mesh = model.CreateMesh(meshName);
             mesh.Name = meshName;
 
+            vmesh.LoadExternalMorphData(FileLoader);
+
+            var vertexIndex = 0;
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -737,6 +741,13 @@ namespace ValveResourceFormat.IO
                             throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
                     }
 
+                    if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
+                    {
+                        var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, vertexIndex, vertexCount);
+                        vertexIndex += vertexCount;
+                    }
+
                     // Add material
                     if (!ExportMaterials)
                     {
@@ -833,6 +844,37 @@ namespace ValveResourceFormat.IO
             }
 
             return result;
+        }
+
+        private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexIndex, int vertexCount)
+        {
+            var morphIndex = 0;
+
+            foreach (var pair in morph.FlexData)
+            {
+                var dict = new Dictionary<string, Accessor>();
+
+                var acc = model.CreateAccessor();
+                acc.Name = pair.Key;
+
+                var buffer = new List<byte>(vertexCount * sizeof(float) * 3);
+                for (var i = vertexIndex; i < vertexCount + vertexIndex; i++)
+                {
+                    var position = pair.Value[i];
+                    buffer.AddRange(BitConverter.GetBytes(position.X));
+                    buffer.AddRange(BitConverter.GetBytes(position.Y));
+                    buffer.AddRange(BitConverter.GetBytes(position.Z));
+                }
+
+                var buff = model.UseBufferView(buffer.ToArray(), 0, buffer.Count);
+                acc.SetData(buff, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
+                dict.Add("POSITION", acc);
+
+                if (dict.Any())
+                {
+                    primitive.SetMorphTargetAccessors(morphIndex++, dict);
+                }
+            }
         }
 
         private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model,

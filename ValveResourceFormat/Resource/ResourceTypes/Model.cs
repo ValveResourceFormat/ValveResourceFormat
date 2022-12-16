@@ -61,7 +61,16 @@ namespace ValveResourceFormat.ResourceTypes
                     var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
                     var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
 
-                    meshes.Add(new Mesh(meshIndex, name, Resource.GetBlockByIndex(dataBlockIndex) as ResourceData, Resource.GetBlockByIndex(vbibBlockIndex) as VBIB));
+                    var mesh = new Mesh(meshIndex, name, Resource.GetBlockByIndex(dataBlockIndex) as ResourceData,
+                        Resource.GetBlockByIndex(vbibBlockIndex) as VBIB);
+
+                    var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
+                    if (morphBlockIndex >= 0)
+                    {
+                        mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
+                    }
+
+                    meshes.Add(mesh);
                 }
             }
 

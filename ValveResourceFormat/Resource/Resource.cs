@@ -385,7 +385,7 @@ namespace ValveResourceFormat
                 nameof(BlockType.INSG) => new BinaryKV3(BlockType.INSG),
                 nameof(BlockType.SrMa) => new BinaryKV3(BlockType.SrMa), // SourceMap
                 nameof(BlockType.LaCo) => new BinaryKV3(BlockType.LaCo), // vxml ast
-                nameof(BlockType.MRPH) => new KeyValuesOrNTRO(BlockType.MRPH, "MorphSetData_t"),
+                nameof(BlockType.MRPH) => new Morph(),
                 nameof(BlockType.ANIM) => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
                 nameof(BlockType.ASEQ) => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
                 nameof(BlockType.AGRP) => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
@@ -419,6 +419,9 @@ namespace ValveResourceFormat
 
                 case ResourceType.Model:
                     return new Model();
+
+                case ResourceType.Morph:
+                    return new Morph();
 
                 case ResourceType.World:
                     return new World();
@@ -510,6 +513,7 @@ namespace ValveResourceFormat
                    || type == ResourceType.Material
                    || type == ResourceType.EntityLump
                    || type == ResourceType.PhysicsCollisionMesh
+                   || type == ResourceType.Morph
                    || type == ResourceType.PostProcessing;
         }
 
