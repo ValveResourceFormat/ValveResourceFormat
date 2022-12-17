@@ -20,9 +20,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         public const int BytesPerVertex = 12;
 
-        public Morph(Model model, IKeyValueCollection meshData, IFileLoader fileLoader)
+        public Morph(Mesh mesh, IFileLoader fileLoader)
         {
-            InitFlexData(model, meshData, fileLoader);
+            InitFlexData(mesh, fileLoader);
         }
 
         private static IKeyValueCollection GetMorphKeyValueCollection(IKeyValueCollection data, string name)
@@ -50,14 +50,15 @@ namespace ValveResourceFormat.ResourceTypes
             return ikvc;
         }
 
-        private void InitFlexData(Model model, IKeyValueCollection meshData, IFileLoader fileLoader)
+        private void InitFlexData(Mesh mesh, IFileLoader fileLoader)
         {
-            //New version, morph block is within vmdl.
-            var mrphData = model.GetMorphData();
-            if (mrphData == null)
+            //Morph block is within vmdl.
+            var mrphDataContainer = mesh.MorphData;
+            IKeyValueCollection mrphData = null;
+            if (mrphDataContainer == null)
             {
-                //Old version, m_morphSet is within vmesh.
-                var morphSetPath = meshData.GetStringProperty("m_morphSet") + "_c";
+                //m_morphSet is within vmesh.
+                var morphSetPath = mesh.GetData().GetStringProperty("m_morphSet") + "_c";
                 if (!string.IsNullOrEmpty(morphSetPath))
                 {
                     var morphSetResource = fileLoader.LoadFile(morphSetPath);
@@ -66,6 +67,10 @@ namespace ValveResourceFormat.ResourceTypes
                         mrphData = morphSetResource.DataBlock.AsKeyValueCollection();
                     }
                 }
+            }
+            else
+            {
+                mrphData = mrphDataContainer.Data;
             }
 
             if (mrphData == null)
@@ -81,7 +86,6 @@ namespace ValveResourceFormat.ResourceTypes
             var textureResource = fileLoader.LoadFile(atlasPath);
             if (textureResource == null)
             {
-                Console.WriteLine($"morph atlas not found: {atlasPath}");
                 return;
             }
 
@@ -187,13 +191,23 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        //TODO:Other enums are still unknown.
         public bool CheckBundleId(int bundleId)
         {
-            var bundleEnumName = _bundleTypes.GetStringProperty(bundleId.ToString());
-            if (bundleEnumName == "MORPH_BUNDLE_TYPE_POSITION_SPEED" || bundleEnumName == "BUNDLE_TYPE_POSITION_SPEED")
+            var bundleType = _bundleTypes.GetProperty<object>(bundleId.ToString());
+            if (bundleType is uint bundleTypeEnum)
             {
-                //TODO:Other enums are still unknown.
-                return true;
+                if (bundleTypeEnum == (uint)MorphBundleType.MORPH_BUNDLE_TYPE_POSITION_SPEED)
+                {
+                    return true;
+                }
+            }
+            else if (bundleType is string bundleTypeString)
+            {
+                if (bundleTypeString == MorphBundleType.MORPH_BUNDLE_TYPE_POSITION_SPEED.ToString())
+                {
+                    return true;
+                }
             }
             return false;
         }

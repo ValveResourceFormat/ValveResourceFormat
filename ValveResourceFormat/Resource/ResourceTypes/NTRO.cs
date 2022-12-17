@@ -180,14 +180,8 @@ namespace ValveResourceFormat.ResourceTypes
                     return new NTROValue<NTROStruct>(field.Type, ReadStructure(newStruct, Reader.BaseStream.Position), pointer);
 
                 case SchemaFieldType.Enum:
-                {
-                    var enumData = Resource.IntrospectionManifest.ReferencedEnums.FirstOrDefault(x => x.Id == field.TypeData);
-                    if (enumData != null)
-                    {
-                        return new NTROValue<string>(field.Type, enumData.EnumValueIntrospection[(int)Reader.ReadUInt32()].EnumValueName, pointer);
-                    }
+                    // TODO: Lookup in ReferencedEnums
                     return new NTROValue<uint>(field.Type, Reader.ReadUInt32(), pointer);
-                }
 
                 case SchemaFieldType.SByte:
                     return new NTROValue<sbyte>(field.Type, Reader.ReadSByte(), pointer);

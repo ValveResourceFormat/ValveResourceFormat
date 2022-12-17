@@ -17,6 +17,8 @@ namespace ValveResourceFormat.ResourceTypes
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
 
+        public KeyValuesOrNTRO MorphData { get; set;}
+
         // TODO: Mesh class should extend ResourceData and be automatically constructed for mesh files
         public Mesh(Resource resource, int meshIndex)
         {
