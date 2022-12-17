@@ -19,6 +19,7 @@ using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using System.Threading;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
@@ -406,7 +407,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var node = AddMeshNode(exportedModel, scene, meshName,
-                    m.Mesh, model.GetSkeleton(m.Mesh.MeshIndex), loadedMeshDictionary,
+                    m.Mesh, model, loadedMeshDictionary,
                     skinMaterialPath, boneNodes, skeletonNode);
                 if (node != null)
                 {
@@ -420,9 +421,6 @@ namespace ValveResourceFormat.IO
             {
                 skeletonNode.WorldMatrix = transform;
             }
-
-            // Handle Morph Block
-            model.GenerateMorphTargets(FileLoader, exportedModel);
         }
 
         /// <summary>
@@ -484,7 +482,7 @@ namespace ValveResourceFormat.IO
         }
 
         private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
-            VMesh mesh, Skeleton skeleton, IDictionary<string, Mesh> loadedMeshDictionary,
+            VMesh mesh, VModel model, IDictionary<string, Mesh> loadedMeshDictionary,
             string skinMaterialPath = null,
             Dictionary<string, Node> boneNodes = null, Node skeletonNode = null)
         {
@@ -501,8 +499,9 @@ namespace ValveResourceFormat.IO
                 return newNode;
             }
 
+            var skeleton = model.GetSkeleton(mesh.MeshIndex);
             var hasJoints = skeleton != null && skeleton.AnimationTextureSize > 0;
-            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath);
+            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath, model);
             loadedMeshDictionary.Add(name, exportedMesh);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
@@ -580,7 +579,7 @@ namespace ValveResourceFormat.IO
         }
 
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints,
-            string skinMaterialPath)
+            string skinMaterialPath, VModel vmodel)
         {
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -590,6 +589,8 @@ namespace ValveResourceFormat.IO
             var mesh = model.CreateMesh(meshName);
             mesh.Name = meshName;
 
+            var morph = new Morph(vmodel, data, FileLoader);
+            var vertexIndex = 0;
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -772,6 +773,13 @@ namespace ValveResourceFormat.IO
                     var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model,
                         materialNameTrimmed);
                     primitive.WithMaterial(bestMaterial);
+
+                    if (morph.FlexData != null)
+                    {
+                        var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                        AddMorphTargetsToPrimitive(morph, primitive, model, vertexIndex, vertexCount);
+                        vertexIndex += vertexCount;
+                    }
                 }
             }
 
@@ -1243,6 +1251,47 @@ namespace ValveResourceFormat.IO
             }
 
             return vectorArray;
+        }
+
+        /// <summary>
+        /// Add Morph Targets to primitive
+        /// </summary>
+        /// <param name="morph"></param>
+        /// <param name="primitive"></param>
+        /// <param name="model"></param>
+        /// <param name="vertexIndex"></param>
+        /// <param name="vertexCount"></param>
+        private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexIndex, int vertexCount)
+        {
+            vertexIndex *= Morph.BytesPerVertex;
+            int byteLength = vertexCount * Morph.BytesPerVertex;
+            int morphIndex = 0;
+            foreach (var pair in morph.FlexData)
+            {
+                var dict = new Dictionary<string, Accessor>();
+                foreach (var pair2 in pair.Value)
+                {
+                    var bundleId = pair2.Key;
+                    if (!morph.CheckBundleId(bundleId))
+                    {
+                        continue;
+                    }
+                    var rectData = pair2.Value;
+                    var acc = model.CreateAccessor();
+                    acc.Name = pair.Key;
+
+                    var buffer = new byte[byteLength];
+                    for (int i = 0; i < byteLength; i++)
+                    {
+                        buffer[i] = rectData[i + vertexIndex];
+                    }
+
+                    var buff = model.UseBufferView(buffer, 0, buffer.Length);
+                    acc.SetData(buff, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
+                    dict.Add("POSITION", acc);
+                }
+                primitive.SetMorphTargetAccessors(morphIndex++, dict);
+            }
         }
     }
 }
