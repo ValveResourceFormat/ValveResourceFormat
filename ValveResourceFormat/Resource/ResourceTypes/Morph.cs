@@ -10,19 +10,17 @@ using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Morph
+    public class Morph : KeyValuesOrNTRO
     {
-        private Dictionary<string, Dictionary<int, List<byte>>> _flexData;
         public Dictionary<string, Dictionary<int, List<byte>>> FlexData => _flexData;
-
-        public IKeyValueCollection BundleTypes => _bundleTypes;
-        private IKeyValueCollection _bundleTypes;
-
         public const int BytesPerVertex = 12;
 
-        public Morph(Mesh mesh, IFileLoader fileLoader)
+        private Dictionary<string, Dictionary<int, List<byte>>> _flexData;
+        private IKeyValueCollection _bundleTypes;
+
+        public Morph():base(BlockType.MRPH, "MorphSetData_t")
         {
-            InitFlexData(mesh, fileLoader);
+
         }
 
         private static IKeyValueCollection GetMorphKeyValueCollection(IKeyValueCollection data, string name)
@@ -50,47 +48,21 @@ namespace ValveResourceFormat.ResourceTypes
             return ikvc;
         }
 
-        private void InitFlexData(Mesh mesh, IFileLoader fileLoader)
+        public void LoadFlexData(IFileLoader fileLoader)
         {
-            //Morph block is within vmdl.
-            var mrphDataContainer = mesh.MorphData;
-            IKeyValueCollection mrphData = null;
-            if (mrphDataContainer == null)
-            {
-                //m_morphSet is within vmesh.
-                var morphSetPath = mesh.GetData().GetStringProperty("m_morphSet") + "_c";
-                if (!string.IsNullOrEmpty(morphSetPath))
-                {
-                    var morphSetResource = fileLoader.LoadFile(morphSetPath);
-                    if (morphSetResource != null)
-                    {
-                        mrphData = morphSetResource.DataBlock.AsKeyValueCollection();
-                    }
-                }
-            }
-            else
-            {
-                mrphData = mrphDataContainer.Data;
-            }
-
-            if (mrphData == null)
-            {
-                return;
-            }
-
-            var atlasPath = mrphData.GetStringProperty("m_pTextureAtlas") + "_c";
+            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
             if (string.IsNullOrEmpty(atlasPath))
             {
                 return;
             }
-            var textureResource = fileLoader.LoadFile(atlasPath);
+            var textureResource = fileLoader.LoadFile(atlasPath + "_c");
             if (textureResource == null)
             {
                 return;
             }
 
-            var width = mrphData.GetInt32Property("m_nWidth");
-            var height = mrphData.GetInt32Property("m_nHeight");
+            var width = Data.GetInt32Property("m_nWidth");
+            var height = Data.GetInt32Property("m_nHeight");
 
             var texture = (Texture) textureResource.DataBlock;
             var texWidth = texture.Width;
@@ -102,13 +74,13 @@ namespace ValveResourceFormat.ResourceTypes
 
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is IKeyValueCollection.
-            var morphDatas = GetMorphKeyValueCollection(mrphData, "m_morphDatas");
+            var morphDatas = GetMorphKeyValueCollection(Data, "m_morphDatas");
             if (morphDatas == null || !morphDatas.Any())
             {
                 return;
             }
 
-            _bundleTypes = GetMorphKeyValueCollection(mrphData, "m_bundleTypes");
+            _bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes");
             var bundleTypeCount = _bundleTypes.Count();
             foreach (var pair in morphDatas)
             {
@@ -197,14 +169,19 @@ namespace ValveResourceFormat.ResourceTypes
             var bundleType = _bundleTypes.GetProperty<object>(bundleId.ToString());
             if (bundleType is uint bundleTypeEnum)
             {
-                if (bundleTypeEnum == (uint)MorphBundleType.MORPH_BUNDLE_TYPE_POSITION_SPEED)
+                if (bundleTypeEnum == (uint)MorphBundleType.PositionSpeed)
                 {
                     return true;
                 }
             }
             else if (bundleType is string bundleTypeString)
             {
-                if (bundleTypeString == MorphBundleType.MORPH_BUNDLE_TYPE_POSITION_SPEED.ToString())
+                if (bundleTypeString == "MORPH_BUNDLE_TYPE_POSITION_SPEED")
+                {
+                    return true;
+                }
+
+                if (bundleTypeString == "BUNDLE_TYPE_POSITION_SPEED")
                 {
                     return true;
                 }

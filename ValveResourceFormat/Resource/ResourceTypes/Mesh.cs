@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -17,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
 
-        public KeyValuesOrNTRO MorphData { get; set;}
+        public Morph MorphData { get; set;}
 
         // TODO: Mesh class should extend ResourceData and be automatically constructed for mesh files
         public Mesh(Resource resource, int meshIndex)
@@ -90,6 +91,27 @@ namespace ValveResourceFormat.ResourceTypes
                 byte flagsByte => ((RenderMeshDrawPrimitiveFlags)flagsByte & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
                 _ => false
             };
+        }
+
+        public void LoadExternalMorphData(IFileLoader fileLoader)
+        {
+            if (MorphData == null)
+            {
+                var morphSetPath = GetData().GetStringProperty("m_morphSet");
+                if (!string.IsNullOrEmpty(morphSetPath))
+                {
+                    var morphSetResource = fileLoader.LoadFile(morphSetPath + "_c");
+                    if (morphSetResource != null)
+                    {
+                        MorphData = morphSetResource.GetBlockByType(BlockType.MRPH) as Morph;
+                    }
+                }
+            }
+
+            if (MorphData != null)
+            {
+                MorphData.LoadFlexData(fileLoader);
+            }
         }
     }
 }

@@ -67,7 +67,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
                     if (morphBlockIndex >= 0)
                     {
-                        mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as KeyValuesOrNTRO;
+                        mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
                     }
 
                     meshes.Add(mesh);

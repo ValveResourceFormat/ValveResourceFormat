@@ -589,7 +589,8 @@ namespace ValveResourceFormat.IO
             var mesh = model.CreateMesh(meshName);
             mesh.Name = meshName;
 
-            var morph = new Morph(vmesh, FileLoader);
+            vmesh.LoadExternalMorphData(FileLoader);
+
             var vertexIndex = 0;
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
@@ -741,10 +742,10 @@ namespace ValveResourceFormat.IO
                             throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
                     }
 
-                    if (morph.FlexData != null)
+                    if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
                     {
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(morph, primitive, model, vertexIndex, vertexCount);
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, vertexIndex, vertexCount);
                         vertexIndex += vertexCount;
                     }
 
