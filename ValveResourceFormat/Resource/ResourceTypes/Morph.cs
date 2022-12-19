@@ -12,10 +12,10 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Morph : KeyValuesOrNTRO
     {
-        public Dictionary<string, Dictionary<int, List<byte>>> FlexData => _flexData;
+        public Dictionary<string, Vector3[]> FlexData => _flexData;
         public const int BytesPerVertex = 12;
 
-        private Dictionary<string, Dictionary<int, List<byte>>> _flexData;
+        private Dictionary<string, Vector3[]> _flexData;
         private IKeyValueCollection _bundleTypes;
 
         public Morph():base(BlockType.MRPH, "MorphSetData_t")
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.ResourceTypes
             var skiaBitmap = texture.GenerateBitmap();
             var texPixels = skiaBitmap.Pixels;
 
-            _flexData = new Dictionary<string, Dictionary<int, List<byte>>>();
+            _flexData = new Dictionary<string, Vector3[]>();
 
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is IKeyValueCollection.
@@ -81,7 +81,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             _bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes");
-            var bundleTypeCount = _bundleTypes.Count();
             foreach (var pair in morphDatas)
             {
                 var morphData = pair.Value as IKeyValueCollection;
@@ -96,17 +95,8 @@ namespace ValveResourceFormat.ResourceTypes
                     //Exist some empty names may need skip.
                     continue;
                 }
-                Vector3[,,] rectData = new Vector3[bundleTypeCount, height, width];
-                for (int c = 0; c < bundleTypeCount; c++)
-                {
-                    for (int i = 0; i < height; i++)
-                    {
-                        for (int j = 0; j < width; j++)
-                        {
-                            rectData[c,i,j] = Vector3.Zero;
-                        }
-                    }
-                }
+                Vector3[] rectData = new Vector3[height * width];
+                rectData.Initialize();
 
                 var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
                 foreach (var morphRectData in morphRectDatas)
@@ -120,6 +110,12 @@ namespace ValveResourceFormat.ResourceTypes
                     foreach (var bundleData in bundleDatas)
                     {
                         var bundleType = int.Parse(bundleData.Key);
+
+                        //Just PositionSpeed is valid,there is no available field in gltf to store NormalWrinkle.
+                        if (!IsPositionSpeed(bundleType))
+                        {
+                            continue;
+                        }
                         var bundle = bundleData.Value as IKeyValueCollection;
                         var rectU = (int)Math.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
                         var rectV = (int)Math.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
@@ -134,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes
                                 var color = texPixels[colorIndex];
                                 var dstI = row - rectV + yTopDst;
                                 var dstJ = col - rectU + xLeftDst;
-                                rectData[bundleType, dstI, dstJ] = new Vector3(
+                                rectData[dstI * width + dstJ] = new Vector3(
                                     color.Red / 255f * ranges[0] + offsets[0],
                                     color.Green / 255f * ranges[1] + offsets[1],
                                     color.Blue / 255f * ranges[2] + offsets[2]
@@ -144,27 +140,11 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                var flexDataWithType = new Dictionary<int, List<byte>>();
-                for (int c = 0; c < bundleTypeCount; c++)
-                {
-                    var tmp = new List<byte>(width * height * BytesPerVertex);
-                    for (int i = 0; i < height; i++)
-                    {
-                        for (int j = 0; j < width; j++)
-                        {
-                            tmp.AddRange(BitConverter.GetBytes(rectData[c,i,j].X));
-                            tmp.AddRange(BitConverter.GetBytes(rectData[c,i,j].Y));
-                            tmp.AddRange(BitConverter.GetBytes(rectData[c,i,j].Z));
-                        }
-                    }
-                    flexDataWithType.Add(c, tmp);
-                }
-                _flexData.Add(morphName, flexDataWithType);
+                _flexData.Add(morphName, rectData);
             }
         }
 
-        //TODO:Other enums are still unknown.
-        public bool CheckBundleId(int bundleId)
+        public bool IsPositionSpeed(int bundleId)
         {
             var bundleType = _bundleTypes.GetProperty<object>(bundleId.ToString());
             if (bundleType is uint bundleTypeEnum)

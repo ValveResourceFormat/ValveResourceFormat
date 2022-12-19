@@ -1264,35 +1264,30 @@ namespace ValveResourceFormat.IO
         /// <param name="vertexCount"></param>
         private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexIndex, int vertexCount)
         {
-            vertexIndex *= Morph.BytesPerVertex;
-            int byteLength = vertexCount * Morph.BytesPerVertex;
             int morphIndex = 0;
 
             foreach (var pair in morph.FlexData)
             {
-                foreach (var pair2 in pair.Value)
+                var dict = new Dictionary<string, Accessor>();
+
+                var acc = model.CreateAccessor();
+                acc.Name = pair.Key;
+
+                List<byte> buffer = new List<byte>(vertexCount * Morph.BytesPerVertex);
+                for (var i = vertexIndex; i < vertexCount + vertexIndex; i++)
                 {
-                    var bundleId = pair2.Key;
-                    if (!morph.CheckBundleId(bundleId))
-                    {
-                        continue;
-                    }
+                    var position = pair.Value[i];
+                    buffer.AddRange(BitConverter.GetBytes(position.X));
+                    buffer.AddRange(BitConverter.GetBytes(position.Y));
+                    buffer.AddRange(BitConverter.GetBytes(position.Z));
+                }
 
-                    var dict = new Dictionary<string, Accessor>();
-                    var rectData = pair2.Value;
-                    var acc = model.CreateAccessor();
-                    acc.Name = pair.Key;
+                var buff = model.UseBufferView(buffer.ToArray(), 0, buffer.Count);
+                acc.SetData(buff, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
+                dict.Add("POSITION", acc);
 
-                    var buffer = new byte[byteLength];
-                    for (int i = 0; i < byteLength; i++)
-                    {
-                        buffer[i] = rectData[i + vertexIndex];
-                    }
-
-                    var buff = model.UseBufferView(buffer, 0, buffer.Length);
-                    acc.SetData(buff, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
-                    dict.Add("POSITION", acc);
-
+                if (dict.Any())
+                {
                     primitive.SetMorphTargetAccessors(morphIndex++, dict);
                 }
             }
