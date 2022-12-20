@@ -124,7 +124,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (bundleType is uint bundleTypeEnum)
             {
-                return (MorphBundleType)bundleType;
+                return (MorphBundleType)bundleTypeEnum;
             }
 
             if (bundleType is string bundleTypeString)
