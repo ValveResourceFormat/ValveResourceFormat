@@ -35,6 +35,15 @@ namespace GUI.Forms
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.viewChannelsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewChannelsRed = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewChannelsGreen = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewChannelsBlue = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewChannelsAlpha = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
+            this.viewChannelsOpaque = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewChannelsTransparent = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.contextMenuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -55,7 +64,9 @@ namespace GUI.Forms
             // contextMenuStrip1
             // 
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.saveAsToolStripMenuItem});
+            this.saveAsToolStripMenuItem,
+            this.toolStripSeparator1,
+            this.viewChannelsToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
             this.contextMenuStrip1.Size = new System.Drawing.Size(122, 26);
             this.contextMenuStrip1.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.ContextMenuStrip1_ItemClicked);
@@ -66,6 +77,74 @@ namespace GUI.Forms
             this.saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
             this.saveAsToolStripMenuItem.Size = new System.Drawing.Size(121, 22);
             this.saveAsToolStripMenuItem.Text = "Save as...";
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(177, 6);
+            // 
+            // viewChannelsToolStripMenuItem
+            // 
+            this.viewChannelsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.viewChannelsRed,
+            this.viewChannelsGreen,
+            this.viewChannelsBlue,
+            this.viewChannelsAlpha,
+            this.toolStripSeparator2,
+            this.viewChannelsOpaque,
+            this.viewChannelsTransparent});
+            this.viewChannelsToolStripMenuItem.Name = "viewChannelsToolStripMenuItem";
+            this.viewChannelsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsToolStripMenuItem.Text = "View channels";
+            // 
+            // viewChannelsRed
+            // 
+            this.viewChannelsRed.Name = "viewChannelsRed";
+            this.viewChannelsRed.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsRed.Text = "Red";
+            this.viewChannelsRed.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
+            // 
+            // viewChannelsGreen
+            // 
+            this.viewChannelsGreen.Name = "viewChannelsGreen";
+            this.viewChannelsGreen.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsGreen.Text = "Green";
+            this.viewChannelsGreen.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
+            // 
+            // viewChannelsBlue
+            // 
+            this.viewChannelsBlue.Name = "viewChannelsBlue";
+            this.viewChannelsBlue.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsBlue.Text = "Blue";
+            this.viewChannelsBlue.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
+            // 
+            // viewChannelsAlpha
+            // 
+            this.viewChannelsAlpha.Name = "viewChannelsAlpha";
+            this.viewChannelsAlpha.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsAlpha.Text = "Alpha";
+            this.viewChannelsAlpha.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
+            // 
+            // toolStripSeparator2
+            // 
+            this.toolStripSeparator2.Name = "toolStripSeparator2";
+            this.toolStripSeparator2.Size = new System.Drawing.Size(177, 6);
+            // 
+            // viewChannelsOpaque
+            // 
+            this.viewChannelsOpaque.Checked = true;
+            this.viewChannelsOpaque.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.viewChannelsOpaque.Name = "viewChannelsOpaque";
+            this.viewChannelsOpaque.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsOpaque.Text = "Opaque";
+            this.viewChannelsOpaque.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
+            // 
+            // viewChannelsTransparent
+            // 
+            this.viewChannelsTransparent.Name = "viewChannelsTransparent";
+            this.viewChannelsTransparent.Size = new System.Drawing.Size(180, 22);
+            this.viewChannelsTransparent.Text = "Transparent";
+            this.viewChannelsTransparent.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // Texture
             // 
@@ -86,5 +165,14 @@ namespace GUI.Forms
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
         private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator1;
+        private ToolStripMenuItem viewChannelsToolStripMenuItem;
+        private ToolStripMenuItem viewChannelsRed;
+        private ToolStripMenuItem viewChannelsGreen;
+        private ToolStripMenuItem viewChannelsBlue;
+        private ToolStripMenuItem viewChannelsAlpha;
+        private ToolStripSeparator toolStripSeparator2;
+        private ToolStripMenuItem viewChannelsOpaque;
+        private ToolStripMenuItem viewChannelsTransparent;
     }
 }

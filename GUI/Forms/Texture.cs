@@ -61,5 +61,30 @@ namespace GUI.Forms
                 pictureBox1.Image.Save(fs, format);
             }
         }
+
+        private void OnChannelMenuItem_Click(object sender, System.EventArgs e)
+        {
+            var item = sender as ToolStripMenuItem;
+            if (item.Checked)
+            {
+                return;
+            }
+
+            foreach (var i in item.GetCurrentParent().Items)
+            {
+                if (i is not ToolStripMenuItem menuItem)
+                {
+                    continue;
+                }
+
+                if (menuItem != item)
+                {
+                    menuItem.Checked = false;
+                    continue;
+                }
+
+                menuItem.Checked = true;
+            }
+        }
     }
 }
