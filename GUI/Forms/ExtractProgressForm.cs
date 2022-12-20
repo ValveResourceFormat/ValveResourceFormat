@@ -26,7 +26,15 @@ namespace GUI.Forms
 
         private static readonly List<ResourceType> ExtractOrder = new()
         {
-            // Materials before textures
+            ResourceType.World,
+            ResourceType.WorldNode,
+            ResourceType.Model,
+            ResourceType.Mesh,
+            ResourceType.AnimationGroup,
+            ResourceType.Animation,
+            ResourceType.Sequence,
+            ResourceType.Morph,
+
             ResourceType.Material,
             ResourceType.Texture,
         };
@@ -56,7 +64,7 @@ namespace GUI.Forms
             {
                 gltfExporter = new GltfModelExporter()
                 {
-                    FileLoader = exportData.VrfGuiContext.FileLoader,
+                    FileLoader = new TrackingFileLoader(exportData.VrfGuiContext.FileLoader),
                     ProgressReporter = new Progress<string>(SetProgress),
                 };
             }
@@ -194,6 +202,11 @@ namespace GUI.Forms
             if (GltfModelExporter.CanExport(resource) && Path.GetExtension(outFilePath) is ".glb" or ".gltf")
             {
                 gltfExporter.Export(resource, outFilePath, cancellationTokenSource.Token);
+                if (gltfExporter.FileLoader is TrackingFileLoader trackingFileLoader)
+                {
+                    extractedFiles.UnionWith(trackingFileLoader.LoadedFilePaths);
+                }
+
                 return;
             }
 
