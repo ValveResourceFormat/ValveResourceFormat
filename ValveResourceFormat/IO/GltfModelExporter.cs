@@ -777,9 +777,10 @@ namespace ValveResourceFormat.IO
                     }
 
                     // Set index buffer
+                    var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
                     var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                     var indexCount = drawCall.GetInt32Property("m_nIndexCount");
-                    var indices = ReadIndices(indexBuffer, startIndex, indexCount);
+                    var indices = ReadIndices(indexBuffer, startIndex, indexCount, baseVertex);
 
                     var primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
                     {
@@ -800,9 +801,8 @@ namespace ValveResourceFormat.IO
 
                     if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
                     {
-                        var vertexIndex = drawCall.GetInt32Property("m_nBaseVertex");
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, vertexIndex, vertexCount);
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, baseVertex, vertexCount);
                     }
 
                     // Add material
@@ -1180,7 +1180,7 @@ namespace ValveResourceFormat.IO
                 .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count)
+        private static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
         {
             var indices = new int[count];
 
@@ -1190,12 +1190,16 @@ namespace ValveResourceFormat.IO
             if (indexBuffer.ElementSizeInBytes == 4)
             {
                 System.Buffer.BlockCopy(indexBuffer.Data, byteStart, indices, 0, byteCount);
+                for (var i = 0; i < count; i++)
+                {
+                    indices[i] += baseVertex;
+                }
             }
             else if (indexBuffer.ElementSizeInBytes == 2)
             {
                 var shortIndices = new ushort[count];
                 System.Buffer.BlockCopy(indexBuffer.Data, byteStart, shortIndices, 0, byteCount);
-                indices = Array.ConvertAll(shortIndices, i => (int)i);
+                indices = Array.ConvertAll(shortIndices, i => baseVertex + i);
             }
 
             return indices;
