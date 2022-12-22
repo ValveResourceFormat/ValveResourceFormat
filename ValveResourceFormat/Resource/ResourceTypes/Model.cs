@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.Blocks;
@@ -26,12 +27,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var refMesh = refMeshes[meshIndex];
 
-                if (refMesh == null)
+                if (!String.IsNullOrEmpty(refMesh))
                 {
-                    continue;
+                    result.Add((meshIndex, refMesh, refLODGroupMasks[meshIndex]));
                 }
-
-                result.Add((meshIndex, refMesh, refLODGroupMasks[meshIndex]));
             }
 
             return result;
