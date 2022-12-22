@@ -241,8 +241,9 @@ namespace GUI.Types.Renderer
                 case "vrf.particle.trail":
                     return "particle_trail";
                 case "vr_unlit.vfx":
-                case "vr_black_unlit.vfx":
                     return "vr_unlit";
+                case "vr_black_unlit.vfx":
+                    return "vr_black_unlit";
                 case "water_dota.vfx":
                     return "water";
                 case "hero.vfx":
