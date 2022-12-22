@@ -1,7 +1,6 @@
 //#define DEBUG_SHADERS
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -9,6 +8,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
+
+#if DEBUG_SHADERS
+#pragma warning disable
+#endif
 
 namespace GUI.Types.Renderer
 {
@@ -200,8 +203,8 @@ namespace GUI.Types.Renderer
             foreach (var define in includes.Cast<Match>())
             {
                 //Read included code
-#if DEBUG_SHADERS  && DEBUG
-                using (var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open))
+#if DEBUG_SHADERS && DEBUG
+                using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open);
 #else
                 using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups["IncludeName"].Value}");
 #endif
@@ -282,7 +285,14 @@ namespace GUI.Types.Renderer
         // Reload shaders at runtime
         private static string GetShaderDiskPath(string name)
         {
-            return Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "../../../", ShaderDirectory.Replace('.', '/'), name);
+            var guiFolderRoot = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName);
+
+            while (Path.GetFileName(guiFolderRoot) != "GUI")
+            {
+                guiFolderRoot = Path.GetDirectoryName(guiFolderRoot);
+            }
+
+            return Path.Combine(Path.GetDirectoryName(guiFolderRoot), ShaderDirectory.Replace('.', '/'), name);
         }
 #endif
     }
