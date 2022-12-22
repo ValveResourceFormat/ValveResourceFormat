@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using SharpGLTF.IO;
+using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -18,8 +21,6 @@ using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
-using System.Threading;
-using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
@@ -591,139 +592,195 @@ namespace ValveResourceFormat.IO
 
             vmesh.LoadExternalMorphData(FileLoader);
 
-            var vertexIndex = 0;
+            var vertexBufferAccessors = vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
+            {
+                var accessors = new Dictionary<string, Accessor>();
+
+                // Avoid duplicate attribute names
+                var attributeCounters = new Dictionary<string, int>();
+
+                // Set vertex attributes
+                foreach (var attribute in vertexBuffer.InputLayoutFields)
+                {
+                    attributeCounters.TryGetValue(attribute.SemanticName, out var attributeCounter);
+                    attributeCounters[attribute.SemanticName] = attributeCounter + 1;
+                    var accessorName = GetAccessorName(attribute.SemanticName, attributeCounter);
+
+                    var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                    var numComponents = buffer.Length / vertexBuffer.ElementCount;
+
+                    if (attribute.SemanticName == "BLENDINDICES")
+                    {
+                        if (!includeJoints)
+                        {
+                            continue;
+                        }
+
+                        var byteBuffer = buffer.Select(f => (byte)f).ToArray();
+                        var rawBufferData = new byte[buffer.Length];
+                        System.Buffer.BlockCopy(byteBuffer, 0, rawBufferData, 0, rawBufferData.Length);
+
+                        var bufferView = mesh.LogicalParent.UseBufferView(rawBufferData);
+                        var accessor = mesh.LogicalParent.CreateAccessor();
+                        accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
+
+                        accessors[accessorName] = accessor;
+
+                        continue;
+                    }
+
+                    if (attribute.SemanticName == "NORMAL")
+                    {
+                        var isCompressedNormalTangent = data.GetArray("m_sceneObjects").Any(sceneObject =>
+                        {
+                            return sceneObject.GetArray("m_drawCalls").Any(drawCall =>
+                            {
+                                return drawCall.GetInt32Property("m_hBuffer") == vertexBufferIndex
+                                    && VMesh.IsCompressedNormalTangent(drawCall);
+                            });
+                        });
+                        if (isCompressedNormalTangent)
+                        {
+                            var vectors = ToVector4Array(buffer);
+                            var (normals, tangents) = DecompressNormalTangents(vectors);
+
+                            {
+                                BufferView bufferView = model.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector3Array(bufferView.Content).Fill(normals);
+                                Accessor accessor = model.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
+                                accessors["NORMAL"] = accessor;
+                            }
+
+                            {
+                                BufferView bufferView = model.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector4Array(bufferView.Content).Fill(tangents);
+                                Accessor accessor = model.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
+                                accessors["TANGENT"] = accessor;
+                            }
+
+                            continue;
+                        }
+                    }
+
+                    if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
+                    {
+                        // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
+                        continue;
+                    }
+
+                    if (attribute.SemanticName == "BLENDWEIGHT" && numComponents != 4)
+                    {
+                        Console.Error.WriteLine($"This model has {attribute.SemanticName} with {numComponents} components, which in unsupported.");
+                        continue;
+                    }
+
+                    switch (numComponents)
+                    {
+                        case 4:
+                            {
+                                var vectors = ToVector4Array(buffer);
+
+                                // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
+                                if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
+                                {
+                                    vectors = FixZeroLengthVectors(vectors);
+                                }
+
+                                BufferView bufferView = model.CreateBufferView(16 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector4Array(bufferView.Content).Fill(vectors);
+                                Accessor accessor = model.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC4);
+                                accessors[accessorName] = accessor;
+                                break;
+                            }
+
+                        case 3:
+                            {
+                                var vectors = ToVector3Array(buffer);
+
+                                // dropship.vmdl in HL:A has a normal with value of <0, 0, 0>
+                                if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
+                                {
+                                    vectors = FixZeroLengthVectors(vectors);
+                                }
+
+                                BufferView bufferView = model.CreateBufferView(12 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector3Array(bufferView.Content).Fill(vectors);
+                                Accessor accessor = model.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
+                                accessors[accessorName] = accessor;
+                                break;
+                            }
+
+                        case 2:
+                            {
+                                var vectors = ToVector2Array(buffer);
+                                BufferView bufferView = model.CreateBufferView(8 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector2Array(bufferView.Content).Fill(vectors);
+                                Accessor accessor = model.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC2);
+                                accessors[accessorName] = accessor;
+                                break;
+                            }
+
+                        case 1:
+                            {
+                                BufferView bufferView = model.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new ScalarArray(bufferView.Content).Fill(buffer);
+                                Accessor accessor = model.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
+                                accessors[accessorName] = accessor;
+                                break;
+                            }
+
+                        default:
+                            throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {numComponents} components");
+                    }
+                }
+
+                // For some reason soruce models can have joints but no weights, check if that is the case
+                if (accessors.TryGetValue("JOINTS_0", out var jointAccessor) && !accessors.ContainsKey("WEIGHTS_0"))
+                {
+                    // If this occurs, give default weights
+                    var defaultWeights = Enumerable.Repeat(Vector4.UnitX, jointAccessor.Count).ToList();
+
+                    BufferView bufferView = model.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
+                    new Vector4Array(bufferView.Content).Fill(defaultWeights);
+                    Accessor accessor = model.CreateAccessor();
+                    accessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);
+                    accessors["WEIGHTS_0"] = accessor;
+                }
+
+                return accessors;
+            }).ToArray();
+
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
                 {
                     CancellationToken?.ThrowIfCancellationRequested();
                     var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
-                    var vertexBufferIndex = (int)vertexBufferInfo.GetIntegerProperty("m_hBuffer");
-                    var vertexBuffer = vbib.VertexBuffers[vertexBufferIndex];
+                    var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
 
                     var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
-                    var indexBufferIndex = (int)indexBufferInfo.GetIntegerProperty("m_hBuffer");
+                    var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
                     var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
 
                     // Create one primitive per draw call
                     var primitive = mesh.CreatePrimitive();
 
-                    // Avoid duplicate attribute names
-                    var attributeCounters = new Dictionary<string, int>();
-
-                    // Set vertex attributes
-                    foreach (var attribute in vertexBuffer.InputLayoutFields)
+                    foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
                     {
-                        attributeCounters.TryGetValue(attribute.SemanticName, out var attributeCounter);
-                        attributeCounters[attribute.SemanticName] = attributeCounter + 1;
-                        var accessorName = GetAccessorName(attribute.SemanticName, attributeCounter);
-
-                        var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                        var numComponents = buffer.Length / vertexBuffer.ElementCount;
-
-                        if (attribute.SemanticName == "BLENDINDICES")
-                        {
-                            if (!includeJoints)
-                            {
-                                continue;
-                            }
-
-                            var byteBuffer = buffer.Select(f => (byte)f).ToArray();
-                            var rawBufferData = new byte[buffer.Length];
-                            System.Buffer.BlockCopy(byteBuffer, 0, rawBufferData, 0, rawBufferData.Length);
-
-                            var bufferView = mesh.LogicalParent.UseBufferView(rawBufferData);
-                            var accessor = mesh.LogicalParent.CreateAccessor();
-                            accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
-
-                            primitive.SetVertexAccessor(accessorName, accessor);
-
-                            continue;
-                        }
-
-                        if (attribute.SemanticName == "NORMAL" && VMesh.IsCompressedNormalTangent(drawCall))
-                        {
-                            var vectors = ToVector4Array(buffer);
-                            var (normals, tangents) = DecompressNormalTangents(vectors);
-                            primitive.WithVertexAccessor("NORMAL", normals);
-                            primitive.WithVertexAccessor("TANGENT", tangents);
-
-                            continue;
-                        }
-
-                        if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
-                        {
-                            // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
-                            continue;
-                        }
-
-                        if (attribute.SemanticName == "BLENDWEIGHT" && numComponents != 4)
-                        {
-                            Console.Error.WriteLine($"This model has {attribute.SemanticName} with {numComponents} components, which in unsupported.");
-                            continue;
-                        }
-
-                        switch (numComponents)
-                        {
-                            case 4:
-                                {
-                                    var vectors = ToVector4Array(buffer);
-
-                                    // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
-                                    if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
-                                    {
-                                        vectors = FixZeroLengthVectors(vectors);
-                                    }
-
-                                    primitive.WithVertexAccessor(accessorName, vectors);
-                                    break;
-                                }
-
-                            case 3:
-                                {
-                                    var vectors = ToVector3Array(buffer);
-
-                                    // dropship.vmdl in HL:A has a normal with value of <0, 0, 0>
-                                    if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
-                                    {
-                                        vectors = FixZeroLengthVectors(vectors);
-                                    }
-
-                                    primitive.WithVertexAccessor(accessorName, vectors);
-                                    break;
-                                }
-
-                            case 2:
-                                {
-                                    var vectors = ToVector2Array(buffer);
-                                    primitive.WithVertexAccessor(accessorName, vectors);
-                                    break;
-                                }
-
-                            case 1:
-                                {
-                                    primitive.WithVertexAccessor(accessorName, buffer);
-                                    break;
-                                }
-
-                            default:
-                                throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {numComponents} components");
-                        }
-                    }
-
-                    // For some reason soruce models can have joints but no weights, check if that is the case
-                    var jointAccessor = primitive.GetVertexAccessor("JOINTS_0");
-                    if (jointAccessor != null && primitive.GetVertexAccessor("WEIGHTS_0") == null)
-                    {
-                        // If this occurs, give default weights
-                        var defaultWeights = Enumerable.Repeat(Vector4.UnitX, jointAccessor.Count).ToList();
-                        primitive.WithVertexAccessor("WEIGHTS_0", defaultWeights);
+                        primitive.SetVertexAccessor(attributeKey, accessor);
                     }
 
                     // Set index buffer
-                    var startIndex = (int)drawCall.GetIntegerProperty("m_nStartIndex");
-                    var indexCount = (int)drawCall.GetIntegerProperty("m_nIndexCount");
-                    var indices = ReadIndices(indexBuffer, startIndex, indexCount);
+                    var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
+                    var startIndex = drawCall.GetInt32Property("m_nStartIndex");
+                    var indexCount = drawCall.GetInt32Property("m_nIndexCount");
+                    var indices = ReadIndices(indexBuffer, startIndex, indexCount, baseVertex);
 
                     var primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
                     {
@@ -745,8 +802,7 @@ namespace ValveResourceFormat.IO
                     if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
                     {
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, vertexIndex, vertexCount);
-                        vertexIndex += vertexCount;
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, baseVertex, vertexCount);
                     }
 
                     // Add material
@@ -1124,7 +1180,7 @@ namespace ValveResourceFormat.IO
                 .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count)
+        private static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
         {
             var indices = new int[count];
 
@@ -1134,12 +1190,16 @@ namespace ValveResourceFormat.IO
             if (indexBuffer.ElementSizeInBytes == 4)
             {
                 System.Buffer.BlockCopy(indexBuffer.Data, byteStart, indices, 0, byteCount);
+                for (var i = 0; i < count; i++)
+                {
+                    indices[i] += baseVertex;
+                }
             }
             else if (indexBuffer.ElementSizeInBytes == 2)
             {
                 var shortIndices = new ushort[count];
                 System.Buffer.BlockCopy(indexBuffer.Data, byteStart, shortIndices, 0, byteCount);
-                indices = Array.ConvertAll(shortIndices, i => (int)i);
+                indices = Array.ConvertAll(shortIndices, i => baseVertex + i);
             }
 
             return indices;
