@@ -80,17 +80,7 @@ namespace GUI.Types.Renderer
                 var animationTexture = animationTextures[i];
 
                 // Update animation matrices
-                var animationMatrices = new float[skeleton.AnimationTextureSize * 16];
-                for (var j = 0; j < skeleton.AnimationTextureSize; j++)
-                {
-                    // Default to identity matrices
-                    animationMatrices[j * 16] = 1.0f;
-                    animationMatrices[(j * 16) + 5] = 1.0f;
-                    animationMatrices[(j * 16) + 10] = 1.0f;
-                    animationMatrices[(j * 16) + 15] = 1.0f;
-                }
-
-                animationMatrices = AnimationController.GetAnimationMatricesAsArray(skeleton);
+                var animationMatrices = AnimationController.GetAnimationMatricesAsArray(skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);

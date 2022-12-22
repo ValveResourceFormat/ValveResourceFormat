@@ -163,6 +163,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Create output array
             var matrices = new Matrix4x4[skeleton.AnimationTextureSize];
 
+            for (var i = 0; i < skeleton.AnimationTextureSize; i++)
+            {
+                matrices[i] = Matrix4x4.Identity;
+            }
+
             // Get bone transformations
             var transforms = frameCache.GetFrame(this, time);
 
