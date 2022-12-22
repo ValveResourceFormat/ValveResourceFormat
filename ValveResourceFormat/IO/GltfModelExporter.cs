@@ -53,7 +53,9 @@ namespace ValveResourceFormat.IO
         private string DstDir;
         private CancellationToken? CancellationToken;
 
-        private readonly byte[] tempPng = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 73, 69, 78, 68, 174, 66, 96, 130 };
+        // In SatelliteImages mode, SharpGLTF will still load and validate images.
+        // To save memory, we initiate MemoryImage with a a dummy image instead.
+        private readonly byte[] dummyPng = new byte[] { 137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
@@ -1107,6 +1109,7 @@ namespace ValveResourceFormat.IO
 
             using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SkiaSharp.SKColor(255, 255, 0, 255) };
             var ormHasOcclusion = false;
+            Image ormImage = null;
 
             var allGltfInputs = MaterialExtract.GltfTextureMappings.Values.SelectMany(x => x);
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Item2)));
@@ -1118,16 +1121,20 @@ namespace ValveResourceFormat.IO
             void TrySetupTexture(string textureName, Resource textureResource, List<ValueTuple<MaterialExtract.Channel, string>> renderTextureInputs)
             {
                 var ormFileName = Path.GetFileNameWithoutExtension(textureResource.FileName) + "_orm.png";
-
-                using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
-                bitmap.SetImmutable();
+                ormImage = model.LogicalImages.SingleOrDefault(i => i.Name == ormFileName);
 
                 // Pack occlusion into the ORM if possible
-                if (AdaptTextures && renderTextureInputs[0].Item1 == MaterialExtract.Channel.R && blendNameComparer.Equals(renderTextureInputs[0].Item2, "TextureAmbientOcclusion"))
+                if (AdaptTextures && blendInputComparer.Equals(renderTextureInputs[0], (MaterialExtract.Channel.R, "TextureAmbientOcclusion")))
                 {
-                    using var pixels = bitmap.PeekPixels();
-                    occlusionRoughnessMetal.Collect(pixels, ormFileName, MaterialExtract.Channel.R, MaterialExtract.Channel.R);
-                    ormHasOcclusion = true;
+                    if (ormImage is null)
+                    {
+                        using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+                        bitmap.SetImmutable();
+                        using var pixels = bitmap.PeekPixels();
+                        occlusionRoughnessMetal.Collect(pixels, ormFileName, MaterialExtract.Channel.R, MaterialExtract.Channel.R);
+                        ormHasOcclusion = true;
+                    }
+
                     return;
                 }
 
@@ -1175,32 +1182,19 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                // Collect any leftover channel/maps to new images
-                if (AdaptTextures)
-                {
-                    using var pixels = bitmap.PeekPixels();
-
-                    foreach (var (channel, textureType) in renderTextureInputs)
-                    {
-                        if (blendNameComparer.Equals(textureType, "TextureRoughness"))
-                        {
-                            occlusionRoughnessMetal.Collect(pixels, ormFileName, channel, MaterialExtract.Channel.G);
-                        }
-                        else if (blendNameComparer.Equals(textureType, "TextureSpecularMask"))
-                        {
-                            occlusionRoughnessMetal.Collect(pixels, ormFileName, channel, MaterialExtract.Channel.G, invert: true);
-                        }
-                        else if (blendNameComparer.Equals(textureType, "TextureMetalness") || blendNameComparer.Equals(textureType, "TextureMetalnessMask"))
-                        {
-                            occlusionRoughnessMetal.Collect(pixels, ormFileName, channel, MaterialExtract.Channel.B);
-                        }
-                    }
-                }
-
                 void WriteTexture(MaterialExtract.Channel channel, string gltfBestMatch, int index, int count)
                 {
+                    renderTextureInputs.RemoveRange(index, count);
                     var fileName = Path.GetFileName(textureResource.FileName);
-                    var image = LinkAndStoreImage(channel, bitmap, model, fileName);
+                    var image = model.LogicalImages.SingleOrDefault(i => i.Name == fileName);
+                    if (image is null)
+                    {
+                        using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+                        bitmap.SetImmutable();
+                        image = LinkAndStoreImage(channel, bitmap, model, fileName);
+                        CollectRemainingChannels(bitmap);
+                    }
+
                     var tex = model.UseTexture(image, sampler);
                     tex.Name = $"{fileName}_{model.LogicalTextures.Count - 1}";
 
@@ -1216,8 +1210,32 @@ namespace ValveResourceFormat.IO
                             },
                         });
                     }
+                }
 
-                    renderTextureInputs.RemoveRange(index, count);
+                void CollectRemainingChannels(SkiaSharp.SKBitmap bitmap)
+                {
+                    if (!AdaptTextures || ormImage is not null)
+                    {
+                        return;
+                    }
+
+                    // Collect any leftover channel/maps to new images
+                    using var pixels = bitmap.PeekPixels();
+                    foreach (var (leftoverChannel, textureType) in renderTextureInputs)
+                    {
+                        if (blendNameComparer.Equals(textureType, "TextureRoughness"))
+                        {
+                            occlusionRoughnessMetal.Collect(pixels, ormFileName, leftoverChannel, MaterialExtract.Channel.G);
+                        }
+                        else if (blendNameComparer.Equals(textureType, "TextureSpecularMask"))
+                        {
+                            occlusionRoughnessMetal.Collect(pixels, ormFileName, leftoverChannel, MaterialExtract.Channel.G, invert: true);
+                        }
+                        else if (blendNameComparer.Equals(textureType, "TextureMetalness") || blendNameComparer.Equals(textureType, "TextureMetalnessMask"))
+                        {
+                            occlusionRoughnessMetal.Collect(pixels, ormFileName, leftoverChannel, MaterialExtract.Channel.B);
+                        }
+                    }
                 }
             }
 
@@ -1243,12 +1261,15 @@ namespace ValveResourceFormat.IO
                 TrySetupTexture(renderTexture.Key, textureResource, inputImages);
             }
 
-            if (occlusionRoughnessMetal.Bitmap is not null)
+            if (ormImage is null && occlusionRoughnessMetal.FileName is not null)
+            {
+                ormImage = LinkAndStoreImage(MaterialExtract.Channel.RGBA, occlusionRoughnessMetal.Bitmap, model, occlusionRoughnessMetal.FileName);
+            }
+
+            if (ormImage is not null)
             {
                 var metallicRoughness = material.FindChannel("MetallicRoughness");
-
-                var image = LinkAndStoreImage(MaterialExtract.Channel.RGBA, occlusionRoughnessMetal.Bitmap, model, occlusionRoughnessMetal.FileName);
-                var tex = model.UseTexture(image, sampler);
+                var tex = model.UseTexture(ormImage, sampler);
                 metallicRoughness?.SetTexture(0, tex);
                 metallicRoughness?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
 
@@ -1263,12 +1284,6 @@ namespace ValveResourceFormat.IO
 
         private Image LinkAndStoreImage(MaterialExtract.Channel channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
         {
-            var existingImage = model.LogicalImages.SingleOrDefault(i => i.Name == fileName);
-            if (existingImage is not null)
-            {
-                return existingImage;
-            }
-
             Image image;
             ProgressReporter?.Report($"Exporting texture: {fileName}");
 
@@ -1279,9 +1294,9 @@ namespace ValveResourceFormat.IO
                 return image;
             }
 
-            fileName = Path.ChangeExtension(fileName, "png");
             image = model.CreateImage(fileName);
-            image.Content = new SharpGLTF.Memory.MemoryImage(tempPng);
+            image.Content = new SharpGLTF.Memory.MemoryImage(dummyPng);
+            fileName = Path.ChangeExtension(fileName, "png");
             image.AlternateWriteFileName = fileName;
 
             var exportedTexturePath = Path.Join(DstDir, fileName);
