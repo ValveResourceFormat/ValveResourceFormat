@@ -206,9 +206,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Calculate transformation matrix
             var transformMatrix = Matrix4x4.Identity;
-            if (transforms.Bones.ContainsKey(bone.Name))
+            if (transforms.Bones.TryGetValue(bone.Name, out var transform))
             {
-                var transform = transforms.Bones[bone.Name];
                 transformMatrix = Matrix4x4.CreateScale(transform.Scale)
                     * Matrix4x4.CreateFromQuaternion(transform.Angle)
                     * Matrix4x4.CreateTranslation(transform.Position);
