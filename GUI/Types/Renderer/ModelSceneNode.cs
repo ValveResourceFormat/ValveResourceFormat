@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -74,19 +76,34 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            UpdateBoundingBox(); // Reset back to the mesh bbox
+
+            var newBoundingBox = LocalBoundingBox;
+            var first = true;
+
             for (var i = 0; i < skeletons.Length; i++)
             {
                 var skeleton = skeletons[i];
                 var animationTexture = animationTextures[i];
 
                 // Update animation matrices
-                var animationMatrices = AnimationController.GetAnimationMatricesAsArray(skeleton);
+                var matrices = AnimationController.GetAnimationMatrices(skeleton);
+                var animationMatrices = VectorExtensions.Flatten(matrices);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
                 GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.AnimationTextureSize, 0, PixelFormat.Rgba, PixelType.Float, animationMatrices);
                 GL.BindTexture(TextureTarget.Texture2D, 0);
+
+                foreach (var matrix in matrices)
+                {
+                    var bbox = LocalBoundingBox.Transform(matrix);
+                    newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
+                    first = false;
+                }
             }
+
+            LocalBoundingBox = newBoundingBox;
         }
 
         public override void Render(Scene.RenderContext context)
@@ -142,6 +159,7 @@ namespace GUI.Types.Renderer
             {
                 return;
             }
+
             loadedAnimations = true;
             animations.AddRange(Model.GetAllAnimations(Scene.GuiContext.FileLoader));
 
@@ -213,6 +231,7 @@ namespace GUI.Types.Renderer
         {
             var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
             AnimationController.SetAnimation(activeAnimation);
+            UpdateBoundingBox();
 
             if (activeAnimation != default)
             {

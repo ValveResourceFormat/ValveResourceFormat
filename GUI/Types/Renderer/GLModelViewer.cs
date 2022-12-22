@@ -86,7 +86,7 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
                 SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
-                Scene.Add(modelSceneNode, false);
+                Scene.Add(modelSceneNode, true);
 
                 phys = model.GetEmbeddedPhys();
                 if (phys == null)

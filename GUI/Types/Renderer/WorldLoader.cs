@@ -299,7 +299,7 @@ namespace GUI.Types.Renderer
                     modelNode.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));
                 }
 
-                scene.Add(modelNode, false);
+                scene.Add(modelNode, animation != default);
 
                 var phys = newModel.GetEmbeddedPhys();
                 if (phys == null)

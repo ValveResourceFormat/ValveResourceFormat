@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.Renderer
@@ -54,8 +55,8 @@ namespace GUI.Types.Renderer
             updateHandler(activeAnimation, -1);
         }
 
-        public float[] GetAnimationMatricesAsArray(Skeleton skeleton)
-            => activeAnimation.GetAnimationMatricesAsArray(animationFrameCache, Time, skeleton);
+        public Matrix4x4[] GetAnimationMatrices(Skeleton skeleton)
+            => activeAnimation.GetAnimationMatrices(animationFrameCache, Time, skeleton);
 
         public void RegisterUpdateHandler(Action<Animation, int> handler)
         {
