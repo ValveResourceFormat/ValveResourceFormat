@@ -756,7 +756,6 @@ namespace ValveResourceFormat.IO
                 return accessors;
             }).ToArray();
 
-            var vertexIndex = 0;
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -801,9 +800,9 @@ namespace ValveResourceFormat.IO
 
                     if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
                     {
+                        var vertexIndex = drawCall.GetInt32Property("m_nBaseVertex");
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
                         AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, vertexIndex, vertexCount);
-                        vertexIndex += vertexCount;
                     }
 
                     // Add material
