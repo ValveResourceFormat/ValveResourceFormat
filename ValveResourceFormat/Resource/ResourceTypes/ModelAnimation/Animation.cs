@@ -161,7 +161,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, float time, Skeleton skeleton)
         {
             // Create output array
-            var matrices = new Matrix4x4[skeleton.AnimationTextureSize + 1];
+            var matrices = new Matrix4x4[skeleton.AnimationTextureSize];
 
             // Get bone transformations
             var transforms = frameCache.GetFrame(this, time);
