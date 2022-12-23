@@ -670,6 +670,12 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
+                        if (numComponents != 4)
+                        {
+                            Console.Error.WriteLine($"This model has {attribute.SemanticName} with {numComponents} components, which in unsupported.");
+                            continue;
+                        }
+
                         var byteBuffer = buffer.Select(f => (byte)f).ToArray();
                         var rawBufferData = new byte[buffer.Length];
                         System.Buffer.BlockCopy(byteBuffer, 0, rawBufferData, 0, rawBufferData.Length);
