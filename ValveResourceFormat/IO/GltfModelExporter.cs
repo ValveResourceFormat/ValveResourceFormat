@@ -647,7 +647,6 @@ namespace ValveResourceFormat.IO
                         var bufferView = mesh.LogicalParent.UseBufferView(rawBufferData);
                         var accessor = mesh.LogicalParent.CreateAccessor();
                         accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
-
                         accessors[accessorName] = accessor;
 
                         continue;
@@ -659,10 +658,12 @@ namespace ValveResourceFormat.IO
                         {
                             return sceneObject.GetArray("m_drawCalls").Any(drawCall =>
                             {
-                                return drawCall.GetInt32Property("m_hBuffer") == vertexBufferIndex
+                                var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0];
+                                return vertexBufferInfo.GetInt32Property("m_hBuffer") == vertexBufferIndex
                                     && VMesh.IsCompressedNormalTangent(drawCall);
                             });
                         });
+
                         if (isCompressedNormalTangent)
                         {
                             var vectors = ToVector4Array(buffer);
