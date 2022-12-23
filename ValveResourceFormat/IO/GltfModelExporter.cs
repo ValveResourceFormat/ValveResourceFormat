@@ -262,6 +262,30 @@ namespace ValveResourceFormat.IO
                 models.Add((model, Path.GetFileNameWithoutExtension(renderableModel), matrix));
             }
 
+            if (!worldNode.Data.ContainsKey("m_aggregateSceneObjects"))
+            {
+                return models;
+            }
+
+            var aggregateSceneObjects = worldNode.Data.GetArray("m_aggregateSceneObjects");
+            foreach (var sceneObject in aggregateSceneObjects)
+            {
+                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+
+                if (renderableModel != null)
+                {
+                    var modelResource = FileLoader.LoadFile(renderableModel + "_c");
+
+                    if (modelResource == null)
+                    {
+                        continue;
+                    }
+
+                    var model = (VModel)modelResource.DataBlock;
+                    models.Add((model, Path.GetFileNameWithoutExtension(renderableModel), Matrix4x4.Identity));
+                }
+            }
+
             return models;
         }
 

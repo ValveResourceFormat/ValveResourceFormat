@@ -99,6 +99,11 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            if (!data.ContainsKey("m_aggregateSceneObjects"))
+            {
+                return;
+            }
+
             var aggregateSceneObjects = data.GetArray("m_aggregateSceneObjects");
 
             foreach (var sceneObject in aggregateSceneObjects)
