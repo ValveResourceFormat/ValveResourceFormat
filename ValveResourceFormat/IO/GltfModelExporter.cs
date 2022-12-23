@@ -1,3 +1,5 @@
+//#define DEBUG_VALIDATE_GLTF
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,6 +53,28 @@ namespace ValveResourceFormat.IO
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
+
+#if DEBUG_VALIDATE_GLTF
+#pragma warning disable CS0168 // Variable is declared but never used
+        private static ModelRoot debugCurrentExportedModel;
+        private static void DebugValidateGLTF()
+        {
+            try
+            {
+                debugCurrentExportedModel.WriteGLB(Stream.Null);
+            }
+            catch (Exception validationException)
+            {
+                System.Diagnostics.Debugger.Break();
+                throw;
+            }
+        }
+#else
+        private static void DebugValidateGLTF()
+        {
+            // noop
+        }
+#endif
 
         /// <summary>
         /// Export a Valve resource to Gltf.
@@ -438,6 +462,8 @@ namespace ValveResourceFormat.IO
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
+
+                    DebugValidateGLTF();
                 }
             }
 
@@ -546,6 +572,10 @@ namespace ValveResourceFormat.IO
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = GENERATOR;
             scene = exportedModel.UseScene(Path.GetFileName(resourceName));
+
+#if DEBUG_VALIDATE_GLTF
+            debugCurrentExportedModel = exportedModel;
+#endif
 
             return exportedModel;
         }
@@ -799,6 +829,8 @@ namespace ValveResourceFormat.IO
                     foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
                     {
                         primitive.SetVertexAccessor(attributeKey, accessor);
+
+                        DebugValidateGLTF();
                     }
 
                     // Set index buffer
@@ -829,6 +861,8 @@ namespace ValveResourceFormat.IO
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
                         AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, baseVertex, vertexCount);
                     }
+
+                    DebugValidateGLTF();
 
                     // Add material
                     if (!ExportMaterials)
