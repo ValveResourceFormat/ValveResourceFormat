@@ -61,10 +61,43 @@ namespace GUI
             for (var i = 1; i < args.Length; i++)
             {
                 var file = args[i];
-                if (File.Exists(file))
+                var innerFilePosition = file.LastIndexOf(".vpk:", StringComparison.InvariantCulture);
+                string innerFile = null;
+
+                if (innerFilePosition > 0)
                 {
-                    OpenFile(file);
+                    innerFile = file[(innerFilePosition + 5)..];
+                    file = file[..(innerFilePosition + 4)];
                 }
+
+                if (!File.Exists(file))
+                {
+                    Console.Error.WriteLine($"File '{file}' does not exist.");
+                    continue;
+                }
+
+                if (innerFile != null)
+                {
+                    var package = new Package();
+                    package.Read(file);
+
+                    var packageFile = package.FindEntry(innerFile);
+
+                    if (packageFile == null)
+                    {
+                        Console.Error.WriteLine($"File '{packageFile}' does not exist in package '{file}'.");
+                    }
+
+                    var vrfGuiContext = new VrfGuiContext(packageFile.GetFullPath(), null)
+                    {
+                        CurrentPackage = package
+                    };
+                    OpenFile(vrfGuiContext, packageFile);
+
+                    continue;
+                }
+
+                OpenFile(file);
             }
         }
 
