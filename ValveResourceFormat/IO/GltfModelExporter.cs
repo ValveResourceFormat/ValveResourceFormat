@@ -23,6 +23,7 @@ using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.IO
 {
@@ -663,6 +664,7 @@ namespace ValveResourceFormat.IO
                 var attributeCounters = new Dictionary<string, int>();
 
                 // Set vertex attributes
+                var actualJointsCount = 0;
                 foreach (var attribute in vertexBuffer.InputLayoutFields)
                 {
                     attributeCounters.TryGetValue(attribute.SemanticName, out var attributeCounter);
@@ -670,7 +672,12 @@ namespace ValveResourceFormat.IO
                     var accessorName = GetAccessorName(attribute.SemanticName, attributeCounter);
 
                     var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                    var numComponents = buffer.Length / vertexBuffer.ElementCount;
+                    var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
+
+                    if (accessorName == "JOINTS_0")
+                    {
+                        actualJointsCount = numComponents;
+                    }
 
                     if (attribute.SemanticName == "BLENDINDICES")
                     {
@@ -679,19 +686,16 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
+                        var ushortBuffer = buffer.Select(f => (ushort)f).ToArray();
                         if (numComponents != 4)
                         {
-                            Console.Error.WriteLine($"This model has {attribute.SemanticName} with {numComponents} components, which in unsupported.");
-                            continue;
+                            ushortBuffer = ChangeBufferStride(ushortBuffer, numComponents, 4);
                         }
 
-                        var byteBuffer = buffer.Select(f => (byte)f).ToArray();
-                        var rawBufferData = new byte[buffer.Length];
-                        System.Buffer.BlockCopy(byteBuffer, 0, rawBufferData, 0, rawBufferData.Length);
-
-                        var bufferView = mesh.LogicalParent.UseBufferView(rawBufferData);
+                        BufferView bufferView = model.CreateBufferView(2 * ushortBuffer.Length, 0, BufferMode.ARRAY_BUFFER);
+                        ushortBuffer.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
                         var accessor = mesh.LogicalParent.CreateAccessor();
-                        accessor.SetVertexData(bufferView, 0, buffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_BYTE);
+                        accessor.SetVertexData(bufferView, 0, ushortBuffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
                         accessors[accessorName] = accessor;
 
                         continue;
@@ -742,8 +746,8 @@ namespace ValveResourceFormat.IO
 
                     if (attribute.SemanticName == "BLENDWEIGHT" && numComponents != 4)
                     {
-                        Console.Error.WriteLine($"This model has {attribute.SemanticName} with {numComponents} components, which in unsupported.");
-                        continue;
+                        buffer = ChangeBufferStride(buffer, numComponents, 4);
+                        numComponents = 4;
                     }
 
                     switch (numComponents)
@@ -811,16 +815,67 @@ namespace ValveResourceFormat.IO
                 }
 
                 // For some reason soruce models can have joints but no weights, check if that is the case
-                if (accessors.TryGetValue("JOINTS_0", out var jointAccessor) && !accessors.ContainsKey("WEIGHTS_0"))
+                if (accessors.TryGetValue("JOINTS_0", out var jointAccessor))
                 {
-                    // If this occurs, give default weights
-                    var defaultWeights = Enumerable.Repeat(Vector4.UnitX, jointAccessor.Count).ToList();
+                    if (!accessors.TryGetValue("WEIGHTS_0", out var weightsAccessor))
+                    {
+                        // If this occurs, give default weights
+                        var baseWeight = 1f / actualJointsCount;
+                        var baseWeights = new Vector4(
+                            actualJointsCount > 0 ? baseWeight : 0,
+                            actualJointsCount > 1 ? baseWeight : 0,
+                            actualJointsCount > 2 ? baseWeight : 0,
+                            actualJointsCount > 3 ? baseWeight : 0
+                        );
+                        var defaultWeights = Enumerable.Repeat(baseWeights, jointAccessor.Count).ToList();
 
-                    BufferView bufferView = model.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
-                    new Vector4Array(bufferView.Content).Fill(defaultWeights);
-                    Accessor accessor = model.CreateAccessor();
-                    accessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);
-                    accessors["WEIGHTS_0"] = accessor;
+                        BufferView bufferView = model.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
+                        new Vector4Array(bufferView.Content).Fill(defaultWeights);
+                        weightsAccessor = model.CreateAccessor();
+                        weightsAccessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);
+                        accessors["WEIGHTS_0"] = weightsAccessor;
+                    }
+
+                    var joints = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)jointAccessor.SourceBufferView.Content).Span);
+                    var weights = MemoryMarshal.Cast<byte, float>(((Memory<byte>)weightsAccessor.SourceBufferView.Content).Span);
+
+                    for (var i = 0; i < joints.Length; i += 4)
+                    {
+                        // remove joints without weights
+                        for (var j = 0; j < 4; j++)
+                        {
+                            if (weights[i + j] == 0)
+                            {
+                                joints[i + j] = 0;
+                            }
+                        }
+
+                        // remove duplicate joints
+                        for (var j = 2; j >= 0; j--)
+                        {
+                            for (var k = 3; k > j; k--)
+                            {
+                                if (joints[i + j] == joints[i + k])
+                                {
+                                    for (var l = k; l < 3; l++)
+                                    {
+                                        joints[i + l] = joints[i + l + 1];
+                                    }
+                                    joints[i + 3] = 0;
+
+                                    weights[i + j] += weights[i + k];
+                                    for (var l = k; l < 3; l++)
+                                    {
+                                        weights[i + l] = weights[i + l + 1];
+                                    }
+                                    weights[i + 3] = 0;
+                                }
+                            }
+                        }
+                    }
+
+                    jointAccessor.UpdateBounds();
+                    weightsAccessor.UpdateBounds();
                 }
 
                 return accessors;
@@ -1417,6 +1472,21 @@ namespace ValveResourceFormat.IO
             }
 
             return vectorArray;
+        }
+
+        private static T[] ChangeBufferStride<T>(T[] oldBuffer, int oldStride, int newStride)
+        {
+            return Enumerable.Range(0, (oldBuffer.Length / oldStride) * newStride)
+                .Select(i =>
+                {
+                    var index = i % newStride;
+                    if (index >= oldStride)
+                    {
+                        return default;
+                    }
+                    return oldBuffer[(i / newStride) * oldStride + index];
+                })
+                .ToArray();
         }
     }
 }
