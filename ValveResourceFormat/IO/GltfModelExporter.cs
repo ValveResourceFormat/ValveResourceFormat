@@ -367,8 +367,17 @@ namespace ValveResourceFormat.IO
                     for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
                     {
                         animation.DecodeFrame(frameIndex, frame);
-                        var time = frameIndex / (float)animation.Fps;
-                        var prevFrameTime = (frameIndex - 1) / (float)animation.Fps;
+                        var fps = animation.Fps;
+
+                        // Some models have fps of 0.000, which will make time a NaN
+                        if (fps == 0)
+                        {
+                            fps = 1f;
+                        }
+
+                        var time = frameIndex / fps;
+                        var prevFrameTime = (frameIndex - 1) / fps;
+
                         foreach (var boneFrame in frame.Bones)
                         {
                             var bone = boneFrame.Key;
