@@ -98,6 +98,31 @@ namespace GUI.Types.Renderer
                     scene.Add(meshNode, false);
                 }
             }
+
+            var aggregateSceneObjects = data.GetArray("m_aggregateSceneObjects");
+
+            foreach (var sceneObject in aggregateSceneObjects)
+            {
+                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+
+                if (renderableModel != null)
+                {
+                    var newResource = guiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
+
+                    if (newResource == null)
+                    {
+                        continue;
+                    }
+
+                    var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
+                    var modelNode = new ModelSceneNode(scene, (Model)newResource.DataBlock, null, false)
+                    {
+                        LayerName = worldLayers[layerIndex],
+                    };
+
+                    scene.Add(modelNode, false);
+                }
+            }
         }
     }
 }
