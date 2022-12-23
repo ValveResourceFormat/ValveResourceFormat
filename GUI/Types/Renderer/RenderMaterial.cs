@@ -9,10 +9,10 @@ namespace GUI.Types.Renderer
     {
         public Material Material { get; }
         public Dictionary<string, int> Textures { get; } = new Dictionary<string, int>();
-        public bool IsBlended => isTranslucent;
+        public bool IsBlended { get; }
+        public bool IsToolsMaterial { get; }
 
         private readonly float flAlphaTestReference;
-        private readonly bool isTranslucent;
         private readonly bool isAdditiveBlend;
         private readonly bool isRenderBackfaces;
 
@@ -27,7 +27,8 @@ namespace GUI.Types.Renderer
                 flAlphaTestReference = material.FloatParams["g_flAlphaTestReference"];
             }
 
-            isTranslucent = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1) || material.IntAttributes.ContainsKey("mapbuilder.water") || material.ShaderName == "vr_glass.vfx";
+            IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
+            IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1) || material.IntAttributes.ContainsKey("mapbuilder.water") || material.ShaderName == "vr_glass.vfx";
             isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
         }
@@ -79,7 +80,7 @@ namespace GUI.Types.Renderer
                 GL.Uniform1(alphaReference, flAlphaTestReference);
             }
 
-            if (isTranslucent)
+            if (IsBlended)
             {
                 GL.DepthMask(false);
                 GL.Enable(EnableCap.Blend);
@@ -94,7 +95,7 @@ namespace GUI.Types.Renderer
 
         public void PostRender()
         {
-            if (isTranslucent)
+            if (IsBlended)
             {
                 GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);

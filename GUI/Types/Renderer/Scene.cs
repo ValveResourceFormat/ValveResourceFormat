@@ -18,20 +18,17 @@ namespace GUI.Types.Renderer
 
         public class RenderContext
         {
-            public Camera Camera { get; }
-            public RenderPass RenderPass { get; }
-
-            public RenderContext(Camera camera, RenderPass renderPass)
-            {
-                Camera = camera;
-                RenderPass = renderPass;
-            }
+            public Camera Camera { get; init; }
+            public RenderPass RenderPass { get; set; }
+            public bool RenderToolsMaterials { get; init; }
         }
 
         public Camera MainCamera { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
+
+        public bool ShowToolsMaterials { get; set; } = true;
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -128,21 +125,26 @@ namespace GUI.Types.Renderer
             });
 
             // Opaque render pass
-            var opaqueRenderContext = new RenderContext(camera, RenderPass.Opaque);
+            var renderContext = new RenderContext
+            {
+                Camera = camera,
+                RenderPass = RenderPass.Opaque,
+                RenderToolsMaterials = ShowToolsMaterials,
+            };
 
-            MeshBatchRenderer.Render(opaqueDrawCalls, opaqueRenderContext);
+            MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);
             foreach (var node in looseNodes)
             {
-                node.Render(opaqueRenderContext);
+                node.Render(renderContext);
             }
 
             // Translucent render pass, back to front for loose nodes
-            var translucentRenderContext = new RenderContext(camera, RenderPass.Translucent);
+            renderContext.RenderPass = RenderPass.Translucent;
 
-            MeshBatchRenderer.Render(translucentDrawCalls, translucentRenderContext);
+            MeshBatchRenderer.Render(translucentDrawCalls, renderContext);
             foreach (var node in Enumerable.Reverse(looseNodes))
             {
-                node.Render(translucentRenderContext);
+                node.Render(renderContext);
             }
         }
 

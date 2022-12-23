@@ -68,6 +68,12 @@ namespace GUI.Types.Renderer
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
                 {
                     var material = materialGroup.Key;
+
+                    if (!context.RenderToolsMaterials && material.IsToolsMaterial)
+                    {
+                        continue;
+                    }
+
                     material.Render(shader);
 
                     foreach (var request in materialGroup)
