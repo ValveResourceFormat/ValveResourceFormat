@@ -149,7 +149,7 @@ namespace GUI.Types.Renderer
 
             CachedShaders[newShaderCacheHash] = shader;
 
-            Console.WriteLine($"Shader {newShaderCacheHash} ({shaderName}) ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
+            Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
 #endif
 
             return shader;
