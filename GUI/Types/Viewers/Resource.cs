@@ -175,7 +175,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Mesh:
                     var meshRendererTab = new TabPage("MESH");
-                    meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, new Mesh(resource, 0)).ViewerControl);
+                    meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Mesh)resource.DataBlock).ViewerControl);
                     resTabs.TabPages.Add(meshRendererTab);
                     break;
 

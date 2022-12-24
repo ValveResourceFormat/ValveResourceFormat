@@ -166,7 +166,7 @@ namespace GUI.Types.Renderer
 
             if (mesh != null)
             {
-                meshSceneNode = new MeshSceneNode(Scene, mesh);
+                meshSceneNode = new MeshSceneNode(Scene, mesh, 0);
                 Scene.Add(meshSceneNode, false);
             }
 

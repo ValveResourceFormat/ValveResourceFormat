@@ -36,12 +36,12 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
-        public IEnumerable<(Mesh Mesh, long LoDMask)> GetEmbeddedMeshesAndLoD()
-            => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l, r));
+        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesAndLoD()
+            => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l.Mesh, l.MeshIndex, l.Name, r));
 
-        public IEnumerable<Mesh> GetEmbeddedMeshes()
+        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name)> GetEmbeddedMeshes()
         {
-            var meshes = new List<Mesh>();
+            var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>();
 
             if (Resource.ContainsBlockType(BlockType.CTRL))
             {
@@ -60,8 +60,8 @@ namespace ValveResourceFormat.ResourceTypes
                     var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
                     var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
 
-                    var mesh = new Mesh(meshIndex, name, Resource.GetBlockByIndex(dataBlockIndex) as ResourceData,
-                        Resource.GetBlockByIndex(vbibBlockIndex) as VBIB);
+                    var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
+                    mesh.VBIB = Resource.GetBlockByIndex(vbibBlockIndex) as VBIB;
 
                     var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
                     if (morphBlockIndex >= 0)
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.ResourceTypes
                         mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
                     }
 
-                    meshes.Add(mesh);
+                    meshes.Add((mesh, meshIndex, name));
                 }
             }
 

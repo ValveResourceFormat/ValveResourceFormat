@@ -88,7 +88,7 @@ namespace ValveResourceFormat.IO
             switch (resource.ResourceType)
             {
                 case ResourceType.Mesh:
-                    ExportToFile(resource.FileName, targetPath, new VMesh(resource, 0), cancellationToken);
+                    ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock, cancellationToken);
                     break;
                 case ResourceType.Model:
                     ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock, cancellationToken);
@@ -467,7 +467,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var node = AddMeshNode(exportedModel, scene, meshName,
-                    m.Mesh, model.GetSkeleton(m.Mesh.MeshIndex), loadedMeshDictionary,
+                    m.Mesh, model.GetSkeleton(m.MeshIndex), loadedMeshDictionary,
                     skinMaterialPath, boneNodes, skeletonNode);
                 if (node != null)
                 {
@@ -491,11 +491,11 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private IEnumerable<(VMesh Mesh, string Name)> LoadModelMeshes(VModel model, string name)
+        private IEnumerable<(VMesh Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
-                .Select(m => (m.Mesh, string.Concat(name, ".", m.Mesh.Name)));
+                .Select(m => (m.Mesh, m.MeshIndex, string.Concat(name, ".", m.Name)));
 
             var refMeshes = model.GetReferenceMeshNamesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
@@ -506,11 +506,11 @@ namespace ValveResourceFormat.IO
                     var nodeName = Path.GetFileNameWithoutExtension(m.MeshName);
                     if (meshResource == null)
                     {
-                        return (null, nodeName);
+                        return (null, 0, nodeName);
                     }
 
-                    var mesh = new VMesh(meshResource, m.MeshIndex);
-                    return (mesh, nodeName);
+                    var mesh = (VMesh)meshResource.DataBlock;
+                    return (mesh, m.MeshIndex, nodeName);
                 })
                 .Where(m => m.mesh != null);
 
@@ -548,7 +548,7 @@ namespace ValveResourceFormat.IO
             string skinMaterialPath = null,
             Dictionary<string, Node> boneNodes = null, Node skeletonNode = null)
         {
-            if (mesh.GetData().GetArray("m_sceneObjects").Length == 0)
+            if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
             {
                 return null;
             }
@@ -648,7 +648,7 @@ namespace ValveResourceFormat.IO
         {
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
-            var data = vmesh.GetData();
+            var data = vmesh.Data;
             var vbib = vmesh.VBIB;
 
             var mesh = model.CreateMesh(meshName);

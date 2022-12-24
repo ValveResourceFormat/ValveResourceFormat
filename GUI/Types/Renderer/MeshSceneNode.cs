@@ -22,10 +22,10 @@ namespace GUI.Types.Renderer
 
         private readonly RenderableMesh meshRenderer;
 
-        public MeshSceneNode(Scene scene, Mesh mesh, Dictionary<string, string> skinMaterials = null)
+        public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex, Dictionary<string, string> skinMaterials = null)
             : base(scene)
         {
-            meshRenderer = new RenderableMesh(mesh, Scene.GuiContext, skinMaterials);
+            meshRenderer = new RenderableMesh(mesh, meshIndex, Scene.GuiContext, skinMaterials);
             LocalBoundingBox = meshRenderer.BoundingBox;
         }
 

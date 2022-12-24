@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Numerics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -6,44 +7,43 @@ using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Mesh
+    public class Mesh : KeyValuesOrNTRO
     {
-        public ResourceData Data { get; }
-
-        public VBIB VBIB { get; }
-
-        public int MeshIndex { get; private set; }
-        public string Name { get; private set; }
+        public VBIB VBIB
+        {
+            get
+            {
+                if (cachedVBIB == null)
+                {
+                    //new format has VBIB block, for old format we can get it from NTRO DATA block
+                    cachedVBIB = Resource.VBIB ?? new VBIB(Data);
+                }
+                return cachedVBIB;
+            }
+            set
+            {
+                cachedVBIB = value;
+            }
+        }
 
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
 
         public Morph MorphData { get; set; }
 
-        // TODO: Mesh class should extend ResourceData and be automatically constructed for mesh files
-        public Mesh(Resource resource, int meshIndex)
+        private VBIB cachedVBIB { get; set; }
+
+        public Mesh()
         {
-            MeshIndex = meshIndex;
-            Data = resource.DataBlock;
-            //new format has VBIB block, for old format we can get it from NTRO DATA block
-            VBIB = resource.VBIB ?? new VBIB(GetData());
-            GetBounds();
         }
 
-        public Mesh(int meshIndex, string name, ResourceData data, VBIB vbib)
+        public Mesh(BlockType type) : base(type, "CRenderMesh")
         {
-            MeshIndex = meshIndex;
-            Name = name;
-            Data = data;
-            VBIB = vbib;
-            GetBounds();
         }
 
-        public IKeyValueCollection GetData() => Data.AsKeyValueCollection();
-
-        private void GetBounds()
+        public void GetBounds()
         {
-            var sceneObjects = GetData().GetArray("m_sceneObjects");
+            var sceneObjects = Data.GetArray("m_sceneObjects");
             if (sceneObjects.Length == 0)
             {
                 MinBounds = MaxBounds = new Vector3(0, 0, 0);
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (MorphData == null)
             {
-                var morphSetPath = GetData().GetStringProperty("m_morphSet");
+                var morphSetPath = Data.GetStringProperty("m_morphSet");
                 if (!string.IsNullOrEmpty(morphSetPath))
                 {
                     var morphSetResource = fileLoader.LoadFile(morphSetPath + "_c");

@@ -26,16 +26,19 @@ namespace GUI.Types.Renderer
 
         public float Time { get; private set; }
 
-        public int MeshIndex => mesh.MeshIndex;
+        public int MeshIndex { get; }
 
         private readonly Mesh mesh;
         private readonly List<DrawCall> DrawCallsAll = new();
 
-        public RenderableMesh(Mesh mesh, VrfGuiContext guiContext, Dictionary<string, string> skinMaterials = null)
+        public RenderableMesh(Mesh mesh, int meshIndex, VrfGuiContext guiContext,
+            Dictionary<string, string> skinMaterials = null)
         {
             this.guiContext = guiContext;
             this.mesh = mesh;
+            mesh.GetBounds();
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
+            MeshIndex = meshIndex;
 
             ConfigureDrawCalls(skinMaterials, true);
         }
@@ -89,7 +92,7 @@ namespace GUI.Types.Renderer
 
         private void ConfigureDrawCalls(Dictionary<string, string> skinMaterials, bool firstSetup)
         {
-            var data = mesh.GetData();
+            var data = mesh.Data;
             var vbib = mesh.VBIB;
             var sceneObjects = data.GetArray("m_sceneObjects");
 

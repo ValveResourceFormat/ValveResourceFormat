@@ -381,7 +381,7 @@ namespace ValveResourceFormat
                 nameof(BlockType.SNAP) => new SNAP(),
                 nameof(BlockType.MBUF) => new MBUF(),
                 nameof(BlockType.CTRL) => new BinaryKV3(BlockType.CTRL),
-                nameof(BlockType.MDAT) => new BinaryKV3(BlockType.MDAT),
+                nameof(BlockType.MDAT) => new Mesh(BlockType.MDAT),
                 nameof(BlockType.INSG) => new BinaryKV3(BlockType.INSG),
                 nameof(BlockType.SrMa) => new BinaryKV3(BlockType.SrMa), // SourceMap
                 nameof(BlockType.LaCo) => new BinaryKV3(BlockType.LaCo), // vxml ast
@@ -458,12 +458,7 @@ namespace ValveResourceFormat
                     return new PhysAggregateData();
 
                 case ResourceType.Mesh:
-                    if (Version == 0)
-                    {
-                        break;
-                    }
-
-                    return new BinaryKV3();
+                    return new Mesh();
             }
 
             if (ContainsBlockType(BlockType.NTRO))
@@ -507,6 +502,7 @@ namespace ValveResourceFormat
         private static bool IsHandledResourceType(ResourceType type)
         {
             return type == ResourceType.Model
+                   || type == ResourceType.Mesh
                    || type == ResourceType.World
                    || type == ResourceType.WorldNode
                    || type == ResourceType.Particle
