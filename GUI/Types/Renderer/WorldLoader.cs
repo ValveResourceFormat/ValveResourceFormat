@@ -275,6 +275,11 @@ namespace GUI.Types.Renderer
                 {
                     modelNode.LoadAnimations();
                     modelNode.SetAnimation(animation);
+
+                    if (entity.GetProperty<bool>("holdanimation"))
+                    {
+                        modelNode.AnimationController.PauseLastFrame();
+                    }
                 }
 
                 var bodyHash = StringToken.Get("body");

@@ -55,6 +55,12 @@ namespace GUI.Types.Renderer
             updateHandler(activeAnimation, -1);
         }
 
+        public void PauseLastFrame()
+        {
+            IsPaused = true;
+            Frame = activeAnimation.FrameCount - 1;
+        }
+
         public Matrix4x4[] GetAnimationMatrices(Skeleton skeleton)
             => activeAnimation.GetAnimationMatrices(animationFrameCache, Time, skeleton);
 
