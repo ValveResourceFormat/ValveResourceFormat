@@ -100,7 +100,7 @@ namespace GUI.Utils
                 {
                     if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
                     {
-                        Console.WriteLine($"Preloading vpk from parent vpk \"{searchPath}\"");
+                        Console.WriteLine($"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
 
                         var stream = GetPackageEntryStream(GuiContext.CurrentPackage, searchPath);
                         package = new Package();
