@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
         public void PauseLastFrame()
         {
             IsPaused = true;
-            Frame = activeAnimation.FrameCount - 1;
+            Frame = activeAnimation == null ? 0 : activeAnimation.FrameCount - 1;
         }
 
         public Matrix4x4[] GetAnimationMatrices(Skeleton skeleton)
