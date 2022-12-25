@@ -31,6 +31,8 @@ uniform sampler2D g_tNormal;
 
 uniform vec3 vLightPosition;
 uniform vec3 vEyePosition;
+uniform vec4 g_vTexCoordOffset;
+uniform vec4 g_vTexCoordScale;
 uniform vec4 g_vColorTint;
 
 uniform float g_flMetalness = 1.0;
@@ -54,7 +56,7 @@ vec3 oct_to_float32x3(vec2 e)
 vec3 calculateWorldNormal()
 {
     //Get the noral from the texture map -- Normal map seems broken
-    vec4 bumpNormal = texture(g_tNormal, vTexCoordOut);
+    vec4 bumpNormal = texture(g_tNormal, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 
     //Reconstruct the tangent vector from the map
 #if param_HemiOctIsoRoughness_RG_B == 1
@@ -87,7 +89,7 @@ void main()
     vec3 viewDirection = normalize(vEyePosition - vFragPosition);
 
     //Get the ambient color from the color texture
-    vec4 ambient = texture(g_tColor, vTexCoordOut);
+    vec4 ambient = texture(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 
 #if param_F_ALPHA_TEST == 1
     if (color.a < g_flAlphaTestReference)
@@ -119,7 +121,7 @@ void main()
 #endif
 
 #if param_renderMode_BumpMap == 1
-    outputColor = texture(g_tNormal, vTexCoordOut);
+    outputColor = texture(g_tNormal, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 #endif
 
 #if param_renderMode_Tangents == 1
