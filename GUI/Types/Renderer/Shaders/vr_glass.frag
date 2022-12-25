@@ -43,6 +43,7 @@ uniform float g_flEdgeColorMaxOpacity = 1.0;
 uniform float g_flEdgeColorThickness = 1.0;
 uniform vec4 g_vEdgeColor;
 uniform float g_flRefractScale = 0.1;
+uniform float g_flOpacityScale = 1.0;
 
 uniform vec4 TextureColor;
 
@@ -114,7 +115,7 @@ void main()
     float fresnel = pow(1.0 - abs(dot(worldNormal, viewDirection)), g_flEdgeColorFalloff);
     vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_flEdgeColorMaxOpacity * fresnel);
 
-    outputColor = fresnelColor;
+    outputColor = mix(color, fresnelColor, g_flOpacityScale);
 
 #if param_renderMode_Color == 1
     outputColor = vec4(color.rgb, 1.0);
