@@ -591,6 +591,17 @@ namespace Decompiler
             {
                 package.Read(stream);
             }
+            catch (NotSupportedException e)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Error.WriteLine($"Failed to open vpk '{path}' - {e.Message}");
+                    Console.ResetColor();
+                }
+
+                return;
+            }
             catch (Exception e)
             {
                 LogException(e, path);
