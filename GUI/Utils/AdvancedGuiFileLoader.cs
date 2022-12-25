@@ -200,6 +200,16 @@ namespace GUI.Utils
             }
             else
             {
+                var addonsSuffix = "_addons";
+                if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    var mainGameDir = assumedGameRoot[..^addonsSuffix.Length];
+                    if (Directory.Exists(mainGameDir))
+                    {
+                        folders.Add(mainGameDir);
+                    }
+                }
+
                 folders.Add(rootFolder);
             }
 
@@ -244,8 +254,6 @@ namespace GUI.Utils
                     Console.WriteLine($"Added folder \"{folder}\" to game search paths");
 
                     CurrentGameSearchPaths.Add(folder);
-
-                    continue;
                 }
             }
         }
