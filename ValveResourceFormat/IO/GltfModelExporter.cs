@@ -344,7 +344,7 @@ namespace ValveResourceFormat.IO
             Matrix4x4 transform, IDictionary<string, Mesh> loadedMeshDictionary, string skinName = null)
         {
             CancellationToken?.ThrowIfCancellationRequested();
-            var (boneNodes, skeletonNode) = CreateGltfSkeleton(scene, model, name);
+            var (boneNodes, skeletonNode, joints) = CreateGltfSkeleton(scene, model.Skeleton, name);
 
             if (skeletonNode != null)
             {
@@ -467,8 +467,8 @@ namespace ValveResourceFormat.IO
                 }
 
                 var node = AddMeshNode(exportedModel, scene, meshName,
-                    m.Mesh, model.GetSkeleton(m.MeshIndex), loadedMeshDictionary,
-                    skinMaterialPath, boneNodes, skeletonNode);
+                    m.Mesh, joints, loadedMeshDictionary, skinMaterialPath,
+                    model, m.MeshIndex);
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
@@ -544,9 +544,8 @@ namespace ValveResourceFormat.IO
         }
 
         private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
-            VMesh mesh, Skeleton skeleton, IDictionary<string, Mesh> loadedMeshDictionary,
-            string skinMaterialPath = null,
-            Dictionary<string, Node> boneNodes = null, Node skeletonNode = null)
+            VMesh mesh, Node[] joints, IDictionary<string, Mesh> loadedMeshDictionary,
+            string skinMaterialPath = null, VModel model = null, int meshIndex = 0)
         {
             if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
             {
@@ -561,17 +560,16 @@ namespace ValveResourceFormat.IO
                 return newNode;
             }
 
-            var hasJoints = skeleton != null && skeleton.AnimationTextureSize > 0;
-            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath);
+            var hasJoints = joints != null;
+            var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath, model, meshIndex);
             loadedMeshDictionary.Add(name, exportedMesh);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-            if (!hasJoints || !hasVertexJoints || skeleton == null)
+            if (!hasJoints || !hasVertexJoints)
             {
                 return newNode.WithMesh(exportedMesh);
             }
 
-            var joints = GetGltfSkeletonJoints(skeleton, boneNodes, skeletonNode);
             newNode.WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
             // WorldMatrix is set only once on skeletonNode
             return null;
@@ -643,15 +641,19 @@ namespace ValveResourceFormat.IO
             return uri;
         }
 
-        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot model, bool includeJoints,
-            string skinMaterialPath)
+        private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot exportedModel, bool includeJoints,
+            string skinMaterialPath, VModel model, int meshIndex)
         {
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
             var data = vmesh.Data;
             var vbib = vmesh.VBIB;
+            if (model != null)
+            {
+                vbib = model.RemapBoneIndices(vbib, meshIndex);
+            }
 
-            var mesh = model.CreateMesh(meshName);
+            var mesh = exportedModel.CreateMesh(meshName);
             mesh.Name = meshName;
 
             vmesh.LoadExternalMorphData(FileLoader);
@@ -702,7 +704,7 @@ namespace ValveResourceFormat.IO
                             ushortBuffer = ChangeBufferStride(ushortBuffer, numComponents, 4);
                         }
 
-                        BufferView bufferView = model.CreateBufferView(2 * ushortBuffer.Length, 0, BufferMode.ARRAY_BUFFER);
+                        BufferView bufferView = exportedModel.CreateBufferView(2 * ushortBuffer.Length, 0, BufferMode.ARRAY_BUFFER);
                         ushortBuffer.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
                         var accessor = mesh.LogicalParent.CreateAccessor();
                         accessor.SetVertexData(bufferView, 0, ushortBuffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
@@ -729,17 +731,17 @@ namespace ValveResourceFormat.IO
                             var (normals, tangents) = DecompressNormalTangents(vectors);
 
                             {
-                                BufferView bufferView = model.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
+                                BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new Vector3Array(bufferView.Content).Fill(normals);
-                                Accessor accessor = model.CreateAccessor();
+                                Accessor accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
                                 accessors["NORMAL"] = accessor;
                             }
 
                             {
-                                BufferView bufferView = model.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
+                                BufferView bufferView = exportedModel.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new Vector4Array(bufferView.Content).Fill(tangents);
-                                Accessor accessor = model.CreateAccessor();
+                                Accessor accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
                                 accessors["TANGENT"] = accessor;
                             }
@@ -772,9 +774,9 @@ namespace ValveResourceFormat.IO
                                     vectors = FixZeroLengthVectors(vectors);
                                 }
 
-                                BufferView bufferView = model.CreateBufferView(16 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+                                BufferView bufferView = exportedModel.CreateBufferView(16 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new Vector4Array(bufferView.Content).Fill(vectors);
-                                Accessor accessor = model.CreateAccessor();
+                                Accessor accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC4);
                                 accessors[accessorName] = accessor;
                                 break;
@@ -790,9 +792,9 @@ namespace ValveResourceFormat.IO
                                     vectors = FixZeroLengthVectors(vectors);
                                 }
 
-                                BufferView bufferView = model.CreateBufferView(12 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+                                BufferView bufferView = exportedModel.CreateBufferView(12 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new Vector3Array(bufferView.Content).Fill(vectors);
-                                Accessor accessor = model.CreateAccessor();
+                                Accessor accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
                                 accessors[accessorName] = accessor;
                                 break;
@@ -801,9 +803,9 @@ namespace ValveResourceFormat.IO
                         case 2:
                             {
                                 var vectors = ToVector2Array(buffer);
-                                BufferView bufferView = model.CreateBufferView(8 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+                                BufferView bufferView = exportedModel.CreateBufferView(8 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new Vector2Array(bufferView.Content).Fill(vectors);
-                                Accessor accessor = model.CreateAccessor();
+                                Accessor accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC2);
                                 accessors[accessorName] = accessor;
                                 break;
@@ -811,9 +813,9 @@ namespace ValveResourceFormat.IO
 
                         case 1:
                             {
-                                BufferView bufferView = model.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
+                                BufferView bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new ScalarArray(bufferView.Content).Fill(buffer);
-                                Accessor accessor = model.CreateAccessor();
+                                Accessor accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
                                 accessors[accessorName] = accessor;
                                 break;
@@ -839,9 +841,9 @@ namespace ValveResourceFormat.IO
                         );
                         var defaultWeights = Enumerable.Repeat(baseWeights, jointAccessor.Count).ToList();
 
-                        BufferView bufferView = model.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
+                        BufferView bufferView = exportedModel.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
                         new Vector4Array(bufferView.Content).Fill(defaultWeights);
-                        weightsAccessor = model.CreateAccessor();
+                        weightsAccessor = exportedModel.CreateAccessor();
                         weightsAccessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);
                         accessors["WEIGHTS_0"] = weightsAccessor;
                     }
@@ -939,7 +941,7 @@ namespace ValveResourceFormat.IO
                     if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
                     {
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, model, baseVertex, vertexCount);
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, exportedModel, baseVertex, vertexCount);
                     }
 
                     DebugValidateGLTF();
@@ -955,7 +957,7 @@ namespace ValveResourceFormat.IO
                     var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
 
                     // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
-                    var existingMaterial = model.LogicalMaterials.Where(m => m.Name == materialNameTrimmed).SingleOrDefault();
+                    var existingMaterial = exportedModel.LogicalMaterials.Where(m => m.Name == materialNameTrimmed).SingleOrDefault();
                     if (existingMaterial != null)
                     {
                         ProgressReporter?.Report($"Found existing material: {materialNameTrimmed}");
@@ -973,7 +975,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
-                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, model,
+                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, exportedModel,
                         materialNameTrimmed);
                     primitive.WithMaterial(bestMaterial);
                 }
@@ -982,64 +984,37 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        private (Dictionary<string, Node> boneNodes, Node skeletonNode) CreateGltfSkeleton(Scene scene, VModel model, string modelName)
+        private (Dictionary<string, Node> boneNodes, Node skeletonNode, Node[] joints) CreateGltfSkeleton(Scene scene,
+            Skeleton skeleton, string modelName)
         {
-            var skeleton = model.GetSkeleton(0);
-            if (skeleton == null)
+            if (skeleton.Bones.Length == 0)
             {
-                return (null, null);
+                return (null, null, null);
             }
 
             var skeletonNode = scene.CreateNode(modelName);
             var boneNodes = new Dictionary<string, Node>();
+            var joints = new Node[skeleton.Bones.Length];
             foreach (var root in skeleton.Roots)
             {
-                CreateBonesRecursive(root, skeletonNode, boneNodes);
+                CreateBonesRecursive(root, skeletonNode, boneNodes, ref joints);
             }
-            return (boneNodes, skeletonNode);
+            return (boneNodes, skeletonNode, joints);
         }
 
-        private void CreateBonesRecursive(Bone bone, Node parent, Dictionary<string, Node> boneNodes)
+        private void CreateBonesRecursive(Bone bone, Node parent, Dictionary<string, Node> boneNodes, ref Node[] joints)
         {
             var node = parent.CreateNode(bone.Name)
                 .WithLocalTranslation(bone.Position)
                 .WithLocalRotation(bone.Angle);
+            joints[bone.Index] = node;
             boneNodes.Add(bone.Name, node);
 
             // Recurse into children
             foreach (var child in bone.Children)
             {
-                CreateBonesRecursive(child, node, boneNodes);
+                CreateBonesRecursive(child, node, boneNodes, ref joints);
             }
-        }
-
-        private static Node[] GetGltfSkeletonJoints(Skeleton skeleton, Dictionary<string, Node> boneNodes, Node skeletonNode)
-        {
-            var animationJoints = skeleton.Bones
-                .Where(bone => bone != null && bone.SkinIndices.Any())
-                .Select(bone => (boneNodes.GetValueOrDefault(bone.Name, null), bone.SkinIndices))
-                .ToList();
-
-            var numJoints = animationJoints.Any()
-                ? animationJoints.Max(j => j.SkinIndices.Max()) + 1
-                : 0;
-            var result = new Node[numJoints];
-
-            foreach (var joint in animationJoints)
-            {
-                foreach (var index in joint.SkinIndices)
-                {
-                    result[index] = joint.Item1;
-                }
-            }
-
-            // Fill null indices with some dummy node
-            for (var i = 0; i < numJoints; i++)
-            {
-                result[i] ??= skeletonNode.CreateNode();
-            }
-
-            return result;
         }
 
         private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexIndex, int vertexCount)

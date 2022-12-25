@@ -29,13 +29,19 @@ namespace GUI.Types.Renderer
         public int MeshIndex { get; }
 
         private readonly Mesh mesh;
+        private readonly VBIB VBIB;
         private readonly List<DrawCall> DrawCallsAll = new();
 
         public RenderableMesh(Mesh mesh, int meshIndex, VrfGuiContext guiContext,
-            Dictionary<string, string> skinMaterials = null)
+            Dictionary<string, string> skinMaterials = null, Model model = null)
         {
             this.guiContext = guiContext;
             this.mesh = mesh;
+            VBIB = mesh.VBIB;
+            if (model != null)
+            {
+                VBIB = model.RemapBoneIndices(VBIB, meshIndex);
+            }
             mesh.GetBounds();
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
             MeshIndex = meshIndex;
@@ -66,7 +72,7 @@ namespace GUI.Types.Renderer
 
                 call.Shader = guiContext.ShaderLoader.LoadShader(call.Shader.Name, parameters);
                 call.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
-                    mesh.VBIB,
+                    VBIB,
                     call.Shader,
                     call.VertexBuffer.Id,
                     call.IndexBuffer.Id,
@@ -93,13 +99,12 @@ namespace GUI.Types.Renderer
         private void ConfigureDrawCalls(Dictionary<string, string> skinMaterials, bool firstSetup)
         {
             var data = mesh.Data;
-            var vbib = mesh.VBIB;
             var sceneObjects = data.GetArray("m_sceneObjects");
 
             if (firstSetup)
             {
                 // This call has side effects because it uploads to gpu
-                guiContext.MeshBufferCache.GetVertexIndexBuffers(vbib);
+                guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIB);
             }
 
             var i = 0;
@@ -135,7 +140,7 @@ namespace GUI.Types.Renderer
                     if (firstSetup)
                     {
                         // TODO: Don't pass around so much shit
-                        var drawCall = CreateDrawCall(objectDrawCall, vbib, shaderArguments, material);
+                        var drawCall = CreateDrawCall(objectDrawCall, shaderArguments, material);
 
                         DrawCallsAll.Add(drawCall);
 
@@ -156,7 +161,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, VBIB vbib, IDictionary<string, bool> shaderArguments, RenderMaterial material)
+        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, IDictionary<string, bool> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
             var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
@@ -190,11 +195,11 @@ namespace GUI.Types.Renderer
             indexBuffer.Offset = indexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
             drawCall.IndexBuffer = indexBuffer;
 
-            var vertexElementSize = vbib.VertexBuffers[(int)drawCall.VertexBuffer.Id].ElementSizeInBytes;
+            var vertexElementSize = VBIB.VertexBuffers[(int)drawCall.VertexBuffer.Id].ElementSizeInBytes;
             drawCall.BaseVertex = objectDrawCall.GetUInt32Property("m_nBaseVertex") * vertexElementSize;
             //drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");
 
-            var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
+            var indexElementSize = VBIB.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
             drawCall.StartIndex = objectDrawCall.GetUInt32Property("m_nStartIndex") * indexElementSize;
             drawCall.IndexCount = objectDrawCall.GetInt32Property("m_nIndexCount");
 
@@ -227,7 +232,7 @@ namespace GUI.Types.Renderer
             drawCall.VertexBuffer = vertexBuffer;
 
             drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
-                vbib,
+                VBIB,
                 drawCall.Shader,
                 drawCall.VertexBuffer.Id,
                 drawCall.IndexBuffer.Id,
