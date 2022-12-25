@@ -660,6 +660,11 @@ namespace ValveResourceFormat.IO
             {
                 var accessors = new Dictionary<string, Accessor>();
 
+                if (vertexBuffer.ElementCount == 0)
+                {
+                    return accessors;
+                }
+
                 // Avoid duplicate attribute names
                 var attributeCounters = new Dictionary<string, int>();
 
