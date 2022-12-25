@@ -48,6 +48,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
                 ["C_OP_InterpolateRadius"] = operatorInfo => new InterpolateRadius(operatorInfo),
                 ["C_OP_FadeAndKill"] = operatorInfo => new FadeAndKill(operatorInfo),
+                ["C_OP_FadeAndKillForTracers"] = operatorInfo => new FadeAndKill(operatorInfo), // alias to C_OP_FadeAndKill
                 ["C_OP_FadeInSimple"] = operatorInfo => new FadeInSimple(operatorInfo),
                 ["C_OP_FadeOutSimple"] = operatorInfo => new FadeOutSimple(operatorInfo),
                 ["C_OP_OscillateScalar"] = operatorInfo => new OscillateScalar(operatorInfo),
