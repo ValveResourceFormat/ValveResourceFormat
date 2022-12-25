@@ -69,8 +69,6 @@ namespace GUI.Types.ParticleRenderer.Operators
                     // Interpolate from constantAlpha to end alpha
                     particles[i].Alpha = ((1 - t) * particles[i].ConstantAlpha) + (t * endAlpha);
                 }
-
-                particles[i].Lifetime -= frameTime;
             }
         }
     }

@@ -146,6 +146,11 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var particleOperator in Operators)
             {
+                for (var i = 0; i < particleBag.LiveParticles.Length; ++i)
+                {
+                    particleBag.LiveParticles[i].Lifetime -= frameTime;
+                }
+
                 particleOperator.Update(particleBag.LiveParticles, frameTime, systemRenderState);
             }
 
