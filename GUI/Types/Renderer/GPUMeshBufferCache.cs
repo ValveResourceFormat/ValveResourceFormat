@@ -64,14 +64,18 @@ namespace GUI.Types.Renderer
 
                 var curVertexBuffer = vbib.VertexBuffers[(int)vtxIndex];
                 var texCoordNum = 0;
+                var colorNum = 0;
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
                     var attributeName = "v" + attribute.SemanticName;
 
-                    // TODO: other params too?
                     if (attribute.SemanticName == "TEXCOORD" && texCoordNum++ > 0)
                     {
                         attributeName += texCoordNum;
+                    }
+                    else if (attribute.SemanticName == "COLOR" && colorNum++ > 0)
+                    {
+                        attributeName += colorNum;
                     }
 
                     BindVertexAttrib(attribute, attributeName, shader.Program, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);

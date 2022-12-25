@@ -676,6 +676,11 @@ namespace ValveResourceFormat.IO
                     attributeCounters[attribute.SemanticName] = attributeCounter + 1;
                     var accessorName = GetAccessorName(attribute.SemanticName, attributeCounter);
 
+                    if (accessorName == null)
+                    {
+                        continue;
+                    }
+
                     var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
                     var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
 
@@ -1289,24 +1294,26 @@ namespace ValveResourceFormat.IO
 
         public static string GetAccessorName(string name, int index)
         {
+            if (index > 0 && name != "TEXCOORD" && name != "COLOR")
+            {
+                throw new NotImplementedException($"Got attribute \"{name}\" more than once, but that is not supported.");
+            }
+
             switch (name)
             {
-                case "BLENDINDICES":
-                    return $"JOINTS_{index}";
+                case "TEXCOORD": return $"TEXCOORD_{index}";
+                case "COLOR": return $"COLOR_{index}";
+                case "POSITION": return "POSITION";
+                case "NORMAL": return "NORMAL";
+                case "TANGENT": return "TANGENT";
+                case "BLENDINDICES": return "JOINTS_0";
                 case "BLENDWEIGHT":
-                    return $"WEIGHTS_{index}";
-                case "TEXCOORD":
-                    return $"TEXCOORD_{index}";
-                case "COLOR":
-                    return $"COLOR_{index}";
-            }
+                case "BLENDWEIGHTS": return "WEIGHTS_0";
+            };
 
-            if (index > 0)
-            {
-                throw new InvalidDataException($"Got attribute \"{name}\" more than once, but that is not supported");
-            }
+            Console.Error.WriteLine($"Got unknown attribute \"{name}\" which was skipped.");
 
-            return name;
+            return null;
         }
 
         private static float[] ReadAttributeBuffer(OnDiskBufferData buffer, RenderInputLayoutField attribute)
