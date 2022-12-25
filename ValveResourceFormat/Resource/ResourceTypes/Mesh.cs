@@ -33,10 +33,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         private VBIB cachedVBIB { get; set; }
 
-        public Mesh()
-        {
-        }
-
         public Mesh(BlockType type) : base(type, "PermRenderMeshData_t")
         {
         }
