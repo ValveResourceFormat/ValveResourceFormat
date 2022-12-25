@@ -14,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public Dictionary<string, Vector3[]> FlexData { get; private set; }
 
-        public Morph() : base(BlockType.MRPH, "MorphSetData_t")
+        public Morph(BlockType type) : base(type, "MorphSetData_t")
         {
         }
 
