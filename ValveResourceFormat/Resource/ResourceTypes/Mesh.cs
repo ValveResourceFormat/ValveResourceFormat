@@ -37,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
         }
 
-        public Mesh(BlockType type) : base(type, "CRenderMesh")
+        public Mesh(BlockType type) : base(type, "PermRenderMeshData_t")
         {
         }
 
