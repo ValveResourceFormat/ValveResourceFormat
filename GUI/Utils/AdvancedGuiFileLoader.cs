@@ -19,6 +19,7 @@ namespace GUI.Utils
         private readonly List<Package> CurrentGamePackages = new();
         private readonly Dictionary<string, Resource> CachedResources = new();
         private readonly VrfGuiContext GuiContext;
+        private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".addon" };
         private bool GamePackagesScanned;
 
         public AdvancedGuiFileLoader(VrfGuiContext guiContext)
@@ -151,19 +152,9 @@ namespace GUI.Utils
             CurrentGamePackages.Add(package);
         }
 
-        private void FindAndLoadSearchPaths()
+        private static void HandleGameInfo(List<string> folders, string gameRoot, string gameinfoPath)
         {
-            var gameinfoPath = GetCurrentGameInfoPath();
-
-            if (gameinfoPath == null)
-            {
-                return;
-            }
-
-            var folders = new List<string>();
-            var rootFolder = Path.GetDirectoryName(Path.GetDirectoryName(gameinfoPath));
             KVObject gameInfo;
-
             using (var stream = new FileStream(gameinfoPath, FileMode.Open, FileAccess.Read))
             {
                 try
@@ -186,7 +177,40 @@ namespace GUI.Utils
                     continue;
                 }
 
-                folders.Add(Path.Combine(rootFolder, searchPath.Value.ToString()));
+                folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()));
+            }
+        }
+
+        private void FindAndLoadSearchPaths()
+        {
+            var modIdentifierPath = GetModIdentifierFile();
+
+            if (modIdentifierPath == null)
+            {
+                return;
+            }
+
+            var folders = new List<string>();
+            var rootFolder = Path.GetDirectoryName(modIdentifierPath);
+            var assumedGameRoot = Path.GetDirectoryName(rootFolder);
+
+            if (modIdentifierPath.EndsWith("gameinfo.gi", StringComparison.InvariantCultureIgnoreCase))
+            {
+                HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
+            }
+            else
+            {
+                var addonsSuffix = "_addons";
+                if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    var mainGameDir = assumedGameRoot[..^addonsSuffix.Length];
+                    if (Directory.Exists(mainGameDir))
+                    {
+                        folders.Add(mainGameDir);
+                    }
+                }
+
+                folders.Add(rootFolder);
             }
 
             foreach (var folder in folders)
@@ -230,13 +254,11 @@ namespace GUI.Utils
                     Console.WriteLine($"Added folder \"{folder}\" to game search paths");
 
                     CurrentGameSearchPaths.Add(folder);
-
-                    continue;
                 }
             }
         }
 
-        private string GetCurrentGameInfoPath()
+        private string GetModIdentifierFile()
         {
             var directory = GuiContext.FileName;
             var i = 10;
@@ -254,11 +276,13 @@ namespace GUI.Utils
                     return null;
                 }
 
-                var gameinfoPath = Path.Combine(directory, "gameinfo.gi");
-
-                if (File.Exists(gameinfoPath))
+                foreach (var modIdentifier in modIdentifiers)
                 {
-                    return gameinfoPath;
+                    var path = Path.Combine(directory, modIdentifier);
+                    if (File.Exists(path))
+                    {
+                        return path;
+                    }
                 }
             }
 
