@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
@@ -7,25 +8,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         public Quaternion[] Data { get; }
 
-        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
+        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            Data = new Quaternion[elements.Length];
-            // Static data has only one frame of data, so prefetch all data to avoid unnecessary GC
-            for (var i = 0; i < elements.Length; i++)
+            Data = wantedElements.Select(i =>
             {
-                Data[i] = SegmentHelpers.ReadQuaternion(data.Slice(i * 6));
-            }
+                return SegmentHelpers.ReadQuaternion(data.Slice(i * 6));
+            }).ToArray();
         }
 
         public override void Read(int frameIndex, Frame outFrame)
         {
-            for (var element = 0; element < Elements.Length; element++)
+            for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(
-                    LocalChannel.BoneNames[Elements[element]],
-                    LocalChannel.ChannelAttribute,
-                    Data[element]
-                );
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
             }
         }
     }

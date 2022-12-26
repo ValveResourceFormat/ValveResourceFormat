@@ -6,9 +6,9 @@ namespace GUI.Types.Renderer
 {
     public class AnimationController
     {
+        private readonly AnimationFrameCache animationFrameCache;
         private Action<Animation, int> updateHandler = (_, __) => { };
         private Animation activeAnimation;
-        private AnimationFrameCache animationFrameCache = new();
         private float Time;
 
         public bool IsPaused { get; set; }
@@ -29,6 +29,11 @@ namespace GUI.Types.Renderer
                     Time = value / activeAnimation.Fps;
                 }
             }
+        }
+
+        public AnimationController(Skeleton skeleton)
+        {
+            animationFrameCache = new(skeleton);
         }
 
         public bool Update(float timeStep)

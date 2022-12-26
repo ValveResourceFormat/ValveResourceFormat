@@ -8,31 +8,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         public Vector3[] Data { get; }
 
-        public CCompressedStaticFullVector3(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
+        public CCompressedStaticFullVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            // Static data has only one frame of data, so prefetch all data to avoid unnecessary GC
-            Data = Enumerable.Range(0, data.Count / (3 * 4))
-                .Select(i =>
-                {
-                    var offset = i * 3 * 4;
-                    return new Vector3(
-                        BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
-                        BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
-                        BitConverter.ToSingle(data.Slice(offset + (2 * 4)))
-                    );
-                })
-                .ToArray();
+            Data = wantedElements.Select(i =>
+            {
+                var offset = i * (3 * 4);
+                return new Vector3(
+                    BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
+                    BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
+                    BitConverter.ToSingle(data.Slice(offset + (2 * 4)))
+                );
+            }).ToArray();
         }
 
         public override void Read(int frameIndex, Frame outFrame)
         {
-            for (var element = 0; element < Elements.Length; element++)
+            for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(
-                    LocalChannel.BoneNames[Elements[element]],
-                    LocalChannel.ChannelAttribute,
-                    Data[element]
-                );
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
             }
         }
     }

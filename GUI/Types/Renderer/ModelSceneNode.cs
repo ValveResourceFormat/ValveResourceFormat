@@ -32,7 +32,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public AnimationController AnimationController { get; } = new();
+        public readonly AnimationController AnimationController;
         public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
 
         private readonly List<RenderableMesh> meshRenderers = new();
@@ -50,6 +50,7 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             Model = model;
+            AnimationController = new(model.Skeleton);
 
             if (skin != null)
             {

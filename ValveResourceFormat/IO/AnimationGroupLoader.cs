@@ -9,7 +9,7 @@ namespace ValveResourceFormat.IO
 {
     public static class AnimationGroupLoader
     {
-        public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader)
+        public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader, Skeleton skeleton)
         {
             var data = resource.DataBlock.AsKeyValueCollection();
 
@@ -21,7 +21,7 @@ namespace ValveResourceFormat.IO
             if (resource.ContainsBlockType(BlockType.ANIM))
             {
                 var animBlock = (KeyValuesOrNTRO)resource.GetBlockByType(BlockType.ANIM);
-                animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey));
+                animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey, skeleton));
                 return animationList;
             }
 
@@ -31,23 +31,16 @@ namespace ValveResourceFormat.IO
             // Load animation files
             foreach (var animationFile in animArray)
             {
-                animationList.AddRange(LoadAnimationFile(animationFile, decodeKey, fileLoader));
+                var animResource = fileLoader.LoadFile(animationFile + "_c");
+
+                if (animResource != null)
+                {
+                    // Build animation classes
+                    animationList.AddRange(Animation.FromResource(animResource, decodeKey, skeleton));
+                }
             }
 
             return animationList;
-        }
-
-        private static IEnumerable<Animation> LoadAnimationFile(string animationFile, IKeyValueCollection decodeKey, IFileLoader fileLoader)
-        {
-            var animResource = fileLoader.LoadFile(animationFile + "_c");
-
-            if (animResource == null)
-            {
-                return Enumerable.Empty<Animation>();
-            }
-
-            // Build animation classes
-            return Animation.FromResource(animResource, decodeKey);
         }
     }
 }

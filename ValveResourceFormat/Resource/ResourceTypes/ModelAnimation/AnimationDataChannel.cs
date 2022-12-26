@@ -1,20 +1,29 @@
+using System;
+using System.Linq;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class AnimationDataChannel
     {
-        public string[] BoneNames { get; }
+        public int[] RemapTable { get; } // Bone ID => Element Index
         public string ChannelAttribute { get; }
 
-        public AnimationDataChannel(IKeyValueCollection dataChannel, int channelElements)
+        public AnimationDataChannel(Skeleton skeleton, IKeyValueCollection dataChannel, int channelElements)
         {
-            var boneNames = dataChannel.GetArray<string>("m_szElementNameArray");
+            RemapTable = Enumerable.Range(0, skeleton.Bones.Length).Select(_ => -1).ToArray();
+
+            var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
-            BoneNames = new string[channelElements];
+
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
-                BoneNames[elementIndexArray[i]] = boneNames[i];
+                var elementName = elementNameArray[i];
+                var boneID = Array.FindIndex(skeleton.Bones, bone => bone.Name == elementName);
+                if (boneID != -1)
+                {
+                    RemapTable[boneID] = (int)elementIndexArray[i];
+                }
             }
 
             ChannelAttribute = dataChannel.GetProperty<string>("m_szVariableName");

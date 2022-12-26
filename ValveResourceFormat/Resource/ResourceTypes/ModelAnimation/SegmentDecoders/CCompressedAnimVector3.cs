@@ -8,29 +8,34 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         public Half[] Data { get; }
 
-        public CCompressedAnimVector3(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
+        public CCompressedAnimVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            Data = Enumerable.Range(0, data.Count / 2)
-                .Select(i => BitConverter.ToHalf(data.Slice(i * 2)))
+            const int elementSize = 2;
+            var stride = elementCount * elementSize;
+            Data = Enumerable.Range(0, data.Count / stride)
+                .SelectMany(i => wantedElements.Select(j =>
+                {
+                    return BitConverter.ToHalf(data.Slice(i * stride + j * elementSize));
+                }).ToArray())
                 .ToArray();
         }
 
         public override void Read(int frameIndex, Frame outFrame)
         {
-            var offset = 3 * Elements.Length * frameIndex;
+            var offset = frameIndex * RemapTable.Length * 3;
 
-            for (var element = 0; element < Elements.Length; element++)
+            for (var i = 0; i < RemapTable.Length; i++)
             {
                 outFrame.SetAttribute(
-                    LocalChannel.BoneNames[Elements[element]],
-                    LocalChannel.ChannelAttribute,
+                    RemapTable[i],
+                    ChannelAttribute,
                     new Vector3(
-                        (float)Data[offset + 0],
-                        (float)Data[offset + 1],
-                        (float)Data[offset + 2]
+                        (float)Data[offset + i * 3 + 0],
+                        (float)Data[offset + i * 3 + 1],
+                        (float)Data[offset + i * 3 + 2]
                     )
                 );
-                offset += 3;
             }
         }
     }

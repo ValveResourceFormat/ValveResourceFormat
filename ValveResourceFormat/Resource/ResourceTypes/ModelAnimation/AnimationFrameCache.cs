@@ -5,9 +5,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class AnimationFrameCache
     {
-        private (int FrameIndex, Frame Frame) PreviousFrame { get; set; } = (-1, new Frame());
-        private (int FrameIndex, Frame Frame) NextFrame { get; set; } = (-1, new Frame());
-        private Frame InterpolatedFrame { get; } = new Frame();
+        private (int FrameIndex, Frame Frame) PreviousFrame { get; set; }
+        private (int FrameIndex, Frame Frame) NextFrame { get; set; }
+        private readonly Frame InterpolatedFrame;
+
+        public AnimationFrameCache(Skeleton skeleton)
+        {
+            PreviousFrame = (-1, new Frame(skeleton));
+            NextFrame = (-1, new Frame(skeleton));
+            InterpolatedFrame = new Frame(skeleton);
+            Clear();
+        }
 
         /// <summary>
         /// Get the animation frame at a time.
@@ -24,24 +32,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var frame2 = GetFrame(anim, (frameIndex + 1) % anim.FrameCount);
 
             // Interpolate bone positions, angles and scale
-            foreach (var bonePair in frame1.Bones)
+            for (var i = 0; i < frame1.Bones.Length; i++)
             {
-                var frame1Bone = frame1.Bones[bonePair.Key];
-                var frame2Bone = frame2.Bones[bonePair.Key];
-                var position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
-                var angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                var scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
-
-                if (InterpolatedFrame.Bones.TryGetValue(bonePair.Key, out var interpolatedBone))
-                {
-                    interpolatedBone.Position = position;
-                    interpolatedBone.Angle = angle;
-                    interpolatedBone.Scale = scale;
-                }
-                else
-                {
-                    InterpolatedFrame.Bones.Add(bonePair.Key, new FrameBone(position, angle, scale));
-                }
+                var frame1Bone = frame1.Bones[i];
+                var frame2Bone = frame2.Bones[i];
+                InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
+                InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
+                InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
             }
 
             return InterpolatedFrame;
@@ -53,13 +50,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public void Clear()
         {
-            PreviousFrame.Frame.Bones.Clear();
             PreviousFrame = (-1, PreviousFrame.Frame);
+            PreviousFrame.Frame.Clear();
 
-            NextFrame.Frame.Bones.Clear();
             NextFrame = (-1, NextFrame.Frame);
-
-            InterpolatedFrame.Bones.Clear();
+            NextFrame.Frame.Clear();
         }
 
         private Frame GetFrame(Animation anim, int frameIndex)

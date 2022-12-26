@@ -1,28 +1,24 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Frame
     {
-        public Dictionary<string, FrameBone> Bones { get; }
+        public FrameBone[] Bones { get; }
 
-        public Frame()
+        public Frame(Skeleton skeleton)
         {
-            Bones = new Dictionary<string, FrameBone>();
+            Bones = new FrameBone[skeleton.Bones.Length];
+            Clear();
         }
 
-        public void SetAttribute(string bone, string attribute, Vector3 data)
+        public void SetAttribute(int bone, AnimationChannelAttribute attribute, Vector3 data)
         {
             switch (attribute)
             {
-                case "Position":
-                    GetBone(bone).Position = data;
-                    break;
-
-                case "data":
-                    //ignore
+                case AnimationChannelAttribute.Position:
+                    Bones[bone].Position = data;
                     break;
 
 #if DEBUG
@@ -33,16 +29,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        public void SetAttribute(string bone, string attribute, Quaternion data)
+        public void SetAttribute(int bone, AnimationChannelAttribute attribute, Quaternion data)
         {
             switch (attribute)
             {
-                case "Angle":
-                    GetBone(bone).Angle = data;
-                    break;
-
-                case "data":
-                    //ignore
+                case AnimationChannelAttribute.Angle:
+                    Bones[bone].Angle = data;
                     break;
 
 #if DEBUG
@@ -53,16 +45,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        public void SetAttribute(string bone, string attribute, float data)
+        public void SetAttribute(int bone, AnimationChannelAttribute attribute, float data)
         {
             switch (attribute)
             {
-                case "Scale":
-                    GetBone(bone).Scale = data;
-                    break;
-
-                case "data":
-                    //ignore
+                case AnimationChannelAttribute.Scale:
+                    Bones[bone].Scale = data;
                     break;
 
 #if DEBUG
@@ -73,16 +61,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        private FrameBone GetBone(string name)
+        public void Clear()
         {
-            if (!Bones.TryGetValue(name, out var bone))
+            for (var i = 0; i < Bones.Length; i++)
             {
-                bone = new FrameBone(new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 1), 1);
-
-                Bones[name] = bone;
+                Bones[i].Position  = new Vector3(0, 0, 0);
+                Bones[i].Angle = new Quaternion(0, 0, 0, 1);
+                Bones[i].Scale = 1;
             }
-
-            return bone;
         }
     }
 }

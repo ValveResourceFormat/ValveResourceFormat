@@ -171,7 +171,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
 
-            return Animation.FromData(animationDataBlock.Data, decodeKey);
+            return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton);
         }
 
         public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
@@ -190,7 +190,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var animGroup = fileLoader.LoadFile(animGroupPath + "_c");
                 if (animGroup != default)
                 {
-                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader));
+                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton));
                 }
             }
 

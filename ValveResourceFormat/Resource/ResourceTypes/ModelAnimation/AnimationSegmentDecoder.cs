@@ -4,13 +4,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public abstract class AnimationSegmentDecoder
     {
-        public int[] Elements { get; }
-        public AnimationDataChannel LocalChannel { get; }
+        public int[] RemapTable { get; }
+        public AnimationChannelAttribute ChannelAttribute { get; }
 
-        protected AnimationSegmentDecoder(int[] elements, AnimationDataChannel localChannel)
+        protected AnimationSegmentDecoder(int[] remapTable, AnimationChannelAttribute channelAttribute)
         {
-            Elements = elements;
-            LocalChannel = localChannel;
+            RemapTable = remapTable;
+            ChannelAttribute = channelAttribute;
         }
 
         public abstract void Read(int frameIndex, Frame outFrame);

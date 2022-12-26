@@ -8,33 +8,31 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         public Quaternion[] Data { get; }
 
-        public CCompressedFullQuaternion(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
+        public CCompressedFullQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            Data = Enumerable.Range(0, data.Count / (4 * 4))
-                .Select(i =>
+            const int elementSize = 4 * 4;
+            var stride = elementCount * elementSize;
+            Data = Enumerable.Range(0, data.Count / stride)
+                .SelectMany(i => wantedElements.Select(j =>
                 {
-                    var offset = i * (4 * 4);
+                    var offset = i * stride + j * elementSize;
                     return new Quaternion(
                         BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
                         BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
                         BitConverter.ToSingle(data.Slice(offset + (2 * 4))),
                         BitConverter.ToSingle(data.Slice(offset + (3 * 4)))
                     );
-                })
+                }).ToArray())
                 .ToArray();
         }
 
         public override void Read(int frameIndex, Frame outFrame)
         {
-            var offset = Elements.Length * frameIndex;
-
-            for (var element = 0; element < Elements.Length; element++)
+            var offset = frameIndex * RemapTable.Length;
+            for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(
-                    LocalChannel.BoneNames[Elements[element]],
-                    LocalChannel.ChannelAttribute,
-                    Data[offset + element]
-                );
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
             }
         }
     }

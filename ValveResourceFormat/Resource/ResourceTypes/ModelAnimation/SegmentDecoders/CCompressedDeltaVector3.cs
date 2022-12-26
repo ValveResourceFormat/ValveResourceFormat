@@ -9,37 +9,46 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         public float[] BaseFrame { get; }
         public Half[] DeltaData { get; }
 
-        public CCompressedDeltaVector3(ArraySegment<byte> data, int[] elements, AnimationDataChannel localChannel) : base(elements, localChannel)
+        public CCompressedDeltaVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            // Prefetch the base frame to avoid using two readers at a time
-            BaseFrame = Enumerable.Range(0, elements.Length * 3)
-                .Select(i => BitConverter.ToSingle(data.Slice(i * 4)))
-                .ToArray();
+            BaseFrame = wantedElements.SelectMany(i =>
+            {
+                var offset = i * 3 * 4;
+                return new float[3]
+                {
+                    BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
+                    BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
+                    BitConverter.ToSingle(data.Slice(offset + (2 * 4)))
+                };
+            }).ToArray();
 
-            var deltaData = data.Slice(elements.Length * 3 * 4);
-            DeltaData = Enumerable.Range(0, deltaData.Count / 2)
-                .Select(i => BitConverter.ToHalf(deltaData.Slice(i * 2)))
+            var deltaData = data.Slice(elementCount * 3 * 4);
+            const int elementSize = 2;
+            var stride = elementCount * elementSize;
+            DeltaData = Enumerable.Range(0, deltaData.Count / stride)
+                .SelectMany(i => wantedElements.Select(j =>
+                {
+                    return BitConverter.ToHalf(deltaData.Slice(i * stride + j * elementSize));
+                }).ToArray())
                 .ToArray();
         }
 
         public override void Read(int frameIndex, Frame outFrame)
         {
-            var baseOffset = 0;
-            var deltaOffset = 3 * Elements.Length * frameIndex;
+            var offset = frameIndex * RemapTable.Length * 3;
 
-            for (var element = 0; element < Elements.Length; element++)
+            for (var i = 0; i < RemapTable.Length; i++)
             {
                 outFrame.SetAttribute(
-                    LocalChannel.BoneNames[Elements[element]],
-                    LocalChannel.ChannelAttribute,
+                    RemapTable[i],
+                    ChannelAttribute,
                     new Vector3(
-                        BaseFrame[baseOffset + 0] + (float)DeltaData[deltaOffset + 0],
-                        BaseFrame[baseOffset + 1] + (float)DeltaData[deltaOffset + 1],
-                        BaseFrame[baseOffset + 2] + (float)DeltaData[deltaOffset + 2]
+                        BaseFrame[i * 3 + 0] + (float)DeltaData[offset + i * 3 + 0],
+                        BaseFrame[i * 3 + 1] + (float)DeltaData[offset + i * 3 + 1],
+                        BaseFrame[i * 3 + 2] + (float)DeltaData[offset + i * 3 + 2]
                     )
                 );
-                baseOffset += 3;
-                deltaOffset += 3;
             }
         }
     }
