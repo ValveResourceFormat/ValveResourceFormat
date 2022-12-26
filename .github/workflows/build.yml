@@ -131,6 +131,7 @@ jobs:
         path: Decompiler/bin/Release/osx-arm64/publish
 
     - name: Upload test coverage
+      continue-on-error: true
       uses: coverallsapp/github-action@v1.1.2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
