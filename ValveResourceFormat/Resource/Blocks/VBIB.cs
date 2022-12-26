@@ -4,6 +4,8 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -24,7 +26,7 @@ namespace ValveResourceFormat.Blocks
             //stride for vertices. Type for indices
             public uint ElementSizeInBytes;
             //Vertex attribs. Empty for index buffers
-            public List<RenderInputLayoutField> InputLayoutFields;
+            public RenderInputLayoutField[] InputLayoutFields;
             public byte[] Data;
         }
 
@@ -128,26 +130,26 @@ namespace ValveResourceFormat.Blocks
             var dataOffset = reader.ReadUInt32();       //16
             var totalSize = reader.ReadInt32();        //20
 
-            buffer.InputLayoutFields = new List<RenderInputLayoutField>();
-
             reader.BaseStream.Position = refA + attributeOffset;
-            for (var j = 0; j < attributeCount; j++)
-            {
-                var attribute = default(RenderInputLayoutField);
+            buffer.InputLayoutFields = Enumerable.Range(0, (int)attributeCount)
+                .Select(j =>
+                {
+                    var attribute = default(RenderInputLayoutField);
 
-                var previousPosition = reader.BaseStream.Position;
-                attribute.SemanticName = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
-                reader.BaseStream.Position = previousPosition + 32; //32 bytes long null-terminated string
+                    var previousPosition = reader.BaseStream.Position;
+                    attribute.SemanticName = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
+                    reader.BaseStream.Position = previousPosition + 32; //32 bytes long null-terminated string
 
-                attribute.SemanticIndex = reader.ReadInt32();
-                attribute.Format = (DXGI_FORMAT)reader.ReadUInt32();
-                attribute.Offset = reader.ReadUInt32();
-                attribute.Slot = reader.ReadInt32();
-                attribute.SlotType = (RenderSlotType)reader.ReadUInt32();
-                attribute.InstanceStepRate = reader.ReadInt32();
+                    attribute.SemanticIndex = reader.ReadInt32();
+                    attribute.Format = (DXGI_FORMAT)reader.ReadUInt32();
+                    attribute.Offset = reader.ReadUInt32();
+                    attribute.Slot = reader.ReadInt32();
+                    attribute.SlotType = (RenderSlotType)reader.ReadUInt32();
+                    attribute.InstanceStepRate = reader.ReadInt32();
 
-                buffer.InputLayoutFields.Add(attribute);
-            }
+                    return attribute;
+                })
+                .ToArray();
 
             reader.BaseStream.Position = refB + dataOffset;
 
@@ -164,27 +166,20 @@ namespace ValveResourceFormat.Blocks
             {
                 ElementCount = data.GetUInt32Property("m_nElementCount"),
                 ElementSizeInBytes = data.GetUInt32Property("m_nElementSizeInBytes"),
-
-                InputLayoutFields = new List<RenderInputLayoutField>()
             };
 
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
-            foreach (var il in inputLayoutFields)
+            buffer.InputLayoutFields = inputLayoutFields.Select(il => new RenderInputLayoutField
             {
-                var attrib = new RenderInputLayoutField
-                {
-                    //null-terminated string
-                    SemanticName = System.Text.Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0),
-                    SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
-                    Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format"),
-                    Offset = il.GetUInt32Property("m_nOffset"),
-                    Slot = il.GetInt32Property("m_nSlot"),
-                    SlotType = (RenderSlotType)il.GetUInt32Property("m_nSlotType"),
-                    InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate")
-                };
-
-                buffer.InputLayoutFields.Add(attrib);
-            }
+                //null-terminated string
+                SemanticName = Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0),
+                SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
+                Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format"),
+                Offset = il.GetUInt32Property("m_nOffset"),
+                Slot = il.GetInt32Property("m_nSlot"),
+                SlotType = (RenderSlotType)il.GetUInt32Property("m_nSlotType"),
+                InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate")
+            }).ToArray();
 
             buffer.Data = data.GetArray<byte>("m_pData");
 
@@ -325,7 +320,7 @@ namespace ValveResourceFormat.Blocks
                 writer.WriteLine($"Count: {vertexBuffer.ElementCount}");
                 writer.WriteLine($"Size: {vertexBuffer.ElementSizeInBytes}");
 
-                for (var i = 0; i < vertexBuffer.InputLayoutFields.Count; i++)
+                for (var i = 0; i < vertexBuffer.InputLayoutFields.Length; i++)
                 {
                     var vertexAttribute = vertexBuffer.InputLayoutFields[i];
                     writer.WriteLine($"Attribute[{i}]");
@@ -352,6 +347,79 @@ namespace ValveResourceFormat.Blocks
                 writer.WriteLine($"Size: {indexBuffer.ElementSizeInBytes}");
                 writer.WriteLine();
             }
+        }
+
+        private static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
+        {
+            return attribute.Format switch
+            {
+                DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
+                DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
+                DXGI_FORMAT.R16G16_UNORM => (2, 2),
+                DXGI_FORMAT.R16G16_SNORM => (2, 2),
+                DXGI_FORMAT.R16G16_FLOAT => (2, 2),
+                DXGI_FORMAT.R32_FLOAT => (4, 1),
+                DXGI_FORMAT.R32G32_FLOAT => (4, 2),
+                DXGI_FORMAT.R16G16_SINT => (2, 2),
+                DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),
+                DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
+                DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
+                _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
+            };
+        }
+
+        public static int[] CombineRemapTables(int[][] remapTables)
+        {
+            remapTables = remapTables.Where(remapTable => remapTable.Length != 0).ToArray();
+            var newRemapTable = remapTables[0].AsEnumerable();
+            for (var i = 1; i < remapTables.Length; i++)
+            {
+                var remapTable = remapTables[i];
+                newRemapTable = newRemapTable.Select(j => j != -1 ? remapTable[j] : -1);
+            }
+            return newRemapTable.ToArray();
+        }
+
+        public VBIB RemapBoneIndices(int[] remapTable)
+        {
+            var res = new VBIB();
+            res.VertexBuffers.AddRange(VertexBuffers.Select(buf =>
+            {
+                var blendIndices = Array.FindIndex(buf.InputLayoutFields, field => field.SemanticName == "BLENDINDICES");
+                if (blendIndices != -1)
+                {
+                    var field = buf.InputLayoutFields[blendIndices];
+                    var (formatElementSize, formatElementCount) = GetFormatInfo(field);
+                    var formatSize = formatElementSize * formatElementCount;
+                    buf.Data = buf.Data.ToArray();
+                    var bufSpan = buf.Data.AsSpan();
+                    for (var i = (int)field.Offset; i < buf.Data.Length; i += (int)buf.ElementSizeInBytes)
+                    {
+                        for (var j = 0; j < formatSize; j += formatElementSize)
+                        {
+                            switch (formatElementSize)
+                            {
+                                case 4:
+                                    BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
+                                        remapTable[BitConverter.ToUInt32(buf.Data, i + j)]);
+                                    break;
+                                case 2:
+                                    BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
+                                        (short)remapTable[BitConverter.ToUInt16(buf.Data, i + j)]);
+                                    break;
+                                case 1:
+                                    buf.Data[i + j] = (byte)remapTable[buf.Data[i + j]];
+                                    break;
+                                default:
+                                    throw new NotImplementedException();
+                            }
+                        }
+                    }
+                }
+                return buf;
+            }));
+            res.IndexBuffers.AddRange(IndexBuffers);
+            return res;
         }
     }
 }

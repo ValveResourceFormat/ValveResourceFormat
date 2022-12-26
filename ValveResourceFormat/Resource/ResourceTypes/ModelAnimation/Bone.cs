@@ -5,11 +5,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Bone
     {
+        public int Index { get; }
         public Bone Parent { get; private set; }
-        public List<Bone> Children { get; }
+        public List<Bone> Children { get; } = new List<Bone>();
 
         public string Name { get; }
-        public List<int> SkinIndices { get; }
 
         public Vector3 Position { get; }
         public Quaternion Angle { get; }
@@ -17,13 +17,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Matrix4x4 BindPose { get; }
         public Matrix4x4 InverseBindPose { get; }
 
-        public Bone(string name, List<int> index, Vector3 position, Quaternion rotation)
+        public Bone(int index, string name, Vector3 position, Quaternion rotation)
         {
-            Parent = null;
-            Children = new List<Bone>();
-
+            Index = index;
             Name = name;
-            SkinIndices = index;
 
             Position = position;
             Angle = rotation;
@@ -35,14 +32,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             InverseBindPose = inverseBindPose;
         }
 
-        public void AddChild(Bone child)
-        {
-            Children.Add(child);
-        }
-
         public void SetParent(Bone parent)
         {
-            Parent = parent;
+            if (!Children.Contains(parent))
+            {
+                Parent = parent;
+                parent.Children.Add(this);
+            }
         }
     }
 }

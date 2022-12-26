@@ -10,11 +10,56 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Model : KeyValuesOrNTRO
     {
-        private List<Animation> CachedAnimations;
-
-        public Skeleton GetSkeleton(int meshIndex)
+        public Skeleton Skeleton
         {
-            return Skeleton.FromModelData(Data, meshIndex);
+            get
+            {
+                if (cachedSkeleton == null)
+                {
+                    cachedSkeleton = Skeleton.FromModelData(Data);
+                }
+                return cachedSkeleton;
+            }
+        }
+        private List<Animation> CachedAnimations;
+        private Skeleton cachedSkeleton { get; set; }
+        private readonly IDictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = new Dictionary<(VBIB VBIB, int MeshIndex), VBIB>();
+
+        public int[] GetRemapTable(int meshIndex)
+        {
+            var remapTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
+
+            if (remapTableStarts.Length <= meshIndex)
+            {
+                return null;
+            }
+
+            // Get the remap table and invert it for our construction method
+            var remapTable = Data.GetIntegerArray("m_remappingTable").Select(i => (int)i);
+
+            var start = (int)remapTableStarts[meshIndex];
+            return remapTable
+                .Skip(start)
+                .Take(Skeleton.LocalRemapTable.Length)
+                .ToArray();
+        }
+
+        public VBIB RemapBoneIndices(VBIB vbib, int meshIndex)
+        {
+            if (Skeleton.Bones.Length == 0)
+            {
+                return vbib;
+            }
+            if (remappedVBIBCache.TryGetValue((vbib, meshIndex), out var res))
+            {
+                return res;
+            }
+            res = vbib.RemapBoneIndices(VBIB.CombineRemapTables(new int[][] {
+                GetRemapTable(meshIndex),
+                Skeleton.LocalRemapTable,
+            }));
+            remappedVBIBCache.Add((vbib, meshIndex), res);
+            return res;
         }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()

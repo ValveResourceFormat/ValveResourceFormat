@@ -152,19 +152,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, float time, Skeleton skeleton)
         {
             // Create output array
-            var matrices = new Matrix4x4[skeleton.AnimationTextureSize];
-
-            for (var i = 0; i < skeleton.AnimationTextureSize; i++)
-            {
-                matrices[i] = Matrix4x4.Identity;
-            }
+            var matrices = new Matrix4x4[skeleton.Bones.Length];
 
             // Get bone transformations
-            var transforms = frameCache.GetFrame(this, time);
+            var frame = frameCache.GetFrame(this, time);
 
             foreach (var root in skeleton.Roots)
             {
-                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, transforms, ref matrices);
+                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, ref matrices);
             }
 
             return matrices;
@@ -194,35 +189,29 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get animation matrix recursively.
         /// </summary>
-        private void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 parentBindPose, Matrix4x4 parentInvBindPose, Frame transforms, ref Matrix4x4[] matrices)
+        private void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 parentBindPose, Matrix4x4 parentInvBindPose, Frame frame, ref Matrix4x4[] matrices)
         {
             // Calculate world space bind and inverse bind pose
             var bindPose = parentBindPose;
             var invBindPose = parentInvBindPose * bone.InverseBindPose;
 
-            // Calculate transformation matrix
-            var transformMatrix = Matrix4x4.Identity;
-            if (transforms.Bones.TryGetValue(bone.Name, out var transform))
+            if (frame.Bones.TryGetValue(bone.Name, out var transform))
             {
-                transformMatrix = Matrix4x4.CreateScale(transform.Scale)
+                // Calculate and apply tranformation matrix
+                bindPose = Matrix4x4.CreateScale(transform.Scale)
                     * Matrix4x4.CreateFromQuaternion(transform.Angle)
-                    * Matrix4x4.CreateTranslation(transform.Position);
+                    * Matrix4x4.CreateTranslation(transform.Position)
+                    * bindPose;
             }
-
-            // Apply tranformation
-            var transformed = transformMatrix * bindPose;
 
             // Store result
-            var skinMatrix = invBindPose * transformed;
-            foreach (var index in bone.SkinIndices)
-            {
-                matrices[index] = skinMatrix;
-            }
+            var skinMatrix = invBindPose * bindPose;
+            matrices[bone.Index] = skinMatrix;
 
             // Propagate to childen
             foreach (var child in bone.Children)
             {
-                GetAnimationMatrixRecursive(child, transformed, invBindPose, transforms, ref matrices);
+                GetAnimationMatrixRecursive(child, bindPose, invBindPose, frame, ref matrices);
             }
         }
 

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.Serialization;
 
@@ -7,14 +6,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Skeleton
     {
-        public List<Bone> Roots { get; private set; } = new List<Bone>();
-        public Bone[] Bones { get; private set; } = Array.Empty<Bone>();
-        public int AnimationTextureSize { get; }
+        public Bone[] Roots { get; private set; }
+        public Bone[] Bones { get; private set; }
+        public int[] LocalRemapTable { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
-        public static Skeleton FromModelData(IKeyValueCollection modelData, int meshIndex)
+        public static Skeleton FromModelData(IKeyValueCollection modelData)
         {
             // Check if there is any skeleton data present at all
             if (!modelData.ContainsKey("m_modelSkeleton"))
@@ -22,93 +21,50 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 Console.WriteLine("No skeleton data found.");
             }
 
-            // Get the remap table and invert it for our construction method
-            var remapTable = modelData.GetIntegerArray("m_remappingTable");
-
-            var remapTableStarts = modelData.GetIntegerArray("m_remappingTableStarts");
-
-            if (remapTableStarts.Length <= meshIndex)
-            {
-                return null;
-            }
-
-            var start = (int)remapTableStarts[meshIndex];
-            var end = meshIndex < remapTableStarts.Length - 1
-                ? (int)remapTableStarts[meshIndex + 1]
-                : remapTable.Length;
-
-            var invMapTable = remapTable.Skip(start).Take(end - start)
-                .Select((mapping, index) => (mapping, index))
-                .ToLookup(mi => mi.mapping, mi => mi.index);
-
             // Construct the armature from the skeleton KV
-            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"), invMapTable);
+            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"));
         }
 
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        private Skeleton(IKeyValueCollection skeletonData, ILookup<long, int> remapTable)
+        private Skeleton(IKeyValueCollection skeletonData)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
             var boneParents = skeletonData.GetIntegerArray("m_nParent");
-            var boneFlags = skeletonData.GetIntegerArray("m_nFlag");
+            var boneFlags = skeletonData.GetIntegerArray("m_nFlag")
+                .Select(flags => (ModelSkeletonBoneFlags)flags)
+                .ToArray();
             var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
             var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
 
-            if (boneNames.Length > 0 && remapTable.Any())
+            LocalRemapTable = new int[boneNames.Length];
+            var currentRemappedBone = 0;
+            for (var i = 0; i < LocalRemapTable.Length; i++)
             {
-                AnimationTextureSize = remapTable.Select(g => g.Max()).Max() + 1;
+                LocalRemapTable[i] = (boneFlags[i] & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) != 0
+                    ? currentRemappedBone++
+                    : -1;
             }
 
             // Initialise bone array
-            Bones = new Bone[boneNames.Length];
+            Bones = Enumerable.Range(0, boneNames.Length)
+                .Where(i => (boneFlags[i] & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) != 0)
+                .Select((boneID, i) => new Bone(i, boneNames[boneID], bonePositions[boneID], boneRotations[boneID]))
+                .ToArray();
 
-            //Add all bones to the list
-            for (var i = 0; i < boneNames.Length; i++)
+            for (var i = 0; i < LocalRemapTable.Length; i++)
             {
-                var flags = (ModelSkeletonBoneFlags)boneFlags[i];
-
-                if ((flags & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) == 0)
+                var remappeBoneID = LocalRemapTable[i];
+                if (remappeBoneID != -1 && boneParents[i] != -1)
                 {
-                    continue;
+                    var remappedParent = LocalRemapTable[boneParents[i]];
+                    Bones[remappeBoneID].SetParent(Bones[remappedParent]);
                 }
-
-                var name = boneNames[i];
-
-                var position = bonePositions[i];
-                var rotation = boneRotations[i];
-
-                // Create bone
-                var bone = new Bone(name, remapTable[i].ToList(), position, rotation);
-
-                if (boneParents[i] != -1)
-                {
-                    bone.SetParent(Bones[boneParents[i]]);
-                    Bones[boneParents[i]].AddChild(bone);
-                }
-
-                Bones[i] = bone;
             }
 
-            FindRoots();
-        }
-
-        /// <summary>
-        /// Find all skeleton roots (bones without a parent).
-        /// </summary>
-        private void FindRoots()
-        {
             // Create an empty root list
-            Roots = new List<Bone>();
-
-            foreach (var bone in Bones)
-            {
-                if (bone != null && bone.Parent == null)
-                {
-                    Roots.Add(bone);
-                }
-            }
+            Roots = Bones.Where(bone => bone.Parent == null).ToArray();
         }
     }
 }
