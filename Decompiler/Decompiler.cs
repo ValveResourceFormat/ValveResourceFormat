@@ -276,7 +276,7 @@ namespace Decompiler
             if (CollectStats)
             {
                 Console.WriteLine();
-                Console.WriteLine("Processed resource stats:");
+                Console.WriteLine($"Processed {CurrentFile} resources:");
 
                 foreach (var stat in stats.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key))
                 {
@@ -310,6 +310,13 @@ namespace Decompiler
 
         private void ProcessFile(string path, Stream stream, string originalPath = null)
         {
+            lock (ConsoleWriterLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"[{++CurrentFile}/{TotalFiles}] {path}");
+                Console.ResetColor();
+            }
+
             var magicData = new byte[4];
 
             int bytesRead;
@@ -343,13 +350,6 @@ namespace Decompiler
                 return;
             }
 
-            lock (ConsoleWriterLock)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("[{0}/{1}] {2}", ++CurrentFile, TotalFiles, path);
-                Console.ResetColor();
-            }
-
             using var resource = new Resource
             {
                 FileName = path,
@@ -373,7 +373,7 @@ namespace Decompiler
 
                 if (CollectStats)
                 {
-                    TestAndCollectStats(resource, path);
+                    TestAndCollectStats(resource, path, originalPath);
                 }
 
                 if (OutputFile != null)
@@ -500,13 +500,6 @@ namespace Decompiler
 
         private void ParseVCS(string path, Stream stream)
         {
-            lock (ConsoleWriterLock)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("--- Loading shader file \"{0}\" ---", path);
-                Console.ResetColor();
-            }
-
             var shader = new ShaderFile();
 
             try
@@ -528,13 +521,6 @@ namespace Decompiler
 
         private void ParseVFont(string path) // TODO: Accept Stream
         {
-            lock (ConsoleWriterLock)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("--- Loading font file \"{0}\" ---", path);
-                Console.ResetColor();
-            }
-
             var font = new ValveFont();
 
             try
@@ -577,13 +563,6 @@ namespace Decompiler
 
         private void ParseVPK(string path, Stream stream)
         {
-            lock (ConsoleWriterLock)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("--- Listing files in package \"{0}\" ---", path);
-                Console.ResetColor();
-            }
-
             using var package = new Package();
             package.SetFileName(path);
 
@@ -660,26 +639,26 @@ namespace Decompiler
 
                 if (CollectStats)
                 {
-                    TotalFiles += orderedEntries.Sum(x => x.Value.Count);
+                    var queue = new ConcurrentQueue<PackageEntry>();
+
+                    foreach (var entry in orderedEntries)
+                    {
+                        foreach (var file in entry.Value)
+                        {
+                            if (FileFilter != null && !FixPathSlashes(file.GetFullPath()).StartsWith(FileFilter, StringComparison.Ordinal))
+                            {
+                                continue;
+                            }
+
+                            queue.Enqueue(file);
+                        }
+                    }
+
+                    Interlocked.Add(ref TotalFiles, queue.Count);
 
                     if (MaxParallelismThreads > 1)
                     {
-                        var queue = new ConcurrentQueue<PackageEntry>();
                         var tasks = new List<Task>();
-
-                        foreach (var entry in orderedEntries)
-                        {
-                            foreach (var file in entry.Value)
-                            {
-                                if (FileFilter != null && !FixPathSlashes(file.GetFullPath()).StartsWith(FileFilter, StringComparison.Ordinal))
-                                {
-                                    continue;
-                                }
-
-                                queue.Enqueue(file);
-                            }
-                        }
-
                         var lockEntryRead = new object();
 
                         for (var n = 0; n < MaxParallelismThreads; n++)
@@ -705,20 +684,12 @@ namespace Decompiler
                     }
                     else
                     {
-                        foreach (var entry in orderedEntries)
+                        while (queue.TryDequeue(out var file))
                         {
-                            foreach (var file in entry.Value)
-                            {
-                                if (FileFilter != null && !FixPathSlashes(file.GetFullPath()).StartsWith(FileFilter, StringComparison.Ordinal))
-                                {
-                                    continue;
-                                }
+                            package.ReadEntry(file, out var output);
 
-                                package.ReadEntry(file, out var output);
-
-                                using var entryStream = new MemoryStream(output);
-                                ProcessFile(file.GetFullPath(), entryStream, path);
-                            }
+                            using var entryStream = new MemoryStream(output);
+                            ProcessFile(file.GetFullPath(), entryStream, path);
                         }
                     }
                 }
@@ -959,7 +930,7 @@ namespace Decompiler
         /// This method tries to run through all the code paths for a particular resource,
         /// which allows us to quickly find exceptions when running --stats over an entire game folder.
         /// </summary>
-        private void TestAndCollectStats(Resource resource, string path)
+        private void TestAndCollectStats(Resource resource, string path, string originalPath)
         {
             // The rest of this code gathers various statistics
             var id = $"{resource.ResourceType}_{resource.Version}";
@@ -982,13 +953,18 @@ namespace Decompiler
                 id = string.Concat(id, "_", info);
             }
 
+            if (originalPath != null)
+            {
+                path = $"{originalPath} -> {path}";
+            }
+
             lock (stats)
             {
-                if (stats.ContainsKey(id))
+                if (stats.TryGetValue(id, out var existingStat))
                 {
-                    if (stats[id].Count++ < 10)
+                    if (existingStat.Count++ < 10)
                     {
-                        stats[id].FilePaths.Add(path);
+                        existingStat.FilePaths.Add(path);
                     }
                 }
                 else
