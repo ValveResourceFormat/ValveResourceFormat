@@ -159,21 +159,20 @@ namespace GUI.Types.Renderer
 
         protected void AddRenderModeSelectionControl()
         {
-            renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) =>
-                {
-                    foreach (var node in Scene.AllNodes)
-                    {
-                        node.SetRenderMode(renderMode);
-                    }
+#if DEBUG
+            var button = new Button
+            {
+                Text = "Reload shaders",
+                AutoSize = true,
+            };
+            button.Click += (s, e) =>
+            {
+                SetRenderMode(renderModeComboBox?.SelectedItem as string);
+            };
+            ViewerControl.AddControl(button);
+#endif
 
-                    if (SkyboxScene != null)
-                    {
-                        foreach (var node in SkyboxScene.AllNodes)
-                        {
-                            node.SetRenderMode(renderMode);
-                        }
-                    }
-                });
+            renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
         }
 
         private void SetAvailableRenderModes(IEnumerable<string> renderModes)
@@ -198,6 +197,22 @@ namespace GUI.Types.Renderer
         {
             Scene.SetEnabledLayers(layers);
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
+        }
+
+        private void SetRenderMode(string renderMode)
+        {
+            foreach (var node in Scene.AllNodes)
+            {
+                node.SetRenderMode(renderMode);
+            }
+
+            if (SkyboxScene != null)
+            {
+                foreach (var node in SkyboxScene.AllNodes)
+                {
+                    node.SetRenderMode(renderMode);
+                }
+            }
         }
     }
 }
