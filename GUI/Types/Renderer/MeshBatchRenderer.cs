@@ -46,7 +46,7 @@ namespace GUI.Types.Renderer
 
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
             var cameraPosition = context.Camera.Location.ToOpenTK();
-            var lightPosition = (context.LightPosition ?? context.Camera.Location).ToOpenTK();
+            var lightPosition = cameraPosition; // (context.LightPosition ?? context.Camera.Location).ToOpenTK();
 
             foreach (var shaderGroup in drawCalls.GroupBy(a => a.Call.Shader))
             {
