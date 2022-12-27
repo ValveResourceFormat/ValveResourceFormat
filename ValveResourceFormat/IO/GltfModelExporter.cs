@@ -466,6 +466,13 @@ namespace ValveResourceFormat.IO
 
                     for (var boneID = 0; boneID < boneCount; boneID++)
                     {
+                        if (animation.FrameCount == 0)
+                        {
+                            rotationDicts[boneID].Add(0f, model.Skeleton.Bones[boneID].Angle);
+                            translationDicts[boneID].Add(0f, model.Skeleton.Bones[boneID].Position);
+                            scaleDicts[boneID].Add(0f, Vector3.One);
+                        }
+
                         var jointNode = joints[boneID];
                         exportedAnimation.CreateRotationChannel(jointNode, rotationDicts[boneID], true);
                         exportedAnimation.CreateTranslationChannel(jointNode, translationDicts[boneID], true);
