@@ -183,6 +183,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Create output array
             var matrices = new Matrix4x4[skeleton.Bones.Length];
 
+            if (FrameCount == 0)
+            {
+                for (var i = 0; i < matrices.Length; i++)
+                {
+                    matrices[i] = Matrix4x4.Identity;
+                }
+                return matrices;
+            }
+
             // Get bone transformations
             var frame = frameCache.GetFrame(this, time);
 

@@ -143,6 +143,10 @@ namespace GUI.Types.Renderer
                     if (frame == -1)
                     {
                         var maximum = animation == null ? 1 : animation.FrameCount - 1;
+                        if (maximum < 0)
+                        {
+                            maximum = 0;
+                        }
                         if (animationTrackBar.TrackBar.Maximum != maximum)
                         {
                             animationTrackBar.TrackBar.Maximum = maximum;
