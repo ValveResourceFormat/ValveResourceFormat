@@ -160,7 +160,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var isGlobalLight = classname == "env_global_light";
+                var isGlobalLight = classname == "env_global_light" || classname == "light_environment";
                 var isCamera =
                     classname == "sky_camera" ||
                     classname == "point_devshot_camera" ||

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer
@@ -19,11 +20,13 @@ namespace GUI.Types.Renderer
         public class RenderContext
         {
             public Camera Camera { get; init; }
+            public Vector3? LightPosition { get; init; }
             public RenderPass RenderPass { get; set; }
             public bool RenderToolsMaterials { get; init; }
         }
 
         public Camera MainCamera { get; set; }
+        public Vector3? LightPosition { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
@@ -128,6 +131,7 @@ namespace GUI.Types.Renderer
             var renderContext = new RenderContext
             {
                 Camera = camera,
+                LightPosition = LightPosition,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,
             };
