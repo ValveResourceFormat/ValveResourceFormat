@@ -110,7 +110,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 if (channelAttribute == AnimationChannelAttribute.Unknown)
                 {
-                    Console.WriteLine($"Unknown channel attribute '{localChannel.ChannelAttribute}' encountered with '{decoder}' decoder");
+                    if (localChannel.ChannelAttribute != "data")
+                    {
+                        Console.Error.WriteLine($"Unknown channel attribute '{localChannel.ChannelAttribute}' encountered with '{decoder}' decoder");
+                    }
+
                     continue;
                 }
 

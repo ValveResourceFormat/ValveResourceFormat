@@ -65,7 +65,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             for (var i = 0; i < Bones.Length; i++)
             {
-                Bones[i].Position  = new Vector3(0, 0, 0);
+                Bones[i].Position = Vector3.Zero;
                 Bones[i].Angle = new Quaternion(0, 0, 0, 1);
                 Bones[i].Scale = 1;
             }
