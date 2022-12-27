@@ -313,7 +313,23 @@ namespace Decompiler
             lock (ConsoleWriterLock)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"[{++CurrentFile}/{TotalFiles}] {path}");
+                Console.Write($"[{++CurrentFile}/{TotalFiles}] ");
+
+                if (originalPath != null)
+                {
+                    if (IsInputFolder && originalPath.StartsWith(InputFile, StringComparison.Ordinal))
+                    {
+                        Console.Write(originalPath.Remove(0, InputFile.Length));
+                        Console.Write(" -> ");
+                    }
+                    else if (originalPath != InputFile)
+                    {
+                        Console.Write(originalPath);
+                        Console.Write(" -> ");
+                    }
+                }
+
+                Console.WriteLine(path);
                 Console.ResetColor();
             }
 
