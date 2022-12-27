@@ -19,6 +19,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Position:
                     Bones[bone].Position = data;
+                    Bones[bone].Present = true;
                     break;
 
 #if DEBUG
@@ -35,6 +36,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Angle:
                     Bones[bone].Angle = data;
+                    Bones[bone].Present = true;
                     break;
 
 #if DEBUG
@@ -51,6 +53,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Scale:
                     Bones[bone].Scale = data;
+                    Bones[bone].Present = true;
                     break;
 
 #if DEBUG
@@ -66,8 +69,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             for (var i = 0; i < Bones.Length; i++)
             {
                 Bones[i].Position = Vector3.Zero;
-                Bones[i].Angle = new Quaternion(0, 0, 0, 1);
+                Bones[i].Angle = Quaternion.Identity;
                 Bones[i].Scale = 1;
+                Bones[i].Present = false;
             }
         }
     }
