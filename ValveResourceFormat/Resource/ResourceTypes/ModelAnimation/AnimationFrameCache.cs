@@ -36,9 +36,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 var frame1Bone = frame1.Bones[i];
                 var frame2Bone = frame2.Bones[i];
-                InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
-                InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
+                var present = frame1Bone.Present && frame2Bone.Present;
+                InterpolatedFrame.Bones[i].Present = present;
+                if (present)
+                {
+                    InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
+                    InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
+                    InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
+                }
             }
 
             return InterpolatedFrame;

@@ -10,6 +10,7 @@ namespace GUI.Types.Renderer
         private Action<Animation, int> updateHandler = (_, __) => { };
         private Animation activeAnimation;
         private float Time;
+        private bool shouldUpdate;
 
         public bool IsPaused { get; set; }
         public int Frame
@@ -29,6 +30,7 @@ namespace GUI.Types.Renderer
                     Time = activeAnimation.Fps != 0
                         ? value / activeAnimation.Fps
                         : 0f;
+                    shouldUpdate = true;
                 }
             }
         }
@@ -45,12 +47,16 @@ namespace GUI.Types.Renderer
                 return false;
             }
 
-            if (!IsPaused)
+            if (IsPaused)
             {
-                Time += timeStep;
-                updateHandler(activeAnimation, Frame);
+                var res = shouldUpdate;
+                shouldUpdate = false;
+                return res;
             }
 
+            Time += timeStep;
+            updateHandler(activeAnimation, Frame);
+            shouldUpdate = false;
             return true;
         }
 

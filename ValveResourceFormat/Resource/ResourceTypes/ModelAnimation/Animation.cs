@@ -183,17 +183,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Create output array
             var matrices = new Matrix4x4[skeleton.Bones.Length];
 
-            if (FrameCount == 0)
-            {
-                for (var i = 0; i < matrices.Length; i++)
-                {
-                    matrices[i] = Matrix4x4.Identity;
-                }
-                return matrices;
-            }
-
             // Get bone transformations
-            var frame = frameCache.GetFrame(this, time);
+            var frame = FrameCount != 0
+                ? frameCache.GetFrame(this, time)
+                : null;
 
             foreach (var root in skeleton.Roots)
             {
@@ -233,11 +226,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             invBindPose *= bone.InverseBindPose;
 
             // Calculate and apply tranformation matrix
-            var transform = frame.Bones[bone.Index];
-            bindPose = Matrix4x4.CreateScale(transform.Scale)
-                * Matrix4x4.CreateFromQuaternion(transform.Angle)
-                * Matrix4x4.CreateTranslation(transform.Position)
-                * bindPose;
+            if (frame != null && frame.Bones[bone.Index].Present)
+            {
+                var transform = frame.Bones[bone.Index];
+                bindPose = Matrix4x4.CreateScale(transform.Scale)
+                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
+                    * Matrix4x4.CreateTranslation(transform.Position)
+                    * bindPose;
+            }
+            else
+            {
+                bindPose = bone.BindPose * bindPose;
+            }
 
             // Store result
             var skinMatrix = invBindPose * bindPose;
