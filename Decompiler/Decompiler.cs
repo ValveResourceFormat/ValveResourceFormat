@@ -219,7 +219,7 @@ namespace Decompiler
                 }
 
                 // TODO: Support recursing vpks inside of vpk?
-                if (RecursiveSearchArchives)
+                if (RecursiveSearchArchives && !CollectStats)
                 {
                     Console.Error.WriteLine("File passed in with --recursive_vpk option, this is not supported.");
 
@@ -635,7 +635,15 @@ namespace Decompiler
                 }
                 else if (CollectStats)
                 {
-                    orderedEntries = orderedEntries.Where(x => x.Key.EndsWith("_c", StringComparison.Ordinal)).ToList();
+                    orderedEntries = orderedEntries.Where(x =>
+                    {
+                        if (x.Key == "vpk")
+                        {
+                            return RecursiveSearchArchives;
+                        }
+
+                        return x.Key.EndsWith("_c", StringComparison.Ordinal);
+                    }).ToList();
                 }
 
                 if (ListResources)
