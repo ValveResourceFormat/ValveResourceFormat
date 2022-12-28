@@ -36,7 +36,29 @@ if (File.Exists("strings.txt"))
 
 if (args?.Length > 0 && Directory.Exists(args![0]))
 {
-    foreach (var file in Directory.EnumerateFiles(args[0], "*.vmap", SearchOption.AllDirectories))
+    var files = new List<string>();
+    var allowedExtensions = new HashSet<string>()
+    {
+        ".vpk",
+        ".dll",
+        ".so",
+        ".dylib",
+        ".vmap",
+        ".dmx",
+    };
+
+    foreach (var file in Directory.EnumerateFiles(args[0], "*.*", SearchOption.AllDirectories))
+    {
+        if (allowedExtensions.Contains(Path.GetExtension(file)))
+        {
+            files.Add(file);
+        }
+    }
+
+    Parallel.ForEach(files, new ParallelOptions
+    {
+        MaxDegreeOfParallelism = 10,
+    }, (file) =>
     {
         Console.WriteLine($"Scanning {file}");
 
@@ -44,27 +66,49 @@ if (args?.Length > 0 && Directory.Exists(args![0]))
 
         while (!bytes.IsEmpty)
         {
-            // This is a very rudimentary bruteforce over vmap files to find all the strings in it
-            var position = bytes.IndexOf((byte)0);
+            // This is a very rudimentary bruteforce to find all the strings
+            var position = bytes.IndexOfAny((byte)0, (byte)'"', (byte)'\n');
 
             if (position == -1)
             {
                 break;
             }
 
-            var strBytes = bytes[0..position];
-            var str = Encoding.UTF8.GetString(strBytes).ToLowerInvariant();
-            var hash = MurmurHash2.Hash(str, StringToken.MURMUR2SEED);
+            var asciiStart = position;
 
-            if (unknownKeys.Remove(hash))
+            for (var i = position - 1; i > 0; i--)
             {
-                foundKeys.Add(str);
-                Console.WriteLine($"Found string: {str}");
+                if (bytes[i] < 32 || bytes[i] > 126 || position - i > 50)
+                {
+                    break;
+                }
+
+                var c = (char)bytes[i];
+
+                if (!char.IsLetterOrDigit(c) && c != '.' && c != '_' && c != '-')
+                {
+                    break;
+                }
+
+                asciiStart--;
+            }
+
+            for (var i = asciiStart; i < position; i++)
+            {
+                var temp = bytes[i..position];
+                var str = Encoding.UTF8.GetString(temp).ToLowerInvariant();
+                var hash = MurmurHash2.Hash(str, StringToken.MURMUR2SEED);
+
+                if (unknownKeys.Remove(hash))
+                {
+                    foundKeys.Add(str);
+                    Console.WriteLine($"Found string: {str}");
+                }
             }
 
             bytes = bytes[(position + 1)..];
         }
-    }
+    });
 }
 
 if (unknownKeys.Count > 0)
