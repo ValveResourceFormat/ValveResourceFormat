@@ -19,6 +19,7 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ToolsAssetInfo;
+using ValveResourceFormat.Utils;
 
 namespace Decompiler
 {
@@ -28,6 +29,7 @@ namespace Decompiler
     {
         private readonly Dictionary<string, ResourceStat> stats = new();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
+        private readonly HashSet<uint> unknownEntityKeys = new();
 
         private readonly object ConsoleWriterLock = new();
         private int CurrentFile;
@@ -90,6 +92,9 @@ namespace Decompiler
 
         [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue)]
         public bool GltfTest { get; }
+
+        [Option("--dump_unknown_entity_keys", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = false)]
+        public bool DumpUnknownEntityKeys { get; }
 
         private string[] ExtFilterList;
         private bool IsInputFolder;
@@ -297,6 +302,12 @@ namespace Decompiler
                 {
                     Console.WriteLine("{0} in {1}", stat.Key, stat.Value);
                 }
+            }
+
+            if (DumpUnknownEntityKeys && unknownEntityKeys.Count > 0)
+            {
+                File.WriteAllLines("unknown_keys.txt", unknownEntityKeys.Select(x => x.ToString(CultureInfo.InvariantCulture)));
+                Console.WriteLine($"Wrote {unknownEntityKeys.Count} unknown entity keys to unknown_keys.txt");
             }
 
             return 0;
@@ -969,6 +980,29 @@ namespace Decompiler
 
                 case ResourceType.Sound:
                     info = ((Sound)resource.DataBlock).SoundType.ToString();
+                    break;
+
+                case ResourceType.EntityLump:
+                    if (DumpUnknownEntityKeys)
+                    {
+                        var entityLump = (EntityLump)resource.DataBlock;
+                        var entities = entityLump.GetEntities();
+                        var knownKeys = StringToken.InvertedTable;
+
+                        foreach (var entity in entities)
+                        {
+                            foreach (var property in entity.Properties)
+                            {
+                                if (!knownKeys.ContainsKey(property.Key))
+                                {
+                                    lock (unknownEntityKeys)
+                                    {
+                                        unknownEntityKeys.Add(property.Key);
+                                    }
+                                }
+                            }
+                        }
+                    }
                     break;
             }
 
