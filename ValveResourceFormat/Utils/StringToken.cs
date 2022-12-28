@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Utils
         {
             get
             {
-                var inverted = new Dictionary<uint, string>();
+                var inverted = new Dictionary<uint, string>(Lookup.Count);
 
                 foreach (var (key, hash) in Lookup)
                 {
