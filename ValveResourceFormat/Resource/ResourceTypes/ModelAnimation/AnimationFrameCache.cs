@@ -8,12 +8,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private (int FrameIndex, Frame Frame) PreviousFrame { get; set; }
         private (int FrameIndex, Frame Frame) NextFrame { get; set; }
         private readonly Frame InterpolatedFrame;
+        private readonly Skeleton Skeleton;
 
         public AnimationFrameCache(Skeleton skeleton)
         {
             PreviousFrame = (-1, new Frame(skeleton));
             NextFrame = (-1, new Frame(skeleton));
             InterpolatedFrame = new Frame(skeleton);
+            Skeleton = skeleton;
             Clear();
         }
 
@@ -36,14 +38,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 var frame1Bone = frame1.Bones[i];
                 var frame2Bone = frame2.Bones[i];
-                var present = frame1Bone.Present && frame2Bone.Present;
-                InterpolatedFrame.Bones[i].Present = present;
-                if (present)
-                {
-                    InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
-                    InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                    InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
-                }
+                InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
+                InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
+                InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
             }
 
             return InterpolatedFrame;
@@ -56,10 +53,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public void Clear()
         {
             PreviousFrame = (-1, PreviousFrame.Frame);
-            PreviousFrame.Frame.Clear();
+            PreviousFrame.Frame.Clear(Skeleton);
 
             NextFrame = (-1, NextFrame.Frame);
-            NextFrame.Frame.Clear();
+            NextFrame.Frame.Clear(Skeleton);
         }
 
         private Frame GetFrame(Animation anim, int frameIndex)
@@ -88,8 +85,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 NextFrame = PreviousFrame;
                 PreviousFrame = (frameIndex, frame);
             }
-            // We make an assumption that frames contain identical bone sets in GetFrame,
-            // so we don't clear bones here and reuse their objects
+            // We make an assumption that frames within one animation
+            // contain identical bone sets, so we don't clear frame here
 
             anim.DecodeFrame(frameIndex, frame);
 

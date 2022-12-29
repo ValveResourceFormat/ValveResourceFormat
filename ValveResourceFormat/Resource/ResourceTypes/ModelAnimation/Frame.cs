@@ -10,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Frame(Skeleton skeleton)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
-            Clear();
+            Clear(skeleton);
         }
 
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, Vector3 data)
@@ -19,7 +19,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Position:
                     Bones[bone].Position = data;
-                    Bones[bone].Present = true;
                     break;
 
 #if DEBUG
@@ -36,7 +35,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Angle:
                     Bones[bone].Angle = data;
-                    Bones[bone].Present = true;
                     break;
 
 #if DEBUG
@@ -53,7 +51,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Scale:
                     Bones[bone].Scale = data;
-                    Bones[bone].Present = true;
                     break;
 
 #if DEBUG
@@ -64,14 +61,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        public void Clear()
+        /// <summary>
+        /// Resets frame bones to their bind pose.
+        /// Should be used on animation change.
+        /// </summary>
+        /// <param name="skeleton">The same skeleton that was passed to the constructor.</param>
+        public void Clear(Skeleton skeleton)
         {
             for (var i = 0; i < Bones.Length; i++)
             {
-                Bones[i].Position = Vector3.Zero;
-                Bones[i].Angle = Quaternion.Identity;
+                Bones[i].Position = skeleton.Bones[i].Position;
+                Bones[i].Angle = skeleton.Bones[i].Angle;
                 Bones[i].Scale = 1;
-                Bones[i].Present = false;
             }
         }
     }

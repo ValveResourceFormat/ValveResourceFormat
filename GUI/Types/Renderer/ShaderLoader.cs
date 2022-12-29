@@ -254,7 +254,7 @@ namespace GUI.Types.Renderer
                         return "vr_glass";
                     }
 
-                    return "vr_standard";
+                    return "simple";
                 case "water_dota.vfx":
                     return "water";
                 case "hero.vfx":
