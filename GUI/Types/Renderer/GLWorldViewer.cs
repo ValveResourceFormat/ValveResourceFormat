@@ -125,7 +125,12 @@ namespace GUI.Types.Renderer
 
                     foreach (var worldLayer in result.DefaultEnabledLayers)
                     {
-                        worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldLayer), CheckState.Checked);
+                        var checkboxIndex = worldLayersComboBox.FindStringExact(worldLayer);
+
+                        if (checkboxIndex > -1)
+                        {
+                            worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldLayer), CheckState.Checked);
+                        }
                     }
                 }
 
