@@ -55,6 +55,18 @@ if (args?.Length > 0 && Directory.Exists(args![0]))
         }
     }
 
+    void CheckString(Span<byte> bytes)
+    {
+        var str = Encoding.UTF8.GetString(bytes).ToLowerInvariant();
+        var hash = MurmurHash2.Hash(str, StringToken.MURMUR2SEED);
+
+        if (unknownKeys.Remove(hash))
+        {
+            foundKeys.Add(str);
+            Console.WriteLine($"Found string: {str}");
+        }
+    }
+
     Parallel.ForEach(files, new ParallelOptions
     {
         MaxDegreeOfParallelism = 10,
@@ -67,7 +79,7 @@ if (args?.Length > 0 && Directory.Exists(args![0]))
         while (!bytes.IsEmpty)
         {
             // This is a very rudimentary bruteforce to find all the strings
-            var position = bytes.IndexOfAny((byte)0, (byte)'"', (byte)'\n');
+            var position = bytes.IndexOfAny((byte)0, (byte)'\r', (byte)'\n');
 
             if (position == -1)
             {
@@ -91,18 +103,20 @@ if (args?.Length > 0 && Directory.Exists(args![0]))
                 }
 
                 asciiStart--;
+
+                if (position - asciiStart >= 4)
+                {
+                    var temp = bytes[asciiStart..position];
+                    CheckString(temp);
+                }
             }
 
-            for (var i = asciiStart; i < position; i++)
+            if (position - asciiStart >= 4)
             {
-                var temp = bytes[i..position];
-                var str = Encoding.UTF8.GetString(temp).ToLowerInvariant();
-                var hash = MurmurHash2.Hash(str, StringToken.MURMUR2SEED);
-
-                if (unknownKeys.Remove(hash))
+                for (var i = asciiStart; i < position; i++)
                 {
-                    foundKeys.Add(str);
-                    Console.WriteLine($"Found string: {str}");
+                    var temp = bytes[i..position];
+                    CheckString(temp);
                 }
             }
 
