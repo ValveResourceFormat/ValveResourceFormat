@@ -1,12 +1,19 @@
 using System.Text;
 using Sledge.Formats.GameData;
 using Sledge.Formats.GameData.Objects;
+using VrfFgdParser;
+
+if (args?.Length < 1 || !Directory.Exists(args![0]))
+{
+    Console.Error.WriteLine("Usage: ./program <path to Steam to find .fgd files in>");
+    return 1;
+}
 
 var allIcons = new SortedDictionary<string, string>();
 var allProperties = new HashSet<string>();
 var baseIcons = new Dictionary<string, string>();
 
-foreach (var file in Directory.EnumerateFiles("fgds", "*.fgd", SearchOption.AllDirectories))
+foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.AllDirectories))
 {
     var isSource2 = File.Exists(Path.Join(Path.GetDirectoryName(file), "gameinfo.gi"));
 
@@ -14,12 +21,15 @@ foreach (var file in Directory.EnumerateFiles("fgds", "*.fgd", SearchOption.AllD
     Console.Write("Parsing ");
     Console.Write(file);
     Console.WriteLine(isSource2 ? string.Empty : " (not Source 2)");
-
     GameDefinition fgd;
 
     try
     {
-        fgd = FgdFormatter.ReadFile(file);
+        using var stream = File.OpenRead(file);
+        using var reader = new StreamReader(stream);
+
+        var fgdFormatter = new FgdFormatter(new FgdFileResolver(file));
+        fgd = fgdFormatter.Read(reader);
     }
     catch (Exception e)
     {
@@ -147,3 +157,5 @@ foreach (var property in allProperties.OrderBy(x => x))
 }
 
 File.WriteAllText("properties.txt", propertiesString.ToString());
+
+return 0;
