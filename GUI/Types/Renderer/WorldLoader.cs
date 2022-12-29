@@ -337,7 +337,8 @@ namespace GUI.Types.Renderer
 
             if (resource == null)
             {
-                resource = guiContext.LoadFileByAnyMeansNecessary("materials/editor/obsolete.vmat");
+                // TODO: Create a 16x16x16 box to emulate how Hammer draws them
+                resource = guiContext.LoadFileByAnyMeansNecessary("materials/editor/obsolete.vmat_c");
 
                 if (resource == null)
                 {
