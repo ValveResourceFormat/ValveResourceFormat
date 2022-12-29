@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Utils
     {
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
-        private static readonly ConcurrentDictionary<string, uint> Lookup = new();
+        internal static readonly ConcurrentDictionary<string, uint> Lookup = new();
 
         public static Dictionary<uint, string> InvertedTable
         {
