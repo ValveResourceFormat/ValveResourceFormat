@@ -18,9 +18,12 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
     var isSource2 = File.Exists(Path.Join(Path.GetDirectoryName(file), "gameinfo.gi"));
 
     Console.WriteLine();
+    Console.ForegroundColor = isSource2 ? ConsoleColor.Green : ConsoleColor.Blue;
     Console.Write("Parsing ");
     Console.Write(file);
     Console.WriteLine(isSource2 ? string.Empty : " (not Source 2)");
+    Console.ResetColor();
+
     GameDefinition fgd;
 
     try
@@ -44,11 +47,15 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
             allProperties.Add(property.Name.ToLowerInvariant());
         }
 
+        if (!isSource2)
+        {
+            // We don't want icons from non-Source 2 games.
+            continue;
+        }
+
         foreach (var behaviour in _class.Behaviours)
         {
             string? value = null;
-
-            // TODO: Skip for !isSource2
 
             if (behaviour.Name == "iconsprite" && behaviour.Values.Count > 0)
             {
@@ -124,6 +131,7 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
     }
 }
 
+Console.WriteLine();
 Console.WriteLine($"Found {allIcons.Count} entities with icons");
 
 var iconsString = new StringBuilder();
