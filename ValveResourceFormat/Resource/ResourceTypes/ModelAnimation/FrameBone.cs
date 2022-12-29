@@ -7,6 +7,5 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Vector3 Position { get; set; }
         public Quaternion Angle { get; set; }
         public float Scale { get; set; }
-        public bool Present { get; set; }
     }
 }

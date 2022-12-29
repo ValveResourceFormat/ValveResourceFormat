@@ -226,7 +226,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             invBindPose *= bone.InverseBindPose;
 
             // Calculate and apply tranformation matrix
-            if (frame != null && frame.Bones[bone.Index].Present)
+            if (frame != null)
             {
                 var transform = frame.Bones[bone.Index];
                 bindPose = Matrix4x4.CreateScale(transform.Scale)

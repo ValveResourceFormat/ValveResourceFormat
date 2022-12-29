@@ -371,7 +371,7 @@ namespace ValveResourceFormat.IO
                 foreach (var animation in animations)
                 {
                     // Cleanup state
-                    frame.Clear();
+                    frame.Clear(model.Skeleton);
                     for (var i = 0; i < boneCount; i++)
                     {
                         rotationDicts[i].Clear();
