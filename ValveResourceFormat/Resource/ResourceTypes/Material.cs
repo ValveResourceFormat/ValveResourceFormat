@@ -129,6 +129,11 @@ namespace ValveResourceFormat.ResourceTypes
                 arguments.Add("LegacySource1InvertNormals", true);
             }
 
+            if (ShaderName == "vr_glass.vfx")
+            {
+                arguments.Add("F_GLASS", true);
+            }
+
             return arguments;
         }
     }

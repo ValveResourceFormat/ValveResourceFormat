@@ -29,7 +29,7 @@ namespace GUI.Types.Renderer
 
         public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
-            var shaderFileName = GetShaderFileByName(shaderName, arguments);
+            var shaderFileName = GetShaderFileByName(shaderName);
 
 #if !DEBUG_SHADERS || !DEBUG
             if (ShaderDefines.ContainsKey(shaderFileName))
@@ -227,8 +227,8 @@ namespace GUI.Types.Renderer
             return defines.Select(match => match.Groups["ParamName"].Value).ToList();
         }
 
-        // Map shader names to shader files
-        private static string GetShaderFileByName(string shaderName, IDictionary<string, bool> arguments)
+        // Map Valve's shader names to shader files VRF has
+        private static string GetShaderFileByName(string shaderName)
         {
             switch (shaderName)
             {
@@ -246,15 +246,6 @@ namespace GUI.Types.Renderer
                     return "vr_unlit";
                 case "vr_black_unlit.vfx":
                     return "vr_black_unlit";
-                case "vr_glass.vfx":
-                    return "vr_glass";
-                case "vr_standard.vfx":
-                    if (arguments.ContainsKey("F_GLASS"))
-                    {
-                        return "vr_glass";
-                    }
-
-                    return "simple";
                 case "water_dota.vfx":
                     return "water";
                 case "hero.vfx":

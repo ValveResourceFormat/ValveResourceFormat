@@ -13,6 +13,7 @@
 #define param_F_FULLBRIGHT 0
 #define param_F_TINT_MASK 0
 #define param_F_ALPHA_TEST 0
+#define param_F_GLASS 0
 #define param_HemiOctIsoRoughness_RG_B 0
 #define param_LegacySource1InvertNormals 0
 //End of parameter defines
@@ -33,6 +34,7 @@ uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
 uniform vec3 vLightPosition;
+uniform vec3 vEyePosition;
 
 uniform vec4 m_vTintColorSceneObject;
 uniform vec3 m_vTintColorDrawCall;
@@ -40,6 +42,16 @@ uniform vec3 m_vTintColorDrawCall;
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
 uniform vec4 g_vColorTint;
+
+// glass specific params
+#if param_F_GLASS == 1
+uniform float g_flEdgeColorFalloff = 3.0;
+uniform float g_flEdgeColorMaxOpacity = 1.0;
+uniform float g_flEdgeColorThickness = 1.0;
+uniform vec4 g_vEdgeColor;
+uniform float g_flRefractScale = 0.1;
+uniform float g_flOpacityScale = 1.0;
+#endif
 
 vec3 oct_to_float32x3(vec2 e)
 {
@@ -94,6 +106,7 @@ void main()
 
     //Get the direction from the fragment to the light - light position == camera position for now
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
+    vec3 viewDirection = normalize(vEyePosition - vFragPosition);
 
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
@@ -116,8 +129,17 @@ void main()
     vec3 tintFactor = tintColor;
 #endif
 
+#if param_F_GLASS == 1
+    vec4 glassColor = vec4(illumination * color.rgb * g_vColorTint.rgb, color.a);
+
+    float fresnel = pow(1.0 - abs(dot(worldNormal, viewDirection)), g_flEdgeColorFalloff);
+    vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_flEdgeColorMaxOpacity * fresnel);
+
+    outputColor = mix(glassColor, fresnelColor, g_flOpacityScale);
+#else
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
+#endif
 
     // Different render mode definitions
 #if param_renderMode_Color == 1
