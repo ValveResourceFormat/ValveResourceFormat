@@ -1,24 +1,29 @@
 using System;
-using System.Linq;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedAnimVector3 : AnimationSegmentDecoder
     {
-        public Half[] Data { get; }
+        private readonly Half[] Data;
 
         public CCompressedAnimVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 2;
             var stride = elementCount * elementSize;
-            Data = Enumerable.Range(0, data.Count / stride)
-                .SelectMany(i => wantedElements.Select(j =>
+            var elements = data.Count / stride;
+
+            Data = new Half[remapTable.Length * elements];
+
+            var pos = 0;
+            for (var i = 0; i < elements; i++)
+            {
+                foreach (var j in wantedElements)
                 {
-                    return BitConverter.ToHalf(data.Slice(i * stride + j * elementSize));
-                }).ToArray())
-                .ToArray();
+                    Data[pos++] = BitConverter.ToHalf(data.Slice(i * stride + j * elementSize, elementSize));
+                }
+            }
         }
 
         public override void Read(int frameIndex, Frame outFrame)

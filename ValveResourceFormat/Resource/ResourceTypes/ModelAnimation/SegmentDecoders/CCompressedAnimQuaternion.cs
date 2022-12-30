@@ -1,23 +1,29 @@
 using System;
-using System.Linq;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedAnimQuaternion : AnimationSegmentDecoder
     {
-        public byte[] Data { get; }
+        private readonly byte[] Data;
 
         public CCompressedAnimQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 6;
             var stride = elementCount * elementSize;
-            Data = Enumerable.Range(0, data.Count / stride)
-                .SelectMany(i => wantedElements.SelectMany(j =>
+            var elements = data.Count / stride;
+
+            Data = new byte[remapTable.Length * elementSize * elements];
+
+            var pos = 0;
+            for (var i = 0; i < elements; i++)
+            {
+                foreach (var j in wantedElements)
                 {
-                    return data.Slice(i * stride + j * elementSize, elementSize);
-                }).ToArray())
-                .ToArray();
+                    data.Slice(i * stride + j * elementSize, elementSize).CopyTo(Data, pos);
+                    pos += elementSize;
+                }
+            }
         }
 
         public override void Read(int frameIndex, Frame outFrame)

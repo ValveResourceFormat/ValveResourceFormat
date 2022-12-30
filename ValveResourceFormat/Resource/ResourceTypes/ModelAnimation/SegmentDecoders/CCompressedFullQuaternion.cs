@@ -6,7 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedFullQuaternion : AnimationSegmentDecoder
     {
-        public Quaternion[] Data { get; }
+        private readonly Quaternion[] Data;
 
         public CCompressedFullQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)

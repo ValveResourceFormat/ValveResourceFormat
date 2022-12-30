@@ -1,37 +1,46 @@
 using System;
-using System.Linq;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedDeltaVector3 : AnimationSegmentDecoder
     {
-        public float[] BaseFrame { get; }
-        public Half[] DeltaData { get; }
+        private readonly Vector3[] BaseFrame;
+        private readonly Half[] DeltaData;
 
         public CCompressedDeltaVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            BaseFrame = wantedElements.SelectMany(i =>
-            {
-                var offset = i * 3 * 4;
-                return new float[3]
-                {
-                    BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
-                    BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
-                    BitConverter.ToSingle(data.Slice(offset + (2 * 4)))
-                };
-            }).ToArray();
+            const int baseElementSize = 4;
+            const int deltaElementSize = 2;
 
-            var deltaData = data.Slice(elementCount * 3 * 4);
-            const int elementSize = 2;
-            var stride = elementCount * elementSize;
-            DeltaData = Enumerable.Range(0, deltaData.Count / stride)
-                .SelectMany(i => wantedElements.Select(j =>
+            BaseFrame = new Vector3[wantedElements.Length];
+
+            var pos = 0;
+            foreach (var i in wantedElements)
+            {
+                var offset = i * 3 * baseElementSize;
+                BaseFrame[pos++] = new Vector3(
+                    BitConverter.ToSingle(data.Slice(offset + (0 * baseElementSize), baseElementSize)),
+                    BitConverter.ToSingle(data.Slice(offset + (1 * baseElementSize), baseElementSize)),
+                    BitConverter.ToSingle(data.Slice(offset + (2 * baseElementSize), baseElementSize))
+                );
+            }
+
+            var deltaData = data.Slice(elementCount * 3 * baseElementSize);
+            var stride = elementCount * deltaElementSize;
+            var elements = deltaData.Count / stride;
+
+            DeltaData = new Half[remapTable.Length * elements];
+
+            pos = 0;
+            for (var i = 0; i < elements; i++)
+            {
+                foreach (var j in wantedElements)
                 {
-                    return BitConverter.ToHalf(deltaData.Slice(i * stride + j * elementSize));
-                }).ToArray())
-                .ToArray();
+                    DeltaData[pos++] = BitConverter.ToHalf(deltaData.Slice(i * stride + j * deltaElementSize, deltaElementSize));
+                }
+            }
         }
 
         public override void Read(int frameIndex, Frame outFrame)
@@ -40,13 +49,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 
             for (var i = 0; i < RemapTable.Length; i++)
             {
+                var baseFrame = BaseFrame[i];
                 outFrame.SetAttribute(
                     RemapTable[i],
                     ChannelAttribute,
-                    new Vector3(
-                        BaseFrame[i * 3 + 0] + (float)DeltaData[offset + i * 3 + 0],
-                        BaseFrame[i * 3 + 1] + (float)DeltaData[offset + i * 3 + 1],
-                        BaseFrame[i * 3 + 2] + (float)DeltaData[offset + i * 3 + 2]
+                    baseFrame + new Vector3(
+                        (float)DeltaData[offset + i * 3 + 0],
+                        (float)DeltaData[offset + i * 3 + 1],
+                        (float)DeltaData[offset + i * 3 + 2]
                     )
                 );
             }

@@ -6,7 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedStaticVector3 : AnimationSegmentDecoder
     {
-        public Vector3[] Data { get; }
+        private readonly Vector3[] Data;
 
         public CCompressedStaticVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)

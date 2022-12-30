@@ -1,29 +1,34 @@
 using System;
-using System.Linq;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedFullVector3 : AnimationSegmentDecoder
     {
-        public Vector3[] Data { get; }
+        private readonly Vector3[] Data;
 
         public CCompressedFullVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 3 * 4;
             var stride = elementCount * elementSize;
-            Data = Enumerable.Range(0, data.Count / stride)
-                .SelectMany(i => wantedElements.Select(j =>
+            var elements = data.Count / stride;
+
+            Data = new Vector3[remapTable.Length * elements];
+
+            var pos = 0;
+            for (var i = 0; i < elements; i++)
+            {
+                foreach (var j in wantedElements)
                 {
                     var offset = i * stride + j * elementSize;
-                    return new Vector3(
-                        BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
-                        BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
-                        BitConverter.ToSingle(data.Slice(offset + (2 * 4)))
+                    Data[pos++] = new Vector3(
+                        BitConverter.ToSingle(data.Slice(offset + (0 * 4), 4)),
+                        BitConverter.ToSingle(data.Slice(offset + (1 * 4), 4)),
+                        BitConverter.ToSingle(data.Slice(offset + (2 * 4), 4))
                     );
-                }).ToArray())
-                .ToArray();
+                }
+            }
         }
 
         public override void Read(int frameIndex, Frame outFrame)

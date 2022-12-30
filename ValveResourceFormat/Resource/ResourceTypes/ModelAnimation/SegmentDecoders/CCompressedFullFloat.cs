@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedFullFloat : AnimationSegmentDecoder
     {
-        public float[] Data { get; }
+        private readonly float[] Data;
 
         public CCompressedFullFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
             int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
