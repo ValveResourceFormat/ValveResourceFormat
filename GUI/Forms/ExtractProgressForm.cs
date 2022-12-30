@@ -88,12 +88,20 @@ namespace GUI.Forms
                 {
                     foreach (var resourceType in ExtractOrder)
                     {
-                        SetProgress($"Extracting {resourceType}s...");
                         var extension = FileExtract.GetExtension(resourceType);
-                        await ExtractFilesAsync(filesToExtractSorted[extension + "_c"]).ConfigureAwait(false);
+                        var files = filesToExtractSorted[extension + "_c"];
+
+                        if (files.Count > 0)
+                        {
+                            SetProgress($"Extracting {resourceType}s...");
+                            await ExtractFilesAsync(files).ConfigureAwait(false);
+                        }
                     }
 
-                    SetProgress("Extracting files...");
+                    if (filesToExtract.Count > 0)
+                    {
+                        SetProgress("Extracting files...");
+                    }
                 }
 
                 await ExtractFilesAsync(filesToExtract).ConfigureAwait(false);
