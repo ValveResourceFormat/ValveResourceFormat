@@ -159,6 +159,15 @@ namespace GUI.Controls
                 }
             }
 
+            // Expand lone folders (common in maps vpks)
+            var node = root;
+
+            while (node.Nodes.Count == 1)
+            {
+                node = node.Nodes[0];
+                node.Expand();
+            }
+
             control.EndUpdate();
         }
 
