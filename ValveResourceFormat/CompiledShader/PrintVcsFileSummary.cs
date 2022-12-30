@@ -1,8 +1,8 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
-using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using System.IO;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
+using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {

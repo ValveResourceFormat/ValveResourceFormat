@@ -1,11 +1,11 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using ZstdSharp;
-using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
-using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
+using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.CompiledShader
 {

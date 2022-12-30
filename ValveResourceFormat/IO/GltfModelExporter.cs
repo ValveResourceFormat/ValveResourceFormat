@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using SharpGLTF.IO;
 using SharpGLTF.Memory;
@@ -14,16 +15,15 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.Blocks.VBIB;
 using Material = SharpGLTF.Schema2.Material;
 using Mesh = SharpGLTF.Schema2.Mesh;
-using static ValveResourceFormat.Blocks.VBIB;
+using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
-using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
-using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
-using System.Runtime.InteropServices;
+using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 
 namespace ValveResourceFormat.IO
 {

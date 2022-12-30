@@ -1,6 +1,6 @@
 using System;
-using System.Numerics;
 using System.Linq;
+using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {

@@ -1,4 +1,4 @@
-﻿using SteamDatabase.ValvePak;
+using SteamDatabase.ValvePak;
 
 namespace GUI.Controls
 {

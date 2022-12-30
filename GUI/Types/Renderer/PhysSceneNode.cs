@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
-using OpenTK.Graphics.OpenGL;
+using System.Globalization;
+using System.Linq;
+using System.Numerics;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
-using System.Numerics;
-using System.Linq;
-using ValveResourceFormat.Serialization.NTRO;
-using System.Globalization;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace GUI.Types.Renderer
 {

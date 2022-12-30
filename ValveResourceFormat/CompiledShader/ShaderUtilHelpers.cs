@@ -1,6 +1,6 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using ValveResourceFormat.Serialization.VfxEval;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 

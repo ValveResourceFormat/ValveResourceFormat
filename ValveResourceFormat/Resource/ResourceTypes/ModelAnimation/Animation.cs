@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.NTRO;
-using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {

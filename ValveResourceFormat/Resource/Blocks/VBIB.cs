@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization;
-using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Blocks
 {
