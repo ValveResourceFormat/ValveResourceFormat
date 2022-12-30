@@ -80,7 +80,7 @@ namespace GUI.Controls
         private void MainTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
             // if user selected a folder, show the contents of that folder in the list view
-            if (e.Action != TreeViewAction.Unknown && e.Node.Tag is TreeViewFolder)
+            if (e.Action != TreeViewAction.Unknown && ((VrfTreeViewData) e.Node.Tag).IsFolder)
             {
                 mainListView.BeginUpdate();
                 mainListView.Items.Clear();
@@ -146,8 +146,10 @@ namespace GUI.Controls
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
             var root = control.Nodes.Add("root", name, "vpk", "vpk");
-            root.Tag = new TreeViewFolder(vrfGuiContext.CurrentPackage.Entries.Count);
+            root.Tag = VrfTreeViewData.MakeFolder(vrfGuiContext.CurrentPackage.Entries.Count);
             root.Expand();
+
+            control.TreeViewNodeSorter = new TreeViewFileSorter();
 
             foreach (var fileType in vrfGuiContext.CurrentPackage.Entries)
             {
@@ -157,7 +159,6 @@ namespace GUI.Controls
                 }
             }
 
-            control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
         }
 
@@ -181,13 +182,13 @@ namespace GUI.Controls
                     if (foundFiles.Count == 0)
                     {
                         var rootEmpty = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, "No deleted files found", "_deleted", "_deleted");
-                        rootEmpty.Tag = new TreeViewFolder(0);
+                        rootEmpty.Tag = VrfTreeViewData.MakeFolder(0);
                         return;
                     }
 
                     mainTreeView.BeginUpdate();
                     var root = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, $"Deleted files ({foundFiles.Count} files found)", "_deleted", "_deleted");
-                    root.Tag = new TreeViewFolder(foundFiles.Count);
+                    root.Tag = VrfTreeViewData.MakeFolder(foundFiles.Count);
 
                     var vpkName = Path.GetFileName(vrfGuiContext.CurrentPackage.FileName);
 
@@ -248,7 +249,7 @@ namespace GUI.Controls
                 {
                     // left click should focus the node in its tree view
                     var node = info.Item.Tag as TreeNode;
-                    if (node.Tag is TreeViewFolder)
+                    if (((VrfTreeViewData) node.Tag).IsFolder)
                     {
                         node.EnsureVisible();
                         node.TreeView.SelectedNode = node;
@@ -277,7 +278,7 @@ namespace GUI.Controls
                 {
                     // if user left double clicks a folder, open its contents and display in list view
                     var node = info.Item.Tag as TreeNode;
-                    if (node.Tag is TreeViewFolder)
+                    if (((VrfTreeViewData) node.Tag).IsFolder)
                     {
                         node.Expand();
                         mainListView.BeginUpdate();
@@ -319,16 +320,17 @@ namespace GUI.Controls
                 Tag = node,
             };
 
-            if (node.Tag.GetType() == typeof(PackageEntry))
+            var data = (VrfTreeViewData) node.Tag;
+
+            if (!data.IsFolder)
             {
-                var file = node.Tag as PackageEntry;
+                var file = data.PackageEntry;
                 item.SubItems.Add(file.TotalLength.ToFileSizeString());
                 item.SubItems.Add(file.TypeName);
             }
-            else if (node.Tag.GetType() == typeof(TreeViewFolder))
+            else
             {
-                var folder = node.Tag as TreeViewFolder;
-                item.SubItems.Add($"{folder.ItemCount} items");
+                item.SubItems.Add($"{data.ItemCount} items");
                 item.SubItems.Add("folder");
             }
 

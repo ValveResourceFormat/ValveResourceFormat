@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.Exporter;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -128,8 +129,10 @@ namespace GUI.Forms
         {
             foreach (TreeNode node in root.Nodes)
             {
-                if (node.Tag is PackageEntry file)
+                var data = (VrfTreeViewData)node.Tag;
+                if (!data.IsFolder)
                 {
+                    var file = data.PackageEntry;
                     if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
                     {
                         specializedQueue.Enqueue(file);

@@ -171,13 +171,20 @@ namespace GUI.Controls
 
                     if (subNode == null)
                     {
-                        currentNode = currentNode.Nodes.Add(subPath, subPath, "_folder", "_folder");
-                        currentNode.Tag = new TreeViewFolder(1);
+                        var toAdd = new TreeNode(subPath)
+                        {
+                            Name = subPath,
+                            ImageKey = "_folder",
+                            SelectedImageKey = "_folder",
+                            Tag = VrfTreeViewData.MakeFolder(1)
+                        };
+                        currentNode.Nodes.Add(toAdd);
+                        currentNode = toAdd;
                     }
                     else
                     {
                         currentNode = subNode;
-                        (subNode.Tag as TreeViewFolder).ItemCount++;
+                        ((VrfTreeViewData)subNode.Tag).ItemCount++;
                     }
                 }
             }
@@ -189,8 +196,16 @@ namespace GUI.Controls
                 ext = "_default";
             }
 
-            currentNode = currentNode.Nodes.Add(fileName, fileName, ext, ext);
-            currentNode.Tag = file; //so we can use it later
+            var newNode = new TreeNode(fileName)
+            {
+                Name = fileName,
+                ImageKey = ext,
+                SelectedImageKey = ext,
+                Tag = VrfTreeViewData.MakeFile(file) //so we can use it later
+            };
+
+            currentNode.Nodes.Add(newNode);
+            currentNode = newNode;
         }
     }
 }
