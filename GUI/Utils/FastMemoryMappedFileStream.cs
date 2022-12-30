@@ -2,14 +2,14 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace ValveResourceFormat.IO
+namespace GUI.Utils
 {
-    public unsafe class FastMemoryMappedFileStream : UnmanagedMemoryStream
+    public class FastMemoryMappedFileStream : UnmanagedMemoryStream
     {
         private SafeBuffer _buffer;
-        private byte* _ptr;
+        private unsafe byte* _ptr;
 
-        public FastMemoryMappedFileStream(SafeBuffer buffer, long offset, long length, FileAccess access)
+        public unsafe FastMemoryMappedFileStream(SafeBuffer buffer, long offset, long length, FileAccess access)
         {
             Initialize(buffer, offset, length, access);
 
@@ -18,7 +18,7 @@ namespace ValveResourceFormat.IO
             _ptr += offset;
         }
 
-        public Span<byte> GetSpan(int count)
+        public unsafe Span<byte> GetSpan(int count)
         {
             var end = _ptr + Position + count;
             if (end > _ptr + Length)
@@ -44,7 +44,6 @@ namespace ValveResourceFormat.IO
             base.Dispose(disposing);
 
             _buffer.ReleasePointer();
-            _ptr = null;
             _buffer.Dispose();
         }
     }

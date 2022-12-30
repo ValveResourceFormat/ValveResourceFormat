@@ -125,6 +125,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public ushort NonPow2Height { get; private set; }
 
+        public Stream BackingStream => Reader.BaseStream;
+
         private int[] CompressedMips;
         private bool IsActuallyCompressedMips;
 
@@ -595,37 +597,23 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-
-        public Span<byte> GetTextureSpan(int mipLevel = MipmapLevelToExtract) {
-            if (Reader.BaseStream is not FastMemoryMappedFileStream stream)
-            {
-                return GetTextureByteArray(mipLevel);
-            }
-
-            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
-
-            if (!IsActuallyCompressedMips)
-            {
-                return stream.GetSpan( uncompressedSize);
-            }
-
-            var compressedSize = CompressedMips[mipLevel];
-
-            if (compressedSize >= uncompressedSize)
-            {
-                return stream.GetSpan( uncompressedSize);
-            }
-
-            var span = stream.GetSpan(compressedSize);
-
-            var output = new byte[uncompressedSize];
-
-            LZ4Codec.Decode(span, output);
-
-            return output;
+        public int GetUncompressedTextureSizeForMipLevel(int mipLevel)
+        {
+            return CalculateBufferSizeForMipLevel(mipLevel);
         }
 
-        //TODO Consider removing, only used by the above in the case that the stream is not a FastMemoryMappedFileStream, which shouldn't ever happen?
+        public int GetCompressedTextureSizeForMipLevel(int mipLevel)
+        {
+            if(!IsActuallyCompressedMips)
+                return -1; //-1 means not compressed
+
+            return CompressedMips[mipLevel];
+        }
+
+
+        public Span<byte> GetTextureSpan(int mipLevel = MipmapLevelToExtract)
+            => GetTextureByteArray(mipLevel);
+
         private byte[] GetTextureByteArray(int mipLevel = MipmapLevelToExtract)
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);

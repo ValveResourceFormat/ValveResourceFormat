@@ -1,7 +1,9 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Numerics;
 using GUI.Utils;
+using K4os.Compression.LZ4;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -140,29 +142,7 @@ namespace GUI.Types.Renderer
 
             for (var i = tex.NumMipLevels - 1; i >= 0; i--)
             {
-                var width = tex.Width >> i;
-                var height = tex.Height >> i;
-
-                //By using GetTextureSpan, we only need to allocate one buffer (for decompressed data) in the case of LZ4-compressed textures, otherwise it's 0-alloc (just a ptr to the memory-mapped file)
-                var bytes = tex.GetTextureSpan(i);
-
-                if (internalFormat.HasValue)
-                {
-                    var pixelFormat = GetPixelFormat(tex.Format);
-                    var pixelType = GetPixelType(tex.Format);
-
-                    fixed (byte* ptr = &bytes[0])
-                    {
-                        GL.TexImage2D(TextureTarget.Texture2D, i, internalFormat.Value, width, height, 0, pixelFormat, pixelType, (IntPtr)ptr);
-                    }
-                }
-                else
-                {
-                    fixed (byte* ptr = &bytes[0])
-                    {
-                        GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bytes.Length, (IntPtr)ptr);
-                    }
-                }
+                SetTextureData(tex, i, internalFormat, format);
             }
 
             // Dispose texture otherwise we run out of memory
@@ -194,6 +174,62 @@ namespace GUI.Types.Renderer
             GL.BindTexture(TextureTarget.Texture2D, 0);
 
             return id;
+        }
+
+        private static unsafe void SetTextureData(Texture tex, int mipmapLevel, PixelInternalFormat? internalFormat, InternalFormat? format)
+        {
+            var width = tex.Width >> mipmapLevel;
+            var height = tex.Height >> mipmapLevel;
+
+            Span<byte> textureBytes;
+            byte[] tempDecompressedBuffer = null;
+            if (tex.BackingStream is not FastMemoryMappedFileStream stream)
+            {
+                //Fall back to default Texture behavior if the backing stream is not a FastMemoryMappedFileStream
+                textureBytes = tex.GetTextureSpan(mipmapLevel);
+            }
+            else
+            {
+                var uncompressedSize = tex.GetUncompressedTextureSizeForMipLevel(mipmapLevel);
+                var compressedSize = tex.GetCompressedTextureSizeForMipLevel(mipmapLevel);
+
+                if (compressedSize < 0 || compressedSize >= uncompressedSize)
+                {
+                    textureBytes = stream.GetSpan(uncompressedSize);
+                }
+                else
+                {
+                    var compressedData = stream.GetSpan(compressedSize);
+                    tempDecompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+                    var span = tempDecompressedBuffer.AsSpan(0, uncompressedSize);
+                    LZ4Codec.Decode(compressedData, span);
+
+                    textureBytes = span;
+                }
+            }
+
+            if (internalFormat.HasValue)
+            {
+                var pixelFormat = GetPixelFormat(tex.Format);
+                var pixelType = GetPixelType(tex.Format);
+
+                fixed (byte* ptr = &textureBytes[0])
+                {
+                    GL.TexImage2D(TextureTarget.Texture2D, mipmapLevel, internalFormat.Value, width, height, 0, pixelFormat, pixelType, (IntPtr)ptr);
+                }
+            }
+            else
+            {
+                fixed (byte* ptr = &textureBytes[0])
+                {
+                    GL.CompressedTexImage2D(TextureTarget.Texture2D, mipmapLevel, format.Value, width, height, 0, textureBytes.Length, (IntPtr)ptr);
+                }
+            }
+
+            if (tempDecompressedBuffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(tempDecompressedBuffer);
+            }
         }
 
         private static InternalFormat? GetInternalFormat(VTexFormat vformat)
