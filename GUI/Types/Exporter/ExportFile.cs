@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -121,8 +122,10 @@ namespace GUI.Types.Exporter
 
         public static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            if (selectedNode.Tag is PackageEntry file)
+            var data = (VrfTreeViewData)selectedNode.Tag;
+            if (!data.IsFolder)
             {
+                var file = data.PackageEntry;
                 // We are a file
                 ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
             }

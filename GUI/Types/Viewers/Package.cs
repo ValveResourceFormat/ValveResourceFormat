@@ -207,10 +207,11 @@ namespace GUI.Types.Viewers
         private static void OpenFileFromNode(TreeNode node)
         {
             //Make sure we aren't a directory!
-            if (node.Tag.GetType() == typeof(PackageEntry))
+            var data = (VrfTreeViewData)node.Tag;
+            if (!data.IsFolder)
             {
                 var parentGuiContext = (VrfGuiContext)node.TreeView.Tag;
-                var file = node.Tag as PackageEntry;
+                var file = data.PackageEntry;
 
                 var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), parentGuiContext);
                 Program.MainForm.OpenFile(vrfGuiContext, file);

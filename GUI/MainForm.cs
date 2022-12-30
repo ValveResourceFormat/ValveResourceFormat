@@ -655,8 +655,10 @@ namespace GUI
 
             foreach (var selectedNode in selectedNodes)
             {
-                if (selectedNode.Tag is PackageEntry packageEntry)
+                var data = (VrfTreeViewData)selectedNode.Tag;
+                if (!data.IsFolder)
                 {
+                    var packageEntry = data.PackageEntry;
                     sb.AppendLine(packageEntry.GetFullPath());
                 }
                 else
@@ -696,8 +698,10 @@ namespace GUI
 
             foreach (var selectedNode in selectedNodes)
             {
-                if (selectedNode.Tag is PackageEntry file)
+                var data = (VrfTreeViewData)selectedNode.Tag;
+                if (!data.IsFolder)
                 {
+                    var file = data.PackageEntry;
                     var vrfGuiContext = (VrfGuiContext)selectedNode.TreeView.Tag;
                     vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
