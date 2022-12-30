@@ -116,7 +116,7 @@ namespace GUI.Types.Renderer
             return LoadTexture(textureResource);
         }
 
-        public int LoadTexture(Resource textureResource)
+        public unsafe int LoadTexture(Resource textureResource)
         {
             var tex = (Texture)textureResource.DataBlock;
 
@@ -142,18 +142,26 @@ namespace GUI.Types.Renderer
             {
                 var width = tex.Width >> i;
                 var height = tex.Height >> i;
-                var bytes = tex.GetDecompressedTextureAtMipLevel(i);
+
+                //By using GetTextureSpan, we only need to allocate one buffer (for decompressed data) in the case of LZ4-compressed textures, otherwise it's 0-alloc (just a ptr to the memory-mapped file)
+                var bytes = tex.GetTextureSpan(i);
 
                 if (internalFormat.HasValue)
                 {
                     var pixelFormat = GetPixelFormat(tex.Format);
                     var pixelType = GetPixelType(tex.Format);
 
-                    GL.TexImage2D(TextureTarget.Texture2D, i, internalFormat.Value, width, height, 0, pixelFormat, pixelType, bytes);
+                    fixed (byte* ptr = &bytes[0])
+                    {
+                        GL.TexImage2D(TextureTarget.Texture2D, i, internalFormat.Value, width, height, 0, pixelFormat, pixelType, (IntPtr)ptr);
+                    }
                 }
                 else
                 {
-                    GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bytes.Length, bytes);
+                    fixed (byte* ptr = &bytes[0])
+                    {
+                        GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bytes.Length, (IntPtr)ptr);
+                    }
                 }
             }
 

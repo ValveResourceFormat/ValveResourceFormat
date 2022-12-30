@@ -325,7 +325,10 @@ namespace GUI.Utils
 
             var path = $"{package.FileName}_{entry.ArchiveIndex:D3}.vpk";
             var stream = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
-            return stream.CreateViewStream(entry.Offset, entry.Length, MemoryMappedFileAccess.Read);
+
+            var accessor = stream.CreateViewAccessor(entry.Offset, entry.Length, MemoryMappedFileAccess.Read);
+
+            return new FastMemoryMappedFileStream(accessor.SafeMemoryMappedViewHandle, accessor.PointerOffset, entry.Length, FileAccess.Read);
         }
     }
 }

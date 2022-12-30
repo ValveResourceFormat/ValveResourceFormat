@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
@@ -12,12 +13,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         {
             const int elementSize = 6;
             var stride = elementCount * elementSize;
-            Data = Enumerable.Range(0, data.Count / stride)
-                .SelectMany(i => wantedElements.SelectMany(j =>
+
+            Data = new byte[data.Count];
+
+            var pos = 0;
+            for (var i = 0; i < data.Count / stride; i++)
+            {
+                foreach (var j in wantedElements)
                 {
-                    return data.Slice(i * stride + j * elementSize, elementSize);
-                }).ToArray())
-                .ToArray();
+                    data.Slice(i * stride + j * elementSize, elementSize).CopyTo(Data, pos);
+                    pos += elementSize;
+                }
+            }
         }
 
         public override void Read(int frameIndex, Frame outFrame)

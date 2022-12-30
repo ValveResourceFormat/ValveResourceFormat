@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,7 @@ using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -593,10 +595,41 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private Span<byte> GetTextureSpan(int mipLevel = MipmapLevelToExtract)
+
+        public Span<byte> GetTextureSpan(int mipLevel = MipmapLevelToExtract) {
+            if (Reader.BaseStream is not FastMemoryMappedFileStream stream)
+            {
+                return GetTextureByteArray(mipLevel);
+            }
+
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+
+            if (!IsActuallyCompressedMips)
+            {
+                return stream.GetSpan( uncompressedSize);
+            }
+
+            var compressedSize = CompressedMips[mipLevel];
+
+            if (compressedSize >= uncompressedSize)
+            {
+                return stream.GetSpan( uncompressedSize);
+            }
+
+            var span = stream.GetSpan(compressedSize);
+
+            var output = new byte[uncompressedSize];
+
+            LZ4Codec.Decode(span, output);
+
+            return output;
+        }
+
+        //TODO Consider removing, only used by the above in the case that the stream is not a FastMemoryMappedFileStream, which shouldn't ever happen?
+        private byte[] GetTextureByteArray(int mipLevel = MipmapLevelToExtract)
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
-            var output = new Span<byte>(new byte[uncompressedSize]);
+            var output = new byte[uncompressedSize];
 
             if (!IsActuallyCompressedMips)
             {
@@ -612,9 +645,11 @@ namespace ValveResourceFormat.ResourceTypes
                 return output;
             }
 
-            var input = Reader.ReadBytes(compressedSize);
-
-            LZ4Codec.Decode(input, output);
+            var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
+            var span = buf.AsSpan(0, compressedSize);
+            Reader.Read(span);
+            LZ4Codec.Decode(span, output);
+            ArrayPool<byte>.Shared.Return(buf);
 
             return output;
         }
