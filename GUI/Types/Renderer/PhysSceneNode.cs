@@ -92,14 +92,11 @@ namespace GUI.Types.Renderer
                 {
                     var hull = h.GetSubCollection("m_Hull");
 
-                    // NTRO and some older KV3 versions had arrays, new KV3 has binary blobs
-                    var isOldNonBinaryBlobs = hull is NTROStruct || ((KVObject)hull).Properties["m_Edges"].Type == KVType.ARRAY;
-
                     //m_vCentroid
                     //m_flMaxAngularRadius
                     //m_Vertices
                     IEnumerable<Vector3> vertices = null;
-                    if (isOldNonBinaryBlobs)
+                    if (hull is NTROStruct || ((KVObject)hull).Properties["m_Vertices"].Type == KVType.ARRAY)
                     {
                         var verticesArr = hull.GetArray("m_Vertices");
                         vertices = verticesArr.Select(v => v.ToVector3());
@@ -132,7 +129,7 @@ namespace GUI.Types.Renderer
                     }
                     //m_Planes
                     (int origin, int next)[] edges = null;
-                    if (isOldNonBinaryBlobs)
+                    if (hull is NTROStruct || ((KVObject)hull).Properties["m_Edges"].Type == KVType.ARRAY)
                     {
                         var edgesArr = hull.GetArray("m_Edges");
                         edges = edgesArr
@@ -169,7 +166,7 @@ namespace GUI.Types.Renderer
 
                     var vertOffset = verts.Count / 7;
                     Vector3[] vertices = null;
-                    if (mesh is NTROStruct)
+                    if (mesh is NTROStruct || ((KVObject)mesh).Properties["m_Vertices"].Type == KVType.ARRAY)
                     {
                         //NTRO has vertices as array of structs
                         var verticesArr = mesh.GetArray("m_Vertices");
@@ -205,7 +202,7 @@ namespace GUI.Types.Renderer
                     }
 
                     int[] triangles = null;
-                    if (mesh is NTROStruct)
+                    if (mesh is NTROStruct || ((KVObject)mesh).Properties["m_Triangles"].Type == KVType.ARRAY)
                     {
                         //NTRO and SOME KV3 has triangles as array of structs
                         var trianglesArr = mesh.GetArray("m_Triangles");
