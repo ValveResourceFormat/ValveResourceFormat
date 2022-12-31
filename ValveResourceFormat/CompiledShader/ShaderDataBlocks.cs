@@ -283,6 +283,21 @@ namespace ValveResourceFormat.CompiledShader
             {
                 AdditionalParams.Add(datareader.ReadNullTermString());
             }
+
+            // Seen in steampal's vr_complex VertexShader
+            if (Arg3 == 11)
+            {
+                if (Name != "S_FOLIAGE_ANIMATION_ENABLED")
+                {
+                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Arg3)} = 11", Name, nameof(Name));
+                }
+
+                var foliage = datareader.ReadInt32();
+                if (foliage != 0)
+                {
+                    throw new UnexpectedMagicException($"Unexpected additional arg", foliage, nameof(foliage));
+                }
+            }
         }
         public void PrintByteDetail()
         {
