@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -612,9 +613,18 @@ namespace ValveResourceFormat.ResourceTypes
                 return output;
             }
 
-            var input = Reader.ReadBytes(compressedSize);
+            var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
-            LZ4Codec.Decode(input, output);
+            try
+            {
+                var span = buf.AsSpan(0, compressedSize);
+                Reader.Read(span);
+                LZ4Codec.Decode(span, output);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buf);
+            }
 
             return output;
         }

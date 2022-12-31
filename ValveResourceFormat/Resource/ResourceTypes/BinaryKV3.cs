@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
@@ -66,11 +67,20 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var uncompressedSize = reader.ReadUInt32();
             var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
-
-            var input = reader.ReadBytes(compressedSize);
             var output = new Span<byte>(new byte[uncompressedSize]);
+            var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
-            LZ4Codec.Decode(input, output);
+            try
+            {
+                var input = buf.AsSpan(0, compressedSize);
+                reader.Read(input);
+
+                LZ4Codec.Decode(input, output);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buf);
+            }
 
             outStream.Write(output);
             outStream.Seek(0, SeekOrigin.Begin);
@@ -265,10 +275,20 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var input = reader.ReadBytes((int)compressedSize);
                 var output = new Span<byte>(new byte[uncompressedSize]);
+                var buf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
 
-                LZ4Codec.Decode(input, output);
+                try
+                {
+                    var input = buf.AsSpan(0, (int)compressedSize);
+                    reader.Read(input);
+
+                    LZ4Codec.Decode(input, output);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buf);
+                }
 
                 outStream.Write(output);
             }
@@ -284,16 +304,25 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var totalSize = uncompressedSize + blockTotalSize;
-                var input = reader.ReadBytes((int)compressedSize);
-
-                var output = new Span<byte>(new byte[totalSize]);
-
                 using var zstd = new ZstdSharp.Decompressor();
 
-                if (!zstd.TryUnwrap(input, output, out var written) || totalSize != written)
+                var totalSize = uncompressedSize + blockTotalSize;
+                var output = new Span<byte>(new byte[totalSize]);
+                var buf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
+
+                try
                 {
-                    throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {totalSize} bytes)");
+                    var input = buf.AsSpan(0, (int)compressedSize);
+                    reader.Read(input);
+
+                    if (!zstd.TryUnwrap(input, output, out var written) || totalSize != written)
+                    {
+                        throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {totalSize} bytes)");
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buf);
                 }
 
                 outStream.Write(output);
@@ -395,25 +424,34 @@ namespace ValveResourceFormat.ResourceTypes
                     while (outRead.BaseStream.Position < outRead.BaseStream.Length)
                     {
                         var compressedBlockLength = outRead.ReadUInt16();
-                        var input = new Span<byte>(new byte[compressedBlockLength]);
                         var output = new Span<byte>(new byte[compressionFrameSize]);
+                        var buf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
 
-                        reader.Read(input);
-
-                        if (lz4decoder.DecodeAndDrain(input, output, out var decoded) && decoded > 0)
+                        try
                         {
-                            if (decoded < output.Length)
+                            var input = buf.AsSpan(0, compressedBlockLength);
+
+                            reader.Read(input);
+
+                            if (lz4decoder.DecodeAndDrain(input, output, out var decoded) && decoded > 0)
                             {
-                                uncompressedBlocks.Write(output[..decoded]);
+                                if (decoded < output.Length)
+                                {
+                                    uncompressedBlocks.Write(output[..decoded]);
+                                }
+                                else
+                                {
+                                    uncompressedBlocks.Write(output);
+                                }
                             }
                             else
                             {
-                                uncompressedBlocks.Write(output);
+                                throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
                             }
                         }
-                        else
+                        finally
                         {
-                            throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
+                            ArrayPool<byte>.Shared.Return(buf);
                         }
                     }
                 }
