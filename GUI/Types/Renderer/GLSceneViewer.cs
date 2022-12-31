@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
@@ -92,7 +93,11 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.SetLocation(new Vector3(256));
             ViewerControl.Camera.LookAt(new Vector3(0));
 
+            var timer = new Stopwatch();
+            timer.Start();
             LoadScene();
+            timer.Stop();
+            Console.WriteLine($"Loading scene time: {timer.Elapsed}");
 
             if (Scene.AllNodes.Any())
             {
