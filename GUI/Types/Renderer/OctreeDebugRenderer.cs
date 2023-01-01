@@ -14,6 +14,7 @@ namespace GUI.Types.Renderer
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private readonly bool dynamic;
+        private bool built;
         private int vertexCount;
 
         public OctreeDebugRenderer(Octree<T> octree, VrfGuiContext guiContext, bool dynamic)
@@ -25,10 +26,6 @@ namespace GUI.Types.Renderer
             GL.UseProgram(shader.Program);
 
             vboHandle = GL.GenBuffer();
-            if (!dynamic)
-            {
-                Rebuild();
-            }
 
             vaoHandle = GL.GenVertexArray();
             GL.BindVertexArray(vaoHandle);
@@ -66,6 +63,9 @@ namespace GUI.Types.Renderer
 
         private static void AddBox(List<float> vertices, AABB box, float r, float g, float b, float a)
         {
+            // Adding a box will add many vertices, so ensure the required capacity for it up front
+            vertices.EnsureCapacity(vertices.Count + 14 * 12);
+
             AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), r, g, b, a);
             AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), r, g, b, a);
             AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Min.Z), r, g, b, a);
@@ -104,6 +104,15 @@ namespace GUI.Types.Renderer
                 {
                     AddOctreeNode(vertices, child, depth + 1);
                 }
+            }
+        }
+
+        public void StaticBuild()
+        {
+            if (!built)
+            {
+                built = true;
+                Rebuild();
             }
         }
 

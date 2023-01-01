@@ -55,7 +55,15 @@ namespace GUI.Types.Renderer
             ViewerControl = new GLViewerControl();
 
             InitializeControl();
-            ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
+            ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
+            {
+                showStaticOctree = v;
+
+                if (showStaticOctree)
+                {
+                    staticOctreeRenderer.StaticBuild();
+                }
+            });
             ViewerControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
             ViewerControl.AddCheckBox("Show Tools Materials", showToolsMaterials, (v) =>
             {
