@@ -269,6 +269,7 @@ namespace GUI
 
             ShowHideSearch();
 
+            tab.Tag = null; // Clear out ExportData, required for GC to collect to VrfGuiContext
             tab.Dispose();
         }
 
