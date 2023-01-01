@@ -131,6 +131,8 @@ namespace GUI.Types.Renderer
             Scene.MainCamera = e.Camera;
             Scene.Update(e.FrameTime);
 
+            GL.Enable(EnableCap.CullFace);
+
             if (ShowBaseGrid)
             {
                 baseGrid.Render(e.Camera, RenderPass.Both);

@@ -45,9 +45,10 @@ uniform vec4 g_vColorTint;
 
 // glass specific params
 #if param_F_GLASS == 1
+uniform bool g_bFresnel = true;
 uniform float g_flEdgeColorFalloff = 3.0;
-uniform float g_flEdgeColorMaxOpacity = 1.0;
-uniform float g_flEdgeColorThickness = 1.0;
+uniform float g_flEdgeColorMaxOpacity = 0.5;
+uniform float g_flEdgeColorThickness = 0.1;
 uniform vec4 g_vEdgeColor;
 uniform float g_flRefractScale = 0.1;
 uniform float g_flOpacityScale = 1.0;
@@ -132,8 +133,9 @@ void main()
 #if param_F_GLASS == 1
     vec4 glassColor = vec4(illumination * color.rgb * g_vColorTint.rgb, color.a);
 
-    float fresnel = pow(1.0 - abs(dot(worldNormal, viewDirection)), g_flEdgeColorFalloff);
-    vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_flEdgeColorMaxOpacity * fresnel);
+    float viewDotNormalInv = clamp(1.0 - (dot(viewDirection, worldNormal) - g_flEdgeColorThickness), 0.0, 1.0);
+    float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
+    vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);
 
     outputColor = mix(glassColor, fresnelColor, g_flOpacityScale);
 #else
