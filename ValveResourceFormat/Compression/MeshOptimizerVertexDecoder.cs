@@ -2,6 +2,7 @@
  * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/vertexcodec.cpp
  */
 using System;
+using System.Buffers;
 
 namespace ValveResourceFormat.Compression
 {
@@ -162,33 +163,43 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }
 
-            var buffer = new Span<byte>(new byte[VertexBlockMaxSize]);
-            var transposed = new Span<byte>(new byte[VertexBlockSizeBytes]);
+            var bufferPool = ArrayPool<byte>.Shared.Rent(VertexBlockMaxSize);
+            var buffer = bufferPool.AsSpan(0, VertexBlockMaxSize);
+            var transposedPool = ArrayPool<byte>.Shared.Rent(VertexBlockSizeBytes);
+            var transposed = transposedPool.AsSpan(0, VertexBlockSizeBytes);
 
-            var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
-
-            for (var k = 0; k < vertexSize; ++k)
+            try
             {
-                data = DecodeBytes(data, buffer[..vertexCountAligned]);
+                var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
 
-                var vertexOffset = k;
-
-                var p = lastVertex[k];
-
-                for (var i = 0; i < vertexCount; ++i)
+                for (var k = 0; k < vertexSize; ++k)
                 {
-                    var v = (byte)(Unzigzag8(buffer[i]) + p);
+                    data = DecodeBytes(data, buffer[..vertexCountAligned]);
 
-                    transposed[vertexOffset] = v;
-                    p = v;
+                    var vertexOffset = k;
 
-                    vertexOffset += vertexSize;
+                    var p = lastVertex[k];
+
+                    for (var i = 0; i < vertexCount; ++i)
+                    {
+                        var v = (byte)(Unzigzag8(buffer[i]) + p);
+
+                        transposed[vertexOffset] = v;
+                        p = v;
+
+                        vertexOffset += vertexSize;
+                    }
                 }
+
+                transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
+
+                transposed.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
             }
-
-            transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
-
-            transposed.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(bufferPool);
+                ArrayPool<byte>.Shared.Return(transposedPool);
+            }
 
             return data;
         }
