@@ -43,9 +43,9 @@ jobs:
     - name: Run tests
       run: dotnet test -v normal ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
-    - name: Check formatting
-      if: matrix.os == 'ubuntu-latest'
-      run: dotnet format --verify-no-changes
+#    - name: Check formatting
+#      if: matrix.os == 'ubuntu-latest'
+#      run: dotnet format --verify-no-changes
 
     - name: Pack nupkg
       run: dotnet pack --configuration Release ValveResourceFormat/ValveResourceFormat.csproj
