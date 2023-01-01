@@ -221,7 +221,8 @@ namespace GUI.Types.Viewers
                                 new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences
                                     .ResourceRefInfoList), null),
                     };
-                    externalRefs.CellDoubleClick += (object sender, DataGridViewCellEventArgs e) =>
+
+                    void OnCellDoubleClick(object sender, DataGridViewCellEventArgs e)
                     {
                         if (e.RowIndex < 0)
                         {
@@ -244,7 +245,16 @@ namespace GUI.Types.Viewers
 
                             Program.MainForm.OpenFile(newVrfGuiContext, file);
                         }
-                    };
+                    }
+
+                    void OnDisposed(object o, EventArgs e)
+                    {
+                        externalRefs.CellDoubleClick -= OnCellDoubleClick;
+                        externalRefs.Disposed -= OnDisposed;
+                    }
+
+                    externalRefs.CellDoubleClick += OnCellDoubleClick;
+                    externalRefs.Disposed += OnDisposed;
                     externalRefsTab.Controls.Add(externalRefs);
 
                     resTabs.TabPages.Add(externalRefsTab);
