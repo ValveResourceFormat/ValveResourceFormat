@@ -12,7 +12,7 @@ using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
-    public class AdvancedGuiFileLoader : IFileLoader
+    public class AdvancedGuiFileLoader : IFileLoader, IDisposable
     {
         private static readonly Dictionary<string, Package> CachedPackages = new();
         private readonly HashSet<string> CurrentGameSearchPaths = new();
@@ -25,6 +25,34 @@ namespace GUI.Utils
         public AdvancedGuiFileLoader(VrfGuiContext guiContext)
         {
             GuiContext = guiContext;
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ClearCache();
+
+                foreach (var package in CachedPackages.Values)
+                {
+                    package.Dispose();
+                }
+
+                CachedPackages.Clear();
+
+                foreach (var package in CurrentGamePackages)
+                {
+                    package.Dispose();
+                }
+
+                CurrentGamePackages.Clear();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
 
         public void ClearCache()

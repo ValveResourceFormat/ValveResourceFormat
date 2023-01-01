@@ -17,7 +17,7 @@ namespace GUI.Utils
         public ShaderLoader ShaderLoader { get; }
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; }
-        public VrfGuiContext ParentGuiContext { get; }
+        public VrfGuiContext ParentGuiContext { get; private set; }
 
         // TODO: This buffer should not be here
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
@@ -51,10 +51,17 @@ namespace GUI.Utils
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && CurrentPackage != null)
+            if (disposing)
             {
-                CurrentPackage.Dispose();
-                CurrentPackage = null;
+                ParentGuiContext = null;
+
+                if (CurrentPackage != null)
+                {
+                    CurrentPackage.Dispose();
+                    CurrentPackage = null;
+                }
+
+                FileLoader.Dispose();
             }
         }
 
