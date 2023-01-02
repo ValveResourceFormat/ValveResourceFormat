@@ -196,7 +196,23 @@ namespace GUI.Controls
 
             CheckOpenGL();
 
-            GLLoad?.Invoke(this, e);
+            try
+            {
+                GLLoad?.Invoke(this, e);
+            }
+            catch (Exception exception)
+            {
+                var control = new MonospaceTextBox
+                {
+                    Text = exception.ToString(),
+                    Dock = DockStyle.Fill
+                };
+
+                glControlContainer.Controls.Clear();
+                glControlContainer.Controls.Add(control);
+
+                throw;
+            }
 
             HandleResize();
             Draw();
