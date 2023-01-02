@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer
         double NextNumber();
     }
 
-    public class LiteralNumberProvider : INumberProvider
+    public readonly struct LiteralNumberProvider : INumberProvider
     {
         private readonly double value;
 

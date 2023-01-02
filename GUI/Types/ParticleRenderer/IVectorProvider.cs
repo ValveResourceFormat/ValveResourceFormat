@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer
         Vector3 NextVector();
     }
 
-    public class LiteralVectorProvider : IVectorProvider
+    public readonly struct LiteralVectorProvider : IVectorProvider
     {
         private readonly Vector3 value;
 
