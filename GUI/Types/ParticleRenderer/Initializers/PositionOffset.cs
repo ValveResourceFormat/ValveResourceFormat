@@ -6,8 +6,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class PositionOffset : IParticleInitializer
     {
-        private readonly Vector3 offsetMin = Vector3.Zero;
-        private readonly Vector3 offsetMax = Vector3.Zero;
+        private readonly IVectorProvider offsetMin = new LiteralVectorProvider(Vector3.Zero);
+        private readonly IVectorProvider offsetMax = new LiteralVectorProvider(Vector3.Zero);
 
         private readonly Random random = new();
 
@@ -15,21 +15,22 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             if (keyValues.ContainsKey("m_OffsetMin"))
             {
-                var vectorValues = keyValues.GetArray<double>("m_OffsetMin");
-                offsetMin = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                offsetMin = keyValues.GetVectorProvider("m_OffsetMin");
             }
 
             if (keyValues.ContainsKey("m_OffsetMax"))
             {
-                var vectorValues = keyValues.GetArray<double>("m_OffsetMax");
-                offsetMax = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                offsetMax = keyValues.GetVectorProvider("m_OffsetMax");
             }
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var distance = offsetMax - offsetMin;
-            var offset = offsetMin + (distance * new Vector3((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble()));
+            var min = offsetMin.NextVector();
+            var max = offsetMax.NextVector();
+
+            var distance = min - max;
+            var offset = min + (distance * new Vector3((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble()));
 
             particle.Position += offset;
 

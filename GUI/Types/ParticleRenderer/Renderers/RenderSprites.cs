@@ -21,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly float animationRate = 0.1f;
 
         private readonly bool additive;
-        private readonly float overbrightFactor = 1;
+        private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
         private readonly long orientationType;
 
         private float[] rawVertices;
@@ -50,11 +50,18 @@ namespace GUI.Types.ParticleRenderer.Renderers
             additive = keyValues.GetProperty<bool>("m_bAdditive");
             if (keyValues.ContainsKey("m_flOverbrightFactor"))
             {
-                overbrightFactor = keyValues.GetFloatProperty("m_flOverbrightFactor");
+                overbrightFactor = keyValues.GetNumberProvider("m_flOverbrightFactor");
             }
 
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
+                /* TODO: Support strings here
+                PARTICLE_ORIENTATION_SCREEN_ALIGNED
+                PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED
+                PARTICLE_ORIENTATION_WORLD_Z_ALIGNED
+                PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+                PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL
+                */
                 orientationType = keyValues.GetIntegerProperty("m_nOrientationType");
             }
 
@@ -245,7 +252,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref otkProjection);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor);
+            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor.NextNumber());
 
             GL.Disable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
