@@ -166,6 +166,11 @@ namespace GUI.Utils
             {
                 Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
 
+                if (string.IsNullOrEmpty(file) || file == "_c")
+                {
+                    Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
+                }
+
                 return null;
             }
 
