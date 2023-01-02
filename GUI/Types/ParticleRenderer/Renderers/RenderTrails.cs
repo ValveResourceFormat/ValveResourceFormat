@@ -11,7 +11,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
 {
     internal class RenderTrails : IParticleRenderer
     {
-        private readonly Shader shader;
+        private const string ShaderName = "vrf.particle.trail";
+
+        private Shader shader;
+        private readonly VrfGuiContext guiContext;
         private readonly int quadVao;
         private readonly int glTexture;
 
@@ -30,7 +33,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public RenderTrails(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
-            shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.particle.trail", new Dictionary<string, bool>());
+            guiContext = vrfGuiContext;
+            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, new Dictionary<string, bool>());
 
             // The same quad is reused for all particles
             quadVao = SetupQuadBuffer();
@@ -244,6 +248,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             GL.Disable(EnableCap.Blend);
+        }
+
+        public IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
+
+        public void SetRenderMode(string renderMode)
+        {
+            var parameters = new Dictionary<string, bool>();
+
+            if (renderMode != null && shader.RenderModes.Contains(renderMode))
+            {
+                parameters.Add($"renderMode_{renderMode}", true);
+            }
+
+            shader = guiContext.ShaderLoader.LoadShader(ShaderName, parameters);
         }
     }
 }

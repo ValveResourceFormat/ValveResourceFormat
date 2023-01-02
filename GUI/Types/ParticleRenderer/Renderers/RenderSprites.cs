@@ -11,9 +11,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 {
     internal class RenderSprites : IParticleRenderer
     {
+        private const string ShaderName = "vrf.particle.sprite";
         private const int VertexSize = 9;
 
-        private readonly Shader shader;
+        private Shader shader;
+        private readonly VrfGuiContext guiContext;
         private readonly int quadVao;
         private readonly int glTexture;
 
@@ -30,7 +32,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
-            shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.particle.sprite", new Dictionary<string, bool>());
+            guiContext = vrfGuiContext;
+            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, new Dictionary<string, bool>());
             quadIndices = vrfGuiContext.QuadIndices;
 
             // The same quad is reused for all particles
@@ -276,6 +279,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             GL.Disable(EnableCap.Blend);
+        }
+
+        public IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
+
+        public void SetRenderMode(string renderMode)
+        {
+            var parameters = new Dictionary<string, bool>();
+
+            if (renderMode != null && shader.RenderModes.Contains(renderMode))
+            {
+                parameters.Add($"renderMode_{renderMode}", true);
+            }
+
+            shader = guiContext.ShaderLoader.LoadShader(ShaderName, parameters);
         }
     }
 }

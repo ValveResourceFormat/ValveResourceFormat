@@ -1,5 +1,8 @@
 #version 400
 
+// Render modes -- Switched on/off by code
+#define param_renderMode_Color 0
+
 uniform sampler2D uTexture;
 uniform float uOverbrightFactor;
 
@@ -15,4 +18,8 @@ void main(void) {
     float blendingFactor = uOverbrightFactor * (0.212 * finalColor.x + 0.715 * finalColor.y + 0.0722 * finalColor.z);
 
     fragColor = vec4(finalColor, vColor.w * color.w * blendingFactor);
+
+#if param_renderMode_Color == 1
+    fragColor = vec4(finalColor, 1.0);
+#endif
 }
