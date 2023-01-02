@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace GUI
@@ -15,28 +16,39 @@ namespace GUI
         internal static void Main()
         {
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
-            //Application.ThreadException += WinFormsException;
-            // Force proper culture so exported OBJ files use . instead of ,
+            Application.ThreadException += ThreadException;
+
+            // Set invariant culture so we have consistent localization (e.g. dots do not get encoded as commas)
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
             Application.EnableVisualStyles();
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            Application.SetCompatibleTextRenderingDefault(false);
+
             MainForm = new MainForm();
             Application.Run(MainForm);
         }
 
-        private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
+        private static void ThreadException(object sender, ThreadExceptionEventArgs e)
         {
-            ShowError("Unhandled Error", (Exception)ex.ExceptionObject);
+            ShowError(e.Exception);
         }
 
-        private static void ShowError(string title, Exception e)
+        private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
         {
-            Console.WriteLine(e);
+            ShowError((Exception)ex.ExceptionObject);
+        }
 
-            MessageBox.Show(e.GetType() + Environment.NewLine + e.Message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        private static void ShowError(Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+
+            MessageBox.Show(
+                $"{exception.Message}{Environment.NewLine}{Environment.NewLine}See console for more information.",
+                $"Unhandled exception: {exception.GetType()}",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
         }
     }
 }
