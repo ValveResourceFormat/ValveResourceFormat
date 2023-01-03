@@ -23,6 +23,7 @@ namespace GUI.Types.ParticleRenderer
         private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleInitializer>> InitializerDictionary
             = new Dictionary<string, Func<IKeyValueCollection, IParticleInitializer>>
             {
+                ["C_INIT_InitFloat"] = initializerInfo => new InitFloat(initializerInfo),
                 ["C_INIT_CreateWithinSphere"] = initializerInfo => new CreateWithinSphere(initializerInfo),
                 ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
                 ["C_INIT_OffsetVectorToVector"] = initializerInfo => new OffsetVectorToVector(initializerInfo),
