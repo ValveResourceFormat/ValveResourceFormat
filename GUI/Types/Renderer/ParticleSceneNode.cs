@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
@@ -25,5 +26,7 @@ namespace GUI.Types.Renderer
         {
             particleRenderer.Render(context.Camera, context.RenderPass);
         }
+
+        public override IEnumerable<string> GetSupportedRenderModes() => particleRenderer.GetSupportedRenderModes();
     }
 }
