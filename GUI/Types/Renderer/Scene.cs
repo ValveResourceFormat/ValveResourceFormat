@@ -22,6 +22,8 @@ namespace GUI.Types.Renderer
             public Camera Camera { get; init; }
             public Vector3? LightPosition { get; init; }
             public RenderPass RenderPass { get; set; }
+            public Shader ReplacementShader { get; set; }
+            public PickingTexture Picking { get; set; }
             public bool RenderToolsMaterials { get; init; }
         }
 
@@ -75,7 +77,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void RenderWithCamera(Camera camera, Frustum cullFrustum = null)
+        public void RenderWithCamera(Camera camera, Frustum cullFrustum = null, PickingTexture pt = null)
         {
             var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
             allNodes.AddRange(DynamicOctree.Query(cullFrustum ?? camera.ViewFrustum));
@@ -136,6 +138,13 @@ namespace GUI.Types.Renderer
                 RenderToolsMaterials = ShowToolsMaterials,
             };
 
+            if (cullFrustum is not null && pt is not null)
+            {
+                renderContext.ReplacementShader = pt.shader;
+                renderContext.Picking = pt;
+                //pt.Render();
+            }
+
             MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);
             foreach (var node in looseNodes)
             {
@@ -149,6 +158,13 @@ namespace GUI.Types.Renderer
             foreach (var node in Enumerable.Reverse(looseNodes))
             {
                 node.Render(renderContext);
+            }
+
+            if (cullFrustum is not null && pt is not null)
+            {
+                PickingTexture.Finish();
+                // Render normally
+                RenderWithCamera(camera, cullFrustum, null);
             }
         }
 

@@ -52,6 +52,11 @@ namespace GUI.Types.Renderer
             {
                 var shader = shaderGroup.Key;
 
+                if (context.ReplacementShader != null)
+                {
+                    shader = context.ReplacementShader;
+                }
+
                 var uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
                 var uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
                 var uniformLocationNumBones = shader.GetUniformLocation("fNumBones");
@@ -81,6 +86,8 @@ namespace GUI.Types.Renderer
                     {
                         var transformTk = request.Transform.ToOpenTK();
                         GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
+
+                        GL.Uniform1(shader.GetUniformLocation("sceneObjectId"), request.DistanceFromCamera);
 
                         if (uniformLocationTime != 1)
                         {

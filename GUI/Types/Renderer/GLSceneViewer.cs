@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
         private readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
+        private PickingTexture pickingTexture;
 
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
         {
@@ -120,6 +121,8 @@ namespace GUI.Types.Renderer
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
+            pickingTexture = new PickingTexture(1024, 1024, Scene.GuiContext);
+
             if (renderModeComboBox != null)
             {
                 var supportedRenderModes = Scene.AllNodes
@@ -159,7 +162,7 @@ namespace GUI.Types.Renderer
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
+            Scene.RenderWithCamera(e.Camera, lockedCullFrustum, pickingTexture);
 
             if (showStaticOctree)
             {
