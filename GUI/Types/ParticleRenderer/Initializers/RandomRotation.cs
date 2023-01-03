@@ -8,8 +8,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private const float PiOver180 = (float)Math.PI / 180f;
 
-        private readonly Random random;
-
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
         private readonly float degreesOffset;
@@ -18,8 +16,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public RandomRotation(IKeyValueCollection keyValues)
         {
-            random = new Random();
-
             if (keyValues.ContainsKey("m_flDegreesMin"))
             {
                 degreesMin = keyValues.GetFloatProperty("m_flDegreesMin");
@@ -48,8 +44,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var degrees = degreesOffset + degreesMin + ((float)random.NextDouble() * (degreesMax - degreesMin));
-            if (randomlyFlipDirection && random.NextDouble() > 0.5)
+            var degrees = degreesOffset + degreesMin + ((float)Random.Shared.NextDouble() * (degreesMax - degreesMin));
+            if (randomlyFlipDirection && Random.Shared.NextDouble() > 0.5)
             {
                 degrees *= -1;
             }

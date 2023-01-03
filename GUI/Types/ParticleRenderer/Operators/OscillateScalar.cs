@@ -15,8 +15,6 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationOffset = 0.5f;
         private readonly bool proportional = true;
 
-        private readonly Random random;
-
         public OscillateScalar(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_nField"))
@@ -58,8 +56,6 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 proportional = keyValues.GetProperty<bool>("m_bProportionalOp");
             }
-
-            random = new Random();
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -110,7 +106,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
             else
             {
-                var newRate = rateMin + ((float)random.NextDouble() * (rateMax - rateMin));
+                var newRate = rateMin + ((float)Random.Shared.NextDouble() * (rateMax - rateMin));
                 particleRates[particleId] = newRate;
                 return newRate;
             }
@@ -124,7 +120,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
             else
             {
-                var newFrequency = frequencyMin + ((float)random.NextDouble() * (frequencyMax - frequencyMin));
+                var newFrequency = frequencyMin + ((float)Random.Shared.NextDouble() * (frequencyMax - frequencyMin));
                 particleFrequencies[particleId] = newFrequency;
                 return newFrequency;
             }

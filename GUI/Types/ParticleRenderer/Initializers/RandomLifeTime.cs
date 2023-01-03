@@ -5,15 +5,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     public class RandomLifeTime : IParticleInitializer
     {
-        private readonly Random random;
-
         private readonly float lifetimeMin;
         private readonly float lifetimeMax;
 
         public RandomLifeTime(IKeyValueCollection keyValues)
         {
-            random = new Random();
-
             if (keyValues.ContainsKey("m_fLifetimeMin"))
             {
                 lifetimeMin = keyValues.GetFloatProperty("m_fLifetimeMin");
@@ -27,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var lifetime = lifetimeMin + ((lifetimeMax - lifetimeMin) * (float)random.NextDouble());
+            var lifetime = lifetimeMin + ((lifetimeMax - lifetimeMin) * (float)Random.Shared.NextDouble());
 
             particle.ConstantLifetime = lifetime;
             particle.Lifetime = lifetime;

@@ -8,12 +8,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float radiusMin;
         private readonly float radiusMax;
 
-        private readonly Random random;
-
         public RandomRadius(IKeyValueCollection keyValues)
         {
-            random = new Random();
-
             if (keyValues.ContainsKey("m_flRadiusMin"))
             {
                 radiusMin = keyValues.GetFloatProperty("m_flRadiusMin");
@@ -27,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.ConstantRadius = radiusMin + ((float)random.NextDouble() * (radiusMax - radiusMin));
+            particle.ConstantRadius = radiusMin + ((float)Random.Shared.NextDouble() * (radiusMax - radiusMin));
             particle.Radius = particle.ConstantRadius;
 
             return particle;

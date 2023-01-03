@@ -9,12 +9,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 colorMin = Vector3.One;
         private readonly Vector3 colorMax = Vector3.One;
 
-        private readonly Random random;
-
         public RandomColor(IKeyValueCollection keyValues)
         {
-            random = new Random();
-
             if (keyValues.ContainsKey("m_ColorMin"))
             {
                 var vectorValues = keyValues.GetIntegerArray("m_ColorMin");
@@ -30,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var t = (float)random.NextDouble();
+            var t = (float)Random.Shared.NextDouble();
             particle.ConstantColor = colorMin + (t * (colorMax - colorMin));
             particle.Color = particle.ConstantColor;
 

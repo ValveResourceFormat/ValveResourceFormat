@@ -8,12 +8,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int alphaMin = 255;
         private readonly int alphaMax = 255;
 
-        private readonly Random random;
-
         public RandomAlpha(IKeyValueCollection keyValue)
         {
-            random = new Random();
-
             if (keyValue.ContainsKey("m_nAlphaMin"))
             {
                 alphaMin = (int)keyValue.GetIntegerProperty("m_nAlphaMin");
@@ -34,7 +30,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var alpha = random.Next(alphaMin, alphaMax) / 255f;
+            var alpha = Random.Shared.Next(alphaMin, alphaMax) / 255f;
 
             particle.ConstantAlpha = alpha;
             particle.Alpha = alpha;
