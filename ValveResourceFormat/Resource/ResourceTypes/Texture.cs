@@ -594,10 +594,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private Span<byte> GetTextureSpan(int mipLevel = MipmapLevelToExtract)
+        private byte[] GetTextureSpan(int mipLevel = MipmapLevelToExtract)
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
-            var output = new Span<byte>(new byte[uncompressedSize]);
+            var output = new byte[uncompressedSize];
 
             ReadTexture(mipLevel, output);
 
@@ -641,7 +641,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return Reader;
             }
 
-            var outStream = new MemoryStream(GetTextureSpan().ToArray(), false);
+            var outStream = new MemoryStream(GetTextureSpan(), false);
 
             return new BinaryReader(outStream); // TODO: dispose
         }
@@ -651,7 +651,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
         {
-            return GetTextureSpan(mipLevel).ToArray();
+            // This method is exposed publicly for consumers. GetTextureSpan/GetDecompressedBuffer should be cleaned up in decoder use
+            return GetTextureSpan(mipLevel);
         }
 
         /// <summary>
