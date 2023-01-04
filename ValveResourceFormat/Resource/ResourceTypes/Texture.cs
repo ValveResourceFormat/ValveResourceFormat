@@ -358,6 +358,20 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = DataOffset;
 
+            SkipMipmaps();
+
+            switch (Format)
+            {
+                // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
+                case VTexFormat.JPEG_DXT5:
+                case VTexFormat.JPEG_RGBA8888:
+                    return SKBitmap.Decode(Reader.ReadBytes((int)(Reader.BaseStream.Length - Reader.BaseStream.Position)));
+
+                case VTexFormat.PNG_DXT5:
+                case VTexFormat.PNG_RGBA8888:
+                    return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
+            }
+
             var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
             var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
             var blockWidth = MipLevelSize(Width, MipmapLevelToExtract);
@@ -366,7 +380,6 @@ namespace ValveResourceFormat.ResourceTypes
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             ITextureDecoder decoder = null;
 
-            SkipMipmaps();
 
             switch (Format)
             {
@@ -466,15 +479,6 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.ATI1N:
                     decoder = new DecodeATI1N(Width, Height);
                     break;
-
-                // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
-                case VTexFormat.JPEG_DXT5:
-                case VTexFormat.JPEG_RGBA8888:
-                    return SKBitmap.Decode(Reader.ReadBytes((int)(Reader.BaseStream.Length - Reader.BaseStream.Position)));
-
-                case VTexFormat.PNG_DXT5:
-                case VTexFormat.PNG_RGBA8888:
-                    return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
 
                 case VTexFormat.ETC2:
                     // TODO: Rewrite EtcDecoder to work on skia span directly
