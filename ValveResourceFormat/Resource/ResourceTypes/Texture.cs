@@ -678,7 +678,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                 ReadTexture(i, output);
 
-                // TODO: Try to improve this without using ToArray because it still allocates
                 yield return (i, width, height, uncompressedSize);
             }
         }
