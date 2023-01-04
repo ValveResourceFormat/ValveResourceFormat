@@ -590,14 +590,14 @@ namespace ValveResourceFormat.ResourceTypes
             return width * height * depth * bytesPerPixel;
         }
 
-        private void SkipMipmaps()
+        private void SkipMipmaps(int desiredMipLevel = MipmapLevelToExtract)
         {
             if (NumMipLevels < 2)
             {
                 return;
             }
 
-            for (var j = NumMipLevels - 1; j > MipmapLevelToExtract; j--)
+            for (var j = NumMipLevels - 1; j > desiredMipLevel; j--)
             {
                 int offset;
 
@@ -671,7 +671,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
         {
-            // This method is exposed publicly for consumers. GetTextureSpan/GetDecompressedBuffer should be cleaned up in decoder use
+            Reader.BaseStream.Position = DataOffset;
+
+            SkipMipmaps(mipLevel);
+
             return GetTextureSpan(mipLevel);
         }
 
