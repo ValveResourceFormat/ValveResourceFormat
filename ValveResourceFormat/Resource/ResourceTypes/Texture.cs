@@ -10,6 +10,7 @@ using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -363,13 +364,15 @@ namespace ValveResourceFormat.ResourceTypes
             var blockHeight = MipLevelSize(Height, MipmapLevelToExtract);
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            ITextureDecoder decoder = null;
 
             SkipMipmaps();
 
             switch (Format)
             {
                 case VTexFormat.DXT1:
-                    return TextureDecompressors.UncompressDXT1(skiaBitmap, GetTextureSpan(), blockWidth, blockHeight);
+                    decoder = new DecodeDXT1(blockWidth, blockHeight);
+                    break;
 
                 case VTexFormat.DXT5:
                     var yCoCg = false;
@@ -387,13 +390,16 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
                     }
 
-                    return TextureDecompressors.UncompressDXT5(skiaBitmap, GetTextureSpan(), blockWidth, blockHeight, yCoCg, normalize, invert, hemiOct);
+                    decoder = new DecodeDXT5(blockWidth, blockHeight, yCoCg, normalize, invert, hemiOct);
+                    break;
 
                 case VTexFormat.I8:
-                    return TextureDecompressors.ReadI8(skiaBitmap, GetTextureSpan());
+                    decoder = new DecodeI8();
+                    break;
 
                 case VTexFormat.RGBA8888:
-                    return TextureDecompressors.ReadRGBA8888(skiaBitmap, GetTextureSpan());
+                    decoder = new DecodeRGBA8888();
+                    break;
 
                 case VTexFormat.R16:
                     return TextureDecompressors.ReadR16(GetDecompressedBuffer(), Width, Height);
@@ -402,7 +408,8 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadRG1616(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA16161616:
-                    return TextureDecompressors.ReadRGBA16161616(skiaBitmap, GetTextureSpan());
+                    decoder = new DecodeRGBA16161616();
+                    break;
 
                 case VTexFormat.R16F:
                     return TextureDecompressors.ReadR16F(GetDecompressedBuffer(), Width, Height);
@@ -411,7 +418,8 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadRG1616F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.RGBA16161616F:
-                    return TextureDecompressors.ReadRGBA16161616F(skiaBitmap, GetTextureSpan());
+                    decoder = new DecodeRGBA16161616F();
+                    break;
 
                 case VTexFormat.R32F:
                     return TextureDecompressors.ReadR32F(GetDecompressedBuffer(), Width, Height);
@@ -448,13 +456,16 @@ namespace ValveResourceFormat.ResourceTypes
                         normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
                     }
 
-                    return TextureDecompressors.UncompressATI2N(skiaBitmap, GetTextureSpan(), Width, Height, normalize);
+                    decoder = new DecodeATI2N(Width, Height, normalize);
+                    break;
 
                 case VTexFormat.IA88:
-                    return TextureDecompressors.ReadIA88(skiaBitmap, GetTextureSpan());
+                    decoder = new DecodeIA88();
+                    break;
 
                 case VTexFormat.ATI1N:
-                    return TextureDecompressors.UncompressATI1N(skiaBitmap, GetTextureSpan(), Width, Height);
+                    decoder = new DecodeATI1N(Width, Height);
+                    break;
 
                 // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:
@@ -472,7 +483,7 @@ namespace ValveResourceFormat.ResourceTypes
                     etc.DecompressETC2(GetTextureSpan().ToArray(), width, height, data);
                     var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
                     skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle.Free(); }, null);
-                    break;
+                    return skiaBitmap;
 
                 case VTexFormat.ETC2_EAC:
                     // TODO: Rewrite EtcDecoder to work on skia span directly
@@ -481,14 +492,19 @@ namespace ValveResourceFormat.ResourceTypes
                     etc2.DecompressETC2A8(GetTextureSpan().ToArray(), width, height, data2);
                     var gcHandle2 = GCHandle.Alloc(data2, GCHandleType.Pinned);
                     skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle2.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle2.Free(); }, null);
-                    break;
+                    return skiaBitmap;
 
                 case VTexFormat.BGRA8888:
-                    return TextureDecompressors.ReadBGRA8888(skiaBitmap, GetTextureSpan());
-
-                default:
-                    throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
+                    decoder = new DecodeBGRA8888();
+                    break;
             }
+
+            if (decoder == null)
+            {
+                throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
+            }
+
+            decoder.Decode(skiaBitmap, GetTextureSpan());
 
             return skiaBitmap;
         }
