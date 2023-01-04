@@ -485,22 +485,12 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.ETC2:
-                    // TODO: Rewrite EtcDecoder to work on skia span directly
-                    var etc = new Etc.EtcDecoder();
-                    var data = new byte[skiaBitmap.RowBytes * skiaBitmap.Height];
-                    etc.DecompressETC2(GetTextureSpan().ToArray(), width, height, data);
-                    var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
-                    skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle.Free(); }, null);
-                    return skiaBitmap;
+                    decoder = new DecodeETC2(width, height);
+                    break;
 
                 case VTexFormat.ETC2_EAC:
-                    // TODO: Rewrite EtcDecoder to work on skia span directly
-                    var etc2 = new Etc.EtcDecoder();
-                    var data2 = new byte[skiaBitmap.RowBytes * skiaBitmap.Height];
-                    etc2.DecompressETC2A8(GetTextureSpan().ToArray(), width, height, data2);
-                    var gcHandle2 = GCHandle.Alloc(data2, GCHandleType.Pinned);
-                    skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle2.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle2.Free(); }, null);
-                    return skiaBitmap;
+                    decoder = new DecodeETC2EAC(width, height);
+                    break;
 
                 case VTexFormat.BGRA8888:
                     decoder = new DecodeBGRA8888();
