@@ -469,7 +469,7 @@ namespace ValveResourceFormat.ResourceTypes
                     // TODO: Rewrite EtcDecoder to work on skia span directly
                     var etc = new Etc.EtcDecoder();
                     var data = new byte[skiaBitmap.RowBytes * skiaBitmap.Height];
-                    etc.DecompressETC2(GetDecompressedTextureAtMipLevel(0), width, height, data);
+                    etc.DecompressETC2(GetTextureSpan().ToArray(), width, height, data);
                     var gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
                     skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle.Free(); }, null);
                     break;
@@ -478,7 +478,7 @@ namespace ValveResourceFormat.ResourceTypes
                     // TODO: Rewrite EtcDecoder to work on skia span directly
                     var etc2 = new Etc.EtcDecoder();
                     var data2 = new byte[skiaBitmap.RowBytes * skiaBitmap.Height];
-                    etc2.DecompressETC2A8(GetDecompressedTextureAtMipLevel(0), width, height, data2);
+                    etc2.DecompressETC2A8(GetTextureSpan().ToArray(), width, height, data2);
                     var gcHandle2 = GCHandle.Alloc(data2, GCHandleType.Pinned);
                     skiaBitmap.InstallPixels(skiaBitmap.Info, gcHandle2.AddrOfPinnedObject(), skiaBitmap.RowBytes, (address, context) => { gcHandle2.Free(); }, null);
                     break;
@@ -599,18 +599,25 @@ namespace ValveResourceFormat.ResourceTypes
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
             var output = new Span<byte>(new byte[uncompressedSize]);
 
+            ReadTexture(mipLevel, output);
+
+            return output;
+        }
+
+        private void ReadTexture(int mipLevel, Span<byte> output)
+        {
             if (!IsActuallyCompressedMips)
             {
                 Reader.Read(output);
-                return output;
+                return;
             }
 
             var compressedSize = CompressedMips[mipLevel];
 
-            if (compressedSize >= uncompressedSize)
+            if (compressedSize >= output.Length)
             {
                 Reader.Read(output);
-                return output;
+                return;
             }
 
             var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
@@ -625,13 +632,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 ArrayPool<byte>.Shared.Return(buf);
             }
-
-            return output;
-        }
-
-        public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
-        {
-            return GetTextureSpan(mipLevel).ToArray();
         }
 
         private BinaryReader GetDecompressedBuffer()
@@ -641,9 +641,46 @@ namespace ValveResourceFormat.ResourceTypes
                 return Reader;
             }
 
-            var outStream = new MemoryStream(GetDecompressedTextureAtMipLevel(MipmapLevelToExtract), false);
+            var outStream = new MemoryStream(GetTextureSpan().ToArray(), false);
 
             return new BinaryReader(outStream); // TODO: dispose
+        }
+
+        /// <summary>
+        /// Get decompressed texture at specified mip level. Use mipLevel=0 to get the highest resolution.
+        /// </summary>
+        public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
+        {
+            return GetTextureSpan(mipLevel).ToArray();
+        }
+
+        /// <summary>
+        /// Biggest buffer size to be used with <see cref="GetEveryMipLevelTexture"/>.
+        /// </summary>
+        public int GetBiggestBufferSize() => CalculateBufferSizeForMipLevel(0);
+
+        /// <summary>
+        /// Get every mip level size starting from the smallest one. Used when uploading textures to the GPU.
+        /// This writes into the buffer for every mip level, so the buffer must be used before next texture is yielded.
+        /// </summary>
+        /// <param name="buffer">Buffer to use when yielding textures, it should be size of <see cref="GetBiggestBufferSize"/> or bigger. This buffer is reused for every mip level.</param>
+        public IEnumerable<(int Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer)
+        {
+            Reader.BaseStream.Position = Offset + Size;
+
+            for (var i = NumMipLevels - 1; i >= 0; i--)
+            {
+                var width = Width >> i;
+                var height = Height >> i;
+
+                var uncompressedSize = CalculateBufferSizeForMipLevel(i);
+                var output = buffer.AsSpan(0, uncompressedSize);
+
+                ReadTexture(i, output);
+
+                // TODO: Try to improve this without using ToArray because it still allocates
+                yield return (i, width, height, uncompressedSize);
+            }
         }
 
         private int CalculatePngSize()
