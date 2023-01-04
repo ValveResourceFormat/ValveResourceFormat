@@ -30,7 +30,7 @@ namespace ValveResourceFormat.TextureDecoders
             {
                 for (int s = 0; s < bcw; s++, d += 8)
                 {
-                    DecodeEtc2Block(input, d);
+                    DecodeEtc2Block(input.Slice(d, 8));
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
                     for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {

@@ -52,8 +52,8 @@ namespace ValveResourceFormat.TextureDecoders
             {
                 for (int s = 0; s < bcw; s++, d += 16)
                 {
-                    DecodeEtc2Block(input, d + 8);
-                    DecodeEtc2a8Block(input, d);
+                    DecodeEtc2Block(input.Slice(d + 8, 8));
+                    DecodeEtc2a8Block(input.Slice(d, 8));
                     int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
                     for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
@@ -66,10 +66,10 @@ namespace ValveResourceFormat.TextureDecoders
             }
         }
 
-        private void DecodeEtc2a8Block(Span<byte> data, int offset)
+        private void DecodeEtc2a8Block(Span<byte> block)
         {
-            int @base = data[offset + 0];
-            int data1 = data[offset + 1];
+            int @base = block[0];
+            int data1 = block[1];
             int mul = data1 >> 4;
             if (mul == 0)
             {
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.TextureDecoders
             else
             {
                 int table = data1 & 0xF;
-                ulong l = Get6SwapedBytes(data, offset);
+                ulong l = Get6SwapedBytes(block);
                 for (int i = 0; i < 16; i++, l >>= 3)
                 {
                     uint c = m_buf[WriteOrderTableRev[i]];
@@ -96,11 +96,11 @@ namespace ValveResourceFormat.TextureDecoders
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ulong Get6SwapedBytes(Span<byte> data, int offset)
+        private static ulong Get6SwapedBytes(Span<byte> block)
         {
-            return data[offset + 7] | (uint)data[offset + 6] << 8 |
-                    (uint)data[offset + 5] << 16 | (uint)data[offset + 4] << 24 |
-                    (ulong)data[offset + 3] << 32 | (ulong)data[offset + 2] << 40;
+            return block[7] | (uint)block[6] << 8 |
+                    (uint)block[5] << 16 | (uint)block[4] << 24 |
+                    (ulong)block[3] << 32 | (ulong)block[2] << 40;
         }
     }
 }

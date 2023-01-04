@@ -30,32 +30,32 @@ namespace ValveResourceFormat.TextureDecoders
         protected readonly uint[] m_buf = new uint[16];
         protected byte[,] m_c = new byte[3, 3];
 
-        protected void DecodeEtc2Block(Span<byte> data, int offset)
+        protected void DecodeEtc2Block(Span<byte> block)
         {
-            ushort j = (ushort)(data[offset + 6] << 8 | data[offset + 7]);
-            ushort k = (ushort)(data[offset + 4] << 8 | data[offset + 5]);
+            ushort j = (ushort)(block[6] << 8 | block[7]);
+            ushort k = (ushort)(block[4] << 8 | block[5]);
 
-            if ((data[offset + 3] & 2) != 0)
+            if ((block[3] & 2) != 0)
             {
-                byte r = (byte)(data[offset + 0] & 0xf8);
-                short dr = (short)((data[offset + 0] << 3 & 0x18) - (data[offset + 0] << 3 & 0x20));
-                byte g = (byte)(data[offset + 1] & 0xf8);
-                short dg = (short)((data[offset + 1] << 3 & 0x18) - (data[offset + 1] << 3 & 0x20));
-                byte b = (byte)(data[offset + 2] & 0xf8);
-                short db = (short)((data[offset + 2] << 3 & 0x18) - (data[offset + 2] << 3 & 0x20));
+                byte r = (byte)(block[0] & 0xf8);
+                short dr = (short)((block[0] << 3 & 0x18) - (block[0] << 3 & 0x20));
+                byte g = (byte)(block[1] & 0xf8);
+                short dg = (short)((block[1] << 3 & 0x18) - (block[1] << 3 & 0x20));
+                byte b = (byte)(block[2] & 0xf8);
+                short db = (short)((block[2] << 3 & 0x18) - (block[2] << 3 & 0x20));
                 if (r + dr < 0 || r + dr > 255)
                 {
                     // T
                     unchecked
                     {
-                        m_c[0, 0] = (byte)(data[offset + 0] << 3 & 0xc0 | data[offset + 0] << 4 & 0x30 | data[offset + 0] >> 1 & 0xc | data[offset + 0] & 3);
-                        m_c[0, 1] = (byte)(data[offset + 1] & 0xf0 | data[offset + 1] >> 4);
-                        m_c[0, 2] = (byte)(data[offset + 1] & 0x0f | data[offset + 1] << 4);
-                        m_c[1, 0] = (byte)(data[offset + 2] & 0xf0 | data[offset + 2] >> 4);
-                        m_c[1, 1] = (byte)(data[offset + 2] & 0x0f | data[offset + 2] << 4);
-                        m_c[1, 2] = (byte)(data[offset + 3] & 0xf0 | data[offset + 3] >> 4);
+                        m_c[0, 0] = (byte)(block[0] << 3 & 0xc0 | block[0] << 4 & 0x30 | block[0] >> 1 & 0xc | block[0] & 3);
+                        m_c[0, 1] = (byte)(block[1] & 0xf0 | block[1] >> 4);
+                        m_c[0, 2] = (byte)(block[1] & 0x0f | block[1] << 4);
+                        m_c[1, 0] = (byte)(block[2] & 0xf0 | block[2] >> 4);
+                        m_c[1, 1] = (byte)(block[2] & 0x0f | block[2] << 4);
+                        m_c[1, 2] = (byte)(block[3] & 0xf0 | block[3] >> 4);
                     }
-                    byte d = Etc2DistanceTable[data[offset + 3] >> 1 & 6 | data[offset + 3] & 1];
+                    byte d = Etc2DistanceTable[block[3] >> 1 & 6 | block[3] & 1];
                     uint[] color_set =
                     {
                         ApplicateColorRaw(m_c, 0),
@@ -73,17 +73,17 @@ namespace ValveResourceFormat.TextureDecoders
                     // H
                     unchecked
                     {
-                        m_c[0, 0] = (byte)(data[offset + 0] << 1 & 0xf0 | data[offset + 0] >> 3 & 0xf);
-                        m_c[0, 1] = (byte)(data[offset + 0] << 5 & 0xe0 | data[offset + 1] & 0x10);
+                        m_c[0, 0] = (byte)(block[0] << 1 & 0xf0 | block[0] >> 3 & 0xf);
+                        m_c[0, 1] = (byte)(block[0] << 5 & 0xe0 | block[1] & 0x10);
                         m_c[0, 1] |= (byte)(m_c[0, 1] >> 4);
-                        m_c[0, 2] = (byte)(data[offset + 1] & 8 | data[offset + 1] << 1 & 6 | data[offset + 2] >> 7);
+                        m_c[0, 2] = (byte)(block[1] & 8 | block[1] << 1 & 6 | block[2] >> 7);
                         m_c[0, 2] |= (byte)(m_c[0, 2] << 4);
-                        m_c[1, 0] = (byte)(data[offset + 2] << 1 & 0xf0 | data[offset + 2] >> 3 & 0xf);
-                        m_c[1, 1] = (byte)(data[offset + 2] << 5 & 0xe0 | data[offset + 3] >> 3 & 0x10);
+                        m_c[1, 0] = (byte)(block[2] << 1 & 0xf0 | block[2] >> 3 & 0xf);
+                        m_c[1, 1] = (byte)(block[2] << 5 & 0xe0 | block[3] >> 3 & 0x10);
                         m_c[1, 1] |= (byte)(m_c[1, 1] >> 4);
-                        m_c[1, 2] = (byte)(data[offset + 3] << 1 & 0xf0 | data[offset + 3] >> 3 & 0xf);
+                        m_c[1, 2] = (byte)(block[3] << 1 & 0xf0 | block[3] >> 3 & 0xf);
                     }
-                    int di = data[offset + 3] & 4 | data[offset + 3] << 1 & 2;
+                    int di = block[3] & 4 | block[3] << 1 & 2;
                     if (m_c[0, 0] > m_c[1, 0] || (m_c[0, 0] == m_c[1, 0] && (m_c[0, 1] > m_c[1, 1] || (m_c[0, 1] == m_c[1, 1] && m_c[0, 2] >= m_c[1, 2]))))
                     {
                         ++di;
@@ -106,17 +106,17 @@ namespace ValveResourceFormat.TextureDecoders
                     // planar
                     unchecked
                     {
-                        m_c[0, 0] = (byte)(data[offset + 0] << 1 & 0xfc | data[offset + 0] >> 5 & 3);
-                        m_c[0, 1] = (byte)(data[offset + 0] << 7 & 0x80 | data[offset + 1] & 0x7e | data[offset + 0] & 1);
-                        m_c[0, 2] = (byte)(data[offset + 1] << 7 & 0x80 | data[offset + 2] << 2 & 0x60 | data[offset + 2] << 3 & 0x18 | data[offset + 3] >> 5 & 4);
+                        m_c[0, 0] = (byte)(block[0] << 1 & 0xfc | block[0] >> 5 & 3);
+                        m_c[0, 1] = (byte)(block[0] << 7 & 0x80 | block[1] & 0x7e | block[0] & 1);
+                        m_c[0, 2] = (byte)(block[1] << 7 & 0x80 | block[2] << 2 & 0x60 | block[2] << 3 & 0x18 | block[3] >> 5 & 4);
                         m_c[0, 2] |= (byte)(m_c[0, 2] >> 6);
-                        m_c[1, 0] = (byte)(data[offset + 3] << 1 & 0xf8 | data[offset + 3] << 2 & 4 | data[offset + 3] >> 5 & 3);
-                        m_c[1, 1] = (byte)(data[offset + 4] & 0xfe | data[offset + 4] >> 7);
-                        m_c[1, 2] = (byte)(data[offset + 4] << 7 & 0x80 | data[offset + 5] >> 1 & 0x7c);
+                        m_c[1, 0] = (byte)(block[3] << 1 & 0xf8 | block[3] << 2 & 4 | block[3] >> 5 & 3);
+                        m_c[1, 1] = (byte)(block[4] & 0xfe | block[4] >> 7);
+                        m_c[1, 2] = (byte)(block[4] << 7 & 0x80 | block[5] >> 1 & 0x7c);
                         m_c[1, 2] |= (byte)(m_c[1, 2] >> 6);
-                        m_c[2, 0] = (byte)(data[offset + 5] << 5 & 0xe0 | data[offset + 6] >> 3 & 0x1c | data[offset + 5] >> 1 & 3);
-                        m_c[2, 1] = (byte)(data[offset + 6] << 3 & 0xf8 | data[offset + 7] >> 5 & 0x6 | data[offset + 6] >> 4 & 1);
-                        m_c[2, 2] = (byte)(data[offset + 7] << 2 | data[offset + 7] >> 4 & 3);
+                        m_c[2, 0] = (byte)(block[5] << 5 & 0xe0 | block[6] >> 3 & 0x1c | block[5] >> 1 & 3);
+                        m_c[2, 1] = (byte)(block[6] << 3 & 0xf8 | block[7] >> 5 & 0x6 | block[6] >> 4 & 1);
+                        m_c[2, 2] = (byte)(block[7] << 2 | block[7] >> 4 & 3);
                     }
                     for (int y = 0, i = 0; y < 4; y++)
                     {
@@ -132,8 +132,8 @@ namespace ValveResourceFormat.TextureDecoders
                 else
                 {
                     // differential
-                    byte[] code = { (byte)(data[offset + 3] >> 5), (byte)(data[offset + 3] >> 2 & 7) };
-                    int ti = data[offset + 3] & 1;
+                    byte[] code = { (byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7) };
+                    int ti = block[3] & 1;
                     unchecked
                     {
                         m_c[0, 0] = (byte)(r | r >> 5);
@@ -158,16 +158,16 @@ namespace ValveResourceFormat.TextureDecoders
             else
             {
                 // individual
-                byte[] code = { (byte)(data[offset + 3] >> 5), (byte)(data[offset + 3] >> 2 & 7) };
-                int ti = data[offset + 3] & 1;
+                byte[] code = { (byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7) };
+                int ti = block[3] & 1;
                 unchecked
                 {
-                    m_c[0, 0] = (byte)(data[offset + 0] & 0xf0 | data[offset + 0] >> 4);
-                    m_c[1, 0] = (byte)(data[offset + 0] & 0x0f | data[offset + 0] << 4);
-                    m_c[0, 1] = (byte)(data[offset + 1] & 0xf0 | data[offset + 1] >> 4);
-                    m_c[1, 1] = (byte)(data[offset + 1] & 0x0f | data[offset + 1] << 4);
-                    m_c[0, 2] = (byte)(data[offset + 2] & 0xf0 | data[offset + 2] >> 4);
-                    m_c[1, 2] = (byte)(data[offset + 2] & 0x0f | data[offset + 2] << 4);
+                    m_c[0, 0] = (byte)(block[0] & 0xf0 | block[0] >> 4);
+                    m_c[1, 0] = (byte)(block[0] & 0x0f | block[0] << 4);
+                    m_c[0, 1] = (byte)(block[1] & 0xf0 | block[1] >> 4);
+                    m_c[1, 1] = (byte)(block[1] & 0x0f | block[1] << 4);
+                    m_c[0, 2] = (byte)(block[2] & 0xf0 | block[2] >> 4);
+                    m_c[1, 2] = (byte)(block[2] & 0x0f | block[2] << 4);
                 }
                 for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
                 {
