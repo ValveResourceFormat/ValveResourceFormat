@@ -508,7 +508,21 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
             }
 
-            decoder.Decode(skiaBitmap, GetTextureSpan());
+            var uncompressedSize = CalculateBufferSizeForMipLevel(MipmapLevelToExtract);
+            var buf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+
+            try
+            {
+                var span = buf.AsSpan(0, uncompressedSize);
+
+                ReadTexture(MipmapLevelToExtract, span);
+
+                decoder.Decode(skiaBitmap, span);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buf);
+            }
 
             return skiaBitmap;
         }
