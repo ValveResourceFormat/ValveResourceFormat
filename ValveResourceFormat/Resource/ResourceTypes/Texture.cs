@@ -447,11 +447,13 @@ namespace ValveResourceFormat.ResourceTypes
                     return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(), Width, Height);
 
                 case VTexFormat.BC6H:
-                    return BPTC.BPTCDecoders.UncompressBC6H(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeBC6H(Width, Height);
+                    break;
 
                 case VTexFormat.BC7:
                     var hemiOctRB = false;
                     invert = false;
+
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {
                         var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
@@ -459,10 +461,12 @@ namespace ValveResourceFormat.ResourceTypes
                         invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
                     }
 
-                    return BPTC.BPTCDecoders.UncompressBC7(GetDecompressedBuffer(), Width, Height, hemiOctRB, invert);
+                    decoder = new DecodeBC7(Width, Height, hemiOctRB, invert);
+                    break;
 
                 case VTexFormat.ATI2N:
                     normalize = false;
+
                     if (Resource.EditInfo.Structs.ContainsKey(ResourceEditInfo.REDIStruct.SpecialDependencies))
                     {
                         var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
