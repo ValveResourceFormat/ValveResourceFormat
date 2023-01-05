@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
@@ -415,36 +414,44 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.R16:
-                    return TextureDecompressors.ReadR16(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeR16();
+                    break;
 
                 case VTexFormat.RG1616:
-                    return TextureDecompressors.ReadRG1616(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeRG1616();
+                    break;
 
                 case VTexFormat.RGBA16161616:
                     decoder = new DecodeRGBA16161616();
                     break;
 
                 case VTexFormat.R16F:
-                    return TextureDecompressors.ReadR16F(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeR16F();
+                    break;
 
                 case VTexFormat.RG1616F:
-                    return TextureDecompressors.ReadRG1616F(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeRG1616F();
+                    break;
 
                 case VTexFormat.RGBA16161616F:
                     decoder = new DecodeRGBA16161616F();
                     break;
 
                 case VTexFormat.R32F:
-                    return TextureDecompressors.ReadR32F(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeR32F();
+                    break;
 
                 case VTexFormat.RG3232F:
-                    return TextureDecompressors.ReadRG3232F(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeRG3232F();
+                    break;
 
                 case VTexFormat.RGB323232F:
-                    return TextureDecompressors.ReadRGB323232F(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeRGB323232F();
+                    break;
 
                 case VTexFormat.RGBA32323232F:
-                    return TextureDecompressors.ReadRGBA32323232F(GetDecompressedBuffer(), Width, Height);
+                    decoder = new DecodeRGBA32323232F();
+                    break;
 
                 case VTexFormat.BC6H:
                     decoder = new DecodeBC6H(Width, Height);
@@ -622,16 +629,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private byte[] GetTextureSpan(int mipLevel = MipmapLevelToExtract)
-        {
-            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
-            var output = new byte[uncompressedSize];
-
-            ReadTexture(mipLevel, output);
-
-            return output;
-        }
-
         private void ReadTexture(int mipLevel, Span<byte> output)
         {
             if (!IsActuallyCompressedMips)
@@ -667,18 +664,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private BinaryReader GetDecompressedBuffer()
-        {
-            if (!IsActuallyCompressedMips)
-            {
-                return Reader;
-            }
-
-            var outStream = new MemoryStream(GetTextureSpan(), false);
-
-            return new BinaryReader(outStream); // TODO: dispose
-        }
-
         /// <summary>
         /// Get decompressed texture at specified mip level. Use mipLevel=0 to get the highest resolution.
         /// </summary>
@@ -688,7 +673,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             SkipMipmaps(mipLevel);
 
-            return GetTextureSpan(mipLevel);
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+            var output = new byte[uncompressedSize];
+
+            ReadTexture(mipLevel, output);
+
+            return output;
         }
 
         /// <summary>
