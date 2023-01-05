@@ -550,7 +550,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 for (var j = 0; j < NumMipLevels; j++)
                 {
-                    bytes += CalculateBufferSizeForMipLevel(j) * (Flags.HasFlag(VTexFlags.CUBE_TEXTURE) ? 6 : 1);
+                    bytes += CalculateBufferSizeForMipLevel(j);
                 }
             }
 
@@ -563,6 +563,11 @@ namespace ValveResourceFormat.ResourceTypes
             var width = MipLevelSize(Width, mipLevel);
             var height = MipLevelSize(Height, mipLevel);
             var depth = MipLevelSize(Depth, mipLevel);
+
+            if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
+            {
+                bytesPerPixel *= 6;
+            }
 
             if (Format == VTexFormat.DXT1
             || Format == VTexFormat.DXT5
@@ -619,18 +624,19 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var j = NumMipLevels - 1; j > desiredMipLevel; j--)
             {
-                int offset;
+                var size = CalculateBufferSizeForMipLevel(j);
 
                 if (CompressedMips != null)
                 {
-                    offset = CompressedMips[j];
-                }
-                else
-                {
-                    offset = CalculateBufferSizeForMipLevel(j) * (Flags.HasFlag(VTexFlags.CUBE_TEXTURE) ? 6 : 1);
+                    var compressedSize = CompressedMips[j];
+
+                    if (size > compressedSize)
+                    {
+                        size = compressedSize;
+                    }
                 }
 
-                Reader.BaseStream.Position += offset;
+                Reader.BaseStream.Position += size;
             }
         }
 
