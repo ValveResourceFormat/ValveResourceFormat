@@ -344,6 +344,11 @@ namespace ValveResourceFormat.TextureDecoders
                                 aweight = cweight;
                             }
 
+                            if ((i * 4) + bx >= bitmap.Width || data.Length <= pixelIndex + 3)
+                            {
+                                continue;
+                            }
+
                             data[pixelIndex] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 2], endpoints[subset + 1, 2]);
                             data[pixelIndex + 1] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 1], endpoints[subset + 1, 1]);
                             data[pixelIndex + 2] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 0], endpoints[subset + 1, 0]);
