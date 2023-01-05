@@ -694,7 +694,6 @@ namespace Decompiler
                     if (MaxParallelismThreads > 1)
                     {
                         var tasks = new List<Task>();
-                        var lockEntryRead = new object();
 
                         for (var n = 0; n < MaxParallelismThreads; n++)
                         {
@@ -702,14 +701,7 @@ namespace Decompiler
                             {
                                 while (queue.TryDequeue(out var file))
                                 {
-                                    byte[] output;
-
-                                    lock (lockEntryRead)
-                                    {
-                                        package.ReadEntry(file, out output);
-                                    }
-
-                                    using var entryStream = new MemoryStream(output);
+                                    using var entryStream = BasicVpkFileLoader.GetPackageEntryStream(package, file);
                                     ProcessFile(file.GetFullPath(), entryStream, path);
                                 }
                             }));

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using SteamDatabase.ValvePak;
 
 namespace ValveResourceFormat.IO
@@ -31,6 +32,26 @@ namespace ValveResourceFormat.IO
             resource.Read(new MemoryStream(output));
 
             return resource;
+        }
+
+        public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
+        {
+            // Files in a vpk that isn't split
+            if (!package.IsDirVPK || entry.ArchiveIndex == 32767 || entry.SmallData.Length > 0)
+            {
+                byte[] output;
+
+                lock (package)
+                {
+                    package.ReadEntry(entry, out output, false);
+                }
+
+                return new MemoryStream(output);
+            }
+
+            var path = $"{package.FileName}_{entry.ArchiveIndex:D3}.vpk";
+            var stream = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            return stream.CreateViewStream(entry.Offset, entry.Length, MemoryMappedFileAccess.Read);
         }
     }
 }
