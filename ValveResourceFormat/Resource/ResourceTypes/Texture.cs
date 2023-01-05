@@ -454,7 +454,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.BC6H:
-                    decoder = new DecodeBC6H(Width, Height);
+                    decoder = new DecodeBC6H(width, height);
                     break;
 
                 case VTexFormat.BC7:
@@ -468,7 +468,7 @@ namespace ValveResourceFormat.ResourceTypes
                         invert = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version LegacySource1InvertNormals");
                     }
 
-                    decoder = new DecodeBC7(Width, Height, hemiOctRB, invert);
+                    decoder = new DecodeBC7(width, height, hemiOctRB, invert);
                     break;
 
                 case VTexFormat.ATI2N:
@@ -480,7 +480,7 @@ namespace ValveResourceFormat.ResourceTypes
                         normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
                     }
 
-                    decoder = new DecodeATI2N(Width, Height, normalize);
+                    decoder = new DecodeATI2N(width, height, normalize);
                     break;
 
                 case VTexFormat.IA88:
@@ -488,7 +488,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.ATI1N:
-                    decoder = new DecodeATI1N(Width, Height);
+                    decoder = new DecodeATI1N(width, height);
                     break;
 
                 case VTexFormat.ETC2:
