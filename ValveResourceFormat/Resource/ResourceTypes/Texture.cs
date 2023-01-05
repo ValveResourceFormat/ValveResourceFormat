@@ -654,7 +654,12 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var span = buf.AsSpan(0, compressedSize);
                 Reader.Read(span);
-                LZ4Codec.Decode(span, output);
+                var written = LZ4Codec.Decode(span, output);
+
+                if (written != output.Length)
+                {
+                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}) (texture format is {Format}).");
+                }
             }
             finally
             {

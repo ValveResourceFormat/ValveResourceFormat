@@ -75,7 +75,12 @@ namespace ValveResourceFormat.ResourceTypes
                 var input = buf.AsSpan(0, compressedSize);
                 reader.Read(input);
 
-                LZ4Codec.Decode(input, output);
+                var written = LZ4Codec.Decode(input, output);
+
+                if (written != output.Length)
+                {
+                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}).");
+                }
             }
             finally
             {
@@ -283,7 +288,12 @@ namespace ValveResourceFormat.ResourceTypes
                     var input = buf.AsSpan(0, (int)compressedSize);
                     reader.Read(input);
 
-                    LZ4Codec.Decode(input, output);
+                    var written = LZ4Codec.Decode(input, output);
+
+                    if (written != output.Length)
+                    {
+                        throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}).");
+                    }
                 }
                 finally
                 {
