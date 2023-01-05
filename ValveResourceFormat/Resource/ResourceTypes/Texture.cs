@@ -509,6 +509,11 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
             }
 
+            if (Depth != 1)
+            {
+                throw new NotImplementedException($"Got texture with depth of {Depth} (Format {Format}) which we currently do not handle correctly.");
+            }
+
             var uncompressedSize = CalculateBufferSizeForMipLevel(MipmapLevelToExtract);
             var buf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
 
