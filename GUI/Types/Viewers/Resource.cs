@@ -4,11 +4,9 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Types.Audio;
-using GUI.Types.Exporter;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
-using SkiaSharp.Views.Desktop;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -92,6 +90,8 @@ namespace GUI.Types.Viewers
                         {
                             BackColor = Color.Black,
                         };
+
+
                         control.SetImage(bitmap.ToBitmap(), Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
                             tex.ActualWidth, tex.ActualHeight);
 
