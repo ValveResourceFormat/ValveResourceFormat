@@ -6,10 +6,10 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
-internal class PickingTexture// : IRenderer
+internal class PickingTexture
 {
-    private int width;
-    private int height;
+    private int width = 4;
+    private int height = 4;
 
     public readonly Shader shader;
     private int fboHandle;
@@ -18,17 +18,19 @@ internal class PickingTexture// : IRenderer
 
     public AABB BoundingBox => throw new NotImplementedException();
 
-    public PickingTexture(int width, int height, VrfGuiContext vrfGuiContext)
+    public PickingTexture(VrfGuiContext vrfGuiContext)
     {
-        this.width = width;
-        this.height = height;
-
         shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
         Setup();
     }
 
     public void Setup()
     {
+        if (width == 0 || height == 0)
+        {
+            return;
+        }
+
         fboHandle = GL.GenFramebuffer();
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
 
@@ -71,23 +73,25 @@ internal class PickingTexture// : IRenderer
         int pixel = default;
 
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-        GL.ReadPixels(width, height - this.height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
+        GL.ReadPixels(width, height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
         GL.ReadBuffer(ReadBufferMode.None);
 
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         return pixel;
     }
 
-    public void WindowResized(int width, int height)
+    public void Resize(int width, int height)
     {
         this.width = width;
         this.height = height;
 
-        GL.BindTexture(TextureTarget.Texture2D, colorHandle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32ui, width, height, 0, PixelFormat.RgbaInteger, PixelType.UnsignedInt, IntPtr.Zero);
+        //GL.BindTexture(TextureTarget.Texture2D, colorHandle);
+        //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32ui, width, height, 0, PixelFormat.RgbaInteger, PixelType.UnsignedInt, IntPtr.Zero);
+        //
+        //GL.BindTexture(TextureTarget.Texture2D, depthHandle);
+        //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
 
-        GL.BindTexture(TextureTarget.Texture2D, depthHandle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        Setup();
     }
 
     public void Update(float deltaTime)

@@ -28,6 +28,7 @@ namespace GUI.Types.Renderer
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showToolsMaterials = true;
+        private bool renderToPicker = true;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
@@ -35,7 +36,6 @@ namespace GUI.Types.Renderer
         private readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
-        private PickingTexture pickingTexture;
 
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
         {
@@ -75,6 +75,7 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
+            ViewerControl.AddCheckBox("Render To Picker", renderToPicker, (v) => renderToPicker = v);
             ViewerControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 if (v)
@@ -121,7 +122,7 @@ namespace GUI.Types.Renderer
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
-            pickingTexture = new PickingTexture(1024, 1024, Scene.GuiContext);
+            ViewerControl.Camera.Picking = new PickingTexture(Scene.GuiContext);
 
             if (renderModeComboBox != null)
             {
@@ -162,7 +163,8 @@ namespace GUI.Types.Renderer
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            Scene.RenderWithCamera(e.Camera, lockedCullFrustum, pickingTexture);
+            e.Camera.RenderToPicker = renderToPicker;
+            Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 
             if (showStaticOctree)
             {

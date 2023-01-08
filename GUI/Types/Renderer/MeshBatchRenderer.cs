@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
+            public int NodeId;
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -70,7 +71,6 @@ namespace GUI.Types.Renderer
                 GL.Uniform3(shader.GetUniformLocation("vLightPosition"), lightPosition);
                 GL.Uniform3(shader.GetUniformLocation("vEyePosition"), cameraPosition);
                 GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
-
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
                 {
                     var material = materialGroup.Key;
@@ -87,7 +87,8 @@ namespace GUI.Types.Renderer
                         var transformTk = request.Transform.ToOpenTK();
                         GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
 
-                        GL.Uniform1(shader.GetUniformLocation("sceneObjectId"), request.DistanceFromCamera);
+                        var uniformLocationScId = shader.GetUniformLocation("sceneObjectId");
+                        GL.Uniform1(uniformLocationScId, (uint)(request.NodeId + 1));
 
                         if (uniformLocationTime != 1)
                         {

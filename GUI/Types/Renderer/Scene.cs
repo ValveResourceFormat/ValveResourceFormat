@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -23,7 +24,6 @@ namespace GUI.Types.Renderer
             public Vector3? LightPosition { get; init; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
-            public PickingTexture Picking { get; set; }
             public bool RenderToolsMaterials { get; init; }
         }
 
@@ -36,6 +36,7 @@ namespace GUI.Types.Renderer
         public bool ShowToolsMaterials { get; set; } = true;
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
+        public int NodeCount => staticNodes.Count + dynamicNodes.Count;
 
         private readonly List<SceneNode> staticNodes = new();
         private readonly List<SceneNode> dynamicNodes = new();
@@ -49,6 +50,8 @@ namespace GUI.Types.Renderer
 
         public void Add(SceneNode node, bool dynamic)
         {
+
+            node.Id = NodeCount + 1;
             if (dynamic)
             {
                 dynamicNodes.Add(node);
@@ -77,7 +80,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void RenderWithCamera(Camera camera, Frustum cullFrustum = null, PickingTexture pt = null)
+        public void RenderWithCamera(Camera camera, Frustum cullFrustum = null)
         {
             var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
             allNodes.AddRange(DynamicOctree.Query(cullFrustum ?? camera.ViewFrustum));
@@ -100,6 +103,7 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                                NodeId = node.Id,
                             });
                         }
 
@@ -111,6 +115,7 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                                NodeId = node.Id,
                             });
                         }
                     }
@@ -138,11 +143,10 @@ namespace GUI.Types.Renderer
                 RenderToolsMaterials = ShowToolsMaterials,
             };
 
-            if (cullFrustum is not null && pt is not null)
+            if (camera.RenderToPicker)
             {
-                renderContext.ReplacementShader = pt.shader;
-                renderContext.Picking = pt;
-                //pt.Render();
+                renderContext.ReplacementShader = camera.Picking.shader;
+                camera.Picking.Render();
             }
 
             MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);
@@ -160,11 +164,17 @@ namespace GUI.Types.Renderer
                 node.Render(renderContext);
             }
 
-            if (cullFrustum is not null && pt is not null)
+            if (camera.RenderToPicker)
             {
+                if (camera.Picking.ReadPixel(256, 256) != 0)
+                {
+                    Console.WriteLine("Picking hit!");
+                    Console.WriteLine($"{camera.Picking.ReadPixel(256, 256)}");
+                }
                 PickingTexture.Finish();
                 // Render normally
-                RenderWithCamera(camera, cullFrustum, null);
+                camera.RenderToPicker = false;
+                RenderWithCamera(camera, cullFrustum);
             }
         }
 

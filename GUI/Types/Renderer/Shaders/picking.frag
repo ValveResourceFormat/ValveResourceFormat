@@ -1,10 +1,10 @@
 #version 330
 
-uniform float sceneObjectId = 0.0;
+uniform uint sceneObjectId = uint(1);
 
-out vec4 outputColor;
+out uint outputColor;
 
 void main()
 {
-    outputColor = vec4(sceneObjectId, .6, sceneObjectId, 1);
+    outputColor = uint(sceneObjectId);
 }

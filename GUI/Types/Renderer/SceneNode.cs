@@ -29,6 +29,8 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public int Id { get; set; }
+
         public Scene Scene { get; }
 
         private AABB localBoundingBox;
