@@ -180,18 +180,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, int frameIndex, Skeleton skeleton)
         {
-            // Create output array
-            var matrices = new Matrix4x4[skeleton.Bones.Length];
-
             // Get bone transformations
             var frame = frameCache.GetFrame(this, frameIndex);
 
-            foreach (var root in skeleton.Roots)
-            {
-                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, ref matrices);
-            }
-
-            return matrices;
+            return GetAnimationMatrices(frame, skeleton);
         }
 
         /// <summary>
@@ -199,13 +191,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, float time, Skeleton skeleton)
         {
-            // Create output array
-            var matrices = new Matrix4x4[skeleton.Bones.Length];
-
             // Get bone transformations
             var frame = FrameCount != 0
                 ? frameCache.GetFrame(this, time)
                 : null;
+
+            return GetAnimationMatrices(frame, skeleton);
+        }
+
+        private Matrix4x4[] GetAnimationMatrices(Frame frame, Skeleton skeleton)
+        {
+            // Create output array
+            var matrices = new Matrix4x4[skeleton.Bones.Length];
 
             foreach (var root in skeleton.Roots)
             {
