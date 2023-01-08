@@ -59,7 +59,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             NextFrame.Frame.Clear(Skeleton);
         }
 
-        private Frame GetFrame(Animation anim, int frameIndex)
+        /// <summary>
+        /// Get the animation frame at a given index.
+        /// </summary>
+        public Frame GetFrame(Animation anim, int frameIndex)
         {
             // Try to lookup cached (precomputed) frame - happens when GUI Autoplay runs faster than animation FPS
             if (frameIndex == PreviousFrame.FrameIndex)

@@ -75,7 +75,14 @@ namespace GUI.Types.Renderer
         }
 
         public Matrix4x4[] GetAnimationMatrices(Skeleton skeleton)
-            => activeAnimation.GetAnimationMatrices(animationFrameCache, Time, skeleton);
+        {
+            if (IsPaused)
+            {
+                return activeAnimation.GetAnimationMatrices(animationFrameCache, Frame, skeleton);
+            }
+
+            return activeAnimation.GetAnimationMatrices(animationFrameCache, Time, skeleton);
+        }
 
         public void RegisterUpdateHandler(Action<Animation, int> handler)
         {
