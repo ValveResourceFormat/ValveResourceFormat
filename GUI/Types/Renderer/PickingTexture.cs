@@ -73,7 +73,7 @@ internal class PickingTexture
         int pixel = default;
 
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-        GL.ReadPixels(width, height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
+        GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
         GL.ReadBuffer(ReadBufferMode.None);
 
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
@@ -85,13 +85,11 @@ internal class PickingTexture
         this.width = width;
         this.height = height;
 
-        //GL.BindTexture(TextureTarget.Texture2D, colorHandle);
-        //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32ui, width, height, 0, PixelFormat.RgbaInteger, PixelType.UnsignedInt, IntPtr.Zero);
-        //
-        //GL.BindTexture(TextureTarget.Texture2D, depthHandle);
-        //GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        GL.BindTexture(TextureTarget.Texture2D, colorHandle);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32ui, width, height, 0, PixelFormat.RgbaInteger, PixelType.UnsignedInt, IntPtr.Zero);
 
-        Setup();
+        GL.BindTexture(TextureTarget.Texture2D, depthHandle);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
     }
 
     public void Update(float deltaTime)

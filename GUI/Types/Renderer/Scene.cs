@@ -166,13 +166,7 @@ namespace GUI.Types.Renderer
 
             if (camera.RenderToPicker)
             {
-                if (camera.Picking.ReadPixel(256, 256) != 0)
-                {
-                    Console.WriteLine("Picking hit!");
-                    Console.WriteLine($"{camera.Picking.ReadPixel(256, 256)}");
-                }
                 PickingTexture.Finish();
-                // Render normally
                 camera.RenderToPicker = false;
                 RenderWithCamera(camera, cullFrustum);
             }

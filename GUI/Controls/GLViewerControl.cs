@@ -11,6 +11,7 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
+using FormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
 namespace GUI.Controls
 {
@@ -60,6 +61,7 @@ namespace GUI.Controls
             GLControl.Resize += OnResize;
             GLControl.MouseEnter += OnMouseEnter;
             GLControl.MouseLeave += OnMouseLeave;
+            GLControl.MouseDown += OnMouseDown;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             GLControl.Disposed += OnDisposed;
@@ -188,6 +190,15 @@ namespace GUI.Controls
         private void OnMouseEnter(object sender, EventArgs e)
         {
             Camera.MouseOverRenderArea = true;
+        }
+
+        private void OnMouseDown(object sender, FormsMouseEventArgs e)
+        {
+            if (e.Clicks == 2)
+            {
+                var objectID = Camera.Picking?.ReadPixel(e.X, e.Y) ?? 0;
+                Console.WriteLine($"Picked ID: {objectID}");
+            }
         }
 
         private void OnLoad(object sender, EventArgs e)
