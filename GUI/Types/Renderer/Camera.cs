@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
-        public PickingTexture Picking { get; set; }
+        public PickingTexture Picker { get; set; }
         public bool RenderToPicker { get; set; }
 
         // Set from outside this class by forms code
@@ -73,7 +73,7 @@ namespace GUI.Types.Renderer
             // setup viewport
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
 
-            Picking?.Resize(viewportWidth, viewportHeight);
+            Picker?.Resize(viewportWidth, viewportHeight);
         }
 
         public void CopyFrom(Camera fromOther)

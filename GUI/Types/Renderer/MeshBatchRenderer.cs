@@ -71,6 +71,7 @@ namespace GUI.Types.Renderer
                 GL.Uniform3(shader.GetUniformLocation("vLightPosition"), lightPosition);
                 GL.Uniform3(shader.GetUniformLocation("vEyePosition"), cameraPosition);
                 GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
+
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
                 {
                     var material = materialGroup.Key;

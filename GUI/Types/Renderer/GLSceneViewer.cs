@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showToolsMaterials = true;
-        private bool renderToPicker = true;
+        private bool renderToPicker;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
@@ -89,6 +89,7 @@ namespace GUI.Types.Renderer
             });
 
             ViewerControl.GLLoad += OnLoad;
+            ViewerControl.SceneNodeDoubleClick += OnSceneNodeDoubleClick;
         }
 
         protected abstract void InitializeControl();
@@ -122,7 +123,7 @@ namespace GUI.Types.Renderer
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
-            ViewerControl.Camera.Picking = new PickingTexture(Scene.GuiContext);
+            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext);
 
             if (renderModeComboBox != null)
             {
@@ -231,6 +232,34 @@ namespace GUI.Types.Renderer
                 foreach (var node in SkyboxScene.AllNodes)
                 {
                     node.SetRenderMode(renderMode);
+                }
+            }
+        }
+
+        private void OnSceneNodeDoubleClick(object sender, uint nodeID)
+        {
+            if (nodeID == 0)
+            {
+                return;
+            }
+
+            foreach (var node in Scene.AllNodes)
+            {
+                if (node.Id != nodeID)
+                {
+                    continue;
+                }
+
+                if (node is ModelSceneNode modelNode)
+                {
+                    // TODO: Use FileLoader
+                    var entry = GuiContext.CurrentPackage?.FindEntry(modelNode.GetModelFileName() + "_c");
+                    Console.WriteLine($"Selected {modelNode.GetModelFileName()} (Id: {nodeID})");
+                    if (entry != null)
+                    {
+                        var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext);
+                        Program.MainForm.OpenFile(newVrfGuiContext, entry);
+                    }
                 }
             }
         }

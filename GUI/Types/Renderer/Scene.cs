@@ -145,8 +145,8 @@ namespace GUI.Types.Renderer
 
             if (camera.RenderToPicker)
             {
-                renderContext.ReplacementShader = camera.Picking.shader;
-                camera.Picking.Render();
+                renderContext.ReplacementShader = camera.Picker.shader;
+                camera.Picker.Render();
             }
 
             MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);

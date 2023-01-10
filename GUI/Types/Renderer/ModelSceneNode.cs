@@ -233,6 +233,9 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public string GetModelFileName()
+            => Model.Data.GetStringProperty("m_name");
+
         public IEnumerable<string> GetMeshGroups()
             => Model.GetMeshGroups();
 

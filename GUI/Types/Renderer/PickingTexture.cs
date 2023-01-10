@@ -16,8 +16,6 @@ internal class PickingTexture
     private int colorHandle;
     private int depthHandle;
 
-    public AABB BoundingBox => throw new NotImplementedException();
-
     public PickingTexture(VrfGuiContext vrfGuiContext)
     {
         shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
@@ -67,19 +65,6 @@ internal class PickingTexture
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
     }
 
-    public int ReadPixel(int width, int height)
-    {
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
-        int pixel = default;
-
-        GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-        GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
-        GL.ReadBuffer(ReadBufferMode.None);
-
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-        return pixel;
-    }
-
     public void Resize(int width, int height)
     {
         this.width = width;
@@ -92,8 +77,23 @@ internal class PickingTexture
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
     }
 
-    public void Update(float deltaTime)
+    public void Pick(int x, int y, EventHandler<uint> callback)
     {
-        throw new NotImplementedException();
+        var id = ReadIdFromPixel(x, y);
+        callback.Invoke(this, id);
+    }
+
+    public uint ReadIdFromPixel(int width, int height)
+    {
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
+        GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
+
+        uint pixel = 0;
+        GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
+
+        GL.ReadBuffer(ReadBufferMode.None);
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+        return pixel;
     }
 }
