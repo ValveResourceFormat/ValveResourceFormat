@@ -11,15 +11,30 @@ internal class PickingTexture
     private int width = 4;
     private int height = 4;
 
-    public readonly Shader shader;
+    public Shader shader;
+    private VrfGuiContext ctx;
     private int fboHandle;
     private int colorHandle;
     private int depthHandle;
 
     public PickingTexture(VrfGuiContext vrfGuiContext)
     {
-        shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
+        ctx = vrfGuiContext;
+        SetDebug(false);
         Setup();
+    }
+
+    public void SetDebug(bool debug)
+    {
+        if (debug)
+        {
+            shader = ctx.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>(){
+                { "F_DEBUG_PICKER", true }
+            });
+            return;
+        }
+
+        shader = ctx.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
     }
 
     public void Setup()

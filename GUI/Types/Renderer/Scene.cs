@@ -146,7 +146,15 @@ namespace GUI.Types.Renderer
             if (camera.RenderToPicker)
             {
                 renderContext.ReplacementShader = camera.Picker.shader;
-                camera.Picker.Render();
+                if (!camera.PickerDebug)
+                {
+                    camera.Picker.Render();
+                    camera.Picker.SetDebug(false);
+                }
+                else
+                {
+                    camera.Picker.SetDebug(true);
+                }
             }
 
             MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);
@@ -168,7 +176,10 @@ namespace GUI.Types.Renderer
             {
                 PickingTexture.Finish();
                 camera.RenderToPicker = false;
-                RenderWithCamera(camera, cullFrustum);
+                if (!camera.PickerDebug)
+                {
+                    RenderWithCamera(camera, cullFrustum);
+                }
             }
         }
 

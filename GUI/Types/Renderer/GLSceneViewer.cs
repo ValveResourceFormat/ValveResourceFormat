@@ -29,6 +29,7 @@ namespace GUI.Types.Renderer
         private bool showDynamicOctree;
         private bool showToolsMaterials = true;
         private bool renderToPicker;
+        private bool pickerDebug;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
@@ -76,6 +77,7 @@ namespace GUI.Types.Renderer
                 }
             });
             ViewerControl.AddCheckBox("Render To Picker", renderToPicker, (v) => renderToPicker = v);
+            ViewerControl.AddCheckBox("Picker Debug", pickerDebug, (v) => pickerDebug = v);
             ViewerControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 if (v)
@@ -165,6 +167,8 @@ namespace GUI.Types.Renderer
             }
 
             e.Camera.RenderToPicker = renderToPicker;
+            e.Camera.PickerDebug = pickerDebug;
+
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 
             if (showStaticOctree)
