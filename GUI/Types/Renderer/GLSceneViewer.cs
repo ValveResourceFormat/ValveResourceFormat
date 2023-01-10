@@ -261,7 +261,7 @@ namespace GUI.Types.Renderer
                     Console.WriteLine($"Selected {modelNode.GetModelFileName()} (Id: {nodeID})");
                     if (entry != null)
                     {
-                        var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext);
+                        var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
                         Program.MainForm.OpenFile(newVrfGuiContext, entry);
                     }
                 }

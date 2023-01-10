@@ -6,16 +6,16 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
-#pragma warning disable CS0649
 internal struct PixelInfo
 {
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
     public uint Id;
     public uint Unused;
     public uint Unused2;
+#pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
 }
-#pragma warning restore CS0649
 
-internal class PickingTexture
+internal class PickingTexture : IDisposable
 {
     private int width = 4;
     private int height = 4;
@@ -109,6 +109,9 @@ internal class PickingTexture
 
     public uint ReadIdFromPixel(int width, int height)
     {
+        GL.Flush();
+        GL.Finish();
+
         GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, fboHandle);
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
@@ -119,5 +122,13 @@ internal class PickingTexture
         GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
 
         return pixelInfo.Id;
+    }
+
+    public void Dispose()
+    {
+        ctx.Dispose();
+        GL.DeleteTexture(colorHandle);
+        GL.DeleteTexture(depthHandle);
+        GL.DeleteFramebuffer(fboHandle);
     }
 }
