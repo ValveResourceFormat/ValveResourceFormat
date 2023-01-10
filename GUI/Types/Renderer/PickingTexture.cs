@@ -6,6 +6,15 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
+#pragma warning disable CS0649
+internal struct PixelInfo
+{
+    public uint Id;
+    public uint Unused;
+    public uint Unused2;
+}
+#pragma warning restore CS0649
+
 internal class PickingTexture
 {
     private int width = 4;
@@ -71,13 +80,13 @@ internal class PickingTexture
 
     public void Render()
     {
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
+        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, fboHandle);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
 
     public static void Finish()
     {
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
     }
 
     public void Resize(int width, int height)
@@ -100,15 +109,15 @@ internal class PickingTexture
 
     public uint ReadIdFromPixel(int width, int height)
     {
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, fboHandle);
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
-        uint pixel = 0;
-        GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixel);
+        var pixelInfo = new PixelInfo();
+        GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixelInfo);
 
         GL.ReadBuffer(ReadBufferMode.None);
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
 
-        return pixel;
+        return pixelInfo.Id;
     }
 }

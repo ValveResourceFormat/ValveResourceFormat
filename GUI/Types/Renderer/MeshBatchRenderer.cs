@@ -89,7 +89,11 @@ namespace GUI.Types.Renderer
                         GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
 
                         var uniformLocationScId = shader.GetUniformLocation("sceneObjectId");
-                        GL.Uniform1(uniformLocationScId, (uint)(request.NodeId + 1));
+
+                        if (uniformLocationTime != 1)
+                        {
+                            GL.Uniform1(uniformLocationScId, (uint)request.NodeId);
+                        }
 
                         if (uniformLocationTime != 1)
                         {
