@@ -28,7 +28,6 @@ namespace GUI.Types.Renderer
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showToolsMaterials = true;
-        private bool renderToPicker;
         private bool pickerDebug;
         private Frustum lockedCullFrustum;
 
@@ -76,7 +75,6 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
-            ViewerControl.AddCheckBox("Render To Picker", renderToPicker, (v) => renderToPicker = v);
             ViewerControl.AddCheckBox("Picker Debug", pickerDebug, (v) => pickerDebug = v);
             ViewerControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
@@ -91,7 +89,6 @@ namespace GUI.Types.Renderer
             });
 
             ViewerControl.GLLoad += OnLoad;
-            ViewerControl.SceneNodeDoubleClick += OnSceneNodeDoubleClick;
         }
 
         protected abstract void InitializeControl();
@@ -105,6 +102,9 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
             ViewerControl.Camera.SetLocation(new Vector3(256));
             ViewerControl.Camera.LookAt(new Vector3(0));
+
+            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext);
+            ViewerControl.Camera.Picker.OnPicked += OnSceneNodeDoubleClick;
 
             var timer = new Stopwatch();
             timer.Start();
@@ -124,8 +124,6 @@ namespace GUI.Types.Renderer
 
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
-
-            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext);
 
             if (renderModeComboBox != null)
             {
@@ -166,8 +164,10 @@ namespace GUI.Types.Renderer
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            e.Camera.RenderToPicker = renderToPicker;
-            e.Camera.PickerDebug = pickerDebug;
+            if (e.Camera.Picker is not null)
+            {
+                e.Camera.Picker.Debug = pickerDebug;
+            }
 
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 

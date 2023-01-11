@@ -34,7 +34,6 @@ namespace GUI.Controls
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
-        public event EventHandler<uint> SceneNodeDoubleClick;
 
         private static bool hasCheckedOpenGL;
 
@@ -197,7 +196,7 @@ namespace GUI.Controls
         {
             if (e.Clicks == 2)
             {
-                Camera.Picker.Pick(e.X, e.Y, SceneNodeDoubleClick);
+                Camera.Picker.Request.NextFrame(e.X, e.Y);
             }
         }
 

@@ -20,8 +20,6 @@ namespace GUI.Types.Renderer
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
         public PickingTexture Picker { get; set; }
-        public bool RenderToPicker { get; set; }
-        public bool PickerDebug { get; set; }
 
         // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }

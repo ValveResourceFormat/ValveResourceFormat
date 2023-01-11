@@ -143,14 +143,14 @@ namespace GUI.Types.Renderer
                 RenderToolsMaterials = ShowToolsMaterials,
             };
 
-            if (camera.RenderToPicker)
+            if (camera.Picker is not null)
             {
-                renderContext.ReplacementShader = camera.Picker.shader;
-                if (!camera.PickerDebug)
+                if (camera.Picker.IsActive)
                 {
                     camera.Picker.Render();
+                    renderContext.ReplacementShader = camera.Picker.shader;
                 }
-                else
+                else if (camera.Picker.Debug)
                 {
                     renderContext.ReplacementShader = camera.Picker.debugShader;
                 }
@@ -171,14 +171,10 @@ namespace GUI.Types.Renderer
                 node.Render(renderContext);
             }
 
-            if (camera.RenderToPicker)
+            if (camera.Picker is not null && camera.Picker.IsActive)
             {
-                PickingTexture.Finish();
-                camera.RenderToPicker = false;
-                if (!camera.PickerDebug)
-                {
-                    RenderWithCamera(camera, cullFrustum);
-                }
+                camera.Picker.Finish();
+                RenderWithCamera(camera, cullFrustum);
             }
         }
 

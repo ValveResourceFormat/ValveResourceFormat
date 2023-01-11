@@ -6,6 +6,20 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
+internal class PickingRequest
+{
+    public bool ActiveNextFrame;
+    public int CursorPositionX;
+    public int CursorPositionY;
+
+    public void NextFrame(int x, int y)
+    {
+        ActiveNextFrame = true;
+        CursorPositionX = x;
+        CursorPositionY = y;
+    }
+}
+
 internal struct PixelInfo
 {
 #pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
@@ -17,11 +31,15 @@ internal struct PixelInfo
 
 internal class PickingTexture : IDisposable
 {
-    private int width = 4;
-    private int height = 4;
-
+    public event EventHandler<uint> OnPicked;
+    public readonly PickingRequest Request = new();
     public readonly Shader shader;
     public readonly Shader debugShader;
+    public bool IsActive => Request.ActiveNextFrame;
+    public bool Debug { get; set; }
+
+    private int width = 4;
+    private int height = 4;
     private int fboHandle;
     private int colorHandle;
     private int depthHandle;
@@ -68,12 +86,20 @@ internal class PickingTexture : IDisposable
     public void Render()
     {
         GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, fboHandle);
+        GL.ClearColor(0, 0, 0, 0);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
 
-    public static void Finish()
+    public void Finish()
     {
         GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+
+        if (Request.ActiveNextFrame)
+        {
+            Request.ActiveNextFrame = false;
+            var id = ReadIdFromPixel(Request.CursorPositionX, Request.CursorPositionY);
+            OnPicked?.Invoke(this, id);
+        }
     }
 
     public void Resize(int width, int height)
@@ -86,12 +112,6 @@ internal class PickingTexture : IDisposable
 
         GL.BindTexture(TextureTarget.Texture2D, depthHandle);
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
-    }
-
-    public void Pick(int x, int y, EventHandler<uint> callback)
-    {
-        var id = ReadIdFromPixel(x, y);
-        callback.Invoke(this, id);
     }
 
     public uint ReadIdFromPixel(int width, int height)
