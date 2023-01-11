@@ -149,11 +149,10 @@ namespace GUI.Types.Renderer
                 if (!camera.PickerDebug)
                 {
                     camera.Picker.Render();
-                    camera.Picker.SetDebug(false);
                 }
                 else
                 {
-                    camera.Picker.SetDebug(true);
+                    renderContext.ReplacementShader = camera.Picker.debugShader;
                 }
             }
 

@@ -20,30 +20,17 @@ internal class PickingTexture : IDisposable
     private int width = 4;
     private int height = 4;
 
-    public Shader shader;
-    private VrfGuiContext ctx;
+    public readonly Shader shader;
+    public readonly Shader debugShader;
     private int fboHandle;
     private int colorHandle;
     private int depthHandle;
 
     public PickingTexture(VrfGuiContext vrfGuiContext)
     {
-        ctx = vrfGuiContext;
-        SetDebug(false);
+        shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
+        debugShader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>() { { "F_DEBUG_PICKER", true } });
         Setup();
-    }
-
-    public void SetDebug(bool debug)
-    {
-        if (debug)
-        {
-            shader = ctx.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>(){
-                { "F_DEBUG_PICKER", true }
-            });
-            return;
-        }
-
-        shader = ctx.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
     }
 
     public void Setup()
@@ -126,7 +113,6 @@ internal class PickingTexture : IDisposable
 
     public void Dispose()
     {
-        ctx.Dispose();
         GL.DeleteTexture(colorHandle);
         GL.DeleteTexture(depthHandle);
         GL.DeleteFramebuffer(fboHandle);
