@@ -49,14 +49,15 @@ namespace GUI.Types.Renderer
             var cameraPosition = context.Camera.Location.ToOpenTK();
             var lightPosition = cameraPosition; // (context.LightPosition ?? context.Camera.Location).ToOpenTK();
 
-            foreach (var shaderGroup in drawCalls.GroupBy(a => a.Call.Shader))
+            var groupedDrawCalls = context.ReplacementShader switch
+            {
+                null => drawCalls.GroupBy(a => a.Call.Shader),
+                _ => drawCalls.GroupBy(a => context.ReplacementShader)
+            };
+
+            foreach (var shaderGroup in groupedDrawCalls)
             {
                 var shader = shaderGroup.Key;
-
-                if (context.ReplacementShader != null)
-                {
-                    shader = context.ReplacementShader;
-                }
 
                 var uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
                 var uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
