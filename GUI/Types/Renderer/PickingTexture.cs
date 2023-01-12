@@ -6,35 +6,28 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
-internal class PickingRequest
-{
-    public bool ActiveNextFrame;
-    public int CursorPositionX;
-    public int CursorPositionY;
-
-    public void NextFrame(int x, int y)
-    {
-        ActiveNextFrame = true;
-        CursorPositionX = x;
-        CursorPositionY = y;
-    }
-}
-
-internal struct PixelInfo
-{
-#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
-    public uint Id;
-    public uint Unused;
-    public uint Unused2;
-#pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
-}
-
 internal class PickingTexture : IDisposable
 {
+    internal class PickingRequest
+    {
+        public bool ActiveNextFrame;
+        public int CursorPositionX;
+        public int CursorPositionY;
+
+        public void NextFrame(int x, int y)
+        {
+            ActiveNextFrame = true;
+            CursorPositionX = x;
+            CursorPositionY = y;
+        }
+    }
+
     public event EventHandler<uint> OnPicked;
     public readonly PickingRequest Request = new();
+
     public readonly Shader shader;
     public readonly Shader debugShader;
+
     public bool IsActive => Request.ActiveNextFrame;
     public bool Debug { get; set; }
 
@@ -43,6 +36,15 @@ internal class PickingTexture : IDisposable
     private int fboHandle;
     private int colorHandle;
     private int depthHandle;
+
+    internal struct PixelInfo
+    {
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
+        public uint Id;
+        public uint Unused;
+        public uint Unused2;
+#pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
+    }
 
     public PickingTexture(VrfGuiContext vrfGuiContext)
     {
@@ -53,11 +55,6 @@ internal class PickingTexture : IDisposable
 
     public void Setup()
     {
-        if (width == 0 || height == 0)
-        {
-            return;
-        }
-
         fboHandle = GL.GenFramebuffer();
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
 
