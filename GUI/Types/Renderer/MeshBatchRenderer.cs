@@ -15,8 +15,8 @@ namespace GUI.Types.Renderer
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
-            public int NodeId;
-            public int MeshId;
+            public uint NodeId;
+            public uint MeshId;
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -94,12 +94,12 @@ namespace GUI.Types.Renderer
 
                         if (uniformLocationScId != -1)
                         {
-                            GL.Uniform1(uniformLocationScId, (uint)request.NodeId);
+                            GL.Uniform1(uniformLocationScId, request.NodeId);
                         }
 
                         if (uniformLocationMeshId != -1)
                         {
-                            GL.Uniform1(uniformLocationMeshId, (uint)request.MeshId);
+                            GL.Uniform1(uniformLocationMeshId, request.MeshId);
                         }
 
                         if (uniformLocationTime != 1)

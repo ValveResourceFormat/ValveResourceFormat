@@ -196,7 +196,7 @@ namespace GUI.Controls
         {
             if (e.Clicks == 2)
             {
-                Camera.Picker.Request.NextFrame(e.X, e.Y);
+                Camera.Picker?.Request.NextFrame(e.X, e.Y);
             }
         }
 

@@ -36,7 +36,6 @@ namespace GUI.Types.Renderer
         public bool ShowToolsMaterials { get; set; } = true;
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
-        public int NodeCount => staticNodes.Count + dynamicNodes.Count;
 
         private readonly List<SceneNode> staticNodes = new();
         private readonly List<SceneNode> dynamicNodes = new();
@@ -50,18 +49,33 @@ namespace GUI.Types.Renderer
 
         public void Add(SceneNode node, bool dynamic)
         {
-
-            node.Id = NodeCount + 1;
             if (dynamic)
             {
                 dynamicNodes.Add(node);
                 DynamicOctree.Insert(node, node.BoundingBox);
+                node.Id = (uint)dynamicNodes.Count * 2 - 1;
             }
             else
             {
                 staticNodes.Add(node);
                 StaticOctree.Insert(node, node.BoundingBox);
+                node.Id = (uint)staticNodes.Count * 2;
             }
+        }
+
+        public SceneNode Find(uint id)
+        {
+            if (id == 0)
+            {
+                return null;
+            }
+
+            if (id % 2 == 1)
+            {
+                return dynamicNodes[((int)id + 1) / 2 - 1];
+            }
+
+            return staticNodes[(int)id / 2 - 1];
         }
 
         public void Update(float timestep)
@@ -104,7 +118,7 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
-                                MeshId = mesh.MeshIndex,
+                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
 
@@ -117,7 +131,7 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
-                                MeshId = mesh.MeshIndex,
+                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
                     }

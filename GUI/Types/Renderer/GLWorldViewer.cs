@@ -187,29 +187,31 @@ namespace GUI.Types.Renderer
 
         protected override void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo)
         {
+            // Void
             if (pixelInfo.ObjectId == 0)
             {
                 return;
             }
 
-            foreach (var node in Scene.AllNodes)
+            // 3D Sky
+            if (pixelInfo.ObjectId == 1)
             {
-                if (node.Id != pixelInfo.ObjectId)
-                {
-                    continue;
-                }
+                return;
+            }
 
-                if (node is ModelSceneNode modelNode)
-                {
-                    // TODO: Use FileLoader
-                    var entry = GuiContext.CurrentPackage?.FindEntry(modelNode.GetModelFileName() + "_c");
-                    Console.WriteLine($"Selected {modelNode.GetModelFileName()} (Id: {pixelInfo.ObjectId})");
-                    if (entry != null)
-                    {
-                        var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
-                        Program.MainForm.OpenFile(newVrfGuiContext, entry);
-                    }
-                }
+            var worldModel = Scene.Find(pixelInfo.ObjectId) as ModelSceneNode;
+            if (worldModel is null)
+            {
+                return;
+            }
+
+            // TODO: Use FileLoader
+            var entry = GuiContext.CurrentPackage?.FindEntry(worldModel.GetModelFileName() + "_c");
+            Console.WriteLine($"Selected {worldModel.GetModelFileName()} (Id: {pixelInfo.ObjectId})");
+            if (entry != null)
+            {
+                var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
+                Program.MainForm.OpenFile(newVrfGuiContext, entry);
             }
         }
 
