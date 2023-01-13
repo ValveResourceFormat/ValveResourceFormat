@@ -103,8 +103,7 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.SetLocation(new Vector3(256));
             ViewerControl.Camera.LookAt(new Vector3(0));
 
-            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext);
-            ViewerControl.Camera.Picker.OnPicked += OnSceneNodeDoubleClick;
+            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnSceneNodeDoubleClick);
 
             var timer = new Stopwatch();
             timer.Start();
@@ -193,6 +192,8 @@ namespace GUI.Types.Renderer
             button.Click += (s, e) =>
             {
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
+                ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnSceneNodeDoubleClick);
+                ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
             };
             ViewerControl.AddControl(button);
 #endif

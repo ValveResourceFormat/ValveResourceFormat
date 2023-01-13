@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL4;
-using System.Numerics;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer;
@@ -46,10 +45,11 @@ internal class PickingTexture : IDisposable
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
 
-    public PickingTexture(VrfGuiContext vrfGuiContext)
+    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<uint> onPicked)
     {
         shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
         debugShader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>() { { "F_DEBUG_PICKER", true } });
+        OnPicked += onPicked;
         Setup();
     }
 
