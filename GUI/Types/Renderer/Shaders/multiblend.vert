@@ -8,7 +8,7 @@
 #define param_fulltangent 1
 //End of parameter defines
 
-in vec3 vPOSITION;
+layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 in vec4 vTEXCOORD1;

@@ -4,7 +4,7 @@
 #include "animation.incl"
 //End of includes
 
-in vec3 vPOSITION;
+layout (location = 0) in vec3 vPOSITION;
 in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;

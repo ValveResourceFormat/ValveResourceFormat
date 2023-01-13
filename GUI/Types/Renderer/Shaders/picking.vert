@@ -4,7 +4,7 @@
 #include "animation.incl"
 //End of includes
 
-in vec3 vPOSITION;
+layout (location = 0) in vec3 vPOSITION;
 
 uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
