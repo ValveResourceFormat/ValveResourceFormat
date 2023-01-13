@@ -166,6 +166,7 @@ namespace GUI.Types.Renderer
             else
             {
                 SetAvailableAnimations(Enumerable.Empty<string>());
+                ViewerControl.Camera.Picker.OnPicked -= OnPickerDoubleClick;
             }
 
             if (mesh != null)
@@ -184,6 +185,11 @@ namespace GUI.Types.Renderer
 
                 ViewerControl.AddCheckBox("Show Physics", physSceneNode.Enabled, (v) => { physSceneNode.Enabled = v; });
             }
+        }
+
+        protected override void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo)
+        {
+            Console.WriteLine("Selected mesh with index " + pixelInfo.MeshId);
         }
 
         private void SetAvailableAnimations(IEnumerable<string> animations)

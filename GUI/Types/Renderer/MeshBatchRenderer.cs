@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
             public DrawCall Call;
             public float DistanceFromCamera;
             public int NodeId;
+            public int MeshId;
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -67,6 +68,7 @@ namespace GUI.Types.Renderer
                 var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
                 var uniformLocationTime = shader.GetUniformLocation("g_flTime");
                 var uniformLocationScId = shader.GetUniformLocation("sceneObjectId");
+                var uniformLocationMeshId = shader.GetUniformLocation("meshId");
 
                 GL.UseProgram(shader.Program);
 
@@ -90,9 +92,14 @@ namespace GUI.Types.Renderer
                         var transformTk = request.Transform.ToOpenTK();
                         GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
 
-                        if (uniformLocationScId != 1)
+                        if (uniformLocationScId != -1)
                         {
                             GL.Uniform1(uniformLocationScId, (uint)request.NodeId);
+                        }
+
+                        if (uniformLocationMeshId != -1)
+                        {
+                            GL.Uniform1(uniformLocationMeshId, (uint)request.MeshId);
                         }
 
                         if (uniformLocationTime != 1)

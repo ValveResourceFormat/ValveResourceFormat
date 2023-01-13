@@ -185,6 +185,34 @@ namespace GUI.Types.Renderer
             ViewerControl.Invoke((Action)savedCameraPositionsControl.RefreshSavedPositions);
         }
 
+        protected override void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo)
+        {
+            if (pixelInfo.ObjectId == 0)
+            {
+                return;
+            }
+
+            foreach (var node in Scene.AllNodes)
+            {
+                if (node.Id != pixelInfo.ObjectId)
+                {
+                    continue;
+                }
+
+                if (node is ModelSceneNode modelNode)
+                {
+                    // TODO: Use FileLoader
+                    var entry = GuiContext.CurrentPackage?.FindEntry(modelNode.GetModelFileName() + "_c");
+                    Console.WriteLine($"Selected {modelNode.GetModelFileName()} (Id: {pixelInfo.ObjectId})");
+                    if (entry != null)
+                    {
+                        var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
+                        Program.MainForm.OpenFile(newVrfGuiContext, entry);
+                    }
+                }
+            }
+        }
+
         private void SetAvailableLayers(IEnumerable<string> worldLayers)
         {
             worldLayersComboBox.Items.Clear();

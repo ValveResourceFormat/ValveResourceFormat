@@ -104,6 +104,7 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
+                                MeshId = mesh.MeshIndex,
                             });
                         }
 
@@ -116,6 +117,7 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
+                                MeshId = mesh.MeshIndex,
                             });
                         }
                     }

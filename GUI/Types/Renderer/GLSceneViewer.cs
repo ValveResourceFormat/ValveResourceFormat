@@ -28,7 +28,6 @@ namespace GUI.Types.Renderer
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showToolsMaterials = true;
-        private bool pickerDebug;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
@@ -75,7 +74,6 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
-            ViewerControl.AddCheckBox("Picker Debug", pickerDebug, (v) => pickerDebug = v);
             ViewerControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 if (v)
@@ -95,6 +93,8 @@ namespace GUI.Types.Renderer
 
         protected abstract void LoadScene();
 
+        protected abstract void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo);
+
         private void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new ParticleGrid(20, 5, GuiContext);
@@ -103,7 +103,7 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.SetLocation(new Vector3(256));
             ViewerControl.Camera.LookAt(new Vector3(0));
 
-            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnSceneNodeDoubleClick);
+            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
 
             var timer = new Stopwatch();
             timer.Start();
@@ -163,11 +163,6 @@ namespace GUI.Types.Renderer
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            if (e.Camera.Picker is not null)
-            {
-                e.Camera.Picker.Debug = pickerDebug;
-            }
-
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 
             if (showStaticOctree)
@@ -192,7 +187,7 @@ namespace GUI.Types.Renderer
             button.Click += (s, e) =>
             {
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
-                ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnSceneNodeDoubleClick);
+                ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
                 ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
             };
             ViewerControl.AddControl(button);
@@ -209,6 +204,7 @@ namespace GUI.Types.Renderer
                 renderModeComboBox.Enabled = true;
                 renderModeComboBox.Items.Add("Default Render Mode");
                 renderModeComboBox.Items.AddRange(renderModes.ToArray());
+                renderModeComboBox.Items.Add("Object Id");
                 renderModeComboBox.SelectedIndex = 0;
             }
             else
@@ -239,33 +235,10 @@ namespace GUI.Types.Renderer
                     node.SetRenderMode(renderMode);
                 }
             }
-        }
 
-        private void OnSceneNodeDoubleClick(object sender, uint nodeID)
-        {
-            if (nodeID == 0)
+            if (Scene.MainCamera.Picker is not null)
             {
-                return;
-            }
-
-            foreach (var node in Scene.AllNodes)
-            {
-                if (node.Id != nodeID)
-                {
-                    continue;
-                }
-
-                if (node is ModelSceneNode modelNode)
-                {
-                    // TODO: Use FileLoader
-                    var entry = GuiContext.CurrentPackage?.FindEntry(modelNode.GetModelFileName() + "_c");
-                    Console.WriteLine($"Selected {modelNode.GetModelFileName()} (Id: {nodeID})");
-                    if (entry != null)
-                    {
-                        var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
-                        Program.MainForm.OpenFile(newVrfGuiContext, entry);
-                    }
-                }
+                Scene.MainCamera.Picker.Debug = renderMode == "Object Id";
             }
         }
     }

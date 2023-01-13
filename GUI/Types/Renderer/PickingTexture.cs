@@ -21,7 +21,16 @@ internal class PickingTexture : IDisposable
         }
     }
 
-    public event EventHandler<uint> OnPicked;
+    internal struct PixelInfo
+    {
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
+        public uint ObjectId;
+        public uint MeshId;
+        public uint Unused2;
+#pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
+    }
+
+    public event EventHandler<PixelInfo> OnPicked;
     public readonly PickingRequest Request = new();
 
     public readonly Shader shader;
@@ -36,16 +45,7 @@ internal class PickingTexture : IDisposable
     private int colorHandle;
     private int depthHandle;
 
-    internal struct PixelInfo
-    {
-#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
-        public uint Id;
-        public uint Unused;
-        public uint Unused2;
-#pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
-    }
-
-    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<uint> onPicked)
+    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PixelInfo> onPicked)
     {
         shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
         debugShader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>() { { "F_DEBUG_PICKER", true } });
@@ -94,8 +94,8 @@ internal class PickingTexture : IDisposable
         if (Request.ActiveNextFrame)
         {
             Request.ActiveNextFrame = false;
-            var id = ReadIdFromPixel(Request.CursorPositionX, Request.CursorPositionY);
-            OnPicked?.Invoke(this, id);
+            var pixelInfo = ReadPixelInfo(Request.CursorPositionX, Request.CursorPositionY);
+            OnPicked?.Invoke(this, pixelInfo);
         }
     }
 
@@ -111,7 +111,7 @@ internal class PickingTexture : IDisposable
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
     }
 
-    public uint ReadIdFromPixel(int width, int height)
+    public PixelInfo ReadPixelInfo(int width, int height)
     {
         GL.Flush();
         GL.Finish();
@@ -125,7 +125,7 @@ internal class PickingTexture : IDisposable
         GL.ReadBuffer(ReadBufferMode.None);
         GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
 
-        return pixelInfo.Id;
+        return pixelInfo;
     }
 
     public void Dispose()
