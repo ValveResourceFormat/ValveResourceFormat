@@ -186,9 +186,14 @@ namespace GUI.Types.Renderer
             };
             button.Click += (s, e) =>
             {
+                if (ViewerControl.Camera.Picker is not null)
+                {
+                    ViewerControl.Camera.Picker.Dispose();
+                    ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
+                    ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
+                }
+
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
-                ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
-                ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
             };
             ViewerControl.AddControl(button);
 #endif
@@ -236,9 +241,9 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (Scene.MainCamera.Picker is not null)
+            if (ViewerControl.Camera is not null)
             {
-                Scene.MainCamera.Picker.Debug = renderMode == "Object Id";
+                ViewerControl.Camera.Picker.Debug = renderMode == "Object Id";
             }
         }
     }

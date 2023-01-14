@@ -130,6 +130,7 @@ internal class PickingTexture : IDisposable
 
     public void Dispose()
     {
+        OnPicked = null;
         GL.DeleteTexture(colorHandle);
         GL.DeleteTexture(depthHandle);
         GL.DeleteFramebuffer(fboHandle);
