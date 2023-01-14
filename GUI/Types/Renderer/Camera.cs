@@ -153,7 +153,7 @@ namespace GUI.Types.Renderer
         {
             KeyboardState = keyboardState;
 
-            if (MouseOverRenderArea && mouseState.LeftButton == ButtonState.Pressed)
+            if (MouseOverRenderArea && (mouseState.LeftButton == ButtonState.Pressed || mouseState.RightButton == ButtonState.Pressed))
             {
                 if (!MouseDragging)
                 {
@@ -169,7 +169,7 @@ namespace GUI.Types.Renderer
                 MousePreviousPosition = mouseNewCoords;
             }
 
-            if (!MouseOverRenderArea || mouseState.LeftButton == ButtonState.Released)
+            if (!MouseOverRenderArea || !mouseState.IsConnected || (mouseState.LeftButton == ButtonState.Released && mouseState.RightButton == ButtonState.Released))
             {
                 MouseDragging = false;
                 MouseDelta = default;
