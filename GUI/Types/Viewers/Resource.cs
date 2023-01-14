@@ -235,15 +235,15 @@ namespace GUI.Types.Viewers
 
                         Console.WriteLine($"Opening {name} from external refs");
 
-                        var file = vrfGuiContext.CurrentPackage?.FindEntry(name);
-
-                        file ??= vrfGuiContext.CurrentPackage?.FindEntry(name + "_c");
-
-                        if (file != null)
+                        var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name);
+                        if (foundFile.Context == null)
                         {
-                            var newVrfGuiContext = new VrfGuiContext(file.GetFileName(), vrfGuiContext);
+                            foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name + "_c");
+                        }
 
-                            Program.MainForm.OpenFile(newVrfGuiContext, file);
+                        if (foundFile.Context != null)
+                        {
+                            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
                         }
                     }
 

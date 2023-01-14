@@ -200,28 +200,35 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            // TODO: Use FileLoader
-            var entry = GuiContext.CurrentPackage?.FindEntry(worldModel.GetModelFileName() + "_c");
+            var foundFile = GuiContext.FileLoader.FindFileWithContext(worldModel.GetModelFileName() + "_c");
             Console.WriteLine($"Selected {worldModel.GetModelFileName()} (Id: {pixelInfo.ObjectId})");
-            if (entry != null)
+
+            if (foundFile.Context == null)
             {
-                var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
-                var task = Program.MainForm.OpenFile(newVrfGuiContext, entry);
-                task.ContinueWith(
-                    t =>
-                    {
-                        var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
-                            .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
-                            .Controls.OfType<GLViewerControl>().First();
-                        if (glViewer is not null)
-                        {
-                            glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
-                        }
-                    },
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnRanToCompletion,
-                    TaskScheduler.Default);
+                return;
             }
+
+            var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+
+            if (!worldModel.Transform.IsIdentity)
+            {
+                return;
+            }
+
+            task.ContinueWith(
+                t =>
+                {
+                    var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
+                        .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
+                        .Controls.OfType<GLViewerControl>().First();
+                    if (glViewer is not null)
+                    {
+                        glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion,
+                TaskScheduler.Default);
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

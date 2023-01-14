@@ -65,7 +65,37 @@ namespace GUI.Utils
             CachedResources.Clear();
         }
 
-        public (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file)
+        public (VrfGuiContext Context, PackageEntry PackageEntry) FindFileWithContext(string file)
+        {
+            var foundFile = FindFile(file);
+
+            if (foundFile.PackageEntry == null && foundFile.PathOnDisk == null)
+            {
+                return (null, null);
+            }
+
+            VrfGuiContext newContext = null;
+
+            if (foundFile.PathOnDisk != null)
+            {
+                newContext = new VrfGuiContext(foundFile.PathOnDisk, null);
+            }
+
+            if (foundFile.Package != null)
+            {
+                var parentContext = foundFile.Context?.ParentGuiContext;
+                parentContext ??= new VrfGuiContext(foundFile.Package.FileName, null)
+                {
+                    CurrentPackage = foundFile.Package
+                };
+
+                newContext = new VrfGuiContext(foundFile.PackageEntry.GetFullPath(), parentContext);
+            }
+
+            return (newContext, foundFile.PackageEntry);
+        }
+
+        public (string PathOnDisk, VrfGuiContext Context, Package Package, PackageEntry PackageEntry) FindFile(string file)
         {
             var entry = GuiContext.CurrentPackage?.FindEntry(file);
 
@@ -75,7 +105,7 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from current vpk");
 #endif
 
-                return (null, GuiContext.CurrentPackage, entry);
+                return (null, GuiContext, GuiContext.CurrentPackage, entry);
             }
 
             if (GuiContext.ParentGuiContext != null)
@@ -137,7 +167,7 @@ namespace GUI.Utils
                     Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
-                    return (null, package, entry);
+                    return (null, null, package, entry);
                 }
             }
 
@@ -145,7 +175,7 @@ namespace GUI.Utils
 
             if (path != null)
             {
-                return (path, null, null);
+                return (path, null, null, null);
             }
 
             Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
@@ -155,7 +185,7 @@ namespace GUI.Utils
                 Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
             }
 
-            return (null, null, null);
+            return (null, null, null, null);
         }
 
         public Resource LoadFile(string file)
