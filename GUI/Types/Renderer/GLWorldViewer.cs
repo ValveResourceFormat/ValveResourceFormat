@@ -195,14 +195,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            // 3D Sky
-            if (pixelInfo.ObjectId == 1)
-            {
-                return;
-            }
-
-            var worldModel = Scene.Find(pixelInfo.ObjectId) as ModelSceneNode;
-            if (worldModel is null)
+            if (Scene.Find(pixelInfo.ObjectId) is not ModelSceneNode worldModel)
             {
                 return;
             }

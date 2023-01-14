@@ -71,10 +71,26 @@ namespace GUI.Types.Renderer
 
             if (id % 2 == 1)
             {
-                return dynamicNodes[((int)id + 1) / 2 - 1];
-            }
+                var index = ((int)id + 1) / 2 - 1;
 
-            return staticNodes[(int)id / 2 - 1];
+                if (index >= dynamicNodes.Count)
+                {
+                    return null;
+                }
+
+                return dynamicNodes[index];
+            }
+            else
+            {
+                var index = (int)id / 2 - 1;
+
+                if (index >= staticNodes.Count)
+                {
+                    return null;
+                }
+
+                return staticNodes[index];
+            }
         }
 
         public void Update(float timestep)
