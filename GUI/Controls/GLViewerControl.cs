@@ -168,6 +168,7 @@ namespace GUI.Controls
             GLControl.Resize -= OnResize;
             GLControl.MouseEnter -= OnMouseEnter;
             GLControl.MouseLeave -= OnMouseLeave;
+            GLControl.MouseDown -= OnMouseDown;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             GLControl.Disposed -= OnDisposed;

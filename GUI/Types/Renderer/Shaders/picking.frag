@@ -15,7 +15,6 @@ void main()
 {
 #if param_F_DEBUG_PICKER == 1
     outputColor = vec4(fract(float(sceneObjectId) / 7.0), fract(float(sceneObjectId) / 11.0), fract(float(sceneObjectId) / 13.0), 1.0);
-    //outputColor = vec4(fract(float(meshId) / 7.0), fract(float(meshId) / 11.0), fract(float(meshId) / 13.0), 1.0);
 #else
     outputColor = uvec2(sceneObjectId, meshId);
 #endif

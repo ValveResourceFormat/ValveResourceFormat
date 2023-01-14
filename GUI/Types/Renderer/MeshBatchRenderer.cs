@@ -50,11 +50,9 @@ namespace GUI.Types.Renderer
             var cameraPosition = context.Camera.Location.ToOpenTK();
             var lightPosition = cameraPosition; // (context.LightPosition ?? context.Camera.Location).ToOpenTK();
 
-            var groupedDrawCalls = context.ReplacementShader switch
-            {
-                null => drawCalls.GroupBy(a => a.Call.Shader),
-                _ => drawCalls.GroupBy(a => context.ReplacementShader)
-            };
+            var groupedDrawCalls = context.ReplacementShader == null
+                ? drawCalls.GroupBy(a => a.Call.Shader)
+                : drawCalls.GroupBy(a => context.ReplacementShader);
 
             foreach (var shaderGroup in groupedDrawCalls)
             {

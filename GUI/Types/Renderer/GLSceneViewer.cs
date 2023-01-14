@@ -228,13 +228,16 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            if (ViewerControl.Camera is not null && renderMode == "Object Id")
+            if (ViewerControl.Camera is not null)
             {
-                ViewerControl.Camera.Picker.Debug = true;
-                return;
-            }
+                if (renderMode == "Object Id")
+                {
+                    ViewerControl.Camera.Picker.Debug = true;
+                    return;
+                }
 
-            ViewerControl.Camera.Picker.Debug = false;
+                ViewerControl.Camera.Picker.Debug = false;
+            }
 
             foreach (var node in Scene.AllNodes)
             {
