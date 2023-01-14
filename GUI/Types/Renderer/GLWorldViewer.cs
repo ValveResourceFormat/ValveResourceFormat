@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -211,7 +213,21 @@ namespace GUI.Types.Renderer
             if (entry != null)
             {
                 var newVrfGuiContext = new VrfGuiContext(entry.GetFileName(), GuiContext.ParentGuiContext);
-                Program.MainForm.OpenFile(newVrfGuiContext, entry);
+                var task = Program.MainForm.OpenFile(newVrfGuiContext, entry);
+                task.ContinueWith(
+                    t =>
+                    {
+                        var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
+                            .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
+                            .Controls.OfType<GLViewerControl>().First();
+                        if (glViewer is not null)
+                        {
+                            glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnRanToCompletion,
+                    TaskScheduler.Default);
             }
         }
 

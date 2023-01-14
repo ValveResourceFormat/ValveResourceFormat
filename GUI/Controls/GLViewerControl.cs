@@ -34,7 +34,7 @@ namespace GUI.Controls
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
-
+        public Action<GLViewerControl> GLPostLoad { get; set; }
         private static bool hasCheckedOpenGL;
 
         long lastFpsUpdate;
@@ -225,6 +225,8 @@ namespace GUI.Controls
             }
 
             HandleResize();
+            GLPostLoad?.Invoke(this);
+            GLPostLoad = null;
             Draw();
         }
 

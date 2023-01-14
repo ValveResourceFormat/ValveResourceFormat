@@ -428,7 +428,7 @@ namespace GUI
             OpenFile(vrfGuiContext, null);
         }
 
-        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file)
+        public Task<TabPage> OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
             var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
@@ -500,6 +500,8 @@ namespace GUI
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
                 TaskScheduler.FromCurrentSynchronizationContext());
+
+            return task;
         }
 
         private TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry file)
