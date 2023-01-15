@@ -201,7 +201,7 @@ namespace GUI.Types.Renderer
 
             var foundNode = Scene.Find(pixelInfo.ObjectId);
 
-            if (pickingResponse.Clicks != 2)
+            if (pickingResponse.Intent == PickingIntent.Select)
             {
                 selectedNodeRenderer.SelectNode(foundNode);
                 return;

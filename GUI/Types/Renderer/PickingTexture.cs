@@ -12,20 +12,26 @@ internal class PickingTexture : IDisposable
         public bool ActiveNextFrame;
         public int CursorPositionX;
         public int CursorPositionY;
-        public int Clicks;
+        public PickingIntent Intent;
 
-        public void NextFrame(int x, int y, int clicks)
+        public void NextFrame(int x, int y, PickingIntent intent)
         {
             ActiveNextFrame = true;
             CursorPositionX = x;
             CursorPositionY = y;
-            Clicks = clicks;
+            Intent = intent;
         }
+    }
+
+    internal enum PickingIntent
+    {
+        Select,
+        Open
     }
 
     internal struct PickingResponse
     {
-        public int Clicks;
+        public PickingIntent Intent;
         public PixelInfo PixelInfo;
     }
 
@@ -105,7 +111,7 @@ internal class PickingTexture : IDisposable
             var pixelInfo = ReadPixelInfo(Request.CursorPositionX, Request.CursorPositionY);
             OnPicked?.Invoke(this, new PickingResponse
             {
-                Clicks = Request.Clicks,
+                Intent = Request.Intent,
                 PixelInfo = pixelInfo,
             });
         }

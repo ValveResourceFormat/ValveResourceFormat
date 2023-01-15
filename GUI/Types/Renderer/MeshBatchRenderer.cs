@@ -65,7 +65,7 @@ namespace GUI.Types.Renderer
                 var uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
                 var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
                 var uniformLocationTime = shader.GetUniformLocation("g_flTime");
-                var uniformLocationScId = shader.GetUniformLocation("sceneObjectId");
+                var uniformLocationObjectId = shader.GetUniformLocation("sceneObjectId");
                 var uniformLocationMeshId = shader.GetUniformLocation("meshId");
 
                 GL.UseProgram(shader.Program);
@@ -90,9 +90,9 @@ namespace GUI.Types.Renderer
                         var transformTk = request.Transform.ToOpenTK();
                         GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
 
-                        if (uniformLocationScId != -1)
+                        if (uniformLocationObjectId != -1)
                         {
-                            GL.Uniform1(uniformLocationScId, request.NodeId);
+                            GL.Uniform1(uniformLocationObjectId, request.NodeId);
                         }
 
                         if (uniformLocationMeshId != -1)

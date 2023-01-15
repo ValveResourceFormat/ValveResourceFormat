@@ -11,7 +11,8 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
-using FormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
+using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
+using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Controls
 {
@@ -41,6 +42,8 @@ namespace GUI.Controls
         long lastUpdate;
         int frames;
 
+        Vector2 initialMousePosition;
+
         public GLViewerControl()
         {
             InitializeComponent();
@@ -61,6 +64,7 @@ namespace GUI.Controls
             GLControl.Resize += OnResize;
             GLControl.MouseEnter += OnMouseEnter;
             GLControl.MouseLeave += OnMouseLeave;
+            GLControl.MouseUp += OnMouseUp;
             GLControl.MouseDown += OnMouseDown;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
@@ -168,6 +172,7 @@ namespace GUI.Controls
             GLControl.Resize -= OnResize;
             GLControl.MouseEnter -= OnMouseEnter;
             GLControl.MouseLeave -= OnMouseLeave;
+            GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
@@ -193,14 +198,27 @@ namespace GUI.Controls
             Camera.MouseOverRenderArea = true;
         }
 
-        private void OnMouseDown(object sender, FormsMouseEventArgs e)
+        private void OnMouseDown(object sender, WinFormsMouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Left)
+            if (e.Button == MouseButtons.Left)
+            {
+                initialMousePosition = new Vector2(e.X, e.Y);
+                if (e.Clicks == 2)
+                {
+                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Open);
+                }
+            }
+        }
+
+        private void OnMouseUp(object sender, WinFormsMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || initialMousePosition != new Vector2(e.X, e.Y))
             {
                 return;
             }
 
-            Camera.Picker?.Request.NextFrame(e.X, e.Y, e.Clicks);
+            Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+
         }
 
         private void OnLoad(object sender, EventArgs e)
