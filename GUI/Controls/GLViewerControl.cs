@@ -195,10 +195,12 @@ namespace GUI.Controls
 
         private void OnMouseDown(object sender, FormsMouseEventArgs e)
         {
-            if (e.Clicks == 2)
+            if (e.Button != MouseButtons.Left)
             {
-                Camera.Picker?.Request.NextFrame(e.X, e.Y);
+                return;
             }
+
+            Camera.Picker?.Request.NextFrame(e.X, e.Y, e.Clicks);
         }
 
         private void OnLoad(object sender, EventArgs e)

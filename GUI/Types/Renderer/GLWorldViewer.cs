@@ -9,6 +9,7 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using static GUI.Controls.SavedCameraPositionsControl;
+using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Types.Renderer
 {
@@ -187,15 +188,26 @@ namespace GUI.Types.Renderer
             ViewerControl.Invoke((Action)savedCameraPositionsControl.RefreshSavedPositions);
         }
 
-        protected override void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo)
+        protected override void OnPickerDoubleClick(object sender, PickingResponse pickingResponse)
         {
+            var pixelInfo = pickingResponse.PixelInfo;
+
             // Void
             if (pixelInfo.ObjectId == 0)
             {
+                selectedNodeRenderer.SelectNode(null);
                 return;
             }
 
-            if (Scene.Find(pixelInfo.ObjectId) is not ModelSceneNode worldModel)
+            var foundNode = Scene.Find(pixelInfo.ObjectId);
+
+            if (pickingResponse.Clicks != 2)
+            {
+                selectedNodeRenderer.SelectNode(foundNode);
+                return;
+            }
+
+            if (foundNode is not ModelSceneNode worldModel)
             {
                 return;
             }
@@ -207,6 +219,8 @@ namespace GUI.Types.Renderer
             {
                 return;
             }
+
+            Matrix4x4.Invert(worldModel.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
 
             var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
 
@@ -220,8 +234,6 @@ namespace GUI.Types.Renderer
                     {
                         glViewer.GLPostLoad = (viewerControl) =>
                         {
-                            Matrix4x4.Invert(worldModel.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
-
                             var yaw = (float)Math.Atan2(-transform.M32, -transform.M31);
 
                             var scaleZ = Math.Sqrt(transform.M31 * transform.M31 + transform.M32 * transform.M32 + transform.M33 * transform.M33);

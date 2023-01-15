@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
             vertices.Add(a);
         }
 
-        private static void AddBox(List<float> vertices, AABB box, float r, float g, float b, float a)
+        public static void AddBox(List<float> vertices, AABB box, float r, float g, float b, float a)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 14 * 12);

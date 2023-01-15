@@ -12,13 +12,21 @@ internal class PickingTexture : IDisposable
         public bool ActiveNextFrame;
         public int CursorPositionX;
         public int CursorPositionY;
+        public int Clicks;
 
-        public void NextFrame(int x, int y)
+        public void NextFrame(int x, int y, int clicks)
         {
             ActiveNextFrame = true;
             CursorPositionX = x;
             CursorPositionY = y;
+            Clicks = clicks;
         }
+    }
+
+    internal struct PickingResponse
+    {
+        public int Clicks;
+        public PixelInfo PixelInfo;
     }
 
     internal struct PixelInfo
@@ -30,7 +38,7 @@ internal class PickingTexture : IDisposable
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
 
-    public event EventHandler<PixelInfo> OnPicked;
+    public event EventHandler<PickingResponse> OnPicked;
     public readonly PickingRequest Request = new();
 
     public readonly Shader shader;
@@ -45,7 +53,7 @@ internal class PickingTexture : IDisposable
     private int colorHandle;
     private int depthHandle;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PixelInfo> onPicked)
+    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
     {
         shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
         debugShader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>() { { "F_DEBUG_PICKER", true } });
@@ -95,7 +103,11 @@ internal class PickingTexture : IDisposable
         {
             Request.ActiveNextFrame = false;
             var pixelInfo = ReadPixelInfo(Request.CursorPositionX, Request.CursorPositionY);
-            OnPicked?.Invoke(this, pixelInfo);
+            OnPicked?.Invoke(this, new PickingResponse
+            {
+                Clicks = Request.Clicks,
+                PixelInfo = pixelInfo,
+            });
         }
     }
 

@@ -187,9 +187,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        protected override void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo)
+        protected override void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pickingResponse)
         {
-            Console.WriteLine("Selected mesh with index " + pixelInfo.MeshId);
+            Console.WriteLine("Selected mesh with index " + pickingResponse.PixelInfo.MeshId);
         }
 
         private void SetAvailableAnimations(IEnumerable<string> animations)

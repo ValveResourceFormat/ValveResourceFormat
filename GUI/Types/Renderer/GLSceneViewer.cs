@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
         private readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
+        protected SelectedNodeRenderer selectedNodeRenderer;
 
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
         {
@@ -93,11 +94,12 @@ namespace GUI.Types.Renderer
 
         protected abstract void LoadScene();
 
-        protected abstract void OnPickerDoubleClick(object sender, PickingTexture.PixelInfo pixelInfo);
+        protected abstract void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pixelInfo);
 
         private void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new ParticleGrid(20, 5, GuiContext);
+            selectedNodeRenderer = new(GuiContext);
 
             ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
             ViewerControl.Camera.SetLocation(new Vector3(256));
@@ -164,6 +166,8 @@ namespace GUI.Types.Renderer
             }
 
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
+
+            selectedNodeRenderer.Render(e.Camera, RenderPass.Both);
 
             if (showStaticOctree)
             {
