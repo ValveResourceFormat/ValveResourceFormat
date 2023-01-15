@@ -210,11 +210,6 @@ namespace GUI.Types.Renderer
 
             var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
 
-            if (!worldModel.Transform.IsIdentity)
-            {
-                return;
-            }
-
             task.ContinueWith(
                 t =>
                 {
@@ -223,7 +218,15 @@ namespace GUI.Types.Renderer
                         .Controls.OfType<GLViewerControl>().First();
                     if (glViewer is not null)
                     {
-                        glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
+                        glViewer.GLPostLoad = (viewerControl) =>
+                        {
+                            Matrix4x4.Invert(worldModel.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
+
+                            var yaw = (float)Math.Atan2(-transform.M32, -transform.M31);
+                            var pitch = (float)Math.Asin(-transform.M33);
+
+                            viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+                        };
                     }
                 },
                 CancellationToken.None,
