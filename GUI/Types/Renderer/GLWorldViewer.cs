@@ -223,7 +223,10 @@ namespace GUI.Types.Renderer
                             Matrix4x4.Invert(worldModel.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
 
                             var yaw = (float)Math.Atan2(-transform.M32, -transform.M31);
-                            var pitch = (float)Math.Asin(-transform.M33);
+
+                            var scaleZ = Math.Sqrt(transform.M31 * transform.M31 + transform.M32 * transform.M32 + transform.M33 * transform.M33);
+                            var unscaledZ = transform.M33 / scaleZ;
+                            var pitch = (float)Math.Asin(-unscaledZ);
 
                             viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
                         };
