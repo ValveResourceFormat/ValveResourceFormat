@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
     /// Renders a list of ParticleRenderers.
     /// </summary>
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
-    internal class GLParticleViewer
+    internal class GLParticleViewer : IGLViewer
 #pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private ICollection<ParticleRenderer.ParticleRenderer> Renderers { get; } = new HashSet<ParticleRenderer.ParticleRenderer>();
@@ -34,7 +34,7 @@ namespace GUI.Types.Renderer
         {
             vrfGuiContext = guiContext;
 
-            viewerControl = new GLViewerControl();
+            viewerControl = new GLViewerControl(this);
 
             renderModeComboBox = viewerControl.AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
 

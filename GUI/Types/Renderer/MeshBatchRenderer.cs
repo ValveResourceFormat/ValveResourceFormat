@@ -15,6 +15,8 @@ namespace GUI.Types.Renderer
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
+            public uint NodeId;
+            public uint MeshId;
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -48,7 +50,11 @@ namespace GUI.Types.Renderer
             var cameraPosition = context.Camera.Location.ToOpenTK();
             var lightPosition = cameraPosition; // (context.LightPosition ?? context.Camera.Location).ToOpenTK();
 
-            foreach (var shaderGroup in drawCalls.GroupBy(a => a.Call.Shader))
+            var groupedDrawCalls = context.ReplacementShader == null
+                ? drawCalls.GroupBy(a => a.Call.Shader)
+                : drawCalls.GroupBy(a => context.ReplacementShader);
+
+            foreach (var shaderGroup in groupedDrawCalls)
             {
                 var shader = shaderGroup.Key;
 
@@ -59,6 +65,8 @@ namespace GUI.Types.Renderer
                 var uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
                 var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
                 var uniformLocationTime = shader.GetUniformLocation("g_flTime");
+                var uniformLocationObjectId = shader.GetUniformLocation("sceneObjectId");
+                var uniformLocationMeshId = shader.GetUniformLocation("meshId");
 
                 GL.UseProgram(shader.Program);
 
@@ -81,6 +89,16 @@ namespace GUI.Types.Renderer
                     {
                         var transformTk = request.Transform.ToOpenTK();
                         GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
+
+                        if (uniformLocationObjectId != -1)
+                        {
+                            GL.Uniform1(uniformLocationObjectId, request.NodeId);
+                        }
+
+                        if (uniformLocationMeshId != -1)
+                        {
+                            GL.Uniform1(uniformLocationMeshId, request.MeshId);
+                        }
 
                         if (uniformLocationTime != 1)
                         {

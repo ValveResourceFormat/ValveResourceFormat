@@ -12,7 +12,7 @@ using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
-    internal abstract class GLSceneViewer
+    internal abstract class GLSceneViewer : IGLViewer
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
@@ -35,11 +35,12 @@ namespace GUI.Types.Renderer
         private readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
+        protected SelectedNodeRenderer selectedNodeRenderer;
 
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
         {
             Scene = new Scene(guiContext);
-            ViewerControl = new GLViewerControl();
+            ViewerControl = new GLViewerControl(this);
             lockedCullFrustum = cullFrustum;
 
             InitializeControl();
@@ -52,7 +53,7 @@ namespace GUI.Types.Renderer
         protected GLSceneViewer(VrfGuiContext guiContext)
         {
             Scene = new Scene(guiContext);
-            ViewerControl = new GLViewerControl();
+            ViewerControl = new GLViewerControl(this);
 
             InitializeControl();
             ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
@@ -93,13 +94,18 @@ namespace GUI.Types.Renderer
 
         protected abstract void LoadScene();
 
+        protected abstract void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pixelInfo);
+
         private void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new ParticleGrid(20, 5, GuiContext);
+            selectedNodeRenderer = new(GuiContext);
 
             ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
             ViewerControl.Camera.SetLocation(new Vector3(256));
             ViewerControl.Camera.LookAt(new Vector3(0));
+
+            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
 
             var timer = new Stopwatch();
             timer.Start();
@@ -161,6 +167,8 @@ namespace GUI.Types.Renderer
 
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 
+            selectedNodeRenderer.Render(e.Camera, RenderPass.Both);
+
             if (showStaticOctree)
             {
                 staticOctreeRenderer.Render(e.Camera, RenderPass.Both);
@@ -182,6 +190,13 @@ namespace GUI.Types.Renderer
             };
             button.Click += (s, e) =>
             {
+                if (ViewerControl.Camera.Picker is not null)
+                {
+                    ViewerControl.Camera.Picker.Dispose();
+                    ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
+                    ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
+                }
+
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
             };
             ViewerControl.AddControl(button);
@@ -198,6 +213,7 @@ namespace GUI.Types.Renderer
                 renderModeComboBox.Enabled = true;
                 renderModeComboBox.Items.Add("Default Render Mode");
                 renderModeComboBox.Items.AddRange(renderModes.ToArray());
+                renderModeComboBox.Items.Add("Object Id");
                 renderModeComboBox.SelectedIndex = 0;
             }
             else
@@ -216,6 +232,17 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
+            if (ViewerControl.Camera is not null)
+            {
+                if (renderMode == "Object Id")
+                {
+                    ViewerControl.Camera.Picker.Debug = true;
+                    return;
+                }
+
+                ViewerControl.Camera.Picker.Debug = false;
+            }
+
             foreach (var node in Scene.AllNodes)
             {
                 node.SetRenderMode(renderMode);

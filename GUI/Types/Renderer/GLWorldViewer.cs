@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using static GUI.Controls.SavedCameraPositionsControl;
+using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Types.Renderer
 {
@@ -41,7 +44,7 @@ namespace GUI.Types.Renderer
         {
             AddRenderModeSelectionControl();
 
-            worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", (worldLayers) =>
+            worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", null, (worldLayers) =>
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
@@ -183,6 +186,110 @@ namespace GUI.Types.Renderer
             ShowBaseGrid = false;
 
             ViewerControl.Invoke((Action)savedCameraPositionsControl.RefreshSavedPositions);
+        }
+
+        protected override void OnPickerDoubleClick(object sender, PickingResponse pickingResponse)
+        {
+            var pixelInfo = pickingResponse.PixelInfo;
+
+            // Void
+            if (pixelInfo.ObjectId == 0)
+            {
+                selectedNodeRenderer.SelectNode(null);
+                return;
+            }
+
+            var sceneNode = Scene.Find(pixelInfo.ObjectId);
+
+            if (pickingResponse.Intent == PickingIntent.Select)
+            {
+                selectedNodeRenderer.SelectNode(sceneNode);
+                return;
+            }
+
+            Console.WriteLine($"Selected {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
+
+            var foundFile = GuiContext.FileLoader.FindFileWithContext(sceneNode.Name + "_c");
+
+            if (foundFile.Context == null)
+            {
+                return;
+            }
+
+            Matrix4x4.Invert(sceneNode.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
+
+            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry).ContinueWith(
+                t =>
+                {
+                    var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
+                        .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
+                        .Controls.OfType<GLViewerControl>().First();
+                    if (glViewer is not null)
+                    {
+                        glViewer.GLPostLoad = (viewerControl) =>
+                        {
+                            var yaw = (float)Math.Atan2(-transform.M32, -transform.M31);
+
+                            var scaleZ = Math.Sqrt(transform.M31 * transform.M31 + transform.M32 * transform.M32 + transform.M33 * transform.M33);
+                            var unscaledZ = transform.M33 / scaleZ;
+                            var pitch = (float)Math.Asin(-unscaledZ);
+
+                            viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+
+                            if (sceneNode is not ModelSceneNode worldModel)
+                            {
+                                return;
+                            }
+
+                            if (glViewer.GLViewer is GLModelViewer glModelViewer)
+                            {
+                                // Set same mesh groups
+                                if (glModelViewer.meshGroupListBox != null)
+                                {
+                                    foreach (int checkedItemIndex in glModelViewer.meshGroupListBox.CheckedIndices)
+                                    {
+                                        glModelViewer.meshGroupListBox.SetItemChecked(checkedItemIndex, false);
+                                    }
+
+                                    foreach (var group in worldModel.GetActiveMeshGroups())
+                                    {
+                                        var item = glModelViewer.meshGroupListBox.FindStringExact(group);
+
+                                        if (item != ListBox.NoMatches)
+                                        {
+                                            glModelViewer.meshGroupListBox.SetItemChecked(item, true);
+                                        }
+                                    }
+                                }
+
+                                // Set same material group
+                                if (glModelViewer.materialGroupListBox != null && worldModel.ActiveSkin != null)
+                                {
+                                    var skinId = glModelViewer.materialGroupListBox.FindStringExact(worldModel.ActiveSkin);
+
+                                    if (skinId != -1)
+                                    {
+                                        glModelViewer.materialGroupListBox.SelectedIndex = skinId;
+                                    }
+                                }
+
+                                // Set animation
+                                if (glModelViewer.animationComboBox != null && worldModel.AnimationController.ActiveAnimation != null)
+                                {
+                                    var animationId = glModelViewer.animationComboBox.FindStringExact(worldModel.AnimationController.ActiveAnimation.Name);
+
+                                    if (animationId != -1)
+                                    {
+                                        glModelViewer.animationComboBox.SelectedIndex = animationId;
+                                    }
+                                }
+                            }
+                        };
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion,
+                TaskScheduler.Default);
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

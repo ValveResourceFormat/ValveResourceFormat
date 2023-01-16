@@ -236,6 +236,8 @@ namespace GUI.Types.Renderer
                     return "error";
                 case "vrf.grid":
                     return "debug_grid";
+                case "vrf.picking":
+                    return "picking";
                 case "vrf.particle.sprite":
                     return "particle_sprite";
                 case "vrf.particle.trail":

@@ -34,6 +34,7 @@ namespace GUI.Types.Renderer
 
         public readonly AnimationController AnimationController;
         public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
+        public string ActiveSkin { get; private set; }
 
         private readonly List<RenderableMesh> meshRenderers = new();
         private readonly List<Animation> animations = new();
@@ -118,6 +119,8 @@ namespace GUI.Types.Renderer
 
         public void SetSkin(string skin)
         {
+            ActiveSkin = skin;
+
             var materialGroups = Model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
             string[] defaultMaterials = null;
 
@@ -173,8 +176,7 @@ namespace GUI.Types.Renderer
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
-            var referredMeshesAndLoDs = Model.GetReferenceMeshNamesAndLoD();
-            foreach (var refMesh in referredMeshesAndLoDs.Where(m => (m.LoDMask & 1) != 0))
+            foreach (var refMesh in GetLod1RefMeshes())
             {
                 var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
                 if (newResource == null)
@@ -232,6 +234,9 @@ namespace GUI.Types.Renderer
                 }
             }
         }
+
+        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
+            => Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0);
 
         public IEnumerable<string> GetMeshGroups()
             => Model.GetMeshGroups();

@@ -2,7 +2,7 @@
 
 #include "animation.incl"
 
-in vec3 vPOSITION;
+layout (location = 0) in vec3 vPOSITION;
 in vec2 vTEXCOORD;
 
 out vec3 vFragPosition;

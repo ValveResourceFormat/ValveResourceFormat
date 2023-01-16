@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -16,11 +18,11 @@ namespace GUI.Types.Renderer
         private readonly Model model;
         private readonly Mesh mesh;
         private PhysAggregateData phys;
-        private ComboBox animationComboBox;
+        public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
         private GLViewerTrackBarControl animationTrackBar;
-        private CheckedListBox meshGroupListBox;
-        private ComboBox materialGroupListBox;
+        public CheckedListBox meshGroupListBox { get; private set; }
+        public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
         private PhysSceneNode physSceneNode;
@@ -113,16 +115,17 @@ namespace GUI.Types.Renderer
 
                 if (meshGroups.Count() > 1)
                 {
-                    meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", selectedGroups =>
+                    meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", listBox =>
+                    {
+                        listBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray<object>());
+                        foreach (var group in modelSceneNode.GetActiveMeshGroups())
+                        {
+                            listBox.SetItemChecked(listBox.FindStringExact(group), true);
+                        }
+                    }, selectedGroups =>
                     {
                         modelSceneNode.SetActiveMeshGroups(selectedGroups);
                     });
-
-                    meshGroupListBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray<object>());
-                    foreach (var group in modelSceneNode.GetActiveMeshGroups())
-                    {
-                        meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
-                    }
                 }
 
                 var materialGroups = model.GetMaterialGroups();
@@ -166,6 +169,7 @@ namespace GUI.Types.Renderer
             else
             {
                 SetAvailableAnimations(Enumerable.Empty<string>());
+                ViewerControl.Camera.Picker.OnPicked -= OnPickerDoubleClick;
             }
 
             if (mesh != null)
@@ -184,6 +188,54 @@ namespace GUI.Types.Renderer
 
                 ViewerControl.AddCheckBox("Show Physics", physSceneNode.Enabled, (v) => { physSceneNode.Enabled = v; });
             }
+        }
+
+        protected override void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pickingResponse)
+        {
+            if (modelSceneNode == null)
+            {
+                return;
+            }
+
+            // Void
+            if (pickingResponse.PixelInfo.ObjectId == 0)
+            {
+                return;
+            }
+
+            if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
+            {
+                Console.WriteLine("Selected mesh with index " + pickingResponse.PixelInfo.MeshId);
+                return;
+            }
+
+            if (pickingResponse.Intent == PickingTexture.PickingIntent.Open)
+            {
+                var refMesh = modelSceneNode.GetLod1RefMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
+                if (refMesh.MeshName != null)
+                {
+                    var foundFile = GuiContext.FileLoader.FindFileWithContext(refMesh.MeshName + "_c");
+                    if (foundFile.Context != null)
+                    {
+                        var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                        task.ContinueWith(
+                            t =>
+                            {
+                                var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
+                                    .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
+                                    .Controls.OfType<GLViewerControl>().First();
+                                if (glViewer is not null)
+                                {
+                                    glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
+                                }
+                            },
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnRanToCompletion,
+                        TaskScheduler.Default);
+                    }
+                }
+            }
+
         }
 
         private void SetAvailableAnimations(IEnumerable<string> animations)

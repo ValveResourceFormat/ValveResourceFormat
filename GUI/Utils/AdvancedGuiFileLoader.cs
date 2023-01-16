@@ -65,19 +65,38 @@ namespace GUI.Utils
             CachedResources.Clear();
         }
 
-        public Resource LoadFile(string file)
+        public (VrfGuiContext Context, PackageEntry PackageEntry) FindFileWithContext(string file)
         {
-            // TODO: Might conflict where same file name is available in different paths
-            if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
+            var foundFile = FindFile(file);
+
+            if (foundFile.PackageEntry == null && foundFile.PathOnDisk == null)
             {
-                return resource;
+                return (null, null);
             }
 
-            resource = new Resource
-            {
-                FileName = file,
-            };
+            VrfGuiContext newContext = null;
 
+            if (foundFile.PathOnDisk != null)
+            {
+                newContext = new VrfGuiContext(foundFile.PathOnDisk, null);
+            }
+
+            if (foundFile.Package != null)
+            {
+                var parentContext = foundFile.Context?.ParentGuiContext;
+                parentContext ??= new VrfGuiContext(foundFile.Package.FileName, null)
+                {
+                    CurrentPackage = foundFile.Package
+                };
+
+                newContext = new VrfGuiContext(foundFile.PackageEntry.GetFullPath(), parentContext);
+            }
+
+            return (newContext, foundFile.PackageEntry);
+        }
+
+        public (string PathOnDisk, VrfGuiContext Context, Package Package, PackageEntry PackageEntry) FindFile(string file)
+        {
             var entry = GuiContext.CurrentPackage?.FindEntry(file);
 
             if (entry != null)
@@ -86,16 +105,12 @@ namespace GUI.Utils
                 Console.WriteLine($"Loaded \"{file}\" from current vpk");
 #endif
 
-                var stream = GetPackageEntryStream(GuiContext.CurrentPackage, entry);
-                resource.Read(stream);
-                CachedResources[file] = resource;
-
-                return resource;
+                return (null, GuiContext, GuiContext.CurrentPackage, entry);
             }
 
             if (GuiContext.ParentGuiContext != null)
             {
-                return GuiContext.ParentGuiContext.LoadFileByAnyMeansNecessary(file);
+                return GuiContext.ParentGuiContext.FileLoader.FindFile(file);
             }
 
             if (!GamePackagesScanned)
@@ -152,32 +167,59 @@ namespace GUI.Utils
                     Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
-                    var stream = GetPackageEntryStream(package, entry);
-                    resource.Read(stream);
-                    CachedResources[file] = resource;
-
-                    return resource;
+                    return (null, null, package, entry);
                 }
             }
 
             var path = FindResourcePath(paths.Concat(CurrentGameSearchPaths).ToList(), file, GuiContext.FileName);
 
-            if (path == null)
+            if (path != null)
             {
-                Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
-
-                if (string.IsNullOrEmpty(file) || file == "_c")
-                {
-                    Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
-                }
-
-                return null;
+                return (path, null, null, null);
             }
 
-            resource.Read(path);
-            CachedResources[file] = resource;
+            Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
 
-            return resource;
+            if (string.IsNullOrEmpty(file) || file == "_c")
+            {
+                Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
+            }
+
+            return (null, null, null, null);
+        }
+
+        public Resource LoadFile(string file)
+        {
+            // TODO: Might conflict where same file name is available in different paths
+            if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
+            {
+                return resource;
+            }
+
+            resource = new Resource
+            {
+                FileName = file,
+            };
+
+            var foundFile = FindFile(file);
+
+            if (foundFile.PathOnDisk != null)
+            {
+                resource.Read(foundFile.PathOnDisk);
+                CachedResources[file] = resource;
+
+                return resource;
+            }
+            else if (foundFile.PackageEntry != null)
+            {
+                var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                resource.Read(stream);
+                CachedResources[file] = resource;
+
+                return resource;
+            }
+
+            return null;
         }
 
         public void AddPackageToSearch(Package package)

@@ -19,6 +19,7 @@ namespace GUI.Types.Renderer
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
+        public PickingTexture Picker { get; set; }
 
         // Set from outside this class by forms code
         public bool MouseOverRenderArea { get; set; }
@@ -70,6 +71,8 @@ namespace GUI.Types.Renderer
 
             // setup viewport
             GL.Viewport(0, 0, viewportWidth, viewportHeight);
+
+            Picker?.Resize(viewportWidth, viewportHeight);
         }
 
         public void CopyFrom(Camera fromOther)
@@ -150,7 +153,7 @@ namespace GUI.Types.Renderer
         {
             KeyboardState = keyboardState;
 
-            if (MouseOverRenderArea && mouseState.LeftButton == ButtonState.Pressed)
+            if (MouseOverRenderArea && (mouseState.LeftButton == ButtonState.Pressed || mouseState.RightButton == ButtonState.Pressed))
             {
                 if (!MouseDragging)
                 {
@@ -166,7 +169,7 @@ namespace GUI.Types.Renderer
                 MousePreviousPosition = mouseNewCoords;
             }
 
-            if (!MouseOverRenderArea || mouseState.LeftButton == ButtonState.Released)
+            if (!MouseOverRenderArea || !mouseState.IsConnected || (mouseState.LeftButton == ButtonState.Released && mouseState.RightButton == ButtonState.Released))
             {
                 MouseDragging = false;
                 MouseDelta = default;

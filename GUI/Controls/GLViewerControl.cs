@@ -11,6 +11,8 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
+using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
+using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Controls
 {
@@ -20,6 +22,7 @@ namespace GUI.Controls
         private static readonly float TickFrequency = TicksPerSecond / Stopwatch.Frequency;
 
         public GLControl GLControl { get; }
+        public IGLViewer GLViewer { get; }
 
         private int currentControlsHeight = 35;
 
@@ -33,18 +36,21 @@ namespace GUI.Controls
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
-
+        public Action<GLViewerControl> GLPostLoad { get; set; }
         private static bool hasCheckedOpenGL;
 
         long lastFpsUpdate;
         long lastUpdate;
         int frames;
 
-        public GLViewerControl()
+        Vector2 initialMousePosition;
+
+        public GLViewerControl(IGLViewer glViewer)
         {
             InitializeComponent();
             Dock = DockStyle.Fill;
 
+            GLViewer = glViewer;
             Camera = new Camera();
 
             // Initialize GL control
@@ -60,6 +66,8 @@ namespace GUI.Controls
             GLControl.Resize += OnResize;
             GLControl.MouseEnter += OnMouseEnter;
             GLControl.MouseLeave += OnMouseLeave;
+            GLControl.MouseUp += OnMouseUp;
+            GLControl.MouseDown += OnMouseDown;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             GLControl.Disposed += OnDisposed;
@@ -104,7 +112,7 @@ namespace GUI.Controls
 
             SetControlLocation(selectionControl);
 
-            selectionControl.ComboBox.SelectionChangeCommitted += (_, __) =>
+            selectionControl.ComboBox.SelectedIndexChanged += (_, __) =>
             {
                 selectionControl.Refresh();
                 changeCallback(selectionControl.ComboBox.SelectedItem as string, selectionControl.ComboBox.SelectedIndex);
@@ -115,9 +123,14 @@ namespace GUI.Controls
             return selectionControl.ComboBox;
         }
 
-        public CheckedListBox AddMultiSelection(string name, Action<IEnumerable<string>> changeCallback)
+        public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox> initializeCallback, Action<IEnumerable<string>> changeCallback)
         {
             var selectionControl = new GLViewerMultiSelectionControl(name);
+
+            if (initializeCallback != null)
+            {
+                initializeCallback(selectionControl.CheckedListBox);
+            }
 
             controlsPanel.Controls.Add(selectionControl);
 
@@ -166,6 +179,8 @@ namespace GUI.Controls
             GLControl.Resize -= OnResize;
             GLControl.MouseEnter -= OnMouseEnter;
             GLControl.MouseLeave -= OnMouseLeave;
+            GLControl.MouseUp -= OnMouseUp;
+            GLControl.MouseDown -= OnMouseDown;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             GLControl.Disposed -= OnDisposed;
@@ -188,6 +203,28 @@ namespace GUI.Controls
         private void OnMouseEnter(object sender, EventArgs e)
         {
             Camera.MouseOverRenderArea = true;
+        }
+
+        private void OnMouseDown(object sender, WinFormsMouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                initialMousePosition = new Vector2(e.X, e.Y);
+                if (e.Clicks == 2)
+                {
+                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Open);
+                }
+            }
+        }
+
+        private void OnMouseUp(object sender, WinFormsMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || initialMousePosition != new Vector2(e.X, e.Y))
+            {
+                return;
+            }
+
+            Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
         }
 
         private void OnLoad(object sender, EventArgs e)
@@ -215,6 +252,8 @@ namespace GUI.Controls
             }
 
             HandleResize();
+            GLPostLoad?.Invoke(this);
+            GLPostLoad = null;
             Draw();
         }
 

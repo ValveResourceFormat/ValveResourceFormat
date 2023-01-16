@@ -22,6 +22,7 @@ namespace GUI.Types.Renderer
             public Camera Camera { get; init; }
             public Vector3? LightPosition { get; init; }
             public RenderPass RenderPass { get; set; }
+            public Shader ReplacementShader { get; set; }
             public bool RenderToolsMaterials { get; init; }
         }
 
@@ -51,11 +52,44 @@ namespace GUI.Types.Renderer
             {
                 dynamicNodes.Add(node);
                 DynamicOctree.Insert(node, node.BoundingBox);
+                node.Id = (uint)dynamicNodes.Count * 2 - 1;
             }
             else
             {
                 staticNodes.Add(node);
                 StaticOctree.Insert(node, node.BoundingBox);
+                node.Id = (uint)staticNodes.Count * 2;
+            }
+        }
+
+        public SceneNode Find(uint id)
+        {
+            if (id == 0)
+            {
+                return null;
+            }
+
+            if (id % 2 == 1)
+            {
+                var index = ((int)id + 1) / 2 - 1;
+
+                if (index >= dynamicNodes.Count)
+                {
+                    return null;
+                }
+
+                return dynamicNodes[index];
+            }
+            else
+            {
+                var index = (int)id / 2 - 1;
+
+                if (index >= staticNodes.Count)
+                {
+                    return null;
+                }
+
+                return staticNodes[index];
             }
         }
 
@@ -98,6 +132,8 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                                NodeId = node.Id,
+                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
 
@@ -109,6 +145,8 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                                NodeId = node.Id,
+                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
                     }
@@ -136,6 +174,19 @@ namespace GUI.Types.Renderer
                 RenderToolsMaterials = ShowToolsMaterials,
             };
 
+            if (camera.Picker is not null)
+            {
+                if (camera.Picker.IsActive)
+                {
+                    camera.Picker.Render();
+                    renderContext.ReplacementShader = camera.Picker.shader;
+                }
+                else if (camera.Picker.Debug)
+                {
+                    renderContext.ReplacementShader = camera.Picker.debugShader;
+                }
+            }
+
             MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);
             foreach (var node in looseNodes)
             {
@@ -149,6 +200,12 @@ namespace GUI.Types.Renderer
             foreach (var node in Enumerable.Reverse(looseNodes))
             {
                 node.Render(renderContext);
+            }
+
+            if (camera.Picker is not null && camera.Picker.IsActive)
+            {
+                camera.Picker.Finish();
+                RenderWithCamera(camera, cullFrustum);
             }
         }
 
