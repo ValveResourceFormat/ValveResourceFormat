@@ -199,32 +199,26 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var foundNode = Scene.Find(pixelInfo.ObjectId);
+            var sceneNode = Scene.Find(pixelInfo.ObjectId);
 
             if (pickingResponse.Intent == PickingIntent.Select)
             {
-                selectedNodeRenderer.SelectNode(foundNode);
+                selectedNodeRenderer.SelectNode(sceneNode);
                 return;
             }
 
-            if (foundNode is not ModelSceneNode worldModel)
-            {
-                return;
-            }
+            Console.WriteLine($"Selected {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
 
-            var foundFile = GuiContext.FileLoader.FindFileWithContext(worldModel.GetModelFileName() + "_c");
-            Console.WriteLine($"Selected {worldModel.GetModelFileName()} (Id: {pixelInfo.ObjectId})");
+            var foundFile = GuiContext.FileLoader.FindFileWithContext(sceneNode.Name + "_c");
 
             if (foundFile.Context == null)
             {
                 return;
             }
 
-            Matrix4x4.Invert(worldModel.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
+            Matrix4x4.Invert(sceneNode.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
 
-            var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-
-            task.ContinueWith(
+            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry).ContinueWith(
                 t =>
                 {
                     var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
@@ -242,7 +236,11 @@ namespace GUI.Types.Renderer
 
                             viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
 
-                            //if (foundNode is ModelSceneNode worldModel) // TODO: Enable this check when other node types are supported
+                            if (sceneNode is not ModelSceneNode worldModel)
+                            {
+                                return;
+                            }
+
                             if (glViewer.GLViewer is GLModelViewer glModelViewer)
                             {
                                 // Set same mesh groups

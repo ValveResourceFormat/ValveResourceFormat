@@ -235,9 +235,6 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public string GetModelFileName()
-            => Model.Data.GetStringProperty("m_name");
-
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
             => Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0);
 

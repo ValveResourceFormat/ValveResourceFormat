@@ -29,6 +29,7 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public string Name { get; set; }
         public uint Id { get; set; }
 
         public Scene Scene { get; }
