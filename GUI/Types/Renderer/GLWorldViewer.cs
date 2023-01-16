@@ -44,7 +44,7 @@ namespace GUI.Types.Renderer
         {
             AddRenderModeSelectionControl();
 
-            worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", (worldLayers) =>
+            worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", null, (worldLayers) =>
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
@@ -241,6 +241,51 @@ namespace GUI.Types.Renderer
                             var pitch = (float)Math.Asin(-unscaledZ);
 
                             viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+
+                            //if (foundNode is ModelSceneNode worldModel) // TODO: Enable this check when other node types are supported
+                            if (glViewer.GLViewer is GLModelViewer glModelViewer)
+                            {
+                                // Set same mesh groups
+                                if (glModelViewer.meshGroupListBox != null)
+                                {
+                                    foreach (int checkedItemIndex in glModelViewer.meshGroupListBox.CheckedIndices)
+                                    {
+                                        glModelViewer.meshGroupListBox.SetItemChecked(checkedItemIndex, false);
+                                    }
+
+                                    foreach (var group in worldModel.GetActiveMeshGroups())
+                                    {
+                                        var item = glModelViewer.meshGroupListBox.FindStringExact(group);
+
+                                        if (item != ListBox.NoMatches)
+                                        {
+                                            glModelViewer.meshGroupListBox.SetItemChecked(item, true);
+                                        }
+                                    }
+                                }
+
+                                // Set same material group
+                                if (glModelViewer.materialGroupListBox != null && worldModel.ActiveSkin != null)
+                                {
+                                    var skinId = glModelViewer.materialGroupListBox.FindStringExact(worldModel.ActiveSkin);
+
+                                    if (skinId != -1)
+                                    {
+                                        glModelViewer.materialGroupListBox.SelectedIndex = skinId;
+                                    }
+                                }
+
+                                // Set animation
+                                if (glModelViewer.animationComboBox != null && worldModel.AnimationController.ActiveAnimation != null)
+                                {
+                                    var animationId = glModelViewer.animationComboBox.FindStringExact(worldModel.AnimationController.ActiveAnimation.Name);
+
+                                    if (animationId != -1)
+                                    {
+                                        glModelViewer.animationComboBox.SelectedIndex = animationId;
+                                    }
+                                }
+                            }
                         };
                     }
                 },

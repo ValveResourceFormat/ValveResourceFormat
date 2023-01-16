@@ -16,11 +16,11 @@ namespace GUI.Types.Renderer
         private readonly Model model;
         private readonly Mesh mesh;
         private PhysAggregateData phys;
-        private ComboBox animationComboBox;
+        public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
         private GLViewerTrackBarControl animationTrackBar;
-        private CheckedListBox meshGroupListBox;
-        private ComboBox materialGroupListBox;
+        public CheckedListBox meshGroupListBox { get; private set; }
+        public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
         private PhysSceneNode physSceneNode;
@@ -113,16 +113,17 @@ namespace GUI.Types.Renderer
 
                 if (meshGroups.Count() > 1)
                 {
-                    meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", selectedGroups =>
+                    meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", listBox =>
+                    {
+                        listBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray<object>());
+                        foreach (var group in modelSceneNode.GetActiveMeshGroups())
+                        {
+                            listBox.SetItemChecked(listBox.FindStringExact(group), true);
+                        }
+                    }, selectedGroups =>
                     {
                         modelSceneNode.SetActiveMeshGroups(selectedGroups);
                     });
-
-                    meshGroupListBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray<object>());
-                    foreach (var group in modelSceneNode.GetActiveMeshGroups())
-                    {
-                        meshGroupListBox.SetItemChecked(meshGroupListBox.FindStringExact(group), true);
-                    }
                 }
 
                 var materialGroups = model.GetMaterialGroups();

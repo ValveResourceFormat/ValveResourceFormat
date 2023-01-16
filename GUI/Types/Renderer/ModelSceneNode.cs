@@ -34,6 +34,7 @@ namespace GUI.Types.Renderer
 
         public readonly AnimationController AnimationController;
         public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
+        public string ActiveSkin { get; private set; }
 
         private readonly List<RenderableMesh> meshRenderers = new();
         private readonly List<Animation> animations = new();
@@ -118,6 +119,8 @@ namespace GUI.Types.Renderer
 
         public void SetSkin(string skin)
         {
+            ActiveSkin = skin;
+
             var materialGroups = Model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
             string[] defaultMaterials = null;
 

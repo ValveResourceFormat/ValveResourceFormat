@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
             }
 
             GL.Enable(EnableCap.Blend);
-            //GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.DepthTest);
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.UseProgram(shader.Program);
@@ -72,7 +72,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(0);
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
-            //GL.Disable(EnableCap.DepthTest);
+            GL.Disable(EnableCap.DepthTest);
         }
     }
 }

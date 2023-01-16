@@ -12,7 +12,7 @@ using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
-    internal abstract class GLSceneViewer
+    internal abstract class GLSceneViewer : IGLViewer
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
@@ -40,7 +40,7 @@ namespace GUI.Types.Renderer
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
         {
             Scene = new Scene(guiContext);
-            ViewerControl = new GLViewerControl();
+            ViewerControl = new GLViewerControl(this);
             lockedCullFrustum = cullFrustum;
 
             InitializeControl();
@@ -53,7 +53,7 @@ namespace GUI.Types.Renderer
         protected GLSceneViewer(VrfGuiContext guiContext)
         {
             Scene = new Scene(guiContext);
-            ViewerControl = new GLViewerControl();
+            ViewerControl = new GLViewerControl(this);
 
             InitializeControl();
             ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>

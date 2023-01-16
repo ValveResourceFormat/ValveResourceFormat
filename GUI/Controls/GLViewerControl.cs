@@ -22,6 +22,7 @@ namespace GUI.Controls
         private static readonly float TickFrequency = TicksPerSecond / Stopwatch.Frequency;
 
         public GLControl GLControl { get; }
+        public IGLViewer GLViewer { get; }
 
         private int currentControlsHeight = 35;
 
@@ -44,11 +45,12 @@ namespace GUI.Controls
 
         Vector2 initialMousePosition;
 
-        public GLViewerControl()
+        public GLViewerControl(IGLViewer glViewer)
         {
             InitializeComponent();
             Dock = DockStyle.Fill;
 
+            GLViewer = glViewer;
             Camera = new Camera();
 
             // Initialize GL control
@@ -110,7 +112,7 @@ namespace GUI.Controls
 
             SetControlLocation(selectionControl);
 
-            selectionControl.ComboBox.SelectionChangeCommitted += (_, __) =>
+            selectionControl.ComboBox.SelectedIndexChanged += (_, __) =>
             {
                 selectionControl.Refresh();
                 changeCallback(selectionControl.ComboBox.SelectedItem as string, selectionControl.ComboBox.SelectedIndex);
@@ -121,9 +123,14 @@ namespace GUI.Controls
             return selectionControl.ComboBox;
         }
 
-        public CheckedListBox AddMultiSelection(string name, Action<IEnumerable<string>> changeCallback)
+        public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox> initializeCallback, Action<IEnumerable<string>> changeCallback)
         {
             var selectionControl = new GLViewerMultiSelectionControl(name);
+
+            if (initializeCallback != null)
+            {
+                initializeCallback(selectionControl.CheckedListBox);
+            }
 
             controlsPanel.Controls.Add(selectionControl);
 
@@ -218,7 +225,6 @@ namespace GUI.Controls
             }
 
             Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
-
         }
 
         private void OnLoad(object sender, EventArgs e)

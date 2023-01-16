@@ -12,6 +12,7 @@ namespace GUI.Types.Renderer
         private float Time;
         private bool shouldUpdate;
 
+        public Animation ActiveAnimation => activeAnimation;
         public bool IsPaused { get; set; }
         public int Frame
         {
