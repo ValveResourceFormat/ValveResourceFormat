@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -190,7 +192,50 @@ namespace GUI.Types.Renderer
 
         protected override void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pickingResponse)
         {
-            Console.WriteLine("Selected mesh with index " + pickingResponse.PixelInfo.MeshId);
+            if (modelSceneNode == null)
+            {
+                return;
+            }
+
+            // Void
+            if (pickingResponse.PixelInfo.ObjectId == 0)
+            {
+                return;
+            }
+
+            if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
+            {
+                Console.WriteLine("Selected mesh with index " + pickingResponse.PixelInfo.MeshId);
+                return;
+            }
+
+            if (pickingResponse.Intent == PickingTexture.PickingIntent.Open)
+            {
+                var refMesh = modelSceneNode.GetLod1RefMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
+                if (refMesh.MeshName != null)
+                {
+                    var foundFile = GuiContext.FileLoader.FindFileWithContext(refMesh.MeshName + "_c");
+                    if (foundFile.Context != null)
+                    {
+                        var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                        task.ContinueWith(
+                            t =>
+                            {
+                                var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
+                                    .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
+                                    .Controls.OfType<GLViewerControl>().First();
+                                if (glViewer is not null)
+                                {
+                                    glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
+                                }
+                            },
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnRanToCompletion,
+                        TaskScheduler.Default);
+                    }
+                }
+            }
+
         }
 
         private void SetAvailableAnimations(IEnumerable<string> animations)

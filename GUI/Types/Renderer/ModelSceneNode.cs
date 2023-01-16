@@ -176,8 +176,7 @@ namespace GUI.Types.Renderer
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
-            var referredMeshesAndLoDs = Model.GetReferenceMeshNamesAndLoD();
-            foreach (var refMesh in referredMeshesAndLoDs.Where(m => (m.LoDMask & 1) != 0))
+            foreach (var refMesh in GetLod1RefMeshes())
             {
                 var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
                 if (newResource == null)
@@ -238,6 +237,9 @@ namespace GUI.Types.Renderer
 
         public string GetModelFileName()
             => Model.Data.GetStringProperty("m_name");
+
+        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
+            => Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0);
 
         public IEnumerable<string> GetMeshGroups()
             => Model.GetMeshGroups();
