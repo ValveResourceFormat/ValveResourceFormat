@@ -266,6 +266,7 @@ namespace GUI.Types.Renderer
                     Transform = transformationMatrix,
                     Tint = objColor,
                     LayerName = layerName,
+                    Name = model,
                 };
 
                 if (animation != default)

@@ -125,6 +125,7 @@ namespace GUI.Types.Renderer
                     var modelNode = new ModelSceneNode(scene, (Model)newResource.DataBlock, null, false)
                     {
                         LayerName = worldLayers[layerIndex],
+                        Name = renderableModel,
                     };
 
                     scene.Add(modelNode, false);
