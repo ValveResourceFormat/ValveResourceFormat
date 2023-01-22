@@ -135,23 +135,11 @@ jobs:
         path: Decompiler/bin/Release/osx-arm64/publish
 
     - name: Upload test coverage
-      continue-on-error: true
-      uses: coverallsapp/github-action@v1.1.2
+      uses: codecov/codecov-action@v3
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./Tests/lcov.info
-        flag-name: run-${{ matrix.test_number }}
-        parallel: true
-
-  finish:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v1.1.2
-      with:
-        github-token: ${{ secrets.github_token }}
-        parallel-finished: true
+        files: ./Tests/lcov.info
+        fail_ci_if_error: true
+        verbose: true
 
   release:
     if: startsWith(github.ref, 'refs/tags/')

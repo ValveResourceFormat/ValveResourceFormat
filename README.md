@@ -7,8 +7,8 @@
     <a href="https://www.nuget.org/packages/ValveResourceFormat/">
         <img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?logo=nuget&style=for-the-badge">
     </a>
-    <a href="https://coveralls.io/github/SteamDatabase/ValveResourceFormat">
-        <img src="https://img.shields.io/coverallsCoverage/github/SteamDatabase/ValveResourceFormat.svg?logo=coveralls&style=for-the-badge">
+    <a href="https://app.codecov.io/gh/SteamDatabase/ValveResourceFormat">
+        <img src="https://img.shields.io/codecov/c/github/SteamDatabase/ValveResourceFormat/master?logo=codecov&logoColor=ffffff&style=for-the-badge">
     </a>
 </p>
 
