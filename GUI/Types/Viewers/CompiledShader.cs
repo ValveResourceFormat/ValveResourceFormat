@@ -4,6 +4,8 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
@@ -333,32 +335,49 @@ namespace GUI.Types.Viewers
                 var gpuSourceTabTitle = $"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeFile.ZframeId:x}]({gpuSourceId})";
 
                 TabPage gpuSourceTab = null;
-                var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
+                var textBuffer = new StringWriter(CultureInfo.InvariantCulture);
                 switch (zframeFile.GpuSources[gpuSourceId])
                 {
                     case GlslSource:
+                        zframeFile.PrintGpuSource(gpuSourceId, textBuffer.Write);
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceRichTextBox = new RichTextBox
-                        {
-                            Font = new Font(FontFamily.GenericMonospace, Font.Size),
-                            DetectUrls = true,
-                            Dock = DockStyle.Fill,
-                            Multiline = true,
-                            ReadOnly = true,
-                            WordWrap = false,
-                            Text = Utils.Utils.NormalizeLineEndings(buffer.ToString()),
-                            ScrollBars = RichTextBoxScrollBars.Both
-                        };
+                        var gpuSourceRichTextBox = CreateRichTextBox(textBuffer.ToString());
                         gpuSourceTab.Controls.Add(gpuSourceRichTextBox);
                         break;
 
                     case DxbcSource:
                     case DxilSource:
-                    case VulkanSource:
-                        var input = zframeFile.GpuSources[gpuSourceId].Sourcebytes;
-                        gpuSourceTab = CreateByteViewerTab(input, buffer.ToString());
+                        zframeFile.PrintGpuSource(gpuSourceId, textBuffer.Write);
+                        var sourceBytes = zframeFile.GpuSources[gpuSourceId].Sourcebytes;
+                        gpuSourceTab = CreateByteViewerTab(sourceBytes, textBuffer.ToString());
                         gpuSourceTab.Text = gpuSourceTabTitle;
+                        break;
+
+                    case VulkanSource:
+                        var vulkanSource = (VulkanSource)zframeFile.GpuSources[gpuSourceId];
+                        // attempt spirv reflection
+                        try
+                        {
+                            var reflectedSpirv = DecompileSpirv(vulkanSource.GetSpirvBytes());
+                            textBuffer.WriteLine(vulkanSource.GetSourceDetails());
+                            textBuffer.WriteLine($"// Spirv source ({vulkanSource.MetaDataOffset}), reflection with SPIRV-Cross, KhronosGroup\n");
+                            textBuffer.WriteLine(reflectedSpirv);
+                            textBuffer.WriteLine($"// Source metadata (unknown encoding) ({vulkanSource.MetaDataLength})");
+                            textBuffer.WriteLine($"[{vulkanSource.MetaDataOffset}]");
+                            textBuffer.WriteLine($"{BytesToString(vulkanSource.GetMetaDataBytes())}");
+                            gpuSourceTab = new TabPage(gpuSourceTabTitle);
+                            var richTextBox = CreateRichTextBox(textBuffer.ToString());
+                            gpuSourceTab.Controls.Add(richTextBox);
+                        }
+                        // fallback on bytes where SPIRV-Cross reflection fails
+                        catch (Exception)
+                        {
+                            textBuffer.WriteLine("// Spirv reflection failed, showing source bytes\n");
+                            zframeFile.PrintGpuSource(gpuSourceId, textBuffer.Write);
+                            gpuSourceTab = new TabPage(gpuSourceTabTitle);
+                            var richTextBox = CreateRichTextBox(textBuffer.ToString());
+                            gpuSourceTab.Controls.Add(richTextBox);
+                        }
                         break;
 
                     default:
@@ -370,6 +389,22 @@ namespace GUI.Types.Viewers
                 {
                     tabControl.SelectedTab = gpuSourceTab;
                 }
+            }
+
+            private static RichTextBox CreateRichTextBox(string content)
+            {
+                var richTextBox = new RichTextBox
+                {
+                    DetectUrls = true,
+                    Dock = DockStyle.Fill,
+                    Multiline = true,
+                    ReadOnly = true,
+                    WordWrap = false,
+                    Text = Utils.Utils.NormalizeLineEndings(content),
+                    ScrollBars = RichTextBoxScrollBars.Both
+                };
+                richTextBox.Font = new Font(FontFamily.GenericMonospace, richTextBox.Font.Size);
+                return richTextBox;
             }
 
             private static TabPage CreateByteViewerTab(byte[] databytes, string dataFormatted)
@@ -406,6 +441,48 @@ namespace GUI.Types.Viewers
                 ));
                 return tab;
             }
+
+#pragma warning disable CA5392 // Use DefaultDllImportSearchPaths attribute for P/Invokes
+            [DllImport("SpirvCrossDll.dll")]
+            private static extern IntPtr CreateSpirvDecompiler();
+
+            [DllImport("SpirvCrossDll.dll")]
+            private static extern int PushUInt32(IntPtr decompiler, uint val);
+
+            [DllImport("SpirvCrossDll.dll")]
+            private static extern char Parse(IntPtr decompiler);
+
+            [DllImport("SpirvCrossDll.dll")]
+            private static extern int GetDataLength(IntPtr decompiler);
+
+            [DllImport("SpirvCrossDll.dll")]
+            private static extern char GetChar(IntPtr decompiler, int i);
+#pragma warning restore CA5392
+
+#pragma warning disable CA1806 // Ignore HRESULT error code
+            private static string DecompileSpirv(byte[] databytes)
+            {
+                var decompiler = CreateSpirvDecompiler();
+                for (var i = 0; i < databytes.Length; i += 4)
+                {
+                    var b0 = (uint)databytes[i + 0];
+                    var b1 = (uint)databytes[i + 1];
+                    var b2 = (uint)databytes[i + 2];
+                    var b3 = (uint)databytes[i + 3];
+                    var nextUInt32 = b3 + (b2 << 8) + (b1 << 16) + (b0 << 24);
+                    PushUInt32(decompiler, nextUInt32);
+                }
+                Parse(decompiler);
+                var len = GetDataLength(decompiler);
+                var sb = new StringBuilder();
+                for (var i = 0; i < len; i++)
+                {
+                    var c = GetChar(decompiler, i);
+                    sb.Append(c);
+                }
+                return sb.ToString();
+            }
+#pragma warning restore CA1806
         }
     }
 }
