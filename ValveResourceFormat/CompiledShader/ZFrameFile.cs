@@ -239,7 +239,7 @@ namespace ValveResourceFormat.CompiledShader
                 var glslSourceFile = Encoding.UTF8.GetString(GpuSources[sourceId].Sourcebytes);
                 outputWriter(glslSourceFile);
             }
-            else if (GpuSources[sourceId] is GlslSource)
+            else if (GpuSources[sourceId] is VulkanSource)
             {
                 VulkanSource vulkanSource = (VulkanSource)GpuSources[sourceId];
                 outputWriter($"{vulkanSource.GetSourceDetails()}\n");
