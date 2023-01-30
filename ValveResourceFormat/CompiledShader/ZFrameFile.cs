@@ -228,7 +228,7 @@ namespace ValveResourceFormat.CompiledShader
             var sourceDetails =
                 $"// {GpuSources[sourceId].GetBlockName()}[{sourceId}] source bytes " +
                 $"({GpuSources[sourceId].Sourcebytes.Length}) ref={GpuSources[sourceId].GetEditorRefIdAsString()}\n";
-            if (GpuSources[sourceId].Sourcebytes.Length == 0)
+            if (GpuSources[sourceId].HasEmptySource())
             {
                 outputWriter($"{GpuSources[sourceId].GetSourceDetails()}\n");
                 outputWriter("[empty source]");

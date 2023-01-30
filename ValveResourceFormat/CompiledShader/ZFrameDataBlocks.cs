@@ -39,6 +39,10 @@ namespace ValveResourceFormat.CompiledShader
             stringId = stringId.Replace(" ", "", StringComparison.InvariantCulture).ToLowerInvariant();
             return stringId;
         }
+        public bool HasEmptySource()
+        {
+            return Sourcebytes.Length == 0;
+        }
         public string GetSourceDetails()
         {
             return $"// {GetBlockName()}[{SourceId}] source bytes ({Sourcebytes.Length}) ref={GetEditorRefIdAsString()}";
