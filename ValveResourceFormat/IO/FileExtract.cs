@@ -131,6 +131,10 @@ namespace ValveResourceFormat.IO
                     contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
                     break;
 
+                case ResourceType.Snap:
+                    contentFile = new SnapshotExtract(resource).ToContentFile();
+                    break;
+
                 case ResourceType.Material:
                     contentFile = new MaterialExtract(resource, fileLoader).ToContentFile();
                     break;

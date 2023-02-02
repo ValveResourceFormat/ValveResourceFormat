@@ -109,6 +109,9 @@ namespace ValveResourceFormat
         [Extension("vpsf")]
         ParticleSnapshot,
 
+        [Extension("vsnap")]
+        Snap,
+
         [Extension("vmap")]
         Map,
 
