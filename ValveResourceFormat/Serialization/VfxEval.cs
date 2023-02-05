@@ -127,15 +127,20 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
 
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false)
+        private readonly IList<string> Features;
+
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
+            Features = features;
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false)
+        // TODO: better constructors
+        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false, IList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
+            Features = features;
             uint MURMUR2SEED = 0x31415926; // pi!
 
             foreach (var externalVarName in renderAttributesUsed)
@@ -353,7 +358,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (op == OPCODE.COND)
             {
                 uint expressionId = dataReader.ReadByte();
-                Expressions.Push($"COND[{expressionId}]");
+                Expressions.Push((Features is null) ? $"COND[{expressionId}]" : Features[(int)expressionId]);
                 return;
             }
 
@@ -361,8 +366,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 var intval = dataReader.ReadUInt32();
                 // if this reference exists in the vars-reference, then show it
-                var murmurString = ExternalVarsReference.GetValueOrDefault(intval, $"{intval:x08}");
-                Expressions.Push($"EVAL[{murmurString}]");
+                if (ExternalVarsReference.TryGetValue(intval, out var externalVar))
+                {
+                    Expressions.Push(externalVar);
+                }
+                else
+                {
+                    Expressions.Push($"EVAL[{intval:x08}]");
+                }
                 return;
             }
 

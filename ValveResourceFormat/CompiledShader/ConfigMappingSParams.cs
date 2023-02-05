@@ -136,11 +136,11 @@ namespace ValveResourceFormat.CompiledShader
             nr_states = new int[shaderFile.SfBlocks.Count];
 
             offsets[0] = 1;
-            nr_states[0] = shaderFile.SfBlocks[0].Arg2 + 1;
+            nr_states[0] = shaderFile.SfBlocks[0].RangeMax + 1;
 
             for (var i = 1; i < shaderFile.SfBlocks.Count; i++)
             {
-                nr_states[i] = shaderFile.SfBlocks[i].Arg2 + 1;
+                nr_states[i] = shaderFile.SfBlocks[i].RangeMax + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
         }

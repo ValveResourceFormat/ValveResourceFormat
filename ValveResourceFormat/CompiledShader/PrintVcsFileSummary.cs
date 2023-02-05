@@ -81,13 +81,13 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"{ftHeader.EditorIDs[^1].Item1}    // Editor ref. ID{ftHeader.EditorIDs.Count - 1} " +
                 $"- common editor reference shared by multiple files");
             output.BreakLine();
-            if (ftHeader.MainParams.Count == 0)
+            if (ftHeader.Modes.Count == 0)
             {
                 output.WriteLine("Primary modes");
                 output.WriteLine("[default only]");
                 return;
             }
-            if (ftHeader.MainParams.Count > 1)
+            if (ftHeader.Modes.Count > 1)
             {
                 output.WriteLine($"Primary static modes (one of these should be selected)");
             }
@@ -95,13 +95,12 @@ namespace ValveResourceFormat.CompiledShader
             {
                 output.WriteLine($"Primary static modes (this file has only one default mode)");
             }
-            output.DefineHeaders(new string[] { "name", "mode", "config-states" });
-            output.AddTabulatedRow(new string[] { "----", "----", "-------------" });
-            foreach (var mainParam in ftHeader.MainParams)
+            output.DefineHeaders(new string[] { "name", "shader", "mode" });
+            output.AddTabulatedRow(new string[] { "----", "----", "----" });
+            foreach (var mode in ftHeader.Modes)
             {
-                var arg2 = mainParam.Item2.Length == 0 ? "(default)" : mainParam.Item2;
-                var configs = mainParam.Item2.Length == 0 ? "(implicit)" : "0,1";
-                output.AddTabulatedRow(new string[] { $"{mainParam.Item1}", $"{arg2}", $"{configs}" });
+                var staticName = mode.StaticConfig.Length == 0 ? "(default)" : mode.StaticConfig;
+                output.AddTabulatedRow(new string[] { mode.Name, mode.Shader, staticName });
             }
             output.PrintTabulatedValues();
             output.BreakLine();
@@ -152,21 +151,21 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var item in shaderFile.SfBlocks)
             {
                 var configStates = "_";
-                if (item.Arg2 > 0)
+                if (item.RangeMax > 0)
                 {
                     configStates = "0";
                 }
-                for (var i = 1; i <= item.Arg2; i++)
+                for (var i = 1; i <= item.RangeMax; i++)
                 {
                     configStates += $",{i}";
                 }
                 var configStates2 = "";
-                if (item.Arg2 > 1)
+                if (item.RangeMax > 1)
                 {
-                    configStates2 = $"{CombineStringArray(item.AdditionalParams.ToArray())}";
+                    configStates2 = $"{CombineStringArray(item.CheckboxNames.ToArray())}";
                 }
 
-                output.AddTabulatedRow(new string[] {$"[{item.BlockIndex,2}]", $"{item.Name0}", $"{item.Arg2+1}",
+                output.AddTabulatedRow(new string[] {$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax+1}",
                     $"{configStates}", $"{configStates2}"});
             }
             output.PrintTabulatedValues();
@@ -182,10 +181,10 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
                 return;
             }
-            output.DefineHeaders(new string[] { "index", "name", "arg2", "arg3", "arg4" });
+            output.DefineHeaders(new string[] { nameof(SfBlock.BlockIndex), nameof(SfBlock.Name), nameof(SfBlock.RangeMax), nameof(SfBlock.Sys), nameof(SfBlock.FeatureIndex) });
             foreach (var item in shaderFile.SfBlocks)
             {
-                output.AddTabulatedRow(new string[] { $"[{item.BlockIndex,2}]", $"{item.Name0}", $"{item.Arg2}", $"{item.Arg3}", $"{item.Arg4,2}" });
+                output.AddTabulatedRow(new string[] { $"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax}", $"{item.Sys}", $"{item.FeatureIndex,2}" });
             }
             output.PrintTabulatedValues();
             output.BreakLine();
@@ -205,7 +204,7 @@ namespace ValveResourceFormat.CompiledShader
                 var sfNames = new string[sfRuleBlock.Range0.Length];
                 for (var i = 0; i < sfNames.Length; i++)
                 {
-                    sfNames[i] = shaderFile.SfBlocks[sfRuleBlock.Range0[i]].Name0;
+                    sfNames[i] = shaderFile.SfBlocks[sfRuleBlock.Range0[i]].Name;
                 }
                 const int BL = 70;
                 var breakNames = CombineValuesBreakString(sfNames, BL);
@@ -282,7 +281,7 @@ namespace ValveResourceFormat.CompiledShader
                     }
                     if (dRuleBlock.Flags[i] == 2)
                     {
-                        dRuleName[i] = shaderFile.SfBlocks[dRuleBlock.Range0[i]].Name0;
+                        dRuleName[i] = shaderFile.SfBlocks[dRuleBlock.Range0[i]].Name;
                         continue;
                     }
                     throw new ShaderParserException($"unknown flag value {dRuleBlock.Flags[i]}");
@@ -320,28 +319,10 @@ namespace ValveResourceFormat.CompiledShader
             var indexPad = shaderFile.ParamBlocks.Count > 100 ? 3 : 2;
             // parameters
             output.WriteLine($"PARAMETERS({shaderFile.ParamBlocks.Count})    *dyn-expressions shown separately");
-            output.DefineHeaders(new string[] { "index", "name0 | name1 | name2", "type0", "type1", "res", "arg0", "arg1",
-                "arg2", "arg3", "arg4", "arg5", "dyn-exp*", "command 0|1", "fileref"});
+            output.DefineHeaders(new string[] { "index", nameof(ParamBlock.Name), nameof(ParamBlock.UiType), nameof(ParamBlock.Lead0), nameof(ParamBlock.Res0), nameof(ParamBlock.Arg0), nameof(ParamBlock.VfxType),
+                nameof(ParamBlock.ParamType), nameof(ParamBlock.Arg3), nameof(ParamBlock.Arg4), nameof(ParamBlock.Arg5), nameof(ParamBlock.Arg6), nameof(ParamBlock.VecSize), nameof(ParamBlock.Id), nameof(ParamBlock.Arg9), nameof(ParamBlock.Arg10), nameof(ParamBlock.Arg11), "dyn-exp*", nameof(ParamBlock.AttributeName), nameof(ParamBlock.UiGroup), "command 0|1", nameof(ParamBlock.FileRef)});
             foreach (var param in shaderFile.ParamBlocks)
             {
-                var nameCondensed = param.Name0;
-                if (param.Name1.Length > 0)
-                {
-                    nameCondensed += $" | {param.Name1}";
-                }
-                if (param.Name2.Length > 0)
-                {
-                    nameCondensed += $" | {param.Name2}(2)";
-                }
-                if (nameCondensed.Length > 65)
-                {
-                    var tokens = nameCondensed.Split("|");
-                    nameCondensed = tokens[0].Trim();
-                    for (var i = 1; i < tokens.Length; i++)
-                    {
-                        nameCondensed += $"\n{tokens[i].Trim()}";
-                    }
-                }
                 var dynExpExists = param.Lead0 == 6 || param.Lead0 == 7 ? "true" : "";
                 if (dynExpExists.Length > 0)
                 {
@@ -353,10 +334,10 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     c0 += $" | {c1}";
                 }
-                output.AddTabulatedRow(new string[] {$"[{(""+param.BlockIndex).PadLeft(indexPad)}]", $"{nameCondensed}", $"{param.Type}",
-                    $"{param.Lead0}", $"{param.Res0}", $"{BlankNegOne(param.Arg0),2}", $"{param.Arg1,2}", $"{param.Arg2}",
-                    $"{Pow2Rep(param.Arg3),4}", $"{param.Arg4,2}", $"{BlankNegOne(param.Arg5),2}",
-                    $"{dynExpExists}", $"{c0}", $"{param.FileRef}"});
+                output.AddTabulatedRow(new string[] {$"[{(""+param.BlockIndex).PadLeft(indexPad)}]", param.Name, param.UiType.ToString(),
+                    $"{param.Lead0}", $"{param.Res0}", $"{BlankNegOne(param.Arg0),2}", Vfx.Types.GetValueOrDefault(param.VfxType, $"unkntype{param.VfxType}"), $"{param.ParamType}",
+                    param.Arg3.ToString(), param.Arg4.ToString(), param.Arg5.ToString(), param.Arg6.ToString(), $"{param.VecSize,2}", param.Id.ToString(), param.Arg9.ToString(), param.Arg10.ToString(), param.Arg11.ToString(),
+                    $"{dynExpExists}", param.AttributeName, param.UiGroup, $"{c0}", $"{param.FileRef}"});
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
@@ -377,8 +358,8 @@ namespace ValveResourceFormat.CompiledShader
                     }
                     var dynExpstring = ParseDynamicExpression(param.DynExp);
                     output.AddTabulatedRow(new string[] { $"[{(""+param.BlockIndex).PadLeft(indexPad)}]",
-                        $"{param.Name0}",
-                        $"{param.Type,2},{param.Lead0,2},{BlankNegOne(param.Arg0),2},{param.Arg1,2},{param.Arg2,2},{param.Arg4,2},{BlankNegOne(param.Arg5),2}",
+                        $"{param.Name}",
+                        $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Arg0),2},{Vfx.Types.GetValueOrDefault(param.VfxType, $"unkntype{param.VfxType}")},{param.ParamType,2},{param.VecSize,2},{param.Id}",
                         $"{dynExpstring}" });
                 }
                 output.PrintTabulatedValues();
@@ -386,25 +367,17 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
             output.WriteLine("PARAMETERS - Default values and limits    (type0,type1,arg0,arg1,arg2,arg4,arg5,command0 reprinted)");
             output.WriteLine("(- indicates -infinity, + indicates +infinity, def. = default)");
-            output.DefineHeaders(new string[] { "index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", "ints-def.", "ints-min", "ints-max",
-                "floats-def.", "floats-min", "floats-max", "int-args0", "int-args1", "command0", "fileref", "dyn-exp"});
+            output.DefineHeaders(new string[] { "index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", nameof(ParamBlock.IntDefs), nameof(ParamBlock.IntMins), nameof(ParamBlock.IntMaxs),
+                nameof(ParamBlock.FloatDefs), nameof(ParamBlock.FloatMins), nameof(ParamBlock.FloatMaxs), nameof(ParamBlock.IntArgs0), nameof(ParamBlock.IntArgs1),
+                nameof(ParamBlock.Command0), nameof(ParamBlock.FileRef), nameof(ParamBlock.DynExp)});
             foreach (var param in shaderFile.ParamBlocks)
             {
-                var fileref = param.FileRef;
-                var r0 = param.Ranges0;
-                var r1 = param.Ranges1;
-                var r2 = param.Ranges2;
-                var r3 = param.Ranges3;
-                var r4 = param.Ranges4;
-                var r5 = param.Ranges5;
-                var r6 = param.Ranges6;
-                var r7 = param.Ranges7;
-                var hasFileRef = param.FileRef.Length > 0 ? "true" : "";
+                var vfxType = Vfx.Types.GetValueOrDefault(param.VfxType, $"unkntype{param.VfxType}");
                 var hasDynExp = param.Lead0 == 6 || param.Lead0 == 7 ? "true" : "";
-                output.AddTabulatedRow(new string[] { $"[{("" + param.BlockIndex).PadLeft(indexPad)}]", $"{param.Name0}",
-                    $"{param.Type,2},{param.Lead0,2},{BlankNegOne(param.Arg0),2},{param.Arg1,2},{param.Arg2,2},{param.Arg4,2},{BlankNegOne(param.Arg5),2}",
-                    $"{Comb(r0)}", $"{Comb(r1)}", $"{Comb(r2)}", $"{Comb(r3)}", $"{Comb(r4)}",
-                    $"{Comb(r5)}", $"{Comb(r6)}", $"{Comb(r7)}", $"{param.Command0}", $"{hasFileRef}", $"{hasDynExp}"});
+                output.AddTabulatedRow(new string[] { $"[{("" + param.BlockIndex).PadLeft(indexPad)}]", $"{param.Name}",
+                    $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Arg0),2},{vfxType},{param.ParamType,2},{param.VecSize,2},{param.Id}",
+                    $"{Comb(param.IntDefs)}", $"{Comb(param.IntMins)}", $"{Comb(param.IntMaxs)}", $"{Comb(param.FloatDefs)}", $"{Comb(param.FloatMins)}",
+                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.IntArgs0)}", $"{Comb(param.IntArgs1)}", param.Command0, param.FileRef, $"{hasDynExp}"});
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
@@ -479,9 +452,9 @@ namespace ValveResourceFormat.CompiledShader
             {
                 foreach (var symbolsDef in symbolBlock.SymbolsDefinition)
                 {
-                    namePad = Math.Max(namePad, symbolsDef.Item1.Length);
-                    typePad = Math.Max(namePad, symbolsDef.Item2.Length);
-                    optionPad = Math.Max(namePad, symbolsDef.Item3.Length);
+                    namePad = Math.Max(namePad, symbolsDef.Name.Length);
+                    typePad = Math.Max(namePad, symbolsDef.Type.Length);
+                    optionPad = Math.Max(namePad, symbolsDef.Option.Length);
                 }
             }
             foreach (var symbolBlock in shaderFile.SymbolBlocks)
@@ -491,11 +464,7 @@ namespace ValveResourceFormat.CompiledShader
                     $"option".PadRight(optionPad), "semantic-index" });
                 foreach (var symbolsDef in symbolBlock.SymbolsDefinition)
                 {
-                    var name = symbolsDef.Item1;
-                    var type = symbolsDef.Item2;
-                    var option = symbolsDef.Item3;
-                    var semanticIndex = symbolsDef.Item4;
-                    output.AddTabulatedRow(new string[] { "", $"{name}", $"{type}", $"{option}", $"{semanticIndex,2}" });
+                    output.AddTabulatedRow(new string[] { "", $"{symbolsDef.Name}", $"{symbolsDef.Type}", $"{symbolsDef.Option}", $"{symbolsDef.SemanticIndex,2}" });
                 }
                 output.PrintTabulatedValues();
                 output.BreakLine();
@@ -528,8 +497,8 @@ namespace ValveResourceFormat.CompiledShader
             List<string> abbreviations = new();
             foreach (var sfBlock in shaderFile.SfBlocks)
             {
-                var sfShortName = ShortenShaderParam(sfBlock.Name0).ToLowerInvariant();
-                abbreviations.Add($"{sfBlock.Name0}({sfShortName})");
+                var sfShortName = ShortenShaderParam(sfBlock.Name).ToLowerInvariant();
+                abbreviations.Add($"{sfBlock.Name}({sfShortName})");
                 sfNames.Add(sfShortName);
             }
             var breakabbreviations = CombineValuesBreakString(abbreviations.ToArray(), 120);

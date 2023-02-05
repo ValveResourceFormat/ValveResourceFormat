@@ -66,7 +66,7 @@ namespace ValveResourceFormat.CompiledShader
             var configState = configGen.GetConfigState(zframeFile.ZframeId);
             for (var i = 0; i < configState.Length; i++)
             {
-                OutputWriteLine($"{shaderFile.SfBlocks[i].Name0,-30} {configState[i]}");
+                OutputWriteLine($"{shaderFile.SfBlocks[i].Name,-30} {configState[i]}");
             }
             if (configState.Length == 0)
             {
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     b3Text = $"  _ ({b2:X02})";
                 }
-                OutputWrite($"[{paramId,3}] {shaderFile.ParamBlocks[paramId].Name0,-30} {b2Text,-14} {b3Text}");
+                OutputWrite($"[{paramId,3}] {shaderFile.ParamBlocks[paramId].Name,-30} {b2Text,-14} {b3Text}");
                 if (i + 1 == h0 && h0 != h2)
                 {
                     OutputWrite($"   // {h0}");

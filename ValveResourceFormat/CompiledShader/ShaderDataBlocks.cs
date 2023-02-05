@@ -19,7 +19,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg5 { get; }
         public int Arg6 { get; }
         public int Arg7 { get; } = -1;
-        public List<(string, string)> MainParams { get; } = new();
+        public List<(string Name, string Shader, string StaticConfig)> Modes { get; } = new();
         public List<(string, string)> EditorIDs { get; } = new();
         public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
         {
@@ -60,24 +60,29 @@ namespace ValveResourceFormat.CompiledShader
                 Arg7 = datareader.ReadInt32();
             }
 
-            var nr_of_arguments = datareader.ReadInt32();
+            var mode_count = datareader.ReadInt32();
             if (HasPsrsFile)
             {
                 // nr_of_arguments is overwritten
-                nr_of_arguments = datareader.ReadInt32();
+                mode_count = datareader.ReadInt32();
             }
-            for (var i = 0; i < nr_of_arguments; i++)
+
+            for (var i = 0; i < mode_count; i++)
             {
-                var string_arg0 = datareader.ReadNullTermStringAtPosition();
-                var string_arg1 = "";
-                datareader.BaseStream.Position += 128;
+                var name = datareader.ReadNullTermStringAtPosition();
+                datareader.BaseStream.Position += 64;
+                var shader = datareader.ReadNullTermStringAtPosition();
+                datareader.BaseStream.Position += 64;
+
+                var static_config = string.Empty;
                 if (datareader.ReadInt32() > 0)
                 {
-                    string_arg1 = datareader.ReadNullTermStringAtPosition();
+                    static_config = datareader.ReadNullTermStringAtPosition();
                     datareader.BaseStream.Position += 68;
                 }
-                MainParams.Add((string_arg0, string_arg1));
+                Modes.Add((name, shader, static_config));
             }
+
             EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID0 (produces this file)"));
             EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID1 - usually a ref to the vs file ({VcsProgramType.VertexShader})"));
             EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID2 - usually a ref to the ps file ({VcsProgramType.PixelShader})"));
@@ -252,44 +257,59 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
-    // SfBlocks are usually 152 bytes long, occasionally they have extra string parameters
+    /// <summary>
+    /// Contains a definition for a feature or static configuration.
+    /// </summary>
+    /// <remarks>
+    /// These are usually 152 bytes long. Features may contain names describing each state
+    /// </remarks>
     public class SfBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
-        public string Name0 { get; }
-        public string Name1 { get; }
+        public string Name { get; }
+        public string Category { get; }
         public int Arg0 { get; }
-        public int Arg1 { get; }
-        public int Arg2 { get; }
-        public int Arg3 { get; }
-        public int Arg4 { get; }
+        public int RangeMin { get; }
+        public int RangeMax { get; }
+        // Seems to be connected to Sys
+        public int Sys { get; }
+        /// <returns>
+        /// The feature index this static configuration is tied to, or -1
+        /// </returns>
+        public int FeatureIndex { get; }
         public int Arg5 { get; }
-        public List<string> AdditionalParams { get; } = new();
+        public List<string> CheckboxNames { get; } = new();
         public SfBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
-            Name0 = datareader.ReadNullTermStringAtPosition();
+            Name = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
-            Name1 = datareader.ReadNullTermStringAtPosition();
+            Category = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
             Arg0 = datareader.ReadInt32();
-            Arg1 = datareader.ReadInt32();
-            Arg2 = datareader.ReadInt32();
-            Arg3 = datareader.ReadInt32();
-            Arg4 = datareader.ReadInt32();
+            RangeMin = datareader.ReadInt32();
+            RangeMax = datareader.ReadInt32();
+            Sys = datareader.ReadInt32();
+            FeatureIndex = datareader.ReadInt32();
             Arg5 = datareader.ReadInt32AtPosition();
             var additionalStringsCount = datareader.ReadInt32();
+
+            if (additionalStringsCount > 0 && RangeMax != additionalStringsCount - 1)
+            {
+                throw new InvalidOperationException("invalid");
+            }
+
             for (var i = 0; i < additionalStringsCount; i++)
             {
-                AdditionalParams.Add(datareader.ReadNullTermString());
+                CheckboxNames.Add(datareader.ReadNullTermString());
             }
 
             // Seen in steampal's vr_complex VertexShader
-            if (Arg3 == 11)
+            if (Sys == 11)
             {
                 if (Name != "S_FOLIAGE_ANIMATION_ENABLED")
                 {
-                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Arg3)} = 11", Name, nameof(Name));
+                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Sys)} = 11", Name, nameof(Name));
                 }
 
                 var foliage = datareader.ReadInt32();
@@ -568,7 +588,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 if (Flags[i] == 2)
                 {
-                    names.Add(sfBlocks[Range0[i]].Name0);
+                    names.Add(sfBlocks[Range0[i]].Name);
                     continue;
                 }
                 if (Flags[i] == 3)
@@ -596,41 +616,49 @@ namespace ValveResourceFormat.CompiledShader
     public class ParamBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
-        public string Name0 { get; }
-        public string Name1 { get; }
-        public string Name2 { get; }
-        public int Type { get; }
+        public string Name { get; }
+        public string UiGroup { get; }
+        public string AttributeName { get; }
+        public UiType UiType { get; }
         public float Res0 { get; }
         public int Lead0 { get; }
         public byte[] DynExp { get; } = Array.Empty<byte>();
         public int Arg0 { get; }
-        public int Arg1 { get; }
-        public int Arg2 { get; }
-        public int Arg3 { get; }
-        public int Arg4 { get; }
-        public int Arg5 { get; } = -1;
+        public int VfxType { get; }
+        public ParameterType ParamType { get; }
+        public byte Arg3 { get; }
+        public byte Arg4 { get; }
+        public byte Arg5 { get; }
+        public byte Arg6 { get; }
+        public int VecSize { get; }
+        public byte Id { get; }
+        public byte Arg9 { get; }
+        public byte Arg10 { get; }
+        public byte Arg11 { get; }
         public string FileRef { get; }
-        public int[] Ranges0 { get; } = new int[4];
-        public int[] Ranges1 { get; } = new int[4];
-        public int[] Ranges2 { get; } = new int[4];
-        public float[] Ranges3 { get; } = new float[4];
-        public float[] Ranges4 { get; } = new float[4];
-        public float[] Ranges5 { get; } = new float[4];
-        public int[] Ranges6 { get; } = new int[4];
-        public int[] Ranges7 { get; } = new int[4];
+        public static readonly float FloatInf = 1e9F;
+        public static readonly int IntInf = 999999999;
+        public int[] IntDefs { get; } = new int[4];
+        public int[] IntMins { get; } = new int[4];
+        public int[] IntMaxs { get; } = new int[4];
+        public float[] FloatDefs { get; } = new float[4];
+        public float[] FloatMins { get; } = new float[4];
+        public float[] FloatMaxs { get; } = new float[4];
+        public int[] IntArgs0 { get; } = new int[4];
+        public int[] IntArgs1 { get; } = new int[4];
         public string Command0 { get; }
         public string Command1 { get; }
         public byte[] V65Data { get; } = Array.Empty<byte>();
         public ParamBlock(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
         {
             BlockIndex = blockIndex;
-            Name0 = datareader.ReadNullTermStringAtPosition();
+            Name = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
-            Name1 = datareader.ReadNullTermStringAtPosition();
+            UiGroup = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
-            Type = datareader.ReadInt32();
+            UiType = (UiType)datareader.ReadInt32();
             Res0 = datareader.ReadSingle();
-            Name2 = datareader.ReadNullTermStringAtPosition();
+            AttributeName = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
             Lead0 = datareader.ReadInt32();
             if (Lead0 == 6 || Lead0 == 7)
@@ -651,48 +679,56 @@ namespace ValveResourceFormat.CompiledShader
                 Arg0 = datareader.ReadInt32();
             }
 
-            Arg1 = datareader.ReadInt32();
-            Arg2 = datareader.ReadInt32();
-            Arg3 = datareader.ReadInt32();
-            Arg4 = datareader.ReadInt32();
+            VfxType = datareader.ReadInt32();
+            ParamType = (ParameterType)datareader.ReadInt32();
+
+            Arg3 = datareader.ReadByte();
+            Arg4 = datareader.ReadByte();
+            Arg5 = datareader.ReadByte();
+            Arg6 = datareader.ReadByte();
+
+            VecSize = datareader.ReadInt32();
             if (vcsVersion > 62)
             {
-                Arg5 = datareader.ReadInt32();
+                Id = datareader.ReadByte();
+                Arg9 = datareader.ReadByte();
+                Arg10 = datareader.ReadByte();
+                Arg11 = datareader.ReadByte();
             }
 
             FileRef = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
             for (var i = 0; i < 4; i++)
             {
-                Ranges0[i] = datareader.ReadInt32();
+                IntDefs[i] = datareader.ReadInt32();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges1[i] = datareader.ReadInt32();
+                IntMins[i] = datareader.ReadInt32();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges2[i] = datareader.ReadInt32();
+                IntMaxs[i] = datareader.ReadInt32();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges3[i] = datareader.ReadSingle();
+                FloatDefs[i] = datareader.ReadSingle();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges4[i] = datareader.ReadSingle();
+                FloatMins[i] = datareader.ReadSingle();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges5[i] = datareader.ReadSingle();
+                FloatMaxs[i] = datareader.ReadSingle();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges6[i] = datareader.ReadInt32();
+                IntArgs0[i] = datareader.ReadInt32();
             }
             for (var i = 0; i < 4; i++)
             {
-                Ranges7[i] = datareader.ReadInt32();
+                IntArgs1[i] = datareader.ReadInt32();
             }
             Command0 = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
@@ -834,12 +870,12 @@ namespace ValveResourceFormat.CompiledShader
         }
         private static string Fmt(float val)
         {
-            if (val == -1e9)
+            if (val == -FloatInf)
             {
                 return "-inf";
             }
 
-            if (val == 1e9)
+            if (val == FloatInf)
             {
                 return "inf";
             }
@@ -848,17 +884,17 @@ namespace ValveResourceFormat.CompiledShader
         }
         private static string Fmt(int val)
         {
-            if (val == -999999999)
+            if (val == -IntInf)
             {
                 return "-inf";
             }
 
-            if (val == 999999999)
+            if (val == IntInf)
             {
                 return "inf";
             }
 
-            return "" + val; ;
+            return "" + val;
         }
     }
 
@@ -963,7 +999,7 @@ namespace ValveResourceFormat.CompiledShader
     {
         public int BlockIndex { get; }
         public int SymbolsCount { get; }
-        public List<(string, string, string, int)> SymbolsDefinition { get; } = new();
+        public List<(string Name, string Type, string Option, int SemanticIndex)> SymbolsDefinition { get; } = new();
 
         public VertexSymbolsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {

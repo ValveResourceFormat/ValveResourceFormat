@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using VrfPackage = SteamDatabase.ValvePak.Package;
 
@@ -62,6 +63,17 @@ namespace GUI.Types.Viewers
             shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
             var helpText = "[ctrl+click to open and focus links, ESC or right-click on tabs to close]\n\n";
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
+
+            {
+                var control = new MonospaceTextBox
+                {
+                    Text = Utils.Utils.NormalizeLineEndings(new ShaderExtract(shaderCollection).ToVFX()),
+                };
+
+                var vfx = new TabPage("Reconstructed vfx");
+                vfx.Controls.Add(control);
+                tabControl.TabPages.Add(vfx);
+            }
             return tab;
         }
 
