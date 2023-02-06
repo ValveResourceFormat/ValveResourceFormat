@@ -38,7 +38,7 @@ namespace GUI.Types.Viewers
 
             var control = new MonospaceTextBox
             {
-                Text = Utils.Utils.NormalizeLineEndings(kv3.ToString()),
+                Text = kv3.ToString().ReplaceLineEndings(),
             };
             tab.Controls.Add(control);
 

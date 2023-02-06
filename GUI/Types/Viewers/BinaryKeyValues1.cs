@@ -48,7 +48,7 @@ namespace GUI.Types.Viewers
 
             var control = new MonospaceTextBox
             {
-                Text = Utils.Utils.NormalizeLineEndings(text),
+                Text = text.ReplaceLineEndings(),
             };
 
             var tab = new TabPage();

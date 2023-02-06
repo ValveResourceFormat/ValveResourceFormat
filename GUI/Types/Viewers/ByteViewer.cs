@@ -33,7 +33,7 @@ namespace GUI.Types.Viewers
                 var textTab = new TabPage("Text");
                 var text = new MonospaceTextBox
                 {
-                    Text = Utils.Utils.NormalizeLineEndings(System.Text.Encoding.UTF8.GetString(input)),
+                    Text = System.Text.Encoding.UTF8.GetString(input).ReplaceLineEndings(),
                 };
                 textTab.Controls.Add(text);
                 resTabs.TabPages.Add(textTab);

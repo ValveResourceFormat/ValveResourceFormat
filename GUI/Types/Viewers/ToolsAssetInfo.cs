@@ -28,7 +28,7 @@ namespace GUI.Types.Viewers
 
             var text = new MonospaceTextBox
             {
-                Text = Utils.Utils.NormalizeLineEndings(toolsAssetInfo.ToString()),
+                Text = toolsAssetInfo.ToString().ReplaceLineEndings(),
             };
             tab.Controls.Add(text);
 

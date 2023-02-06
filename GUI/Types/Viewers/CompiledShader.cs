@@ -204,7 +204,7 @@ namespace GUI.Types.Viewers
                 Multiline = true;
                 ReadOnly = true;
                 WordWrap = false;
-                Text = Utils.Utils.NormalizeLineEndings(buffer.ToString());
+                Text = buffer.ToString().ReplaceLineEndings();
                 ScrollBars = RichTextBoxScrollBars.Both;
                 LinkClicked += new LinkClickedEventHandler(ShaderRichTextBoxLinkClicked);
             }
@@ -282,7 +282,7 @@ namespace GUI.Types.Viewers
                 Multiline = true;
                 ReadOnly = true;
                 WordWrap = false;
-                Text = Utils.Utils.NormalizeLineEndings(buffer.ToString());
+                Text = buffer.ToString().ReplaceLineEndings();
                 ScrollBars = RichTextBoxScrollBars.Both;
                 LinkClicked += new LinkClickedEventHandler(ZFrameRichTextBoxLinkClicked);
             }
@@ -347,7 +347,7 @@ namespace GUI.Types.Viewers
                             Multiline = true,
                             ReadOnly = true,
                             WordWrap = false,
-                            Text = Utils.Utils.NormalizeLineEndings(buffer.ToString()),
+                            Text = buffer.ToString().ReplaceLineEndings(),
                             ScrollBars = RichTextBoxScrollBars.Both
                         };
                         gpuSourceTab.Controls.Add(gpuSourceRichTextBox);

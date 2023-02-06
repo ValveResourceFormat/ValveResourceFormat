@@ -318,23 +318,23 @@ namespace GUI.Types.Viewers
                         if (block is BinaryKV3 blockKeyvalues)
                         {
                             // Wrap it around a KV3File object to get the header.
-                            control.Text = Utils.Utils.NormalizeLineEndings(blockKeyvalues.GetKV3File().ToString());
+                            control.Text = blockKeyvalues.GetKV3File().ToString().ReplaceLineEndings();
                         }
                         else
                         {
                             if (resource.ResourceType == ResourceType.Sound)
                             {
-                                control.Text = Utils.Utils.NormalizeLineEndings(((Sound)block).ToString());
+                                control.Text = ((Sound)block).ToString().ReplaceLineEndings();
                             }
                             else
                             {
-                                control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
+                                control.Text = block.ToString().ReplaceLineEndings();
                             }
                         }
                     }
                     else
                     {
-                        control.Text = Utils.Utils.NormalizeLineEndings(block.ToString());
+                        control.Text = block.ToString().ReplaceLineEndings();
                     }
 
                     tab2.Controls.Add(control);
@@ -362,7 +362,7 @@ namespace GUI.Types.Viewers
                 {
                     var control = new MonospaceTextBox
                     {
-                        Text = Utils.Utils.NormalizeLineEndings(text),
+                        Text = text.ReplaceLineEndings(),
                     };
 
                     var tab = new TabPage(name);
