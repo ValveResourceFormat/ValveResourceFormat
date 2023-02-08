@@ -67,12 +67,13 @@ namespace GUI.Types.Viewers
             {
                 var control = new MonospaceTextBox
                 {
-                    Text = Utils.Utils.NormalizeLineEndings(new ShaderExtract(shaderCollection).ToVFX()),
+                    Text = new ShaderExtract(shaderCollection).ToVFX().ReplaceLineEndings(),
                 };
 
                 var vfx = new TabPage("Reconstructed vfx");
                 vfx.Controls.Add(control);
                 tabControl.TabPages.Add(vfx);
+                tabControl.SelectTab(vfx);
             }
             return tab;
         }

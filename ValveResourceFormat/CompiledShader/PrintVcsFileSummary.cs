@@ -65,7 +65,7 @@ namespace ValveResourceFormat.CompiledShader
 
             output.WriteLine($"VFX File Desc: {shaderFile.FeaturesHeader.FileDescription}");
             output.BreakLine();
-            output.WriteLine($"has_psrs_file = {shaderFile.FeaturesHeader.ExtraFile}");
+            output.WriteLine($"has_psrs_file = {shaderFile.FeaturesHeader.AdditionalFiles}");
             output.WriteLine($"{nameof(shaderFile.FeaturesHeader.Version)} = {shaderFile.FeaturesHeader.Version}");
             var ftHeader = shaderFile.FeaturesHeader;
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
@@ -201,24 +201,22 @@ namespace ValveResourceFormat.CompiledShader
             }
             foreach (var sfRuleBlock in shaderFile.SfConstraintsBlocks)
             {
-                var sfNames = new string[sfRuleBlock.Range0.Length];
+                var sfNames = new string[sfRuleBlock.Indices.Length];
                 for (var i = 0; i < sfNames.Length; i++)
                 {
-                    sfNames[i] = shaderFile.SfBlocks[sfRuleBlock.Range0[i]].Name;
+                    sfNames[i] = shaderFile.SfBlocks[sfRuleBlock.Indices[i]].Name;
                 }
                 const int BL = 70;
                 var breakNames = CombineValuesBreakString(sfNames, BL);
                 var s0 = $"[{sfRuleBlock.BlockIndex,2}]";
-                var s1 = (sfRuleBlock.RelRule == 1 || sfRuleBlock.RelRule == 2) ? $"INC({sfRuleBlock.RelRule})" : $"EXC({sfRuleBlock.RelRule})";
-                var s3 = $"{sfRuleBlock.GetByteFlagsAsString()}";
                 var s4 = $"{breakNames[0]}";
-                var s5 = $"{CombineIntArray(sfRuleBlock.Range0)}";
-                var s6 = $"{CombineIntArray(sfRuleBlock.Range1)}";
+                var s5 = $"{sfRuleBlock.Rule}{sfRuleBlock.Range2[0]}";
+                var s6 = $"{CombineIntArray(sfRuleBlock.Values)}";
                 var s7 = $"{CombineIntArray(sfRuleBlock.Range2)}";
-                var blockSummary = $"{s0,-7}{s1,-10}{s5,-16}{s4,-BL}{s6,-8}{s7,-8}";
+                var blockSummary = $"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}";
                 for (var i = 1; i < breakNames.Length; i++)
                 {
-                    blockSummary += $"\n{"",7}{"",10}{"",16}{breakNames[i],-BL}";
+                    blockSummary += $"\n{"",7}{"",10}{"",16}{breakNames[i],-BL}{sfRuleBlock.Description,-BL}";
                 }
                 output.Write(blockSummary);
                 output.BreakLine();
@@ -246,10 +244,10 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var dBlock in shaderFile.DBlocks)
             {
                 var v0 = $"[{dBlock.BlockIndex,2}]";
-                var v1 = dBlock.Name0;
-                var v2 = "" + dBlock.Arg2;
-                var v3 = "" + dBlock.Arg3;
-                var v4 = $"{dBlock.Arg4,2}";
+                var v1 = dBlock.Name;
+                var v2 = "" + dBlock.RangeMax;
+                var v3 = "" + dBlock.Sys;
+                var v4 = $"{dBlock.FeatureIndex,2}";
                 var blockSummary = $"{v0.PadRight(pad[0])} {v1.PadRight(pad[1])} {v2.PadRight(pad[2])} {v3.PadRight(pad[3])} {v4.PadRight(pad[4])}";
                 output.WriteLine(blockSummary);
             }
@@ -271,31 +269,29 @@ namespace ValveResourceFormat.CompiledShader
             }
             foreach (var dRuleBlock in shaderFile.DConstraintsBlocks)
             {
-                var dRuleName = new string[dRuleBlock.Flags.Length];
+                var dRuleName = new string[dRuleBlock.ConditionalTypes.Length];
                 for (var i = 0; i < dRuleName.Length; i++)
                 {
-                    if (dRuleBlock.Flags[i] == 3)
+                    if (dRuleBlock.ConditionalTypes[i] == ConditionalType.Dynamic)
                     {
-                        dRuleName[i] = shaderFile.DBlocks[dRuleBlock.Range0[i]].Name0;
+                        dRuleName[i] = shaderFile.DBlocks[dRuleBlock.Indices[i]].Name;
                         continue;
                     }
-                    if (dRuleBlock.Flags[i] == 2)
+                    if (dRuleBlock.ConditionalTypes[i] == ConditionalType.Static)
                     {
-                        dRuleName[i] = shaderFile.SfBlocks[dRuleBlock.Range0[i]].Name;
+                        dRuleName[i] = shaderFile.SfBlocks[dRuleBlock.Indices[i]].Name;
                         continue;
                     }
-                    throw new ShaderParserException($"unknown flag value {dRuleBlock.Flags[i]}");
+                    throw new ShaderParserException($"unknown flag value {dRuleBlock.ConditionalTypes[i]}");
                 }
                 const int BL = 70;
                 var breakNames = CombineValuesBreakString(dRuleName, BL);
                 var s0 = $"[{dRuleBlock.BlockIndex,2}]";
-                var s1 = (dRuleBlock.RelRule == 1 || dRuleBlock.RelRule == 2) ? $"INC({dRuleBlock.RelRule})" : $"EXC({dRuleBlock.RelRule})";
-                var s3 = $"{dRuleBlock.ReadByteFlagsAsString()}";
                 var s4 = $"{breakNames[0]}";
-                var s5 = $"{CombineIntArray(dRuleBlock.Range0)}";
-                var s6 = $"{CombineIntArray(dRuleBlock.Range1)}";
+                var s5 = $"{dRuleBlock.Rule}{dRuleBlock.Range2[0]}";
+                var s6 = $"{CombineIntArray(dRuleBlock.Values)}";
                 var s7 = $"{CombineIntArray(dRuleBlock.Range2)}";
-                var blockSummary = $"{s0,-7}{s1,-10}{s3,-15}{s5,-16}{s4,-BL}{s6,-10}{s7,-8}";
+                var blockSummary = $"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}";
                 for (var i = 1; i < breakNames.Length; i++)
                 {
                     blockSummary += $"\n{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}";
@@ -328,7 +324,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     dynExpCount++;
                 }
-                var c0 = param.Command0;
+                var c0 = param.Suffix;
                 var c1 = param.Command1;
                 if (c1.Length > 0)
                 {
@@ -369,7 +365,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine("(- indicates -infinity, + indicates +infinity, def. = default)");
             output.DefineHeaders(new string[] { "index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", nameof(ParamBlock.IntDefs), nameof(ParamBlock.IntMins), nameof(ParamBlock.IntMaxs),
                 nameof(ParamBlock.FloatDefs), nameof(ParamBlock.FloatMins), nameof(ParamBlock.FloatMaxs), nameof(ParamBlock.IntArgs0), nameof(ParamBlock.IntArgs1),
-                nameof(ParamBlock.Command0), nameof(ParamBlock.FileRef), nameof(ParamBlock.DynExp)});
+                nameof(ParamBlock.Suffix), nameof(ParamBlock.FileRef), nameof(ParamBlock.DynExp)});
             foreach (var param in shaderFile.ParamBlocks)
             {
                 var vfxType = Vfx.Types.GetValueOrDefault(param.VfxType, $"unkntype{param.VfxType}");
@@ -377,7 +373,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.AddTabulatedRow(new string[] { $"[{("" + param.BlockIndex).PadLeft(indexPad)}]", $"{param.Name}",
                     $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Arg0),2},{vfxType},{param.ParamType,2},{param.VecSize,2},{param.Id}",
                     $"{Comb(param.IntDefs)}", $"{Comb(param.IntMins)}", $"{Comb(param.IntMaxs)}", $"{Comb(param.FloatDefs)}", $"{Comb(param.FloatMins)}",
-                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.IntArgs0)}", $"{Comb(param.IntArgs1)}", param.Command0, param.FileRef, $"{hasDynExp}"});
+                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.IntArgs0)}", $"{Comb(param.IntArgs1)}", param.Suffix, param.FileRef, $"{hasDynExp}"});
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
@@ -421,12 +417,12 @@ namespace ValveResourceFormat.CompiledShader
                 output.DefineHeaders(new string[] { "       ", "name", "offset", "vertex-size", "attrib-count", "data-count" });
                 foreach (var bufferParams in bufferBlock.BufferParams)
                 {
-                    var name = bufferParams.Item1;
-                    var bOffset = bufferParams.Item2;
-                    var nrVertices = bufferParams.Item3;
-                    var nrAttribs = bufferParams.Item4;
-                    var length = bufferParams.Item5;
-                    output.AddTabulatedRow(new string[] { "", $"{name}", $"{bOffset,3}", $"{nrVertices,3}", $"{nrAttribs,3}", $"{length,3}" });
+                    var name = bufferParams.Name;
+                    var bOffset = bufferParams.Offset;
+                    var vectorSize = bufferParams.VectorSize;
+                    var depth = bufferParams.Depth;
+                    var length = bufferParams.Length;
+                    output.AddTabulatedRow(new string[] { "", $"{name}", $"{bOffset,3}", $"{vectorSize,3}", $"{depth,3}", $"{length,3}" });
 
                 }
                 output.PrintTabulatedValues();

@@ -1,20 +1,13 @@
 using System;
 using System.Collections.Generic;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
-    public enum ExtraFile
-    {
-        None = 0,
-        Psrs,
-        Rtx,
-    }
     public class FeaturesHeaderBlock : ShaderDataBlock
     {
         public int VcsFileVersion { get; }
-        public ExtraFile ExtraFile { get; }
+        public AdditionalFiles AdditionalFiles { get; }
         public int Version { get; }
         public string FileDescription { get; }
         public int DevShader { get; }
@@ -41,17 +34,17 @@ namespace ValveResourceFormat.CompiledShader
 
             if (VcsFileVersion >= 64)
             {
-                ExtraFile = (ExtraFile)datareader.ReadInt32();
+                AdditionalFiles = (AdditionalFiles)datareader.ReadInt32();
             }
 
-            if (ExtraFile < ExtraFile.None || ExtraFile > ExtraFile.Rtx)
+            if (AdditionalFiles < AdditionalFiles.None || AdditionalFiles > AdditionalFiles.Rtx)
             {
-                throw new UnexpectedMagicException("unexpected v64 value", (int)ExtraFile, nameof(ExtraFile));
+                throw new UnexpectedMagicException("Unexpected v64 value", (int)AdditionalFiles, nameof(AdditionalFiles));
             }
-            else if (ExtraFile == ExtraFile.Rtx) // sbox
+            else if (AdditionalFiles == AdditionalFiles.Rtx) // sbox
             {
                 datareader.BaseStream.Position += 4;
-                ExtraFile = ExtraFile.None;
+                AdditionalFiles = AdditionalFiles.None;
                 VcsFileVersion = 64;
             }
 
@@ -71,11 +64,11 @@ namespace ValveResourceFormat.CompiledShader
                 Arg7 = datareader.ReadInt32();
             }
 
-            if (ExtraFile == ExtraFile.Psrs)
+            if (AdditionalFiles == AdditionalFiles.Psrs)
             {
                 datareader.BaseStream.Position += 4;
             }
-            else if (ExtraFile == ExtraFile.Rtx)
+            else if (AdditionalFiles == AdditionalFiles.Rtx)
             {
                 datareader.BaseStream.Position += 8;
             }
@@ -97,6 +90,7 @@ namespace ValveResourceFormat.CompiledShader
                 Modes.Add((name, shader, static_config));
             }
 
+            // Editor Id bytes, the length in-so-far is 16 bytes * (6 + AdditionalFiles + 1)
             for (var program = VcsProgramType.Features; program <= VcsProgramType.Undetermined; program++)
             {
                 if (program == VcsProgramType.Undetermined)
@@ -105,8 +99,8 @@ namespace ValveResourceFormat.CompiledShader
                     continue;
                 }
 
-                if ((ExtraFile == ExtraFile.None && program >= VcsProgramType.PixelShaderRenderState)
-                    || (ExtraFile == ExtraFile.Psrs && program >= VcsProgramType.RaytracingShader))
+                if ((AdditionalFiles == AdditionalFiles.None && program > VcsProgramType.ComputeShader)
+                || (AdditionalFiles == AdditionalFiles.Psrs && program > VcsProgramType.PixelShaderRenderState))
                 {
                     continue;
                 }
@@ -229,15 +223,15 @@ namespace ValveResourceFormat.CompiledShader
             VcsFileVersion = datareader.ReadInt32();
             ThrowIfNotSupported(VcsFileVersion);
 
-            var extraFile = ExtraFile.None;
+            var extraFile = AdditionalFiles.None;
             if (VcsFileVersion >= 64)
             {
-                extraFile = (ExtraFile)datareader.ReadInt32();
-                if (extraFile < ExtraFile.None || extraFile > ExtraFile.Rtx)
+                extraFile = (AdditionalFiles)datareader.ReadInt32();
+                if (extraFile < AdditionalFiles.None || extraFile > AdditionalFiles.Rtx)
                 {
-                    throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(ExtraFile));
+                    throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(AdditionalFiles));
                 }
-                if (extraFile == ExtraFile.Rtx)
+                if (extraFile == AdditionalFiles.Rtx)
                 {
                     datareader.BaseStream.Position += 4;
                     VcsFileVersion--;
@@ -268,13 +262,28 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
+    public interface ICombo
+    {
+        int BlockIndex { get; }
+        string Name { get; }
+        string Category { get; }
+        int Arg0 { get; }
+        int RangeMin { get; }
+        int RangeMax { get; }
+        int Sys { get; }
+        int FeatureIndex { get; }
+        int Arg5 { get; }
+
+        void PrintByteDetail();
+    }
+
     /// <summary>
     /// Contains a definition for a feature or static configuration.
     /// </summary>
     /// <remarks>
     /// These are usually 152 bytes long. Features may contain names describing each state
     /// </remarks>
-    public class SfBlock : ShaderDataBlock
+    public class SfBlock : ShaderDataBlock, ICombo
     {
         public int BlockIndex { get; }
         public string Name { get; }
@@ -282,11 +291,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg0 { get; }
         public int RangeMin { get; }
         public int RangeMax { get; }
-        // Seems to be connected to Sys
         public int Sys { get; }
-        /// <returns>
-        /// The feature index this static configuration is tied to, or -1
-        /// </returns>
         public int FeatureIndex { get; }
         public int Arg5 { get; }
         public List<string> CheckboxNames { get; } = new();
@@ -320,7 +325,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 if (Name != "S_FOLIAGE_ANIMATION_ENABLED")
                 {
-                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Sys)} = 11", Name, nameof(Name));
+                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Sys)} = 11. Is it also 4 bytes longer?", Name, nameof(Name));
                 }
 
                 var foliage = datareader.ReadInt32();
@@ -383,31 +388,46 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
+    public interface IComboConstraints
+    {
+        int BlockIndex { get; }
+        ConditionalRule Rule { get; }
+        ConditionalType BlockType { get; }
+        ConditionalType[] ConditionalTypes { get; }
+        int[] Indices { get; }
+        int[] Values { get; }
+        int[] Range2 { get; }
+        string Description { get; }
+
+        void PrintByteDetail();
+        string GetByteFlagsAsString();
+    }
+
     // SfConstraintsBlocks are always 472 bytes long
-    public class SfConstraintsBlock : ShaderDataBlock
+    public class SfConstraintsBlock : ShaderDataBlock, IComboConstraints
     {
         public int BlockIndex { get; }
-        public int RelRule { get; }  // 1 = dependency-rule (feature file), 2 = dependency-rule (other files), 3 = exclusion
-        public int Arg0 { get; } // this is just 1 for features files and 2 for all other files
-        public int[] Flags { get; }
-        public int[] Range0 { get; }
-        public int[] Range1 { get; }
+        public ConditionalRule Rule { get; }  // 1 = dependency-rule (feature file), 2 = dependency-rule (other files), 3 = exclusion
+        public ConditionalType BlockType { get; } // this is just 1 for features files and 2 for all other files
+        public ConditionalType[] ConditionalTypes { get; }
+        public int[] Indices { get; }
+        public int[] Values { get; }
         public int[] Range2 { get; }
         public string Description { get; }
         public SfConstraintsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
-            RelRule = datareader.ReadInt32();
-            Arg0 = datareader.ReadInt32();
+            Rule = (ConditionalRule)datareader.ReadInt32();
+            BlockType = (ConditionalType)datareader.ReadInt32();
             // flags are at (8)
-            Flags = ReadByteFlags();
+            ConditionalTypes = Array.ConvertAll(ReadByteFlags(), x => (ConditionalType)x);
             // range 0 at (24)
-            Range0 = ReadIntRange();
-            datareader.BaseStream.Position += 68 - Range0.Length * 4;
+            Indices = ReadIntRange();
+            datareader.BaseStream.Position += 68 - Indices.Length * 4;
             // range 1 at (92)
-            Range1 = ReadIntRange();
+            Values = ReadIntRange();
 
-            datareader.BaseStream.Position += 60 - Range1.Length * 4;
+            datareader.BaseStream.Position += 60 - Values.Length * 4;
             // range 2 at (152)
             Range2 = ReadIntRange();
             datareader.BaseStream.Position += 64 - Range2.Length * 4;
@@ -440,13 +460,9 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BaseStream.Position = savedPosition + 16;
             return byteFlags;
         }
-        public string RelRuleDescribe()
-        {
-            return RelRule == 3 ? "EXC(3)" : $"INC({RelRule})";
-        }
         public string GetByteFlagsAsString()
         {
-            return CombineIntArray(Flags);
+            return string.Join(" ", ConditionalTypes);
         }
         public void PrintByteDetail()
         {
@@ -461,29 +477,29 @@ namespace ValveResourceFormat.CompiledShader
     }
 
     // DBlocks are always 152 bytes long
-    public class DBlock : ShaderDataBlock
+    public class DBlock : ShaderDataBlock, ICombo
     {
         public int BlockIndex { get; }
-        public string Name0 { get; }
-        public string Name1 { get; } // it looks like d-blocks might have the provision for 2 strings (but not seen in use)
+        public string Name { get; }
+        public string Category { get; } // it looks like d-blocks might have the provision for 2 strings (but not seen in use)
         public int Arg0 { get; }
-        public int Arg1 { get; }
-        public int Arg2 { get; }
-        public int Arg3 { get; }
-        public int Arg4 { get; }
+        public int RangeMin { get; }
+        public int RangeMax { get; }
+        public int Sys { get; }
+        public int FeatureIndex { get; }
         public int Arg5 { get; }
         public DBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
-            Name0 = datareader.ReadNullTermStringAtPosition();
+            Name = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
-            Name1 = datareader.ReadNullTermStringAtPosition();
+            Category = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
             Arg0 = datareader.ReadInt32();
-            Arg1 = datareader.ReadInt32();
-            Arg2 = datareader.ReadInt32();
-            Arg3 = datareader.ReadInt32();
-            Arg4 = datareader.ReadInt32();
+            RangeMin = datareader.ReadInt32();
+            RangeMax = datareader.ReadInt32();
+            Sys = datareader.ReadInt32();
+            FeatureIndex = datareader.ReadInt32();
             Arg5 = datareader.ReadInt32();
         }
         public void PrintByteDetail()
@@ -500,37 +516,38 @@ namespace ValveResourceFormat.CompiledShader
     }
 
     // DConstraintsBlock are always 472 bytes long
-    public class DConstraintsBlock : ShaderDataBlock
+    public class DConstraintsBlock : ShaderDataBlock, IComboConstraints
     {
         public int BlockIndex { get; }
-        public int RelRule { get; }  // 2 = dependency-rule (other files), 3 = exclusion (1 not present, as in the compat-blocks)
-        public int Arg0 { get; } // ALWAYS 3 (for sf-constraint-blocks this value is 1 for features files and 2 for all other files)
+        public ConditionalRule Rule { get; }  // 2 = dependency-rule (other files), 3 = exclusion (1 not present, as in the compat-blocks)
+        public ConditionalType BlockType { get; } // ALWAYS 3 (for sf-constraint-blocks this value is 1 for features files and 2 for all other files)
         public int Arg1 { get; } // arg1 at (88) sometimes has a value > -1 (in compat-blocks this value is always seen to be -1)
-        public int[] Flags { get; }
-        public int[] Range0 { get; }
-        public int[] Range1 { get; }
+        public ConditionalType[] ConditionalTypes { get; }
+        public int[] Indices { get; }
+        public int[] Values { get; }
         public int[] Range2 { get; }
         public string Description { get; }
 
+        // TODO: Merge this with SfConstraints
         public DConstraintsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
-            RelRule = datareader.ReadInt32();
-            Arg0 = datareader.ReadInt32();
-            if (Arg0 != 3)
+            Rule = (ConditionalRule)datareader.ReadInt32();
+            BlockType = (ConditionalType)datareader.ReadInt32();
+            if (BlockType != ConditionalType.Dynamic)
             {
                 throw new ShaderParserException("unexpected value!");
             }
             // flags at (8)
-            Flags = ReadByteFlags();
+            ConditionalTypes = Array.ConvertAll(ReadByteFlags(), x => (ConditionalType)x);
             // range0 at (24)
-            Range0 = ReadIntRange();
-            datareader.BaseStream.Position += 64 - Range0.Length * 4;
+            Indices = ReadIntRange();
+            datareader.BaseStream.Position += 64 - Indices.Length * 4;
             // integer at (88)
             Arg1 = datareader.ReadInt32();
             // range1 at (92)
-            Range1 = ReadIntRange();
-            datareader.BaseStream.Position += 60 - Range1.Length * 4;
+            Values = ReadIntRange();
+            datareader.BaseStream.Position += 60 - Values.Length * 4;
             // range1 at (152)
             Range2 = ReadIntRange();
             datareader.BaseStream.Position += 64 - Range2.Length * 4;
@@ -538,6 +555,7 @@ namespace ValveResourceFormat.CompiledShader
             Description = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 256;
         }
+
         private int[] ReadIntRange()
         {
             List<int> ints0 = new();
@@ -565,55 +583,9 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BaseStream.Position += 16;
             return byteFlags;
         }
-        public string ReadByteFlagsAsString()
+        public string GetByteFlagsAsString()
         {
-            return CombineIntArray(Flags);
-        }
-        public bool AllFlagsAre3()
-        {
-            var flagsAre3 = true;
-            foreach (var flag in Flags)
-            {
-                if (flag != 3)
-                {
-                    flagsAre3 = false;
-                }
-            }
-            return flagsAre3;
-        }
-        public string GetConciseDescription(int[] usePadding = null)
-        {
-            int[] p = { 10, 8, 15, 5 };
-            if (usePadding != null)
-            {
-                p = usePadding;
-            }
-            var relRuleKeyDesciption = $"{RelRuleDescribe().PadRight(p[0])}{CombineIntArray(Range1).PadRight(p[1])}" +
-                $"{CombineIntArray(Flags, includeParenth: true).PadRight(p[2])}{CombineIntArray(Range2).PadRight(p[3])}";
-            return relRuleKeyDesciption;
-        }
-        public string GetResolvedNames(List<SfBlock> sfBlocks, List<DBlock> dBlocks)
-        {
-            List<string> names = new();
-            for (var i = 0; i < Flags.Length; i++)
-            {
-                if (Flags[i] == 2)
-                {
-                    names.Add(sfBlocks[Range0[i]].Name);
-                    continue;
-                }
-                if (Flags[i] == 3)
-                {
-                    names.Add(dBlocks[Range0[i]].Name0);
-                    continue;
-                }
-                throw new ShaderParserException("this cannot happen!");
-            }
-            return CombineStringArray(names.ToArray());
-        }
-        public string RelRuleDescribe()
-        {
-            return RelRule == 3 ? "EXC(3)" : $"INC({RelRule})";
+            return string.Join(" ", ConditionalTypes);
         }
         public void PrintByteDetail()
         {
@@ -657,7 +629,7 @@ namespace ValveResourceFormat.CompiledShader
         public float[] FloatMaxs { get; } = new float[4];
         public int[] IntArgs0 { get; } = new int[4];
         public int[] IntArgs1 { get; } = new int[4];
-        public string Command0 { get; }
+        public string Suffix { get; }
         public string Command1 { get; }
         public byte[] V65Data { get; } = Array.Empty<byte>();
         public ParamBlock(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
@@ -741,7 +713,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 IntArgs1[i] = datareader.ReadInt32();
             }
-            Command0 = datareader.ReadNullTermStringAtPosition();
+            Suffix = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
             Command1 = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
@@ -909,25 +881,6 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
-#pragma warning disable CA1028 // If possible, make the underlying type System.Int32 instead of uint
-    public enum Channel : uint
-    {
-        R = 0xFFFFFF00,
-        G = 0xFFFFFF01,
-        B = 0xFFFFFF02,
-        A = 0xFFFFFF03,
-        RG = 0xFFFF0100,
-        GB = 0xFFFF0201,
-        BA = 0xFFFF0302,
-        //AR = 0xFFFF0003,
-        AG = 0xFFFF0103,
-        //AB = 0xFFFF0203,
-        RGB = 0xFF020100,
-        GBA = 0xFF030201,
-        RGBA = 0x03020100,
-    }
-#pragma warning restore CA1028
-
     // MipmapBlocks are always 280 bytes long
     public class MipmapBlock : ShaderDataBlock
     {
@@ -968,7 +921,7 @@ namespace ValveResourceFormat.CompiledShader
         public int BufferSize { get; }
         public int Arg0 { get; }
         public int ParamCount { get; }
-        public List<(string, int, int, int, int)> BufferParams { get; } = new();
+        public List<(string Name, int Offset, int VectorSize, int Depth, int Length)> BufferParams { get; } = new();
         public uint BlockCrc { get; }
         public BufferBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
