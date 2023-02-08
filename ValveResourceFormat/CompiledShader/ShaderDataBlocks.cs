@@ -5,10 +5,16 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    public enum ExtraFile
+    {
+        None = 0,
+        Psrs,
+        Rtx,
+    }
     public class FeaturesHeaderBlock : ShaderDataBlock
     {
         public int VcsFileVersion { get; }
-        public bool HasPsrsFile { get; }
+        public ExtraFile ExtraFile { get; }
         public int Version { get; }
         public string FileDescription { get; }
         public int DevShader { get; }
@@ -33,19 +39,18 @@ namespace ValveResourceFormat.CompiledShader
             VcsFileVersion = datareader.ReadInt32();
             ThrowIfNotSupported(VcsFileVersion);
 
-            var psrs_arg = 0;
             if (VcsFileVersion >= 64)
             {
-                psrs_arg = datareader.ReadInt32();
+                ExtraFile = (ExtraFile)datareader.ReadInt32();
             }
 
-            if (psrs_arg != 0 && psrs_arg != 1)
+            if (ExtraFile < ExtraFile.None || ExtraFile > ExtraFile.Rtx)
             {
-                throw new ShaderParserException($"unexpected value psrs_arg = {psrs_arg}");
+                throw new UnexpectedMagicException("unexpected v64 value", (int)ExtraFile, nameof(ExtraFile));
             }
-            HasPsrsFile = psrs_arg > 0;
+
             Version = datareader.ReadInt32();
-            datareader.ReadInt32(); // length of name, but not needed because it's always null-term
+            datareader.BaseStream.Position += 4; // length of name, but not needed because it's always null-term
             FileDescription = datareader.ReadNullTermString();
             DevShader = datareader.ReadInt32();
             Arg1 = datareader.ReadInt32();
@@ -60,13 +65,16 @@ namespace ValveResourceFormat.CompiledShader
                 Arg7 = datareader.ReadInt32();
             }
 
-            var mode_count = datareader.ReadInt32();
-            if (HasPsrsFile)
+            if (ExtraFile == ExtraFile.Psrs)
             {
-                // nr_of_arguments is overwritten
-                mode_count = datareader.ReadInt32();
+                datareader.BaseStream.Position += 4;
+            }
+            else if (ExtraFile == ExtraFile.Rtx)
+            {
+                datareader.BaseStream.Position += 8;
             }
 
+            var mode_count = datareader.ReadInt32();
             for (var i = 0; i < mode_count; i++)
             {
                 var name = datareader.ReadNullTermStringAtPosition();
@@ -83,27 +91,21 @@ namespace ValveResourceFormat.CompiledShader
                 Modes.Add((name, shader, static_config));
             }
 
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID0 (produces this file)"));
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID1 - usually a ref to the vs file ({VcsProgramType.VertexShader})"));
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID2 - usually a ref to the ps file ({VcsProgramType.PixelShader})"));
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID3"));
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID4"));
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID5"));
-            EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", "// Editor ref. ID6"));
-
-            if (VcsFileVersion >= 64)
+            for (var program = VcsProgramType.Features; program <= VcsProgramType.Undetermined; program++)
             {
-                if (HasPsrsFile)
+                if (program == VcsProgramType.Undetermined)
                 {
-                    EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref. ID7 - ref to psrs file ({VcsProgramType.PixelShaderRenderState})"));
-                    EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
-                        $"// Editor ref. ID8 - common editor reference shared by multiple files "));
+                    EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref - common editor reference shared by multiple files "));
+                    continue;
                 }
-                else
+
+                if ((ExtraFile == ExtraFile.None && program >= VcsProgramType.PixelShaderRenderState)
+                    || (ExtraFile == ExtraFile.Psrs && program >= VcsProgramType.RaytracingShader))
                 {
-                    EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}",
-                        "// Editor ref. ID7- common editor reference shared by multiple files"));
+                    continue;
                 }
+
+                EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref to {program}"));
             }
         }
 
@@ -207,7 +209,6 @@ namespace ValveResourceFormat.CompiledShader
     public class VsPsHeaderBlock : ShaderDataBlock
     {
         public int VcsFileVersion { get; }
-        public bool HasPsrsFile { get; }
         public string FileID0 { get; }
         public string FileID1 { get; }
         public VsPsHeaderBlock(ShaderDataReader datareader) : base(datareader)
@@ -222,16 +223,15 @@ namespace ValveResourceFormat.CompiledShader
             VcsFileVersion = datareader.ReadInt32();
             ThrowIfNotSupported(VcsFileVersion);
 
-            var psrs_arg = 0;
+            var extraFile = ExtraFile.None;
             if (VcsFileVersion >= 64)
             {
-                psrs_arg = datareader.ReadInt32();
-                if (psrs_arg != 0 && psrs_arg != 1)
+                extraFile = (ExtraFile)datareader.ReadInt32();
+                if (extraFile < ExtraFile.None || extraFile > ExtraFile.Rtx)
                 {
-                    throw new ShaderParserException($"Unexpected value psrs_arg = {psrs_arg}");
+                    throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(ExtraFile));
                 }
             }
-            HasPsrsFile = psrs_arg > 0;
             FileID0 = datareader.ReadBytesAsString(16);
             FileID1 = datareader.ReadBytesAsString(16);
         }
