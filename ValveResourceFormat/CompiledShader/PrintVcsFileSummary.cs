@@ -388,7 +388,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"MIPMAP BLOCKS({shaderFile.MipmapBlocks.Count})");
             if (shaderFile.MipmapBlocks.Count > 0)
             {
-                output.DefineHeaders(new string[] { "index", "name", "arg0", "arg1", "arg2", "arg3", "arg4", "arg5" });
+                output.DefineHeaders(new string[] { "index", "name", nameof(MipmapBlock.Channel), "inputs", nameof(MipmapBlock.ColorMode) });
             }
             else
             {
@@ -398,8 +398,7 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var mipmap in shaderFile.MipmapBlocks)
             {
                 output.AddTabulatedRow(new string[] { $"[{mipmap.BlockIndex,2}]", $"{mipmap.Name}",
-                    $"{BytesToString(mipmap.Arg0),-14}", $"{mipmap.Arg1,2}", $"{BlankNegOne(mipmap.Arg2),2}",
-                    $"{BlankNegOne(mipmap.Arg3),2}", $"{BlankNegOne(mipmap.Arg4),2}", $"{mipmap.Arg5,2}" });
+                    mipmap.Channel.ToString(), string.Join(" ", mipmap.InputTextureIndices), $"{mipmap.ColorMode,2}" });
             }
             output.PrintTabulatedValues();
             output.BreakLine();

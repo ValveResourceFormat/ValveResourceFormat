@@ -232,6 +232,11 @@ public sealed class ShaderExtract
         HandleStaticCombos(PixelShader.SfBlocks, PixelShader.SfConstraintsBlocks, FeatureNames, stringBuilder);
         HandleParameters(PixelShader.ParamBlocks, stringBuilder);
 
+        foreach (var mipmap in Features.MipmapBlocks)
+        {
+            stringBuilder.AppendLine($"\t{GetChannelFromMipmap(mipmap)}");
+        }
+
         stringBuilder.AppendLine("}");
         return stringBuilder.ToString();
     }
@@ -483,5 +488,17 @@ public sealed class ShaderExtract
 
             }
         }
+    }
+
+    private string GetChannelFromMipmap(MipmapBlock mipmapBlock)
+    {
+        var mode = mipmapBlock.ColorMode == 0
+            ? "Linear"
+            : "Srgb";
+
+        var cutoff = Array.IndexOf(mipmapBlock.InputTextureIndices, -1);
+        var inputs = string.Join(", ", mipmapBlock.InputTextureIndices[..cutoff].Select(idx => Features.ParamBlocks[idx].Name));
+
+        return $"Channel( {mipmapBlock.Channel}, {mipmapBlock.Name}( {inputs} ) );";
     }
 }
