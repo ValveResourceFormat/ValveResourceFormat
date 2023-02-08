@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -18,9 +19,27 @@ public sealed class ShaderExtract
     private List<string> FeatureNames { get; set; }
     private string[] Globals { get; set; }
 
-    public ShaderExtract(SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection)
+
+    public ShaderExtract(Resource resource)
+        : this((SboxShader)resource.DataBlock)
+    { }
+
+    public ShaderExtract(SboxShader sboxShaderCollection)
     {
-        foreach (var shader in shaderCollection.Values)
+        Features = sboxShaderCollection.Features;
+        GeometryShader = sboxShaderCollection.Geometry;
+        VertexShader = sboxShaderCollection.Vertex;
+        PixelShader = sboxShaderCollection.Pixel;
+        ComputeShader = sboxShaderCollection.Compute;
+    }
+
+    public ShaderExtract(SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection)
+        : this(shaderCollection.Values)
+    { }
+
+    public ShaderExtract(IEnumerable<ShaderFile> shaderCollection)
+    {
+        foreach (var shader in shaderCollection)
         {
             if (shader.VcsProgramType == VcsProgramType.Features)
             {
