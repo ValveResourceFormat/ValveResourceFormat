@@ -48,6 +48,12 @@ namespace ValveResourceFormat.CompiledShader
             {
                 throw new UnexpectedMagicException("unexpected v64 value", (int)ExtraFile, nameof(ExtraFile));
             }
+            else if (ExtraFile == ExtraFile.Rtx) // sbox
+            {
+                datareader.BaseStream.Position += 4;
+                ExtraFile = ExtraFile.None;
+                VcsFileVersion = 64;
+            }
 
             Version = datareader.ReadInt32();
             datareader.BaseStream.Position += 4; // length of name, but not needed because it's always null-term
@@ -230,6 +236,11 @@ namespace ValveResourceFormat.CompiledShader
                 if (extraFile < ExtraFile.None || extraFile > ExtraFile.Rtx)
                 {
                     throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(ExtraFile));
+                }
+                if (extraFile == ExtraFile.Rtx)
+                {
+                    datareader.BaseStream.Position += 4;
+                    VcsFileVersion--;
                 }
             }
             FileID0 = datareader.ReadBytesAsString(16);
