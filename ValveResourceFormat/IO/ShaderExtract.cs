@@ -13,18 +13,19 @@ public sealed class ShaderExtract
 {
     public readonly struct ShaderExtractParams
     {
-        public bool CollapseCommonBuffers { get; init; }
+        public bool CollapseCommonBuffers_InInclude { get; init; }
+        public bool CollapseCommonBuffers_InPlace { get; init; }
         public bool FirstVsInput_Only { get; init; }
 
         public static readonly ShaderExtractParams Inspect = new()
         {
-            CollapseCommonBuffers = true,
+            CollapseCommonBuffers_InPlace = true,
             FirstVsInput_Only = true,
         };
 
         public static readonly ShaderExtractParams Export = new()
         {
-            CollapseCommonBuffers = false,
+            CollapseCommonBuffers_InInclude = true,
             FirstVsInput_Only = true,
         };
 
@@ -248,18 +249,34 @@ public sealed class ShaderExtract
 
     private void HandleCBuffers(List<BufferBlock> bufferBlocks, StringBuilder stringBuilder)
     {
+        var includedCommon = false;
+
         foreach (var buffer in bufferBlocks)
         {
-            stringBuilder.AppendLine();
-            stringBuilder.Append("\tcbuffer " + buffer.Name);
-
-            if (Options.CollapseCommonBuffers && ShaderExtractParams.CommonBuffers.Contains(buffer.Name))
+            if (ShaderExtractParams.CommonBuffers.Contains(buffer.Name))
             {
-                stringBuilder.AppendLine(";");
-                continue;
+                if (includedCommon)
+                {
+                    continue;
+                }
+
+                if (Options.CollapseCommonBuffers_InInclude)
+                {
+                    stringBuilder.AppendLine("\t#include \"common.fxc\"");
+                    includedCommon = true;
+                    continue;
+                }
+
+
+                if (Options.CollapseCommonBuffers_InPlace)
+                {
+                    stringBuilder.Append("\tcbuffer " + buffer.Name + ";");
+                    continue;
+                }
             }
 
             stringBuilder.AppendLine();
+            stringBuilder.AppendLine("\tcbuffer " + buffer.Name);
             stringBuilder.AppendLine("\t{");
 
             foreach (var member in buffer.BufferParams)
