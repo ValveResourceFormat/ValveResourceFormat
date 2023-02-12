@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
@@ -9,6 +11,7 @@ using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
@@ -375,6 +378,40 @@ namespace GUI.Types.Viewers
                     }
                 }
 
+                static void VcsShaderResourceBridge(TabControl resTabs, SboxShader sboxShader)
+                {
+                    var shaderTab = new TabPage("Embedded Shader");
+                    var shaderTabControl = new TabControl
+                    {
+                        Dock = DockStyle.Fill,
+                    };
+
+                    shaderTab.Controls.Add(shaderTabControl);
+                    resTabs.TabPages.Add(shaderTab);
+
+                    // TODO: proper link handling
+                    ////tabControl.MouseClick += new MouseEventHandler(OnTabClick);
+                    //var mainFileTab = new TabPage(nameof(shaderFileContainer.Features));
+                    //var shaderRichTextBox = new ShaderRichTextBox(shaderFileContainer.Features, tabControl, null);
+                    //mainFileTab.Controls.Add(shaderRichTextBox);
+                    //tabControl.Controls.Add(mainFileTab);
+                    //tab.Controls.Add(tabControl);
+                    //
+                    ////shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
+
+                    foreach (var shader in sboxShader.Shaders)
+                    {
+                        if (shader is null)
+                        {
+                            continue;
+                        }
+
+                        var sb = new StringBuilder();
+                        shader.PrintSummary((x) => sb.Append(x), true);
+                        AddContentTab(shaderTabControl, shader.VcsProgramType.ToString(), sb.ToString());
+                    }
+                }
+
                 if (block.Type != BlockType.DATA)
                 {
                     continue;
@@ -423,6 +460,8 @@ namespace GUI.Types.Viewers
                         }
 
                     case ResourceType.Shader:
+                        var shaderFileContainer = (SboxShader)block;
+                        VcsShaderResourceBridge(resTabs, shaderFileContainer);
                         AddContentTab(resTabs, "Reconstructed vfx", new ShaderExtract(resource).ToVFX(), true);
                         break;
                 }

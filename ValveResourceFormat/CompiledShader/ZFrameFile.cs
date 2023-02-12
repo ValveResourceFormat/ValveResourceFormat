@@ -251,12 +251,18 @@ namespace ValveResourceFormat.CompiledShader
             public string Name0 { get; }
             public uint Murmur32 { get; }
             public byte HeaderOperator { get; }
+            public Vfx.Type VfxType { get; }
+            public byte LinkedParameterIndex { get; }
+            public byte HeaderArg { get; }
             public byte[] HeaderCode { get; }
             public int DynExpLen { get; } = -1;
             public byte[] DynExpression { get; }
             public string DynExpEvaluated { get; }
-            public bool HasOperatorVal { get; }
-            public int OperatorVal { get; }
+            public bool? StaticValBool { get; }
+            public int? StaticValInt { get; }
+            public float? StaticValFloat { get; }
+            public bool HasStaticVal
+                => StaticValBool != null || StaticValInt != null || StaticValFloat != null;
 
             public ZFrameParam(ShaderDataReader datareader)
             {
@@ -267,9 +273,11 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new ShaderParserException("Murmur check failed on header name");
                 }
-                HeaderCode = datareader.ReadBytes(3);
-                HeaderOperator = HeaderCode[0];
-                if (HeaderOperator == 0x0e)
+                VfxType = (Vfx.Type)datareader.ReadByte();
+                LinkedParameterIndex = datareader.ReadByte();
+                HeaderArg = datareader.ReadByte();
+
+                if (VfxType == Vfx.Type.Sampler2D)
                 {
                     return;
                 }
@@ -279,19 +287,21 @@ namespace ValveResourceFormat.CompiledShader
                     DynExpression = datareader.ReadBytes(DynExpLen);
                     DynExpEvaluated = ParseDynamicExpression(DynExpression);
                 }
-                else if (HeaderOperator == 1 || HeaderOperator == 5)
+                else if (VfxType == Vfx.Type.Float)
                 {
-                    OperatorVal = datareader.ReadInt32();
-                    HasOperatorVal = true;
+                    StaticValFloat = datareader.ReadSingle();
                 }
-                else if (HeaderOperator == 9)
+                else if (VfxType == Vfx.Type.Int)
                 {
-                    OperatorVal = datareader.ReadByte();
-                    HasOperatorVal = true;
+                    StaticValInt = datareader.ReadInt32();
+                }
+                else if (VfxType == Vfx.Type.Bool)
+                {
+                    StaticValBool = datareader.ReadByte() != 0;
                 }
                 else
                 {
-                    throw new ShaderParserException($"Unknown header operator {HeaderOperator}");
+                    throw new ShaderParserException($"Unexpected attribute type {VfxType}");
                 }
             }
 
@@ -299,17 +309,11 @@ namespace ValveResourceFormat.CompiledShader
             {
                 if (DynExpLen > 0)
                 {
-                    return $"{Name0,-40} 0x{Murmur32:x08}     {BytesToString(HeaderCode)}   {DynExpEvaluated}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {DynExpEvaluated}";
                 }
                 else
                 {
-                    var toByteString = (byte[] b) => $"{b[0]:x02} {b[1]:x02} {b[2]:x02} {b[3]:x02}";
-                    var operatorDesc = HasOperatorVal ? OperatorVal switch
-                    {
-                        > 0x01000000 => $"{toByteString(BitConverter.GetBytes(OperatorVal))} (unusual data, note 0x40 = '@')",
-                        _ => $"{OperatorVal}"
-                    } : "";
-                    return $"{Name0,-40} 0x{Murmur32:x08}     {BytesToString(HeaderCode)}   {operatorDesc}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {StaticValFloat}{StaticValInt}{StaticValBool}";
                 }
             }
         }

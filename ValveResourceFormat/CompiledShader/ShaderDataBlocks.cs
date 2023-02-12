@@ -388,33 +388,18 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
-    public interface IComboConstraints
-    {
-        int BlockIndex { get; }
-        ConditionalRule Rule { get; }
-        ConditionalType BlockType { get; }
-        ConditionalType[] ConditionalTypes { get; }
-        int[] Indices { get; }
-        int[] Values { get; }
-        int[] Range2 { get; }
-        string Description { get; }
-
-        void PrintByteDetail();
-        string GetByteFlagsAsString();
-    }
-
-    // SfConstraintsBlocks are always 472 bytes long
-    public class SfConstraintsBlock : ShaderDataBlock, IComboConstraints
+    // ConstraintsBlocks are always 472 bytes long
+    public class ConstraintsBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
-        public ConditionalRule Rule { get; }  // 1 = dependency-rule (feature file), 2 = dependency-rule (other files), 3 = exclusion
-        public ConditionalType BlockType { get; } // this is just 1 for features files and 2 for all other files
+        public ConditionalRule Rule { get; }
+        public ConditionalType BlockType { get; }
         public ConditionalType[] ConditionalTypes { get; }
         public int[] Indices { get; }
         public int[] Values { get; }
         public int[] Range2 { get; }
         public string Description { get; }
-        public SfConstraintsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+        public ConstraintsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
             Rule = (ConditionalRule)datareader.ReadInt32();
@@ -434,6 +419,16 @@ namespace ValveResourceFormat.CompiledShader
             Description = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 256;
         }
+
+        public ConstraintsBlock(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
+            : this(datareader, blockIndex)
+        {
+            if (BlockType != conditionalTypeVerify)
+            {
+                throw new UnexpectedMagicException($"Expected {conditionalTypeVerify} constraint block", BlockType.ToString(), nameof(BlockType));
+            }
+        }
+
         private int[] ReadIntRange()
         {
             List<int> ints0 = new();
@@ -460,14 +455,10 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BaseStream.Position = savedPosition + 16;
             return byteFlags;
         }
-        public string GetByteFlagsAsString()
-        {
-            return string.Join(" ", ConditionalTypes);
-        }
         public void PrintByteDetail()
         {
             DataReader.BaseStream.Position = Start;
-            DataReader.ShowByteCount($"SF-CONTRAINTS-BLOCK[{BlockIndex}]");
+            DataReader.ShowByteCount($"{BlockType}-CONTRAINTS-BLOCK[{BlockIndex}]");
             DataReader.ShowBytes(216);
             var name1 = DataReader.ReadNullTermStringAtPosition();
             DataReader.OutputWriteLine($"[{DataReader.BaseStream.Position}] {name1}");
@@ -515,87 +506,6 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
-    // DConstraintsBlock are always 472 bytes long
-    public class DConstraintsBlock : ShaderDataBlock, IComboConstraints
-    {
-        public int BlockIndex { get; }
-        public ConditionalRule Rule { get; }  // 2 = dependency-rule (other files), 3 = exclusion (1 not present, as in the compat-blocks)
-        public ConditionalType BlockType { get; } // ALWAYS 3 (for sf-constraint-blocks this value is 1 for features files and 2 for all other files)
-        public int Arg1 { get; } // arg1 at (88) sometimes has a value > -1 (in compat-blocks this value is always seen to be -1)
-        public ConditionalType[] ConditionalTypes { get; }
-        public int[] Indices { get; }
-        public int[] Values { get; }
-        public int[] Range2 { get; }
-        public string Description { get; }
-
-        // TODO: Merge this with SfConstraints
-        public DConstraintsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
-        {
-            BlockIndex = blockIndex;
-            Rule = (ConditionalRule)datareader.ReadInt32();
-            BlockType = (ConditionalType)datareader.ReadInt32();
-            if (BlockType != ConditionalType.Dynamic)
-            {
-                throw new ShaderParserException("unexpected value!");
-            }
-            // flags at (8)
-            ConditionalTypes = Array.ConvertAll(ReadByteFlags(), x => (ConditionalType)x);
-            // range0 at (24)
-            Indices = ReadIntRange();
-            datareader.BaseStream.Position += 64 - Indices.Length * 4;
-            // integer at (88)
-            Arg1 = datareader.ReadInt32();
-            // range1 at (92)
-            Values = ReadIntRange();
-            datareader.BaseStream.Position += 60 - Values.Length * 4;
-            // range1 at (152)
-            Range2 = ReadIntRange();
-            datareader.BaseStream.Position += 64 - Range2.Length * 4;
-            // there is a provision here for a description, but for the dota2 archive this is always null
-            Description = datareader.ReadNullTermStringAtPosition();
-            datareader.BaseStream.Position += 256;
-        }
-
-        private int[] ReadIntRange()
-        {
-            List<int> ints0 = new();
-            while (DataReader.ReadInt32AtPosition() >= 0)
-            {
-                ints0.Add(DataReader.ReadInt32());
-            }
-            return ints0.ToArray();
-        }
-        private int[] ReadByteFlags()
-        {
-            var count = 0;
-            var savedPosition = DataReader.BaseStream.Position;
-            while (DataReader.ReadByte() > 0 && count < 16)
-            {
-                count++;
-            }
-            var byteFlags = new int[count];
-            DataReader.BaseStream.Position = savedPosition;
-            for (var i = 0; i < count; i++)
-            {
-                byteFlags[i] = DataReader.ReadByte();
-            }
-            DataReader.BaseStream.Position = savedPosition;
-            DataReader.BaseStream.Position += 16;
-            return byteFlags;
-        }
-        public string GetByteFlagsAsString()
-        {
-            return string.Join(" ", ConditionalTypes);
-        }
-        public void PrintByteDetail()
-        {
-            DataReader.BaseStream.Position = Start;
-            DataReader.ShowByteCount($"D-CONSTRAINTS-BLOCK[{BlockIndex}]");
-            DataReader.ShowBytes(472);
-            DataReader.BreakLine();
-        }
-    }
-
     public class ParamBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
@@ -607,7 +517,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Lead0 { get; }
         public byte[] DynExp { get; } = Array.Empty<byte>();
         public int Arg0 { get; }
-        public int VfxType { get; }
+        public Vfx.Type VfxType { get; }
         public ParameterType ParamType { get; }
         public byte Arg3 { get; }
         public byte Arg4 { get; }
@@ -627,10 +537,13 @@ namespace ValveResourceFormat.CompiledShader
         public float[] FloatDefs { get; } = new float[4];
         public float[] FloatMins { get; } = new float[4];
         public float[] FloatMaxs { get; } = new float[4];
-        public int[] IntArgs0 { get; } = new int[4];
-        public int[] IntArgs1 { get; } = new int[4];
-        public string Suffix { get; }
-        public string Command1 { get; }
+        public TextureFormat Format { get; }
+        public int ChannelCount { get; }
+        public int[] ChannelIndices { get; } = new int[4];
+        public int ColorMode { get; }
+        public int Arg12 { get; }
+        public string ImageSuffix { get; }
+        public string ImageProcessor { get; }
         public byte[] V65Data { get; } = Array.Empty<byte>();
         public ParamBlock(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
         {
@@ -662,7 +575,7 @@ namespace ValveResourceFormat.CompiledShader
                 Arg0 = datareader.ReadInt32();
             }
 
-            VfxType = datareader.ReadInt32();
+            VfxType = (Vfx.Type)datareader.ReadInt32();
             ParamType = (ParameterType)datareader.ReadInt32();
 
             Arg3 = datareader.ReadByte();
@@ -705,17 +618,18 @@ namespace ValveResourceFormat.CompiledShader
             {
                 FloatMaxs[i] = datareader.ReadSingle();
             }
+
+            Format = (TextureFormat)datareader.ReadInt32();
+            ChannelCount = datareader.ReadInt32();
             for (var i = 0; i < 4; i++)
             {
-                IntArgs0[i] = datareader.ReadInt32();
+                ChannelIndices[i] = datareader.ReadInt32();
             }
-            for (var i = 0; i < 4; i++)
-            {
-                IntArgs1[i] = datareader.ReadInt32();
-            }
-            Suffix = datareader.ReadNullTermStringAtPosition();
+            ColorMode = datareader.ReadInt32();
+            Arg12 = datareader.ReadInt32();
+            ImageSuffix = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
-            Command1 = datareader.ReadNullTermStringAtPosition();
+            ImageProcessor = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 32;
 
             if (vcsVersion >= 65)
@@ -881,16 +795,17 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
-    // MipmapBlocks are always 280 bytes long
-    public class MipmapBlock : ShaderDataBlock
+    // ChannelBlocks are always 280 bytes long
+    public class ChannelBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
-        public string Name { get; }
+
         public Channel Channel { get; }
         public int[] InputTextureIndices { get; } = new int[4];
         public int ColorMode { get; }
+        public string Name { get; }
 
-        public MipmapBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+        public ChannelBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
             Channel = (Channel)datareader.ReadUInt32();

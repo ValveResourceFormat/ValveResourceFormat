@@ -39,15 +39,14 @@ namespace GUI.Types.Viewers
         }
 
         private ShaderTabControl tabControl;
-        private ShaderFile shaderFile;
-        private SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection;
+        private ShaderCollection shaderCollection;
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
 
             shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
             var filename = Path.GetFileName(vrfGuiContext.FileName);
-            shaderFile = shaderCollection[(ComputeVcsProgramType(filename), filename)];
+            var leadFileType = ComputeVCSFileName(filename).ProgramType;
             var tab = new TabPage();
             tabControl = new ShaderTabControl
             {
@@ -56,7 +55,7 @@ namespace GUI.Types.Viewers
 
             tabControl.MouseClick += new MouseEventHandler(OnTabClick);
             var mainFileTab = new TabPage(Path.GetFileName(vrfGuiContext.FileName));
-            var shaderRichTextBox = new ShaderRichTextBox(shaderFile, tabControl, shaderCollection);
+            var shaderRichTextBox = new ShaderRichTextBox(leadFileType, tabControl, shaderCollection);
             mainFileTab.Controls.Add(shaderRichTextBox);
             tabControl.Controls.Add(mainFileTab);
             tab.Controls.Add(tabControl);
@@ -78,9 +77,9 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static SortedDictionary<(VcsProgramType, string), ShaderFile> GetShaderCollection(string targetFilename, VrfPackage vrfPackage)
+        private static ShaderCollection GetShaderCollection(string targetFilename, VrfPackage vrfPackage)
         {
-            SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection = new();
+            ShaderCollection shaderCollection = new();
             if (vrfPackage != null)
             {
                 // search the package
@@ -92,11 +91,11 @@ namespace GUI.Types.Viewers
                 {
                     if (vcsEntry.FileName.StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
-                        var programType = ComputeVcsProgramType($"{vcsEntry.FileName}.vcs");
+                        var programType = ComputeVCSFileName($"{vcsEntry.FileName}.vcs").ProgramType;
                         vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
                         ShaderFile relatedShaderFile = new();
                         relatedShaderFile.Read($"{vcsEntry.FileName}.vcs", new MemoryStream(shaderDatabytes));
-                        shaderCollection.Add((programType, $"{vcsEntry.FileName}.vcs"), relatedShaderFile);
+                        shaderCollection.Add(relatedShaderFile);
                     }
                 }
             }
@@ -109,10 +108,10 @@ namespace GUI.Types.Viewers
                 {
                     if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
-                        var programType = ComputeVcsProgramType(vcsFile);
+                        var programType = ComputeVCSFileName(vcsFile).ProgramType;
                         ShaderFile relatedShaderFile = new();
                         relatedShaderFile.Read(vcsFile);
-                        shaderCollection.Add((programType, Path.GetFileName(vcsFile)), relatedShaderFile);
+                        shaderCollection.Add(relatedShaderFile);
                     }
                 }
             }
@@ -176,30 +175,31 @@ namespace GUI.Types.Viewers
                     tabControl = null;
                 }
 
-                foreach (var shader in shaderCollection.Values)
+                foreach (var shader in shaderCollection)
                 {
                     shader.Dispose();
                 }
             }
         }
-
         private class ShaderRichTextBox : RichTextBox
         {
+#pragma warning disable CA2213
             private readonly ShaderFile shaderFile;
-            readonly SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection;
+#pragma warning restore CA2213
+            private readonly ShaderCollection shaderCollection;
             private readonly ShaderTabControl tabControl;
             private readonly List<string> relatedFiles = new();
-            public ShaderRichTextBox(ShaderFile shaderFile, ShaderTabControl tabControl,
-                SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection = null, bool byteVersion = false) : base()
+            public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl,
+                ShaderCollection shaderCollection = null, bool byteVersion = false) : base()
             {
-                this.shaderFile = shaderFile;
+                shaderFile = shaderCollection.Get(leadProgramType);
                 this.tabControl = tabControl;
                 if (shaderCollection != null)
                 {
                     this.shaderCollection = shaderCollection;
-                    foreach (var vcsFilenames in shaderCollection.Keys)
+                    foreach (var shader in shaderCollection)
                     {
-                        relatedFiles.Add(vcsFilenames.Item2);
+                        relatedFiles.Add(Path.GetFileName(shader.FilenamePath));
                     }
                 }
                 var buffer = new StringWriter(CultureInfo.InvariantCulture);
@@ -228,15 +228,15 @@ namespace GUI.Types.Viewers
                 var linkTokens = linkText.Split("\\");
                 // linkTokens[0] is sometimes a zframe id, in those cases programType equals 'undetermined'
                 // where linkTokens[0] is a filename VcsProgramType should be defined
-                var programType = ComputeVcsProgramType(linkTokens[0]);
+                var programType = ComputeVCSFileName(linkTokens[0]).ProgramType;
                 if (programType != VcsProgramType.Undetermined)
                 {
-                    var shaderFile = shaderCollection[(programType, linkTokens[0])];
+                    var shaderFile = shaderCollection.Get(programType);
                     TabPage newShaderTab = null;
                     if (linkTokens.Length > 1 && linkTokens[1].Equals("bytes", StringComparison.Ordinal))
                     {
                         newShaderTab = new TabPage($"{programType} bytes");
-                        var shaderRichTextBox = new ShaderRichTextBox(shaderFile, tabControl, byteVersion: true);
+                        var shaderRichTextBox = new ShaderRichTextBox(programType, tabControl, byteVersion: true);
                         shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                         newShaderTab.Controls.Add(shaderRichTextBox);
                         tabControl.Controls.Add(newShaderTab);
@@ -244,7 +244,7 @@ namespace GUI.Types.Viewers
                     else
                     {
                         newShaderTab = new TabPage($"{programType}");
-                        var shaderRichTextBox = new ShaderRichTextBox(shaderFile, tabControl, shaderCollection);
+                        var shaderRichTextBox = new ShaderRichTextBox(programType, tabControl, shaderCollection);
                         shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                         newShaderTab.Controls.Add(shaderRichTextBox);
                         tabControl.Controls.Add(newShaderTab);

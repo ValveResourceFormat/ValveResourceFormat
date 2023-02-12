@@ -6,6 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Serialization.VfxEval;
 using ValveResourceFormat.Utils;
+using System.Globalization;
 
 namespace ValveResourceFormat.IO;
 
@@ -15,6 +16,14 @@ public sealed class ShaderExtract
     {
         public bool CollapseCommonBuffers_InInclude { get; init; }
         public bool CollapseCommonBuffers_InPlace { get; init; }
+        public static HashSet<string> CommonBuffers => new()
+        {
+            "PerViewConstantBuffer_t",
+            "PerViewConstantBufferVR_t",
+            "PerViewLightingConstantBufferVr_t",
+            "DotaGlobalParams_t",
+        };
+
         public bool FirstVsInput_Only { get; init; }
 
         public static readonly ShaderExtractParams Inspect = new()
@@ -28,22 +37,19 @@ public sealed class ShaderExtract
             CollapseCommonBuffers_InInclude = true,
             FirstVsInput_Only = true,
         };
-
-        public static HashSet<string> CommonBuffers => new()
-        {
-            "PerViewConstantBuffer_t",
-            "PerViewConstantBufferVR_t",
-            "PerViewLightingConstantBufferVr_t",
-            "DotaGlobalParams_t",
-        };
     }
 
-    public ShaderFile Features { get; init; }
-    public ShaderFile GeometryShader { get; init; }
-    public ShaderFile VertexShader { get; init; }
-    public ShaderFile PixelShader { get; init; }
-    public ShaderFile ComputeShader { get; init; }
-    public ShaderFile RaytracingShader { get; init; }
+    public ShaderCollection Shaders { get; init; }
+
+    public ShaderFile Features => Shaders.Features;
+    public ShaderFile Vertex => Shaders.Vertex;
+    public ShaderFile Geometry => Shaders.Geometry;
+    public ShaderFile Domain => Shaders.Domain;
+    public ShaderFile Hull => Shaders.Hull;
+    public ShaderFile Pixel => Shaders.Pixel;
+    public ShaderFile Compute => Shaders.Compute;
+    public ShaderFile PixelShaderRenderState => Shaders.PixelShaderRenderState;
+    public ShaderFile Raytracing => Shaders.Raytracing;
 
     private ShaderExtractParams Options { get; set; }
     private List<string> FeatureNames { get; set; }
@@ -54,51 +60,20 @@ public sealed class ShaderExtract
     { }
 
     public ShaderExtract(SboxShader sboxShaderCollection)
-    {
-        Features = sboxShaderCollection.Features;
-        GeometryShader = sboxShaderCollection.Geometry;
-        VertexShader = sboxShaderCollection.Vertex;
-        PixelShader = sboxShaderCollection.Pixel;
-        ComputeShader = sboxShaderCollection.Compute;
-    }
-
-    public ShaderExtract(SortedDictionary<(VcsProgramType, string), ShaderFile> shaderCollection)
-        : this(shaderCollection.Values)
+        : this(sboxShaderCollection.Shaders)
     { }
 
-    public ShaderExtract(IEnumerable<ShaderFile> shaderCollection)
+    public ShaderExtract(ShaderCollection shaderCollection)
     {
-        foreach (var shader in shaderCollection)
+        Shaders = shaderCollection;
+        ThrowIfNoFeatures();
+    }
+
+    private void ThrowIfNoFeatures()
+    {
+        if (Features == null)
         {
-            if (shader.VcsProgramType == VcsProgramType.Features)
-            {
-                Features = shader;
-            }
-
-            if (shader.VcsProgramType == VcsProgramType.GeometryShader)
-            {
-                GeometryShader = shader;
-            }
-
-            if (shader.VcsProgramType == VcsProgramType.VertexShader)
-            {
-                VertexShader = shader;
-            }
-
-            if (shader.VcsProgramType == VcsProgramType.PixelShader)
-            {
-                PixelShader = shader;
-            }
-
-            if (shader.VcsProgramType == VcsProgramType.ComputeShader)
-            {
-                ComputeShader = shader;
-            }
-
-            if (shader.VcsProgramType == VcsProgramType.RaytracingShader)
-            {
-                RaytracingShader = shader;
-            }
+            throw new InvalidOperationException("Shader extract cannot continue without at least a features file.");
         }
     }
 
@@ -119,12 +94,12 @@ public sealed class ShaderExtract
         return ToVFX(ShaderExtractParams.Inspect);
     }
 
-    public string ToVFX(ShaderExtractParams @params)
+    public string ToVFX(ShaderExtractParams options)
     {
         // TODO: IndentedTextWriter
         FeatureNames = Features.SfBlocks.Select(f => f.Name).ToList();
         Globals = Features.ParamBlocks.Select(p => p.Name).ToArray();
-        Options = @params;
+        Options = options;
 
         return "//=================================================================================================\n"
             + "// Reconstructed with VRF - https://vrf.steamdb.info/\n"
@@ -133,8 +108,10 @@ public sealed class ShaderExtract
             + MODES()
             + FEATURES()
             + COMMON()
-            + GS()
             + VS()
+            + GS()
+            + HS()
+            + DS()
             + PS()
             + CS()
             + RTX()
@@ -143,102 +120,111 @@ public sealed class ShaderExtract
 
     private string HEADER()
     {
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine("HEADER");
-        stringBuilder.AppendLine("{");
+        using var writer = new IndentedTextWriter();
+        writer.WriteLine(nameof(HEADER));
+        writer.WriteLine("{");
+        writer.Indent++;
 
-        stringBuilder.AppendLine($"\tDescription = \"{Features.FeaturesHeader.FileDescription}\";");
-        stringBuilder.AppendLine($"\tDevShader = {(Features.FeaturesHeader.DevShader == 0 ? "false" : "true")};");
-        stringBuilder.AppendLine($"\tVersion = {Features.FeaturesHeader.Version};");
+        writer.WriteLine($"Description = \"{Features.FeaturesHeader.FileDescription}\";");
+        writer.WriteLine($"DevShader = {(Features.FeaturesHeader.DevShader == 0 ? "false" : "true")};");
+        writer.WriteLine($"Version = {Features.FeaturesHeader.Version};");
 
-        stringBuilder.AppendLine("}");
+        writer.Indent--;
+        writer.WriteLine("}");
 
-        return stringBuilder.ToString();
+        return writer.ToString();
     }
 
     private string MODES()
     {
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("MODES");
-        stringBuilder.AppendLine("{");
+        using var writer = new IndentedTextWriter();
+        writer.WriteLine(nameof(MODES));
+        writer.WriteLine("{");
+        writer.Indent++;
 
         foreach (var mode in Features.FeaturesHeader.Modes)
         {
             if (string.IsNullOrEmpty(mode.Shader))
             {
-                stringBuilder.AppendLine($"\t{mode.Name}({mode.StaticConfig});");
+                writer.WriteLine($"{mode.Name}({mode.StaticConfig});");
             }
             else
             {
-                stringBuilder.AppendLine($"\t{mode.Name}(\"{mode.Shader}\");");
+                writer.WriteLine($"{mode.Name}(\"{mode.Shader}\");");
             }
         }
 
-        stringBuilder.AppendLine("}");
-        return stringBuilder.ToString();
+        writer.Indent--;
+        writer.WriteLine("}");
+        return writer.ToString();
     }
 
     private string FEATURES()
     {
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("FEATURES");
-        stringBuilder.AppendLine("{");
+        using var writer = new IndentedTextWriter();
+        writer.WriteLine();
+        writer.WriteLine(nameof(FEATURES));
+        writer.WriteLine("{");
+        writer.Indent++;
 
-        HandleFeatures(Features.SfBlocks, Features.SfConstraintsBlocks, stringBuilder);
+        HandleFeatures(Features.SfBlocks, Features.SfConstraintsBlocks, writer);
 
-        stringBuilder.AppendLine("}");
+        writer.Indent--;
+        writer.WriteLine("}");
 
-        return stringBuilder.ToString();
+        return writer.ToString();
     }
 
     private string COMMON()
     {
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("COMMON");
-        stringBuilder.AppendLine("{");
+        using var writer = new IndentedTextWriter();
+        writer.WriteLine();
+        writer.WriteLine(nameof(COMMON));
+        writer.WriteLine("{");
+        writer.Indent++;
 
-        stringBuilder.AppendLine("\t#include \"system.fxc\"");
+        writer.WriteLine("#include \"system.fxc\"");
 
-        if (VertexShader is not null)
+        if (Vertex is not null)
         {
-            HandleCBuffers(VertexShader.BufferBlocks, stringBuilder);
+            HandleCBuffers(Vertex.BufferBlocks, writer);
         }
 
-        HandleVsInput(stringBuilder);
+        HandleVsInput(writer);
 
-        stringBuilder.AppendLine("}");
+        writer.Indent--;
+        writer.WriteLine("}");
 
-        return stringBuilder.ToString();
+        return writer.ToString();
     }
 
-    private void HandleVsInput(StringBuilder stringBuilder)
+    private void HandleVsInput(IndentedTextWriter writer)
     {
-        if (VertexShader is null)
+        if (Vertex is null)
         {
             return;
         }
 
-        foreach (var i in Enumerable.Range(0, VertexShader.SymbolBlocks.Count))
+        foreach (var i in Enumerable.Range(0, Vertex.SymbolBlocks.Count))
         {
-            stringBuilder.AppendLine();
+            writer.WriteLine();
 
-            var index = VertexShader.SymbolBlocks.Count > 1 && !Options.FirstVsInput_Only
+            var index = Vertex.SymbolBlocks.Count > 1 && !Options.FirstVsInput_Only
                 ? $" ({i})"
                 : string.Empty;
-            stringBuilder.AppendLine($"\tstruct VS_INPUT{index}");
-            stringBuilder.AppendLine("\t{");
+            writer.WriteLine($"struct VS_INPUT{index}");
+            writer.WriteLine("{");
+            writer.Indent++;
 
-            foreach (var symbol in VertexShader.SymbolBlocks[i].SymbolsDefinition)
+            foreach (var symbol in Vertex.SymbolBlocks[i].SymbolsDefinition)
             {
                 var attributeVfx = symbol.Option.Length > 0 ? $" < Semantic({symbol.Option}); >" : string.Empty;
                 // TODO: type
-                stringBuilder.AppendLine($"\t\tfloat4 {symbol.Name} : {symbol.Type}{symbol.SemanticIndex}{attributeVfx};");
+                writer.WriteLine($"float4 {symbol.Name} : {symbol.Type}{symbol.SemanticIndex}{attributeVfx};");
             }
 
-            stringBuilder.AppendLine("\t};");
+            writer.Indent--;
+            writer.WriteLine("};");
 
             if (Options.FirstVsInput_Only)
             {
@@ -247,7 +233,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void HandleCBuffers(List<BufferBlock> bufferBlocks, StringBuilder stringBuilder)
+    private void HandleCBuffers(List<BufferBlock> bufferBlocks, IndentedTextWriter writer)
     {
         var includedCommon = false;
 
@@ -262,7 +248,7 @@ public sealed class ShaderExtract
 
                 if (Options.CollapseCommonBuffers_InInclude)
                 {
-                    stringBuilder.AppendLine("\t#include \"common.fxc\"");
+                    writer.WriteLine("#include \"common.fxc\"");
                     includedCommon = true;
                     continue;
                 }
@@ -270,140 +256,130 @@ public sealed class ShaderExtract
 
                 if (Options.CollapseCommonBuffers_InPlace)
                 {
-                    stringBuilder.Append("\tcbuffer " + buffer.Name + ";");
+                    writer.WriteLine("cbuffer " + buffer.Name + ";");
                     continue;
                 }
             }
 
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("\tcbuffer " + buffer.Name);
-            stringBuilder.AppendLine("\t{");
+            writer.WriteLine();
+            writer.WriteLine("cbuffer " + buffer.Name);
+            writer.WriteLine("{");
+            writer.Indent++;
 
             foreach (var member in buffer.BufferParams)
             {
                 var dim1 = member.VectorSize > 1
-                    ? member.VectorSize.ToString()
+                    ? member.VectorSize.ToString(CultureInfo.InvariantCulture)
                     : string.Empty;
 
                 var dim2 = member.Depth > 1
-                    ? "x" + member.Depth.ToString()
+                    ? "x" + member.Depth.ToString(CultureInfo.InvariantCulture)
                     : string.Empty;
 
                 var array = member.Length > 1
-                    ? "[" + member.Length.ToString() + "]"
+                    ? "[" + member.Length.ToString(CultureInfo.InvariantCulture) + "]"
                     : string.Empty;
 
-                stringBuilder.AppendLine($"\t\tfloat{dim1}{dim2} {member.Name}{array};");
+                writer.WriteLine($"float{dim1}{dim2} {member.Name}{array};");
             }
 
-            stringBuilder.AppendLine("\t};");
+            writer.Indent--;
+            writer.WriteLine("};");
         }
-    }
-
-    private string GS()
-    {
-        if (GeometryShader is null)
-        {
-            return string.Empty;
-        }
-
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("GS");
-        stringBuilder.AppendLine("{");
-
-        HandleCommons(GeometryShader, stringBuilder);
-
-        stringBuilder.AppendLine("}");
-
-        return stringBuilder.ToString();
     }
 
     private string VS()
-    {
-        if (VertexShader is null)
-        {
-            return string.Empty;
-        }
+        => HandleStageShared(Vertex, nameof(VS));
 
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("VS");
-        stringBuilder.AppendLine("{");
+    private string GS()
+        => HandleStageShared(Geometry, nameof(GS));
 
-        HandleCommons(VertexShader, stringBuilder);
+    private string HS()
+        => HandleStageShared(Hull, nameof(HS));
 
-        stringBuilder.AppendLine("}");
-
-        return stringBuilder.ToString();
-    }
+    private string DS()
+        => HandleStageShared(Domain, nameof(DS));
 
     private string PS()
-    {
-        if (PixelShader is null)
-        {
-            return string.Empty;
-        }
-
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("PS");
-        stringBuilder.AppendLine("{");
-
-        HandleCommons(PixelShader, stringBuilder);
-
-        foreach (var mipmap in Features.MipmapBlocks)
-        {
-            stringBuilder.AppendLine($"\t{GetChannelFromMipmap(mipmap)}");
-        }
-
-        stringBuilder.AppendLine("}");
-        return stringBuilder.ToString();
-    }
+        => HandleStageShared(Pixel, nameof(PS));
 
     private string CS()
-    {
-        if (ComputeShader is null)
-        {
-            return string.Empty;
-        }
-
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("CS");
-        stringBuilder.AppendLine("{");
-
-        HandleCommons(ComputeShader, stringBuilder);
-
-        stringBuilder.AppendLine("}");
-        return stringBuilder.ToString();
-    }
+        => HandleStageShared(Compute, nameof(CS));
 
     private string RTX()
+        => HandleStageShared(Raytracing, nameof(RTX));
+
+    private string HandleStageShared(ShaderFile shader, string stageName)
     {
-        if (RaytracingShader is null)
+        if (shader is null)
         {
             return string.Empty;
         }
 
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine();
-        stringBuilder.AppendLine("RTX");
-        stringBuilder.AppendLine("{");
-        HandleCommons(RaytracingShader, stringBuilder);
+        using var writer = new IndentedTextWriter();
+        writer.WriteLine();
+        writer.WriteLine(stageName);
+        writer.WriteLine("{");
+        writer.Indent++;
 
-        stringBuilder.AppendLine("}");
-        return stringBuilder.ToString();
+        HandleStaticCombos(shader.SfBlocks, shader.SfConstraintsBlocks, writer);
+        HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintsBlocks, writer);
+        HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
+
+        // zframe0 stuff
+        HandleZFrame000(shader, writer);
+
+        writer.Indent--;
+        writer.WriteLine("}");
+        return writer.ToString();
     }
 
-    private void HandleCommons(ShaderFile shader, StringBuilder stringBuilder)
+    private static void HandleZFrame000(ShaderFile shader, IndentedTextWriter writer)
     {
-        HandleStaticCombos(shader.SfBlocks, shader.SfConstraintsBlocks, stringBuilder);
-        HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintsBlocks, stringBuilder);
-        HandleParameters(shader.ParamBlocks, stringBuilder);
+        if (shader.GetZFrameCount() == 0)
+        {
+            return;
+        }
+
+        writer.WriteLine();
+
+        using var zframe000 = shader.GetZFrameFileByIndex(0);
+
+        foreach (var attribute in zframe000.ZframeParams)
+        {
+            var type = Vfx.GetTypeName(attribute.VfxType);
+            string value = null;
+
+            if (attribute.StaticValBool.HasValue)
+            {
+                value = attribute.StaticValBool.Value ? "true" : "false";
+            }
+            else if (attribute.StaticValInt.HasValue)
+            {
+                value = attribute.StaticValInt.Value.ToString(CultureInfo.InvariantCulture);
+            }
+            else if (attribute.StaticValFloat.HasValue)
+            {
+                value = attribute.StaticValFloat.Value.ToString(CultureInfo.InvariantCulture);
+            }
+            else if (attribute.LinkedParameterIndex != 255)
+            {
+                value = shader.ParamBlocks[attribute.LinkedParameterIndex].Name;
+            }
+            else if (attribute.DynExpEvaluated is not null)
+            {
+                value = attribute.DynExpEvaluated;
+            }
+            else
+            {
+                throw new InvalidOperationException("Whats the value of this attribute then?");
+            }
+
+            writer.WriteLine("Attribute({0}, {1}, {2});", type, attribute.Name0, value);
+        }
     }
 
-    private void HandleFeatures(List<SfBlock> features, List<SfConstraintsBlock> constraints, StringBuilder sb)
+    private void HandleFeatures(List<SfBlock> features, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
     {
         foreach (var feature in features)
         {
@@ -412,72 +388,72 @@ public sealed class ShaderExtract
                 : string.Empty;
 
             // Verify RangeMin
-            sb.AppendLine($"\tFeature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.Category}\" );");
+            writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.Category}\" );");
         }
 
         HandleRules(ConditionalType.Feature,
                     Enumerable.Empty<ICombo>().ToList(),
                     Enumerable.Empty<ICombo>().ToList(),
-                    constraints.Cast<IComboConstraints>().ToList(),
-                    sb);
+                    constraints,
+                    writer);
     }
 
-    private void HandleStaticCombos(List<SfBlock> staticCombos, List<SfConstraintsBlock> constraints, StringBuilder sb)
+    private void HandleStaticCombos(List<SfBlock> staticCombos, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
     {
-        HandleCombos(ConditionalType.Static, staticCombos.Cast<ICombo>().ToList(), sb);
+        HandleCombos(ConditionalType.Static, staticCombos.Cast<ICombo>().ToList(), writer);
         HandleRules(ConditionalType.Static,
                     staticCombos.Cast<ICombo>().ToList(),
                     Enumerable.Empty<ICombo>().ToList(),
-                    constraints.Cast<IComboConstraints>().ToList(),
-                    sb);
+                    constraints,
+                    writer);
     }
 
-    private void HandleDynamicCombos(List<SfBlock> staticCombos, List<DBlock> dynamicCombos, List<DConstraintsBlock> constraints, StringBuilder sb)
+    private void HandleDynamicCombos(List<SfBlock> staticCombos, List<DBlock> dynamicCombos, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
     {
-        HandleCombos(ConditionalType.Dynamic, dynamicCombos.Cast<ICombo>().ToList(), sb);
+        HandleCombos(ConditionalType.Dynamic, dynamicCombos.Cast<ICombo>().ToList(), writer);
         HandleRules(ConditionalType.Dynamic,
                     staticCombos.Cast<ICombo>().ToList(),
                     dynamicCombos.Cast<ICombo>().ToList(),
-                    constraints.Cast<IComboConstraints>().ToList(),
-                    sb);
+                    constraints,
+                    writer);
     }
 
-    private void HandleCombos(ConditionalType comboType, List<ICombo> combos, StringBuilder sb)
+    private void HandleCombos(ConditionalType comboType, List<ICombo> combos, IndentedTextWriter writer)
     {
         foreach (var staticCombo in combos)
         {
             if (staticCombo.FeatureIndex != -1)
             {
-                sb.AppendLine($"\t{comboType}Combo( {staticCombo.Name}, {FeatureNames[staticCombo.FeatureIndex]}, Sys( ALL ) );");
+                writer.WriteLine($"{comboType}Combo( {staticCombo.Name}, {FeatureNames[staticCombo.FeatureIndex]}, Sys( ALL ) );");
                 continue;
             }
             else if (staticCombo.RangeMax != 0)
             {
-                sb.AppendLine($"\t{comboType}Combo( {staticCombo.Name}, {staticCombo.RangeMin}..{staticCombo.RangeMax}, Sys( ALL ) );");
+                writer.WriteLine($"{comboType}Combo( {staticCombo.Name}, {staticCombo.RangeMin}..{staticCombo.RangeMax}, Sys( ALL ) );");
             }
             else
             {
-                sb.AppendLine($"\t{comboType}Combo( {staticCombo.Name}, {staticCombo.RangeMax}, Sys( {staticCombo.Sys} ) );");
+                writer.WriteLine($"{comboType}Combo( {staticCombo.Name}, {staticCombo.RangeMax}, Sys( {staticCombo.Sys} ) );");
             }
         }
     }
 
-    private void HandleRules(ConditionalType conditionalType, List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<IComboConstraints> constraints, StringBuilder sb)
+    private void HandleRules(ConditionalType conditionalType, List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
     {
         foreach (var rule in HandleConstraintsY(staticCombos, dynamicCombos, constraints))
         {
             if (conditionalType == ConditionalType.Feature)
             {
-                sb.AppendLine($"\tFeatureRule( {rule.Constraint}, \"{rule.Description}\" );");
+                writer.WriteLine($"FeatureRule( {rule.Constraint}, \"{rule.Description}\" );");
             }
             else
             {
-                sb.AppendLine($"\t{conditionalType}ComboRule( {rule.Constraint} );");
+                writer.WriteLine($"{conditionalType}ComboRule( {rule.Constraint} );");
             }
         }
     }
 
-    private IEnumerable<(string Constraint, string Description)> HandleConstraintsY(List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<IComboConstraints> constraints)
+    private IEnumerable<(string Constraint, string Description)> HandleConstraintsY(List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintsBlock> constraints)
     {
         foreach (var constraint in constraints)
         {
@@ -499,6 +475,7 @@ public sealed class ShaderExtract
             }
 
             // By value constraint
+            // e.g. FeatureRule( Requires1( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
             if (constraint.Values.Length > 0)
             {
                 if (constraint.Values.Length != constraint.ConditionalTypes.Length - 1)
@@ -506,16 +483,14 @@ public sealed class ShaderExtract
                     throw new InvalidOperationException("Expected to have 1 less value than conditionals.");
                 }
 
-                // The format for this not known, but should be something like:
-                // FeatureRule( Requires1( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
-                constrainedNames = constrainedNames.Take(1).Concat(constrainedNames.Skip(1).Select((s, i) => $"{s}={constraint.Values[i]}")).ToList();
+                constrainedNames = constrainedNames.Take(1).Concat(constrainedNames.Skip(1).Select((s, i) => $"{s} == {constraint.Values[i]}")).ToList();
             }
 
             yield return ($"{constraint.Rule}{constraint.Range2[0]}( {string.Join(", ", constrainedNames)} )", constraint.Description);
         }
     }
 
-    private void HandleParameters(List<ParamBlock> paramBlocks, StringBuilder sb)
+    private void HandleParameters(List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
     {
         foreach (var param in paramBlocks.OrderBy(x => x.Id == 255))
         {
@@ -523,49 +498,15 @@ public sealed class ShaderExtract
             // FloatAttribute
             var attributes = new List<string>();
 
-            // Todo merge these two's logic.
             // Render State
             if (param.ParamType is ParameterType.RenderState)
             {
-                if (Enum.TryParse<RenderState>(param.Name, false, out var result))
-                {
-                    if ((byte)result != param.Id)
-                    {
-                        Console.WriteLine($"{param.Name} = {param.Id},");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine($"{param.Name} = {param.Id},");
-                }
-
-                if (param.DynExp.Length > 0)
-                {
-                    var dynEx = new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
-                    sb.AppendLine($"\tRenderState({param.Name}, {dynEx});");
-                }
-                else
-                {
-                    sb.AppendLine($"\tRenderState({param.Name}, {param.IntDefs[0]});");
-                }
+                HandleState(writer, param);
             }
-
             // Sampler State
             else if (param.ParamType is ParameterType.SamplerState)
             {
-                if (Enum.TryParse<SamplerState>(param.Name, false, out var result))
-                {
-                    if ((byte)result != param.Id)
-                    {
-                        Console.WriteLine($"{param.Name} = {param.Id},");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine($"{param.Name} = {param.Id},");
-                }
-
-                sb.AppendLine($"\t{param.Name}({param.IntDefs[0]}); // Sampler");
+                //HandleState(writer, param);
             }
 
             // User input
@@ -586,15 +527,15 @@ public sealed class ShaderExtract
 
                     var default4 = $"Default4({string.Join(", ", param.FloatDefs)})";
 
-                    var mode = param.IntArgs1[2] == 0
+                    var mode = param.ColorMode == 0
                         ? "Linear"
                         : "Srgb";
 
-                    var textureSuffix = param.Suffix.Length > 0
-                        ? "_" + param.Suffix
+                    var imageSuffix = param.ImageSuffix.Length > 0
+                        ? "_" + param.ImageSuffix
                         : string.Empty;
 
-                    sb.AppendLine($"\tCreateInputTexture2D({param.Name}, {mode}, {param.IntArgs1[3]}, \"{param.Command1}\", \"{textureSuffix}\", \"{param.UiGroup}\", {default4});");
+                    writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Arg12}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {default4});");
                     // param.FileRef materials/default/default_cube.png
                     continue;
                 }
@@ -622,12 +563,14 @@ public sealed class ShaderExtract
                 {
                     if (floatDefsCutOff <= 3)
                     {
-                        attributes.Add($"{GetFuncName("Default", floatDefsCutOff)}({string.Join(", ", param.FloatDefs[..^floatDefsCutOff])});");
+                        var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
+                        attributes.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
                     }
                     else
                     {
                         var funcName = intDefsCutOff == 3 ? "Default" : "Default" + (4 - intDefsCutOff);
-                        attributes.Add($"{GetFuncName("Default", intDefsCutOff)}({string.Join(", ", param.IntDefs[..^intDefsCutOff])});");
+                        var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
+                        attributes.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
                     }
                 }
 
@@ -650,11 +593,15 @@ public sealed class ShaderExtract
                 {
                     if (floatRangeCutOff <= 3 && param.FloatMins[0] != -ParamBlock.FloatInf)
                     {
-                        attributes.Add($"{GetFuncName("Range", floatRangeCutOff)}({string.Join(", ", param.FloatMins[..^floatRangeCutOff])}, {string.Join(", ", param.FloatMaxs[..^floatRangeCutOff])})");
+                        var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff]);
+                        var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff]);
+                        attributes.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
                     }
                     else
                     {
-                        attributes.Add($"{GetFuncName("Range", intRangeCutOff)}({string.Join(", ", param.IntMins[..^intRangeCutOff])}, {string.Join(", ", param.IntMaxs[..^intRangeCutOff])});");
+                        var mins = string.Join(", ", param.IntMins[..^intRangeCutOff]);
+                        var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff]);
+                        attributes.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
                     }
                 }
 
@@ -676,32 +623,74 @@ public sealed class ShaderExtract
                 if (param.DynExp.Length > 0)
                 {
                     var globals = paramBlocks.Select(p => p.Name).ToArray();
-                    var dynEx = new VfxEval(param.DynExp, globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult.Replace($"EVAL[{param.Name}]", "this");
+                    var dynEx = new VfxEval(param.DynExp, globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
+                    dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
+                    dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
+
                     attributes.Add($"Expression({dynEx});");
                 }
 
-                var attributesVfx = attributes.Count > 0
-                    ? " < " + string.Join(" ", attributes) + " > "
-                    : string.Empty;
+                writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(attributes)};");
+            }
+            else if (param.ParamType == ParameterType.Texture)
+            {
+                if ((int)param.Format > -1 && param.ChannelCount > 0)
+                {
+                    for (var i = 0; i < param.ChannelCount; i++)
+                    {
+                        var index = param.ChannelIndices[i];
+                        if (index == -1 || index >= channelBlocks.Count)
+                        {
+                            throw new InvalidOperationException("Invalid channel block index");
+                        }
 
-                sb.AppendLine($"\t{Vfx.Types.GetValueOrDefault(param.VfxType, $"unkntype{param.VfxType}")} {param.Name}{attributesVfx};");
+                        attributes.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
+                    }
+
+                    attributes.Add($"OutputFormat({param.Format});");
+                    attributes.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
+
+                    writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(attributes)};");
+                }
             }
             else
             {
-
             }
         }
     }
 
-    private string GetChannelFromMipmap(MipmapBlock mipmapBlock)
+    private void HandleState(IndentedTextWriter writer, ParamBlock param)
     {
-        var mode = mipmapBlock.ColorMode == 0
+        var stateValue = param.DynExp.Length > 0
+            ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
+            : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+
+        if (param.ParamType == ParameterType.RenderState)
+        {
+            writer.WriteLine("{0}({1}, {2});", param.ParamType, param.Name, stateValue);
+        }
+        else
+        {
+            writer.WriteLine("{0}({1});", param.Name, stateValue);
+        }
+    }
+
+    private static string GetVfxAttributes(List<string> attributes)
+    {
+        return attributes.Count > 0
+            ? " < " + string.Join(" ", attributes) + " > "
+            : string.Empty;
+    }
+
+    private static string GetChannelFromChannelBlock(ChannelBlock channelBlock, IReadOnlyList<ParamBlock> paramBlocks)
+    {
+        var mode = channelBlock.ColorMode == 0
             ? "Linear"
             : "Srgb";
 
-        var cutoff = Array.IndexOf(mipmapBlock.InputTextureIndices, -1);
-        var inputs = string.Join(", ", mipmapBlock.InputTextureIndices[..cutoff].Select(idx => Features.ParamBlocks[idx].Name));
+        var cutoff = Array.IndexOf(channelBlock.InputTextureIndices, -1);
+        var inputs = string.Join(", ", channelBlock.InputTextureIndices[..cutoff].Select(idx => paramBlocks[idx].Name));
 
-        return $"Channel( {mipmapBlock.Channel}, {mipmapBlock.Name}( {inputs} ) );";
+        return $"Channel({channelBlock.Channel}, {channelBlock.Name}({inputs}), {mode});";
     }
 }

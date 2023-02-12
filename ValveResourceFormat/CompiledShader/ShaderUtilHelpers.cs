@@ -8,27 +8,15 @@ namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
     {
-        public static (VcsProgramType, VcsPlatformType, VcsShaderModelType) ComputeVCSFileName(string filenamepath)
+        public static (VcsProgramType ProgramType, VcsPlatformType PlatformType, VcsShaderModelType ShaderModelType) ComputeVCSFileName(string filenamepath)
         {
-            var fileTokens = Path.GetFileName(filenamepath).Split("_");
+            var fileTokens = Path.GetFileNameWithoutExtension(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
                 throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
             }
 
-            var vcsProgramType = fileTokens[^1].ToLowerInvariant() switch
-            {
-                "features.vcs" => VcsProgramType.Features,
-                "vs.vcs" => VcsProgramType.VertexShader,
-                "ps.vcs" => VcsProgramType.PixelShader,
-                "psrs.vcs" => VcsProgramType.PixelShaderRenderState,
-                "gs.vcs" => VcsProgramType.GeometryShader,
-                "cs.vcs" => VcsProgramType.ComputeShader,
-                "hs.vcs" => VcsProgramType.HullShader,
-                "ds.vcs" => VcsProgramType.DomainShader,
-                "rtx.vcs" => VcsProgramType.RaytracingShader,
-                _ => VcsProgramType.Undetermined
-            };
+            var vcsProgramType = ComputeVcsProgramType(fileTokens[^1].ToLowerInvariant());
 
             var vcsPlatformType = fileTokens[^3].ToLowerInvariant() switch
             {
@@ -74,24 +62,21 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public static VcsProgramType ComputeVcsProgramType(string filenamepath)
+        public static VcsProgramType ComputeVcsProgramType(string abbrev)
         {
-            return Path.GetFileName(filenamepath).Split("_").Length < 4 ?
-                VcsProgramType.Undetermined
-            :
-             Path.GetFileName(filenamepath).Split("_")[^1].ToLowerInvariant() switch
-             {
-                 "features.vcs" => VcsProgramType.Features,
-                 "vs.vcs" => VcsProgramType.VertexShader,
-                 "ps.vcs" => VcsProgramType.PixelShader,
-                 "psrs.vcs" => VcsProgramType.PixelShaderRenderState,
-                 "gs.vcs" => VcsProgramType.GeometryShader,
-                 "cs.vcs" => VcsProgramType.ComputeShader,
-                 "hs.vcs" => VcsProgramType.HullShader,
-                 "ds.vcs" => VcsProgramType.DomainShader,
-                 "rtx.vcs" => VcsProgramType.RaytracingShader,
-                 _ => VcsProgramType.Undetermined
-             };
+            return abbrev switch
+            {
+                "features" => VcsProgramType.Features,
+                "vs" => VcsProgramType.VertexShader,
+                "ps" => VcsProgramType.PixelShader,
+                "psrs" => VcsProgramType.PixelShaderRenderState,
+                "gs" => VcsProgramType.GeometryShader,
+                "cs" => VcsProgramType.ComputeShader,
+                "hs" => VcsProgramType.HullShader,
+                "ds" => VcsProgramType.DomainShader,
+                "rtx" => VcsProgramType.RaytracingShader,
+                _ => VcsProgramType.Undetermined
+            };
         }
 
         public static string ShortenShaderParam(string shaderParam)
