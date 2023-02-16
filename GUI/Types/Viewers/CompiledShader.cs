@@ -190,17 +190,14 @@ namespace GUI.Types.Viewers
             private readonly ShaderTabControl tabControl;
             private readonly List<string> relatedFiles = new();
             public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl,
-                ShaderCollection shaderCollection = null, bool byteVersion = false) : base()
+                ShaderCollection shaderCollection, bool byteVersion = false) : base()
             {
-                shaderFile = shaderCollection.Get(leadProgramType);
+                this.shaderCollection = shaderCollection;
                 this.tabControl = tabControl;
-                if (shaderCollection != null)
+                shaderFile = shaderCollection.Get(leadProgramType);
+                foreach (var shader in shaderCollection)
                 {
-                    this.shaderCollection = shaderCollection;
-                    foreach (var shader in shaderCollection)
-                    {
-                        relatedFiles.Add(Path.GetFileName(shader.FilenamePath));
-                    }
+                    relatedFiles.Add(Path.GetFileName(shader.FilenamePath));
                 }
                 var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 if (!byteVersion)
@@ -226,17 +223,16 @@ namespace GUI.Types.Viewers
             {
                 var linkText = evt.LinkText[2..]; // remove two starting backslahses
                 var linkTokens = linkText.Split("\\");
-                // linkTokens[0] is sometimes a zframe id, in those cases programType equals 'undetermined'
-                // where linkTokens[0] is a filename VcsProgramType should be defined
-                var programType = ComputeVCSFileName(linkTokens[0]).ProgramType;
-                if (programType != VcsProgramType.Undetermined)
+                // linkTokens[0] is sometimes a zframe id, otherwise a VcsProgramType should be defined
+                if (linkTokens[0].Split("_").Length >= 4)
                 {
+                    var programType = ComputeVCSFileName(linkTokens[0]).ProgramType;
                     var shaderFile = shaderCollection.Get(programType);
                     TabPage newShaderTab = null;
                     if (linkTokens.Length > 1 && linkTokens[1].Equals("bytes", StringComparison.Ordinal))
                     {
                         newShaderTab = new TabPage($"{programType} bytes");
-                        var shaderRichTextBox = new ShaderRichTextBox(programType, tabControl, byteVersion: true);
+                        var shaderRichTextBox = new ShaderRichTextBox(programType, tabControl, shaderCollection, byteVersion: true);
                         shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                         newShaderTab.Controls.Add(shaderRichTextBox);
                         tabControl.Controls.Add(newShaderTab);
