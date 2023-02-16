@@ -17,7 +17,7 @@ namespace ValveResourceFormat.CompiledShader
         public VcsShaderModelType VcsShaderModelType { get; }
         public long ZframeId { get; }
         public ZDataBlock LeadingData { get; }
-        public List<ZFrameParam> ZframeParams { get; } = new();
+        public List<Attribute> Attributes { get; } = new();
         public int[] LeadingSummary { get; } = Array.Empty<int>();
         public List<ZDataBlock> DataBlocks { get; } = new();
         public int[] TrailingSummary { get; }
@@ -53,11 +53,11 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             LeadingData = new ZDataBlock(DataReader, -1);
-            int paramCount = DataReader.ReadInt16();
-            for (var i = 0; i < paramCount; i++)
+            int attributeCount = DataReader.ReadInt16();
+            for (var i = 0; i < attributeCount; i++)
             {
-                ZFrameParam zParam = new(DataReader);
-                ZframeParams.Add(zParam);
+                Attribute attribute = new(DataReader);
+                Attributes.Add(attribute);
             }
             // this data is applicable to vertex shaders
             if (VcsProgramType == VcsProgramType.VertexShader)
@@ -191,14 +191,14 @@ namespace ValveResourceFormat.CompiledShader
             return blockId == -1 ? LeadingData : DataBlocks[blockId];
         }
 
-        public string ZFrameHeaderStringDescription()
+        public string AttributesStringDescription()
         {
-            var zframeHeaderString = "";
-            foreach (var zParam in ZframeParams)
+            var attributesString = "";
+            foreach (var attribute in Attributes)
             {
-                zframeHeaderString += $"{zParam}\n";
+                attributesString += $"{attribute}\n";
             }
-            return zframeHeaderString;
+            return attributesString;
         }
 
         public void Dispose()
@@ -246,7 +246,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public class ZFrameParam
+        public class Attribute
         {
             public string Name0 { get; }
             public uint Murmur32 { get; }
@@ -264,7 +264,7 @@ namespace ValveResourceFormat.CompiledShader
             public bool HasStaticVal
                 => StaticValBool != null || StaticValInt != null || StaticValFloat != null;
 
-            public ZFrameParam(ShaderDataReader datareader)
+            public Attribute(ShaderDataReader datareader)
             {
                 Name0 = datareader.ReadNullTermString();
                 Murmur32 = datareader.ReadUInt32();

@@ -345,7 +345,7 @@ public sealed class ShaderExtract
 
         using var zframe000 = shader.GetZFrameFileByIndex(0);
 
-        foreach (var attribute in zframe000.ZframeParams)
+        foreach (var attribute in zframe000.Attributes)
         {
             var type = Vfx.GetTypeName(attribute.VfxType);
             string value = null;

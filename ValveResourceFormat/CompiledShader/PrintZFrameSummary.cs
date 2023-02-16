@@ -38,7 +38,7 @@ namespace ValveResourceFormat.CompiledShader
                 OutputWriteLine("");
             }
             PrintConfigurationState();
-            PrintFrameLeadingArgs();
+            PrintAttributes();
             var writeSequences = GetWriteSequences();
             PrintWriteSequences(writeSequences);
             PrintDataBlocks(writeSequences);
@@ -76,15 +76,15 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine("");
         }
 
-        private void PrintFrameLeadingArgs()
+        private void PrintAttributes()
         {
-            var headerText = "ZFrame Headers";
+            var headerText = "Attributes";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-            OutputWrite(zframeFile.ZFrameHeaderStringDescription());
-            if (zframeFile.ZframeParams.Count == 0)
+            OutputWrite(zframeFile.AttributesStringDescription());
+            if (zframeFile.Attributes.Count == 0)
             {
-                OutputWriteLine("[empty frameheader]");
+                OutputWriteLine("[no attributes]");
             }
             OutputWriteLine("");
             OutputWriteLine("");
