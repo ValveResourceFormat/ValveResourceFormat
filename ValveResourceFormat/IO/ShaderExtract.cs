@@ -14,9 +14,10 @@ public sealed class ShaderExtract
 {
     public readonly struct ShaderExtractParams
     {
-        public bool CollapseCommonBuffers_InInclude { get; init; }
-        public bool CollapseCommonBuffers_InPlace { get; init; }
-        public static HashSet<string> CommonBuffers => new()
+        public bool CollapseBuffers_InInclude { get; init; }
+        public bool BufferIncludes_AsSeparateFiles { get; init; }
+        public bool CollapseBuffers_InPlace { get; init; }
+        public static HashSet<string> BuffersToCollapse => new()
         {
             "PerViewConstantBuffer_t",
             "PerViewConstantBufferVR_t",
@@ -24,18 +25,23 @@ public sealed class ShaderExtract
             "DotaGlobalParams_t",
         };
 
-        public bool FirstVsInput_Only { get; init; }
+        public bool ForceWrite_UncertainEnumsAsInts { get; init; }
+        public bool NoHungarianTypeGuessing { get; init; }
+        public int ZFrameReadingCap { get; init; }
+        public bool StaticComboAttributes_NoSeparateGlobals { get; init; }
+        public bool StaticComboAttributes_NoConditionalReduce { get; init; }
 
         public static readonly ShaderExtractParams Inspect = new()
         {
-            CollapseCommonBuffers_InPlace = true,
-            FirstVsInput_Only = true,
+            CollapseBuffers_InPlace = true,
+            ZFrameReadingCap = 512,
         };
 
         public static readonly ShaderExtractParams Export = new()
         {
-            CollapseCommonBuffers_InInclude = true,
-            FirstVsInput_Only = true,
+            CollapseBuffers_InInclude = true,
+            BufferIncludes_AsSeparateFiles = true,
+            ZFrameReadingCap = -1,
         };
     }
 
@@ -51,9 +57,11 @@ public sealed class ShaderExtract
     public ShaderFile PixelShaderRenderState => Shaders.PixelShaderRenderState;
     public ShaderFile Raytracing => Shaders.Raytracing;
 
-    private ShaderExtractParams Options { get; set; }
-    private List<string> FeatureNames { get; set; }
+    private IReadOnlyList<string> FeatureNames { get; set; }
     private string[] Globals { get; set; }
+
+    private ShaderExtractParams Options { get; set; }
+    private Dictionary<string, IndentedTextWriter> IncludeWriters { get; set; }
 
     public ShaderExtract(Resource resource)
         : this((SboxShader)resource.DataBlock)
@@ -66,40 +74,60 @@ public sealed class ShaderExtract
     public ShaderExtract(ShaderCollection shaderCollection)
     {
         Shaders = shaderCollection;
-        ThrowIfNoFeatures();
-    }
 
-    private void ThrowIfNoFeatures()
-    {
         if (Features == null)
         {
             throw new InvalidOperationException("Shader extract cannot continue without at least a features file.");
         }
+
+        FeatureNames = Features.SfBlocks.Select(f => f.Name).ToList();
+        Globals = Features.ParamBlocks.Select(p => p.Name).ToArray();
     }
 
     public ContentFile ToContentFile()
     {
-        var vfx = new ContentFile
+        var vfx = ToVFX(ShaderExtractParams.Export);
+
+        var extract = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(ToVFX(ShaderExtractParams.Export))
+            Data = Encoding.UTF8.GetBytes(vfx.VfxContent)
         };
 
-        // TODO: includes..
+        foreach (var (fileName, content) in vfx.Includes)
+        {
+            extract.AddSubFile(fileName, () => Encoding.UTF8.GetBytes(content));
+        }
 
-        return vfx;
+        return extract;
+    }
+
+    public string GetVfxFileName()
+        => GetVfxNameFromShaderFile(Features);
+
+    private static string GetVfxNameFromShaderFile(ShaderFile shaderFile)
+    {
+        return shaderFile.ShaderName + ".vfx";
+    }
+
+    private static string GetIncludeName(string bufferName)
+    {
+        return $"common/{bufferName}.fxc";
     }
 
     public string ToVFX()
     {
-        return ToVFX(ShaderExtractParams.Inspect);
+        return ToVFXInternal(ShaderExtractParams.Inspect);
     }
 
-    public string ToVFX(ShaderExtractParams options)
+    public (string VfxContent, IDictionary<string, string> Includes) ToVFX(ShaderExtractParams options)
     {
-        // TODO: IndentedTextWriter
-        FeatureNames = Features.SfBlocks.Select(f => f.Name).ToList();
-        Globals = Features.ParamBlocks.Select(p => p.Name).ToArray();
+        return (ToVFXInternal(options), IncludeWriters.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString()));
+    }
+
+    private string ToVFXInternal(ShaderExtractParams options)
+    {
         Options = options;
+        IncludeWriters = new();
 
         return "//=================================================================================================\n"
             + "// Reconstructed with VRF - https://vrf.steamdb.info/\n"
@@ -117,7 +145,6 @@ public sealed class ShaderExtract
             + RTX()
             ;
     }
-
     private string HEADER()
     {
         using var writer = new IndentedTextWriter();
@@ -167,7 +194,7 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleFeatures(Features.SfBlocks, Features.SfConstraintsBlocks, writer);
+        HandleFeatures(Features.SfBlocks, Features.SfConstraintBlocks, writer);
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -187,10 +214,10 @@ public sealed class ShaderExtract
 
         if (Vertex is not null)
         {
-            HandleCBuffers(Vertex.BufferBlocks, writer);
+            WriteCBuffers(Vertex.BufferBlocks, writer);
         }
 
-        HandleVsInput(writer);
+        WriteVsInput(writer);
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -198,94 +225,230 @@ public sealed class ShaderExtract
         return writer.ToString();
     }
 
-    private void HandleVsInput(IndentedTextWriter writer)
+    private void WriteVsInput(IndentedTextWriter writer)
     {
         if (Vertex is null)
         {
             return;
         }
 
+        var symbols = new List<(string Name, string Type, string Option, int SemanticIndex)>();
+        var masks = new List<bool[]>();
+        var maxNameLength = 0;
+        var maxSemanticLength = 0;
+
         foreach (var i in Enumerable.Range(0, Vertex.SymbolBlocks.Count))
         {
-            writer.WriteLine();
+            for (var j = 0; j < Vertex.SymbolBlocks[i].SymbolsDefinition.Count; j++)
+            {
+                var symbol = Vertex.SymbolBlocks[i].SymbolsDefinition[j];
+                var val = (symbol.Name, symbol.Type, symbol.Option, symbol.SemanticIndex);
+                var existingIndex = symbols.IndexOf(val);
+                if (existingIndex == -1)
+                {
+                    symbols.Insert(j, val);
+                    var mask = new bool[Vertex.SymbolBlocks.Count];
+                    mask[i] = true;
+                    masks.Insert(j, mask);
+                    maxNameLength = Math.Max(maxNameLength, symbol.Name.Length);
+                    maxSemanticLength = Math.Max(maxSemanticLength, symbol.Type.Length);
+                }
+                else
+                {
+                    masks[existingIndex][i] = true;
+                }
+            }
+        }
 
-            var index = Vertex.SymbolBlocks.Count > 1 && !Options.FirstVsInput_Only
-                ? $" ({i})"
-                : string.Empty;
-            writer.WriteLine($"struct VS_INPUT{index}");
+        ConfigMappingSParams staticConfig = new(Vertex);
+        ConfigMappingDParams dynamicConfig = new(Vertex);
+
+        var perConditionVsInputBlocks = new Dictionary<(string Name, int State), HashSet<int>>(staticConfig.SumStates + dynamicConfig.SumStates);
+
+        foreach (var i in Enumerable.Range(0, Vertex.GetZFrameCount()))
+        {
+            if (Options.ZFrameReadingCap >= 0 && i >= Options.ZFrameReadingCap)
+            {
+                break;
+            }
+
+            using var zFrame = Vertex.GetZFrameFileByIndex(i);
+            var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
+
+            foreach (var vsEnd in zFrame.VsEndBlocks)
+            {
+                var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.BlockIdRef);
+                var vsInputId = zFrame.VShaderInputs[vsEnd.BlockIdRef];
+
+                for (var j = 0; j < staticConfigState.Length; j++)
+                {
+                    var staticCondition = (Vertex.SfBlocks[j].Name, staticConfigState[j]);
+                    if (!perConditionVsInputBlocks.TryGetValue(staticCondition, out var staticVsBlocks))
+                    {
+                        staticVsBlocks = new HashSet<int>(Vertex.SymbolBlocks.Count);
+                        perConditionVsInputBlocks.Add(staticCondition, staticVsBlocks);
+                    }
+
+                    staticVsBlocks.Add(vsInputId);
+
+                    for (var k = 0; k < dynamicConfigState.Length; k++)
+                    {
+                        var dynamicCondition = (Vertex.DBlocks[k].Name, dynamicConfigState[k]);
+                        if (!perConditionVsInputBlocks.TryGetValue(dynamicCondition, out var dynamicVsBlocks))
+                        {
+                            dynamicVsBlocks = new HashSet<int>(Vertex.SymbolBlocks.Count);
+                            perConditionVsInputBlocks.Add(dynamicCondition, dynamicVsBlocks);
+                        }
+
+                        dynamicVsBlocks.Add(vsInputId);
+                    }
+                }
+            }
+        }
+
+        if (symbols.Count > 0)
+        {
+            writer.WriteLine();
+            writer.WriteLine($"struct VS_INPUT");
             writer.WriteLine("{");
             writer.Indent++;
 
-            foreach (var symbol in Vertex.SymbolBlocks[i].SymbolsDefinition)
+            foreach (var (symbol, i) in symbols.Select((symbol, i) => (symbol, i)))
             {
-                var attributeVfx = symbol.Option.Length > 0 ? $" < Semantic({symbol.Option}); >" : string.Empty;
-                // TODO: type
-                writer.WriteLine($"float4 {symbol.Name} : {symbol.Type}{symbol.SemanticIndex}{attributeVfx};");
+                var type = string.Empty;
+                if (!Options.NoHungarianTypeGuessing && symbol.Name.Length > 2)
+                {
+                    var typeChar = symbol.Name[1] == '_' ? symbol.Name[2] : symbol.Name[0];
+                    type = typeChar switch
+                    {
+                        'f' or 'v' => "float4",
+                        'n' => "uint4",
+                        'b' => "bool4",
+                        _ => string.Empty
+                    };
+
+                    if (symbol.Option.Contains("UV", StringComparison.OrdinalIgnoreCase))
+                    {
+                        type = "float2";
+                    }
+
+                    type = $"{type,-7}";
+                }
+
+                var attributeVfx = symbol.Option.Length > 0 ? $" < Semantic( {symbol.Option} ); >" : string.Empty;
+                var nameAlignSpaces = new string(' ', maxNameLength - symbol.Name.Length);
+                var semanticAlignSpaces = new string(' ', maxSemanticLength - symbol.Type.Length);
+
+                var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.Type}{symbol.SemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
+                writer.Write($"{field,-94}");
+
+                if (masks[i].All(x => x) || Options.ZFrameReadingCap == 0)
+                {
+                    writer.WriteLine();
+                    continue;
+                }
+
+                var conditions = new List<string>();
+                foreach (var (condition, VsInputIds) in perConditionVsInputBlocks)
+                {
+                    if (VsInputIds.Count == Vertex.SymbolBlocks.Count)
+                    {
+                        continue;
+                    }
+
+                    if (VsInputIds.All(x => masks[i][x]))
+                    {
+                        conditions.Add($"{condition.Name}={condition.State}");
+                    }
+                }
+
+                if (conditions.Count > 0)
+                {
+                    writer.WriteLine($" // {string.Join(", ", conditions)}");
+                }
+                else
+                {
+                    writer.WriteLine();
+                }
             }
 
             writer.Indent--;
             writer.WriteLine("};");
-
-            if (Options.FirstVsInput_Only)
-            {
-                break;
-            }
         }
     }
 
-    private void HandleCBuffers(List<BufferBlock> bufferBlocks, IndentedTextWriter writer)
+    private void WriteCBuffers(List<BufferBlock> bufferBlocks, IndentedTextWriter writer)
     {
-        var includedCommon = false;
-
         foreach (var buffer in bufferBlocks)
         {
-            if (ShaderExtractParams.CommonBuffers.Contains(buffer.Name))
+            if (ShaderExtractParams.BuffersToCollapse.Contains(buffer.Name))
             {
-                if (includedCommon)
-                {
-                    continue;
-                }
-
-                if (Options.CollapseCommonBuffers_InInclude)
-                {
-                    writer.WriteLine("#include \"common.fxc\"");
-                    includedCommon = true;
-                    continue;
-                }
-
-
-                if (Options.CollapseCommonBuffers_InPlace)
+                if (Options.CollapseBuffers_InPlace)
                 {
                     writer.WriteLine("cbuffer " + buffer.Name + ";");
                     continue;
                 }
+
+                if (Options.CollapseBuffers_InInclude && IncludeWriters is not null)
+                {
+                    var includeName = Options.BufferIncludes_AsSeparateFiles
+                        ? GetIncludeName(buffer.Name)
+                        : "common.fxc";
+
+                    if (!IncludeWriters.TryGetValue(includeName, out var includeWriter))
+                    {
+                        includeWriter = new IndentedTextWriter();
+                        IncludeWriters.Add(includeName, includeWriter);
+                        writer.WriteLine($"#include \"{includeName}\"");
+                    }
+
+                    WriteCBuffer(includeWriter, buffer);
+                    continue;
+                }
             }
 
             writer.WriteLine();
-            writer.WriteLine("cbuffer " + buffer.Name);
-            writer.WriteLine("{");
-            writer.Indent++;
+            WriteCBuffer(writer, buffer);
+        }
+    }
 
-            foreach (var member in buffer.BufferParams)
+    private void WriteCBuffer(IndentedTextWriter writer, BufferBlock buffer)
+    {
+        writer.WriteLine("cbuffer " + buffer.Name);
+        writer.WriteLine("{");
+        writer.Indent++;
+
+        foreach (var member in buffer.BufferParams)
+        {
+            var type = "DWORD";
+            if (!Options.NoHungarianTypeGuessing && member.Name.Length > 3)
             {
-                var dim1 = member.VectorSize > 1
-                    ? member.VectorSize.ToString(CultureInfo.InvariantCulture)
-                    : string.Empty;
-
-                var dim2 = member.Depth > 1
-                    ? "x" + member.Depth.ToString(CultureInfo.InvariantCulture)
-                    : string.Empty;
-
-                var array = member.Length > 1
-                    ? "[" + member.Length.ToString(CultureInfo.InvariantCulture) + "]"
-                    : string.Empty;
-
-                writer.WriteLine($"float{dim1}{dim2} {member.Name}{array};");
+                type = member.Name[2] switch
+                {
+                    'f' or 'v' or 'm' => "float",
+                    'n' => "int",
+                    'b' => "bool",
+                    _ => type
+                };
             }
 
-            writer.Indent--;
-            writer.WriteLine("};");
+            var dim1 = member.VectorSize > 1
+                ? member.VectorSize.ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
+
+            var dim2 = member.Depth > 1
+                ? "x" + member.Depth.ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
+
+            var array = member.Length > 1
+                ? "[" + member.Length.ToString(CultureInfo.InvariantCulture) + "]"
+                : string.Empty;
+
+            writer.WriteLine($"{type}{dim1}{dim2} {member.Name}{array};");
         }
+
+        writer.Indent--;
+        writer.WriteLine("};");
     }
 
     private string VS()
@@ -322,64 +485,244 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleStaticCombos(shader.SfBlocks, shader.SfConstraintsBlocks, writer);
-        HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintsBlocks, writer);
+        HandleStaticCombos(shader.SfBlocks, shader.SfConstraintBlocks, writer);
+        HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintBlocks, writer);
         HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
 
-        // zframe0 stuff
-        HandleZFrame000(shader, writer);
+        if (shader.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
+        {
+            HandleParameters(PixelShaderRenderState.ParamBlocks, PixelShaderRenderState.ChannelBlocks, writer);
+        }
+
+        // zframe stuff
+        HandleZFrames(shader, writer);
 
         writer.Indent--;
         writer.WriteLine("}");
         return writer.ToString();
     }
 
-    private static void HandleZFrame000(ShaderFile shader, IndentedTextWriter writer)
+    public class ConfigKeyComparer : IEqualityComparer<int[]>
     {
-        if (shader.GetZFrameCount() == 0)
+        public bool Equals(int[] x, int[] y)
+        {
+            return x == null || y == null
+                ? x == null && y == null
+                : x.SequenceEqual(y);
+        }
+
+        public int GetHashCode(int[] obj)
+        {
+            // this will collide with non boolean states, but those are rare
+            var sum = 0;
+            for (var i = 0; i < obj.Length; i++)
+            {
+                if (obj[i] != 0)
+                {
+                    sum |= 1 << i;
+                }
+            }
+            return sum;
+        }
+    }
+
+    private void HandleZFrames(ShaderFile shader, IndentedTextWriter writer)
+    {
+        if (shader.GetZFrameCount() == 0 || Options.ZFrameReadingCap == 0)
         {
             return;
         }
 
-        writer.WriteLine();
+        ConfigMappingSParams configGen = new(shader);
 
-        using var zframe000 = shader.GetZFrameFileByIndex(0);
+        var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, shader.SfBlocks.Count - 1), new ConfigKeyComparer());
+        var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(configGen.SumStates);
 
-        foreach (var attribute in zframe000.Attributes)
+        foreach (var i in Enumerable.Range(0, shader.GetZFrameCount()))
+        {
+            if (Options.ZFrameReadingCap >= 0 && i >= Options.ZFrameReadingCap)
+            {
+                break;
+            }
+
+            using var zFrame = shader.GetZFrameFileByIndex(i);
+            var zframeAttributes = new HashSet<string>();
+            GetZFrameAttributes(zFrame, shader.ParamBlocks, zframeAttributes);
+
+            var configState = configGen.GetConfigState(zFrame.ZframeId);
+            attributesDisect[configState] = zframeAttributes;
+        }
+
+        if (attributesDisect.Values.First().Count != 0 || !Options.StaticComboAttributes_NoSeparateGlobals)
+        {
+            var invariants = new HashSet<string>(attributesDisect.Values.First());
+            foreach (var attributes in attributesDisect.Values.Skip(1))
+            {
+                // If count of this reaches 0, there can't be any invariant attributes!
+                if (invariants.Count == 0)
+                {
+                    break;
+                }
+
+                invariants.IntersectWith(attributes);
+            }
+
+            if (invariants.Count > 0)
+            {
+                writer.WriteLine();
+
+                foreach (var attribute in invariants)
+                {
+                    writer.WriteLine(attribute);
+                }
+
+                writer.WriteLine();
+
+                // Remove invariants from the disect
+                foreach (var (config, attributes) in attributesDisect)
+                {
+                    attributes.ExceptWith(invariants);
+                }
+            }
+        }
+
+        if (Options.StaticComboAttributes_NoConditionalReduce)
+        {
+            foreach (var (config, attributes) in attributesDisect)
+            {
+                if (attributes.Count == 0)
+                {
+                    continue;
+                }
+
+                var conditions = string.Join(" && ", config.Select((v, i) => $"{shader.SfBlocks[i].Name} == {v}"));
+                writer.WriteLine($"#if ({conditions})");
+                writer.Indent++;
+                foreach (var attribute in attributes)
+                {
+                    writer.WriteLine(attribute);
+                }
+                writer.Indent--;
+                writer.WriteLine("#endif");
+            }
+
+            return;
+        }
+
+
+        foreach (var (config, attributes) in attributesDisect)
+        {
+            if (attributes.Count == 0)
+            {
+                continue;
+            }
+
+            for (var i = 0; i < config.Length; i++)
+            {
+                var key = (i, config[i]);
+                if (perConditionAttributes.TryGetValue(key, out var set))
+                {
+                    set.IntersectWith(attributes);
+                    if (set.Count == 0)
+                    {
+                        perConditionAttributes.Remove(key);
+                    }
+                }
+                else
+                {
+                    perConditionAttributes[key] = new HashSet<string>(attributes);
+                }
+            }
+        }
+
+        foreach (var (condition, attributes) in perConditionAttributes)
+        {
+            var rangeMin = shader.SfBlocks[condition.Index].RangeMin;
+            var rangeMax = shader.SfBlocks[condition.Index].RangeMax;
+            var stateIsIrrelevant = false;
+
+            for (var j = rangeMin; j <= rangeMax; j++)
+            {
+                if (j == condition.State
+                || !perConditionAttributes.TryGetValue((condition.Index, j), out var otherAttributes)
+                || !otherAttributes.SetEquals(attributes))
+                {
+                    continue;
+                }
+
+                stateIsIrrelevant = true;
+            }
+
+            if (stateIsIrrelevant)
+            {
+                continue;
+            }
+
+            var stateName = shader.SfBlocks[condition.Index].Name;
+            writer.WriteLine($"#if ({stateName} == {condition.State})");
+            writer.Indent++;
+            foreach (var attribute in attributes)
+            {
+                writer.WriteLine(attribute);
+            }
+            writer.Indent--;
+            writer.WriteLine("#endif");
+        }
+    }
+
+    private void GetZFrameAttributes(ZFrameFile zFrameFile, IReadOnlyList<ParamBlock> paramBlocks, HashSet<string> attributes)
+    {
+        foreach (var attribute in zFrameFile.Attributes)
         {
             var type = Vfx.GetTypeName(attribute.VfxType);
             string value = null;
 
-            if (attribute.StaticValBool.HasValue)
+            if (attribute.ConstValue is not null)
             {
-                value = attribute.StaticValBool.Value ? "true" : "false";
-            }
-            else if (attribute.StaticValInt.HasValue)
-            {
-                value = attribute.StaticValInt.Value.ToString(CultureInfo.InvariantCulture);
-            }
-            else if (attribute.StaticValFloat.HasValue)
-            {
-                value = attribute.StaticValFloat.Value.ToString(CultureInfo.InvariantCulture);
+                value = attribute.VfxType switch
+                {
+                    Vfx.Type.Bool => (bool)attribute.ConstValue ? "true" : "false",
+                    Vfx.Type.Int => ((int)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
+                    Vfx.Type.Float => ((float)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
+                    _ => attribute.ConstValue.ToString(),
+                };
             }
             else if (attribute.LinkedParameterIndex != 255)
             {
-                value = shader.ParamBlocks[attribute.LinkedParameterIndex].Name;
+                value = paramBlocks[attribute.LinkedParameterIndex].Name;
             }
-            else if (attribute.DynExpEvaluated is not null)
+            else if (attribute.DynExpression.Length > 0)
             {
-                value = attribute.DynExpEvaluated;
+                value = new VfxEval(attribute.DynExpression, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
             }
             else
             {
                 throw new InvalidOperationException("Whats the value of this attribute then?");
             }
 
-            writer.WriteLine("Attribute({0}, {1}, {2});", type, attribute.Name0, value);
+            var attributeType = attribute.VfxType switch
+            {
+                Vfx.Type.Bool => "BoolAttribute",
+                Vfx.Type.Int => "IntAttribute",
+                Vfx.Type.Float => "FloatAttribute",
+                Vfx.Type.Float2 => "Float2Attribute",
+                Vfx.Type.Float3 => "Float3Attribute",
+                Vfx.Type.Sampler2D => "TextureAttribute",
+                _ => null
+            };
+
+            if (attributeType is not null)
+            {
+                attributes.Add($"{attributeType}({attribute.Name0}, {value});");
+            }
+            else
+            {
+                attributes.Add($"Attribute({type}, {attribute.Name0}, {value});");
+            }
         }
     }
 
-    private void HandleFeatures(List<SfBlock> features, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
+    private void HandleFeatures(List<SfBlock> features, List<ConstraintBlock> constraints, IndentedTextWriter writer)
     {
         foreach (var feature in features)
         {
@@ -387,7 +730,6 @@ public sealed class ShaderExtract
                 ? " (" + string.Join(", ", feature.CheckboxNames.Select((x, i) => $"{i}=\"{x}\"")) + ")"
                 : string.Empty;
 
-            // Verify RangeMin
             writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.Category}\" );");
         }
 
@@ -398,7 +740,7 @@ public sealed class ShaderExtract
                     writer);
     }
 
-    private void HandleStaticCombos(List<SfBlock> staticCombos, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
+    private void HandleStaticCombos(List<SfBlock> staticCombos, List<ConstraintBlock> constraints, IndentedTextWriter writer)
     {
         HandleCombos(ConditionalType.Static, staticCombos.Cast<ICombo>().ToList(), writer);
         HandleRules(ConditionalType.Static,
@@ -408,7 +750,7 @@ public sealed class ShaderExtract
                     writer);
     }
 
-    private void HandleDynamicCombos(List<SfBlock> staticCombos, List<DBlock> dynamicCombos, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
+    private void HandleDynamicCombos(List<SfBlock> staticCombos, List<DBlock> dynamicCombos, List<ConstraintBlock> constraints, IndentedTextWriter writer)
     {
         HandleCombos(ConditionalType.Dynamic, dynamicCombos.Cast<ICombo>().ToList(), writer);
         HandleRules(ConditionalType.Dynamic,
@@ -420,25 +762,26 @@ public sealed class ShaderExtract
 
     private void HandleCombos(ConditionalType comboType, List<ICombo> combos, IndentedTextWriter writer)
     {
-        foreach (var staticCombo in combos)
+        foreach (var combo in combos)
         {
-            if (staticCombo.FeatureIndex != -1)
+            if (combo.FeatureIndex != -1)
             {
-                writer.WriteLine($"{comboType}Combo( {staticCombo.Name}, {FeatureNames[staticCombo.FeatureIndex]}, Sys( ALL ) );");
-                continue;
+                var fromFeature = comboType == ConditionalType.Dynamic ? "FromFeature" : string.Empty;
+                writer.WriteLine($"{comboType}Combo{fromFeature}( {combo.Name}, {FeatureNames[combo.FeatureIndex]} );");
             }
-            else if (staticCombo.RangeMax != 0)
+            else if (combo.RangeMax != 0)
             {
-                writer.WriteLine($"{comboType}Combo( {staticCombo.Name}, {staticCombo.RangeMin}..{staticCombo.RangeMax}, Sys( ALL ) );");
+                writer.WriteLine($"{comboType}Combo( {combo.Name}, {combo.RangeMin}..{combo.RangeMax} );");
             }
             else
             {
-                writer.WriteLine($"{comboType}Combo( {staticCombo.Name}, {staticCombo.RangeMax}, Sys( {staticCombo.Sys} ) );");
+                // Not so sure about this one
+                writer.WriteLine($"{comboType}Combo( {combo.Name}, {combo.RangeMax}, Sys( {combo.Arg3} ) );");
             }
         }
     }
 
-    private void HandleRules(ConditionalType conditionalType, List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintsBlock> constraints, IndentedTextWriter writer)
+    private void HandleRules(ConditionalType conditionalType, List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintBlock> constraints, IndentedTextWriter writer)
     {
         foreach (var rule in HandleConstraintsY(staticCombos, dynamicCombos, constraints))
         {
@@ -453,7 +796,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private IEnumerable<(string Constraint, string Description)> HandleConstraintsY(List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintsBlock> constraints)
+    private IEnumerable<(string Constraint, string Description)> HandleConstraintsY(List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintBlock> constraints)
     {
         foreach (var constraint in constraints)
         {
@@ -492,55 +835,48 @@ public sealed class ShaderExtract
 
     private void HandleParameters(List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
     {
-        foreach (var param in paramBlocks.OrderBy(x => x.Id == 255))
+        if (paramBlocks.Count == 0)
         {
-            // BoolAttribute
-            // FloatAttribute
+            return;
+        }
+
+        foreach (var byHeader in paramBlocks.GroupBy(p => ParseUiGroup(p.UiGroup).Heading))
+        {
+            writer.WriteLine();
+            if (!string.IsNullOrEmpty(byHeader.Key))
+            {
+                writer.WriteLine($"// {byHeader.Key}");
+            }
+
+            foreach (var param in byHeader.OrderBy(p => ParseUiGroup(p.UiGroup).VariableOrder))
+            {
+                WriteParam(param);
+            }
+        }
+
+        void WriteParam(ParamBlock param)
+        {
             var attributes = new List<string>();
 
             // Render State
             if (param.ParamType is ParameterType.RenderState)
             {
-                HandleState(writer, param);
+                WriteState(writer, param);
             }
             // Sampler State
             else if (param.ParamType is ParameterType.SamplerState)
             {
-                //HandleState(writer, param);
+                //WriteState(writer, param);
             }
 
             // User input
-            else if (param.Id == 255)
+            else if (param.ParamType == ParameterType.InputTexture)
             {
                 // Texture Input (unpacked)
-                if (param.VecSize == -1)
-                {
-                    if (param.UiType != UiType.Texture)
-                    {
-                        throw new UnexpectedMagicException($"Expected {UiType.Texture}, got", (int)param.UiType, nameof(param.UiType));
-                    }
-
-                    if (param.ParamType != ParameterType.InputTexture)
-                    {
-                        throw new UnexpectedMagicException($"Expected {ParameterType.InputTexture}, got", (int)param.ParamType, nameof(param.ParamType));
-                    }
-
-                    var default4 = $"Default4({string.Join(", ", param.FloatDefs)})";
-
-                    var mode = param.ColorMode == 0
-                        ? "Linear"
-                        : "Srgb";
-
-                    var imageSuffix = param.ImageSuffix.Length > 0
-                        ? "_" + param.ImageSuffix
-                        : string.Empty;
-
-                    writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Arg12}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {default4});");
-                    // param.FileRef materials/default/default_cube.png
-                    continue;
-                }
-
-
+                WriteInputTexture(writer, param);
+            }
+            else if (param.Id == 255)
+            {
                 var intDefsCutOff = 0;
                 var floatDefsCutOff = 0;
                 for (var i = 3; i >= 0; i--)
@@ -634,7 +970,7 @@ public sealed class ShaderExtract
             }
             else if (param.ParamType == ParameterType.Texture)
             {
-                if ((int)param.Format > -1 && param.ChannelCount > 0)
+                if (param.ImageFormat != -1 && param.ChannelCount > 0)
                 {
                     for (var i = 0; i < param.ChannelCount; i++)
                     {
@@ -647,7 +983,15 @@ public sealed class ShaderExtract
                         attributes.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
                     }
 
-                    attributes.Add($"OutputFormat({param.Format});");
+                    var format = Features.VcsVersion switch
+                    {
+                        >= 66 => ((ImageFormatV66)param.ImageFormat).ToString(),
+                        >= 64 => ((ImageFormat)param.ImageFormat).ToString(),
+                        _ when !Options.ForceWrite_UncertainEnumsAsInts => ((ImageFormat)param.ImageFormat).ToString(),
+                        _ => param.ImageFormat.ToString(CultureInfo.InvariantCulture),
+                    };
+
+                    attributes.Add($"OutputFormat({format});");
                     attributes.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
 
                     writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(attributes)};");
@@ -655,11 +999,38 @@ public sealed class ShaderExtract
             }
             else
             {
+                Console.WriteLine($"Unknown parameter type: {param.ParamType}");
             }
         }
     }
 
-    private void HandleState(IndentedTextWriter writer, ParamBlock param)
+    private static void WriteInputTexture(IndentedTextWriter writer, ParamBlock param)
+    {
+        if (param.ParamType != ParameterType.InputTexture)
+        {
+            throw new ArgumentException($"Expected parameter of type {ParameterType.InputTexture}, got {param.ParamType}", nameof(param));
+        }
+
+        UnexpectedMagicException.ThrowIfNotEqual(UiType.Texture, param.UiType, nameof(param.UiType));
+        UnexpectedMagicException.ThrowIfNotEqual(255, param.Id, nameof(param.Id));
+        UnexpectedMagicException.ThrowIfNotEqual(-1, param.VecSize, nameof(param.VecSize));
+
+        var mode = param.ColorMode == 0
+            ? "Linear"
+            : "Srgb";
+
+        var imageSuffix = param.ImageSuffix.Length > 0
+            ? "_" + param.ImageSuffix
+            : string.Empty;
+
+        var defaultValue = string.IsNullOrEmpty(param.FileRef)
+            ? $"Default4({string.Join(", ", param.FloatDefs)})"
+            : $"\"{param.FileRef}\"";
+
+        writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Arg12}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
+    }
+
+    private void WriteState(IndentedTextWriter writer, ParamBlock param)
     {
         var stateValue = param.DynExp.Length > 0
             ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
@@ -680,6 +1051,55 @@ public sealed class ShaderExtract
         return attributes.Count > 0
             ? " < " + string.Join(" ", attributes) + " > "
             : string.Empty;
+    }
+
+    private static (string Heading, int HeadingOrder, string Group, int GroupOrder, int VariableOrder) ParseUiGroup(string uiGroup)
+    {
+        (string Heading, int HeadingOrder, string Group, int GroupOrder, int VariableOrder) parsed = (string.Empty, 0, string.Empty, 0, 0);
+
+        if (uiGroup.Length == 0)
+        {
+            return parsed;
+        }
+
+        var parts = uiGroup.Split("/", 3, StringSplitOptions.TrimEntries).Select(p => p.Split(",", 2, StringSplitOptions.TrimEntries)).ToArray();
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var name = string.Empty;
+            var order = 0;
+
+            for (var j = 0; j < parts[i].Length; j++)
+            {
+                if (!int.TryParse(parts[i][j], out order))
+                {
+                    name = parts[i][j];
+                }
+            }
+
+            switch (i)
+            {
+                case 0:
+                    parsed.Heading = name;
+                    parsed.HeadingOrder = order;
+                    break;
+                case 1:
+                    if (parts.Length == 2)
+                    {
+                        parsed.VariableOrder = order;
+                    }
+                    else
+                    {
+                        parsed.Group = name;
+                        parsed.GroupOrder = order;
+                    }
+                    break;
+                case 2:
+                    parsed.VariableOrder = order;
+                    break;
+            }
+        }
+
+        return parsed;
     }
 
     private static string GetChannelFromChannelBlock(ChannelBlock channelBlock, IReadOnlyList<ParamBlock> paramBlocks)

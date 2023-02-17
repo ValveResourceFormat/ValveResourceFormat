@@ -28,5 +28,21 @@ namespace ValveResourceFormat.Utils
             Magic = magic;
             MagicNameof = nameofMagic;
         }
+
+        public static void ThrowIfNotEqual(int expectedMagic, int actualMagic, string nameofMagic)
+        {
+            if (expectedMagic != actualMagic)
+            {
+                throw new UnexpectedMagicException($"Expected {expectedMagic} but got another value", actualMagic, nameofMagic);
+            }
+        }
+
+        public static void ThrowIfNotEqual<T>(T expectedMagic, T actualMagic, string nameofMagic) //where T : Enum
+        {
+            if (!expectedMagic.Equals(actualMagic))
+            {
+                throw new UnexpectedMagicException($"Expected {expectedMagic} but got another value", $"{actualMagic}", nameofMagic);
+            }
+        }
     }
 }

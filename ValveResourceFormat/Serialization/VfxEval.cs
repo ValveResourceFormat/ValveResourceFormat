@@ -127,9 +127,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
 
-        private readonly IList<string> Features;
+        private readonly IReadOnlyList<string> Features;
 
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IList<string> features = null)
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
@@ -137,7 +137,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         }
 
         // TODO: better constructors
-        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false, IList<string> features = null)
+        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;

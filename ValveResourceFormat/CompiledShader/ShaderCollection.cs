@@ -1,9 +1,10 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
 namespace ValveResourceFormat.CompiledShader;
 
-public class ShaderCollection : IEnumerable<ShaderFile>
+public class ShaderCollection : IEnumerable<ShaderFile>, IDisposable
 {
     public ShaderFile Features
         => Get(VcsProgramType.Features);
@@ -24,11 +25,14 @@ public class ShaderCollection : IEnumerable<ShaderFile>
     public ShaderFile Raytracing
         => Get(VcsProgramType.RaytracingShader);
 
-    private readonly SortedDictionary<VcsProgramType, ShaderFile> shaders = new();
+    private readonly Dictionary<VcsProgramType, ShaderFile> shaders = new((int)VcsProgramType.Undetermined);
 
     public void Add(ShaderFile shaderFile)
     {
-        shaders.Add(shaderFile.VcsProgramType, shaderFile);
+        if (!shaders.TryAdd(shaderFile.VcsProgramType, shaderFile))
+        {
+            throw new ArgumentException($"Shader of type {shaderFile.VcsProgramType} already exists in this collection.");
+        }
     }
 
     public ShaderFile Get(VcsProgramType type)
@@ -61,5 +65,22 @@ public class ShaderCollection : IEnumerable<ShaderFile>
         }
 
         return collection;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            foreach (var shader in shaders.Values)
+            {
+                shader.Dispose();
+            }
+        }
     }
 }

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.CompiledShader
     public class FeaturesHeaderBlock : ShaderDataBlock
     {
         public int VcsFileVersion { get; }
-        public AdditionalFiles AdditionalFiles { get; }
+        public VcsAdditionalFiles AdditionalFiles { get; }
         public int Version { get; }
         public string FileDescription { get; }
         public int DevShader { get; }
@@ -34,17 +34,17 @@ namespace ValveResourceFormat.CompiledShader
 
             if (VcsFileVersion >= 64)
             {
-                AdditionalFiles = (AdditionalFiles)datareader.ReadInt32();
+                AdditionalFiles = (VcsAdditionalFiles)datareader.ReadInt32();
             }
 
-            if (AdditionalFiles < AdditionalFiles.None || AdditionalFiles > AdditionalFiles.Rtx)
+            if (!Enum.IsDefined(AdditionalFiles))
             {
                 throw new UnexpectedMagicException("Unexpected v64 value", (int)AdditionalFiles, nameof(AdditionalFiles));
             }
-            else if (AdditionalFiles == AdditionalFiles.Rtx) // sbox
+            else if (AdditionalFiles == VcsAdditionalFiles.Rtx) // sbox
             {
                 datareader.BaseStream.Position += 4;
-                AdditionalFiles = AdditionalFiles.None;
+                AdditionalFiles = VcsAdditionalFiles.None;
                 VcsFileVersion = 64;
             }
 
@@ -64,11 +64,11 @@ namespace ValveResourceFormat.CompiledShader
                 Arg7 = datareader.ReadInt32();
             }
 
-            if (AdditionalFiles == AdditionalFiles.Psrs)
+            if (AdditionalFiles == VcsAdditionalFiles.Psrs)
             {
                 datareader.BaseStream.Position += 4;
             }
-            else if (AdditionalFiles == AdditionalFiles.Rtx)
+            else if (AdditionalFiles == VcsAdditionalFiles.Rtx)
             {
                 datareader.BaseStream.Position += 8;
             }
@@ -99,8 +99,8 @@ namespace ValveResourceFormat.CompiledShader
                     continue;
                 }
 
-                if ((AdditionalFiles == AdditionalFiles.None && program > VcsProgramType.ComputeShader)
-                || (AdditionalFiles == AdditionalFiles.Psrs && program > VcsProgramType.PixelShaderRenderState))
+                if ((AdditionalFiles == VcsAdditionalFiles.None && program > VcsProgramType.ComputeShader)
+                || (AdditionalFiles == VcsAdditionalFiles.Psrs && program > VcsProgramType.PixelShaderRenderState))
                 {
                     continue;
                 }
@@ -223,15 +223,15 @@ namespace ValveResourceFormat.CompiledShader
             VcsFileVersion = datareader.ReadInt32();
             ThrowIfNotSupported(VcsFileVersion);
 
-            var extraFile = AdditionalFiles.None;
+            var extraFile = VcsAdditionalFiles.None;
             if (VcsFileVersion >= 64)
             {
-                extraFile = (AdditionalFiles)datareader.ReadInt32();
-                if (extraFile < AdditionalFiles.None || extraFile > AdditionalFiles.Rtx)
+                extraFile = (VcsAdditionalFiles)datareader.ReadInt32();
+                if (extraFile < VcsAdditionalFiles.None || extraFile > VcsAdditionalFiles.Rtx)
                 {
-                    throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(AdditionalFiles));
+                    throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(VcsAdditionalFiles));
                 }
-                if (extraFile == AdditionalFiles.Rtx)
+                if (extraFile == VcsAdditionalFiles.Rtx)
                 {
                     datareader.BaseStream.Position += 4;
                     VcsFileVersion--;
@@ -270,7 +270,7 @@ namespace ValveResourceFormat.CompiledShader
         int Arg0 { get; }
         int RangeMin { get; }
         int RangeMax { get; }
-        int Sys { get; }
+        int Arg3 { get; }
         int FeatureIndex { get; }
         int Arg5 { get; }
 
@@ -291,7 +291,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg0 { get; }
         public int RangeMin { get; }
         public int RangeMax { get; }
-        public int Sys { get; }
+        public int Arg3 { get; }
         public int FeatureIndex { get; }
         public int Arg5 { get; }
         public List<string> CheckboxNames { get; } = new();
@@ -305,27 +305,27 @@ namespace ValveResourceFormat.CompiledShader
             Arg0 = datareader.ReadInt32();
             RangeMin = datareader.ReadInt32();
             RangeMax = datareader.ReadInt32();
-            Sys = datareader.ReadInt32();
+            Arg3 = datareader.ReadInt32();
             FeatureIndex = datareader.ReadInt32();
             Arg5 = datareader.ReadInt32AtPosition();
-            var additionalStringsCount = datareader.ReadInt32();
+            var checkboxNameCount = datareader.ReadInt32();
 
-            if (additionalStringsCount > 0 && RangeMax != additionalStringsCount - 1)
+            if (checkboxNameCount > 0 && RangeMax != checkboxNameCount - 1)
             {
                 throw new InvalidOperationException("invalid");
             }
 
-            for (var i = 0; i < additionalStringsCount; i++)
+            for (var i = 0; i < checkboxNameCount; i++)
             {
                 CheckboxNames.Add(datareader.ReadNullTermString());
             }
 
             // Seen in steampal's vr_complex VertexShader
-            if (Sys == 11)
+            if (Arg3 == 11)
             {
                 if (Name != "S_FOLIAGE_ANIMATION_ENABLED")
                 {
-                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Sys)} = 11. Is it also 4 bytes longer?", Name, nameof(Name));
+                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Arg3)} = 11. Is it also 4 bytes longer?", Name, nameof(Name));
                 }
 
                 var foliage = datareader.ReadInt32();
@@ -388,8 +388,8 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
-    // ConstraintsBlocks are always 472 bytes long
-    public class ConstraintsBlock : ShaderDataBlock
+    // ConstraintBlocks are always 472 bytes long
+    public class ConstraintBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
         public ConditionalRule Rule { get; }
@@ -399,34 +399,28 @@ namespace ValveResourceFormat.CompiledShader
         public int[] Values { get; }
         public int[] Range2 { get; }
         public string Description { get; }
-        public ConstraintsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+        public ConstraintBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
             Rule = (ConditionalRule)datareader.ReadInt32();
             BlockType = (ConditionalType)datareader.ReadInt32();
-            // flags are at (8)
             ConditionalTypes = Array.ConvertAll(ReadByteFlags(), x => (ConditionalType)x);
-            // range 0 at (24)
+
             Indices = ReadIntRange();
             datareader.BaseStream.Position += 68 - Indices.Length * 4;
-            // range 1 at (92)
             Values = ReadIntRange();
-
             datareader.BaseStream.Position += 60 - Values.Length * 4;
-            // range 2 at (152)
+
             Range2 = ReadIntRange();
             datareader.BaseStream.Position += 64 - Range2.Length * 4;
             Description = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 256;
         }
 
-        public ConstraintsBlock(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
+        public ConstraintBlock(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
             : this(datareader, blockIndex)
         {
-            if (BlockType != conditionalTypeVerify)
-            {
-                throw new UnexpectedMagicException($"Expected {conditionalTypeVerify} constraint block", BlockType.ToString(), nameof(BlockType));
-            }
+            UnexpectedMagicException.ThrowIfNotEqual(conditionalTypeVerify, BlockType, nameof(BlockType));
         }
 
         private int[] ReadIntRange()
@@ -472,11 +466,11 @@ namespace ValveResourceFormat.CompiledShader
     {
         public int BlockIndex { get; }
         public string Name { get; }
-        public string Category { get; } // it looks like d-blocks might have the provision for 2 strings (but not seen in use)
+        public string Category { get; } // it looks like d-blocks might have the provision for a "category" (but not seen in use)
         public int Arg0 { get; }
         public int RangeMin { get; }
         public int RangeMax { get; }
-        public int Sys { get; }
+        public int Arg3 { get; }
         public int FeatureIndex { get; }
         public int Arg5 { get; }
         public DBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
@@ -489,7 +483,7 @@ namespace ValveResourceFormat.CompiledShader
             Arg0 = datareader.ReadInt32();
             RangeMin = datareader.ReadInt32();
             RangeMax = datareader.ReadInt32();
-            Sys = datareader.ReadInt32();
+            Arg3 = datareader.ReadInt32();
             FeatureIndex = datareader.ReadInt32();
             Arg5 = datareader.ReadInt32();
         }
@@ -537,7 +531,7 @@ namespace ValveResourceFormat.CompiledShader
         public float[] FloatDefs { get; } = new float[4];
         public float[] FloatMins { get; } = new float[4];
         public float[] FloatMaxs { get; } = new float[4];
-        public TextureFormat Format { get; }
+        public int ImageFormat { get; }
         public int ChannelCount { get; }
         public int[] ChannelIndices { get; } = new int[4];
         public int ColorMode { get; }
@@ -619,7 +613,7 @@ namespace ValveResourceFormat.CompiledShader
                 FloatMaxs[i] = datareader.ReadSingle();
             }
 
-            Format = (TextureFormat)datareader.ReadInt32();
+            ImageFormat = datareader.ReadInt32();
             ChannelCount = datareader.ReadInt32();
             for (var i = 0; i < 4; i++)
             {

@@ -258,11 +258,7 @@ namespace ValveResourceFormat.CompiledShader
             public int DynExpLen { get; } = -1;
             public byte[] DynExpression { get; }
             public string DynExpEvaluated { get; }
-            public bool? StaticValBool { get; }
-            public int? StaticValInt { get; }
-            public float? StaticValFloat { get; }
-            public bool HasStaticVal
-                => StaticValBool != null || StaticValInt != null || StaticValFloat != null;
+            public object ConstValue { get; }
 
             public Attribute(ShaderDataReader datareader)
             {
@@ -289,19 +285,19 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 else if (VfxType == Vfx.Type.Float)
                 {
-                    StaticValFloat = datareader.ReadSingle();
+                    ConstValue = datareader.ReadSingle();
                 }
                 else if (VfxType == Vfx.Type.Int)
                 {
-                    StaticValInt = datareader.ReadInt32();
+                    ConstValue = datareader.ReadInt32();
                 }
                 else if (VfxType == Vfx.Type.Bool)
                 {
-                    StaticValBool = datareader.ReadByte() != 0;
+                    ConstValue = datareader.ReadByte() != 0;
                 }
                 else
                 {
-                    throw new ShaderParserException($"Unexpected attribute type {VfxType}");
+                    throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value.");
                 }
             }
 
@@ -313,7 +309,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 else
                 {
-                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {StaticValFloat}{StaticValInt}{StaticValBool}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {ConstValue}";
                 }
             }
         }

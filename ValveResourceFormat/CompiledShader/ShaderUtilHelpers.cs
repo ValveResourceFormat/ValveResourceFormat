@@ -8,12 +8,13 @@ namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
     {
-        public static (VcsProgramType ProgramType, VcsPlatformType PlatformType, VcsShaderModelType ShaderModelType) ComputeVCSFileName(string filenamepath)
+        public static (string ShaderName, VcsProgramType ProgramType, VcsPlatformType PlatformType, VcsShaderModelType ShaderModelType)
+            ComputeVCSFileName(string filenamepath)
         {
             var fileTokens = Path.GetFileNameWithoutExtension(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
-                throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
+                throw new ShaderParserException($"File name convention unknown or not supported {filenamepath}");
             }
 
             var vcsProgramType = ComputeVcsProgramType(fileTokens[^1].ToLowerInvariant());
@@ -27,6 +28,8 @@ namespace ValveResourceFormat.CompiledShader
                 _ => VcsPlatformType.Undetermined
             };
 
+            var shaderNameCutoff = fileTokens.Length - 3;
+
             if (vcsPlatformType == VcsPlatformType.VULKAN)
             {
                 vcsPlatformType = fileTokens[^4].ToLowerInvariant() switch
@@ -35,6 +38,12 @@ namespace ValveResourceFormat.CompiledShader
                     "ios" => VcsPlatformType.IOS_VULKAN,
                     _ => VcsPlatformType.VULKAN
                 };
+            }
+
+            if (vcsPlatformType == VcsPlatformType.MOBILE_GLES || vcsPlatformType == VcsPlatformType.ANDROID_VULKAN ||
+                vcsPlatformType == VcsPlatformType.IOS_VULKAN)
+            {
+                shaderNameCutoff--;
             }
 
             var vcsShaderModelType = fileTokens[^2].ToLowerInvariant() switch
@@ -58,7 +67,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             else
             {
-                return (vcsProgramType, vcsPlatformType, vcsShaderModelType);
+                return (string.Join("_", fileTokens[..shaderNameCutoff]), vcsProgramType, vcsPlatformType, vcsShaderModelType);
             }
         }
 

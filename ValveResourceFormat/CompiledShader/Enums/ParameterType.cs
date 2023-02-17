@@ -13,4 +13,7 @@ public enum ParameterType
     SamplerState,
     InputTexture,
     Buffer,
+    Unkn9,
+    Unkn10,
+    CBuffer = 11,
 }

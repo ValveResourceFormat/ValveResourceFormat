@@ -64,12 +64,13 @@ namespace GUI.Types.Viewers
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
 
             {
+                var extract = new ShaderExtract(shaderCollection);
                 var control = new MonospaceTextBox
                 {
-                    Text = new ShaderExtract(shaderCollection).ToVFX().ReplaceLineEndings(),
+                    Text = extract.ToVFX().ReplaceLineEndings(),
                 };
 
-                var vfx = new TabPage("Reconstructed vfx");
+                var vfx = new TabPage(extract.GetVfxFileName());
                 vfx.Controls.Add(control);
                 tabControl.TabPages.Add(vfx);
                 tabControl.SelectTab(vfx);
@@ -175,10 +176,7 @@ namespace GUI.Types.Viewers
                     tabControl = null;
                 }
 
-                foreach (var shader in shaderCollection)
-                {
-                    shader.Dispose();
-                }
+                shaderCollection.Dispose();
             }
         }
         private class ShaderRichTextBox : RichTextBox

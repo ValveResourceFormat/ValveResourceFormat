@@ -236,6 +236,19 @@ namespace ValveResourceFormat.CompiledShader
         }
         */
 
+        public int SumStates
+        {
+            get
+            {
+                var sum = 0;
+                for (var i = 0; i < nr_states.Length; i++)
+                {
+                    sum += nr_states[i];
+                }
+                return sum;
+            }
+        }
+
         public void ShowOffsetAndNrStatesArrays()
         {
             ShowIntArray(offsets, 8, "offsets", hex: true);

@@ -22,6 +22,7 @@ namespace ValveResourceFormat.CompiledShader
         private FileStream FileStream;
 
         public string FilenamePath { get; private set; }
+        public string ShaderName { get; private set; }
         public VcsProgramType VcsProgramType { get; private set; }
         public VcsPlatformType VcsPlatformType { get; private set; }
         public VcsShaderModelType VcsShaderModelType { get; private set; }
@@ -30,9 +31,9 @@ namespace ValveResourceFormat.CompiledShader
         public int VcsVersion { get; private set; }
         public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
         public List<SfBlock> SfBlocks { get; private set; } = new();
-        public List<ConstraintsBlock> SfConstraintsBlocks { get; private set; } = new();
+        public List<ConstraintBlock> SfConstraintBlocks { get; private set; } = new();
         public List<DBlock> DBlocks { get; private set; } = new();
-        public List<ConstraintsBlock> DConstraintsBlocks { get; private set; } = new();
+        public List<ConstraintBlock> DConstraintBlocks { get; private set; } = new();
         public List<ParamBlock> ParamBlocks { get; private set; } = new();
         public List<ChannelBlock> ChannelBlocks { get; private set; } = new();
         public List<BufferBlock> BufferBlocks { get; private set; } = new();
@@ -106,6 +107,7 @@ namespace ValveResourceFormat.CompiledShader
         private void ParseFile()
         {
             var vcsFileProperties = ComputeVCSFileName(FilenamePath);
+            ShaderName = vcsFileProperties.ShaderName;
             VcsProgramType = vcsFileProperties.ProgramType;
             VcsPlatformType = vcsFileProperties.PlatformType;
             VcsShaderModelType = vcsFileProperties.ShaderModelType;
@@ -137,14 +139,14 @@ namespace ValveResourceFormat.CompiledShader
                 SfBlocks.Add(nextSfBlock);
             }
 
-            var sfConstraintsBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < sfConstraintsBlockCount; i++)
+            var sfConstraintBlockCount = DataReader.ReadInt32();
+            for (var i = 0; i < sfConstraintBlockCount; i++)
             {
-                ConstraintsBlock nextSfConstraintsBlock = VcsProgramType == VcsProgramType.Features
+                ConstraintBlock nextSfConstraintBlock = VcsProgramType == VcsProgramType.Features
                     ? new(DataReader, i, ConditionalType.Feature)
                     : new(DataReader, i, ConditionalType.Static);
 
-                SfConstraintsBlocks.Add(nextSfConstraintsBlock);
+                SfConstraintBlocks.Add(nextSfConstraintBlock);
             }
 
             var dBlockCount = DataReader.ReadInt32();
@@ -157,8 +159,8 @@ namespace ValveResourceFormat.CompiledShader
             var dConstraintsBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < dConstraintsBlockCount; i++)
             {
-                ConstraintsBlock nextDConstraintsBlock = new(DataReader, i, ConditionalType.Dynamic);
-                DConstraintsBlocks.Add(nextDConstraintsBlock);
+                ConstraintBlock nextDConstraintsBlock = new(DataReader, i, ConditionalType.Dynamic);
+                DConstraintBlocks.Add(nextDConstraintsBlock);
             }
 
             // This is needed for the zframes to determine their source mapping
@@ -326,7 +328,7 @@ namespace ValveResourceFormat.CompiledShader
             var sfConstraintsBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{sfConstraintsBlockCount} S-configuration constraint blocks (472 bytes each)");
             DataReader.BreakLine();
-            foreach (var sfConstraintsBlock in SfConstraintsBlocks)
+            foreach (var sfConstraintsBlock in SfConstraintBlocks)
             {
                 sfConstraintsBlock.PrintByteDetail();
             }
@@ -342,7 +344,7 @@ namespace ValveResourceFormat.CompiledShader
             var dConstraintsBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{dConstraintsBlockCount} D-configuration constraint blocks (472 bytes each)");
             DataReader.BreakLine();
-            foreach (var dConstraintBlock in DConstraintsBlocks)
+            foreach (var dConstraintBlock in DConstraintBlocks)
             {
                 dConstraintBlock.PrintByteDetail();
             }

@@ -181,10 +181,10 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
                 return;
             }
-            output.DefineHeaders(new string[] { nameof(SfBlock.BlockIndex), nameof(SfBlock.Name), nameof(SfBlock.RangeMax), nameof(SfBlock.Sys), nameof(SfBlock.FeatureIndex) });
+            output.DefineHeaders(new string[] { nameof(SfBlock.BlockIndex), nameof(SfBlock.Name), nameof(SfBlock.RangeMax), nameof(SfBlock.Arg3), nameof(SfBlock.FeatureIndex) });
             foreach (var item in shaderFile.SfBlocks)
             {
-                output.AddTabulatedRow(new string[] { $"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax}", $"{item.Sys}", $"{item.FeatureIndex,2}" });
+                output.AddTabulatedRow(new string[] { $"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax}", $"{item.Arg3}", $"{item.FeatureIndex,2}" });
             }
             output.PrintTabulatedValues();
             output.BreakLine();
@@ -193,13 +193,13 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintStaticConstraints(ShaderFile shaderFile)
         {
             output.WriteLine("STATIC-CONFIGS INCLUSION/EXCLUSION RULES");
-            if (shaderFile.SfConstraintsBlocks.Count == 0)
+            if (shaderFile.SfConstraintBlocks.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
-            foreach (var sfRuleBlock in shaderFile.SfConstraintsBlocks)
+            foreach (var sfRuleBlock in shaderFile.SfConstraintBlocks)
             {
                 var sfNames = new string[sfRuleBlock.Indices.Length];
                 for (var i = 0; i < sfNames.Length; i++)
@@ -246,7 +246,7 @@ namespace ValveResourceFormat.CompiledShader
                 var v0 = $"[{dBlock.BlockIndex,2}]";
                 var v1 = dBlock.Name;
                 var v2 = "" + dBlock.RangeMax;
-                var v3 = "" + dBlock.Sys;
+                var v3 = "" + dBlock.Arg3;
                 var v4 = $"{dBlock.FeatureIndex,2}";
                 var blockSummary = $"{v0.PadRight(pad[0])} {v1.PadRight(pad[1])} {v2.PadRight(pad[2])} {v3.PadRight(pad[3])} {v4.PadRight(pad[4])}";
                 output.WriteLine(blockSummary);
@@ -261,13 +261,13 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintDynamicConstraints(ShaderFile shaderFile)
         {
             output.WriteLine("DYNAMIC-CONFIGS INCLUSION/EXCLUSION RULES");
-            if (shaderFile.DConstraintsBlocks.Count == 0)
+            if (shaderFile.DConstraintBlocks.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
-            foreach (var dRuleBlock in shaderFile.DConstraintsBlocks)
+            foreach (var dRuleBlock in shaderFile.DConstraintBlocks)
             {
                 var dRuleName = new string[dRuleBlock.ConditionalTypes.Length];
                 for (var i = 0; i < dRuleName.Length; i++)
@@ -360,7 +360,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine("PARAMETERS - Default values and limits    (type0,type1,arg0,arg1,arg2,arg4,arg5,command0 reprinted)");
             output.WriteLine("(- indicates -infinity, + indicates +infinity, def. = default)");
             output.DefineHeaders(new string[] { "index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", nameof(ParamBlock.IntDefs), nameof(ParamBlock.IntMins), nameof(ParamBlock.IntMaxs),
-                nameof(ParamBlock.FloatDefs), nameof(ParamBlock.FloatMins), nameof(ParamBlock.FloatMaxs), nameof(ParamBlock.ChannelIndices), nameof(ParamBlock.Format),
+                nameof(ParamBlock.FloatDefs), nameof(ParamBlock.FloatMins), nameof(ParamBlock.FloatMaxs), nameof(ParamBlock.ChannelIndices), nameof(ParamBlock.ImageFormat),
                 nameof(ParamBlock.ImageSuffix), nameof(ParamBlock.FileRef), nameof(ParamBlock.DynExp)});
             foreach (var param in shaderFile.ParamBlocks)
             {
@@ -369,7 +369,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.AddTabulatedRow(new string[] { $"[{("" + param.BlockIndex).PadLeft(indexPad)}]", $"{param.Name}",
                     $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Arg0),2},{vfxType},{param.ParamType,2},{param.VecSize,2},{param.Id}",
                     $"{Comb(param.IntDefs)}", $"{Comb(param.IntMins)}", $"{Comb(param.IntMaxs)}", $"{Comb(param.FloatDefs)}", $"{Comb(param.FloatMins)}",
-                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.ChannelIndices)}", $"{param.Format}", param.ImageSuffix, param.FileRef, $"{hasDynExp}"});
+                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.ChannelIndices)}", $"{param.ImageFormat}", param.ImageSuffix, param.FileRef, $"{hasDynExp}"});
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();

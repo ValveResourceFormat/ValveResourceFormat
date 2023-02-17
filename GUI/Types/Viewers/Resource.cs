@@ -389,16 +389,6 @@ namespace GUI.Types.Viewers
                     shaderTab.Controls.Add(shaderTabControl);
                     resTabs.TabPages.Add(shaderTab);
 
-                    // TODO: proper link handling
-                    ////tabControl.MouseClick += new MouseEventHandler(OnTabClick);
-                    //var mainFileTab = new TabPage(nameof(shaderFileContainer.Features));
-                    //var shaderRichTextBox = new ShaderRichTextBox(shaderFileContainer.Features, tabControl, null);
-                    //mainFileTab.Controls.Add(shaderRichTextBox);
-                    //tabControl.Controls.Add(mainFileTab);
-                    //tab.Controls.Add(tabControl);
-                    //
-                    ////shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-
                     foreach (var shader in sboxShader.Shaders)
                     {
                         if (shader is null)
@@ -461,8 +451,9 @@ namespace GUI.Types.Viewers
 
                     case ResourceType.Shader:
                         var shaderFileContainer = (SboxShader)block;
+                        var extract = new ShaderExtract(resource);
                         VcsShaderResourceBridge(resTabs, shaderFileContainer);
-                        AddContentTab(resTabs, "Reconstructed vfx", new ShaderExtract(resource).ToVFX(), true);
+                        AddContentTab(resTabs, extract.GetVfxFileName(), extract.ToVFX(), true);
                         break;
                 }
             }
