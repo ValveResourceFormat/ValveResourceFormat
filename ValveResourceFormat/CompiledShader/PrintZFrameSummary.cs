@@ -142,71 +142,71 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', headerText.Length));
             OutputWriteLine(
                 "This data (thought to be buffer write sequences) appear to be linked to the dynamic (D-param) configurations;\n" +
-                "each configuration points to exactly one sequence. WRITESEQ[0] is always defined and considered 'default'.\n");
+                "each configuration points to exactly one sequence. WRITESEQ[0] is always defined.");
 
-            var lastseq = writeSequences[-1];
             if (zframeFile.LeadingData.H0 > 0)
             {
                 OutputWriteLine("");
             }
-            var seqName = $"WRITESEQ[{lastseq}] (default)";
-            var leadData = zframeFile.LeadingData;
-            PrintParamWriteSequence(shaderFile, leadData.Dataload, leadData.H0, leadData.H1, leadData.H2, seqName: seqName);
-            OutputWriteLine("");
+
+            OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
+            tabulatedData.DefineHeaders(new string[] { "segment", "", "dest", "control" });
+            tabulatedData.AddTabulatedRow(new string[] { "", "", "", "" });
+
+            tabulatedData.AddTabulatedRow(new string[] { "WRITESEQ[0]", "", "", "" });
+            var dataBlock0 = zframeFile.LeadingData;
+            PrintParamWriteSequence(dataBlock0.Dataload, dataBlock0.H0, dataBlock0.H1, dataBlock0.H2, tabulatedData);
+            tabulatedData.AddTabulatedRow(new string[] { "", "", "", "" });
+
+            var lastSeq = writeSequences[-1];
             foreach (var item in writeSequences)
             {
-                if (item.Value > lastseq)
+                if (item.Value > lastSeq)
                 {
-                    lastseq = item.Value;
-                    var zBlock = zframeFile.DataBlocks[item.Key];
-                    seqName = $"WRITESEQ[{lastseq}]";
-                    PrintParamWriteSequence(shaderFile, zBlock.Dataload, zBlock.H0, zBlock.H1, zBlock.H2, seqName: seqName);
-                    OutputWriteLine("");
+                    lastSeq = item.Value;
+                    var dataBlock = zframeFile.DataBlocks[item.Key];
+                    tabulatedData.AddTabulatedRow(new string[] { $"WRITESEQ[{lastSeq}]", "", "", "" });
+                    PrintParamWriteSequence(dataBlock.Dataload, dataBlock.H0, dataBlock.H1, dataBlock.H2, tabulatedData);
+                    tabulatedData.AddTabulatedRow(new string[] { "", "", "", "" });
                 }
             }
+            tabulatedData.PrintTabulatedValues(spacing: 2);
             OutputWriteLine("");
         }
 
-        private void PrintParamWriteSequence(ShaderFile shaderFile, byte[] dataload, int h0, int h1, int h2, string seqName = "")
+        private void PrintParamWriteSequence(byte[] dataload, int h0, int h1, int h2,
+            OutputFormatterTabulatedData tabulatedData)
         {
-            var b2Desc = "dest";
-            var b3Desc = "control";
-            var dataBlockHeader = $"{seqName,-35} {b2Desc,-11} {b3Desc}";
-            OutputWriteLine(dataBlockHeader);
             if (h0 == 0)
             {
-                OutputWriteLine("[empty writesequence]");
+                OutputWriteLine("[empty seq.]");
                 return;
             }
-            for (var i = 0; i < h0; i++)
+            PrintParamWriteSequenceSegment(dataload, segStart: 0, segEnd: h1, segId: 0, tabulatedData);
+            PrintParamWriteSequenceSegment(dataload, segStart: h1, segEnd: h2, segId: 1, tabulatedData);
+            PrintParamWriteSequenceSegment(dataload, segStart: h2, segEnd: h0, segId: 2, tabulatedData);
+        }
+
+        private void PrintParamWriteSequenceSegment(byte[] dataload, int segStart, int segEnd, int segId,
+            OutputFormatterTabulatedData tabulatedData)
+        {
+            if (segEnd > segStart)
             {
-                int paramId = dataload[i * 4];
-                int b2 = dataload[i * 4 + 2];
-                int b3 = dataload[i * 4 + 3];
-                var b2Text = $"{b2,3} ({b2:X02})";
-                if (b2 == 0xff)
+                for (int i = segStart; i < segEnd; i++)
                 {
-                    b2Text = $"  _ ({b2:X02})";
+                    var paramId = dataload[i * 4];
+                    var arg0 = dataload[i * 4 + 2];
+                    var arg1 = dataload[i * 4 + 3];
+                    var segmentDesc = i == segStart ? $"seg_{segId}" : "";
+                    var paramDesc = $"{shaderFile.ParamBlocks[paramId].Name}[{paramId}]";
+                    var arg0Desc = arg0 == 0xff ? $"{"_",4}" : $"{arg0,4}";
+                    var arg1Desc = arg1 == 0xff ? $"{"_",7}" : $"{arg1,7}";
+                    tabulatedData.AddTabulatedRow(new string[] { segmentDesc, paramDesc, arg0Desc, arg1Desc });
                 }
-                var b3Text = $"{b3,3} ({b3:X02})";
-                if (b3 == 0xff)
-                {
-                    b3Text = $"  _ ({b2:X02})";
-                }
-                OutputWrite($"[{paramId,3}] {shaderFile.ParamBlocks[paramId].Name,-30} {b2Text,-14} {b3Text}");
-                if (i + 1 == h0 && h0 != h2)
-                {
-                    OutputWrite($"   // {h0}");
-                }
-                if (i + 1 == h1)
-                {
-                    OutputWrite($"   // {h1}");
-                }
-                if (i + 1 == h2)
-                {
-                    OutputWrite($"   // {h2}");
-                }
-                OutputWriteLine("");
+            }
+            else
+            {
+                tabulatedData.AddTabulatedRow(new string[] { $"seg_{segId}", "[empty]", "", "" });
             }
         }
 
