@@ -18,9 +18,9 @@ namespace ValveResourceFormat.CompiledShader
         public long ZframeId { get; }
         public ZDataBlock LeadingData { get; }
         public List<Attribute> Attributes { get; } = new();
-        public int[] LeadingSummary { get; } = Array.Empty<int>();
+        public int[] VShaderInputs { get; } = Array.Empty<int>();
         public List<ZDataBlock> DataBlocks { get; } = new();
-        public int[] TrailingSummary { get; }
+        public int[] UnknownArg { get; }
         public byte[] Flags0 { get; }
         public byte Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
@@ -62,11 +62,11 @@ namespace ValveResourceFormat.CompiledShader
             // this data is applicable to vertex shaders
             if (VcsProgramType == VcsProgramType.VertexShader)
             {
-                int summaryLength = DataReader.ReadInt16();
-                LeadingSummary = new int[summaryLength];
-                for (var i = 0; i < summaryLength; i++)
+                int vsInputBlockCount = DataReader.ReadInt16();
+                VShaderInputs = new int[vsInputBlockCount];
+                for (var i = 0; i < vsInputBlockCount; i++)
                 {
-                    LeadingSummary[i] = DataReader.ReadInt16();
+                    VShaderInputs[i] = DataReader.ReadInt16();
                 }
             }
             int dataBlockCount = DataReader.ReadInt16();
@@ -79,11 +79,11 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 DataBlocks.Add(dataBlock);
             }
-            int tailSummaryLength = DataReader.ReadInt16();
-            TrailingSummary = new int[tailSummaryLength];
-            for (var i = 0; i < tailSummaryLength; i++)
+            int uknownArgCount = DataReader.ReadInt16();
+            UnknownArg = new int[uknownArgCount];
+            for (var i = 0; i < uknownArgCount; i++)
             {
-                TrailingSummary[i] = DataReader.ReadInt16();
+                UnknownArg[i] = DataReader.ReadInt16();
             }
             Flags0 = DataReader.ReadBytes(4);
             Flagbyte0 = DataReader.ReadByte();

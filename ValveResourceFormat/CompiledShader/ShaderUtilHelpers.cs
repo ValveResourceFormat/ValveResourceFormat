@@ -154,8 +154,17 @@ namespace ValveResourceFormat.CompiledShader
                 var intPadded = $"{(v != 0 ? v : "_")}".PadLeft(padding);
                 valueString += $"{intPadded}";
             }
-            // return $"{valueString[0..^padding]}";
             return $"{valueString}";
+        }
+
+        public static string[] IntArrayToStrings(int[] ints, int nulledValue = int.MaxValue)
+        {
+            var stringTokens = new string[ints.Length];
+            for (int i = 0; i < ints.Length; i++)
+            {
+                stringTokens[i] = ints[i] == nulledValue ? "_" : $"{ints[i]}";
+            }
+            return stringTokens;
         }
 
         public static string CombineStringsSpaceSep(string[] strings0, int padding = 5)
@@ -352,24 +361,42 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 return newRow;
             }
-            public void PrintTabulatedValues(int spacing = 2)
+
+            public List<string> BuildTabulatedRows(int spacing = 2, bool reverse = false)
             {
+                List<string> tabbedRows = new();
                 if (tabulatedValues.Count == 1 && tabulatedValues[0].Count == 0)
                 {
-                    return;
+                    return tabbedRows;
                 }
-                foreach (var row in tabulatedValues)
+                foreach (var rowTokens in tabulatedValues)
                 {
-                    for (var i = 0; i < row.Count; i++)
+                    var tabbedRow = "";
+                    for (var i = 0; i < rowTokens.Count; i++)
                     {
                         var pad = columnWidths[i] + spacing;
-                        Write($"{row[i].PadRight(pad)}");
+                        tabbedRow += $"{rowTokens[i].PadRight(pad)}";
                     }
-                    Write("\n");
+                    if (tabbedRow.Length > 0)
+                    {
+                        tabbedRows.Add(tabbedRow[..^spacing]);
+                    }
+                }
+                if (reverse)
+                {
+                    tabbedRows.Reverse();
+                }
+                return tabbedRows;
+            }
+
+            public void PrintTabulatedValues(int spacing = 2)
+            {
+                List<string> tabbedRows = BuildTabulatedRows(spacing);
+                foreach (var row in tabbedRows)
+                {
+                    WriteLine(row);
                 }
             }
         }
-
-
     }
 }
