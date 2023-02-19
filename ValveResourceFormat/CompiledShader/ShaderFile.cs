@@ -571,7 +571,6 @@ namespace ValveResourceFormat.CompiledShader
                         {
                             throw new ShaderParserException("Decompressed zframe doesn't match expected size");
                         }
-                        zstdDecoder.Dispose();
                         return zframeUncompressed.ToArray();
                     }
 
