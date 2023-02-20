@@ -64,17 +64,14 @@ namespace ValveResourceFormat.CompiledShader
                 Arg7 = datareader.ReadInt32();
             }
 
-            if (AdditionalFiles == VcsAdditionalFiles.Psrs)
+            var modeCount = datareader.ReadInt32();
+            for (var i = VcsAdditionalFiles.None; i < AdditionalFiles; i++)
             {
-                datareader.BaseStream.Position += 4;
-            }
-            else if (AdditionalFiles == VcsAdditionalFiles.Rtx)
-            {
-                datareader.BaseStream.Position += 8;
-            }
+                // Note the modeCount is overwritten
+                modeCount = datareader.ReadInt32();
+            };
 
-            var mode_count = datareader.ReadInt32();
-            for (var i = 0; i < mode_count; i++)
+            for (var i = 0; i < modeCount; i++)
             {
                 var name = datareader.ReadNullTermStringAtPosition();
                 datareader.BaseStream.Position += 64;
@@ -91,21 +88,16 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             // Editor Id bytes, the length in-so-far is 16 bytes * (6 + AdditionalFiles + 1)
-            for (var program = VcsProgramType.Features; program <= VcsProgramType.Undetermined; program++)
+            var maxFileReference = (int)VcsProgramType.PixelShaderRenderState + (int)AdditionalFiles;
+            for (var i = 0; i < maxFileReference; i++)
             {
-                if (program == VcsProgramType.Undetermined)
-                {
-                    EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref - common editor reference shared by multiple files "));
-                    continue;
-                }
+                EditorIDs.Add((datareader.ReadBytesAsString(16), $"// Editor ref {i} to program {(VcsProgramType)i}"));
+            }
 
-                if ((AdditionalFiles == VcsAdditionalFiles.None && program > VcsProgramType.ComputeShader)
-                || (AdditionalFiles == VcsAdditionalFiles.Psrs && program > VcsProgramType.PixelShaderRenderState))
-                {
-                    continue;
-                }
-
-                EditorIDs.Add(($"{datareader.ReadBytesAsString(16)}", $"// Editor ref to {program}"));
+            if (VcsFileVersion >= 64)
+            {
+                EditorIDs.Add((datareader.ReadBytesAsString(16),
+                               $"// Editor ref {maxFileReference} - common editor reference shared by multiple files"));
             }
         }
 
