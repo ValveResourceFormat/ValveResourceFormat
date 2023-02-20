@@ -32,7 +32,8 @@ namespace ValveResourceFormat.ResourceTypes
             if (featuresOffset != 0)
             {
                 reader.BaseStream.Position = Offset + featuresOffset;
-                var features = new ShaderFile();
+                var features = new ShaderFile { IsSbox = true };
+
                 features.Read(
                     $"{shaderName}_pc_50_features.vcs",
                     new MemoryStream(reader.ReadBytes((int)featuresSize))
@@ -43,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (vertexOffset != 0)
             {
                 reader.BaseStream.Position = Offset + vertexOffset;
-                var vertex = new ShaderFile();
+                var vertex = new ShaderFile { IsSbox = true };
                 vertex.Read(
                     $"{shaderName}_pc_50_vs.vcs",
                     new MemoryStream(reader.ReadBytes((int)vertexSize))
@@ -54,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (pixelOffset != 0)
             {
                 reader.BaseStream.Position = Offset + pixelOffset;
-                var pixel = new ShaderFile();
+                var pixel = new ShaderFile { IsSbox = true };
                 pixel.Read(
                     $"{shaderName}_pc_50_ps.vcs",
                     new MemoryStream(reader.ReadBytes((int)pixelSize))
@@ -65,7 +66,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (geometryOffset != 0)
             {
                 reader.BaseStream.Position = Offset + geometryOffset;
-                var geometry = new ShaderFile();
+                var geometry = new ShaderFile { IsSbox = true };
                 geometry.Read(
                     $"{shaderName}_pc_50_gs.vcs",
                     new MemoryStream(reader.ReadBytes((int)geometrySize))
@@ -76,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (hullOffset != 0)
             {
                 reader.BaseStream.Position = Offset + hullOffset;
-                var hull = new ShaderFile();
+                var hull = new ShaderFile { IsSbox = true };
                 hull.Read(
                     $"{shaderName}_pc_50_hs.vcs",
                     new MemoryStream(reader.ReadBytes((int)hullSize))
@@ -87,7 +88,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (domainOffset != 0)
             {
                 reader.BaseStream.Position = Offset + domainOffset;
-                var domain = new ShaderFile();
+                var domain = new ShaderFile { IsSbox = true };
                 domain.Read(
                     $"{shaderName}_pc_50_ds.vcs",
                     new MemoryStream(reader.ReadBytes((int)domainSize))
@@ -98,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (computeOffset != 0)
             {
                 reader.BaseStream.Position = Offset + computeOffset;
-                var compute = new ShaderFile();
+                var compute = new ShaderFile { IsSbox = true };
                 compute.Read(
                     $"{shaderName}_pc_50_cs.vcs",
                     new MemoryStream(reader.ReadBytes((int)computeSize))

@@ -399,6 +399,17 @@ namespace GUI.Types.Viewers
                         var sb = new StringBuilder();
                         shader.PrintSummary((x) => sb.Append(x), true);
                         AddContentTab(shaderTabControl, shader.VcsProgramType.ToString(), sb.ToString());
+
+                        if (shader.GetZFrameCount() > 0)
+                        {
+                            for (var i = 0; i < Math.Min(4, shader.GetZFrameCount()); i++)
+                            {
+                                var zframeFile = shader.GetZFrameFileByIndex(i);
+                                using var sw = new StringWriter();
+                                var zframeSummary = new PrintZFrameSummary(shader, zframeFile, sw.Write, true);
+                                AddContentTab(shaderTabControl, $"Z{i}", sw.ToString());
+                            }
+                        }
                     }
                 }
 

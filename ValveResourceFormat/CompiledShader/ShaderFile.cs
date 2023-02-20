@@ -29,6 +29,7 @@ namespace ValveResourceFormat.CompiledShader
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
         public VsPsHeaderBlock VspsHeader { get; private set; }
         public int VcsVersion { get; private set; }
+        public bool IsSbox { get; init; }
         public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
         public List<SfBlock> SfBlocks { get; private set; } = new();
         public List<ConstraintBlock> SfConstraintBlocks { get; private set; } = new();
@@ -94,7 +95,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filenamepath, Stream input)
         {
-            DataReader = new ShaderDataReader(input);
+            DataReader = new ShaderDataReader(input) { IsSbox = IsSbox };
             FilenamePath = filenamepath;
             ParseFile();
         }

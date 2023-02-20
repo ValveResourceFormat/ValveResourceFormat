@@ -41,7 +41,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 throw new UnexpectedMagicException("Unexpected v64 value", (int)AdditionalFiles, nameof(AdditionalFiles));
             }
-            else if (AdditionalFiles == VcsAdditionalFiles.Rtx) // sbox
+            else if (datareader.IsSbox && AdditionalFiles == VcsAdditionalFiles.Rtx)
             {
                 datareader.BaseStream.Position += 4;
                 AdditionalFiles = VcsAdditionalFiles.None;
@@ -223,7 +223,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(VcsAdditionalFiles));
                 }
-                if (extraFile == VcsAdditionalFiles.Rtx)
+                if (datareader.IsSbox && extraFile == VcsAdditionalFiles.Rtx)
                 {
                     datareader.BaseStream.Position += 4;
                     VcsFileVersion--;
