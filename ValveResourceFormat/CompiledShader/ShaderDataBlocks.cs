@@ -564,19 +564,20 @@ namespace ValveResourceFormat.CompiledShader
             VfxType = (Vfx.Type)datareader.ReadInt32();
             ParamType = (ParameterType)datareader.ReadInt32();
 
-            Arg3 = datareader.ReadByte();
-            Arg4 = datareader.ReadByte();
-            Arg5 = datareader.ReadByte();
-            Arg6 = datareader.ReadByte();
-
-            VecSize = datareader.ReadInt32();
             if (vcsVersion > 62)
             {
-                Id = datareader.ReadByte();
-                Arg9 = datareader.ReadByte();
-                Arg10 = datareader.ReadByte();
-                Arg11 = datareader.ReadByte();
+                Arg3 = datareader.ReadByte();
+                Arg4 = datareader.ReadByte();
+                Arg5 = datareader.ReadByte();
+                Arg6 = datareader.ReadByte();
             }
+
+            VecSize = datareader.ReadInt32();
+
+            Id = datareader.ReadByte();
+            Arg9 = datareader.ReadByte();
+            Arg10 = datareader.ReadByte();
+            Arg11 = datareader.ReadByte();
 
             FileRef = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
