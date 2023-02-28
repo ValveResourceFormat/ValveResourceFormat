@@ -787,7 +787,7 @@ namespace ValveResourceFormat.CompiledShader
     {
         public int BlockIndex { get; }
 
-        public Channel Channel { get; }
+        public ChannelMapping Channel { get; }
         public int[] InputTextureIndices { get; } = new int[4];
         public int ColorMode { get; }
         public string Name { get; }
@@ -795,7 +795,7 @@ namespace ValveResourceFormat.CompiledShader
         public ChannelBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
-            Channel = (Channel)datareader.ReadUInt32();
+            Channel = (ChannelMapping)datareader.ReadUInt32();
             InputTextureIndices[0] = datareader.ReadInt32();
             InputTextureIndices[1] = datareader.ReadInt32();
             InputTextureIndices[2] = datareader.ReadInt32();

@@ -78,6 +78,52 @@ namespace Tests
         }
 
         [Test]
+        public void ChannelTest()
+        {
+            Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
+            Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
+            Assert.That(ChannelMapping.B.PackedValue, Is.EqualTo(0xFFFFFF02));
+            Assert.That(ChannelMapping.A.PackedValue, Is.EqualTo(0xFFFFFF03));
+            Assert.That(ChannelMapping.RGB.PackedValue, Is.EqualTo(0xFF020100));
+            Assert.That(ChannelMapping.RGBA.PackedValue, Is.EqualTo(0x03020100));
+
+            Assert.That(ChannelMapping.RGBA.Channels[0], Is.EqualTo(ChannelMapping.Channel.R));
+            Assert.That(ChannelMapping.RGBA.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
+            Assert.That(ChannelMapping.AG.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
+
+            Assert.That(ChannelMapping.RGBA.Count, Is.EqualTo(4));
+            Assert.That(ChannelMapping.RGB.Count, Is.EqualTo(3));
+            Assert.That(ChannelMapping.RG.Count, Is.EqualTo(2));
+            Assert.That(ChannelMapping.G.Count, Is.EqualTo(1));
+            Assert.That(ChannelMapping.NULL.Count, Is.EqualTo(0));
+
+            Assert.That(ChannelMapping.RGBA.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A }));
+            Assert.That(ChannelMapping.RGB.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
+            Assert.That(ChannelMapping.RG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
+            Assert.That(ChannelMapping.AG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.G }));
+            Assert.That(ChannelMapping.A.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A }));
+            Assert.That(ChannelMapping.R.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R }));
+
+            Assert.That((byte)ChannelMapping.R, Is.EqualTo(0x00));
+            Assert.That((byte)ChannelMapping.G, Is.EqualTo(0x01));
+            Assert.That((byte)ChannelMapping.B, Is.EqualTo(0x02));
+            Assert.That((byte)ChannelMapping.A, Is.EqualTo(0x03));
+
+            Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
+            Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));
+            Assert.That(ChannelMapping.B.ToString(), Is.EqualTo("B"));
+            Assert.That(ChannelMapping.A.ToString(), Is.EqualTo("A"));
+            Assert.That(ChannelMapping.AG.ToString(), Is.EqualTo("AG"));
+            Assert.That(ChannelMapping.RGB.ToString(), Is.EqualTo("RGB"));
+            Assert.That(ChannelMapping.NULL.ToString(), Is.EqualTo("0xFFFFFFFF"));
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x04));
+            Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
+
+            Assert.That(ChannelMapping.FromChannels(0xFF), Is.EqualTo(ChannelMapping.NULL));
+        }
+
+        [Test]
         public void VfxShaderExtract_Invalid()
         {
             var path = Path.Combine(ShadersDir, "error_pcgl_40_ps.vcs");
