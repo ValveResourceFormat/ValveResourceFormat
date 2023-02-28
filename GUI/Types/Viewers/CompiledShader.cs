@@ -63,18 +63,9 @@ namespace GUI.Types.Viewers
             var helpText = "[ctrl+click to open and focus links, ESC or right-click on tabs to close]\n\n";
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
 
-            {
-                var extract = new ShaderExtract(shaderCollection);
-                var control = new MonospaceTextBox
-                {
-                    Text = extract.ToVFX().ReplaceLineEndings(),
-                };
+            var extract = new ShaderExtract(shaderCollection);
+            IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, true);
 
-                var vfx = new TabPage(extract.GetVfxFileName());
-                vfx.Controls.Add(control);
-                tabControl.TabPages.Add(vfx);
-                tabControl.SelectTab(vfx);
-            }
             return tab;
         }
 

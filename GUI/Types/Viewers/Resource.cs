@@ -361,23 +361,6 @@ namespace GUI.Types.Viewers
 
                 resTabs.TabPages.Add(tab2);
 
-                static void AddContentTab(TabControl resTabs, string name, string text, bool selected = false)
-                {
-                    var control = new MonospaceTextBox
-                    {
-                        Text = text.ReplaceLineEndings(),
-                    };
-
-                    var tab = new TabPage(name);
-                    tab.Controls.Add(control);
-                    resTabs.TabPages.Add(tab);
-
-                    if (selected)
-                    {
-                        resTabs.SelectTab(tab);
-                    }
-                }
-
                 static void VcsShaderResourceBridge(TabControl resTabs, SboxShader sboxShader)
                 {
                     var shaderTab = new TabPage("Embedded Shader");
@@ -398,7 +381,7 @@ namespace GUI.Types.Viewers
 
                         var sb = new StringBuilder();
                         shader.PrintSummary((x) => sb.Append(x), true);
-                        AddContentTab(shaderTabControl, shader.VcsProgramType.ToString(), sb.ToString());
+                        IViewer.AddContentTab(shaderTabControl, shader.VcsProgramType.ToString(), sb.ToString());
 
                         if (shader.GetZFrameCount() > 0)
                         {
@@ -407,7 +390,7 @@ namespace GUI.Types.Viewers
                                 var zframeFile = shader.GetZFrameFileByIndex(i);
                                 using var sw = new StringWriter();
                                 var zframeSummary = new PrintZFrameSummary(shader, zframeFile, sw.Write, true);
-                                AddContentTab(shaderTabControl, $"Z{i}", sw.ToString());
+                                IViewer.AddContentTab(shaderTabControl, $"Z{i}", sw.ToString());
                             }
                         }
                     }
@@ -421,15 +404,15 @@ namespace GUI.Types.Viewers
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Material:
-                        AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
+                        IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
                         break;
 
                     case ResourceType.EntityLump:
-                        AddContentTab(resTabs, "Entities", ((EntityLump)block).ToEntityDumpString());
+                        IViewer.AddContentTab(resTabs, "Entities", ((EntityLump)block).ToEntityDumpString());
                         break;
 
                     case ResourceType.PostProcessing:
-                        AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
+                        IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
                         break;
 
                     case ResourceType.Texture:
@@ -440,11 +423,11 @@ namespace GUI.Types.Viewers
                             }
 
                             var textureExtract = new TextureExtract(resource);
-                            AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
+                            IViewer.AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
 
                             if (textureExtract.TryGetMksData(out var _, out var mks))
                             {
-                                AddContentTab(resTabs, "Reconstructed mks", mks);
+                                IViewer.AddContentTab(resTabs, "Reconstructed mks", mks);
                             }
 
                             break;
@@ -454,7 +437,7 @@ namespace GUI.Types.Viewers
                         {
                             if (!FileExtract.IsChildResource(resource))
                             {
-                                AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
+                                IViewer.AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
                             }
 
                             break;
@@ -464,7 +447,7 @@ namespace GUI.Types.Viewers
                         var shaderFileContainer = (SboxShader)block;
                         var extract = new ShaderExtract(resource);
                         VcsShaderResourceBridge(resTabs, shaderFileContainer);
-                        AddContentTab(resTabs, extract.GetVfxFileName(), extract.ToVFX(), true);
+                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
                         break;
                 }
             }
