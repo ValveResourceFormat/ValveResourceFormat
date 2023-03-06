@@ -40,7 +40,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             PrintConfigurationState();
             PrintAttributes();
-            var writeSequences = GetWriteSequences();
+            var writeSequences = GetBlockToUniqueSequenceMap();
             PrintWriteSequences(writeSequences);
             PrintDynamicConfigurations(writeSequences);
             OutputWrite("\n");
@@ -83,18 +83,12 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /*
-         * Occasionally leadingData.h0 (leadingData is the first datablock, always present) is 0 we create the empty
-         * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
-         * sequence doesn't contain any data and not needed.
-         *
+         * Because the write sequences are often repeated, we only print the unique ones.
          */
-        private SortedDictionary<int, int> GetWriteSequences()
+        public Dictionary<string, int> GetUniqueWriteSequences()
         {
             Dictionary<string, int> writeSequences = new();
-            SortedDictionary<int, int> sequencesMap = new();
             var seqCount = 0;
-            // IMP the first entry is always set 0 regardless of whether the leading datablock carries any data
-            sequencesMap.Add(zframeFile.LeadingData.BlockId, 0);
             if (zframeFile.LeadingData.H0 == 0)
             {
                 writeSequences.Add("", seqCount++);
@@ -108,22 +102,46 @@ namespace ValveResourceFormat.CompiledShader
             {
                 if (zBlock.Dataload == null)
                 {
+                    continue;
+                }
+
+                var dataloadStr = BytesToString(zBlock.Dataload, -1);
+                if (!writeSequences.ContainsKey(dataloadStr))
+                {
+                    writeSequences.Add(dataloadStr, seqCount++);
+                }
+            }
+
+            return writeSequences;
+        }
+
+        /*
+         * Occasionally leadingData.h0 (leadingData is the first datablock, always present) is 0 we create the empty
+         * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
+         * sequence doesn't contain any data and not needed.
+         */
+        public SortedDictionary<int, int> GetBlockToUniqueSequenceMap()
+        {
+            SortedDictionary<int, int> sequencesMap = new()
+            {
+                // IMP the first entry is always set 0 regardless of whether the leading datablock carries any data
+                { zframeFile.LeadingData.BlockId, 0 }
+            };
+
+            var uniqueSequences = GetUniqueWriteSequences();
+
+            foreach (var zBlock in zframeFile.DataBlocks)
+            {
+                if (zBlock.Dataload == null)
+                {
                     sequencesMap.Add(zBlock.BlockId, -1);
                     continue;
                 }
+
                 var dataloadStr = BytesToString(zBlock.Dataload, -1);
-                var seq = writeSequences.GetValueOrDefault(dataloadStr, -1);
-                if (seq == -1)
-                {
-                    writeSequences.Add(dataloadStr, seqCount);
-                    sequencesMap.Add(zBlock.BlockId, seqCount);
-                    seqCount++;
-                }
-                else
-                {
-                    sequencesMap.Add(zBlock.BlockId, seq);
-                }
+                sequencesMap.Add(zBlock.BlockId, uniqueSequences[dataloadStr]);
             }
+
             return sequencesMap;
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using NUnit.Framework;
@@ -78,6 +79,30 @@ namespace Tests
         }
 
         [Test]
+        public void TestZFrameWriteSequences()
+        {
+            var path = Path.Combine(ShadersDir, "error_pcgl_40_ps.vcs");
+            using var shader = new ShaderFile();
+            shader.Read(path);
+
+            using var zFrameFile = shader.GetZFrameFile(0);
+            using var sw = new StringWriter();
+            var zframeSummary = new PrintZFrameSummary(shader, zFrameFile, sw.Write, true);
+
+            var wsCount = zframeSummary.GetUniqueWriteSequences().Count;
+            Assert.That(wsCount, Is.EqualTo(1));
+
+            var zBlockToWS = zframeSummary.GetBlockToUniqueSequenceMap();
+            var expected = new Dictionary<int, int>
+            {
+                {-1, 0},
+                {0, 0},
+            };
+
+            Assert.That(zBlockToWS, Is.EqualTo(expected));
+        }
+
+        [Test]
         public void ChannelTest()
         {
             Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
@@ -108,6 +133,10 @@ namespace Tests
             Assert.That((byte)ChannelMapping.G, Is.EqualTo(0x01));
             Assert.That((byte)ChannelMapping.B, Is.EqualTo(0x02));
             Assert.That((byte)ChannelMapping.A, Is.EqualTo(0x03));
+
+            Assert.That(ChannelMapping.R, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF00)));
+            Assert.That(ChannelMapping.G, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF01)));
+            Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF0103)));
 
             Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
             Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));

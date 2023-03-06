@@ -307,6 +307,21 @@ namespace Tests
             Assert.AreEqual(expectedResult2, new VfxEval(testInput2, omitReturnStatement: true).DynamicExpressionResult);
         }
 
+        [Test]
+        public void TestNestedTernary()
+        {
+            var nestedTernaryBin = ParseString(
+                "1A 05 07 00 00 00 00 0D 04 0D 00 15 00 07 00 00 AA 42 02 59 00 " +
+                "1A 05 07 00 00 80 3F 0D 04 22 00 2A 00 07 00 00 A0 41 02 59 00 " +
+                "1A 05 07 00 00 00 40 0D 04 37 00 3F 00 07 00 00 A8 41 02 59 00 " +
+                "1A 05 07 00 00 40 40 0D 04 4C 00 54 00 07 00 00 00 00 02 59 00 07 00 00 00 00 00");
+
+            // (F_TEXTURE_FILTERING == 0 ? ANISOTROPIC : (F_TEXTURE_FILTERING == 1 ? BILINEAR : (F_TEXTURE_FILTERING == 2 ? TRILINEAR : (F_TEXTURE_FILTERING == 3 ? POINT : NEAREST))))
+            var expectedResult = "(COND[5]==3) ? 0 : 0";
+
+            Assert.AreEqual(expectedResult, new VfxEval(nestedTernaryBin, omitReturnStatement: true).DynamicExpressionResult);
+        }
+
         /*
          * recent functions
          *
