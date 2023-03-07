@@ -24,6 +24,7 @@ namespace ValveResourceFormat.ResourceTypes
         public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
         public const int MAGIC2 = 0x4B563301; // KV3\x01
         public const int MAGIC3 = 0x4B563302; // KV3\x02
+        public const int MAGIC4 = 0x4B563303; // KV3\x03
 
         public KVObject Data { get; private set; }
         public Guid Encoding { get; private set; }
@@ -59,6 +60,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case MAGIC: ReadVersion1(reader); break;
                 case MAGIC2: ReadVersion2(reader); break;
                 case MAGIC3: ReadVersion3(reader); break;
+                case MAGIC4: ReadVersion3(reader); break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
         }
