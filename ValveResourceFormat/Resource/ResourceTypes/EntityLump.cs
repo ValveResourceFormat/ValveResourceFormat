@@ -90,6 +90,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         EntityFieldType.Boolean => dataReader.ReadBoolean(),
                         EntityFieldType.Float => dataReader.ReadSingle(),
+                        EntityFieldType.Float64 => dataReader.ReadDouble(),
                         EntityFieldType.Color32 => dataReader.ReadBytes(4),
                         EntityFieldType.Integer => dataReader.ReadInt32(),
                         EntityFieldType.UInt => dataReader.ReadUInt32(),
