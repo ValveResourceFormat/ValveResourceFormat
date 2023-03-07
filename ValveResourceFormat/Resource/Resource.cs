@@ -240,7 +240,7 @@ namespace ValveResourceFormat
 
                     var magic = Reader.ReadUInt32();
 
-                    if (magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2 || magic == BinaryKV3.MAGIC3)
+                    if (BinaryKV3.IsBinaryKV3(magic))
                     {
                         block = new BinaryKV3();
                     }

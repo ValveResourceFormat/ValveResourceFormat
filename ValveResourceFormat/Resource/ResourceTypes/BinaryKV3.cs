@@ -26,6 +26,8 @@ namespace ValveResourceFormat.ResourceTypes
         public const int MAGIC3 = 0x4B563302; // KV3\x02
         public const int MAGIC4 = 0x4B563303; // KV3\x03
 
+        public static bool IsBinaryKV3(uint magic) => magic is MAGIC or MAGIC2 or MAGIC3 or MAGIC4;
+
         public KVObject Data { get; private set; }
         public Guid Encoding { get; private set; }
         public Guid Format { get; private set; }

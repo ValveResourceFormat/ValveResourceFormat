@@ -363,9 +363,12 @@ namespace Decompiler
                 case ShaderFile.MAGIC: ParseVCS(path, stream); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
-                case BinaryKV3.MAGIC3:
-                case BinaryKV3.MAGIC2:
-                case BinaryKV3.MAGIC: ParseKV3(path, stream); return;
+            }
+
+            if (BinaryKV3.IsBinaryKV3(magic))
+            {
+                ParseKV3(path, stream);
+                return;
             }
 
             var pathExtension = Path.GetExtension(path);

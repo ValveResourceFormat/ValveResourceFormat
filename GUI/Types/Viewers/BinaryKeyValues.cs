@@ -8,10 +8,7 @@ namespace GUI.Types.Viewers
 {
     public class BinaryKeyValues : IViewer
     {
-        public static bool IsAccepted(uint magic)
-        {
-            return magic == BinaryKV3.MAGIC || magic == BinaryKV3.MAGIC2 || magic == BinaryKV3.MAGIC3;
-        }
+        public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
