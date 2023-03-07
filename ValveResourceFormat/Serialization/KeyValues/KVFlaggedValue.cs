@@ -9,10 +9,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
         None = 0,
         Resource = 1,
         ResourceName = 2,
-        MultilineString = 4,
-        Panorama = 8,
-        SoundEvent = 16,
-        SubClass = 32,
+        Panorama = 3,
+        SoundEvent = 4,
+        SubClass = 5,
+        // March 2023: There are more types available in the S2 binaries, but they should not be persisted.
     }
 
     public class KVFlaggedValue : KVValue

@@ -40,6 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
         private long currentTypeIndex;
         private long currentEightBytesOffset;
         private long currentBinaryBytesOffset = -1;
+        private bool isUsingLinearFlagTypes; // Version KV3\x03 uses a different enum for mapping flags
 
         public BinaryKV3()
         {
@@ -62,7 +63,10 @@ namespace ValveResourceFormat.ResourceTypes
                 case MAGIC: ReadVersion1(reader); break;
                 case MAGIC2: ReadVersion2(reader); break;
                 case MAGIC3: ReadVersion3(reader); break;
-                case MAGIC4: ReadVersion3(reader); break;
+                case MAGIC4:
+                    isUsingLinearFlagTypes = true;
+                    ReadVersion3(reader);
+                    break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
         }
@@ -508,9 +512,36 @@ namespace ValveResourceFormat.ResourceTypes
                 databyte = reader.ReadByte();
             }
 
+            if (databyte == 134)
+            {
+                var t = 1;
+            }
+
             var flagInfo = KVFlag.None;
 
-            if ((databyte & 0x80) > 0)
+            if (isUsingLinearFlagTypes)
+            {
+                if ((databyte & 0x80) > 0)
+                {
+                    databyte &= 0x3F; // Remove the flag bit
+
+                    // TODO: Do new kv3 types always have typesArray?
+                    if (typesArray != null)
+                    {
+                        flagInfo = (KVFlag)typesArray[currentTypeIndex++];
+                    }
+                    else
+                    {
+                        flagInfo = (KVFlag)reader.ReadByte();
+                    }
+
+                    if (flagInfo > KVFlag.SubClass)
+                    {
+                        throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
+                    }
+                }
+            }
+            else if ((databyte & 0x80) > 0) // TODO: Valve's new code also checks for 0x40 even for old kv3 version
             {
                 databyte &= 0x7F; // Remove the flag bit
 
@@ -522,6 +553,19 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     flagInfo = (KVFlag)reader.ReadByte();
                 }
+
+                // Strictly speaking there could be more than one flag set, but in practice it was seemingly never.
+                // Valve's new code just sets whichever flag is highest, new kv3 version does not support multiple flags at once.
+                flagInfo = (int)flagInfo switch
+                {
+                    0 => KVFlag.None,
+                    1 => KVFlag.Resource,
+                    2 => KVFlag.ResourceName,
+                    8 => KVFlag.Panorama,
+                    16 => KVFlag.SoundEvent,
+                    32 => KVFlag.SubClass,
+                    _ => throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo))
+                };
             }
 
             return ((KVType)databyte, flagInfo);
