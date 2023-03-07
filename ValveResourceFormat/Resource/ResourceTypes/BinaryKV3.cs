@@ -512,11 +512,6 @@ namespace ValveResourceFormat.ResourceTypes
                 databyte = reader.ReadByte();
             }
 
-            if (databyte == 134)
-            {
-                var t = 1;
-            }
-
             var flagInfo = KVFlag.None;
 
             if (isUsingLinearFlagTypes)
@@ -552,6 +547,12 @@ namespace ValveResourceFormat.ResourceTypes
                 else
                 {
                     flagInfo = (KVFlag)reader.ReadByte();
+                }
+
+                if (((int)flagInfo & 4) > 0) // Multiline string
+                {
+                    databyte = (int)KVType.STRING_MULTI;
+                    flagInfo &= (KVFlag)4;
                 }
 
                 // Strictly speaking there could be more than one flag set, but in practice it was seemingly never.
@@ -679,6 +680,7 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, 1.0D, flagInfo));
                     break;
                 case KVType.STRING:
+                case KVType.STRING_MULTI:
                     var id = reader.ReadInt32();
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
