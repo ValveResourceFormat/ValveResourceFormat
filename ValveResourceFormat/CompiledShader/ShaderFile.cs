@@ -359,7 +359,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             DataReader.ShowByteCount();
             var ChannelBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{ChannelBlockCount} Mipmap blocks (280 bytes each)");
+            DataReader.ShowBytes(4, $"{ChannelBlockCount} Channel blocks (280 bytes each)");
             DataReader.BreakLine();
             foreach (var ChannelBlock in ChannelBlocks)
             {

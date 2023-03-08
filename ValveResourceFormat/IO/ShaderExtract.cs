@@ -59,6 +59,7 @@ public sealed class ShaderExtract
 
     private IReadOnlyList<string> FeatureNames { get; set; }
     private string[] Globals { get; set; }
+    private HashSet<string> VariantParameters { get; set; }
 
     private ShaderExtractParams Options { get; set; }
     private Dictionary<string, IndentedTextWriter> IncludeWriters { get; set; }
@@ -487,14 +488,14 @@ public sealed class ShaderExtract
 
         HandleStaticCombos(shader.SfBlocks, shader.SfConstraintBlocks, writer);
         HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintBlocks, writer);
-        HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
+
+        HandleInvariantParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
 
         if (shader.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
         {
-            HandleParameters(PixelShaderRenderState.ParamBlocks, PixelShaderRenderState.ChannelBlocks, writer);
+            HandleInvariantParameters(PixelShaderRenderState.ParamBlocks, PixelShaderRenderState.ChannelBlocks, writer);
         }
 
-        // zframe stuff
         HandleZFrames(shader, writer);
 
         writer.Indent--;
@@ -553,6 +554,11 @@ public sealed class ShaderExtract
             attributesDisect[configState] = zframeAttributes;
         }
 
+        WriteAttributes(shader.SfBlocks, writer, attributesDisect, perConditionAttributes);
+    }
+
+    private void WriteAttributes(IReadOnlyList<SfBlock> sfBlocks, IndentedTextWriter writer, Dictionary<int[], HashSet<string>> attributesDisect, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
+    {
         if (attributesDisect.Values.First().Count != 0 || !Options.StaticComboAttributes_NoSeparateGlobals)
         {
             var invariants = new HashSet<string>(attributesDisect.Values.First());
@@ -595,7 +601,7 @@ public sealed class ShaderExtract
                     continue;
                 }
 
-                var conditions = string.Join(" && ", config.Select((v, i) => $"{shader.SfBlocks[i].Name} == {v}"));
+                var conditions = string.Join(" && ", config.Select((v, i) => $"{sfBlocks[i].Name} == {v}"));
                 writer.WriteLine($"#if ({conditions})");
                 writer.Indent++;
                 foreach (var attribute in attributes)
@@ -637,8 +643,8 @@ public sealed class ShaderExtract
 
         foreach (var (condition, attributes) in perConditionAttributes)
         {
-            var rangeMin = shader.SfBlocks[condition.Index].RangeMin;
-            var rangeMax = shader.SfBlocks[condition.Index].RangeMax;
+            var rangeMin = sfBlocks[condition.Index].RangeMin;
+            var rangeMax = sfBlocks[condition.Index].RangeMax;
             var stateIsIrrelevant = false;
 
             for (var j = rangeMin; j <= rangeMax; j++)
@@ -658,7 +664,7 @@ public sealed class ShaderExtract
                 continue;
             }
 
-            var stateName = shader.SfBlocks[condition.Index].Name;
+            var stateName = sfBlocks[condition.Index].Name;
             writer.WriteLine($"#if ({stateName} == {condition.State})");
             writer.Indent++;
             foreach (var attribute in attributes)
@@ -833,14 +839,27 @@ public sealed class ShaderExtract
         }
     }
 
-    private void HandleParameters(List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
+    private void HandleInvariantParameters(List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
     {
         if (paramBlocks.Count == 0)
         {
             return;
         }
 
-        foreach (var byHeader in paramBlocks.GroupBy(p => ParseUiGroup(p.UiGroup).Heading))
+        VariantParameters = new HashSet<string>();
+        var encountered = new HashSet<string>(paramBlocks.Count);
+        foreach (var paramBlock in paramBlocks)
+        {
+            if (encountered.Contains(paramBlock.Name))
+            {
+                VariantParameters.Add(paramBlock.Name);
+                continue;
+            }
+
+            encountered.Add(paramBlock.Name);
+        }
+
+        foreach (var byHeader in paramBlocks.GroupBy(p => p.UiGroup.Heading))
         {
             writer.WriteLine();
             if (!string.IsNullOrEmpty(byHeader.Key))
@@ -848,9 +867,25 @@ public sealed class ShaderExtract
                 writer.WriteLine($"// {byHeader.Key}");
             }
 
-            foreach (var param in byHeader.OrderBy(p => ParseUiGroup(p.UiGroup).VariableOrder))
+            foreach (var param in byHeader.OrderBy(p => p.UiGroup.VariableOrder))
             {
-                WriteParam(param);
+                if (!VariantParameters.Contains(param.Name))
+                {
+                    WriteParam(param);
+                }
+            }
+        }
+
+        if (VariantParameters.Count > 0)
+        {
+            writer.WriteLine();
+            writer.WriteLine("// Variant Parameters");
+            foreach (var paramBlock in paramBlocks)
+            {
+                if (VariantParameters.Contains(paramBlock.Name))
+                {
+                    WriteParam(paramBlock);
+                }
             }
         }
 
@@ -904,7 +939,6 @@ public sealed class ShaderExtract
                     }
                     else
                     {
-                        var funcName = intDefsCutOff == 3 ? "Default" : "Default" + (4 - intDefsCutOff);
                         var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
                         attributes.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
                     }
@@ -951,9 +985,9 @@ public sealed class ShaderExtract
                     attributes.Add($"UiType({param.UiType});");
                 }
 
-                if (param.UiGroup.Length > 0)
+                if (param.UiGroup.CompactString.Length > 0)
                 {
-                    attributes.Add($"UiGroup(\"{param.UiGroup}\");");
+                    attributes.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
                 }
 
                 if (param.DynExp.Length > 0)
@@ -1049,57 +1083,8 @@ public sealed class ShaderExtract
     private static string GetVfxAttributes(List<string> attributes)
     {
         return attributes.Count > 0
-            ? " < " + string.Join(" ", attributes) + " > "
+            ? " < " + string.Join(" ", attributes) + " >"
             : string.Empty;
-    }
-
-    private static (string Heading, int HeadingOrder, string Group, int GroupOrder, int VariableOrder) ParseUiGroup(string uiGroup)
-    {
-        (string Heading, int HeadingOrder, string Group, int GroupOrder, int VariableOrder) parsed = (string.Empty, 0, string.Empty, 0, 0);
-
-        if (uiGroup.Length == 0)
-        {
-            return parsed;
-        }
-
-        var parts = uiGroup.Split("/", 3, StringSplitOptions.TrimEntries).Select(p => p.Split(",", 2, StringSplitOptions.TrimEntries)).ToArray();
-        for (var i = 0; i < parts.Length; i++)
-        {
-            var name = string.Empty;
-            var order = 0;
-
-            for (var j = 0; j < parts[i].Length; j++)
-            {
-                if (!int.TryParse(parts[i][j], out order))
-                {
-                    name = parts[i][j];
-                }
-            }
-
-            switch (i)
-            {
-                case 0:
-                    parsed.Heading = name;
-                    parsed.HeadingOrder = order;
-                    break;
-                case 1:
-                    if (parts.Length == 2)
-                    {
-                        parsed.VariableOrder = order;
-                    }
-                    else
-                    {
-                        parsed.Group = name;
-                        parsed.GroupOrder = order;
-                    }
-                    break;
-                case 2:
-                    parsed.VariableOrder = order;
-                    break;
-            }
-        }
-
-        return parsed;
     }
 
     private static string GetChannelFromChannelBlock(ChannelBlock channelBlock, IReadOnlyList<ParamBlock> paramBlocks)

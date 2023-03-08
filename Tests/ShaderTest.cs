@@ -103,7 +103,7 @@ namespace Tests
         }
 
         [Test]
-        public void ChannelTest()
+        public void TestChannelMapping()
         {
             Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
             Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
@@ -211,6 +211,35 @@ namespace Tests
                 var vfx = extract.ToVFX(options);
                 Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
                 Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
+            }
+        }
+
+        [Test]
+        public void TestUiGroup()
+        {
+            var testCases = new Dictionary<string, UiGroup>
+            {
+                ["heading,10/2"] = new("heading", 10, variableOrder: 2),
+                ["heading,12/group,12/5"] = new("heading", 12, "group", 12, 5),
+
+                [string.Empty] = new(),
+                ["h,1/g,2"] = new("h", 1, variableOrder: 2),
+                ["h,1/g"] = new("h", 1),
+                ["h,1"] = new("h", 1),
+                ["h"] = new("h"),
+
+                ["//////"] = new(),
+                ["z,z,z/z,z,z,z/z,z,z,z/,z,z,z"] = new(heading: "z,z", group: "z,z,z"),
+            };
+
+            foreach (var (compactString, expected) in testCases)
+            {
+                var parsed = UiGroup.FromCompactString(compactString);
+                Assert.That(parsed.Heading, Is.EqualTo(expected.Heading));
+                Assert.That(parsed.HeadingOrder, Is.EqualTo(expected.HeadingOrder));
+                Assert.That(parsed.Group, Is.EqualTo(expected.Group));
+                Assert.That(parsed.GroupOrder, Is.EqualTo(expected.GroupOrder));
+                Assert.That(parsed.VariableOrder, Is.EqualTo(expected.VariableOrder));
             }
         }
     }

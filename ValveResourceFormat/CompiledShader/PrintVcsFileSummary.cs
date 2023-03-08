@@ -329,7 +329,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.AddTabulatedRow(new string[] {$"[{(""+param.BlockIndex).PadLeft(indexPad)}]", param.Name, param.UiType.ToString(),
                     $"{param.Lead0}", $"{param.Res0}", $"{BlankNegOne(param.Arg0),2}", $"{param.VfxType}", $"{param.ParamType}",
                     param.Arg3.ToString(), param.Arg4.ToString(), param.Arg5.ToString(), param.Arg6.ToString(), $"{param.VecSize,2}", param.Id.ToString(), param.Arg9.ToString(), param.Arg10.ToString(), param.Arg11.ToString(),
-                    $"{dynExpExists}", param.AttributeName, param.UiGroup, $"{c0}", $"{param.FileRef}"});
+                    $"{dynExpExists}", param.AttributeName, param.UiGroup.CompactString, $"{c0}", $"{param.FileRef}"});
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
@@ -387,10 +387,10 @@ namespace ValveResourceFormat.CompiledShader
                 output.DefineHeaders(Array.Empty<string>());
                 output.WriteLine("[none defined]");
             }
-            foreach (var mipmap in shaderFile.ChannelBlocks)
+            foreach (var channelBlock in shaderFile.ChannelBlocks)
             {
-                output.AddTabulatedRow(new string[] { $"[{mipmap.BlockIndex,2}]", $"{mipmap.Name}",
-                    mipmap.Channel.ToString(), string.Join(" ", mipmap.InputTextureIndices), $"{mipmap.ColorMode,2}" });
+                output.AddTabulatedRow(new string[] { $"[{channelBlock.BlockIndex,2}]", $"{channelBlock.Name}",
+                    channelBlock.Channel.ToString(), string.Join(" ", channelBlock.InputTextureIndices), $"{channelBlock.ColorMode,2}" });
             }
             output.PrintTabulatedValues();
             output.BreakLine();

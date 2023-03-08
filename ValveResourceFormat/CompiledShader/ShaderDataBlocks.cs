@@ -496,7 +496,7 @@ namespace ValveResourceFormat.CompiledShader
     {
         public int BlockIndex { get; }
         public string Name { get; }
-        public string UiGroup { get; }
+        public UiGroup UiGroup { get; }
         public string AttributeName { get; }
         public UiType UiType { get; }
         public float Res0 { get; }
@@ -536,7 +536,7 @@ namespace ValveResourceFormat.CompiledShader
             BlockIndex = blockIndex;
             Name = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
-            UiGroup = datareader.ReadNullTermStringAtPosition();
+            UiGroup = UiGroup.FromCompactString(datareader.ReadNullTermStringAtPosition());
             datareader.BaseStream.Position += 64;
             UiType = (UiType)datareader.ReadInt32();
             Res0 = datareader.ReadSingle();
@@ -807,7 +807,7 @@ namespace ValveResourceFormat.CompiledShader
         public void PrintByteDetail()
         {
             DataReader.BaseStream.Position = Start;
-            DataReader.ShowByteCount($"MIPMAP-BLOCK[{BlockIndex}]");
+            DataReader.ShowByteCount($"CHANNEL-BLOCK[{BlockIndex}]");
             DataReader.ShowBytes(24, 4);
             var name1 = DataReader.ReadNullTermStringAtPosition();
             DataReader.Comment($"{name1}");
