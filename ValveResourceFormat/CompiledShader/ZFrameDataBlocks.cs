@@ -1,5 +1,5 @@
 using System;
-using System.Globalization;
+using System.Collections.Generic;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -9,17 +9,44 @@ namespace ValveResourceFormat.CompiledShader
         public int H0 { get; }
         public int H1 { get; }
         public int H2 { get; }
+
         public byte[] Dataload { get; }
+        public WriteSeqField[] Fields { get; }
+        public IReadOnlyList<WriteSeqField> Segment0 => Fields[..H1];
+        public IReadOnlyList<WriteSeqField> Segment1 => Fields[H1..H2];
+        public IReadOnlyList<WriteSeqField> Segment2 => Fields[H2..];
         public ZDataBlock(ShaderDataReader datareader, int blockId) : base(datareader)
         {
             BlockId = blockId;
             H0 = datareader.ReadInt32();
             H1 = datareader.ReadInt32();
             H2 = datareader.ReadInt32();
+
+            Fields = new WriteSeqField[H0];
+            for (var i = 0; i < H0; i++)
+            {
+                Fields[i] = new WriteSeqField(datareader);
+            }
+
+            datareader.BaseStream.Position -= H0 * 4;
             if (H0 > 0)
             {
                 Dataload = datareader.ReadBytes(H0 * 4);
             }
+        }
+    }
+
+    public class WriteSeqField : ShaderDataBlock
+    {
+        public int ParamId { get; }
+        public byte Dest { get; }
+        public byte Control { get; }
+
+        public WriteSeqField(ShaderDataReader datareader) : base(datareader)
+        {
+            ParamId = datareader.ReadUInt16();
+            Dest = datareader.ReadByte();
+            Control = datareader.ReadByte();
         }
     }
 

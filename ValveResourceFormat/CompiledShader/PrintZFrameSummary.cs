@@ -156,7 +156,7 @@ namespace ValveResourceFormat.CompiledShader
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             tabulatedData.DefineHeaders(zframeFile.LeadingData.H0 > 0 ?
-                new string[] { "segment", "", "dest", "control" } :
+                new string[] { "segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control) } :
                 new string[] { "", "", "", "" });
             if (zframeFile.LeadingData.H0 > 0)
             {
@@ -164,7 +164,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             tabulatedData.AddTabulatedRow(new string[] { "WRITESEQ[0]", "", "", "" });
             var dataBlock0 = zframeFile.LeadingData;
-            PrintParamWriteSequence(dataBlock0.Dataload, dataBlock0.H0, dataBlock0.H1, dataBlock0.H2, tabulatedData);
+            PrintParamWriteSequence(dataBlock0, tabulatedData);
             tabulatedData.AddTabulatedRow(new string[] { "", "", "", "" });
 
             var lastSeq = writeSequences[-1];
@@ -175,7 +175,7 @@ namespace ValveResourceFormat.CompiledShader
                     lastSeq = item.Value;
                     var dataBlock = zframeFile.DataBlocks[item.Key];
                     tabulatedData.AddTabulatedRow(new string[] { $"WRITESEQ[{lastSeq}]", "", "", "" });
-                    PrintParamWriteSequence(dataBlock.Dataload, dataBlock.H0, dataBlock.H1, dataBlock.H2, tabulatedData);
+                    PrintParamWriteSequence(dataBlock, tabulatedData);
                     tabulatedData.AddTabulatedRow(new string[] { "", "", "", "" });
                 }
             }
@@ -183,31 +183,25 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine("");
         }
 
-        private void PrintParamWriteSequence(byte[] dataload, int h0, int h1, int h2,
-            OutputFormatterTabulatedData tabulatedData)
+        private void PrintParamWriteSequence(ZDataBlock dataBlock, OutputFormatterTabulatedData tabulatedData)
         {
-            PrintParamWriteSequenceSegment(dataload, segStart: 0, segEnd: h1, segId: 0, tabulatedData);
-            PrintParamWriteSequenceSegment(dataload, segStart: h1, segEnd: h2, segId: 1, tabulatedData);
-            PrintParamWriteSequenceSegment(dataload, segStart: h2, segEnd: h0, segId: 2, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.Segment0, 0, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.Segment1, 1, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.Segment2, 2, tabulatedData);
         }
 
-        private void PrintParamWriteSequenceSegment(byte[] dataload, int segStart, int segEnd, int segId,
-            OutputFormatterTabulatedData tabulatedData)
+        private void PrintParamWriteSequenceSegment(IReadOnlyList<WriteSeqField> segment, int segId, OutputFormatterTabulatedData tabulatedData)
         {
-            if (segEnd > segStart)
+            if (segment.Count > 0)
             {
-                for (var i = segStart; i < segEnd; i++)
+                for (var i = 0; i < segment.Count; i++)
                 {
-                    // What is [i*4+1] - does this sometimes fail?
-                    // var paramId = dataload[i * 4] + 256 * dataload[i * 4 + 1];
-                    var paramId = dataload[i * 4];
-                    var arg0 = dataload[i * 4 + 2];
-                    var arg1 = dataload[i * 4 + 3];
-                    var segmentDesc = i == segStart ? $"seg_{segId}" : "";
-                    var paramDesc = $"{shaderFile.ParamBlocks[paramId].Name}[{paramId}]";
-                    var arg0Desc = arg0 == 0xff ? $"{"_",4}" : $"{arg0,4}";
-                    var arg1Desc = arg1 == 0xff ? $"{"_",7}" : $"{arg1,7}";
-                    tabulatedData.AddTabulatedRow(new string[] { segmentDesc, paramDesc, arg0Desc, arg1Desc });
+                    var field = segment[i];
+                    var segmentDesc = i == 0 ? $"seg_{segId}" : "";
+                    var paramDesc = $"[{field.ParamId}] {shaderFile.ParamBlocks[field.ParamId].Name}";
+                    var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
+                    var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
+                    tabulatedData.AddTabulatedRow(new string[] { segmentDesc, paramDesc, arg1Desc, arg2Desc });
                 }
             }
             else
