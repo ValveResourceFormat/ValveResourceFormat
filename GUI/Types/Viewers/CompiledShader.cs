@@ -15,7 +15,6 @@ namespace GUI.Types.Viewers
 {
     public class CompiledShader : IDisposable, IViewer
     {
-
         public static bool IsAccepted(uint magic)
         {
             return magic == ShaderFile.MAGIC;
@@ -43,7 +42,6 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
-
             shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
             var filename = Path.GetFileName(vrfGuiContext.FileName);
             var leadFileType = ComputeVCSFileName(filename).ProgramType;

@@ -27,6 +27,15 @@ public sealed class ShaderExtract
 
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
         public bool NoHungarianTypeGuessing { get; init; }
+        public bool CanReadZFrames
+        {
+            get => ZFrameReadingCap != 0;
+            init
+            {
+                var cap = ZFrameReadingCap == 0 ? -1 : ZFrameReadingCap;
+                ZFrameReadingCap = value ? cap : 0;
+            }
+        }
         public int ZFrameReadingCap { get; init; }
         public bool StaticComboAttributes_NoSeparateGlobals { get; init; }
         public bool StaticComboAttributes_NoConditionalReduce { get; init; }
@@ -59,7 +68,8 @@ public sealed class ShaderExtract
 
     private IReadOnlyList<string> FeatureNames { get; set; }
     private string[] Globals { get; set; }
-    private HashSet<string> VariantParameters { get; set; }
+    private HashSet<string> VariantParameterNames { get; set; }
+    private HashSet<int> VariantParameterIndices { get; set; }
 
     private ShaderExtractParams Options { get; set; }
     private Dictionary<string, IndentedTextWriter> IncludeWriters { get; set; }
@@ -343,7 +353,7 @@ public sealed class ShaderExtract
                 var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.Type}{symbol.SemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
                 writer.Write($"{field,-94}");
 
-                if (masks[i].All(x => x) || Options.ZFrameReadingCap == 0)
+                if (masks[i].All(x => x) || !Options.CanReadZFrames)
                 {
                     writer.WriteLine();
                     continue;
@@ -489,14 +499,17 @@ public sealed class ShaderExtract
         HandleStaticCombos(shader.SfBlocks, shader.SfConstraintBlocks, writer);
         HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintBlocks, writer);
 
-        HandleInvariantParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
+        HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
+
+        HandleZFrames(shader, writer);
 
         if (shader.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
         {
-            HandleInvariantParameters(PixelShaderRenderState.ParamBlocks, PixelShaderRenderState.ChannelBlocks, writer);
+            writer.WriteLine();
+            writer.WriteLine("// PSRS");
+            HandleParameters(PixelShaderRenderState.ParamBlocks, PixelShaderRenderState.ChannelBlocks, writer);
+            HandleZFrames(PixelShaderRenderState, writer);
         }
-
-        HandleZFrames(shader, writer);
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -529,15 +542,19 @@ public sealed class ShaderExtract
 
     private void HandleZFrames(ShaderFile shader, IndentedTextWriter writer)
     {
-        if (shader.GetZFrameCount() == 0 || Options.ZFrameReadingCap == 0)
+        if (shader.GetZFrameCount() == 0 || !Options.CanReadZFrames)
         {
             return;
         }
 
-        ConfigMappingSParams configGen = new(shader);
+        ConfigMappingSParams staticConfig = new(shader);
 
+        // Attributes
         var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, shader.SfBlocks.Count - 1), new ConfigKeyComparer());
-        var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(configGen.SumStates);
+        var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(staticConfig.SumStates);
+
+        // Parameters
+        var perConditionParameters = new Dictionary<(int Index, int State), HashSet<int>>(staticConfig.SumStates);
 
         foreach (var i in Enumerable.Range(0, shader.GetZFrameCount()))
         {
@@ -547,17 +564,66 @@ public sealed class ShaderExtract
             }
 
             using var zFrame = shader.GetZFrameFileByIndex(i);
-            var zframeAttributes = new HashSet<string>();
-            GetZFrameAttributes(zFrame, shader.ParamBlocks, zframeAttributes);
+            var zframeAttributes = GetZFrameAttributes(zFrame, shader.ParamBlocks);
 
-            var configState = configGen.GetConfigState(zFrame.ZframeId);
-            attributesDisect[configState] = zframeAttributes;
+            var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
+            attributesDisect[staticConfigState] = zframeAttributes;
+
+            var variantParameters = GetVariantZFrameParameters(zFrame);
+            for (var j = 0; j < staticConfigState.Length; j++)
+            {
+                var key = (j, staticConfigState[j]);
+                if (perConditionParameters.TryGetValue(key, out var set))
+                {
+                    set.IntersectWith(variantParameters);
+                    if (set.Count == 0)
+                    {
+                        perConditionParameters.Remove(key);
+                    }
+                }
+                else
+                {
+                    perConditionParameters[key] = variantParameters;
+                }
+            }
         }
 
+        writer.WriteLine();
+        WriteVariantParameters(shader.SfBlocks, shader.ParamBlocks, shader.ChannelBlocks, writer, perConditionParameters);
         WriteAttributes(shader.SfBlocks, writer, attributesDisect, perConditionAttributes);
+
     }
 
-    private void WriteAttributes(IReadOnlyList<SfBlock> sfBlocks, IndentedTextWriter writer, Dictionary<int[], HashSet<string>> attributesDisect, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
+    private void WriteVariantParameters(IReadOnlyList<SfBlock> sfBlocks, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks,
+        IndentedTextWriter writer, Dictionary<(int Index, int State), HashSet<int>> perConditionParameters)
+    {
+        foreach (var (condition, parameters) in perConditionParameters)
+        {
+            if (IsIrrelevantCondition(sfBlocks, perConditionParameters, condition, parameters))
+            {
+                continue;
+            }
+
+            if (parameters.Count == 0 || parameters.All(p =>
+                paramBlocks[p].ParamType == ParameterType.SamplerState || paramBlocks[p].ParamType == ParameterType.Buffer))
+            {
+                continue;
+            }
+
+            var stateName = sfBlocks[condition.Index].Name;
+            writer.WriteLine($"#if ({stateName} == {condition.State})");
+            writer.Indent++;
+            foreach (var param in parameters)
+            {
+                WriteParam(paramBlocks[param], paramBlocks, channelBlocks, writer);
+            }
+            writer.Indent--;
+            writer.WriteLine("#endif");
+        }
+    }
+
+    private void WriteAttributes(IReadOnlyList<SfBlock> sfBlocks, IndentedTextWriter writer,
+        Dictionary<int[], HashSet<string>> attributesDisect, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
     {
         if (attributesDisect.Values.First().Count != 0 || !Options.StaticComboAttributes_NoSeparateGlobals)
         {
@@ -643,23 +709,7 @@ public sealed class ShaderExtract
 
         foreach (var (condition, attributes) in perConditionAttributes)
         {
-            var rangeMin = sfBlocks[condition.Index].RangeMin;
-            var rangeMax = sfBlocks[condition.Index].RangeMax;
-            var stateIsIrrelevant = false;
-
-            for (var j = rangeMin; j <= rangeMax; j++)
-            {
-                if (j == condition.State
-                || !perConditionAttributes.TryGetValue((condition.Index, j), out var otherAttributes)
-                || !otherAttributes.SetEquals(attributes))
-                {
-                    continue;
-                }
-
-                stateIsIrrelevant = true;
-            }
-
-            if (stateIsIrrelevant)
+            if (IsIrrelevantCondition(sfBlocks, perConditionAttributes, condition, attributes))
             {
                 continue;
             }
@@ -676,8 +726,31 @@ public sealed class ShaderExtract
         }
     }
 
-    private void GetZFrameAttributes(ZFrameFile zFrameFile, IReadOnlyList<ParamBlock> paramBlocks, HashSet<string> attributes)
+    private static bool IsIrrelevantCondition<T>(IReadOnlyList<SfBlock> sfBlocks, Dictionary<(int Index, int State),
+        HashSet<T>> perConditionStuff, (int Index, int State) condition, HashSet<T> stuff)
     {
+        var rangeMin = sfBlocks[condition.Index].RangeMin;
+        var rangeMax = sfBlocks[condition.Index].RangeMax;
+        var stateIsIrrelevant = false;
+
+        for (var j = rangeMin; j <= rangeMax; j++)
+        {
+            if (j == condition.State
+            || !perConditionStuff.TryGetValue((condition.Index, j), out var otherAttributes)
+            || !otherAttributes.SetEquals(stuff))
+            {
+                continue;
+            }
+
+            stateIsIrrelevant = true;
+        }
+
+        return stateIsIrrelevant;
+    }
+
+    private HashSet<string> GetZFrameAttributes(ZFrameFile zFrameFile, IReadOnlyList<ParamBlock> paramBlocks)
+    {
+        var attributes = new HashSet<string>();
         foreach (var attribute in zFrameFile.Attributes)
         {
             var type = Vfx.GetTypeName(attribute.VfxType);
@@ -726,6 +799,22 @@ public sealed class ShaderExtract
                 attributes.Add($"Attribute({type}, {attribute.Name0}, {value});");
             }
         }
+        return attributes;
+    }
+
+    public HashSet<int> GetVariantZFrameParameters(ZFrameFile zFrameFile)
+    {
+        var parameters = new HashSet<int>(VariantParameterIndices.Count);
+        foreach (var writeseq in Enumerable.Concat(Enumerable.Repeat(zFrameFile.LeadingData, 1), zFrameFile.DataBlocks))
+        {
+            foreach (var field in writeseq.Fields)
+            {
+                parameters.Add(field.ParamId);
+            }
+        }
+
+        parameters.IntersectWith(VariantParameterIndices);
+        return parameters;
     }
 
     private void HandleFeatures(List<SfBlock> features, List<ConstraintBlock> constraints, IndentedTextWriter writer)
@@ -756,7 +845,11 @@ public sealed class ShaderExtract
                     writer);
     }
 
-    private void HandleDynamicCombos(List<SfBlock> staticCombos, List<DBlock> dynamicCombos, List<ConstraintBlock> constraints, IndentedTextWriter writer)
+    private void HandleDynamicCombos(
+        List<SfBlock> staticCombos,
+        List<DBlock> dynamicCombos,
+        List<ConstraintBlock> constraints,
+        IndentedTextWriter writer)
     {
         HandleCombos(ConditionalType.Dynamic, dynamicCombos.Cast<ICombo>().ToList(), writer);
         HandleRules(ConditionalType.Dynamic,
@@ -781,28 +874,14 @@ public sealed class ShaderExtract
             }
             else
             {
-                // Not so sure about this one
+                // Not sure about this one
                 writer.WriteLine($"{comboType}Combo( {combo.Name}, {combo.RangeMax}, Sys( {combo.Arg3} ) );");
             }
         }
     }
 
-    private void HandleRules(ConditionalType conditionalType, List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintBlock> constraints, IndentedTextWriter writer)
-    {
-        foreach (var rule in HandleConstraintsY(staticCombos, dynamicCombos, constraints))
-        {
-            if (conditionalType == ConditionalType.Feature)
-            {
-                writer.WriteLine($"FeatureRule( {rule.Constraint}, \"{rule.Description}\" );");
-            }
-            else
-            {
-                writer.WriteLine($"{conditionalType}ComboRule( {rule.Constraint} );");
-            }
-        }
-    }
-
-    private IEnumerable<(string Constraint, string Description)> HandleConstraintsY(List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintBlock> constraints)
+    private void HandleRules(ConditionalType conditionalType, List<ICombo> staticCombos, List<ICombo> dynamicCombos, List<ConstraintBlock> constraints,
+        IndentedTextWriter writer)
     {
         foreach (var constraint in constraints)
         {
@@ -835,28 +914,42 @@ public sealed class ShaderExtract
                 constrainedNames = constrainedNames.Take(1).Concat(constrainedNames.Skip(1).Select((s, i) => $"{s} == {constraint.Values[i]}")).ToList();
             }
 
-            yield return ($"{constraint.Rule}{constraint.Range2[0]}( {string.Join(", ", constrainedNames)} )", constraint.Description);
+            var rule = $"{constraint.Rule}{constraint.Range2[0]}( {string.Join(", ", constrainedNames)} )";
+
+            writer.WriteLine(conditionalType == ConditionalType.Feature
+                ? $"FeatureRule( {rule}, \"{constraint.Description}\" );"
+                : $"{conditionalType}ComboRule( {rule} );"
+            );
         }
     }
 
-    private void HandleInvariantParameters(List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
+    private void HandleParameters(List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
     {
         if (paramBlocks.Count == 0)
         {
             return;
         }
 
-        VariantParameters = new HashSet<string>();
+        VariantParameterNames = new HashSet<string>();
         var encountered = new HashSet<string>(paramBlocks.Count);
         foreach (var paramBlock in paramBlocks)
         {
             if (encountered.Contains(paramBlock.Name))
             {
-                VariantParameters.Add(paramBlock.Name);
+                VariantParameterNames.Add(paramBlock.Name);
                 continue;
             }
 
             encountered.Add(paramBlock.Name);
+        }
+
+        VariantParameterIndices = new HashSet<int>();
+        foreach (var paramBlock in paramBlocks)
+        {
+            if (VariantParameterNames.Contains(paramBlock.Name))
+            {
+                VariantParameterIndices.Add(paramBlock.BlockIndex);
+            }
         }
 
         foreach (var byHeader in paramBlocks.GroupBy(p => p.UiGroup.Heading))
@@ -869,173 +962,149 @@ public sealed class ShaderExtract
 
             foreach (var param in byHeader.OrderBy(p => p.UiGroup.VariableOrder))
             {
-                if (!VariantParameters.Contains(param.Name))
+                if (Options.CanReadZFrames && VariantParameterNames.Contains(param.Name))
                 {
-                    WriteParam(param);
+                    continue;
                 }
+
+                WriteParam(param, paramBlocks, channelBlocks, writer);
+            }
+        }
+    }
+
+    private void WriteParam(ParamBlock param, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
+    {
+        var attributes = new List<string>();
+
+        if (param.ParamType is ParameterType.RenderState)
+        {
+            WriteState(writer, param);
+        }
+        else if (param.ParamType is ParameterType.SamplerState)
+        {
+            //WriteState(writer, param);
+        }
+        else if (param.ParamType is ParameterType.InputTexture)
+        {
+            WriteInputTexture(writer, param);
+        }
+        else if (param.Id == 255)
+        {
+            WriteVariable(param, paramBlocks, writer, attributes);
+        }
+        else if (param.ParamType == ParameterType.Texture)
+        {
+            WriteTexture(param, paramBlocks, channelBlocks, writer, attributes);
+        }
+    }
+
+    private void WriteState(IndentedTextWriter writer, ParamBlock param)
+    {
+        var stateValue = param.DynExp.Length > 0
+            ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
+            : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+
+        if (param.ParamType == ParameterType.RenderState)
+        {
+            writer.WriteLine("{0}({1}, {2});", param.ParamType, param.Name, stateValue);
+        }
+        else
+        {
+            writer.WriteLine("{0}({1});", param.Name, stateValue);
+        }
+    }
+
+    private void WriteVariable(ParamBlock param, List<ParamBlock> paramBlocks, IndentedTextWriter writer, List<string> attributes)
+    {
+        var intDefsCutOff = 0;
+        var floatDefsCutOff = 0;
+        for (var i = 3; i >= 0; i--)
+        {
+            if (param.IntDefs[i] == 0)
+            {
+                intDefsCutOff++;
+            }
+
+            if (param.FloatDefs[i] == 0f)
+            {
+                floatDefsCutOff++;
             }
         }
 
-        if (VariantParameters.Count > 0)
+        static string GetFuncName(string func, int cutOff)
+            => cutOff == 3 ? func : func + (4 - cutOff);
+
+        if (intDefsCutOff <= 3)
         {
-            writer.WriteLine();
-            writer.WriteLine("// Variant Parameters");
-            foreach (var paramBlock in paramBlocks)
+            if (floatDefsCutOff <= 3)
             {
-                if (VariantParameters.Contains(paramBlock.Name))
-                {
-                    WriteParam(paramBlock);
-                }
-            }
-        }
-
-        void WriteParam(ParamBlock param)
-        {
-            var attributes = new List<string>();
-
-            // Render State
-            if (param.ParamType is ParameterType.RenderState)
-            {
-                WriteState(writer, param);
-            }
-            // Sampler State
-            else if (param.ParamType is ParameterType.SamplerState)
-            {
-                //WriteState(writer, param);
-            }
-
-            // User input
-            else if (param.ParamType == ParameterType.InputTexture)
-            {
-                // Texture Input (unpacked)
-                WriteInputTexture(writer, param);
-            }
-            else if (param.Id == 255)
-            {
-                var intDefsCutOff = 0;
-                var floatDefsCutOff = 0;
-                for (var i = 3; i >= 0; i--)
-                {
-                    if (param.IntDefs[i] == 0)
-                    {
-                        intDefsCutOff++;
-                    }
-
-                    if (param.FloatDefs[i] == 0f)
-                    {
-                        floatDefsCutOff++;
-                    }
-                }
-
-                static string GetFuncName(string func, int cutOff)
-                    => cutOff == 3 ? func : func + (4 - cutOff);
-
-                if (intDefsCutOff <= 3)
-                {
-                    if (floatDefsCutOff <= 3)
-                    {
-                        var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
-                        attributes.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
-                    }
-                    else
-                    {
-                        var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
-                        attributes.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
-                    }
-                }
-
-                var intRangeCutOff = 0;
-                var floatRangeCutOff = 0;
-                for (var i = 3; i >= 0; i--)
-                {
-                    if (param.IntMins[i] == 0 && param.IntMaxs[i] == 1)
-                    {
-                        intRangeCutOff++;
-                    }
-
-                    if (param.FloatMins[i] == 0f && param.FloatMaxs[i] == 1f)
-                    {
-                        floatRangeCutOff++;
-                    }
-                }
-
-                if (intRangeCutOff <= 3 && param.IntMins[0] != -ParamBlock.IntInf)
-                {
-                    if (floatRangeCutOff <= 3 && param.FloatMins[0] != -ParamBlock.FloatInf)
-                    {
-                        var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff]);
-                        var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff]);
-                        attributes.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
-                    }
-                    else
-                    {
-                        var mins = string.Join(", ", param.IntMins[..^intRangeCutOff]);
-                        var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff]);
-                        attributes.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
-                    }
-                }
-
-                if (param.AttributeName.Length > 0)
-                {
-                    attributes.Add($"Attribute(\"{param.AttributeName}\");");
-                }
-
-                if (param.UiType != UiType.None)
-                {
-                    attributes.Add($"UiType({param.UiType});");
-                }
-
-                if (param.UiGroup.CompactString.Length > 0)
-                {
-                    attributes.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
-                }
-
-                if (param.DynExp.Length > 0)
-                {
-                    var globals = paramBlocks.Select(p => p.Name).ToArray();
-                    var dynEx = new VfxEval(param.DynExp, globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
-                    dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
-                    dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
-
-                    attributes.Add($"Expression({dynEx});");
-                }
-
-                writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(attributes)};");
-            }
-            else if (param.ParamType == ParameterType.Texture)
-            {
-                if (param.ImageFormat != -1 && param.ChannelCount > 0)
-                {
-                    for (var i = 0; i < param.ChannelCount; i++)
-                    {
-                        var index = param.ChannelIndices[i];
-                        if (index == -1 || index >= channelBlocks.Count)
-                        {
-                            throw new InvalidOperationException("Invalid channel block index");
-                        }
-
-                        attributes.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
-                    }
-
-                    var format = Features.VcsVersion switch
-                    {
-                        >= 66 => ((ImageFormatV66)param.ImageFormat).ToString(),
-                        >= 64 => ((ImageFormat)param.ImageFormat).ToString(),
-                        _ when !Options.ForceWrite_UncertainEnumsAsInts => ((ImageFormat)param.ImageFormat).ToString(),
-                        _ => param.ImageFormat.ToString(CultureInfo.InvariantCulture),
-                    };
-
-                    attributes.Add($"OutputFormat({format});");
-                    attributes.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
-
-                    writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(attributes)};");
-                }
+                var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
+                attributes.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
             }
             else
             {
-                Console.WriteLine($"Unknown parameter type: {param.ParamType}");
+                var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
+                attributes.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
             }
         }
+
+        var intRangeCutOff = 0;
+        var floatRangeCutOff = 0;
+        for (var i = 3; i >= 0; i--)
+        {
+            if (param.IntMins[i] == 0 && param.IntMaxs[i] == 1)
+            {
+                intRangeCutOff++;
+            }
+
+            if (param.FloatMins[i] == 0f && param.FloatMaxs[i] == 1f)
+            {
+                floatRangeCutOff++;
+            }
+        }
+
+        if (intRangeCutOff <= 3 && param.IntMins[0] != -ParamBlock.IntInf)
+        {
+            if (floatRangeCutOff <= 3 && param.FloatMins[0] != -ParamBlock.FloatInf)
+            {
+                var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff]);
+                var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff]);
+                attributes.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
+            }
+            else
+            {
+                var mins = string.Join(", ", param.IntMins[..^intRangeCutOff]);
+                var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff]);
+                attributes.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
+            }
+        }
+
+        if (param.AttributeName.Length > 0)
+        {
+            attributes.Add($"Attribute(\"{param.AttributeName}\");");
+        }
+
+        if (param.UiType != UiType.None)
+        {
+            attributes.Add($"UiType({param.UiType});");
+        }
+
+        if (param.UiGroup.CompactString.Length > 0)
+        {
+            attributes.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
+        }
+
+        if (param.DynExp.Length > 0)
+        {
+            var globals = paramBlocks.Select(p => p.Name).ToArray();
+            var dynEx = new VfxEval(param.DynExp, globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
+            dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
+            dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
+
+            attributes.Add($"Expression({dynEx});");
+        }
+
+        writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(attributes)};");
     }
 
     private static void WriteInputTexture(IndentedTextWriter writer, ParamBlock param)
@@ -1064,20 +1133,36 @@ public sealed class ShaderExtract
         writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Arg12}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
     }
 
-    private void WriteState(IndentedTextWriter writer, ParamBlock param)
+    private void WriteTexture(ParamBlock param, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer, List<string> attributes)
     {
-        var stateValue = param.DynExp.Length > 0
-            ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
-            : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+        if (param.ImageFormat == -1 || param.ChannelCount == 0)
+        {
+            return;
+        }
 
-        if (param.ParamType == ParameterType.RenderState)
+        for (var i = 0; i < param.ChannelCount; i++)
         {
-            writer.WriteLine("{0}({1}, {2});", param.ParamType, param.Name, stateValue);
+            var index = param.ChannelIndices[i];
+            if (index == -1 || index >= channelBlocks.Count)
+            {
+                throw new InvalidOperationException("Invalid channel block index");
+            }
+
+            attributes.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
         }
-        else
+
+        var format = Features.VcsVersion switch
         {
-            writer.WriteLine("{0}({1});", param.Name, stateValue);
-        }
+            >= 66 => ((ImageFormatV66)param.ImageFormat).ToString(),
+            >= 64 => ((ImageFormat)param.ImageFormat).ToString(),
+            _ when !Options.ForceWrite_UncertainEnumsAsInts => ((ImageFormat)param.ImageFormat).ToString(),
+            _ => param.ImageFormat.ToString(CultureInfo.InvariantCulture),
+        };
+
+        attributes.Add($"OutputFormat({format});");
+        attributes.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
+
+        writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(attributes)};");
     }
 
     private static string GetVfxAttributes(List<string> attributes)

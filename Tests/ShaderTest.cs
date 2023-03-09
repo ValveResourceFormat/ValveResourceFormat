@@ -75,7 +75,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
 
-            Assert.That(ex.Message, Does.Contain("Use CompiledShader"));
+            Assert.That(ex.Message, Does.Contain("Use ShaderFile"));
         }
 
         [Test]

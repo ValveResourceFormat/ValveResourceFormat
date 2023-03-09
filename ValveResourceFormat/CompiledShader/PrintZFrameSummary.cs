@@ -89,15 +89,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             Dictionary<string, int> writeSequences = new();
             var seqCount = 0;
-            if (zframeFile.LeadingData.H0 == 0)
-            {
-                writeSequences.Add("", seqCount++);
-            }
-            else
-            {
-                writeSequences.Add(BytesToString(zframeFile.LeadingData.Dataload, -1), seqCount++);
-            }
-
+            writeSequences.Add(BytesToString(zframeFile.LeadingData.Dataload, -1), seqCount++);
             foreach (var zBlock in zframeFile.DataBlocks)
             {
                 if (zBlock.Dataload == null)

@@ -200,7 +200,7 @@ namespace ValveResourceFormat
 
             if (FileSize == ShaderFile.MAGIC)
             {
-                throw new InvalidDataException("Use CompiledShader() class to parse compiled shader files.");
+                throw new InvalidDataException("Use ShaderFile() class to parse compiled shader files.");
             }
 
             HeaderVersion = Reader.ReadUInt16();

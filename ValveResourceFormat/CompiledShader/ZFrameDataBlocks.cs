@@ -15,6 +15,7 @@ namespace ValveResourceFormat.CompiledShader
         public IReadOnlyList<WriteSeqField> Segment0 => Fields[..H1];
         public IReadOnlyList<WriteSeqField> Segment1 => Fields[H1..H2];
         public IReadOnlyList<WriteSeqField> Segment2 => Fields[H2..];
+
         public ZDataBlock(ShaderDataReader datareader, int blockId) : base(datareader)
         {
             BlockId = blockId;
