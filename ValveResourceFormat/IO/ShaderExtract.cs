@@ -555,6 +555,7 @@ public sealed class ShaderExtract
 
         // Parameters
         var perConditionParameters = new Dictionary<(int Index, int State), HashSet<int>>(staticConfig.SumStates);
+        var hasParameters = shader.ParamBlocks.Count > 0;
 
         foreach (var i in Enumerable.Range(0, shader.GetZFrameCount()))
         {
@@ -568,6 +569,11 @@ public sealed class ShaderExtract
 
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
             attributesDisect[staticConfigState] = zframeAttributes;
+
+            if (!hasParameters)
+            {
+                continue;
+            }
 
             var variantParameters = GetVariantZFrameParameters(zFrame);
             for (var j = 0; j < staticConfigState.Length; j++)
@@ -588,8 +594,12 @@ public sealed class ShaderExtract
             }
         }
 
-        writer.WriteLine();
-        WriteVariantParameters(shader.SfBlocks, shader.ParamBlocks, shader.ChannelBlocks, writer, perConditionParameters);
+        if (hasParameters && VariantParameterIndices?.Count > 0)
+        {
+            writer.WriteLine();
+            WriteVariantParameters(shader.SfBlocks, shader.ParamBlocks, shader.ChannelBlocks, writer, perConditionParameters);
+        }
+
         WriteAttributes(shader.SfBlocks, writer, attributesDisect, perConditionAttributes);
 
     }
@@ -597,6 +607,7 @@ public sealed class ShaderExtract
     private void WriteVariantParameters(IReadOnlyList<SfBlock> sfBlocks, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks,
         IndentedTextWriter writer, Dictionary<(int Index, int State), HashSet<int>> perConditionParameters)
     {
+        var written = new HashSet<int>();
         foreach (var (condition, parameters) in perConditionParameters)
         {
             if (IsIrrelevantCondition(sfBlocks, perConditionParameters, condition, parameters))
@@ -616,15 +627,31 @@ public sealed class ShaderExtract
             foreach (var param in parameters)
             {
                 WriteParam(paramBlocks[param], paramBlocks, channelBlocks, writer);
+                written.Add(param);
             }
             writer.Indent--;
             writer.WriteLine("#endif");
+        }
+
+        if (written.Count == VariantParameterIndices.Count)
+        {
+            var inconclusiveVariantParameters = VariantParameterIndices.Where(p => !written.Contains(p)).ToList();
+            if (inconclusiveVariantParameters.Count > 0)
+            {
+                writer.WriteLine();
+                writer.WriteLine("// Variant parameters");
+                foreach (var param in inconclusiveVariantParameters)
+                {
+                    WriteParam(paramBlocks[param], paramBlocks, channelBlocks, writer);
+                }
+            }
         }
     }
 
     private void WriteAttributes(IReadOnlyList<SfBlock> sfBlocks, IndentedTextWriter writer,
         Dictionary<int[], HashSet<string>> attributesDisect, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
     {
+        var written = new HashSet<string>();
         if (attributesDisect.Values.First().Count != 0 || !Options.StaticComboAttributes_NoSeparateGlobals)
         {
             var invariants = new HashSet<string>(attributesDisect.Values.First());
@@ -646,6 +673,7 @@ public sealed class ShaderExtract
                 foreach (var attribute in invariants)
                 {
                     writer.WriteLine(attribute);
+                    written.Add(attribute);
                 }
 
                 writer.WriteLine();
@@ -673,6 +701,7 @@ public sealed class ShaderExtract
                 foreach (var attribute in attributes)
                 {
                     writer.WriteLine(attribute);
+                    written.Add(attribute);
                 }
                 writer.Indent--;
                 writer.WriteLine("#endif");
@@ -720,9 +749,23 @@ public sealed class ShaderExtract
             foreach (var attribute in attributes)
             {
                 writer.WriteLine(attribute);
+                written.Add(attribute);
             }
             writer.Indent--;
             writer.WriteLine("#endif");
+        }
+
+        var missed = attributesDisect.Values.SelectMany(a => a).Where(a => !written.Contains(a)).ToHashSet();
+        if (missed.Count == 0)
+        {
+            return;
+        }
+
+        writer.WriteLine();
+        writer.WriteLine("// Variant Attributes");
+        foreach (var attribute in missed)
+        {
+            writer.WriteLine(attribute);
         }
     }
 

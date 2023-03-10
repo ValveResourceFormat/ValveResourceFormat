@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Utils
             }
         }
 
-        public static void ThrowIfNotEqual<T>(T expectedMagic, T actualMagic, string nameofMagic) //where T : Enum
+        public static void ThrowIfNotEqual<T>(T expectedMagic, T actualMagic, string nameofMagic)
         {
             if (!expectedMagic.Equals(actualMagic))
             {
