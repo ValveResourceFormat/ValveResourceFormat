@@ -375,7 +375,7 @@ namespace ValveResourceFormat.Blocks
             for (var i = 1; i < remapTables.Length; i++)
             {
                 var remapTable = remapTables[i];
-                newRemapTable = newRemapTable.Select(j => j != -1 ? remapTable[j] : -1);
+                newRemapTable = newRemapTable.Select(j => j >= 0 && j < remapTable.Length ? remapTable[j] : -1);
             }
             return newRemapTable.ToArray();
         }

@@ -40,7 +40,6 @@ namespace ValveResourceFormat.ResourceTypes
             var start = (int)remapTableStarts[meshIndex];
             return remapTable
                 .Skip(start)
-                .Take(Skeleton.LocalRemapTable.Length)
                 .ToArray();
         }
 
