@@ -393,6 +393,7 @@ namespace ValveResourceFormat.Blocks
                     var formatSize = formatElementSize * formatElementCount;
                     buf.Data = buf.Data.ToArray();
                     var bufSpan = buf.Data.AsSpan();
+                    var maxRemapTableIdx = remapTable.Length - 1;
                     for (var i = (int)field.Offset; i < buf.Data.Length; i += (int)buf.ElementSizeInBytes)
                     {
                         for (var j = 0; j < formatSize; j += formatElementSize)
@@ -401,14 +402,14 @@ namespace ValveResourceFormat.Blocks
                             {
                                 case 4:
                                     BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
-                                        remapTable[BitConverter.ToUInt32(buf.Data, i + j)]);
+                                        remapTable[Math.Min(BitConverter.ToUInt32(buf.Data, i + j), maxRemapTableIdx)]);
                                     break;
                                 case 2:
                                     BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
-                                        (short)remapTable[BitConverter.ToUInt16(buf.Data, i + j)]);
+                                        (short)remapTable[Math.Min(BitConverter.ToUInt16(buf.Data, i + j), maxRemapTableIdx)]);
                                     break;
                                 case 1:
-                                    buf.Data[i + j] = (byte)remapTable[buf.Data[i + j]];
+                                    buf.Data[i + j] = (byte)remapTable[Math.Min(buf.Data[i + j], maxRemapTableIdx)];
                                     break;
                                 default:
                                     throw new NotImplementedException();
