@@ -118,6 +118,9 @@ namespace ValveResourceFormat
         [Extension("vdata")]
         VData,
 
+        [Extension("vrr")]
+        ResponseRules,
+
         [Extension("item")]
         ArtifactItem,
 
