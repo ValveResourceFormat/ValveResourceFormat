@@ -24,6 +24,7 @@ namespace GUI
 
             Application.EnableVisualStyles();
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             MainForm = new MainForm();
             Application.Run(MainForm);
