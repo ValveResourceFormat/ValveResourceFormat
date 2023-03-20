@@ -55,6 +55,8 @@ The code contained in this repository is based on countless hours of reverse eng
 
 If you are interested in helping, take a look at the open issues.
 
+Not all formats are 100% supported, some parameters are still unknown and not fully understood.
+
 ## Supported resource types
 Ext      | Name                    | Support
 -------- | ----------------------- | -------
@@ -62,16 +64,16 @@ vanim    | Animation               | 👍
 vagrp    | Animation Group         | 👍
 vanmgrph | Animation Graph         | No
 vseq     | Sequence Group          | No
-vpcf     | Particle System         | 👍 NTRO, KV3
-vmat     | Material                | 👍 NTRO
+vpcf     | Particle System         | 👍
+vmat     | Material                | 👍
 vmks     | Sheet                   | No
 vmesh    | Mesh                    | 👍
-vtex     | Compiled Texture        | 👍 DXT1, DXT5, I8, RGBA8888, R16, RG1616, RGBA16161616, R16F, RG1616F, RGBA16161616F, R32F, RG3232F, RGB323232F, RGBA32323232F, BC6H, BC7, IA88, PNG, JPG, ETC2, ETC2_EAC, BGRA8888, ATI1N, ATI2N
+vtex     | Compiled Texture        | 👍
 vmdl     | Model                   | 👍
-vphys    | Physics Collision Mesh  | No
+vphys    | Physics Collision Mesh  | 👍
 vsnd     | Sound                   | 👍
 vmorf    | MorphSet                | No
-vrman    | ResourceManifest        | Yes
+vrman    | ResourceManifest        | 👍
 vwrld    | World                   | 👍
 vwnod    | WorldNode               | 👍
 vvis     | WorldVisibility         | No
@@ -79,7 +81,7 @@ vents    | EntityLump              | 👍
 vsurf    | Surface Properties      | No
 vsndevts | Sound Event Script      | 👍
 vsndstck | Sound Stack Script      | 👍
-vpost    | Postprocessing Settings | No
+vpost    | Postprocessing Settings | 👍
 vrmap    | Resource Remap Table    | No
 vcss     | Panorama Style          | 👍
 vxml     | Panorama Layout         | 👍
@@ -91,31 +93,32 @@ vsnap    | Particle Snapshot       | 👍
 vmap     | Map                     | 👍
 &nbsp;   | &nbsp;                  | &nbsp;
 vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
-vcs      | Compiled Shader         | ❓ Started work in `CompiledShader`, see #151
-vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 (CS:GO) and Source 2 (Dota 2).
+vcs      | Compiled Shader         | 👍 Partially supported by `CompiledShader`
+vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
 dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
-bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`, see #226
+bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`
 vdpn     | Dota Patch Notes        | 👍
 vdacdefs | DAC Game Defs Data      | No
-vfe      | Face poser              | No, see #142
+vfe      | Face poser              | No
 vcd      | VCD                     | No
-vcdlist  | VCD list                | No, see #160
+vrr      | Response rules          | No
+vcdlist  | VCD list                | No
 
-List of supported magics:
-Magic      | Description
----------- | ------------
+## List of supported magics
+Magic        | Description
+------------ | ------------
 `0x03564B56` | VKV\x03 - First binary keyvalues 3 encoding with custom block compression
-`0x4B563301` | KV3\x01 - LZ4 compressed
-`0x4B563302` | KV3\x02 - LZ4 compressed and binary blobs are compressed separately
+`0x4B563301` | KV3\x01 - Binary keyvalues 3 (version 1)
+`0x4B563302` | KV3\x02 - Binary keyvalues 3 (version 2)
+`0x4B563303` | KV3\x02 - Binary keyvalues 3 (version 3)
 `0x564B4256` | VBKV - binary keyvalues 1 (handled by ValveKeyvalue)
 `0x55AA1234` | VPK - valve package (handled by ValvePak)
 `0x44434356` | VCCD - closed captions
 `0xC4CCACE8` | tools asset info
+`0xC4CCACE9` | tools asset info (newer version)
 `0x32736376` | vcs2 - compiled shader
 `0x31415926` | murmurhash2 seed used in various places (like entity keys)
 `VFONT1`     | "encrypted" font file
-
-Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
 ## License
 
