@@ -412,7 +412,10 @@ namespace ValveResourceFormat.CompiledShader
         public ConstraintBlock(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
             : this(datareader, blockIndex)
         {
-            UnexpectedMagicException.ThrowIfNotEqual(conditionalTypeVerify, BlockType, nameof(BlockType));
+            if (BlockType != conditionalTypeVerify)
+            {
+                throw new UnexpectedMagicException($"Unexpected {nameof(BlockType)}", $"{BlockType}", nameof(BlockType));
+            }
         }
 
         private int[] ReadIntRange()

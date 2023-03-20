@@ -1157,9 +1157,9 @@ public sealed class ShaderExtract
             throw new ArgumentException($"Expected parameter of type {ParameterType.InputTexture}, got {param.ParamType}", nameof(param));
         }
 
-        UnexpectedMagicException.ThrowIfNotEqual(UiType.Texture, param.UiType, nameof(param.UiType));
-        UnexpectedMagicException.ThrowIfNotEqual(255, param.Id, nameof(param.Id));
-        UnexpectedMagicException.ThrowIfNotEqual(-1, param.VecSize, nameof(param.VecSize));
+        UnexpectedMagicException.Assert(param.UiType == UiType.Texture, param.UiType);
+        UnexpectedMagicException.Assert(param.Id == 255, param.Id);
+        UnexpectedMagicException.Assert(param.VecSize == -1, param.VecSize);
 
         var mode = param.ColorMode == 0
             ? "Linear"
