@@ -450,6 +450,9 @@ namespace ValveResourceFormat
                 case ResourceType.ResourceManifest:
                     return new ResourceManifest();
 
+                case ResourceType.ResponseRules:
+                    return new ResponseRules();
+
                 case ResourceType.SboxManagedResource:
                 case ResourceType.ArtifactItem:
                     return new Plaintext();
@@ -552,6 +555,8 @@ namespace ValveResourceFormat
                     return ResourceType.PanoramaVectorGraphic;
                 case "VData":
                     return ResourceType.VData;
+                case "ResponseRules":
+                    return ResourceType.ResponseRules;
                 case "DotaItem":
                     return ResourceType.ArtifactItem;
                 case "SBData":
