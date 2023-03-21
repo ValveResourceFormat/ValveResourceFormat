@@ -91,6 +91,7 @@ vsvg     | Panorama Vector Graphic | 👍
 vsnap    | Particle Snapshot       | 👍
 ~~vpsf~~ | ~~Particle Snapshot~~   | No
 vmap     | Map                     | 👍
+vrr      | Response rules          | 👍
 &nbsp;   | &nbsp;                  | &nbsp;
 vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
 vcs      | Compiled Shader         | 👍 Partially supported by `CompiledShader`
@@ -101,7 +102,6 @@ vdpn     | Dota Patch Notes        | 👍
 vdacdefs | DAC Game Defs Data      | No
 vfe      | Face poser              | No
 vcd      | VCD                     | No
-vrr      | Response rules          | No
 vcdlist  | VCD list                | No
 
 ## List of supported magics
