@@ -45,7 +45,8 @@ namespace GUI.Controls
             // 
             // GLViewerTrackBarControl
             // 
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.trackBar);
             this.Name = "GLViewerTrackBarControl";
             this.Size = new System.Drawing.Size(220, 45);

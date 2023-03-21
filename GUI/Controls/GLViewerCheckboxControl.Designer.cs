@@ -45,7 +45,8 @@ namespace GUI.Controls
             // 
             // GLViewerCheckboxControl
             // 
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.checkBox);
             this.MinimumSize = new System.Drawing.Size(0, 23);
             this.Name = "GLViewerCheckboxControl";
