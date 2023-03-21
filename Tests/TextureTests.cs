@@ -7,19 +7,20 @@ namespace Tests
 {
     public class TextureTests
     {
-        [Test]
-        public void ExportTextures()
+        private static string[] GetTextureFiles()
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures");
-            var files = Directory.GetFiles(path, "*.vtex_c");
+            return Directory.GetFiles(path, "*.vtex_c");
+        }
 
-            foreach (var file in files)
-            {
-                using var resource = new Resource();
-                resource.Read(file);
+        [Test, TestCaseSource(nameof(GetTextureFiles))]
+        public void ExportTexture(string file)
+        {
+            using var resource = new Resource();
+            resource.Read(file);
 
-                using var _ = ((Texture)resource.DataBlock).GenerateBitmap();
-            }
+            using var _ = ((Texture)resource.DataBlock).GenerateBitmap();
+
         }
     }
 }

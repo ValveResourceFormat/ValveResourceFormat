@@ -1,0 +1,107 @@
+using System;
+using System.Numerics;
+using System.Text;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Serialization.KeyValues;
+
+namespace ValveResourceFormat.IO;
+
+public sealed class SnapshotExtract
+{
+    private readonly SNAP snap;
+
+    public SnapshotExtract(SNAP snap)
+    {
+        this.snap = snap;
+    }
+
+    public SnapshotExtract(Resource resource)
+        : this((SNAP)resource.GetBlockByType(BlockType.SNAP))
+    {
+    }
+
+    public ContentFile ToContentFile()
+    {
+        var vsnap = new ContentFile
+        {
+            Data = Encoding.UTF8.GetBytes(ToValveSnap())
+        };
+
+        return vsnap;
+    }
+
+    public string ToValveSnap()
+    {
+        var outKV3 = new KVObject(null);
+        var data = new KVObject("");
+        data.AddProperty("num_values", new KVValue(KVType.INT64, snap.NumParticles));
+
+        var streams = new KVObject(null, isArray: true);
+        data.AddProperty("streams", new KVValue(KVType.OBJECT, streams));
+
+        foreach (var (attribute, attributeStream) in snap.AttributeData)
+        {
+            var stream = new KVObject(null);
+            {
+                stream.AddProperty("name", new KVValue(KVType.STRING, attribute.Name));
+                stream.AddProperty("type", new KVValue(KVType.STRING, attribute.Name switch
+                {
+                    "position" => "position_3d",
+                    "normal" => "normal_3d",
+                    _ => attribute.Type switch
+                    {
+                        "int" => "generic_int",
+                        "float" => "generic_float",
+                        "float3" or "vector" => "generic_vector_3d",
+                        "skinning" => "bone_index_and_weight",
+                        _ => attribute.Type,
+                    },
+                }));
+
+
+                var values = new KVObject(null, isArray: true);
+
+                foreach (var datum in attributeStream)
+                {
+                    if (datum is int i)
+                    {
+                        values.AddProperty(null, new KVValue(KVType.INT64, i));
+                    }
+                    else if (datum is float f)
+                    {
+                        values.AddProperty(null, new KVValue(KVType.DOUBLE, (double)f));
+                    }
+                    else if (datum is Vector3 v)
+                    {
+                        var array = new KVObject(null, isArray: true);
+                        {
+                            array.AddProperty(null, new KVValue(KVType.DOUBLE, (double)v.X));
+                            array.AddProperty(null, new KVValue(KVType.DOUBLE, (double)v.Y));
+                            array.AddProperty(null, new KVValue(KVType.DOUBLE, (double)v.Z));
+                        }
+
+                        values.AddProperty(null, new KVValue(KVType.ARRAY, array));
+                    }
+                    else if (datum is string s)
+                    {
+                        values.AddProperty(null, new KVValue(KVType.STRING, s));
+                    }
+                    else if (datum is SNAP.SkinningData skinning)
+                    {
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Unexpected snapshot stream type: {datum.GetType()}");
+                    }
+                }
+
+                stream.AddProperty("values", new KVValue(KVType.OBJECT, values));
+            }
+
+            streams.AddProperty(null, new KVValue(KVType.OBJECT, stream));
+        }
+
+        outKV3.AddProperty("stream_data", new KVValue(KVType.OBJECT, data));
+        return new KV3File(outKV3).ToString();
+    }
+}

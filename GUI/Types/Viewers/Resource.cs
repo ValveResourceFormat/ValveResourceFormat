@@ -406,6 +406,16 @@ namespace GUI.Types.Viewers
 
                             break;
                         }
+
+                    case ResourceType.Snap:
+                        {
+                            if (!FileExtract.IsChildResource(resource))
+                            {
+                                AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
+                            }
+
+                            break;
+                        }
                 }
             }
 

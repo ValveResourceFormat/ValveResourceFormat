@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Blocks
 
         public uint NumParticles { get; private set; }
 
-        public IReadOnlyDictionary<string, IEnumerable> AttributeData { get; private set; }
+        public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; }
 
         public override void WriteText(IndentedTextWriter writer)
         {
@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Blocks
 
             foreach (var (attribute, data) in AttributeData)
             {
-                writer.WriteLine($"- Attribute {attribute} -");
+                writer.WriteLine($"- Attribute {attribute.Name} ({attribute.Type}) -");
                 foreach (var d in data)
                 {
                     writer.WriteLine(d);
@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Blocks
             var attributes = data.GetArray("attributes");
             var stringList = data.GetArray<string>("string_list");
 
-            var attributeData = new Dictionary<string, IEnumerable>();
+            var attributeData = new Dictionary<(string Name, string Type), IEnumerable>();
 
             foreach (var attribute in attributes)
             {
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Blocks
                     _ => ReadArrayOfType(innerReader, numParticles, attributeType),
                 };
 
-                attributeData.Add(attributeName, attributeArray);
+                attributeData.Add((attributeName, attributeType), attributeArray);
             }
 
             NumParticles = (uint)numParticles;
