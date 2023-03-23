@@ -122,6 +122,12 @@ namespace ValveResourceFormat.Blocks
             buffer.ElementCount = reader.ReadUInt32();            //0
             buffer.ElementSizeInBytes = reader.ReadUInt32();      //4
 
+            // TODO: CS2 hack, figure out what this means
+            if ((buffer.ElementSizeInBytes & 0x80000000) != 0)
+            {
+                buffer.ElementSizeInBytes &= ~0x80000000;
+            }
+
             var refA = reader.BaseStream.Position;
             var attributeOffset = reader.ReadUInt32();  //8
             var attributeCount = reader.ReadUInt32();   //12
