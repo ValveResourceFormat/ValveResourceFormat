@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 using System.Text;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
@@ -282,23 +283,20 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     DynExpression = datareader.ReadBytes(DynExpLen);
                     DynExpEvaluated = ParseDynamicExpression(DynExpression);
+                    return;
                 }
-                else if (VfxType == Vfx.Type.Float)
+
+                ConstValue = VfxType switch
                 {
-                    ConstValue = datareader.ReadSingle();
-                }
-                else if (VfxType == Vfx.Type.Int)
-                {
-                    ConstValue = datareader.ReadInt32();
-                }
-                else if (VfxType == Vfx.Type.Bool)
-                {
-                    ConstValue = datareader.ReadByte() != 0;
-                }
-                else
-                {
-                    throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value.");
-                }
+                    Vfx.Type.Float => datareader.ReadSingle(),
+                    Vfx.Type.Int => datareader.ReadInt32(),
+                    Vfx.Type.Bool => datareader.ReadByte() != 0,
+                    Vfx.Type.String => datareader.ReadNullTermString(),
+                    Vfx.Type.Float2 => new Vector2(datareader.ReadSingle(), datareader.ReadSingle()),
+                    Vfx.Type.Float3 => new Vector3(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
+                    _ => throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value."),
+                };
+
             }
 
             public override string ToString()

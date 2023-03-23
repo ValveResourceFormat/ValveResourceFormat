@@ -312,14 +312,8 @@ namespace ValveResourceFormat.CompiledShader
                 CheckboxNames.Add(datareader.ReadNullTermString());
             }
 
-            // Seen in steampal's vr_complex VertexShader
             if (Arg3 == 11)
             {
-                if (Name != "S_FOLIAGE_ANIMATION_ENABLED")
-                {
-                    throw new UnexpectedMagicException($"Unexpected static config with {nameof(Arg3)} = 11. Is it also 4 bytes longer?", Name, nameof(Name));
-                }
-
                 var foliage = datareader.ReadInt32();
                 if (foliage != 0)
                 {

@@ -7,6 +7,7 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Serialization.VfxEval;
 using ValveResourceFormat.Utils;
 using System.Globalization;
+using System.Numerics;
 
 namespace ValveResourceFormat.IO;
 
@@ -501,7 +502,11 @@ public sealed class ShaderExtract
 
         HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
 
-        HandleZFrames(shader, writer);
+        // This can be removed once RTX ZFrames are supported
+        if (shader.VcsProgramType != VcsProgramType.RaytracingShader)
+        {
+            HandleZFrames(shader, writer);
+        }
 
         if (shader.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
         {
@@ -806,6 +811,8 @@ public sealed class ShaderExtract
                     Vfx.Type.Bool => (bool)attribute.ConstValue ? "true" : "false",
                     Vfx.Type.Int => ((int)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
                     Vfx.Type.Float => ((float)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
+                    Vfx.Type.String => (string)attribute.ConstValue,
+                    Vfx.Type.Float2 or Vfx.Type.Float3 => ((Vector3)attribute.ConstValue).ToString().Trim('<', '>'),
                     _ => attribute.ConstValue.ToString(),
                 };
             }
@@ -829,6 +836,7 @@ public sealed class ShaderExtract
                 Vfx.Type.Float => "FloatAttribute",
                 Vfx.Type.Float2 => "Float2Attribute",
                 Vfx.Type.Float3 => "Float3Attribute",
+                Vfx.Type.String => "StringAttribute",
                 Vfx.Type.Sampler2D => "TextureAttribute",
                 _ => null
             };
