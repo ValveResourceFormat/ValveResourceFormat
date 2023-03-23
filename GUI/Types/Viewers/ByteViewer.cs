@@ -1,5 +1,5 @@
+using System;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 
@@ -28,12 +28,36 @@ namespace GUI.Types.Viewers
 
             input ??= File.ReadAllBytes(vrfGuiContext.FileName);
 
-            if (!input.Contains<byte>(0x00))
+            var span = input.AsSpan();
+            var firstNullByte = span.IndexOf((byte)0);
+            var hasNullBytes = firstNullByte >= 0;
+
+            if (hasNullBytes && firstNullByte > 0)
+            {
+                var isTrailingNulls = true;
+
+                for (var i = span.Length - 1; i > firstNullByte; i--)
+                {
+                    if (span[i] != 0x00)
+                    {
+                        isTrailingNulls = false;
+                        break;
+                    }
+                }
+
+                if (isTrailingNulls)
+                {
+                    span = span[..firstNullByte];
+                    hasNullBytes = false;
+                }
+            }
+
+            if (!hasNullBytes)
             {
                 var textTab = new TabPage("Text");
                 var text = new MonospaceTextBox
                 {
-                    Text = System.Text.Encoding.UTF8.GetString(input).ReplaceLineEndings(),
+                    Text = System.Text.Encoding.UTF8.GetString(span).ReplaceLineEndings(),
                 };
                 textTab.Controls.Add(text);
                 resTabs.TabPages.Add(textTab);
