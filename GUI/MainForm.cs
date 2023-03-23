@@ -53,6 +53,17 @@ namespace GUI
 
             Console.WriteLine($"VRF v{Application.ProductVersion}");
 
+            var versionPlus = Application.ProductVersion.IndexOf('+', StringComparison.InvariantCulture);
+
+            if (versionPlus > 0)
+            {
+                versionToolStripLabel.Text = string.Concat("v", Application.ProductVersion[..versionPlus]);
+            }
+            else
+            {
+                versionToolStripLabel.Text = string.Concat("v", Application.ProductVersion);
+            }
+
             searchForm = new SearchForm();
 
             Settings.Load();
