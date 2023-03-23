@@ -119,6 +119,7 @@ namespace GUI.Types.Renderer
                     var worldgroupid = entity.GetProperty<string>("worldgroupid");
                     var targetmapname = entity.GetProperty<string>("targetmapname");
 
+                    // TODO: Skybox loading always differs per game for some reason, we need to figure out how to load them properly without hackery
                     var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
                     var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
 
@@ -126,7 +127,18 @@ namespace GUI.Types.Renderer
                     {
                         var mapName = Path.GetFileNameWithoutExtension(guiContext.ParentGuiContext.FileName);
                         var mapsFolder = Path.GetDirectoryName(guiContext.ParentGuiContext.FileName);
-                        var skyboxVpk = Path.Join(mapsFolder, mapName, $"{Path.GetFileNameWithoutExtension(targetmapname)}.vpk");
+                        string skyboxVpk;
+
+                        if (targetmapname.EndsWith(".vmap")) // CS2
+                        {
+                            skyboxVpk = Path.Join(Path.GetDirectoryName(mapsFolder), string.Concat(targetmapname[..^5], ".vpk"));
+                            skyboxWorldPath = string.Concat(targetmapname[..^5], "/world.vwrld_c");
+                        }
+                        else
+                        {
+                            skyboxVpk = Path.Join(mapsFolder, mapName, $"{Path.GetFileNameWithoutExtension(targetmapname)}.vpk");
+                            skyboxWorldPath = $"maps/{mapName}/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
+                        }
 
                         if (File.Exists(skyboxVpk))
                         {
@@ -134,8 +146,6 @@ namespace GUI.Types.Renderer
                             skyboxNewPackage.Read(skyboxVpk);
 
                             guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(skyboxNewPackage);
-
-                            skyboxWorldPath = $"maps/{mapName}/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
                             skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
                         }
                     }
@@ -171,7 +181,13 @@ namespace GUI.Types.Renderer
 
                 if (classname == "sky_camera")
                 {
-                    result.SkyboxScale = entity.GetProperty<ulong>("scale");
+                    var skyboxScale = entity.GetProperty("scale");
+                    result.SkyboxScale = skyboxScale.Type switch
+                    {
+                        EntityFieldType.Integer => (int)skyboxScale.Data,
+                        EntityFieldType.UInt64 => (ulong)skyboxScale.Data,
+                        _ => throw new NotImplementedException($"Unsupported skybox scale {skyboxScale.Type}"),
+                    };
                     result.SkyboxOrigin = positionVector;
                 }
 
