@@ -553,12 +553,18 @@ namespace ValveResourceFormat
                     };
                 case "VectorGraphic":
                     return ResourceType.PanoramaVectorGraphic;
+                case "VCompMat":
+                    return ResourceType.CompositeMaterial;
                 case "VData":
                     return ResourceType.VData;
                 case "ResponseRules":
                     return ResourceType.ResponseRules;
                 case "DotaItem":
                     return ResourceType.ArtifactItem;
+                case "CSGOItem":
+                    return ResourceType.CSGOItem;
+                case "CSGOEconItem":
+                    return ResourceType.CSGOEconItem;
                 case "SBData":
                 case "ManagedResourceCompiler": // This is without the "Compile" prefix
                     return ResourceType.SboxManagedResource;

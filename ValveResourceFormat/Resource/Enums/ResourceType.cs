@@ -121,8 +121,17 @@ namespace ValveResourceFormat
         [Extension("vdata")]
         VData,
 
+        [Extension("vcompmat")]
+        CompositeMaterial,
+
         [Extension("vrr")]
         ResponseRules,
+
+        [Extension("csgoitem")]
+        CSGOItem,
+
+        [Extension("econitem")]
+        CSGOEconItem,
 
         [Extension("item")]
         ArtifactItem,
