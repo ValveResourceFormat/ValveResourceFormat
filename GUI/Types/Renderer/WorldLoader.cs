@@ -146,18 +146,18 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                var scale = entity.GetProperty<string>("scales");
+                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
+
+                if (transformationMatrix == default)
+                {
+                    continue;
+                }
+
                 var position = entity.GetProperty<string>("origin");
-                var angles = entity.GetProperty<string>("angles");
                 var model = entity.GetProperty<string>("model");
                 var skin = entity.GetProperty<string>("skin");
                 var particle = entity.GetProperty<string>("effect_name");
                 var animation = entity.GetProperty<string>("defaultanim");
-
-                if (scale == null || position == null || angles == null)
-                {
-                    continue;
-                }
 
                 var isGlobalLight = classname == "env_global_light" || classname == "light_environment";
                 var isCamera =
@@ -168,9 +168,7 @@ namespace GUI.Types.Renderer
                     classname.Contains("trigger", StringComparison.InvariantCulture) ||
                     classname == "post_processing_volume";
 
-                var positionVector = EntityTransformHelper.ParseVector(position);
-
-                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
+                var positionVector = EntityTransformHelper.ParseVector(position); // TODO: Get it from transformationMatrix
 
                 if (classname == "sky_camera")
                 {

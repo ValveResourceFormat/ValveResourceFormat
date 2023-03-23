@@ -11,8 +11,10 @@ namespace ValveResourceFormat.Utils
         {
             var scale = entity.GetProperty<string>("scales");
             var position = entity.GetProperty<string>("origin");
-            var angles = entity.GetProperty<string>("angles");
-            if (scale == null || position == null || angles == null)
+
+            var anglesUntyped = entity.GetProperty("angles");
+
+            if (scale == null || position == null || anglesUntyped == default)
             {
                 return default;
             }
@@ -22,7 +24,13 @@ namespace ValveResourceFormat.Utils
             var positionVector = ParseVector(position);
             var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
 
-            var pitchYawRoll = ParseVector(angles);
+            var pitchYawRoll = anglesUntyped.Type switch
+            {
+                EntityFieldType.CString => ParseVector((string)anglesUntyped.Data),
+                EntityFieldType.Vector => (Vector3)anglesUntyped.Data,
+                _ => throw new NotImplementedException($"Unsupported angles type {anglesUntyped.Type}"),
+            };
+
             var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * ((float)Math.PI / 180f)); // Roll
             var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X * ((float)Math.PI / 180f)); // Pitch
             var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * ((float)Math.PI / 180f)); // Yaw
