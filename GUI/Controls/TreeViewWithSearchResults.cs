@@ -190,14 +190,27 @@ namespace GUI.Controls
                 {
                     if (foundFiles.Count == 0)
                     {
-                        var rootEmpty = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, "No deleted files found", "_deleted", "_deleted");
-                        rootEmpty.Tag = VrfTreeViewData.MakeFolder(0);
+                        mainTreeView.Nodes.Add(new TreeNode(Types.Viewers.Package.DELETED_FILES_FOLDER)
+                        {
+                            Name = Types.Viewers.Package.DELETED_FILES_FOLDER,
+                            ImageKey = "_deleted",
+                            SelectedImageKey = "_deleted",
+                            Tag = VrfTreeViewData.MakeFolder(0)
+                        });
                         return;
                     }
 
                     mainTreeView.BeginUpdate();
-                    var root = mainTreeView.Nodes.Add(Types.Viewers.Package.DELETED_FILES_FOLDER, $"Deleted files ({foundFiles.Count} files found)", "_deleted", "_deleted");
-                    root.Tag = VrfTreeViewData.MakeFolder(foundFiles.Count);
+
+                    var name = $"Deleted files ({foundFiles.Count} files found)";
+                    var root = new TreeNode(name)
+                    {
+                        Name = name,
+                        ImageKey = "_deleted",
+                        SelectedImageKey = "_deleted",
+                        Tag = VrfTreeViewData.MakeFolder(foundFiles.Count)
+                    };
+                    mainTreeView.Nodes.Add(root);
 
                     var vpkName = Path.GetFileName(vrfGuiContext.CurrentPackage.FileName);
 
