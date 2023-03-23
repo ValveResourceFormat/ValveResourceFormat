@@ -13,13 +13,11 @@ namespace ValveResourceFormat.Blocks
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
-
-            throw new NotImplementedException();
         }
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.WriteLine("{0:X8}", Offset);
+            throw new NotImplementedException();
         }
     }
 }
