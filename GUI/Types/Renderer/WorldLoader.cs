@@ -153,7 +153,6 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var position = entity.GetProperty<string>("origin");
                 var model = entity.GetProperty<string>("model");
                 var skin = entity.GetProperty<string>("skin");
                 var particle = entity.GetProperty<string>("effect_name");
@@ -168,7 +167,7 @@ namespace GUI.Types.Renderer
                     classname.Contains("trigger", StringComparison.InvariantCulture) ||
                     classname == "post_processing_volume";
 
-                var positionVector = EntityTransformHelper.ParseVector(position); // TODO: Get it from transformationMatrix
+                var positionVector = transformationMatrix.Translation;
 
                 if (classname == "sky_camera")
                 {
