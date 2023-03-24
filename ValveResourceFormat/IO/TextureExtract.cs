@@ -256,10 +256,17 @@ public sealed class TextureExtract
         public SKColor DefaultColor { get; init; } = SKColors.Black;
         public SKBitmap Bitmap { get; private set; }
         public string FileName { get; private set; }
+        private readonly HashSet<Channel> Packed = new();
 
         public void Collect(SKPixmap srcPixels, string fileName, Channel srcChannel, Channel dstChannel, bool invert = false)
         {
             FileName ??= fileName;
+
+            if (!Packed.Add(dstChannel))
+            {
+                throw new InvalidOperationException($"Channel {dstChannel} has already been packed.");
+            }
+
             if (Bitmap is null)
             {
                 Bitmap = new SKBitmap(srcPixels.Width, srcPixels.Height, true);
