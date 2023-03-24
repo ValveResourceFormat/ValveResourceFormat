@@ -8,13 +8,15 @@ namespace ValveResourceFormat.TextureDecoders
         readonly int w;
         readonly int h;
         readonly bool normalize;
+        readonly bool hemiOctRB;
         readonly bool invert;
 
-        public DecodeATI2N(int w, int h, bool normalize, bool invert)
+        public DecodeATI2N(int w, int h, bool normalize, bool hemiOctRB, bool invert)
         {
             this.w = w;
             this.h = h;
             this.normalize = normalize;
+            this.hemiOctRB = hemiOctRB;
             this.invert = invert;
         }
 
@@ -57,6 +59,19 @@ namespace ValveResourceFormat.TextureDecoders
                                 data[dataIndex + 2] = ClampColor((swizzleR / 2) + 128); // unpremul R and normalize (128 = forward, or facing viewer)
                                 data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
                                 data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                            }
+
+                            if (hemiOctRB)
+                            {
+                                var nx = ((data[dataIndex + 2] + data[dataIndex + 1]) / 255.0f) - 1.003922f;
+                                var ny = (data[dataIndex + 2] - data[dataIndex + 1]) / 255.0f;
+                                var nz = 1 - Math.Abs(nx) - Math.Abs(ny);
+
+                                var l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                data[dataIndex + 3] = data[dataIndex + 0]; //b to alpha
+                                data[dataIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
+                                data[dataIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
+                                data[dataIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
                             }
 
                             if (invert)
