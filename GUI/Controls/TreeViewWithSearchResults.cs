@@ -131,13 +131,13 @@ namespace GUI.Controls
         /// </summary>
         internal void InitializeTreeViewFromPackage(VrfGuiContext vrfGuiContext)
         {
-            mainListView.Tag = vrfGuiContext;
+            mainListView.Tag = vrfGuiContext; // TODO: Make a property for this
 
             var control = mainTreeView;
             control.BeginUpdate();
             control.PathSeparator = Package.DirectorySeparatorChar.ToString();
             control.Name = "treeViewVpk";
-            control.Tag = vrfGuiContext; // so we can access it later
+            control.Tag = vrfGuiContext; // so we can access it later TODO: Make a property for this
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
             control.ShowRootLines = false;

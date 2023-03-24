@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
+using GUI.Utils;
 using SteamDatabase.ValvePak;
 
 namespace GUI.Controls
@@ -35,7 +39,7 @@ namespace GUI.Controls
         {
             IReadOnlyCollection<TreeNode> results = new List<TreeNode>().AsReadOnly();
 
-            if (searchType != SearchType.FileNameExactMatch)
+            if (searchType != SearchType.FileNameExactMatch && searchType != SearchType.FileContents && searchType != SearchType.FileContentsHex)
             {
                 value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
             }
@@ -66,6 +70,22 @@ namespace GUI.Controls
 
                 bool MatchFunction(TreeNode node) => regex.IsMatch(node.Text);
                 results = Search(MatchFunction);
+            }
+            else if (searchType == SearchType.FileContents)
+            {
+                results = SearchFileContents(Encoding.UTF8.GetBytes(value));
+            }
+            else if (searchType == SearchType.FileContentsHex)
+            {
+                // TODO: Optimize this
+                value = value.Replace(" ", "", StringComparison.Ordinal);
+
+                var bytes = Enumerable.Range(0, value.Length)
+                     .Where(x => x % 2 == 0)
+                     .Select(x => Convert.ToByte(value.Substring(x, 2), 16))
+                     .ToArray();
+
+                results = SearchFileContents(bytes);
             }
 
             return results;
@@ -112,6 +132,139 @@ namespace GUI.Controls
             }
 
             return matchedNodes.AsReadOnly();
+        }
+
+        private IReadOnlyCollection<TreeNode> SearchFileContents(byte[] pattern)
+        {
+            var vrfGuiContext = Tag as VrfGuiContext;
+
+            if (pattern.Length < 3)
+            {
+                throw new Exception("Search input is too short.");
+            }
+
+            if (vrfGuiContext.ParentGuiContext != null)
+            {
+                throw new Exception("Inner paks are not supported.");
+            }
+
+            if (!vrfGuiContext.CurrentPackage.IsDirVPK)
+            {
+                throw new Exception("Implement non dir vpks");
+            }
+
+            Console.WriteLine("Pattern search");
+
+            var maxArchiveIndex = -1;
+            var sortedEntriesPerArchive = new Dictionary<int, List<PackageEntry>>();
+
+            foreach (var extensions in vrfGuiContext.CurrentPackage.Entries.Values)
+            {
+                foreach (var entry in extensions)
+                {
+                    if (entry.ArchiveIndex != 0x7FFF && entry.ArchiveIndex > maxArchiveIndex)
+                    {
+                        maxArchiveIndex = entry.ArchiveIndex;
+                    }
+
+                    if (entry.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!sortedEntriesPerArchive.TryGetValue(entry.ArchiveIndex, out var archiveEntries))
+                    {
+                        archiveEntries = new();
+                        sortedEntriesPerArchive.Add(entry.ArchiveIndex, archiveEntries);
+                    }
+
+                    archiveEntries.Add(entry);
+                }
+            }
+
+            foreach (var archiveEntries in sortedEntriesPerArchive.Values)
+            {
+                archiveEntries.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+            }
+
+            var matches = new HashSet<PackageEntry>();
+
+            if (maxArchiveIndex > -1)
+            {
+                Parallel.For(
+                    0,
+                    maxArchiveIndex,
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = 3
+                    },
+                    archiveIndex =>
+                    {
+                        var fileName = $"{vrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
+
+                        //using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                        var data = File.ReadAllBytes(fileName).AsSpan(); // TODO: stream it
+
+                        var match = -1;
+                        var offset = 0;
+                        var lastEntryId = 0;
+
+                        do
+                        {
+                            match = data.IndexOf(pattern);
+
+                            if (match > -1)
+                            {
+                                match += pattern.Length;
+                                offset += match;
+                                data = data[match..];
+
+                                var archiveEntries = sortedEntriesPerArchive[archiveIndex];
+
+                                for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
+                                {
+                                    if (match >= archiveEntries[entryId].Offset)
+                                    {
+                                        lastEntryId = entryId;
+                                        continue;
+                                    }
+
+                                    break;
+                                }
+
+                                // TODO: Validate file length to avoid deleted files in gaps
+                                matches.Add(archiveEntries[lastEntryId]);
+                            }
+                        }
+                        while (match != -1);
+                    }
+                );
+            }
+
+            Console.WriteLine($"Found {matches.Count} matches");
+
+            var results = new List<TreeNode>();
+
+            foreach (var file in matches)
+            {
+                var fileName = file.GetFileName();
+
+                if (!ExtensionIconList.TryGetValue(file.TypeName, out var ext))
+                {
+                    ext = "_default";
+                }
+
+                var newNode = new TreeNode(fileName)
+                {
+                    Name = fileName,
+                    ImageKey = ext,
+                    SelectedImageKey = ext,
+                    Tag = VrfTreeViewData.MakeFile(file),
+                };
+                results.Add(newNode);
+            }
+
+            return results;
         }
 
         public void GenerateIconList(IEnumerable<string> extensions)

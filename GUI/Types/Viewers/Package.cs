@@ -14,6 +14,7 @@ namespace GUI.Types.Viewers
     {
         internal const string DELETED_FILES_FOLDER = "@@ VRF Deleted Files @@";
         public ImageList ImageList { get; set; }
+        private VrfGuiContext VrfGuiContext;
 
         public static bool IsAccepted(uint magic)
         {
@@ -22,6 +23,8 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
+            VrfGuiContext = vrfGuiContext;
+
             var tab = new TabPage();
             var package = new SteamDatabase.ValvePak.Package();
 
@@ -204,16 +207,16 @@ namespace GUI.Types.Viewers
             OpenFileFromNode(node);
         }
 
-        private static void OpenFileFromNode(TreeNode node)
+        private void OpenFileFromNode(TreeNode node)
         {
             //Make sure we aren't a directory!
             var data = (VrfTreeViewData)node.Tag;
             if (!data.IsFolder)
             {
-                var parentGuiContext = (VrfGuiContext)node.TreeView.Tag;
+                //var parentGuiContext = (VrfGuiContext)node.TreeView.Tag;
                 var file = data.PackageEntry;
 
-                var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), parentGuiContext);
+                var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), VrfGuiContext);
                 Program.MainForm.OpenFile(vrfGuiContext, file);
             }
         }
