@@ -1377,12 +1377,8 @@ namespace ValveResourceFormat.IO
             {
                 // Undo-normalization
                 var compressedNormal = compressedNormalsTangents[i] * 255f;
-                var decompressedNormal = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
-                var decompressedTangent = DecompressTangent(new Vector2(compressedNormal.Z, compressedNormal.W));
-
-                // Swap Y and Z axes
-                normals[i] = new Vector3(decompressedNormal.X, decompressedNormal.Z, decompressedNormal.Y);
-                tangents[i] = new Vector4(decompressedTangent.X, decompressedTangent.Z, decompressedTangent.Y, decompressedTangent.W);
+                normals[i] = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
+                tangents[i] = DecompressTangent(new Vector2(compressedNormal.Z, compressedNormal.W));
             }
 
             return (normals, tangents);
