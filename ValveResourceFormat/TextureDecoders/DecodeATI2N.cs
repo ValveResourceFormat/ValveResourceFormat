@@ -8,12 +8,14 @@ namespace ValveResourceFormat.TextureDecoders
         readonly int w;
         readonly int h;
         readonly bool normalize;
+        readonly bool invert;
 
-        public DecodeATI2N(int w, int h, bool normalize)
+        public DecodeATI2N(int w, int h, bool normalize, bool invert)
         {
             this.w = w;
             this.h = h;
             this.normalize = normalize;
+            this.invert = invert;
         }
 
         public void Decode(SKBitmap imageInfo, Span<byte> input)
@@ -55,6 +57,11 @@ namespace ValveResourceFormat.TextureDecoders
                                 data[dataIndex + 2] = ClampColor((swizzleR / 2) + 128); // unpremul R and normalize (128 = forward, or facing viewer)
                                 data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
                                 data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                            }
+
+                            if (invert)
+                            {
+                                data[dataIndex + 1] = (byte)~data[dataIndex + 1];  // LegacySource1InvertNormals
                             }
                         }
                     }
