@@ -188,7 +188,12 @@ namespace GUI.Types.Renderer
                         EntityFieldType.Integer64 => (ulong)skyboxScale.Data,
                         _ => throw new NotImplementedException($"Unsupported skybox scale {skyboxScale.Type}"),
                     };
-                    result.SkyboxOrigin = positionVector;
+                    result.SkyboxOrigin = skyboxScale.Type switch
+                    {
+                        EntityFieldType.Integer => positionVector * -result.SkyboxScale, // CS2 scales the skybox origin
+                        EntityFieldType.Integer64 => positionVector,
+                        _ => throw new NotImplementedException($"Unsupported skybox scale {skyboxScale.Type}"),
+                    };
                 }
 
                 if (particle != null)
