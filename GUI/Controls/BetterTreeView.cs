@@ -39,7 +39,7 @@ namespace GUI.Controls
         {
             IReadOnlyCollection<TreeNode> results = new List<TreeNode>().AsReadOnly();
 
-            if (searchType != SearchType.FileNameExactMatch && searchType != SearchType.FileContents && searchType != SearchType.FileContentsHex)
+            if (searchType == SearchType.FileNamePartialMatch && searchType == SearchType.FullPath)
             {
                 value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
             }
@@ -61,6 +61,8 @@ namespace GUI.Controls
             }
             else if (searchType == SearchType.FullPath)
             {
+                value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
+
                 bool MatchFunction(TreeNode node) => node.FullPath.Contains(value, StringComparison.InvariantCultureIgnoreCase);
                 results = Search(MatchFunction);
             }
@@ -213,30 +215,37 @@ namespace GUI.Controls
                         {
                             match = data.IndexOf(pattern);
 
-                            if (match > -1)
+                            if (match < 0)
                             {
-                                match += pattern.Length;
-                                offset += match;
-                                data = data[match..];
+                                break;
+                            }
 
-                                var archiveEntries = sortedEntriesPerArchive[archiveIndex];
+                            match += pattern.Length;
+                            offset += match;
+                            data = data[match..];
 
-                                for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
+                            var archiveEntries = sortedEntriesPerArchive[archiveIndex];
+                            PackageEntry packageEntry = null;
+
+                            for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
+                            {
+                                if (offset >= archiveEntries[entryId].Offset)
                                 {
-                                    if (match >= archiveEntries[entryId].Offset)
-                                    {
-                                        lastEntryId = entryId;
-                                        continue;
-                                    }
-
-                                    break;
+                                    lastEntryId = entryId;
+                                    continue;
                                 }
 
-                                // TODO: Validate file length to avoid deleted files in gaps
-                                matches.Add(archiveEntries[lastEntryId]);
+                                break;
+                            }
+
+                            packageEntry = archiveEntries[lastEntryId];
+
+                            if (offset <= packageEntry.Offset + packageEntry.Length)
+                            {
+                                matches.Add(packageEntry);
                             }
                         }
-                        while (match != -1);
+                        while (true);
                     }
                 );
             }

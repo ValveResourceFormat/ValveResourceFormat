@@ -235,7 +235,13 @@ namespace GUI.Types.Viewers
         {
             if (e.Tag is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
             {
-                node.TreeView.SelectedNode = node; // To stop it spassing out
+                if (node.TreeView != null)
+                {
+                    // Select the node in tree view when right clicking.
+                    // It can be null when right clicking an item from file contents search
+                    node.TreeView.SelectedNode = node;
+                }
+
                 Program.MainForm.VpkContextMenu.Show(listViewItem.ListView, e.Location);
             }
         }
