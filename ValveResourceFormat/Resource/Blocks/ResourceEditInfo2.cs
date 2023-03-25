@@ -34,6 +34,7 @@ namespace ValveResourceFormat.Blocks
 
             ConstructSpecialDependencies();
             ConstuctInputDependencies();
+            ConstuctAdditionalInputDependencies();
 
             SearchableUserData = kv3.AsKeyValueCollection().GetSubCollection("m_SearchableUserData");
             foreach (var kv in kv3.Data)
@@ -87,6 +88,26 @@ namespace ValveResourceFormat.Blocks
             }
 
             Structs.Add(REDIStruct.InputDependencies, dependenciesRedi);
+        }
+
+        private void ConstuctAdditionalInputDependencies()
+        {
+            var dependenciesRedi = new InputDependencies();
+            var dependencies = BackingData.AsKeyValueCollection().GetArray("m_AdditionalInputDependencies");
+
+            foreach (var dependency in dependencies)
+            {
+                var dependencyRedi = new InputDependencies.InputDependency
+                {
+                    ContentRelativeFilename = dependency.GetProperty<string>("m_RelativeFilename"),
+                    ContentSearchPath = dependency.GetProperty<string>("m_SearchPath"),
+                    FileCRC = (uint)dependency.GetUnsignedIntegerProperty("m_nFileCRC"),
+                };
+
+                dependenciesRedi.List.Add(dependencyRedi);
+            }
+
+            Structs.Add(REDIStruct.AdditionalInputDependencies, dependenciesRedi);
         }
 
         /*
