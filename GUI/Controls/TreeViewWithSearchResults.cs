@@ -274,7 +274,7 @@ namespace GUI.Controls
                 else if (e.Button == MouseButtons.Left)
                 {
                     // left click should focus the node in its tree view
-                    var node = info.Item.Tag as BetterTreeNode;
+                    var node = (BetterTreeNode)info.Item.Tag;
 
                     if (node.IsFolder)
                     {

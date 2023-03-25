@@ -141,14 +141,12 @@ namespace GUI.Controls
 
         private IList<BetterTreeNode> SearchFileContents(byte[] pattern)
         {
-            var vrfGuiContext = Tag as VrfGuiContext;
-
             if (pattern.Length < 3)
             {
                 throw new Exception("Search input is too short.");
             }
 
-            if (vrfGuiContext.ParentGuiContext != null)
+            if (VrfGuiContext.ParentGuiContext != null)
             {
                 throw new Exception("Inner paks are not supported.");
             }
@@ -166,7 +164,7 @@ namespace GUI.Controls
                 var maxArchiveIndex = -1;
                 var sortedEntriesPerArchive = new Dictionary<int, List<PackageEntry>>();
 
-                foreach (var extensions in vrfGuiContext.CurrentPackage.Entries.Values)
+                foreach (var extensions in VrfGuiContext.CurrentPackage.Entries.Values)
                 {
                     foreach (var entry in extensions)
                     {
@@ -199,7 +197,7 @@ namespace GUI.Controls
 
                 if (sortedEntriesPerArchive.TryGetValue(0x7FFF, out var sortedEntriesInDirVpk))
                 {
-                    var fileName = $"{vrfGuiContext.CurrentPackage.FileName}{(vrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
+                    var fileName = $"{VrfGuiContext.CurrentPackage.FileName}{(VrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
 
                     progressDialog.SetProgress($"Searching '{fileName}'");
 
@@ -220,7 +218,7 @@ namespace GUI.Controls
                         },
                         archiveIndex =>
                         {
-                            var fileName = $"{vrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
+                            var fileName = $"{VrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
 
                             var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesPerArchive[archiveIndex]);
 

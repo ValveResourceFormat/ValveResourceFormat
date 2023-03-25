@@ -657,7 +657,7 @@ namespace GUI
 
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
                 {
-                    selectedNodes.Add(selectedNode.Tag as TreeNode);
+                    selectedNodes.Add((BetterTreeNode)selectedNode.Tag);
                 }
             }
             else
@@ -686,22 +686,22 @@ namespace GUI
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-            List<TreeNode> selectedNodes;
+            List<BetterTreeNode> selectedNodes;
 
             if (control is TreeView treeView)
             {
-                selectedNodes = new List<TreeNode>
+                selectedNodes = new List<BetterTreeNode>
                 {
-                    treeView.SelectedNode
+                    (BetterTreeNode)treeView.SelectedNode
                 };
             }
             else if (control is ListView listView)
             {
-                selectedNodes = new List<TreeNode>(listView.SelectedItems.Count);
+                selectedNodes = new List<BetterTreeNode>(listView.SelectedItems.Count);
 
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
                 {
-                    selectedNodes.Add(selectedNode.Tag as TreeNode);
+                    selectedNodes.Add((BetterTreeNode)selectedNode.Tag);
                 }
             }
             else
@@ -709,7 +709,7 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
-            foreach (var selectedNode in selectedNodes.Cast<BetterTreeNode>())
+            foreach (var selectedNode in selectedNodes)
             {
                 if (selectedNode.IsFolder)
                 {
