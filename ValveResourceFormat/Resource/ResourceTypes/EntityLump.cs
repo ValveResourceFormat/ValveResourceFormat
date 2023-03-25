@@ -94,7 +94,7 @@ namespace ValveResourceFormat.ResourceTypes
                         EntityFieldType.Color32 => dataReader.ReadBytes(4),
                         EntityFieldType.Integer => dataReader.ReadInt32(),
                         EntityFieldType.UInt => dataReader.ReadUInt32(),
-                        EntityFieldType.Integer64 => dataReader.ReadUInt64(),
+                        EntityFieldType.Integer64 => dataReader.ReadUInt64(), // TODO: Is supposed to be ReadInt64?
                         EntityFieldType.Vector or EntityFieldType.QAngle => new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()),
                         EntityFieldType.CString => dataReader.ReadNullTermString(Encoding.UTF8), // null term variable
                         _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),

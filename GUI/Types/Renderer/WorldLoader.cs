@@ -185,7 +185,7 @@ namespace GUI.Types.Renderer
                     result.SkyboxScale = skyboxScale.Type switch
                     {
                         EntityFieldType.Integer => (int)skyboxScale.Data,
-                        EntityFieldType.UInt64 => (ulong)skyboxScale.Data,
+                        EntityFieldType.Integer64 => (ulong)skyboxScale.Data,
                         _ => throw new NotImplementedException($"Unsupported skybox scale {skyboxScale.Type}"),
                     };
                     result.SkyboxOrigin = positionVector;
