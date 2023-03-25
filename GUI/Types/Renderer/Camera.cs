@@ -7,7 +7,8 @@ namespace GUI.Types.Renderer
 {
     internal class Camera
     {
-        private const float CAMERASPEED = 300f; // Per second
+        private const float MovementSpeed = 300f; // WASD movement, per second
+        private const float AltMovementSpeed = 10f; // Holding shift or alt movement
         private const float FOV = OpenTK.MathHelper.PiOver4;
 
         private readonly float[] SpeedModifiers = new float[]
@@ -148,12 +149,34 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            // Use the keyboard state to update position
-            HandleKeyboardInput(deltaTime);
+            if (KeyboardState.IsKeyDown(Key.ShiftLeft))
+            {
+                // Move camera when holding shift without panning
+                var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
-            // Full width of the screen is a 1 PI (180deg)
-            Yaw -= (float)Math.PI * MouseDelta.X / WindowSize.X;
-            Pitch -= (float)Math.PI / AspectRatio * MouseDelta.Y / WindowSize.Y;
+                Location += new Vector3(
+                    MouseDelta.X * speed,
+                    0,
+                    -MouseDelta.Y * speed
+                );
+            }
+            else if (KeyboardState.IsKeyDown(Key.AltLeft))
+            {
+                // Move forward or backwards when holding alt
+                var totalDelta = MouseDelta.X + (MouseDelta.Y * -1);
+                var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
+
+                Location += GetForwardVector() * totalDelta * speed;
+            }
+            else
+            {
+                // Use the keyboard state to update position
+                HandleKeyboardInput(deltaTime);
+
+                // Full width of the screen is a 1 PI (180deg)
+                Yaw -= (float)Math.PI * MouseDelta.X / WindowSize.X;
+                Pitch -= (float)Math.PI / AspectRatio * MouseDelta.Y / WindowSize.Y;
+            }
 
             ClampRotation();
 
@@ -213,7 +236,7 @@ namespace GUI.Types.Renderer
 
         private void HandleKeyboardInput(float deltaTime)
         {
-            var speed = CAMERASPEED * deltaTime * SpeedModifiers[CurrentSpeedModifier];
+            var speed = MovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
             if (KeyboardState.IsKeyDown(Key.W))
             {
