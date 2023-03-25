@@ -151,6 +151,13 @@ public sealed class MaterialExtract
             ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
         },
 
+        ["csgo_weapon"] = new()
+        {
+            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor") },
+            ["g_tMetalness"] = new[] { (Channel.R, "TextureRoughness"), (Channel.G, "TextureMetalness") },
+            ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
+        },
+
         ["sky"] = new()
         {
             ["g_tSkyTexture"] = new[] { (Channel.RGBA, "SkyTexture") },

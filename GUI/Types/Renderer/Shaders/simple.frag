@@ -15,7 +15,6 @@
 #define param_F_ALPHA_TEST 0
 #define param_F_GLASS 0
 #define param_HemiOctIsoRoughness_RG_B 0
-#define param_LegacySource1InvertNormals 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -75,10 +74,6 @@ vec3 calculateWorldNormal()
     //vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
     vec2 temp = vec2(bumpNormal.w + bumpNormal.y -1.003922, bumpNormal.w - bumpNormal.y);
     vec3 tangentNormal = oct_to_float32x3(temp);
-#endif
-
-#if param_LegacySource1InvertNormals == 1
-    tangentNormal.y *= -1.0;
 #endif
 
     vec3 normal = vNormalOut;
