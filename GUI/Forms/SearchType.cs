@@ -6,5 +6,7 @@ namespace GUI.Forms
         FileNamePartialMatch,
         FullPath,
         Regex,
+        FileContents,
+        FileContentsHex,
     }
 }

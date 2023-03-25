@@ -2,11 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.Blocks;
+using System.Text;
 
 namespace GUI.Types.Viewers
 {
@@ -14,6 +18,7 @@ namespace GUI.Types.Viewers
     {
         internal const string DELETED_FILES_FOLDER = "@@ VRF Deleted Files @@";
         public ImageList ImageList { get; set; }
+        private VrfGuiContext VrfGuiContext;
 
         public static bool IsAccepted(uint magic)
         {
@@ -22,6 +27,8 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
+            VrfGuiContext = vrfGuiContext;
+
             var tab = new TabPage();
             var package = new SteamDatabase.ValvePak.Package();
 
@@ -41,9 +48,9 @@ namespace GUI.Types.Viewers
             var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
             treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext);
             treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
-            treeViewWithSearch.TreeNodeRightClick += VPK_OnClick;
+            treeViewWithSearch.TreeNodeRightClick += VPK_OnContextMenu;
             treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
-            treeViewWithSearch.ListViewItemRightClick += VPK_OnClick;
+            treeViewWithSearch.ListViewItemRightClick += VPK_OnContextMenu;
             treeViewWithSearch.Disposed += VPK_Disposed;
             tab.Controls.Add(treeViewWithSearch);
 
@@ -62,6 +69,7 @@ namespace GUI.Types.Viewers
             var hiddenIndex = 0;
             var totalSlackSize = 0u;
             var hiddenFiles = new List<PackageEntry>();
+            var kv3header = Encoding.ASCII.GetBytes("<!-- kv3 ");
 
             // TODO: Skip non-chunked vpks?
             foreach (var (archiveIndex, entries) in allEntries)
@@ -143,13 +151,52 @@ namespace GUI.Types.Viewers
                                 newEntry.TypeName += "_c";
                             }
 
-                            newEntry.DirectoryName += "/" + resource.ResourceType;
+                            string filepath = null;
+
+                            // Use input dependency as the file name if there is one
+                            if (resource.EditInfo != null)
+                            {
+                                if (resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.InputDependencies, out var inputBlock))
+                                {
+                                    var inputDeps = (InputDependencies)inputBlock;
+
+                                    if (inputDeps.List.Count > 0)
+                                    {
+                                        filepath = inputDeps.List[0].ContentRelativeFilename;
+                                    }
+                                }
+
+                                if (filepath == null && resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.AdditionalInputDependencies, out inputBlock))
+                                {
+                                    var inputDeps = (InputDependencies)inputBlock;
+
+                                    if (inputDeps.List.Count > 0)
+                                    {
+                                        filepath = inputDeps.List[0].ContentRelativeFilename;
+                                    }
+                                }
+                            }
+
+                            if (filepath != null)
+                            {
+                                newEntry.DirectoryName = Path.Join(DELETED_FILES_FOLDER, Path.GetDirectoryName(filepath)).Replace('\\', SteamDatabase.ValvePak.Package.DirectorySeparatorChar);
+                                newEntry.FileName = Path.GetFileNameWithoutExtension(filepath);
+                            }
+                            else
+                            {
+                                newEntry.DirectoryName += string.Concat(SteamDatabase.ValvePak.Package.DirectorySeparatorChar, resource.ResourceType);
+                            }
                         }
                         catch (Exception ex)
                         {
                             Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
 
                             newEntry.FileName += $" ({length} bytes)";
+
+                            if (bytes.AsSpan().StartsWith(kv3header))
+                            {
+                                newEntry.TypeName = "kv3";
+                            }
                         }
 
                         if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
@@ -178,9 +225,9 @@ namespace GUI.Types.Viewers
             if (sender is TreeViewWithSearchResults treeViewWithSearch)
             {
                 treeViewWithSearch.TreeNodeMouseDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.TreeNodeRightClick -= VPK_OnClick;
+                treeViewWithSearch.TreeNodeRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.ListViewItemRightClick -= VPK_OnClick;
+                treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
             }
         }
@@ -192,33 +239,36 @@ namespace GUI.Types.Viewers
         /// <param name="e">Event data.</param>
         private void VPK_OpenFile(object sender, ListViewItemClickEventArgs e)
         {
-            if (e.Tag is TreeNode node)
+            if (e.Node is not BetterTreeNode node)
             {
-                OpenFileFromNode(node);
+                throw new Exception("Unexpected tree node type");
             }
+
+            OpenFileFromNode(node);
         }
 
         private void VPK_OpenFile(object sender, TreeNodeMouseClickEventArgs e)
         {
-            var node = e.Node;
+            if (e.Node is not BetterTreeNode node)
+            {
+                throw new Exception("Unexpected tree node type");
+            }
+
             OpenFileFromNode(node);
         }
 
-        private static void OpenFileFromNode(TreeNode node)
+        private void OpenFileFromNode(BetterTreeNode node)
         {
             //Make sure we aren't a directory!
-            var data = (VrfTreeViewData)node.Tag;
-            if (!data.IsFolder)
+            if (!node.IsFolder)
             {
-                var parentGuiContext = (VrfGuiContext)node.TreeView.Tag;
-                var file = data.PackageEntry;
-
-                var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), parentGuiContext);
+                var file = node.PackageEntry;
+                var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), VrfGuiContext);
                 Program.MainForm.OpenFile(vrfGuiContext, file);
             }
         }
 
-        private void VPK_OnClick(object sender, TreeNodeMouseClickEventArgs e)
+        private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)
         {
             Program.MainForm.VpkContextMenu.Show(e.Node.TreeView, e.Location);
         }
@@ -228,11 +278,17 @@ namespace GUI.Types.Viewers
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>
-        private void VPK_OnClick(object sender, ListViewItemClickEventArgs e)
+        private void VPK_OnContextMenu(object sender, ListViewItemClickEventArgs e)
         {
-            if (e.Tag is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
+            if (e.Node is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
             {
-                node.TreeView.SelectedNode = node; // To stop it spassing out
+                if (node.TreeView != null)
+                {
+                    // Select the node in tree view when right clicking.
+                    // It can be null when right clicking an item from file contents search
+                    node.TreeView.SelectedNode = node;
+                }
+
                 Program.MainForm.VpkContextMenu.Show(listViewItem.ListView, e.Location);
             }
         }

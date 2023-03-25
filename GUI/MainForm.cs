@@ -667,12 +667,11 @@ namespace GUI
 
             var sb = new StringBuilder();
 
-            foreach (var selectedNode in selectedNodes)
+            foreach (var selectedNode in selectedNodes.Cast<BetterTreeNode>())
             {
-                var data = (VrfTreeViewData)selectedNode.Tag;
-                if (!data.IsFolder)
+                if (!selectedNode.IsFolder)
                 {
-                    var packageEntry = data.PackageEntry;
+                    var packageEntry = selectedNode.PackageEntry;
                     sb.AppendLine(packageEntry.GetFullPath());
                 }
                 else
@@ -710,29 +709,34 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
-            foreach (var selectedNode in selectedNodes)
+            foreach (var selectedNode in selectedNodes.Cast<BetterTreeNode>())
             {
-                var data = (VrfTreeViewData)selectedNode.Tag;
-                if (!data.IsFolder)
+                if (selectedNode.IsFolder)
                 {
-                    var file = data.PackageEntry;
-                    var vrfGuiContext = (VrfGuiContext)selectedNode.TreeView.Tag;
-                    vrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+                    return;
+                }
 
-                    var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(vrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
-                    using (var stream = new FileStream(tempPath, FileMode.Create))
-                    {
-                        stream.Write(output, 0, output.Length);
-                    }
+                if (selectedNode.TreeView is not BetterTreeView nodeTreeView)
+                {
+                    throw new Exception("Unexpected tree view");
+                }
 
-                    try
-                    {
-                        Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Error.WriteLine(ex.Message);
-                    }
+                var file = selectedNode.PackageEntry;
+                nodeTreeView.VrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+
+                var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(nodeTreeView.VrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
+                using (var stream = new FileStream(tempPath, FileMode.Create))
+                {
+                    stream.Write(output, 0, output.Length);
+                }
+
+                try
+                {
+                    Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex.Message);
                 }
             }
         }
@@ -752,20 +756,16 @@ namespace GUI
             var owner = (ContextMenuStrip)((ToolStripMenuItem)sender).Owner;
 
             // Clicking context menu item in left side of the package view
-            if (owner.SourceControl is TreeView tree)
+            if (owner.SourceControl is BetterTreeView tree)
             {
-                var vrfGuiContext = (VrfGuiContext)tree.Tag;
-
-                ExportFile.ExtractFilesFromTreeNode(tree.SelectedNode, vrfGuiContext, decompile);
+                ExportFile.ExtractFilesFromTreeNode((BetterTreeNode)tree.SelectedNode, tree.VrfGuiContext, decompile);
             }
             // Clicking context menu item in right side of the package view
-            else if (owner.SourceControl is ListView listView)
+            else if (owner.SourceControl is BetterListView listView)
             {
-                var vrfGuiContext = (VrfGuiContext)listView.Tag;
-
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
                 {
-                    ExportFile.ExtractFilesFromTreeNode(selectedNode.Tag as TreeNode, vrfGuiContext, decompile);
+                    ExportFile.ExtractFilesFromTreeNode((BetterTreeNode)selectedNode.Tag, listView.VrfGuiContext, decompile);
                 }
             }
             // Clicking context menu item when right clicking a tab
