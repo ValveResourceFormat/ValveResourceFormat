@@ -10,6 +10,17 @@ namespace GUI.Types.Renderer
         private const float CAMERASPEED = 300f; // Per second
         private const float FOV = OpenTK.MathHelper.PiOver4;
 
+        private readonly float[] SpeedModifiers = new float[]
+        {
+            0.1f,
+            0.5f,
+            1.0f,
+            2.0f,
+            5.0f,
+            10.0f,
+        };
+        private int CurrentSpeedModifier = 2;
+
         public Vector3 Location { get; private set; }
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
@@ -149,6 +160,30 @@ namespace GUI.Types.Renderer
             RecalculateMatrices();
         }
 
+        public float ModifySpeed(bool increase)
+        {
+            if (increase)
+            {
+                CurrentSpeedModifier += 1;
+
+                if (CurrentSpeedModifier >= SpeedModifiers.Length)
+                {
+                    CurrentSpeedModifier = SpeedModifiers.Length - 1;
+                }
+            }
+            else
+            {
+                CurrentSpeedModifier -= 1;
+
+                if (CurrentSpeedModifier < 0)
+                {
+                    CurrentSpeedModifier = 0;
+                }
+            }
+
+            return SpeedModifiers[CurrentSpeedModifier];
+        }
+
         public void HandleInput(MouseState mouseState, KeyboardState keyboardState)
         {
             KeyboardState = keyboardState;
@@ -178,17 +213,7 @@ namespace GUI.Types.Renderer
 
         private void HandleKeyboardInput(float deltaTime)
         {
-            var speed = CAMERASPEED * deltaTime;
-
-            // Double speed if shift is pressed
-            if (KeyboardState.IsKeyDown(Key.ShiftLeft))
-            {
-                speed *= 2;
-            }
-            else if (KeyboardState.IsKeyDown(Key.F))
-            {
-                speed *= 10;
-            }
+            var speed = CAMERASPEED * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
             if (KeyboardState.IsKeyDown(Key.W))
             {

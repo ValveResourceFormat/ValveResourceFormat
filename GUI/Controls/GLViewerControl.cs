@@ -68,6 +68,7 @@ namespace GUI.Controls
             GLControl.MouseLeave += OnMouseLeave;
             GLControl.MouseUp += OnMouseUp;
             GLControl.MouseDown += OnMouseDown;
+            GLControl.MouseWheel += OnMouseWheel;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             GLControl.Disposed += OnDisposed;
@@ -181,6 +182,7 @@ namespace GUI.Controls
             GLControl.MouseLeave -= OnMouseLeave;
             GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
+            GLControl.MouseWheel -= OnMouseWheel;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             GLControl.Disposed -= OnDisposed;
@@ -225,6 +227,13 @@ namespace GUI.Controls
             }
 
             Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+        }
+
+        private void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
+        {
+            var modifier = Camera.ModifySpeed(e.Delta > 0);
+
+            moveSpeed.Text = $"Move speed: {modifier:0.0}x (scroll to change)";
         }
 
         private void OnLoad(object sender, EventArgs e)

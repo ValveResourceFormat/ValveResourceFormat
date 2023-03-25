@@ -31,68 +31,77 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.glControlContainer = new System.Windows.Forms.Panel();
-            this.fpsLabel = new System.Windows.Forms.Label();
-            this.controlsPanel = new System.Windows.Forms.Panel();
-            this.label1 = new System.Windows.Forms.Label();
-            this.controlsPanel.SuspendLayout();
-            this.SuspendLayout();
+            glControlContainer = new Panel();
+            fpsLabel = new Label();
+            controlsPanel = new Panel();
+            moveSpeed = new Label();
+            label1 = new Label();
+            controlsPanel.SuspendLayout();
+            SuspendLayout();
             // 
             // glControlContainer
             // 
-            this.glControlContainer.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.glControlContainer.BackColor = System.Drawing.Color.Black;
-            this.glControlContainer.Location = new System.Drawing.Point(220, 0);
-            this.glControlContainer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.glControlContainer.Name = "glControlContainer";
-            this.glControlContainer.Size = new System.Drawing.Size(810, 412);
-            this.glControlContainer.TabIndex = 0;
+            glControlContainer.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            glControlContainer.BackColor = System.Drawing.Color.Black;
+            glControlContainer.Location = new System.Drawing.Point(220, 0);
+            glControlContainer.Margin = new Padding(4, 3, 4, 3);
+            glControlContainer.Name = "glControlContainer";
+            glControlContainer.Size = new System.Drawing.Size(810, 412);
+            glControlContainer.TabIndex = 0;
             // 
             // fpsLabel
             // 
-            this.fpsLabel.Location = new System.Drawing.Point(32, 8);
-            this.fpsLabel.Margin = new System.Windows.Forms.Padding(0, 0, 3, 0);
-            this.fpsLabel.Name = "fpsLabel";
-            this.fpsLabel.Size = new System.Drawing.Size(100, 15);
-            this.fpsLabel.TabIndex = 4;
-            this.fpsLabel.Text = "0";
+            fpsLabel.Location = new System.Drawing.Point(32, 8);
+            fpsLabel.Margin = new Padding(0, 0, 3, 0);
+            fpsLabel.Name = "fpsLabel";
+            fpsLabel.Size = new System.Drawing.Size(100, 15);
+            fpsLabel.TabIndex = 4;
+            fpsLabel.Text = "0";
             // 
             // controlsPanel
             // 
-            this.controlsPanel.Controls.Add(this.label1);
-            this.controlsPanel.Controls.Add(this.fpsLabel);
-            this.controlsPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.controlsPanel.Location = new System.Drawing.Point(0, 0);
-            this.controlsPanel.Margin = new System.Windows.Forms.Padding(0);
-            this.controlsPanel.Name = "controlsPanel";
-            this.controlsPanel.Size = new System.Drawing.Size(220, 412);
-            this.controlsPanel.TabIndex = 4;
+            controlsPanel.Controls.Add(moveSpeed);
+            controlsPanel.Controls.Add(label1);
+            controlsPanel.Controls.Add(fpsLabel);
+            controlsPanel.Dock = DockStyle.Left;
+            controlsPanel.Location = new System.Drawing.Point(0, 0);
+            controlsPanel.Margin = new Padding(0);
+            controlsPanel.Name = "controlsPanel";
+            controlsPanel.Size = new System.Drawing.Size(220, 412);
+            controlsPanel.TabIndex = 4;
+            // 
+            // moveSpeed
+            // 
+            moveSpeed.AutoSize = true;
+            moveSpeed.Dock = DockStyle.Bottom;
+            moveSpeed.Location = new System.Drawing.Point(0, 397);
+            moveSpeed.Name = "moveSpeed";
+            moveSpeed.Size = new System.Drawing.Size(193, 15);
+            moveSpeed.TabIndex = 5;
+            moveSpeed.Text = "Move speed: 1.0x (scroll to change)";
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(3, 8);
-            this.label1.Margin = new System.Windows.Forms.Padding(3, 0, 0, 0);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(29, 15);
-            this.label1.TabIndex = 3;
-            this.label1.Text = "FPS:";
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(3, 8);
+            label1.Margin = new Padding(3, 0, 0, 0);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(29, 15);
+            label1.TabIndex = 3;
+            label1.Text = "FPS:";
             // 
             // GLViewerControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.controlsPanel);
-            this.Controls.Add(this.glControlContainer);
-            this.Margin = new System.Windows.Forms.Padding(0);
-            this.Name = "GLViewerControl";
-            this.Size = new System.Drawing.Size(1030, 412);
-            this.controlsPanel.ResumeLayout(false);
-            this.controlsPanel.PerformLayout();
-            this.ResumeLayout(false);
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            Controls.Add(controlsPanel);
+            Controls.Add(glControlContainer);
+            Margin = new Padding(0);
+            Name = "GLViewerControl";
+            Size = new System.Drawing.Size(1030, 412);
+            controlsPanel.ResumeLayout(false);
+            controlsPanel.PerformLayout();
+            ResumeLayout(false);
         }
 
         #endregion
@@ -101,5 +110,6 @@ namespace GUI.Controls
         private Label fpsLabel;
         private Panel controlsPanel;
         private Label label1;
+        private Label moveSpeed;
     }
 }
