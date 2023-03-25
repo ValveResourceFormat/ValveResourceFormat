@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.Blocks;
 
 namespace GUI.Types.Viewers
 {
@@ -146,7 +149,41 @@ namespace GUI.Types.Viewers
                                 newEntry.TypeName += "_c";
                             }
 
-                            newEntry.DirectoryName += "/" + resource.ResourceType;
+                            string filepath = null;
+
+                            // Use input dependency as the file name if there is one
+                            if (resource.EditInfo != null)
+                            {
+                                if (resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.InputDependencies, out var inputBlock))
+                                {
+                                    var inputDeps = (InputDependencies)inputBlock;
+
+                                    if (inputDeps.List.Count > 0)
+                                    {
+                                        filepath = inputDeps.List[0].ContentRelativeFilename;
+                                    }
+                                }
+
+                                if (filepath == null && resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.AdditionalInputDependencies, out inputBlock))
+                                {
+                                    var inputDeps = (InputDependencies)inputBlock;
+
+                                    if (inputDeps.List.Count > 0)
+                                    {
+                                        filepath = inputDeps.List[0].ContentRelativeFilename;
+                                    }
+                                }
+                            }
+
+                            if (filepath != null)
+                            {
+                                newEntry.DirectoryName = Path.Join(DELETED_FILES_FOLDER, Path.GetDirectoryName(filepath)).Replace('\\', SteamDatabase.ValvePak.Package.DirectorySeparatorChar);
+                                newEntry.FileName = Path.GetFileNameWithoutExtension(filepath);
+                            }
+                            else
+                            {
+                                newEntry.DirectoryName += string.Concat(SteamDatabase.ValvePak.Package.DirectorySeparatorChar, resource.ResourceType);
+                            }
                         }
                         catch (Exception ex)
                         {

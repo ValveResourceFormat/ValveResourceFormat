@@ -202,7 +202,7 @@ namespace GUI.Controls
 
                     mainTreeView.BeginUpdate();
 
-                    var name = $"Deleted files ({foundFiles.Count} files found)";
+                    var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
                     var root = new TreeNode(name)
                     {
                         Name = name,
