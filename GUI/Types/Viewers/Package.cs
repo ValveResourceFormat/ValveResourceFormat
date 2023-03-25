@@ -144,10 +144,14 @@ namespace GUI.Types.Viewers
                                 scan = true;
                             }
 
+                            string resourceTypeExtensionWithDot = null;
+
                             if (resource.ResourceType != ResourceType.Unknown)
                             {
                                 var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString())[0];
-                                newEntry.TypeName = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
+                                var resourceTypeExtension = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
+                                resourceTypeExtensionWithDot = string.Concat(".", resourceTypeExtension);
+                                newEntry.TypeName = resourceTypeExtension;
                                 newEntry.TypeName += "_c";
                             }
 
@@ -156,24 +160,32 @@ namespace GUI.Types.Viewers
                             // Use input dependency as the file name if there is one
                             if (resource.EditInfo != null)
                             {
+                                string GetPossiblePath(InputDependencies inputDeps)
+                                {
+                                    if (inputDeps.List.Count == 0)
+                                    {
+                                        return null;
+                                    }
+
+                                    foreach (var inputDependency in inputDeps.List)
+                                    {
+                                        if (Path.GetExtension(inputDependency.ContentRelativeFilename) == resourceTypeExtensionWithDot)
+                                        {
+                                            return inputDependency.ContentRelativeFilename;
+                                        }
+                                    }
+
+                                    return inputDeps.List[0].ContentRelativeFilename;
+                                }
+
                                 if (resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.InputDependencies, out var inputBlock))
                                 {
-                                    var inputDeps = (InputDependencies)inputBlock;
-
-                                    if (inputDeps.List.Count > 0)
-                                    {
-                                        filepath = inputDeps.List[0].ContentRelativeFilename;
-                                    }
+                                    filepath = GetPossiblePath((InputDependencies)inputBlock);
                                 }
 
                                 if (filepath == null && resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.AdditionalInputDependencies, out inputBlock))
                                 {
-                                    var inputDeps = (InputDependencies)inputBlock;
-
-                                    if (inputDeps.List.Count > 0)
-                                    {
-                                        filepath = inputDeps.List[0].ContentRelativeFilename;
-                                    }
+                                    filepath = GetPossiblePath((InputDependencies)inputBlock);
                                 }
                             }
 
