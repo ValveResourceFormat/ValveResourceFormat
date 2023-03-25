@@ -25,7 +25,7 @@ namespace GUI.Forms
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Exact Match)", SearchType.FileNameExactMatch));
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Full Path", SearchType.FullPath));
             searchTypeComboBox.Items.Add(new SearchTypeItem("Regex", SearchType.Regex));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents", SearchType.FileContents));
+            searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents (Case Sensitive)", SearchType.FileContents));
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents Hex Bytes", SearchType.FileContentsHex));
             searchTypeComboBox.SelectedIndex = 0;
         }

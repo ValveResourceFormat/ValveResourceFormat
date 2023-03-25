@@ -231,7 +231,7 @@ namespace GUI.Controls
                             }
 
                             Interlocked.Increment(ref archivesScanned);
-                            progressDialog.SetProgress($"Searched {archivesScanned} vpks out of {maxArchiveIndex}, found {archiveMatches.Count} matches so far");
+                            progressDialog.SetProgress($"Searched {archivesScanned} vpks out of {maxArchiveIndex}, found {matches.Count} matches so far");
                         }
                     );
                 }
