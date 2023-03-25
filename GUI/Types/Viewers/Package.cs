@@ -48,9 +48,9 @@ namespace GUI.Types.Viewers
             var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
             treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext);
             treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
-            treeViewWithSearch.TreeNodeRightClick += VPK_OnClick;
+            treeViewWithSearch.TreeNodeRightClick += VPK_OnContextMenu;
             treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
-            treeViewWithSearch.ListViewItemRightClick += VPK_OnClick;
+            treeViewWithSearch.ListViewItemRightClick += VPK_OnContextMenu;
             treeViewWithSearch.Disposed += VPK_Disposed;
             tab.Controls.Add(treeViewWithSearch);
 
@@ -225,9 +225,9 @@ namespace GUI.Types.Viewers
             if (sender is TreeViewWithSearchResults treeViewWithSearch)
             {
                 treeViewWithSearch.TreeNodeMouseDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.TreeNodeRightClick -= VPK_OnClick;
+                treeViewWithSearch.TreeNodeRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.ListViewItemRightClick -= VPK_OnClick;
+                treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
             }
         }
@@ -239,31 +239,36 @@ namespace GUI.Types.Viewers
         /// <param name="e">Event data.</param>
         private void VPK_OpenFile(object sender, ListViewItemClickEventArgs e)
         {
-            if (e.Tag is TreeNode node)
+            if (e.Node is not BetterTreeNode node)
             {
-                OpenFileFromNode(node);
+                throw new Exception("Unexpected tree node type");
             }
+
+            OpenFileFromNode(node);
         }
 
         private void VPK_OpenFile(object sender, TreeNodeMouseClickEventArgs e)
         {
-            var node = e.Node;
+            if (e.Node is not BetterTreeNode node)
+            {
+                throw new Exception("Unexpected tree node type");
+            }
+
             OpenFileFromNode(node);
         }
 
-        private void OpenFileFromNode(TreeNode node)
+        private void OpenFileFromNode(BetterTreeNode node)
         {
             //Make sure we aren't a directory!
-            var data = (VrfTreeViewData)node.Tag;
-            if (!data.IsFolder)
+            if (!node.IsFolder)
             {
-                var file = data.PackageEntry;
+                var file = node.PackageEntry;
                 var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), VrfGuiContext);
                 Program.MainForm.OpenFile(vrfGuiContext, file);
             }
         }
 
-        private void VPK_OnClick(object sender, TreeNodeMouseClickEventArgs e)
+        private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)
         {
             Program.MainForm.VpkContextMenu.Show(e.Node.TreeView, e.Location);
         }
@@ -273,9 +278,9 @@ namespace GUI.Types.Viewers
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>
-        private void VPK_OnClick(object sender, ListViewItemClickEventArgs e)
+        private void VPK_OnContextMenu(object sender, ListViewItemClickEventArgs e)
         {
-            if (e.Tag is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
+            if (e.Node is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
             {
                 if (node.TreeView != null)
                 {

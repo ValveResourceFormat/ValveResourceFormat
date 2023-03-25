@@ -38,9 +38,9 @@ namespace GUI.Controls
         /// <param name="value">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
         /// <param name="searchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
         /// <returns>A collection of nodes who match the conditions based on the search type.</returns>
-        public IReadOnlyCollection<TreeNode> Search(string value, SearchType searchType)
+        public IList<BetterTreeNode> Search(string value, SearchType searchType)
         {
-            IReadOnlyCollection<TreeNode> results = new List<TreeNode>().AsReadOnly();
+            IList<BetterTreeNode> results = new List<BetterTreeNode>();
 
             if (searchType == SearchType.FileNamePartialMatch && searchType == SearchType.FullPath)
             {
@@ -55,25 +55,25 @@ namespace GUI.Controls
 
             if (searchType == SearchType.FileNameExactMatch)
             {
-                results = Nodes.Find(value, true).ToList();
+                results = Nodes.Find(value, true).Cast<BetterTreeNode>().ToList();
             }
             else if (searchType == SearchType.FileNamePartialMatch)
             {
-                bool MatchFunction(TreeNode node) => node.Text.Contains(value, StringComparison.InvariantCultureIgnoreCase);
+                bool MatchFunction(BetterTreeNode node) => node.Text.Contains(value, StringComparison.InvariantCultureIgnoreCase);
                 results = Search(MatchFunction);
             }
             else if (searchType == SearchType.FullPath)
             {
                 value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
 
-                bool MatchFunction(TreeNode node) => node.FullPath.Contains(value, StringComparison.InvariantCultureIgnoreCase);
+                bool MatchFunction(BetterTreeNode node) => node.FullPath.Contains(value, StringComparison.InvariantCultureIgnoreCase);
                 results = Search(MatchFunction);
             }
             else if (searchType == SearchType.Regex)
             {
                 var regex = new Regex(value, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-                bool MatchFunction(TreeNode node) => regex.IsMatch(node.Text);
+                bool MatchFunction(BetterTreeNode node) => regex.IsMatch(node.Text);
                 results = Search(MatchFunction);
             }
             else if (searchType == SearchType.FileContents)
@@ -101,17 +101,17 @@ namespace GUI.Controls
         /// </summary>
         /// <param name="matchFunction">Function which performs matching on the TreeNode. Returns true if there's a match.</param>
         /// <returns>Returns matched nodes.</returns>
-        private IReadOnlyCollection<TreeNode> Search(Func<TreeNode, bool> matchFunction)
+        private IList<BetterTreeNode> Search(Func<BetterTreeNode, bool> matchFunction)
         {
-            var searchQueue = new Queue<TreeNode>();
+            var searchQueue = new Queue<BetterTreeNode>();
 
             // queue up every child of the root to begin the search
-            foreach (TreeNode childNode in Nodes)
+            foreach (BetterTreeNode childNode in Nodes)
             {
                 searchQueue.Enqueue(childNode);
             }
 
-            var matchedNodes = new List<TreeNode>();
+            var matchedNodes = new List<BetterTreeNode>();
 
             // while there are items in the queue to search
             while (searchQueue.Count > 0)
@@ -130,7 +130,7 @@ namespace GUI.Controls
                     continue;
                 }
 
-                foreach (TreeNode childNode in currentNode.Nodes)
+                foreach (BetterTreeNode childNode in currentNode.Nodes)
                 {
                     searchQueue.Enqueue(childNode);
                 }
@@ -139,7 +139,7 @@ namespace GUI.Controls
             return matchedNodes.AsReadOnly();
         }
 
-        private IReadOnlyCollection<TreeNode> SearchFileContents(byte[] pattern)
+        private IList<BetterTreeNode> SearchFileContents(byte[] pattern)
         {
             var vrfGuiContext = Tag as VrfGuiContext;
 
@@ -153,7 +153,7 @@ namespace GUI.Controls
                 throw new Exception("Inner paks are not supported.");
             }
 
-            var results = new List<TreeNode>();
+            var results = new List<BetterTreeNode>();
 
             using var progressDialog = new GenericProgressForm
             {
@@ -251,12 +251,11 @@ namespace GUI.Controls
                         ext = "_default";
                     }
 
-                    var newNode = new TreeNode(fileName)
+                    var newNode = new BetterTreeNode(fileName, file)
                     {
                         Name = fileName,
                         ImageKey = ext,
                         SelectedImageKey = ext,
-                        Tag = VrfTreeViewData.MakeFile(file),
                     };
                     results.Add(newNode);
                 }
@@ -355,7 +354,7 @@ namespace GUI.Controls
         /// <param name="currentNode">Root node.</param>
         /// <param name="file">File entry.</param>
         /// <param name="skipDeletedRootFolder">If true, ignore root folder for recovered deleted files.</param>
-        public void AddFileNode(TreeNode currentNode, PackageEntry file, bool skipDeletedRootFolder = false)
+        public void AddFileNode(BetterTreeNode currentNode, PackageEntry file, bool skipDeletedRootFolder = false)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
@@ -368,16 +367,15 @@ namespace GUI.Controls
                         continue;
                     }
 
-                    var subNode = currentNode.Nodes[subPath];
+                    var subNode = (BetterTreeNode)currentNode.Nodes[subPath];
 
                     if (subNode == null)
                     {
-                        var toAdd = new TreeNode(subPath)
+                        var toAdd = new BetterTreeNode(subPath, 1)
                         {
                             Name = subPath,
                             ImageKey = "_folder",
                             SelectedImageKey = "_folder",
-                            Tag = VrfTreeViewData.MakeFolder(1)
                         };
                         currentNode.Nodes.Add(toAdd);
                         currentNode = toAdd;
@@ -385,7 +383,7 @@ namespace GUI.Controls
                     else
                     {
                         currentNode = subNode;
-                        ((VrfTreeViewData)subNode.Tag).ItemCount++;
+                        currentNode.ItemCount++;
                     }
                 }
             }
@@ -397,12 +395,11 @@ namespace GUI.Controls
                 ext = "_default";
             }
 
-            var newNode = new TreeNode(fileName)
+            var newNode = new BetterTreeNode(fileName, file)
             {
                 Name = fileName,
                 ImageKey = ext,
                 SelectedImageKey = ext,
-                Tag = VrfTreeViewData.MakeFile(file) //so we can use it later
             };
 
             currentNode.Nodes.Add(newNode);

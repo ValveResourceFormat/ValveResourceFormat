@@ -82,12 +82,12 @@ namespace GUI.Controls
         private void MainTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
             // if user selected a folder, show the contents of that folder in the list view
-            if (e.Action != TreeViewAction.Unknown && ((VrfTreeViewData)e.Node.Tag).IsFolder)
+            if (e.Action != TreeViewAction.Unknown && ((BetterTreeNode)e.Node).IsFolder)
             {
                 mainListView.BeginUpdate();
                 mainListView.Items.Clear();
 
-                foreach (TreeNode node in e.Node.Nodes)
+                foreach (BetterTreeNode node in e.Node.Nodes)
                 {
                     AddNodeToListView(node);
                 }
@@ -147,8 +147,13 @@ namespace GUI.Controls
             control.GenerateIconList(vrfGuiContext.CurrentPackage.Entries.Keys.ToList());
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
-            var root = control.Nodes.Add("root", name, "vpk", "vpk");
-            root.Tag = VrfTreeViewData.MakeFolder(vrfGuiContext.CurrentPackage.Entries.Count);
+            var root = new BetterTreeNode(name, vrfGuiContext.CurrentPackage.Entries.Count)
+            {
+                Name = "root",
+                ImageKey = "vpk",
+                SelectedImageKey = "vpk",
+            };
+            control.Nodes.Add(root);
             root.Expand();
 
             control.TreeViewNodeSorter = new TreeViewFileSorter();
@@ -166,7 +171,7 @@ namespace GUI.Controls
 
             while (node.Nodes.Count == 1)
             {
-                node = node.Nodes[0];
+                node = (BetterTreeNode)node.Nodes[0];
                 node.Expand();
             }
 
@@ -191,12 +196,11 @@ namespace GUI.Controls
                 {
                     if (foundFiles.Count == 0)
                     {
-                        mainTreeView.Nodes.Add(new TreeNode(Types.Viewers.Package.DELETED_FILES_FOLDER)
+                        mainTreeView.Nodes.Add(new BetterTreeNode(Types.Viewers.Package.DELETED_FILES_FOLDER, 0)
                         {
                             Name = Types.Viewers.Package.DELETED_FILES_FOLDER,
                             ImageKey = "_deleted",
                             SelectedImageKey = "_deleted",
-                            Tag = VrfTreeViewData.MakeFolder(0)
                         });
                         return;
                     }
@@ -204,12 +208,11 @@ namespace GUI.Controls
                     mainTreeView.BeginUpdate();
 
                     var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
-                    var root = new TreeNode(name)
+                    var root = new BetterTreeNode(name, foundFiles.Count)
                     {
                         Name = name,
                         ImageKey = "_deleted",
                         SelectedImageKey = "_deleted",
-                        Tag = VrfTreeViewData.MakeFolder(foundFiles.Count)
                     };
                     mainTreeView.Nodes.Add(root);
 
@@ -271,8 +274,9 @@ namespace GUI.Controls
                 else if (e.Button == MouseButtons.Left)
                 {
                     // left click should focus the node in its tree view
-                    var node = info.Item.Tag as TreeNode;
-                    if (((VrfTreeViewData)node.Tag).IsFolder)
+                    var node = info.Item.Tag as BetterTreeNode;
+
+                    if (node.IsFolder)
                     {
                         node.EnsureVisible();
                         node.TreeView.SelectedNode = node;
@@ -300,13 +304,13 @@ namespace GUI.Controls
                 if (info.Item != null)
                 {
                     // if user left double clicks a folder, open its contents and display in list view
-                    var node = info.Item.Tag as TreeNode;
-                    if (((VrfTreeViewData)node.Tag).IsFolder)
+                    var node = info.Item.Tag as BetterTreeNode;
+                    if (node.IsFolder)
                     {
                         node.Expand();
                         mainListView.BeginUpdate();
                         mainListView.Items.Clear();
-                        foreach (TreeNode childNode in node.Nodes)
+                        foreach (BetterTreeNode childNode in node.Nodes)
                         {
                             AddNodeToListView(childNode);
                         }
@@ -335,7 +339,7 @@ namespace GUI.Controls
             mainListView.SmallImageList = imageList;
         }
 
-        private void AddNodeToListView(TreeNode node)
+        private void AddNodeToListView(BetterTreeNode node)
         {
             var item = new ListViewItem(node.Text)
             {
@@ -343,17 +347,15 @@ namespace GUI.Controls
                 Tag = node,
             };
 
-            var data = (VrfTreeViewData)node.Tag;
-
-            if (!data.IsFolder)
+            if (!node.IsFolder)
             {
-                var file = data.PackageEntry;
+                var file = node.PackageEntry;
                 item.SubItems.Add(file.TotalLength.ToFileSizeString());
                 item.SubItems.Add(file.TypeName);
             }
             else
             {
-                item.SubItems.Add($"{data.ItemCount} items");
+                item.SubItems.Add($"{node.ItemCount} items");
                 item.SubItems.Add("folder");
             }
 

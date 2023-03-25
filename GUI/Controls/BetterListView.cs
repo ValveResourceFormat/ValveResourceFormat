@@ -4,7 +4,7 @@ using GUI.Utils;
 namespace GUI.Controls
 {
     /// <inheritdoc/>
-    public class BetterListView : ListView
+    public sealed class BetterListView : ListView
     {
         public VrfGuiContext VrfGuiContext { get; set; }
     }

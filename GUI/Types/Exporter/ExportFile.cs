@@ -120,12 +120,11 @@ namespace GUI.Types.Exporter
             }
         }
 
-        public static void ExtractFilesFromTreeNode(TreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
+        public static void ExtractFilesFromTreeNode(BetterTreeNode selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            var data = (VrfTreeViewData)selectedNode.Tag;
-            if (!data.IsFolder)
+            if (!selectedNode.IsFolder)
             {
-                var file = data.PackageEntry;
+                var file = selectedNode.PackageEntry;
                 // We are a file
                 ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
             }

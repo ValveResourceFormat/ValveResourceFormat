@@ -133,14 +133,13 @@ namespace GUI.Forms
             cancellationTokenSource.Cancel();
         }
 
-        public void QueueFiles(TreeNode root)
+        public void QueueFiles(BetterTreeNode root)
         {
-            foreach (TreeNode node in root.Nodes)
+            foreach (BetterTreeNode node in root.Nodes)
             {
-                var data = (VrfTreeViewData)node.Tag;
-                if (!data.IsFolder)
+                if (!node.IsFolder)
                 {
-                    var file = data.PackageEntry;
+                    var file = node.PackageEntry;
                     if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
                     {
                         specializedQueue.Enqueue(file);
