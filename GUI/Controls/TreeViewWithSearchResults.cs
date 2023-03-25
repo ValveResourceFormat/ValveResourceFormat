@@ -66,8 +66,10 @@ namespace GUI.Controls
             mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect -= MainTreeView_AfterSelect;
 
-            ((VrfGuiContext)mainTreeView.Tag).Dispose();
-            mainTreeView.Tag = null;
+            mainTreeView.VrfGuiContext.Dispose();
+            mainTreeView.VrfGuiContext = null;
+            mainListView.VrfGuiContext = null;
+
             mainTreeView = null;
             mainListView = null;
         }
@@ -131,13 +133,13 @@ namespace GUI.Controls
         /// </summary>
         internal void InitializeTreeViewFromPackage(VrfGuiContext vrfGuiContext)
         {
-            mainListView.Tag = vrfGuiContext; // TODO: Make a property for this
+            mainListView.VrfGuiContext = vrfGuiContext;
 
             var control = mainTreeView;
             control.BeginUpdate();
             control.PathSeparator = Package.DirectorySeparatorChar.ToString();
             control.Name = "treeViewVpk";
-            control.Tag = vrfGuiContext; // so we can access it later TODO: Make a property for this
+            control.VrfGuiContext = vrfGuiContext;
             control.Dock = DockStyle.Fill;
             control.ImageList = imageList;
             control.ShowRootLines = false;
@@ -183,8 +185,7 @@ namespace GUI.Controls
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while...");
 
-                var vrfGuiContext = (VrfGuiContext)mainListView.Tag;
-                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(vrfGuiContext.CurrentPackage);
+                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(mainTreeView.VrfGuiContext.CurrentPackage);
 
                 Invoke((MethodInvoker)(() =>
                 {
@@ -212,7 +213,7 @@ namespace GUI.Controls
                     };
                     mainTreeView.Nodes.Add(root);
 
-                    var vpkName = Path.GetFileName(vrfGuiContext.CurrentPackage.FileName);
+                    var vpkName = Path.GetFileName(mainTreeView.VrfGuiContext.CurrentPackage.FileName);
 
                     foreach (var file in foundFiles)
                     {

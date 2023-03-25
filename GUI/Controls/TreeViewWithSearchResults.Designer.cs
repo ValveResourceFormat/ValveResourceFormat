@@ -33,7 +33,7 @@ namespace GUI.Controls
         {
             this.mainSplitContainer = new System.Windows.Forms.SplitContainer();
             this.mainTreeView = new GUI.Controls.BetterTreeView();
-            this.mainListView = new System.Windows.Forms.ListView();
+            this.mainListView = new BetterListView();
             ((System.ComponentModel.ISupportInitialize)(this.mainSplitContainer)).BeginInit();
             this.mainSplitContainer.Panel1.SuspendLayout();
             this.mainSplitContainer.Panel2.SuspendLayout();
@@ -99,7 +99,7 @@ namespace GUI.Controls
         #endregion
 
         private System.Windows.Forms.SplitContainer mainSplitContainer;
-        private System.Windows.Forms.ListView mainListView;
+        private BetterListView mainListView;
         public BetterTreeView mainTreeView;
     }
 }

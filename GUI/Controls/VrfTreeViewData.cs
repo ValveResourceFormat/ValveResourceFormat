@@ -2,6 +2,7 @@ using SteamDatabase.ValvePak;
 
 namespace GUI.Controls
 {
+    // TODO: Extend this as TreeNode so we don't need to shuffle treeNode.Tag everywhere
     /// <summary>
     /// Wrapper class to store info about the contents of a TreeViewNode in a way that can be accessed rapidly
     /// </summary>

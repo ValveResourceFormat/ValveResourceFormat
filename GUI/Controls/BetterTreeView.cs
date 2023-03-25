@@ -20,6 +20,8 @@ namespace GUI.Controls
     {
         private Dictionary<string, string> ExtensionIconList;
 
+        public VrfGuiContext VrfGuiContext { get; set; }
+
         public BetterTreeView()
         {
             InitializeComponent();
