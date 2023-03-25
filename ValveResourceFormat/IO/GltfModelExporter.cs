@@ -1168,8 +1168,9 @@ namespace ValveResourceFormat.IO
                     // RGB matches, alpha differs or missing, so write RGB.
                     if (gltfInputs[0].Item1 == MaterialExtract.Channel.RGB && blendInputComparer.Equals(renderTextureInputs[0], gltfInputs[0]))
                     {
+                        var trimAlpha = true;
                         var channel = renderTextureInputs.Count == 1
-                            ? MaterialExtract.Channel.RGBA
+                            ? (trimAlpha ? gltfInputs[0].Item1 : MaterialExtract.Channel.RGBA)
                             : renderTextureInputs[0].Item1;
 
                         WriteTexture(channel, gltfTexture, 0, 1);
