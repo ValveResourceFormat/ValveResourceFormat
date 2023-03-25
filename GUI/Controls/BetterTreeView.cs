@@ -150,11 +150,6 @@ namespace GUI.Controls
                 throw new Exception("Inner paks are not supported.");
             }
 
-            if (!vrfGuiContext.CurrentPackage.IsDirVPK)
-            {
-                throw new Exception("Implement non dir vpks");
-            }
-
             Console.WriteLine("Pattern search");
 
             var maxArchiveIndex = -1;
@@ -191,6 +186,14 @@ namespace GUI.Controls
 
             var matches = new HashSet<PackageEntry>();
 
+            if (sortedEntriesPerArchive.TryGetValue(0x7FFF, out var sortedEntriesInDirVpk))
+            {
+                var fileName = $"{vrfGuiContext.CurrentPackage.FileName}{(vrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
+
+                var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
+                matches.UnionWith(archiveMatches);
+            }
+
             if (maxArchiveIndex > -1)
             {
                 Parallel.For(
@@ -204,48 +207,15 @@ namespace GUI.Controls
                     {
                         var fileName = $"{vrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
 
-                        //using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
-                        var data = File.ReadAllBytes(fileName).AsSpan(); // TODO: stream it
+                        var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesPerArchive[archiveIndex]);
 
-                        var match = -1;
-                        var offset = 0;
-                        var lastEntryId = 0;
-
-                        do
+                        if (archiveMatches.Count > 0)
                         {
-                            match = data.IndexOf(pattern);
-
-                            if (match < 0)
+                            lock (archiveMatches)
                             {
-                                break;
-                            }
-
-                            match += pattern.Length;
-                            offset += match;
-                            data = data[match..];
-
-                            var archiveEntries = sortedEntriesPerArchive[archiveIndex];
-                            PackageEntry packageEntry = null;
-
-                            for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
-                            {
-                                if (offset >= archiveEntries[entryId].Offset)
-                                {
-                                    lastEntryId = entryId;
-                                    continue;
-                                }
-
-                                break;
-                            }
-
-                            packageEntry = archiveEntries[lastEntryId];
-
-                            if (offset <= packageEntry.Offset + packageEntry.Length)
-                            {
-                                matches.Add(packageEntry);
+                                matches.UnionWith(archiveMatches);
                             }
                         }
-                        while (true);
                     }
                 );
             }
@@ -274,6 +244,55 @@ namespace GUI.Controls
             }
 
             return results;
+        }
+
+        private static HashSet<PackageEntry> SearchForContentsInFile(string fileName, byte[] pattern, List<PackageEntry> archiveEntries)
+        {
+            var matches = new HashSet<PackageEntry>();
+
+            //using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+            var data = File.ReadAllBytes(fileName).AsSpan(); // TODO: stream it
+
+            var match = -1;
+            var offset = 0;
+            var lastEntryId = 0;
+
+            do
+            {
+                match = data.IndexOf(pattern);
+
+                if (match < 0)
+                {
+                    break;
+                }
+
+                match += pattern.Length;
+                offset += match;
+                data = data[match..];
+
+                PackageEntry packageEntry = null;
+
+                for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
+                {
+                    if (offset >= archiveEntries[entryId].Offset)
+                    {
+                        lastEntryId = entryId;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                packageEntry = archiveEntries[lastEntryId];
+
+                if (offset <= packageEntry.Offset + packageEntry.Length)
+                {
+                    matches.Add(packageEntry);
+                }
+            }
+            while (true);
+
+            return matches;
         }
 
         public void GenerateIconList(IEnumerable<string> extensions)
