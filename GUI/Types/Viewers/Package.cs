@@ -10,6 +10,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Blocks;
+using System.Text;
 
 namespace GUI.Types.Viewers
 {
@@ -68,6 +69,7 @@ namespace GUI.Types.Viewers
             var hiddenIndex = 0;
             var totalSlackSize = 0u;
             var hiddenFiles = new List<PackageEntry>();
+            var kv3header = Encoding.ASCII.GetBytes("<!-- kv3 ");
 
             // TODO: Skip non-chunked vpks?
             foreach (var (archiveIndex, entries) in allEntries)
@@ -190,6 +192,11 @@ namespace GUI.Types.Viewers
                             Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
 
                             newEntry.FileName += $" ({length} bytes)";
+
+                            if (bytes.AsSpan().StartsWith(kv3header))
+                            {
+                                newEntry.TypeName = "kv3";
+                            }
                         }
 
                         if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
