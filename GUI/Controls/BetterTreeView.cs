@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
@@ -150,98 +151,115 @@ namespace GUI.Controls
                 throw new Exception("Inner paks are not supported.");
             }
 
-            Console.WriteLine("Pattern search");
-
-            var maxArchiveIndex = -1;
-            var sortedEntriesPerArchive = new Dictionary<int, List<PackageEntry>>();
-
-            foreach (var extensions in vrfGuiContext.CurrentPackage.Entries.Values)
-            {
-                foreach (var entry in extensions)
-                {
-                    if (entry.ArchiveIndex != 0x7FFF && entry.ArchiveIndex > maxArchiveIndex)
-                    {
-                        maxArchiveIndex = entry.ArchiveIndex;
-                    }
-
-                    if (entry.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    if (!sortedEntriesPerArchive.TryGetValue(entry.ArchiveIndex, out var archiveEntries))
-                    {
-                        archiveEntries = new();
-                        sortedEntriesPerArchive.Add(entry.ArchiveIndex, archiveEntries);
-                    }
-
-                    archiveEntries.Add(entry);
-                }
-            }
-
-            foreach (var archiveEntries in sortedEntriesPerArchive.Values)
-            {
-                archiveEntries.Sort((a, b) => a.Offset.CompareTo(b.Offset));
-            }
-
-            var matches = new HashSet<PackageEntry>();
-
-            if (sortedEntriesPerArchive.TryGetValue(0x7FFF, out var sortedEntriesInDirVpk))
-            {
-                var fileName = $"{vrfGuiContext.CurrentPackage.FileName}{(vrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
-
-                var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
-                matches.UnionWith(archiveMatches);
-            }
-
-            if (maxArchiveIndex > -1)
-            {
-                Parallel.For(
-                    0,
-                    maxArchiveIndex,
-                    new ParallelOptions
-                    {
-                        MaxDegreeOfParallelism = 3
-                    },
-                    archiveIndex =>
-                    {
-                        var fileName = $"{vrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
-
-                        var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesPerArchive[archiveIndex]);
-
-                        if (archiveMatches.Count > 0)
-                        {
-                            lock (archiveMatches)
-                            {
-                                matches.UnionWith(archiveMatches);
-                            }
-                        }
-                    }
-                );
-            }
-
-            Console.WriteLine($"Found {matches.Count} matches");
-
             var results = new List<TreeNode>();
 
-            foreach (var file in matches)
+            using var progressDialog = new GenericProgressForm
             {
-                var fileName = file.GetFileName();
+                Text = "Searching file contents..."
+            };
+            progressDialog.OnProcess += (_, __) =>
+            {
+                Console.WriteLine("Pattern search");
 
-                if (!ExtensionIconList.TryGetValue(file.TypeName, out var ext))
+                var maxArchiveIndex = -1;
+                var sortedEntriesPerArchive = new Dictionary<int, List<PackageEntry>>();
+
+                foreach (var extensions in vrfGuiContext.CurrentPackage.Entries.Values)
                 {
-                    ext = "_default";
+                    foreach (var entry in extensions)
+                    {
+                        if (entry.ArchiveIndex != 0x7FFF && entry.ArchiveIndex > maxArchiveIndex)
+                        {
+                            maxArchiveIndex = entry.ArchiveIndex;
+                        }
+
+                        if (entry.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        if (!sortedEntriesPerArchive.TryGetValue(entry.ArchiveIndex, out var archiveEntries))
+                        {
+                            archiveEntries = new();
+                            sortedEntriesPerArchive.Add(entry.ArchiveIndex, archiveEntries);
+                        }
+
+                        archiveEntries.Add(entry);
+                    }
                 }
 
-                var newNode = new TreeNode(fileName)
+                foreach (var archiveEntries in sortedEntriesPerArchive.Values)
                 {
-                    Name = fileName,
-                    ImageKey = ext,
-                    SelectedImageKey = ext,
-                    Tag = VrfTreeViewData.MakeFile(file),
-                };
-                results.Add(newNode);
-            }
+                    archiveEntries.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+                }
+
+                var matches = new HashSet<PackageEntry>();
+
+                if (sortedEntriesPerArchive.TryGetValue(0x7FFF, out var sortedEntriesInDirVpk))
+                {
+                    var fileName = $"{vrfGuiContext.CurrentPackage.FileName}{(vrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
+
+                    progressDialog.SetProgress($"Searching '{fileName}'");
+
+                    var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
+                    matches.UnionWith(archiveMatches);
+                }
+
+                if (maxArchiveIndex > -1)
+                {
+                    var archivesScanned = 0;
+
+                    Parallel.For(
+                        0,
+                        maxArchiveIndex,
+                        new ParallelOptions
+                        {
+                            MaxDegreeOfParallelism = 3
+                        },
+                        archiveIndex =>
+                        {
+                            var fileName = $"{vrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
+
+                            var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesPerArchive[archiveIndex]);
+
+                            if (archiveMatches.Count > 0)
+                            {
+                                lock (archiveMatches)
+                                {
+                                    matches.UnionWith(archiveMatches);
+                                }
+                            }
+
+                            Interlocked.Increment(ref archivesScanned);
+                            progressDialog.SetProgress($"Searched {archivesScanned} vpks out of {maxArchiveIndex}, found {archiveMatches.Count} matches so far");
+                        }
+                    );
+                }
+
+                Console.WriteLine($"Found {matches.Count} matches");
+
+                progressDialog.SetProgress($"Found {matches.Count} matches");
+
+                foreach (var file in matches)
+                {
+                    var fileName = file.GetFileName();
+
+                    if (!ExtensionIconList.TryGetValue(file.TypeName, out var ext))
+                    {
+                        ext = "_default";
+                    }
+
+                    var newNode = new TreeNode(fileName)
+                    {
+                        Name = fileName,
+                        ImageKey = ext,
+                        SelectedImageKey = ext,
+                        Tag = VrfTreeViewData.MakeFile(file),
+                    };
+                    results.Add(newNode);
+                }
+            };
+            progressDialog.ShowDialog();
 
             return results;
         }
