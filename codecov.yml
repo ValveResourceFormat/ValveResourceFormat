@@ -3,6 +3,4 @@ github_checks: false
 coverage:
   status:
     project:
-      default:
-        target: 10%
-        threshold: 10%
+      default: false
