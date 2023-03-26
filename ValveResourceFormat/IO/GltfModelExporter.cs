@@ -449,7 +449,16 @@ namespace ValveResourceFormat.IO
                             }
 
                             var lastScale = lastScales[boneID];
-                            var scaleVec = boneFrame.Scale * Vector3.One;
+                            var boneFrameScale = boneFrame.Scale;
+
+                            if (float.IsNaN(boneFrameScale))
+                            {
+                                // See https://github.com/SteamDatabase/ValveResourceFormat/issues/527
+                                boneFrameScale = 0.0f;
+                            }
+
+                            var scaleVec = boneFrameScale * Vector3.One;
+
                             if (lastScale != scaleVec)
                             {
                                 if (lastScale != null && scaleOmitted[boneID])
