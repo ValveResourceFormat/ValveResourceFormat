@@ -76,6 +76,8 @@ vec3 calculateWorldNormal()
     vec3 tangentNormal = oct_to_float32x3(temp);
 #endif
 
+    tangentNormal.y *= -1.0;
+
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
     vec3 bitangent = vBitangentOut;
@@ -91,7 +93,7 @@ vec3 calculateWorldNormal()
 void main()
 {
     //Get the ambient color from the color texture
-    vec4 color = texture(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
+    vec4 color = texture(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 
 #if param_F_ALPHA_TEST == 1
     if (color.a < g_flAlphaTestReference)
@@ -119,7 +121,7 @@ void main()
     vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
 
 #if param_F_TINT_MASK == 1
-    float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;
+    float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
     vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
 #else
     vec3 tintFactor = tintColor;
