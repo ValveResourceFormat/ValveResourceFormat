@@ -15,6 +15,8 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<string, RenderMaterial> Materials = new();
         private readonly VrfGuiContext VrfGuiContext;
         private int ErrorTextureID;
+        private int DefaultNormalID;
+        private int DefaultMaskID;
         public static int MaxTextureMaxAnisotropy { get; set; }
 
         public MaterialLoader(VrfGuiContext guiContext)
@@ -65,44 +67,50 @@ namespace GUI.Types.Renderer
 
                 mat.Textures["g_tColor"] = GenerateColorTexture(1, 1, new[] { a.X, a.Y, a.Z, a.W });
             }
-
-            if (!mat.Textures.ContainsKey("g_tColor"))
+            else
             {
-                mat.Textures["g_tColor"] = GetErrorTexture();
+                SetDefault("g_tColor", mat.Textures, GetErrorTexture(),
+                    new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" });
             }
 
-            // Since our shaders only use g_tColor, we have to find at least one texture to use here
-            if (mat.Textures["g_tColor"] == GetErrorTexture())
-            {
-                var namesToTry = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" };
+            SetDefault("g_tTintMask", mat.Textures, GetDefaultMask());
+            SetDefault("g_tNormal", mat.Textures, GetDefaultNormal(),
+                new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" });
 
-                foreach (var name in namesToTry)
+            SetDefault("g_vTexCoordScale", mat.Material.VectorParams, Vector4.One);
+            SetDefault("g_vTexCoordOffset", mat.Material.VectorParams, Vector4.Zero);
+            SetDefault("g_vColorTint", mat.Material.VectorParams, Vector4.One);
+
+            return mat;
+        }
+
+        private static void SetDefault<T>(string name, Dictionary<string, T> dict, T @default = default, string[] namesToTry = null)
+        {
+            if (dict.ContainsKey(name))
+            {
+                return;
+            }
+
+            var foundReplacement = false;
+            if (namesToTry is not null)
+            {
+                foreach (var replacement in namesToTry)
                 {
-                    if (mat.Textures.ContainsKey(name))
+                    if (!dict.ContainsKey(replacement))
                     {
-                        mat.Textures["g_tColor"] = mat.Textures[name];
-                        break;
+                        continue;
                     }
+
+                    dict[name] = dict[replacement];
+                    foundReplacement = true;
+                    break;
                 }
             }
 
-            // Set default values for scale and positions
-            if (!mat.Material.VectorParams.ContainsKey("g_vTexCoordScale"))
+            if (!foundReplacement)
             {
-                mat.Material.VectorParams["g_vTexCoordScale"] = Vector4.One;
+                dict[name] = @default;
             }
-
-            if (!mat.Material.VectorParams.ContainsKey("g_vTexCoordOffset"))
-            {
-                mat.Material.VectorParams["g_vTexCoordOffset"] = Vector4.Zero;
-            }
-
-            if (!mat.Material.VectorParams.ContainsKey("g_vColorTint"))
-            {
-                mat.Material.VectorParams["g_vColorTint"] = Vector4.One;
-            }
-
-            return mat;
         }
 
         public int LoadTexture(string name)
@@ -283,6 +291,26 @@ namespace GUI.Types.Renderer
 
         public static int CreateSolidTexture(float r, float g, float b)
             => GenerateColorTexture(1, 1, new[] { r, g, b, 1f });
+
+        public int GetDefaultNormal()
+        {
+            if (DefaultNormalID == 0)
+            {
+                DefaultNormalID = CreateSolidTexture(0.5f, 0.5f, 1.0f);
+            }
+
+            return DefaultNormalID;
+        }
+
+        public int GetDefaultMask()
+        {
+            if (DefaultMaskID == 0)
+            {
+                DefaultMaskID = CreateSolidTexture(1.0f, 1.0f, 1.0f);
+            }
+
+            return DefaultMaskID;
+        }
 
         private static int GenerateColorTexture(int width, int height, float[] color)
         {
