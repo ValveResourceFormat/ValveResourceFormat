@@ -254,16 +254,6 @@ namespace GUI.Types.Renderer
 
             //Bind and validate shader
             GL.UseProgram(drawCall.Shader.Program);
-
-            if (!drawCall.Material.Textures.ContainsKey("g_tTintMask"))
-            {
-                drawCall.Material.Textures.Add("g_tTintMask", MaterialLoader.CreateSolidTexture(1f, 1f, 1f));
-            }
-
-            if (!drawCall.Material.Textures.ContainsKey("g_tNormal"))
-            {
-                drawCall.Material.Textures.Add("g_tNormal", MaterialLoader.CreateSolidTexture(0.5f, 1f, 0.5f));
-            }
         }
     }
 
