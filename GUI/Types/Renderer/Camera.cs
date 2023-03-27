@@ -62,22 +62,25 @@ namespace GUI.Types.Renderer
         // Calculate forward vector from pitch and yaw
         private Vector3 GetForwardVector()
         {
-            var (yawSin, yawCos) = Math.SinCos(Yaw);
-            var (pitchSin, pitchCos) = Math.SinCos(Pitch);
+            var yawSin = Math.Sin(Yaw);
+            var yawCos = Math.Cos(Yaw);
+            var pitchSin = Math.Sin(Pitch);
+            var pitchCos = Math.Cos(Pitch);
             return new Vector3((float)(yawCos * pitchCos), (float)(yawSin * pitchCos), (float)pitchSin);
         }
 
         private Vector3 GetUpVector()
         {
-            var (yawSin, yawCos) = Math.SinCos(Yaw);
-            var (pitchSin, pitchCos) = Math.SinCos(Pitch);
+            var yawSin = Math.Sin(Yaw);
+            var yawCos = Math.Cos(Yaw);
+            var pitchSin = Math.Sin(Pitch);
+            var pitchCos = Math.Cos(Pitch);
             return new Vector3((float)(yawCos * pitchSin), (float)(yawSin * pitchSin), (float)pitchCos);
         }
 
         private Vector3 GetRightVector()
         {
-            var (yawSin, yawCos) = Math.SinCos(Yaw - OpenTK.MathHelper.PiOver2);
-            return new Vector3((float)yawCos, (float)yawSin, 0);
+            return new Vector3((float)Math.Cos(Yaw - OpenTK.MathHelper.PiOver2), (float)Math.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
