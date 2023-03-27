@@ -292,8 +292,8 @@ namespace GUI.Controls
 
             var frameTime = elapsed * TickFrequency / TicksPerSecond;
 
-            Camera.Tick(frameTime);
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
+            Camera.Tick(frameTime);
 
             GL.ClearColor(Settings.BackgroundColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
