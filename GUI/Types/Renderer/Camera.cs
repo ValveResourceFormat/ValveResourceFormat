@@ -62,12 +62,22 @@ namespace GUI.Types.Renderer
         // Calculate forward vector from pitch and yaw
         private Vector3 GetForwardVector()
         {
-            return new Vector3((float)(Math.Cos(Yaw) * Math.Cos(Pitch)), (float)(Math.Sin(Yaw) * Math.Cos(Pitch)), (float)Math.Sin(Pitch));
+            var (yawSin, yawCos) = Math.SinCos(Yaw);
+            var (pitchSin, pitchCos) = Math.SinCos(Pitch);
+            return new Vector3((float)(yawCos * pitchCos), (float)(yawSin * pitchCos), (float)pitchSin);
+        }
+
+        private Vector3 GetUpVector()
+        {
+            var (yawSin, yawCos) = Math.SinCos(Yaw);
+            var (pitchSin, pitchCos) = Math.SinCos(Pitch);
+            return new Vector3((float)(yawCos * pitchSin), (float)(yawSin * pitchSin), (float)pitchCos);
         }
 
         private Vector3 GetRightVector()
         {
-            return new Vector3((float)Math.Cos(Yaw - OpenTK.MathHelper.PiOver2), (float)Math.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
+            var (yawSin, yawCos) = Math.SinCos(Yaw - OpenTK.MathHelper.PiOver2);
+            return new Vector3((float)yawCos, (float)yawSin, 0);
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
@@ -148,14 +158,11 @@ namespace GUI.Types.Renderer
 
             if (KeyboardState.IsKeyDown(Key.ShiftLeft))
             {
-                // TODO: This is incorrect implementation of camera pan. I'd like to pan like in Blender.
+                // Camera truck and pedestal movement (blender calls this pan)
                 var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
-                Location += new Vector3(
-                    MouseDelta.X * speed,
-                    0,
-                    -MouseDelta.Y * speed
-                );
+                Location += GetUpVector() * speed * -MouseDelta.Y;
+                Location += GetRightVector() * speed * MouseDelta.X;
             }
             else if (KeyboardState.IsKeyDown(Key.AltLeft))
             {
