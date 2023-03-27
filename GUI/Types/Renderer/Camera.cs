@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
         public Vector3 Location { get; private set; }
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
-        public float Scale { get; private set; } = 1.0f;
+        public float Scale { get; set; } = 1.0f;
 
         private Matrix4x4 ProjectionMatrix;
         public Matrix4x4 CameraViewMatrix { get; private set; }
@@ -77,7 +77,7 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
             // Calculate projection matrix
-            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 40000.0f);
+            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 20000.0f);
 
             RecalculateMatrices();
 
@@ -96,8 +96,11 @@ namespace GUI.Types.Renderer
             Yaw = fromOther.Yaw;
             ProjectionMatrix = fromOther.ProjectionMatrix;
             CameraViewMatrix = fromOther.CameraViewMatrix;
-            ViewProjectionMatrix = fromOther.ViewProjectionMatrix;
-            ViewFrustum.Update(ViewProjectionMatrix);
+        }
+
+        public void SetScaledProjectionMatrix()
+        {
+            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 10f * Scale, 20000.0f * Scale);
         }
 
         public void SetLocation(Vector3 location)
@@ -136,12 +139,6 @@ namespace GUI.Types.Renderer
             RecalculateMatrices();
         }
 
-        public void SetScale(float scale)
-        {
-            Scale = scale;
-            RecalculateMatrices();
-        }
-
         public void Tick(float deltaTime)
         {
             if (!MouseOverRenderArea)
@@ -151,7 +148,7 @@ namespace GUI.Types.Renderer
 
             if (KeyboardState.IsKeyDown(Key.ShiftLeft))
             {
-                // Move camera when holding shift without panning
+                // TODO: This is incorrect implementation of camera pan. I'd like to pan like in Blender.
                 var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
                 Location += new Vector3(

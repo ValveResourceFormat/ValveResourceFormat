@@ -134,6 +134,11 @@ namespace GUI.Types.Renderer
                 SetAvailableRenderModes(supportedRenderModes);
             }
 
+            if (ShowSkybox && SkyboxScene != null)
+            {
+                skyboxCamera.Scale = SkyboxScale;
+            }
+
             ViewerControl.GLLoad -= OnLoad;
             ViewerControl.GLPaint += OnPaint;
 
@@ -155,8 +160,8 @@ namespace GUI.Types.Renderer
             if (ShowSkybox && SkyboxScene != null)
             {
                 skyboxCamera.CopyFrom(e.Camera);
+                skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
-                skyboxCamera.SetScale(SkyboxScale);
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
