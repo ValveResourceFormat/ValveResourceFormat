@@ -639,7 +639,8 @@ namespace ValveResourceFormat.IO
                 ImageWriting = SatelliteImages ? ResourceWriteMode.SatelliteFile : ResourceWriteMode.BufferView,
                 ImageWriteCallback = ImageWriteCallback,
                 JsonIndented = true,
-                MergeBuffers = true
+                MergeBuffers = true,
+                BuffersMaxSize = 1_074_000_000,
             };
 
             // If no file path is provided, validate the schema without writing a file
@@ -653,9 +654,9 @@ namespace ValveResourceFormat.IO
             // Disable merging buffers if the buffer size is >=2GiB, otherwise this will
             // cause SharpGLTF to run past the int32 limitation and crash.
             var totalSize = exportedModel.LogicalBuffers.Sum(buffer => (long)buffer.Content.Length);
-            if (totalSize > int.MaxValue)
+            if (totalSize >= int.MaxValue && filePath.EndsWith(".glb", StringComparison.InvariantCultureIgnoreCase))
             {
-                throw new NotSupportedException("VRF does not properly support big model (>=2GiB) exports yet due to glTF limitations. See https://github.com/SteamDatabase/ValveResourceFormat/issues/379");
+                throw new NotSupportedException("VRF does not properly support big model (>=2GiB) exports yet due to glTF limitations. Try exporting as .gltf, not .glb.");
             }
 
             exportedModel.Save(filePath, settings);
