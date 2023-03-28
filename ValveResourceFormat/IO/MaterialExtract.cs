@@ -192,6 +192,7 @@ public sealed class MaterialExtract
         { "TextureMetalness", "_metal" },
         { "TextureAmbientOcclusion", "_ao" },
         { "TextureReflectance", "_refl"},
+        { "TextureTranslucency", "_trans"},
     };
 
     private static bool IsDefaultTexture(string textureFileName)
@@ -473,6 +474,9 @@ public sealed class MaterialExtract
         var attributesThatAreSystemAttributes = new HashSet<string>
         {
             "physicssurfaceproperties",
+            "physicssurfaceproperties2",
+            "physicssurfaceproperties3",
+            "physicssurfaceproperties4",
             "worldmappingwidth",
             "worldmappingheight"
         };

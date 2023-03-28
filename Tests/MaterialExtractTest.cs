@@ -46,7 +46,7 @@ namespace Tests
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = translucent ? "TextureTranslucency" : "TextureMetalness",
-                    FileName = translucent ? "test_65b7aff5-A.png" : "test_65b7aff5_metal.png",
+                    FileName = translucent ? "test_65b7aff5_trans.png" : "test_65b7aff5_metal.png",
                     Channel = MaterialExtract.Channel.A
                 }
             };

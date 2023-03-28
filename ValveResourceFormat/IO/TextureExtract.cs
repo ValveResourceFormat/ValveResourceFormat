@@ -264,7 +264,7 @@ public sealed class TextureExtract
 
             if (!Packed.Add(dstChannel))
             {
-                throw new InvalidOperationException($"Channel {dstChannel} has already been packed.");
+                Console.WriteLine($"{dstChannel} has already been packed in texture: {FileName}");
             }
 
             if (Bitmap is null)
