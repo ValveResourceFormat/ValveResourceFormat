@@ -64,6 +64,10 @@ namespace GUI
                 versionToolStripLabel.Text = string.Concat("v", Application.ProductVersion);
             }
 
+#if DEBUG
+            versionToolStripLabel.Text += " (DEBUG)";
+#endif
+
             searchForm = new SearchForm();
 
             Settings.Load();
