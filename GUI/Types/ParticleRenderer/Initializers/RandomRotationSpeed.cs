@@ -14,8 +14,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
 
-        private readonly Random random = new();
-
         public RandomRotationSpeed(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_nFieldOutput"))
@@ -46,9 +44,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var value = PiOver180 * (degrees + degreesMin + ((float)random.NextDouble() * (degreesMax - degreesMin)));
+            var value = PiOver180 * (degrees + degreesMin + ((float)Random.Shared.NextDouble() * (degreesMax - degreesMin)));
 
-            if (randomlyFlipDirection && random.NextDouble() > 0.5)
+            if (randomlyFlipDirection && Random.Shared.NextDouble() > 0.5)
             {
                 value *= -1;
             }

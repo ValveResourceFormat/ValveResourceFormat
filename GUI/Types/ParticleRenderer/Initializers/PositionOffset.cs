@@ -9,8 +9,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly IVectorProvider offsetMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider offsetMax = new LiteralVectorProvider(Vector3.Zero);
 
-        private readonly Random random = new();
-
         public PositionOffset(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_OffsetMin"))
@@ -30,7 +28,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var max = offsetMax.NextVector();
 
             var distance = min - max;
-            var offset = min + (distance * new Vector3((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble()));
+            var offset = min + (distance * new Vector3(
+                (float)Random.Shared.NextDouble(),
+                (float)Random.Shared.NextDouble(),
+                (float)Random.Shared.NextDouble()
+            ));
 
             particle.Position += offset;
 

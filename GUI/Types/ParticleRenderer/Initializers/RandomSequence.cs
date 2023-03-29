@@ -8,9 +8,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int sequenceMin;
         private readonly int sequenceMax;
         private readonly bool shuffle;
-
-        private readonly Random random = new();
-
         private int counter;
 
         public RandomSequence(IKeyValueCollection keyValues)
@@ -35,7 +32,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             if (shuffle)
             {
-                particle.Sequence = random.Next(sequenceMin, sequenceMax + 1);
+                particle.Sequence = Random.Shared.Next(sequenceMin, sequenceMax + 1);
             }
             else
             {

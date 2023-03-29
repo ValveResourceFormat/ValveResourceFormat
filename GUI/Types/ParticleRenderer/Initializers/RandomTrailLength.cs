@@ -8,8 +8,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float minLength = 0.1f;
         private readonly float maxLength = 0.1f;
 
-        private readonly Random random = new();
-
         public RandomTrailLength(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_flMinLength"))
@@ -25,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.TrailLength = minLength + ((float)random.NextDouble() * (maxLength - minLength));
+            particle.TrailLength = minLength + ((float)Random.Shared.NextDouble() * (maxLength - minLength));
 
             return particle;
         }

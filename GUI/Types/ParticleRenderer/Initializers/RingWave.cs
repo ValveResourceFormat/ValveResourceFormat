@@ -10,9 +10,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
         private readonly float thickness;
         private readonly float particlesPerOrbit = -1f;
-
-        private readonly Random random = new();
-
         private float orbitCount;
 
         public RingWave(IKeyValueCollection keyValues)
@@ -40,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var radius = (float)initialRadius.NextNumber() + ((float)random.NextDouble() * thickness);
+            var radius = (float)initialRadius.NextNumber() + ((float)Random.Shared.NextDouble() * thickness);
 
             var angle = GetNextAngle();
 
@@ -62,7 +59,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             else
             {
                 // Return a random angle between 0 and 2pi
-                return 2 * Math.PI * random.NextDouble();
+                return 2 * Math.PI * Random.Shared.NextDouble();
             }
         }
     }

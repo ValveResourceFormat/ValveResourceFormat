@@ -11,8 +11,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 offsetMin = Vector3.Zero;
         private readonly Vector3 offsetMax = Vector3.One;
 
-        private readonly Random random = new();
-
         public OffsetVectorToVector(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_nFieldInput"))
@@ -43,9 +41,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var input = particle.GetVector(inputField);
 
             var offset = new Vector3(
-                Lerp(offsetMin.X, offsetMax.X, (float)random.NextDouble()),
-                Lerp(offsetMin.Y, offsetMax.Y, (float)random.NextDouble()),
-                Lerp(offsetMin.Z, offsetMax.Z, (float)random.NextDouble()));
+                Lerp(offsetMin.X, offsetMax.X, (float)Random.Shared.NextDouble()),
+                Lerp(offsetMin.Y, offsetMax.Y, (float)Random.Shared.NextDouble()),
+                Lerp(offsetMin.Z, offsetMax.Z, (float)Random.Shared.NextDouble()));
 
             if (outputField == ParticleField.Position)
             {
