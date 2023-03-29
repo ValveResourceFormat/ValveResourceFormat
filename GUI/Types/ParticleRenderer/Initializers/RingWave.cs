@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
     public class RingWave : IParticleInitializer
     {
         private readonly bool evenDistribution;
-        private readonly INumberProvider initialRadius;
+        private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
         private readonly float thickness;
         private readonly float particlesPerOrbit = -1f;
 
