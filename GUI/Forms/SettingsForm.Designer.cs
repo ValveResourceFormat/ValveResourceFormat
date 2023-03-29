@@ -28,89 +28,123 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            this.gamePaths = new System.Windows.Forms.ListBox();
-            this.gamePathsAdd = new System.Windows.Forms.Button();
-            this.gamePathsRemove = new System.Windows.Forms.Button();
-            this.gamePathsLabel = new System.Windows.Forms.Label();
-            this.bgColorPickButton = new System.Windows.Forms.Button();
-            this.gamePathsAddFolder = new System.Windows.Forms.Button();
-            this.SuspendLayout();
+            gamePaths = new System.Windows.Forms.ListBox();
+            gamePathsAdd = new System.Windows.Forms.Button();
+            gamePathsRemove = new System.Windows.Forms.Button();
+            gamePathsLabel = new System.Windows.Forms.Label();
+            bgColorPickButton = new System.Windows.Forms.Button();
+            gamePathsAddFolder = new System.Windows.Forms.Button();
+            maxTextureSizeLabel = new System.Windows.Forms.Label();
+            maxTextureSizeInput = new System.Windows.Forms.NumericUpDown();
+            ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
+            SuspendLayout();
             // 
             // gamePaths
             // 
-            this.gamePaths.FormattingEnabled = true;
-            this.gamePaths.Location = new System.Drawing.Point(12, 29);
-            this.gamePaths.Name = "gamePaths";
-            this.gamePaths.Size = new System.Drawing.Size(549, 95);
-            this.gamePaths.TabIndex = 0;
+            gamePaths.FormattingEnabled = true;
+            gamePaths.ItemHeight = 15;
+            gamePaths.Location = new System.Drawing.Point(14, 33);
+            gamePaths.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            gamePaths.Name = "gamePaths";
+            gamePaths.Size = new System.Drawing.Size(640, 109);
+            gamePaths.TabIndex = 0;
             // 
             // gamePathsAdd
             // 
-            this.gamePathsAdd.Location = new System.Drawing.Point(12, 130);
-            this.gamePathsAdd.Name = "gamePathsAdd";
-            this.gamePathsAdd.Size = new System.Drawing.Size(75, 23);
-            this.gamePathsAdd.TabIndex = 1;
-            this.gamePathsAdd.Text = "Add .vpk";
-            this.gamePathsAdd.UseVisualStyleBackColor = true;
-            this.gamePathsAdd.Click += new System.EventHandler(this.GamePathAdd);
+            gamePathsAdd.Location = new System.Drawing.Point(14, 150);
+            gamePathsAdd.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            gamePathsAdd.Name = "gamePathsAdd";
+            gamePathsAdd.Size = new System.Drawing.Size(88, 27);
+            gamePathsAdd.TabIndex = 1;
+            gamePathsAdd.Text = "Add .vpk";
+            gamePathsAdd.UseVisualStyleBackColor = true;
+            gamePathsAdd.Click += GamePathAdd;
             // 
             // gamePathsRemove
             // 
-            this.gamePathsRemove.Location = new System.Drawing.Point(486, 130);
-            this.gamePathsRemove.Name = "gamePathsRemove";
-            this.gamePathsRemove.Size = new System.Drawing.Size(75, 23);
-            this.gamePathsRemove.TabIndex = 2;
-            this.gamePathsRemove.Text = "Remove";
-            this.gamePathsRemove.UseVisualStyleBackColor = true;
-            this.gamePathsRemove.Click += new System.EventHandler(this.GamePathRemoveClick);
+            gamePathsRemove.Location = new System.Drawing.Point(567, 150);
+            gamePathsRemove.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            gamePathsRemove.Name = "gamePathsRemove";
+            gamePathsRemove.Size = new System.Drawing.Size(88, 27);
+            gamePathsRemove.TabIndex = 2;
+            gamePathsRemove.Text = "Remove";
+            gamePathsRemove.UseVisualStyleBackColor = true;
+            gamePathsRemove.Click += GamePathRemoveClick;
             // 
             // gamePathsLabel
             // 
-            this.gamePathsLabel.AutoSize = true;
-            this.gamePathsLabel.Location = new System.Drawing.Point(13, 13);
-            this.gamePathsLabel.Name = "gamePathsLabel";
-            this.gamePathsLabel.Size = new System.Drawing.Size(138, 13);
-            this.gamePathsLabel.TabIndex = 3;
-            this.gamePathsLabel.Text = "Game content search paths";
+            gamePathsLabel.AutoSize = true;
+            gamePathsLabel.Location = new System.Drawing.Point(15, 15);
+            gamePathsLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            gamePathsLabel.Name = "gamePathsLabel";
+            gamePathsLabel.Size = new System.Drawing.Size(151, 15);
+            gamePathsLabel.TabIndex = 3;
+            gamePathsLabel.Text = "Game content search paths";
             // 
             // bgColorPickButton
             // 
-            this.bgColorPickButton.Location = new System.Drawing.Point(12, 185);
-            this.bgColorPickButton.Name = "bgColorPickButton";
-            this.bgColorPickButton.Size = new System.Drawing.Size(156, 23);
-            this.bgColorPickButton.TabIndex = 4;
-            this.bgColorPickButton.Text = "Set model viewer background color";
-            this.bgColorPickButton.UseVisualStyleBackColor = true;
-            this.bgColorPickButton.Click += new System.EventHandler(this.Button1_Click);
+            bgColorPickButton.Location = new System.Drawing.Point(14, 213);
+            bgColorPickButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            bgColorPickButton.Name = "bgColorPickButton";
+            bgColorPickButton.Size = new System.Drawing.Size(182, 27);
+            bgColorPickButton.TabIndex = 4;
+            bgColorPickButton.Text = "Set model viewer background color";
+            bgColorPickButton.UseVisualStyleBackColor = true;
+            bgColorPickButton.Click += OpenBackgroundColorPicker;
             // 
             // gamePathsAddFolder
             // 
-            this.gamePathsAddFolder.Location = new System.Drawing.Point(93, 130);
-            this.gamePathsAddFolder.Name = "gamePathsAddFolder";
-            this.gamePathsAddFolder.Size = new System.Drawing.Size(75, 23);
-            this.gamePathsAddFolder.TabIndex = 5;
-            this.gamePathsAddFolder.Text = "Add folder";
-            this.gamePathsAddFolder.UseVisualStyleBackColor = true;
-            this.gamePathsAddFolder.Click += new System.EventHandler(this.GamePathAddFolder);
+            gamePathsAddFolder.Location = new System.Drawing.Point(108, 150);
+            gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            gamePathsAddFolder.Name = "gamePathsAddFolder";
+            gamePathsAddFolder.Size = new System.Drawing.Size(88, 27);
+            gamePathsAddFolder.TabIndex = 5;
+            gamePathsAddFolder.Text = "Add folder";
+            gamePathsAddFolder.UseVisualStyleBackColor = true;
+            gamePathsAddFolder.Click += GamePathAddFolder;
+            // 
+            // maxTextureSizeLabel
+            // 
+            maxTextureSizeLabel.AutoSize = true;
+            maxTextureSizeLabel.Location = new System.Drawing.Point(15, 261);
+            maxTextureSizeLabel.Name = "maxTextureSizeLabel";
+            maxTextureSizeLabel.Size = new System.Drawing.Size(95, 15);
+            maxTextureSizeLabel.TabIndex = 6;
+            maxTextureSizeLabel.Text = "Max texture size:";
+            // 
+            // maxTextureSizeInput
+            // 
+            maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
+            maxTextureSizeInput.Location = new System.Drawing.Point(116, 259);
+            maxTextureSizeInput.Maximum = new decimal(new int[] { 10240, 0, 0, 0 });
+            maxTextureSizeInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            maxTextureSizeInput.Name = "maxTextureSizeInput";
+            maxTextureSizeInput.Size = new System.Drawing.Size(120, 23);
+            maxTextureSizeInput.TabIndex = 8;
+            maxTextureSizeInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            maxTextureSizeInput.ValueChanged += OnMaxTextureSizeValueChanged;
             // 
             // SettingsForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(573, 261);
-            this.Controls.Add(this.gamePathsAddFolder);
-            this.Controls.Add(this.bgColorPickButton);
-            this.Controls.Add(this.gamePathsLabel);
-            this.Controls.Add(this.gamePathsRemove);
-            this.Controls.Add(this.gamePathsAdd);
-            this.Controls.Add(this.gamePaths);
-            this.Name = "SettingsForm";
-            this.ShowIcon = false;
-            this.Text = "Settings";
-            this.Load += new System.EventHandler(this.SettingsForm_Load);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(668, 301);
+            Controls.Add(maxTextureSizeInput);
+            Controls.Add(maxTextureSizeLabel);
+            Controls.Add(gamePathsAddFolder);
+            Controls.Add(bgColorPickButton);
+            Controls.Add(gamePathsLabel);
+            Controls.Add(gamePathsRemove);
+            Controls.Add(gamePathsAdd);
+            Controls.Add(gamePaths);
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Name = "SettingsForm";
+            ShowIcon = false;
+            Text = "Settings";
+            Load += SettingsForm_Load;
+            ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).EndInit();
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -121,5 +155,7 @@ namespace GUI.Forms
         private System.Windows.Forms.Label gamePathsLabel;
         private System.Windows.Forms.Button bgColorPickButton;
         private System.Windows.Forms.Button gamePathsAddFolder;
+        private System.Windows.Forms.Label maxTextureSizeLabel;
+        private System.Windows.Forms.NumericUpDown maxTextureSizeInput;
     }
 }

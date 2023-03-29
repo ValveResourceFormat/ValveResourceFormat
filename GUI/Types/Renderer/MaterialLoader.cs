@@ -132,7 +132,6 @@ namespace GUI.Types.Renderer
             var id = GL.GenTexture();
 
             GL.BindTexture(TextureTarget.Texture2D, id);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, tex.NumMipLevels - 1);
 
             var internalFormat = GetPixelInternalFormat(tex.Format);
             var format = GetInternalFormat(tex.Format);
@@ -145,10 +144,20 @@ namespace GUI.Types.Renderer
 
             var buffer = ArrayPool<byte>.Shared.Rent(tex.GetBiggestBufferSize());
 
+            var maxMipLevel = 0;
+            var minMipLevel = 0;
+
             try
             {
-                foreach (var (i, width, height, bufferSize) in tex.GetEveryMipLevelTexture(buffer))
+                foreach (var (i, width, height, bufferSize) in tex.GetEveryMipLevelTexture(buffer, Settings.Config.MaxTextureSize))
                 {
+                    if (maxMipLevel == 0)
+                    {
+                        maxMipLevel = i;
+                    }
+
+                    minMipLevel = i;
+
                     if (internalFormat.HasValue)
                     {
                         var pixelFormat = GetPixelFormat(tex.Format);
@@ -166,6 +175,9 @@ namespace GUI.Types.Renderer
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBaseLevel, minMipLevel);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, maxMipLevel);
 
             // Dispose texture otherwise we run out of memory
             // TODO: This might conflict when opening multiple files due to shit caching

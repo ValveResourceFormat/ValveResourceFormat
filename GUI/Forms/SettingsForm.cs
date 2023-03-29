@@ -19,6 +19,8 @@ namespace GUI.Forms
             {
                 gamePaths.Items.Add(path);
             }
+
+            maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
         }
 
         private void GamePathRemoveClick(object sender, EventArgs e)
@@ -88,7 +90,7 @@ namespace GUI.Forms
             gamePaths.Items.Add(dlg.SelectedPath);
         }
 
-        private void Button1_Click(object sender, EventArgs e)
+        private void OpenBackgroundColorPicker(object sender, EventArgs e)
         {
             // Run the dialog on a separate thread, otherwise it will not work
             // when opening settings while opentk is in focus
@@ -106,6 +108,19 @@ namespace GUI.Forms
                     Settings.Save();
                 }
             }).Start();
+        }
+
+        private void OnMaxTextureSizeValueChanged(object sender, EventArgs e)
+        {
+            var newValue = (int)maxTextureSizeInput.Value;
+
+            if (newValue == Settings.Config.MaxTextureSize)
+            {
+                return;
+            }
+
+            Settings.Config.MaxTextureSize = newValue;
+            Settings.Save();
         }
     }
 }

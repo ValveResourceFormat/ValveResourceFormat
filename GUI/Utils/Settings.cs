@@ -19,6 +19,7 @@ namespace GUI.Utils
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
             public Dictionary<string, float[]> SavedCameras { get; set; } = new Dictionary<string, float[]>();
+            public int MaxTextureSize { get; set; }
             public int WindowTop { get; set; }
             public int WindowLeft { get; set; }
             public int WindowWidth { get; set; }
@@ -77,6 +78,15 @@ namespace GUI.Utils
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 Config.OpenDirectory = GetSteamPath();
+            }
+
+            if (Config.MaxTextureSize <= 0)
+            {
+                Config.MaxTextureSize = 1024;
+            }
+            else if (Config.MaxTextureSize > 10240)
+            {
+                Config.MaxTextureSize = 10240;
             }
         }
 
