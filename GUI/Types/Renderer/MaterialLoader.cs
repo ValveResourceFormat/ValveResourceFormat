@@ -32,13 +32,13 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
-            if (Materials.ContainsKey(name))
+            if (Materials.TryGetValue(name, out var mat))
             {
-                return Materials[name];
+                return mat;
             }
 
             var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
-            var mat = LoadMaterial(resource);
+            mat = LoadMaterial(resource);
 
             Materials.Add(name, mat);
 
