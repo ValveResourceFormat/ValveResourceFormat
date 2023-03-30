@@ -28,6 +28,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         INT64_ONE = 16,
         DOUBLE_ZERO = 17,
         DOUBLE_ONE = 18,
+        ARRAY_TYPE_BYTE_LENGTH = 24;
     }
 
     /// <summary>

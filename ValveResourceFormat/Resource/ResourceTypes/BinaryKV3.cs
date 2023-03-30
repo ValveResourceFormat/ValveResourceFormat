@@ -736,17 +736,47 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     break;
                 case KVType.ARRAY_TYPED:
-                    var typeArrayLength = reader.ReadInt32();
-                    var (subType, subFlagInfo) = ReadType(reader);
-                    var typedArray = new KVObject(name, true);
-
-                    for (var i = 0; i < typeArrayLength; i++)
                     {
-                        ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
-                    }
+                        var typeArrayLength = reader.ReadInt32();
+                        var (subType, subFlagInfo) = ReadType(reader);
+                        var typedArray = new KVObject(name, true);
 
-                    parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
-                    break;
+                        for (var i = 0; i < typeArrayLength; i++)
+                        {
+                            ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
+                        }
+
+                        parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                        break;
+                    }
+                case KVType.ARRAY_TYPE_BYTE_LENGTH:
+                    {
+                        datatype = KVType.ARRAY_TYPED;
+
+                        if (currentBinaryBytesOffset > -1)
+                        {
+                            reader.BaseStream.Position = currentBinaryBytesOffset;
+                        }
+
+                        var typeArrayLength = reader.ReadByte();
+
+                        if (currentBinaryBytesOffset > -1)
+                        {
+                            currentBinaryBytesOffset++;
+                            reader.BaseStream.Position = currentOffset;
+                        }
+
+                        var (subType, subFlagInfo) = ReadType(reader);
+                        var typedArray = new KVObject(name, true);
+
+                        for (var i = 0; i < typeArrayLength; i++)
+                        {
+                            ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
+                        }
+
+                        parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                        break;
+                    }
                 case KVType.OBJECT:
                     var objectLength = reader.ReadInt32();
                     var newObject = new KVObject(name, false);
