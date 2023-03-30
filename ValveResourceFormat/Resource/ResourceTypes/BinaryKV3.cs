@@ -736,47 +736,41 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     break;
                 case KVType.ARRAY_TYPED:
-                    {
-                        var typeArrayLength = reader.ReadInt32();
-                        var (subType, subFlagInfo) = ReadType(reader);
-                        var typedArray = new KVObject(name, true);
-
-                        for (var i = 0; i < typeArrayLength; i++)
-                        {
-                            ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
-                        }
-
-                        parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
-                        break;
-                    }
                 case KVType.ARRAY_TYPE_BYTE_LENGTH:
+                    var typeArrayLength = 0;
+
+                    if (datatype == KVType.ARRAY_TYPE_BYTE_LENGTH)
                     {
-                        datatype = KVType.ARRAY_TYPED;
+                        datatype = KVType.ARRAY_TYPED; // TODO: Don't do this?
 
                         if (currentBinaryBytesOffset > -1)
                         {
                             reader.BaseStream.Position = currentBinaryBytesOffset;
                         }
 
-                        var typeArrayLength = reader.ReadByte();
+                        typeArrayLength = reader.ReadByte();
 
                         if (currentBinaryBytesOffset > -1)
                         {
                             currentBinaryBytesOffset++;
                             reader.BaseStream.Position = currentOffset;
                         }
-
-                        var (subType, subFlagInfo) = ReadType(reader);
-                        var typedArray = new KVObject(name, true);
-
-                        for (var i = 0; i < typeArrayLength; i++)
-                        {
-                            ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
-                        }
-
-                        parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
-                        break;
                     }
+                    else
+                    {
+                        typeArrayLength = reader.ReadInt32();
+                    }
+
+                    var (subType, subFlagInfo) = ReadType(reader);
+                    var typedArray = new KVObject(name, true);
+
+                    for (var i = 0; i < typeArrayLength; i++)
+                    {
+                        ReadBinaryValue(name, subType, subFlagInfo, reader, typedArray);
+                    }
+
+                    parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                    break;
                 case KVType.OBJECT:
                     var objectLength = reader.ReadInt32();
                     var newObject = new KVObject(name, false);
@@ -795,6 +789,12 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     break;
+                case KVType.FLOAT:
+                    parent.AddProperty(name, MakeValue(datatype, (double)reader.ReadSingle(), flagInfo));
+                    break;
+                // TODO: 20, 21 - using unknown buffer, likely related to the new ints that were added
+                // TODO: 22, 23 - reading from currentBinaryBytesOffset
+                // 22 is related to 20, 23 is related to 21
                 default:
                     throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position - 1}", (int)datatype, nameof(datatype));
             }
@@ -822,8 +822,10 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.DOUBLE:
                 case KVType.DOUBLE_ZERO:
                 case KVType.DOUBLE_ONE:
+                case KVType.FLOAT:
                     return KVType.DOUBLE;
                 case KVType.ARRAY_TYPED:
+                case KVType.ARRAY_TYPE_BYTE_LENGTH:
                     return KVType.ARRAY;
             }
 #pragma warning restore IDE0066 // Convert switch statement to expression

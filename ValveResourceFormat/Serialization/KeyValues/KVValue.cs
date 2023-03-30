@@ -28,7 +28,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
         INT64_ONE = 16,
         DOUBLE_ZERO = 17,
         DOUBLE_ONE = 18,
-        ARRAY_TYPE_BYTE_LENGTH = 24;
+        FLOAT = 19,
+        UNKNOWN_20 = 20,
+        UNKNOWN_21 = 21,
+        UNKNOWN_22 = 22,
+        UNKNOWN_23 = 23,
+        ARRAY_TYPE_BYTE_LENGTH = 24,
     }
 
     /// <summary>
