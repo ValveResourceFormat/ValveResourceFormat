@@ -31,22 +31,19 @@ namespace GUI.Utils
 
         public static AppConfig Config { get; set; } = new AppConfig();
 
-        public static Color BackgroundColor { get; set; } = Color.FromArgb(60, 60, 60);
+        public static Color BackgroundColor { get; set; }
 
         public static void Load()
         {
             SettingsFilePath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");
 
-            if (!File.Exists(SettingsFilePath))
-            {
-                Save();
-                return;
-            }
-
             try
             {
-                using var stream = new FileStream(SettingsFilePath, FileMode.Open, FileAccess.Read);
-                Config = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize<AppConfig>(stream, KVSerializerOptions.DefaultOptions);
+                if (File.Exists(SettingsFilePath))
+                {
+                    using var stream = new FileStream(SettingsFilePath, FileMode.Open, FileAccess.Read);
+                    Config = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize<AppConfig>(stream, KVSerializerOptions.DefaultOptions);
+                }
             }
             catch (Exception e)
             {
@@ -68,7 +65,19 @@ namespace GUI.Utils
                 }
             }
 
-            BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
+            try
+            {
+                BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
+            }
+            catch
+            {
+                //
+            }
+
+            if (BackgroundColor.IsEmpty)
+            {
+                BackgroundColor = Color.FromArgb(60, 60, 60);
+            }
 
             if (Config.SavedCameras == null)
             {
