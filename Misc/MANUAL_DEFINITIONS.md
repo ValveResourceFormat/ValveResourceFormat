@@ -21,20 +21,20 @@ All keys must be lowercase, and the list is sorted alphabetically.
 CLI Decompiler can help collecting unknown hashes by using `--stats --dump_unknown_entity_keys`.
 When scanning `vents_c` files, a `unknown_keys.txt` file will be created.
 
-This file can be used with (MurmurHashMatcher)[../Misc/MurmurHashMatcher] utility which bruteforces game files and binaries to find strings.
+This file can be used with [MurmurHashMatcher](../Misc/MurmurHashMatcher) utility which bruteforces game files and binaries to find strings.
 
-There is also a (VrfFgdParser)[../Misc/VrfFgdParser] tool which parses FGD files to extract all possible key names and entity icons.
+There is also a [VrfFgdParser](../Misc/VrfFgdParser) tool which parses FGD files to extract all possible key names and entity icons.
 
 ## Entity icons for the map viewer
 
-(HammerEntities.cs)[../GUI/Utils/HammerEntities.cs] contains a mapping of entity names and their Hammer icons (sprite or model).
+[HammerEntities.cs](../GUI/Utils/HammerEntities.cs) contains a mapping of entity names and their Hammer icons (sprite or model).
 Unfortunately different games may have different paths for these icons, so they may not always be available.
 
-Use (VrfFgdParser)[../Misc/VrfFgdParser] to extract them.
+Use [VrfFgdParser](../Misc/VrfFgdParser) to extract them.
 
 ## Material texture mappings for correct extraction
 
-(MaterialExtract.cs)[../ValveResourceFormat/IO/MaterialExtract.cs] contains a list of shader names and which texture files are used,
+[MaterialExtract.cs](../ValveResourceFormat/IO/MaterialExtract.cs) contains a list of shader names and which texture files are used,
 along with which channels they use.
 
 This is required for correct material extraction. In future it should be possible to automatically extract this information from shader files.
