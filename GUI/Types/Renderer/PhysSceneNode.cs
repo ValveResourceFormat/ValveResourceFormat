@@ -369,13 +369,13 @@ namespace GUI.Types.Renderer
             GL.UseProgram(shader.Program);
 
             GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
-            GL.DepthMask(false);
+            GL.Enable(EnableCap.DepthTest);
 
             GL.BindVertexArray(vaoHandle);
             GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
             GL.BindVertexArray(0);
 
-            GL.DepthMask(true);
+            GL.Disable(EnableCap.DepthTest);
         }
 
         public override void Update(Scene.UpdateContext context)
