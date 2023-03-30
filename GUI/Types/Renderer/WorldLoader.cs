@@ -75,6 +75,19 @@ namespace GUI.Types.Renderer
                 LoadEntitiesFromLump(scene, result, entityLump, "world_layer_base"); // TODO
             }
 
+            // TODO: Ideally we would use the vrman files to find relevant files
+            var physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(Path.GetDirectoryName(guiContext.FileName), "world_physics.vphys_c"));
+            if (physResource != null)
+            {
+                var phys = (PhysAggregateData)physResource.DataBlock;
+
+                var physSceneNode = new PhysSceneNode(scene, phys)
+                {
+                    LayerName = "world_layer_base",
+                };
+                scene.Add(physSceneNode, false);
+            }
+
             return result;
         }
 

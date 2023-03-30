@@ -43,11 +43,17 @@ namespace GUI.Types.Renderer
 
             var firstBbox = true;
 
+            // TODO: Split by collision group into separate VBOs, add UI for toggling them per m_InteractAsStrings (e.g. "playerclip")
+            var collisionAttributes = phys.Data.GetArray("m_collisionAttributes");
+
             var parts = phys.Data.GetArray("m_parts");
             for (var p = 0; p < parts.Length; p++)
             {
                 var shape = parts[p].GetSubCollection("m_rnShape");
+                var collisionAttributeIndices = shape.GetIntegerArray("m_CollisionAttributeIndices");
+                var partCollisionAttributeIndex = parts[p].GetIntegerProperty("m_nCollisionAttributeIndex");
 
+                // Spheres
                 var spheres = shape.GetArray("m_spheres");
                 foreach (var s in spheres)
                 {
@@ -68,6 +74,7 @@ namespace GUI.Types.Renderer
                     firstBbox = false;
                 }
 
+                // Capsules
                 var capsules = shape.GetArray("m_capsules");
                 foreach (var c in capsules)
                 {
@@ -87,9 +94,12 @@ namespace GUI.Types.Renderer
                         firstBbox = false;
                     }
                 }
+
+                // Hulls
                 var hulls = shape.GetArray("m_hulls");
                 foreach (var h in hulls)
                 {
+                    var collisionAttributeIndex = h.GetIntegerProperty("m_nCollisionAttributeIndex");
                     var hull = h.GetSubCollection("m_Hull");
 
                     //m_vCentroid
@@ -158,9 +168,12 @@ namespace GUI.Types.Renderer
                     LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
                     firstBbox = false;
                 }
+
+                // Meshes
                 var meshes = shape.GetArray("m_meshes");
                 foreach (var m in meshes)
                 {
+                    var collisionAttributeIndex = m.GetIntegerProperty("m_nCollisionAttributeIndex");
                     var mesh = m.GetSubCollection("m_Mesh");
                     //m_Nodes
 
@@ -232,9 +245,6 @@ namespace GUI.Types.Renderer
                     LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
                     firstBbox = false;
                 }
-                //m_CollisionAttributeIndices
-
-                //Console.WriteLine($"Phys mesh verts {verts.Count} inds {inds.Count}");
             }
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
