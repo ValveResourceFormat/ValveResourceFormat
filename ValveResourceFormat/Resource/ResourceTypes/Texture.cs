@@ -188,7 +188,7 @@ namespace ValveResourceFormat.ResourceTypes
                     ExtraData.Add(type, reader.ReadBytes((int)size));
                     reader.BaseStream.Position -= size;
 
-                    if (type == VTexExtraData.FILL_TO_POWER_OF_TWO)
+                    if (type == VTexExtraData.DATA_METADATA)
                     {
                         reader.ReadUInt16();
                         var nw = reader.ReadUInt16();
@@ -198,6 +198,13 @@ namespace ValveResourceFormat.ResourceTypes
                             NonPow2Width = nw;
                             NonPow2Height = nh;
                         }
+                        /* TODO:
+                        [Entry 1: VTEX_EXTRA_DATA_METADATA - 128 bytes ]
+                        DisplayRect =[4096  4096]
+                        MotionVectorsMaxDistanceInPx = 0
+                        RangeMin =[0.00 0.00 0.00 0.00]
+                        RangeMax =[0.00 0.00 0.00 0.00]
+                        */
                     }
                     else if (type == VTexExtraData.COMPRESSED_MIP_SIZE)
                     {
