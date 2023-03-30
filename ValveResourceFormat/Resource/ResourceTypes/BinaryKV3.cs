@@ -25,8 +25,9 @@ namespace ValveResourceFormat.ResourceTypes
         public const int MAGIC2 = 0x4B563301; // KV3\x01
         public const int MAGIC3 = 0x4B563302; // KV3\x02
         public const int MAGIC4 = 0x4B563303; // KV3\x03
+        public const int MAGIC5 = 0x4B563304; // KV3\x04
 
-        public static bool IsBinaryKV3(uint magic) => magic is MAGIC or MAGIC2 or MAGIC3 or MAGIC4;
+        public static bool IsBinaryKV3(uint magic) => magic is MAGIC or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5;
 
         public KVObject Data { get; private set; }
         public Guid Encoding { get; private set; }
@@ -41,6 +42,7 @@ namespace ValveResourceFormat.ResourceTypes
         private long currentEightBytesOffset;
         private long currentBinaryBytesOffset = -1;
         private bool isUsingLinearFlagTypes; // Version KV3\x03 uses a different enum for mapping flags
+        private bool todoUnknownNewBytesInVersion4;
 
         public BinaryKV3()
         {
@@ -64,7 +66,11 @@ namespace ValveResourceFormat.ResourceTypes
                 case MAGIC2: ReadVersion2(reader); break;
                 case MAGIC3: ReadVersion3(reader); break;
                 case MAGIC4:
+                    ReadVersion3(reader);
+                    break;
+                case MAGIC5:
                     isUsingLinearFlagTypes = true;
+                    todoUnknownNewBytesInVersion4 = true;
                     ReadVersion3(reader);
                     break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
@@ -247,6 +253,17 @@ namespace ValveResourceFormat.ResourceTypes
             var compressedSize = reader.ReadUInt32();
             var blockCount = reader.ReadUInt32();
             var blockTotalSize = reader.ReadUInt32();
+
+            if (todoUnknownNewBytesInVersion4)
+            {
+                var todo1 = reader.ReadUInt32();
+                var todo2 = reader.ReadUInt32();
+
+                if (todo1 != 0 || todo2 != 0)
+                {
+                    throw new NotImplementedException("Unknown bytes for new KV3 version found");
+                }
+            }
 
             if (compressedSize > int.MaxValue)
             {
