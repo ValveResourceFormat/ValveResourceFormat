@@ -569,7 +569,7 @@ namespace ValveResourceFormat.ResourceTypes
                 if (((int)flagInfo & 4) > 0) // Multiline string
                 {
                     databyte = (int)KVType.STRING_MULTI;
-                    flagInfo &= (KVFlag)4;
+                    flagInfo ^= (KVFlag)4;
                 }
 
                 // Strictly speaking there could be more than one flag set, but in practice it was seemingly never.
