@@ -8,7 +8,11 @@ namespace GUI.Forms
         /// <summary>
         /// Gets whatever text was entered by the user in the search textbox.
         /// </summary>
-        public string SearchText => findTextBox.Text;
+        public string SearchText
+        {
+            get => findTextBox.Text;
+            set => findTextBox.Text = value;
+        }
 
         /// <summary>
         /// Gets whatever options was selected by the user in the search type combobox.
@@ -28,6 +32,11 @@ namespace GUI.Forms
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents (Case Sensitive)", SearchType.FileContents));
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents Hex Bytes", SearchType.FileContentsHex));
             searchTypeComboBox.SelectedIndex = 0;
+        }
+
+        public void HideSearchType()
+        {
+            searchTypeComboBox.Hide();
         }
 
         private void FindButton_Click(object sender, EventArgs e)
