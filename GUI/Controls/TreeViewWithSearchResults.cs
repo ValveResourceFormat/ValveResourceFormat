@@ -190,7 +190,7 @@ namespace GUI.Controls
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while...");
 
-                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(mainTreeView.VrfGuiContext.CurrentPackage);
+                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(mainTreeView.VrfGuiContext.CurrentPackage, progressDialog.SetProgress);
 
                 Invoke((MethodInvoker)(() =>
                 {

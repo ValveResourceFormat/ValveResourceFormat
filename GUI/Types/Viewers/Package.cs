@@ -11,6 +11,8 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Blocks;
 using System.Text;
+using ValveResourceFormat.ResourceTypes;
+using static ValveResourceFormat.Blocks.ResourceEditInfoStructs.InputDependencies;
 
 namespace GUI.Types.Viewers
 {
@@ -57,7 +59,7 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        internal static List<PackageEntry> RecoverDeletedFiles(SteamDatabase.ValvePak.Package package)
+        internal static List<PackageEntry> RecoverDeletedFiles(SteamDatabase.ValvePak.Package package, Action<string> setProgress)
         {
             var allEntries = package.Entries
                 .SelectMany(file => file.Value)
@@ -151,8 +153,7 @@ namespace GUI.Types.Viewers
                                 var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString())[0];
                                 var resourceTypeExtension = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
                                 resourceTypeExtensionWithDot = string.Concat(".", resourceTypeExtension);
-                                newEntry.TypeName = resourceTypeExtension;
-                                newEntry.TypeName += "_c";
+                                newEntry.TypeName = string.Concat(resourceTypeExtension, "_c");
                             }
 
                             string filepath = null;
@@ -160,32 +161,20 @@ namespace GUI.Types.Viewers
                             // Use input dependency as the file name if there is one
                             if (resource.EditInfo != null)
                             {
-                                string GetPossiblePath(InputDependencies inputDeps)
-                                {
-                                    if (inputDeps.List.Count == 0)
-                                    {
-                                        return null;
-                                    }
-
-                                    foreach (var inputDependency in inputDeps.List)
-                                    {
-                                        if (Path.GetExtension(inputDependency.ContentRelativeFilename) == resourceTypeExtensionWithDot)
-                                        {
-                                            return inputDependency.ContentRelativeFilename;
-                                        }
-                                    }
-
-                                    return inputDeps.List[0].ContentRelativeFilename;
-                                }
-
                                 if (resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.InputDependencies, out var inputBlock))
                                 {
-                                    filepath = GetPossiblePath((InputDependencies)inputBlock);
+                                    filepath = RecoverDeletedFilesGetPossiblePath((InputDependencies)inputBlock, resourceTypeExtensionWithDot);
                                 }
 
                                 if (filepath == null && resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.AdditionalInputDependencies, out inputBlock))
                                 {
-                                    filepath = GetPossiblePath((InputDependencies)inputBlock);
+                                    filepath = RecoverDeletedFilesGetPossiblePath((InputDependencies)inputBlock, resourceTypeExtensionWithDot);
+                                }
+
+                                // Fix panorama extension
+                                if (filepath != null && resourceTypeExtensionWithDot == ".vtxt")
+                                {
+                                    newEntry.TypeName = string.Concat(Path.GetExtension(filepath)[1..], "_c");
                                 }
                             }
 
@@ -219,6 +208,11 @@ namespace GUI.Types.Viewers
 
                         typeEntries.Add(newEntry);
                         hiddenFiles.Add(newEntry);
+
+                        if (hiddenFiles.Count % 100 == 0)
+                        {
+                            setProgress($"Scanning for deleted files, this may take a while... Found {hiddenFiles.Count} files ({totalSlackSize.ToFileSizeString()}) so far...");
+                        }
                     }
                 }
 
@@ -230,6 +224,45 @@ namespace GUI.Types.Viewers
             // TODO: Check for completely unused vpk chunk files
 
             return hiddenFiles;
+        }
+
+        private static string RecoverDeletedFilesGetPossiblePath(InputDependencies inputDeps, string resourceTypeExtensionWithDot)
+        {
+            if (inputDeps.List.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (var inputDependency in inputDeps.List)
+            {
+                if (Path.GetExtension(inputDependency.ContentRelativeFilename) == resourceTypeExtensionWithDot)
+                {
+                    return inputDependency.ContentRelativeFilename;
+                }
+            }
+
+            // We can't detect correct panorama file type from compiler information, so we have to guess
+            if (resourceTypeExtensionWithDot == ".vtxt")
+            {
+                var preferredExtensions = new string[]
+                {
+                    ".vcss",
+                    ".vxml",
+                    ".vpdi",
+                    ".vjs",
+                    ".vts",
+                };
+
+                foreach (var inputDependency in inputDeps.List)
+                {
+                    if (preferredExtensions.Contains(Path.GetExtension(inputDependency.ContentRelativeFilename)))
+                    {
+                        return inputDependency.ContentRelativeFilename;
+                    }
+                }
+            }
+
+            return inputDeps.List[0].ContentRelativeFilename;
         }
 
         private void VPK_Disposed(object sender, EventArgs e)
