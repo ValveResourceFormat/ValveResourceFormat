@@ -741,20 +741,12 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (datatype == KVType.ARRAY_TYPE_BYTE_LENGTH)
                     {
-                        datatype = KVType.ARRAY_TYPED; // TODO: Don't do this?
-
-                        if (currentBinaryBytesOffset > -1)
-                        {
-                            reader.BaseStream.Position = currentBinaryBytesOffset;
-                        }
+                        reader.BaseStream.Position = currentBinaryBytesOffset;
 
                         typeArrayLength = reader.ReadByte();
 
-                        if (currentBinaryBytesOffset > -1)
-                        {
-                            currentBinaryBytesOffset++;
-                            reader.BaseStream.Position = currentOffset;
-                        }
+                        currentBinaryBytesOffset++;
+                        reader.BaseStream.Position = currentOffset;
                     }
                     else
                     {
@@ -795,8 +787,17 @@ namespace ValveResourceFormat.ResourceTypes
                 // TODO: 20, 21 - using unknown buffer, likely related to the new ints that were added
                 // TODO: 22, 23 - reading from currentBinaryBytesOffset
                 // 22 is related to 20, 23 is related to 21
+                case KVType.INT32_AS_BYTE:
+                    reader.BaseStream.Position = currentBinaryBytesOffset;
+
+                    parent.AddProperty(name, MakeValue(datatype, (int)reader.ReadByte(), flagInfo));
+
+                    currentBinaryBytesOffset++;
+                    reader.BaseStream.Position = currentOffset;
+
+                    break;
                 default:
-                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position - 1}", (int)datatype, nameof(datatype));
+                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position} (currentTypeIndex={currentTypeIndex})", (int)datatype, nameof(datatype));
             }
 
             return parent;
@@ -815,6 +816,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.INT32:
                 case KVType.INT64_ZERO:
                 case KVType.INT64_ONE:
+                case KVType.INT32_AS_BYTE:
                     return KVType.INT64;
                 case KVType.UINT64:
                 case KVType.UINT32:

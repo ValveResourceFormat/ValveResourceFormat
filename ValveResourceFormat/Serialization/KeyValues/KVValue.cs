@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         UNKNOWN_20 = 20,
         UNKNOWN_21 = 21,
         UNKNOWN_22 = 22,
-        UNKNOWN_23 = 23,
+        INT32_AS_BYTE = 23,
         ARRAY_TYPE_BYTE_LENGTH = 24,
     }
 
