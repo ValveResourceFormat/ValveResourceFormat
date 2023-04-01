@@ -87,12 +87,18 @@ namespace GUI.Types.Renderer
         private void OnSaveCameraRequest(object sender, EventArgs e)
         {
             var cam = Scene.MainCamera;
-            var saveName = $"Saved Camera #{Settings.Config.SavedCameras.Count + 1}";
+            var saveName = $"Camera at {cam.Location.X:F0} {cam.Location.Y:F0} {cam.Location.Z:F0}";
+            var originalName = saveName;
+            var duplicateCameraIndex = 1;
+
+            while (Settings.Config.SavedCameras.ContainsKey(saveName))
+            {
+                saveName = $"{originalName} (#{duplicateCameraIndex++})";
+            }
 
             Settings.Config.SavedCameras.Add(saveName, new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw });
             Settings.Save();
-
-            savedCameraPositionsControl.RefreshSavedPositions();
+            Settings.InvokeRefreshCamerasOnSave();
         }
 
         protected override void LoadScene()

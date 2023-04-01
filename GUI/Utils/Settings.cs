@@ -33,6 +33,9 @@ namespace GUI.Utils
 
         public static Color BackgroundColor { get; set; }
 
+        public static event EventHandler RefreshCamerasOnSave;
+        public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave.Invoke(null, null);
+
         public static void Load()
         {
             SettingsFilePath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");

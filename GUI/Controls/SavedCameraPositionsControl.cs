@@ -17,6 +17,8 @@ namespace GUI.Controls
         public SavedCameraPositionsControl()
         {
             InitializeComponent();
+
+            Settings.RefreshCamerasOnSave += RefreshSavedPositions;
         }
 
         private void BtnSave_Click(object sender, EventArgs e)
@@ -38,27 +40,16 @@ namespace GUI.Controls
         {
             Settings.Config.SavedCameras.Remove(cmbPositions.SelectedItem.ToString());
             Settings.Save();
-
-            cmbPositions.Items.RemoveAt(cmbPositions.SelectedIndex);
-
-            if (cmbPositions.Items.Count == 0)
-            {
-                btnRestore.Enabled = false;
-                btnDelete.Enabled = false;
-                cmbPositions.Enabled = false;
-                cmbPositions.Items.Add("(no saved cameras)");
-                cmbPositions.SelectedIndex = 0;
-            }
-            else
-            {
-                cmbPositions.SelectedIndex = cmbPositions.Items.Count - 1;
-            }
+            Settings.InvokeRefreshCamerasOnSave();
         }
+
+        private void RefreshSavedPositions(object sender, EventArgs e) => RefreshSavedPositions();
 
         public void RefreshSavedPositions()
         {
-            var previousIndex = cmbPositions.SelectedIndex;
+            var previousCamera = cmbPositions.SelectedText;
 
+            cmbPositions.BeginUpdate();
             cmbPositions.Items.Clear();
 
             if (Settings.Config.SavedCameras.Count == 0)
@@ -74,30 +65,22 @@ namespace GUI.Controls
                 btnRestore.Enabled = true;
                 btnDelete.Enabled = true;
                 cmbPositions.Enabled = true;
+                var selectedIndex = 0;
 
                 foreach (var kvp in Settings.Config.SavedCameras)
                 {
                     cmbPositions.Items.Add(kvp.Key);
+
+                    if (kvp.Key == previousCamera)
+                    {
+                        selectedIndex = cmbPositions.Items.Count - 1;
+                    }
                 }
 
-                if (previousIndex >= 0)
-                {
-                    cmbPositions.SelectedIndex = previousIndex;
-                }
-                else
-                {
-                    cmbPositions.SelectedIndex = 0;
-                }
+                cmbPositions.SelectedIndex = selectedIndex;
             }
-        }
 
-        private void CmbPositions_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cmbPositions.SelectedIndex >= 0)
-            {
-                btnRestore.Enabled = true;
-                btnDelete.Enabled = true;
-            }
+            cmbPositions.EndUpdate();
         }
     }
 }
