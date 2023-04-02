@@ -1025,7 +1025,7 @@ public sealed class ShaderExtract
 
     private void WriteParam(ParamBlock param, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer)
     {
-        var attributes = new List<string>();
+        var annotations = new List<string>();
 
         if (param.ParamType is ParameterType.RenderState)
         {
@@ -1041,11 +1041,11 @@ public sealed class ShaderExtract
         }
         else if (param.Id == 255)
         {
-            WriteVariable(param, paramBlocks, writer, attributes);
+            WriteVariable(param, paramBlocks, writer, annotations);
         }
         else if (param.ParamType == ParameterType.Texture)
         {
-            WriteTexture(param, paramBlocks, channelBlocks, writer, attributes);
+            WriteTexture(param, paramBlocks, channelBlocks, writer, annotations);
         }
     }
 
@@ -1065,7 +1065,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteVariable(ParamBlock param, List<ParamBlock> paramBlocks, IndentedTextWriter writer, List<string> attributes)
+    private void WriteVariable(ParamBlock param, List<ParamBlock> paramBlocks, IndentedTextWriter writer, List<string> annotations)
     {
         var intDefsCutOff = 0;
         var floatDefsCutOff = 0;
@@ -1090,12 +1090,12 @@ public sealed class ShaderExtract
             if (floatDefsCutOff <= 3)
             {
                 var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
-                attributes.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
+                annotations.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
             }
             else
             {
                 var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
-                attributes.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
+                annotations.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
             }
         }
 
@@ -1120,29 +1120,41 @@ public sealed class ShaderExtract
             {
                 var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff]);
                 var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff]);
-                attributes.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
+                annotations.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
             }
             else
             {
                 var mins = string.Join(", ", param.IntMins[..^intRangeCutOff]);
                 var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff]);
-                attributes.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
+                annotations.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
             }
         }
 
+        // Other annotations: MaxRes(<=8192), UiStep(?), Source(?), UiVisibility(?)
+
         if (param.AttributeName.Length > 0)
         {
-            attributes.Add($"Attribute(\"{param.AttributeName}\");");
+            if (param.UiType == UiType.Enum)
+            {
+                var optionOrOptions = param.AttributeName.Contains(',', StringComparison.Ordinal)
+                    ? "UiOptions"
+                    : "UiOption";
+                annotations.Add($"{optionOrOptions}(\"{param.AttributeName}\");");
+            }
+            else
+            {
+                annotations.Add($"Attribute(\"{param.AttributeName}\");");
+            }
         }
 
         if (param.UiType != UiType.None)
         {
-            attributes.Add($"UiType({param.UiType});");
+            annotations.Add($"UiType({param.UiType});");
         }
 
         if (param.UiGroup.CompactString.Length > 0)
         {
-            attributes.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
+            annotations.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
         }
 
         if (param.DynExp.Length > 0)
@@ -1152,10 +1164,10 @@ public sealed class ShaderExtract
             dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
             dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
 
-            attributes.Add($"Expression({dynEx});");
+            annotations.Add($"Expression({dynEx});");
         }
 
-        writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(attributes)};");
+        writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
     }
 
     private static void WriteInputTexture(IndentedTextWriter writer, ParamBlock param)
