@@ -742,9 +742,9 @@ namespace ValveResourceFormat.CompiledShader
             }
             DataReader.ShowBytes(32);
 
-            if (vcsVersion == 65)
+            if (vcsVersion >= 65)
             {
-                DataReader.ShowBytes(6, "unknown bytes specific to vcs version 65");
+                DataReader.ShowBytes(6, "unknown bytes specific to vcs version >= 65");
             }
 
             DataReader.BreakLine();
