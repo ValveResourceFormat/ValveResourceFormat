@@ -268,6 +268,7 @@ namespace GUI.Controls
 
         private void OnPaint(object sender, EventArgs e)
         {
+            Application.DoEvents();
             Draw();
         }
 
@@ -300,7 +301,6 @@ namespace GUI.Controls
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
 
             GLControl.SwapBuffers();
-            Application.DoEvents();
             GLControl.Invalidate();
 
             frames++;
