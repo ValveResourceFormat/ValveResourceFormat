@@ -284,7 +284,6 @@ namespace GUI.Controls
 
             if (elapsed <= TickFrequency)
             {
-                GLControl.SwapBuffers();
                 GLControl.Invalidate();
 
                 return;
@@ -301,6 +300,7 @@ namespace GUI.Controls
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
 
             GLControl.SwapBuffers();
+            Application.DoEvents();
             GLControl.Invalidate();
 
             frames++;
