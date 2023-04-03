@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -46,6 +47,22 @@ namespace ValveResourceFormat.CompiledShader
                 if (component == Channel.NULL)
                 {
                     break;
+                }
+
+                // Vcs version 67 adds an index for unknown reasons
+                var componentWithoutIndex = (byte)((component & 0xF0) >> 4);
+                var index = component & 0x0F;
+                if (componentWithoutIndex > 0)
+                {
+                    if (index != i)
+                    {
+                        throw new ArgumentOutOfRangeException(
+                            nameof(packedValue),
+                            $"Index value mismatch 0x{component:X2} at position {i} (0x{packedValue:X8})."
+                        );
+                    }
+
+                    component = componentWithoutIndex;
                 }
 
                 if (component >= Channel.R && component <= Channel.A)
@@ -114,10 +131,10 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         public static bool operator ==(ChannelMapping left, ChannelMapping right)
-            => left.PackedValue == right.PackedValue;
+            => left.Channels.SequenceEqual(right.Channels);
 
         public static bool operator !=(ChannelMapping left, ChannelMapping right)
-            => left.PackedValue != right.PackedValue;
+            => !left.Channels.SequenceEqual(right.Channels);
 
         public override bool Equals(object obj)
             => Equals(obj as ChannelMapping);

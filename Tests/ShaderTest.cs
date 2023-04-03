@@ -138,6 +138,10 @@ namespace Tests
             Assert.That(ChannelMapping.G, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF01)));
             Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF0103)));
 
+            // New in version 67
+            Assert.That(ChannelMapping.RGBA, Is.EqualTo(ChannelMapping.FromUInt32(0x33221100)));
+            Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF1130)));
+
             Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
             Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));
             Assert.That(ChannelMapping.B.ToString(), Is.EqualTo("B"));
