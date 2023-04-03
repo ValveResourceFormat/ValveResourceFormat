@@ -12,7 +12,7 @@ body:
 - type: textarea
   id: logs
   attributes:
-  label: Relevant log output or exception with stacktrace
+    label: Relevant log output or exception with stacktrace
     description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
     render: shell
 
