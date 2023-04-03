@@ -22,9 +22,8 @@ namespace GUI.Types.Renderer
     {
         private readonly World world;
         private readonly WorldNode worldNode;
-        private IEnumerable<PhysSceneNode> triggerNodes;
-        private IEnumerable<PhysSceneNode> colliderNodes;
         private CheckedListBox worldLayersComboBox;
+        private CheckedListBox physicsGroupsComboBox;
         private ComboBox cameraComboBox;
         private SavedCameraPositionsControl savedCameraPositionsControl;
 
@@ -48,26 +47,15 @@ namespace GUI.Types.Renderer
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
+            physicsGroupsComboBox = ViewerControl.AddMultiSelection("Physics Groups", null, (physicsGroups) =>
+            {
+                SetEnabledPhysicsGroups(new HashSet<string>(physicsGroups));
+            });
 
             savedCameraPositionsControl = new SavedCameraPositionsControl();
             savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
             savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
             ViewerControl.AddControl(savedCameraPositionsControl);
-
-            ViewerControl.AddCheckBox("Show triggers", false, v =>
-            {
-                foreach (var n in triggerNodes)
-                {
-                    n.Enabled = v;
-                }
-            });
-            ViewerControl.AddCheckBox("Show entity colliders", false, v =>
-            {
-                foreach (var n in colliderNodes)
-                {
-                    n.Enabled = v;
-                }
-            });
         }
 
         private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
@@ -103,6 +91,8 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
+            ShowBaseGrid = false;
+
             if (world != null)
             {
                 var loader = new WorldLoader(GuiContext, world);
@@ -166,10 +156,6 @@ namespace GUI.Types.Renderer
 
                     cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray<object>());
                 }
-
-                var physNodes = Scene.AllNodes.OfType<PhysSceneNode>().Distinct();
-                triggerNodes = physNodes.Where(n => n.IsTrigger);
-                colliderNodes = physNodes.Where(n => !n.IsTrigger);
             }
 
             if (worldNode != null)
@@ -189,9 +175,16 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            ShowBaseGrid = false;
+            // Physics groups
+            {
+                var physGroups = Scene.AllNodes
+                    .OfType<PhysSceneNode>()
+                    .Select(r => r.PhysGroupName)
+                    .Distinct();
+                SetAvailablPhysicsGroups(physGroups);
+            }
 
-            ViewerControl.Invoke((Action)savedCameraPositionsControl.RefreshSavedPositions);
+            ViewerControl.Invoke(savedCameraPositionsControl.RefreshSavedPositions);
         }
 
         protected override void OnPickerDoubleClick(object sender, PickingResponse pickingResponse)
@@ -309,6 +302,28 @@ namespace GUI.Types.Renderer
             else
             {
                 worldLayersComboBox.Enabled = false;
+            }
+        }
+
+        private void SetAvailablPhysicsGroups(IEnumerable<string> physicsGroups)
+        {
+            physicsGroupsComboBox.Items.Clear();
+            if (physicsGroups.Any())
+            {
+                physicsGroupsComboBox.Enabled = true;
+                physicsGroupsComboBox.Items.AddRange(physicsGroups.ToArray());
+            }
+            else
+            {
+                physicsGroupsComboBox.Enabled = false;
+            }
+        }
+
+        private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
+        {
+            foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
+            {
+                physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
             }
         }
     }

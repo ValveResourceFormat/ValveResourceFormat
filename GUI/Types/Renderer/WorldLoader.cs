@@ -83,6 +83,7 @@ namespace GUI.Types.Renderer
 
                 var physSceneNode = new PhysSceneNode(scene, phys)
                 {
+                    PhysGroupName = "world_physics", // TODO: Split by collision groups
                     LayerName = "world_layer_base",
                 };
                 scene.Add(physSceneNode, false);
@@ -349,7 +350,7 @@ namespace GUI.Types.Renderer
                     var physSceneNode = new PhysSceneNode(scene, phys)
                     {
                         Transform = transformationMatrix,
-                        IsTrigger = isTrigger,
+                        PhysGroupName = classname,
                         LayerName = layerName
                     };
                     scene.Add(physSceneNode, false);

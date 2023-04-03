@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
     internal class PhysSceneNode : SceneNode
     {
         public bool Enabled { get; set; }
-        public bool IsTrigger { get; set; }
+        public string PhysGroupName { get; set; }
 
         readonly Shader shader;
         readonly int indexCount;
