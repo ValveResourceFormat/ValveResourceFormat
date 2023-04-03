@@ -499,6 +499,7 @@ namespace ValveResourceFormat.CompiledShader
         public float Res0 { get; }
         public int Lead0 { get; }
         public byte[] DynExp { get; } = Array.Empty<byte>();
+        public byte[] SBMSBytes { get; } = Array.Empty<byte>();
         public int Arg0 { get; }
         public Vfx.Type VfxType { get; }
         public ParameterType ParamType { get; }
@@ -551,9 +552,8 @@ namespace ValveResourceFormat.CompiledShader
             // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
             if (Arg0 == 0x534D4253)
             {
-                // note - bytes are ignored
                 var dynExpLength = datareader.ReadInt32();
-                datareader.ReadBytes(dynExpLength);
+                SBMSBytes = datareader.ReadBytes(dynExpLength);
 
                 Arg0 = datareader.ReadInt32();
             }
