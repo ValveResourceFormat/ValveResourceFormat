@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 using System.Text;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
@@ -17,10 +18,10 @@ namespace ValveResourceFormat.CompiledShader
         public VcsShaderModelType VcsShaderModelType { get; }
         public long ZframeId { get; }
         public ZDataBlock LeadingData { get; }
-        public List<ZFrameParam> ZframeParams { get; } = new();
-        public int[] LeadingSummary { get; } = Array.Empty<int>();
+        public List<Attribute> Attributes { get; } = new();
+        public int[] VShaderInputs { get; } = Array.Empty<int>();
         public List<ZDataBlock> DataBlocks { get; } = new();
-        public int[] TrailingSummary { get; }
+        public int[] UnknownArg { get; }
         public byte[] Flags0 { get; }
         public byte Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
@@ -53,20 +54,20 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             LeadingData = new ZDataBlock(DataReader, -1);
-            int paramCount = DataReader.ReadInt16();
-            for (var i = 0; i < paramCount; i++)
+            int attributeCount = DataReader.ReadInt16();
+            for (var i = 0; i < attributeCount; i++)
             {
-                ZFrameParam zParam = new(DataReader);
-                ZframeParams.Add(zParam);
+                Attribute attribute = new(DataReader);
+                Attributes.Add(attribute);
             }
             // this data is applicable to vertex shaders
             if (VcsProgramType == VcsProgramType.VertexShader)
             {
-                int summaryLength = DataReader.ReadInt16();
-                LeadingSummary = new int[summaryLength];
-                for (var i = 0; i < summaryLength; i++)
+                int vsInputBlockCount = DataReader.ReadInt16();
+                VShaderInputs = new int[vsInputBlockCount];
+                for (var i = 0; i < vsInputBlockCount; i++)
                 {
-                    LeadingSummary[i] = DataReader.ReadInt16();
+                    VShaderInputs[i] = DataReader.ReadInt16();
                 }
             }
             int dataBlockCount = DataReader.ReadInt16();
@@ -79,11 +80,11 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 DataBlocks.Add(dataBlock);
             }
-            int tailSummaryLength = DataReader.ReadInt16();
-            TrailingSummary = new int[tailSummaryLength];
-            for (var i = 0; i < tailSummaryLength; i++)
+            int uknownArgCount = DataReader.ReadInt16();
+            UnknownArg = new int[uknownArgCount];
+            for (var i = 0; i < uknownArgCount; i++)
             {
-                TrailingSummary[i] = DataReader.ReadInt16();
+                UnknownArg[i] = DataReader.ReadInt16();
             }
             Flags0 = DataReader.ReadBytes(4);
             Flagbyte0 = DataReader.ReadByte();
@@ -191,14 +192,14 @@ namespace ValveResourceFormat.CompiledShader
             return blockId == -1 ? LeadingData : DataBlocks[blockId];
         }
 
-        public string ZFrameHeaderStringDescription()
+        public string AttributesStringDescription()
         {
-            var zframeHeaderString = "";
-            foreach (var zParam in ZframeParams)
+            var attributesString = "";
+            foreach (var attribute in Attributes)
             {
-                zframeHeaderString += $"{zParam}\n";
+                attributesString += $"{attribute}\n";
             }
-            return zframeHeaderString;
+            return attributesString;
         }
 
         public void Dispose()
@@ -246,19 +247,21 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public class ZFrameParam
+        public class Attribute
         {
             public string Name0 { get; }
             public uint Murmur32 { get; }
             public byte HeaderOperator { get; }
+            public Vfx.Type VfxType { get; }
+            public byte LinkedParameterIndex { get; }
+            public byte HeaderArg { get; }
             public byte[] HeaderCode { get; }
             public int DynExpLen { get; } = -1;
             public byte[] DynExpression { get; }
             public string DynExpEvaluated { get; }
-            public bool HasOperatorVal { get; }
-            public int OperatorVal { get; }
+            public object ConstValue { get; }
 
-            public ZFrameParam(ShaderDataReader datareader)
+            public Attribute(ShaderDataReader datareader)
             {
                 Name0 = datareader.ReadNullTermString();
                 Murmur32 = datareader.ReadUInt32();
@@ -267,9 +270,11 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new ShaderParserException("Murmur check failed on header name");
                 }
-                HeaderCode = datareader.ReadBytes(3);
-                HeaderOperator = HeaderCode[0];
-                if (HeaderOperator == 0x0e)
+                VfxType = (Vfx.Type)datareader.ReadByte();
+                LinkedParameterIndex = datareader.ReadByte();
+                HeaderArg = datareader.ReadByte();
+
+                if (VfxType == Vfx.Type.Sampler2D)
                 {
                     return;
                 }
@@ -278,38 +283,31 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     DynExpression = datareader.ReadBytes(DynExpLen);
                     DynExpEvaluated = ParseDynamicExpression(DynExpression);
+                    return;
                 }
-                else if (HeaderOperator == 1 || HeaderOperator == 5)
+
+                ConstValue = VfxType switch
                 {
-                    OperatorVal = datareader.ReadInt32();
-                    HasOperatorVal = true;
-                }
-                else if (HeaderOperator == 9)
-                {
-                    OperatorVal = datareader.ReadByte();
-                    HasOperatorVal = true;
-                }
-                else
-                {
-                    throw new ShaderParserException($"Unknown header operator {HeaderOperator}");
-                }
+                    Vfx.Type.Float => datareader.ReadSingle(),
+                    Vfx.Type.Int => datareader.ReadInt32(),
+                    Vfx.Type.Bool => datareader.ReadByte() != 0,
+                    Vfx.Type.String => datareader.ReadNullTermString(),
+                    Vfx.Type.Float2 => new Vector2(datareader.ReadSingle(), datareader.ReadSingle()),
+                    Vfx.Type.Float3 => new Vector3(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
+                    _ => throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value."),
+                };
+
             }
 
             public override string ToString()
             {
                 if (DynExpLen > 0)
                 {
-                    return $"{Name0,-40} 0x{Murmur32:x08}     {BytesToString(HeaderCode)}   {DynExpEvaluated}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {DynExpEvaluated}";
                 }
                 else
                 {
-                    var toByteString = (byte[] b) => $"{b[0]:x02} {b[1]:x02} {b[2]:x02} {b[3]:x02}";
-                    var operatorDesc = HasOperatorVal ? OperatorVal switch
-                    {
-                        > 0x01000000 => $"{toByteString(BitConverter.GetBytes(OperatorVal))} (unusual data, note 0x40 = '@')",
-                        _ => $"{OperatorVal}"
-                    } : "";
-                    return $"{Name0,-40} 0x{Murmur32:x08}     {BytesToString(HeaderCode)}   {operatorDesc}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {ConstValue}";
                 }
             }
         }

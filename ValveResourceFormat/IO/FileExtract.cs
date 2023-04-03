@@ -139,6 +139,10 @@ namespace ValveResourceFormat.IO
                     contentFile = new MaterialExtract(resource, fileLoader).ToContentFile();
                     break;
 
+                case ResourceType.Shader:
+                    contentFile = new ShaderExtract(resource).ToContentFile();
+                    break;
+
                 case ResourceType.EntityLump:
                     contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
                     break;

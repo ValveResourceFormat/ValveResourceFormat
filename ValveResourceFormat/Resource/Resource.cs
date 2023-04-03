@@ -200,7 +200,7 @@ namespace ValveResourceFormat
 
             if (FileSize == ShaderFile.MAGIC)
             {
-                throw new InvalidDataException("Use CompiledShader() class to parse compiled shader files.");
+                throw new InvalidDataException("Use ShaderFile() class to parse compiled shader files.");
             }
 
             HeaderVersion = Reader.ReadUInt16();
@@ -456,6 +456,9 @@ namespace ValveResourceFormat
                 case ResourceType.SboxManagedResource:
                 case ResourceType.ArtifactItem:
                     return new Plaintext();
+
+                case ResourceType.Shader:
+                    return new SboxShader();
 
                 case ResourceType.PhysicsCollisionMesh:
                     return new PhysAggregateData();

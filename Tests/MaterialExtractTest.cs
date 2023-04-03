@@ -4,6 +4,7 @@ using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace Tests
 {
@@ -18,8 +19,8 @@ namespace Tests
             };
 
             var vr_complex_expected_inputs = new[] {
-                (MaterialExtract.Channel.RGB, "TextureColor"),
-                (MaterialExtract.Channel.A, translucent ? "TextureTranslucency" : "TextureMetalness")
+                (ChannelMapping.RGB, "TextureColor"),
+                (ChannelMapping.A, translucent ? "TextureTranslucency" : "TextureMetalness")
             };
 
             var result = MaterialExtract.GetTextureInputs("vr_complex.vfx", "g_tColor", featureState);
@@ -41,13 +42,13 @@ namespace Tests
                 {
                     TextureType = "TextureColor",
                     FileName = "test_color.png",
-                    Channel = MaterialExtract.Channel.RGB
+                    Channel = ChannelMapping.RGB
                 },
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = translucent ? "TextureTranslucency" : "TextureMetalness",
                     FileName = translucent ? "test_65b7aff5_trans.png" : "test_65b7aff5_metal.png",
-                    Channel = MaterialExtract.Channel.A
+                    Channel = ChannelMapping.A
                 }
             };
 

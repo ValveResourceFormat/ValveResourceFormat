@@ -2,13 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-
-using ChannelMapping = System.ValueTuple<ValveResourceFormat.IO.MaterialExtract.Channel, string>;
+using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO;
 public sealed class MaterialExtract
@@ -20,20 +18,7 @@ public sealed class MaterialExtract
         public Channel Channel { get; init; }
     }
 
-    public enum Channel
-    {
-        R,
-        G,
-        B,
-        A,
-        _Single,
-        GA,
-        _Double,
-        RGB,
-        RGBA
-    }
-
-    public static readonly Dictionary<string, Dictionary<string, ChannelMapping[]>> TextureMappings = new()
+    public static readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappings = new()
     {
         ["global_lit_simple"] = new()
         {
@@ -145,7 +130,7 @@ public sealed class MaterialExtract
         {
             ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureReflectance") },
             ["g_tIris"] = new[] { (Channel.RGB, "IrisNormal"), (Channel.A, "IrisRoughness") },
-            ["g_tNormal"] = new[] { (Channel.GA, "TextureNormal") },
+            ["g_tNormal"] = new[] { (Channel.AG, "TextureNormal") },
 
             ["g_tIrisMask"] = new[] { (Channel.R, "TextureIrisMask") },
             ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
@@ -164,7 +149,7 @@ public sealed class MaterialExtract
         }
     };
 
-    public static readonly Dictionary<string, ChannelMapping[]> GltfTextureMappings = new()
+    public static readonly Dictionary<string, (Channel Channel, string Name)[]> GltfTextureMappings = new()
     {
         ["BaseColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
         ["Normal"] = new[] { (Channel.RGB, "TextureNormal") },
@@ -292,7 +277,7 @@ public sealed class MaterialExtract
         return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : "png");
     }
 
-    public static IEnumerable<ChannelMapping> GetTextureInputs(string shaderName, string textureType, Dictionary<string, long> featureState)
+    public static IEnumerable<(Channel Channel, string Name)> GetTextureInputs(string shaderName, string textureType, Dictionary<string, long> featureState)
     {
         shaderName = shaderName[..^4]; // strip '.vfx'
 
@@ -567,7 +552,7 @@ public sealed class MaterialExtract
         public int GetHashCode(string str) => str.GetHashCode(StringComparison.Ordinal);
     }
 
-    internal sealed class ChannelMappingComparer : IEqualityComparer<ChannelMapping>
+    internal sealed class ChannelMappingComparer : IEqualityComparer<(Channel Channel, string Name)>
     {
         private readonly LayeredTextureNameComparer _layeredTextureNameComparer;
 
@@ -576,11 +561,11 @@ public sealed class MaterialExtract
             _layeredTextureNameComparer = layeredTextureNameComparer;
         }
 
-        public bool Equals(ChannelMapping x, ChannelMapping y)
+        public bool Equals((Channel Channel, string Name) x, (Channel Channel, string Name) y)
         {
-            return x.Item1 == y.Item1 && _layeredTextureNameComparer.Equals(x.Item2, y.Item2);
+            return x.Channel == y.Channel && _layeredTextureNameComparer.Equals(x.Name, y.Name);
         }
 
-        public int GetHashCode(ChannelMapping obj) => obj.GetHashCode();
+        public int GetHashCode((Channel Channel, string Name) obj) => obj.GetHashCode();
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Utils
 {
@@ -9,7 +10,11 @@ namespace ValveResourceFormat.Utils
         private readonly string Magic;
         private readonly string MagicNameof;
 
-        public override string Message => $"{base.Message} for variable '{MagicNameof}': {Magic}";
+        private readonly bool IsAssertion;
+
+        public override string Message => IsAssertion
+            ? base.Message
+            : $"{base.Message} for variable '{MagicNameof}': {Magic}";
 
         public UnexpectedMagicException(string message, int magic, string nameofMagic) : base(message)
         {
@@ -27,6 +32,23 @@ namespace ValveResourceFormat.Utils
         {
             Magic = magic;
             MagicNameof = nameofMagic;
+        }
+
+        private UnexpectedMagicException(string customAssertMessage) : base(customAssertMessage)
+        {
+            IsAssertion = true;
+        }
+
+        public static void Assert<T>(bool condition, T actualMagic,
+            [CallerArgumentExpression("condition")] string conditionExpression = null)
+        {
+            if (!condition)
+            {
+                var formattedMagic = actualMagic is int or uint or byte
+                    ? $"{actualMagic} (0x{actualMagic:X})"
+                    : $"{actualMagic}";
+                throw new UnexpectedMagicException($"Assertion '{conditionExpression}' failed. Value: {formattedMagic}");
+            }
         }
     }
 }

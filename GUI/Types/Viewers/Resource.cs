@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
@@ -9,6 +11,7 @@ using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
@@ -358,16 +361,39 @@ namespace GUI.Types.Viewers
 
                 resTabs.TabPages.Add(tab2);
 
-                static void AddContentTab(TabControl resTabs, string name, string text)
+                static void VcsShaderResourceBridge(TabControl resTabs, SboxShader sboxShader)
                 {
-                    var control = new MonospaceTextBox
+                    var shaderTab = new TabPage("Embedded Shader");
+                    var shaderTabControl = new TabControl
                     {
-                        Text = text.ReplaceLineEndings(),
+                        Dock = DockStyle.Fill,
                     };
 
-                    var tab = new TabPage(name);
-                    tab.Controls.Add(control);
-                    resTabs.TabPages.Add(tab);
+                    shaderTab.Controls.Add(shaderTabControl);
+                    resTabs.TabPages.Add(shaderTab);
+
+                    foreach (var shader in sboxShader.Shaders)
+                    {
+                        if (shader is null)
+                        {
+                            continue;
+                        }
+
+                        var sb = new StringBuilder();
+                        shader.PrintSummary((x) => sb.Append(x), true);
+                        IViewer.AddContentTab(shaderTabControl, shader.VcsProgramType.ToString(), sb.ToString());
+
+                        if (shader.GetZFrameCount() > 0)
+                        {
+                            for (var i = 0; i < Math.Min(4, shader.GetZFrameCount()); i++)
+                            {
+                                var zframeFile = shader.GetZFrameFileByIndex(i);
+                                using var sw = new StringWriter();
+                                var zframeSummary = new PrintZFrameSummary(shader, zframeFile, sw.Write, true);
+                                IViewer.AddContentTab(shaderTabControl, $"Z{i}", sw.ToString());
+                            }
+                        }
+                    }
                 }
 
                 if (block.Type != BlockType.DATA)
@@ -378,15 +404,15 @@ namespace GUI.Types.Viewers
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Material:
-                        AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
+                        IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
                         break;
 
                     case ResourceType.EntityLump:
-                        AddContentTab(resTabs, "Entities", ((EntityLump)block).ToEntityDumpString());
+                        IViewer.AddContentTab(resTabs, "Entities", ((EntityLump)block).ToEntityDumpString());
                         break;
 
                     case ResourceType.PostProcessing:
-                        AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
+                        IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
                         break;
 
                     case ResourceType.Texture:
@@ -397,11 +423,11 @@ namespace GUI.Types.Viewers
                             }
 
                             var textureExtract = new TextureExtract(resource);
-                            AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
+                            IViewer.AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
 
                             if (textureExtract.TryGetMksData(out var _, out var mks))
                             {
-                                AddContentTab(resTabs, "Reconstructed mks", mks);
+                                IViewer.AddContentTab(resTabs, "Reconstructed mks", mks);
                             }
 
                             break;
@@ -411,11 +437,18 @@ namespace GUI.Types.Viewers
                         {
                             if (!FileExtract.IsChildResource(resource))
                             {
-                                AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
+                                IViewer.AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
                             }
 
                             break;
                         }
+
+                    case ResourceType.Shader:
+                        var shaderFileContainer = (SboxShader)block;
+                        var extract = new ShaderExtract(resource);
+                        VcsShaderResourceBridge(resTabs, shaderFileContainer);
+                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
+                        break;
                 }
             }
 

@@ -296,12 +296,30 @@ namespace Tests
         [Test]
         public void TestShaderDynamicExpression1()
         {
-            var testInput1 = ParseString("1A 11 04 07 00 0F 00 07 00 00 80 3F 02 14 00 07 00 00 00 00 00");
-            var expectedResult1 = "COND[17] || 0";
-            Assert.AreEqual(expectedResult1, new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult);
+            var testInput1 = ParseString("1A 01 04 07 00 0F 00 07 00 00 80 3F 02 14 00 07 00 00 00 00 00");
+            var expectedResultWithNoFeatures = "COND[1] || 0";
+            var expectedResultWithFeatures = "F_B || 0";
+            Assert.AreEqual(expectedResultWithNoFeatures, new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult);
+            Assert.AreEqual(expectedResultWithFeatures, new VfxEval(testInput1, omitReturnStatement: true, features: new[] { "F_A", "F_B" }).DynamicExpressionResult);
+
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
             var expectedResult2 = "SrgbGammaToLinear(EVAL[a392133c].xyz)";
             Assert.AreEqual(expectedResult2, new VfxEval(testInput2, omitReturnStatement: true).DynamicExpressionResult);
+        }
+
+        [Test]
+        public void TestNestedTernary()
+        {
+            var nestedTernaryBin = ParseString(
+                "1A 05 07 00 00 00 00 0D 04 0D 00 15 00 07 00 00 AA 42 02 59 00 " +
+                "1A 05 07 00 00 80 3F 0D 04 22 00 2A 00 07 00 00 A0 41 02 59 00 " +
+                "1A 05 07 00 00 00 40 0D 04 37 00 3F 00 07 00 00 A8 41 02 59 00 " +
+                "1A 05 07 00 00 40 40 0D 04 4C 00 54 00 07 00 00 00 00 02 59 00 07 00 00 00 00 00");
+
+            // (F_TEXTURE_FILTERING == 0 ? ANISOTROPIC : (F_TEXTURE_FILTERING == 1 ? BILINEAR : (F_TEXTURE_FILTERING == 2 ? TRILINEAR : (F_TEXTURE_FILTERING == 3 ? POINT : NEAREST))))
+            var expectedResult = "(COND[5]==3) ? 0 : 0";
+
+            Assert.AreEqual(expectedResult, new VfxEval(nestedTernaryBin, omitReturnStatement: true).DynamicExpressionResult);
         }
 
         /*

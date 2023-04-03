@@ -54,6 +54,23 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("rotation2d", 1),     // 25
             ("rotate2d",   2),     // 26
             ("sincos",     1),     // 27
+            ("TextureSize",1),     // 28
+            ("TextureAverageColor", 1), // 29
+            ("MatrixIdentity",      0), // 2A
+            ("MatrixScale",         1), // 2B
+            ("MatrixTranslate",     1), // 2C
+            ("MatrixAxisAngle",     1), // 2E
+            ("MatrixAxisToAxis",    2), // 2F
+            ("MatrixMultiply",      2), // 30
+            ("MatrixColorCorrect",  1), // 31
+            ("MatrixColorCorrect2", 2), // 32
+            ("MatrixColorTint",     1), // 33
+            ("normalize_safe",      1), // 34
+            ("Remap01ScaleOffset",  1), // 35
+            ("radians",             1), // 36
+            ("degrees",             1), // 37
+            ("MatrixColorTint2",    2), // 38
+            ("MatrixColorTint3",    3), // 39
         };
 
         private enum OPCODE
@@ -127,15 +144,19 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
 
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false)
+        private readonly IReadOnlyList<string> Features;
+
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
+            Features = features;
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false)
+        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
+            Features = features;
             uint MURMUR2SEED = 0x31415926; // pi!
 
             foreach (var externalVarName in renderAttributesUsed)
@@ -353,7 +374,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (op == OPCODE.COND)
             {
                 uint expressionId = dataReader.ReadByte();
-                Expressions.Push($"COND[{expressionId}]");
+                Expressions.Push((Features is null) ? $"COND[{expressionId}]" : Features[(int)expressionId]);
                 return;
             }
 
@@ -361,8 +382,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 var intval = dataReader.ReadUInt32();
                 // if this reference exists in the vars-reference, then show it
-                var murmurString = ExternalVarsReference.GetValueOrDefault(intval, $"{intval:x08}");
-                Expressions.Push($"EVAL[{murmurString}]");
+                if (ExternalVarsReference.TryGetValue(intval, out var externalVar))
+                {
+                    Expressions.Push(externalVar);
+                }
+                else
+                {
+                    Expressions.Push($"EVAL[{intval:x08}]");
+                }
                 return;
             }
 

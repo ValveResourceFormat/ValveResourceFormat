@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
-using static ValveResourceFormat.IO.MaterialExtract;
+using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 namespace ValveResourceFormat.IO;
 
 public class TextureContentFile : ContentFile
@@ -130,9 +130,9 @@ public sealed class TextureExtract
         return EncodePng(subset);
     }
 
-    public static byte[] ToPngImageChannels(SKBitmap bitmap, Channel channel)
+    public static byte[] ToPngImageChannels(SKBitmap bitmap, ChannelMapping channel)
     {
-        if (channel < Channel._Single)
+        if (channel.Count == 1)
         {
             using var newBitmap = new SKBitmap(bitmap.Width, bitmap.Height, SKColorType.Gray8, SKAlphaType.Opaque);
             using var newPixelmap = newBitmap.PeekPixels();
@@ -143,13 +143,13 @@ public sealed class TextureExtract
 
             for (var i = 0; i < pixels.Length; i++)
             {
-                newPixels[i] = channel switch
+                newPixels[i] = channel.Channels[0] switch
                 {
-                    Channel.R => pixels[i].Red,
-                    Channel.G => pixels[i].Green,
-                    Channel.B => pixels[i].Blue,
-                    Channel.A => pixels[i].Alpha,
-                    _ => throw new InvalidOperationException($"{channel} is not a single channel."),
+                    ChannelMapping.Channel.R => pixels[i].Red,
+                    ChannelMapping.Channel.G => pixels[i].Green,
+                    ChannelMapping.Channel.B => pixels[i].Blue,
+                    ChannelMapping.Channel.A => pixels[i].Alpha,
+                    _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, null)
                 };
             }
 
@@ -157,7 +157,7 @@ public sealed class TextureExtract
         }
 
         // Shift a combination of two channels to RG
-        if (channel < Channel._Double && channel == Channel.GA)
+        if (channel == ChannelMapping.AG)
         {
             using var newBitmap = new SKBitmap(bitmap.Info);
             using var newPixelmap = newBitmap.PeekPixels();
@@ -175,7 +175,7 @@ public sealed class TextureExtract
         }
 
         // Wipes out the alpha channel
-        if (channel == Channel.RGB)
+        if (channel == ChannelMapping.RGB)
         {
             using var newBitmap = new SKBitmap(bitmap.Info);
             using var newPixelmap = newBitmap.PeekPixels();
@@ -185,7 +185,7 @@ public sealed class TextureExtract
             return EncodePng(newPixelmap.WithAlphaType(SKAlphaType.Opaque));
         }
 
-        if (channel == Channel.RGBA)
+        if (channel == ChannelMapping.RGBA)
         {
             return EncodePng(bitmap);
         }
@@ -193,16 +193,11 @@ public sealed class TextureExtract
         throw new InvalidOperationException($"{channel} is not a valid channel to extract.");
     }
 
-    public static void CopyChannel(SKPixmap srcPixels, Channel srcChannel, SKPixmap dstPixels, Channel dstChannel, bool invert)
+    public static void CopyChannel(SKPixmap srcPixels, ChannelMapping srcChannel, SKPixmap dstPixels, ChannelMapping dstChannel, bool invert)
     {
-        if (srcChannel >= Channel._Single)
+        if (srcChannel.Count != 1 || dstChannel.Count != 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(srcChannel), "Can only copy individual channels.");
-        }
-
-        if (dstChannel >= Channel._Single)
-        {
-            throw new ArgumentOutOfRangeException(nameof(dstChannel), "Can only copy individual channels.");
+            throw new InvalidOperationException($"Can only copy individual channels. {srcChannel} -> {dstChannel}");
         }
 
         var srcPixelSpan = srcPixels.GetPixelSpan<SKColor>();
@@ -213,35 +208,35 @@ public sealed class TextureExtract
 #pragma warning disable CS8509 // non exhaustive switch
         for (var i = 0; i < srcPixelSpan.Length; i++)
         {
-            pixelSpan[i] = dstChannel switch
+            pixelSpan[i] = dstChannel.Channels[0] switch
             {
-                Channel.R => srcChannel switch
+                ChannelMapping.Channel.R => srcChannel.Channels[0] switch
                 {
-                    Channel.R => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Red ^ inv)),
-                    Channel.G => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Green ^ inv)),
-                    Channel.B => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Blue ^ inv)),
-                    Channel.A => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                    ChannelMapping.Channel.R => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Red ^ inv)),
+                    ChannelMapping.Channel.G => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Green ^ inv)),
+                    ChannelMapping.Channel.B => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    ChannelMapping.Channel.A => pixelSpan[i].WithRed((byte)(srcPixelSpan[i].Alpha ^ inv)),
                 },
-                Channel.G => srcChannel switch
+                ChannelMapping.Channel.G => srcChannel.Channels[0] switch
                 {
-                    Channel.R => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Red ^ inv)),
-                    Channel.G => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Green ^ inv)),
-                    Channel.B => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Blue ^ inv)),
-                    Channel.A => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                    ChannelMapping.Channel.R => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Red ^ inv)),
+                    ChannelMapping.Channel.G => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Green ^ inv)),
+                    ChannelMapping.Channel.B => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    ChannelMapping.Channel.A => pixelSpan[i].WithGreen((byte)(srcPixelSpan[i].Alpha ^ inv)),
                 },
-                Channel.B => srcChannel switch
+                ChannelMapping.Channel.B => srcChannel.Channels[0] switch
                 {
-                    Channel.R => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Red ^ inv)),
-                    Channel.G => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Green ^ inv)),
-                    Channel.B => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Blue ^ inv)),
-                    Channel.A => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                    ChannelMapping.Channel.R => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Red ^ inv)),
+                    ChannelMapping.Channel.G => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Green ^ inv)),
+                    ChannelMapping.Channel.B => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    ChannelMapping.Channel.A => pixelSpan[i].WithBlue((byte)(srcPixelSpan[i].Alpha ^ inv)),
                 },
-                Channel.A => srcChannel switch
+                ChannelMapping.Channel.A => srcChannel.Channels[0] switch
                 {
-                    Channel.R => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Red ^ inv)),
-                    Channel.G => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Green ^ inv)),
-                    Channel.B => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Blue ^ inv)),
-                    Channel.A => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Alpha ^ inv)),
+                    ChannelMapping.Channel.R => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Red ^ inv)),
+                    ChannelMapping.Channel.G => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Green ^ inv)),
+                    ChannelMapping.Channel.B => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Blue ^ inv)),
+                    ChannelMapping.Channel.A => pixelSpan[i].WithAlpha((byte)(srcPixelSpan[i].Alpha ^ inv)),
                 },
             };
         }
@@ -256,9 +251,9 @@ public sealed class TextureExtract
         public SKColor DefaultColor { get; init; } = SKColors.Black;
         public SKBitmap Bitmap { get; private set; }
         public string FileName { get; private set; }
-        private readonly HashSet<Channel> Packed = new();
+        private readonly HashSet<ChannelMapping> Packed = new();
 
-        public void Collect(SKPixmap srcPixels, string fileName, Channel srcChannel, Channel dstChannel, bool invert = false)
+        public void Collect(SKPixmap srcPixels, string fileName, ChannelMapping srcChannel, ChannelMapping dstChannel, bool invert = false)
         {
             FileName ??= fileName;
 

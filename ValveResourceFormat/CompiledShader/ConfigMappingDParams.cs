@@ -13,6 +13,19 @@ namespace ValveResourceFormat.CompiledShader
         int[] offsets;
         int[] nr_states;
 
+        public int SumStates
+        {
+            get
+            {
+                var sum = 0;
+                for (var i = 0; i < nr_states.Length; i++)
+                {
+                    sum += nr_states[i];
+                }
+                return sum;
+            }
+        }
+
         private void GenerateOffsetAndStateLookups(ShaderFile shaderFile)
         {
             if (shaderFile.DBlocks.Count == 0)
@@ -26,11 +39,11 @@ namespace ValveResourceFormat.CompiledShader
             nr_states = new int[shaderFile.DBlocks.Count];
 
             offsets[0] = 1;
-            nr_states[0] = shaderFile.DBlocks[0].Arg2 + 1;
+            nr_states[0] = shaderFile.DBlocks[0].RangeMax + 1;
 
             for (var i = 1; i < shaderFile.DBlocks.Count; i++)
             {
-                nr_states[i] = shaderFile.DBlocks[i].Arg2 + 1;
+                nr_states[i] = shaderFile.DBlocks[i].RangeMax + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
         }
@@ -50,6 +63,5 @@ namespace ValveResourceFormat.CompiledShader
             ShowIntArray(offsets, 8, "offsets", hex: hex);
             ShowIntArray(nr_states, 8, "layers");
         }
-
     }
 }

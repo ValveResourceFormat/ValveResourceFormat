@@ -8,27 +8,16 @@ namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
     {
-        public static (VcsProgramType, VcsPlatformType, VcsShaderModelType) ComputeVCSFileName(string filenamepath)
+        public static (string ShaderName, VcsProgramType ProgramType, VcsPlatformType PlatformType, VcsShaderModelType ShaderModelType)
+            ComputeVCSFileName(string filenamepath)
         {
-            var fileTokens = Path.GetFileName(filenamepath).Split("_");
+            var fileTokens = Path.GetFileNameWithoutExtension(filenamepath).Split("_");
             if (fileTokens.Length < 4)
             {
-                throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
+                throw new ShaderParserException($"File name convention unknown or not supported {filenamepath}");
             }
 
-            var vcsProgramType = fileTokens[^1].ToLowerInvariant() switch
-            {
-                "features.vcs" => VcsProgramType.Features,
-                "vs.vcs" => VcsProgramType.VertexShader,
-                "ps.vcs" => VcsProgramType.PixelShader,
-                "psrs.vcs" => VcsProgramType.PixelShaderRenderState,
-                "gs.vcs" => VcsProgramType.GeometryShader,
-                "cs.vcs" => VcsProgramType.ComputeShader,
-                "hs.vcs" => VcsProgramType.HullShader,
-                "ds.vcs" => VcsProgramType.DomainShader,
-                "rtx.vcs" => VcsProgramType.RaytracingShader,
-                _ => VcsProgramType.Undetermined
-            };
+            var vcsProgramType = ComputeVcsProgramType(fileTokens[^1].ToLowerInvariant());
 
             var vcsPlatformType = fileTokens[^3].ToLowerInvariant() switch
             {
@@ -39,6 +28,8 @@ namespace ValveResourceFormat.CompiledShader
                 _ => VcsPlatformType.Undetermined
             };
 
+            var shaderNameCutoff = fileTokens.Length - 3;
+
             if (vcsPlatformType == VcsPlatformType.VULKAN)
             {
                 vcsPlatformType = fileTokens[^4].ToLowerInvariant() switch
@@ -47,6 +38,12 @@ namespace ValveResourceFormat.CompiledShader
                     "ios" => VcsPlatformType.IOS_VULKAN,
                     _ => VcsPlatformType.VULKAN
                 };
+            }
+
+            if (vcsPlatformType == VcsPlatformType.MOBILE_GLES || vcsPlatformType == VcsPlatformType.ANDROID_VULKAN ||
+                vcsPlatformType == VcsPlatformType.IOS_VULKAN)
+            {
+                shaderNameCutoff--;
             }
 
             var vcsShaderModelType = fileTokens[^2].ToLowerInvariant() switch
@@ -70,28 +67,25 @@ namespace ValveResourceFormat.CompiledShader
             }
             else
             {
-                return (vcsProgramType, vcsPlatformType, vcsShaderModelType);
+                return (string.Join("_", fileTokens[..shaderNameCutoff]), vcsProgramType, vcsPlatformType, vcsShaderModelType);
             }
         }
 
-        public static VcsProgramType ComputeVcsProgramType(string filenamepath)
+        public static VcsProgramType ComputeVcsProgramType(string abbrev)
         {
-            return Path.GetFileName(filenamepath).Split("_").Length < 4 ?
-                VcsProgramType.Undetermined
-            :
-             Path.GetFileName(filenamepath).Split("_")[^1].ToLowerInvariant() switch
-             {
-                 "features.vcs" => VcsProgramType.Features,
-                 "vs.vcs" => VcsProgramType.VertexShader,
-                 "ps.vcs" => VcsProgramType.PixelShader,
-                 "psrs.vcs" => VcsProgramType.PixelShaderRenderState,
-                 "gs.vcs" => VcsProgramType.GeometryShader,
-                 "cs.vcs" => VcsProgramType.ComputeShader,
-                 "hs.vcs" => VcsProgramType.HullShader,
-                 "ds.vcs" => VcsProgramType.DomainShader,
-                 "rtx.vcs" => VcsProgramType.RaytracingShader,
-                 _ => VcsProgramType.Undetermined
-             };
+            return abbrev switch
+            {
+                "features" => VcsProgramType.Features,
+                "vs" => VcsProgramType.VertexShader,
+                "ps" => VcsProgramType.PixelShader,
+                "psrs" => VcsProgramType.PixelShaderRenderState,
+                "gs" => VcsProgramType.GeometryShader,
+                "cs" => VcsProgramType.ComputeShader,
+                "hs" => VcsProgramType.HullShader,
+                "ds" => VcsProgramType.DomainShader,
+                "rtx" => VcsProgramType.RaytracingShader,
+                _ => VcsProgramType.Undetermined
+            };
         }
 
         public static string ShortenShaderParam(string shaderParam)
@@ -160,8 +154,17 @@ namespace ValveResourceFormat.CompiledShader
                 var intPadded = $"{(v != 0 ? v : "_")}".PadLeft(padding);
                 valueString += $"{intPadded}";
             }
-            // return $"{valueString[0..^padding]}";
             return $"{valueString}";
+        }
+
+        public static string[] IntArrayToStrings(int[] ints, int nulledValue = int.MaxValue)
+        {
+            var stringTokens = new string[ints.Length];
+            for (int i = 0; i < ints.Length; i++)
+            {
+                stringTokens[i] = ints[i] == nulledValue ? "_" : $"{ints[i]}";
+            }
+            return stringTokens;
         }
 
         public static string CombineStringsSpaceSep(string[] strings0, int padding = 5)
@@ -358,24 +361,42 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 return newRow;
             }
-            public void PrintTabulatedValues(int spacing = 2)
+
+            public List<string> BuildTabulatedRows(int spacing = 2, bool reverse = false)
             {
+                List<string> tabbedRows = new();
                 if (tabulatedValues.Count == 1 && tabulatedValues[0].Count == 0)
                 {
-                    return;
+                    return tabbedRows;
                 }
-                foreach (var row in tabulatedValues)
+                foreach (var rowTokens in tabulatedValues)
                 {
-                    for (var i = 0; i < row.Count; i++)
+                    var tabbedRow = "";
+                    for (var i = 0; i < rowTokens.Count; i++)
                     {
                         var pad = columnWidths[i] + spacing;
-                        Write($"{row[i].PadRight(pad)}");
+                        tabbedRow += $"{rowTokens[i].PadRight(pad)}";
                     }
-                    Write("\n");
+                    if (tabbedRow.Length > 0)
+                    {
+                        tabbedRows.Add(tabbedRow[..^spacing]);
+                    }
+                }
+                if (reverse)
+                {
+                    tabbedRows.Reverse();
+                }
+                return tabbedRows;
+            }
+
+            public void PrintTabulatedValues(int spacing = 2)
+            {
+                List<string> tabbedRows = BuildTabulatedRows(spacing);
+                foreach (var row in tabbedRows)
+                {
+                    WriteLine(row);
                 }
             }
         }
-
-
     }
 }

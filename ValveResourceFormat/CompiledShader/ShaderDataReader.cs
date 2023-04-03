@@ -6,6 +6,7 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class ShaderDataReader : BinaryReader
     {
+        public bool IsSbox { get; init; }
         public HandleOutputWrite OutputWriter { get; set; }
         public delegate void HandleOutputWrite(string s);
 
