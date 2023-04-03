@@ -6,7 +6,13 @@ permissions:
 
 on:
   push:
+    paths-ignore:
+    - '.github/*_TEMPLATE/**'
+    - '*.md'
   pull_request:
+    paths-ignore:
+    - '.github/*_TEMPLATE/**'
+    - '*.md'
   workflow_dispatch:
   schedule:
   - cron: "0 10 1 * *"
