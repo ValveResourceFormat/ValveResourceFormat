@@ -5,13 +5,20 @@ body:
 - type: textarea
   attributes:
     label: Describe the bug
-    description: A clear and concise description of what the bug is. Include the full error details and the log if possible.
+    description: A clear and concise description of what the bug is.
   validations:
     required: true
 
+- type: textarea
+  id: logs
+  attributes:
+  label: Relevant log output or exception with stacktrace
+    description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+    render: shell
+
 - type: input
   attributes:
-    label: What Valve game does this happen in
+    label: What game does this happen in
     placeholder: "Dota 2"
   validations:
     required: true
@@ -33,6 +40,6 @@ body:
 - type: input
   attributes:
     label: What version of VRF are you using? On what platform?
-    description: Before creating an issue, make sure it still exists on the latest unstable build.
+    description: Before creating an issue, make sure it still exists on the latest unstable build. You can get version from Console tab.
   validations:
     required: true
