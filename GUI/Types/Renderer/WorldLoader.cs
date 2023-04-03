@@ -380,6 +380,7 @@ namespace GUI.Types.Renderer
                 {
                     Transform = transformationMatrix,
                     LayerName = "Entities",
+                    Name = filename,
                 };
                 scene.Add(modelNode, false);
             }
@@ -388,6 +389,7 @@ namespace GUI.Types.Renderer
                 var spriteNode = new SpriteSceneNode(scene, guiContext, resource, position)
                 {
                     LayerName = "Entities",
+                    Name = filename,
                 };
                 scene.Add(spriteNode, false);
             }
