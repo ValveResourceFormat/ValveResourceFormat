@@ -193,9 +193,15 @@ namespace GUI.Types.Viewers
 
                             newEntry.FileName += $" ({length} bytes)";
 
-                            if (bytes.AsSpan().StartsWith(kv3header))
+                            var span = bytes.AsSpan();
+
+                            if (span.StartsWith(kv3header))
                             {
                                 newEntry.TypeName = "kv3";
+                            }
+                            else if (!span.Contains((byte)0))
+                            {
+                                newEntry.TypeName = "txt";
                             }
                         }
 
