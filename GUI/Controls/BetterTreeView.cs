@@ -42,7 +42,7 @@ namespace GUI.Controls
         {
             IList<BetterTreeNode> results = new List<BetterTreeNode>();
 
-            if (searchType == SearchType.FileNamePartialMatch && searchType == SearchType.FullPath)
+            if (searchType == SearchType.FileNamePartialMatch || searchType == SearchType.FullPath)
             {
                 value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
             }
@@ -64,8 +64,6 @@ namespace GUI.Controls
             }
             else if (searchType == SearchType.FullPath)
             {
-                value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
-
                 bool MatchFunction(BetterTreeNode node) => node.FullPath.Contains(value, StringComparison.InvariantCultureIgnoreCase);
                 results = Search(MatchFunction);
             }
