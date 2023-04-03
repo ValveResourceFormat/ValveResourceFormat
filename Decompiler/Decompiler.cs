@@ -360,7 +360,7 @@ namespace Decompiler
             switch (magic)
             {
                 case Package.MAGIC: ParseVPK(path, stream); return;
-                case ShaderFile.MAGIC: ParseVCS(path, stream); return;
+                case ShaderFile.MAGIC: ParseVCS(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
             }
@@ -528,9 +528,9 @@ namespace Decompiler
             }
         }
 
-        private void ParseVCS(string path, Stream stream)
+        private void ParseVCS(string path, Stream stream, string originalPath)
         {
-            var shader = new ShaderFile();
+            using var shader = new ShaderFile();
 
             try
             {
@@ -540,13 +540,35 @@ namespace Decompiler
                 {
                     shader.PrintSummary();
                 }
+                else
+                {
+                    var id = $"Shader version {shader.VcsVersion}";
+
+                    if (originalPath != null)
+                    {
+                        path = $"{originalPath} -> {path}";
+                    }
+
+                    lock (stats)
+                    {
+                        if (stats.TryGetValue(id, out var existingStat))
+                        {
+                            if (existingStat.Count++ < 10)
+                            {
+                                existingStat.FilePaths.Add(path);
+                            }
+                        }
+                        else
+                        {
+                            stats.Add(id, new ResourceStat(id, path));
+                        }
+                    }
+                }
             }
             catch (Exception e)
             {
-                LogException(e, path);
+                LogException(e, path, originalPath);
             }
-
-            shader.Dispose();
         }
 
         private void ParseVFont(string path) // TODO: Accept Stream
