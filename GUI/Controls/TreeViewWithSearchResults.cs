@@ -146,6 +146,12 @@ namespace GUI.Controls
 
             control.GenerateIconList(vrfGuiContext.CurrentPackage.Entries.Keys.ToList());
 
+            if (!vrfGuiContext.CurrentPackage.IsDirVPK)
+            {
+                // Disable recover deleted files button for non-dir packages
+                DeletedFilesRecovered = true;
+            }
+
             var name = Path.GetFileName(vrfGuiContext.FileName);
             var root = new BetterTreeNode(name, vrfGuiContext.CurrentPackage.Entries.Count)
             {
@@ -196,9 +202,10 @@ namespace GUI.Controls
                 {
                     if (foundFiles.Count == 0)
                     {
-                        mainTreeView.Nodes.Add(new BetterTreeNode(Types.Viewers.Package.DELETED_FILES_FOLDER, 0)
+                        const string NO_FILES_FOUND = "No deleted files found";
+                        mainTreeView.Nodes.Add(new BetterTreeNode(NO_FILES_FOUND, 0)
                         {
-                            Name = Types.Viewers.Package.DELETED_FILES_FOLDER,
+                            Name = NO_FILES_FOUND,
                             ImageKey = "_deleted",
                             SelectedImageKey = "_deleted",
                         });

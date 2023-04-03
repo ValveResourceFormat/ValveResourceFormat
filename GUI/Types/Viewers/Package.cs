@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -11,8 +10,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Blocks;
 using System.Text;
-using ValveResourceFormat.ResourceTypes;
-using static ValveResourceFormat.Blocks.ResourceEditInfoStructs.InputDependencies;
 
 namespace GUI.Types.Viewers
 {
@@ -72,23 +69,25 @@ namespace GUI.Types.Viewers
             var totalSlackSize = 0u;
             var hiddenFiles = new List<PackageEntry>();
             var kv3header = Encoding.ASCII.GetBytes("<!-- kv3 ");
+            var previousArchiveIndex = 0;
 
-            // TODO: Skip non-chunked vpks?
             foreach (var (archiveIndex, entries) in allEntries)
             {
+                if (archiveIndex - previousArchiveIndex > 1)
+                {
+                    Console.WriteLine($"There is probably an unused {previousArchiveIndex:D3}.vpk");
+                }
+
+                previousArchiveIndex = archiveIndex;
+
                 var nextOffset = 0u;
 
-                foreach (var entry in entries)
+                void FindValidFiles(uint entryOffset, uint entryLength)
                 {
-                    if (entry.Length == 0)
-                    {
-                        continue;
-                    }
-
                     var offset = nextOffset;
-                    nextOffset = entry.Offset + entry.Length;
+                    nextOffset = entryOffset + entryLength;
 
-                    totalSlackSize += entry.Offset - offset;
+                    totalSlackSize += entryOffset - offset;
 
                     var scan = true;
 
@@ -96,14 +95,14 @@ namespace GUI.Types.Viewers
                     {
                         scan = false;
 
-                        if (offset == entry.Offset)
+                        if (offset == entryOffset)
                         {
                             break;
                         }
 
                         offset = (offset + 16 - 1) & ~(16u - 1); // TODO: Validate this gap
 
-                        var length = entry.Offset - offset;
+                        var length = entryOffset - offset;
 
                         if (length <= 16)
                         {
@@ -114,7 +113,7 @@ namespace GUI.Types.Viewers
                         hiddenIndex++;
                         var newEntry = new PackageEntry
                         {
-                            FileName = $"Archive {archiveIndex} File {hiddenIndex}",
+                            FileName = $"Archive {archiveIndex:D3} File {hiddenIndex}",
                             DirectoryName = DELETED_FILES_FOLDER,
                             TypeName = " ",
                             CRC32 = 0,
@@ -129,7 +128,7 @@ namespace GUI.Types.Viewers
 
                         try
                         {
-                            var resource = new ValveResourceFormat.Resource();
+                            using var resource = new ValveResourceFormat.Resource();
                             resource.Read(stream, verifyFileSize: false);
 
                             var fileSize = resource.FullFileSize;
@@ -216,12 +215,39 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                // TODO: Check nextOffset against archive file size
+                // Recover files in gaps between entries
+                foreach (var entry in entries)
+                {
+                    if (entry.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    FindValidFiles(entry.Offset, entry.Length);
+                }
+
+                // Recover files in archives after last possible entry for that archive
+                if (archiveIndex != short.MaxValue)
+                {
+                    var archiveFileSize = nextOffset;
+
+                    try
+                    {
+                        archiveFileSize = (uint)new FileInfo($"{package.FileName}_{archiveIndex:D3}.vpk").Length;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
+
+                    if (archiveFileSize != nextOffset)
+                    {
+                        FindValidFiles(archiveFileSize, 0);
+                    }
+                }
             }
 
             Console.WriteLine($"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
-
-            // TODO: Check for completely unused vpk chunk files
 
             return hiddenFiles;
         }
