@@ -289,9 +289,8 @@ namespace ValveResourceFormat.IO
 
         private IList<(VModel Model, string ModelName, Matrix4x4 Transform)> LoadWorldNodeModels(VWorldNode worldNode)
         {
-            var sceneObjects = worldNode.Data.GetArray("m_sceneObjects");
             var models = new List<(VModel, string, Matrix4x4)>();
-            foreach (var sceneObject in sceneObjects)
+            foreach (var sceneObject in worldNode.SceneObjects)
             {
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
                 if (renderableModel == null)
@@ -311,13 +310,7 @@ namespace ValveResourceFormat.IO
                 models.Add((model, Path.GetFileNameWithoutExtension(renderableModel), matrix));
             }
 
-            if (!worldNode.Data.ContainsKey("m_aggregateSceneObjects"))
-            {
-                return models;
-            }
-
-            var aggregateSceneObjects = worldNode.Data.GetArray("m_aggregateSceneObjects");
-            foreach (var sceneObject in aggregateSceneObjects)
+            foreach (var sceneObject in worldNode.AggregateSceneObjects)
             {
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
 
