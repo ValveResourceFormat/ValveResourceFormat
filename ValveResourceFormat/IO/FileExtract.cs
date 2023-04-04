@@ -13,6 +13,12 @@ namespace ValveResourceFormat.IO
     {
         public byte[] Data { get; set; }
         public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
+
+        /// <summary>
+        /// Game file references that can be extracted as is.
+        /// </summary>
+        public List<string> GameFiles { get; init; } = new List<string>();
+
         public Dictionary<string, ContentFile> ExternalRefsHandled { get; init; } = new();
         public bool SubFilesAreExternal { get; set; }
         protected bool Disposed { get; private set; }
@@ -30,7 +36,6 @@ namespace ValveResourceFormat.IO
 
         protected virtual void Dispose(bool disposing)
         {
-
             if (!Disposed && disposing)
             {
                 foreach (var externalRef in ExternalRefsHandled.Values)
@@ -59,7 +64,7 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>
-    /// Wrapper around IFileLoader that keeps track of successfully loaded resource paths.
+    /// Just a way to track previously loaded (and thus extracted) files.
     /// </summary>
     public class TrackingFileLoader : IFileLoader
     {
@@ -98,7 +103,8 @@ namespace ValveResourceFormat.IO
             switch (resource.ResourceType)
             {
                 case ResourceType.Map:
-                    throw new NotImplementedException("Export the vwrld_c file if you are trying to export a map. vmap_c is simply a metadata file.");
+                    contentFile = new MapExtract(resource, fileLoader).ToContentFile();
+                    break;
 
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
