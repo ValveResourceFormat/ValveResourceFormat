@@ -18,6 +18,16 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private const short MipmapLevelToExtract = 0; // for debugging purposes
 
+        public enum CubemapFace
+        {
+            PositiveX, // rt
+            NegativeX, // lf
+            PositiveY, // bk
+            NegativeY, // ft
+            PositiveZ, // up
+            NegativeZ, // dn
+        }
+
         public class SpritesheetData
         {
             public class Sequence
@@ -360,8 +370,26 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
-        public SKBitmap GenerateBitmap()
+        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0)
         {
+            if (depth >= Depth)
+            {
+                throw new ArgumentException($"Depth must be less than {Depth}.", nameof(depth));
+            }
+
+            if (face > 0)
+            {
+                if ((Flags & VTexFlags.CUBE_TEXTURE) == 0)
+                {
+                    throw new ArgumentException($"This is not a cubemap texture.", nameof(face));
+                }
+
+                if ((int)face >= 6)
+                {
+                    throw new ArgumentException($"Face must be less than 6.", nameof(face));
+                }
+            }
+
             Reader.BaseStream.Position = DataOffset;
 
             SkipMipmaps();
@@ -385,7 +413,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             ITextureDecoder decoder = null;
-
 
             switch (Format)
             {
@@ -517,11 +544,6 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
             }
 
-            if (Depth != 1)
-            {
-                throw new NotImplementedException($"Got texture with depth of {Depth} (Format {Format}) which we currently do not handle correctly.");
-            }
-
             var uncompressedSize = CalculateBufferSizeForMipLevel(MipmapLevelToExtract);
             var buf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
 
@@ -530,6 +552,29 @@ namespace ValveResourceFormat.ResourceTypes
                 var span = buf.AsSpan(0, uncompressedSize);
 
                 ReadTexture(MipmapLevelToExtract, span);
+
+                if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
+                {
+                    var faceSize = uncompressedSize / (6 * Depth);
+                    var faceOffset = 0;
+
+                    if (depth > 0)
+                    {
+                        faceOffset = faceSize * (int)depth * 6;
+                    }
+
+                    faceOffset += faceSize * (int)face;
+
+                    span = span[faceOffset..(faceOffset + faceSize)];
+                }
+                else if (depth > 0)
+                {
+                    var faceSize = uncompressedSize / Depth;
+                    var faceOffset = faceSize * (int)depth;
+                    faceOffset += faceSize * (int)face;
+
+                    span = span[faceOffset..(faceOffset + faceSize)];
+                }
 
                 decoder.Decode(skiaBitmap, span);
             }
@@ -570,7 +615,6 @@ namespace ValveResourceFormat.ResourceTypes
             var bytesPerPixel = BlockSize;
             var width = MipLevelSize(Width, mipLevel);
             var height = MipLevelSize(Height, mipLevel);
-            var depth = MipLevelSize(Depth, mipLevel);
 
             if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
@@ -609,18 +653,12 @@ namespace ValveResourceFormat.ResourceTypes
                     height = 4;
                 }
 
-                if (depth < 4 && depth > 1)
-                {
-                    depth = 4;
-                }
-
                 var numBlocks = (width * height) >> 4;
-                numBlocks *= depth;
 
-                return numBlocks * bytesPerPixel;
+                return numBlocks * Depth * bytesPerPixel;
             }
 
-            return width * height * depth * bytesPerPixel;
+            return width * height * Depth * bytesPerPixel;
         }
 
         private void SkipMipmaps(int desiredMipLevel = MipmapLevelToExtract)
