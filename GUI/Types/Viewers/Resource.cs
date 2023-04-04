@@ -49,68 +49,25 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Texture:
-                    var tab2 = new TabPage("TEXTURE")
-                    {
-                        AutoScroll = true,
-                    };
-
                     try
                     {
-                        var tex = (Texture)resource.DataBlock;
-                        var sheet = tex.GetSpriteSheetData();
-                        using var bitmap = tex.GenerateBitmap();
-
-                        if (sheet != null)
-                        {
-                            using var canvas = new SKCanvas(bitmap);
-                            using var color1 = new SKPaint
-                            {
-                                Style = SKPaintStyle.Stroke,
-                                Color = new SKColor(0, 100, 255, 200),
-                                StrokeWidth = 1,
-                            };
-                            using var color2 = new SKPaint
-                            {
-                                Style = SKPaintStyle.Stroke,
-                                Color = new SKColor(255, 100, 0, 200),
-                                StrokeWidth = 1,
-                            };
-
-                            foreach (var sequence in sheet.Sequences)
-                            {
-                                foreach (var frame in sequence.Frames)
-                                {
-                                    foreach (var image in frame.Images)
-                                    {
-                                        canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
-                                        canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
-                                    }
-                                }
-                            }
-                        }
-
-                        var control = new Forms.Texture
-                        {
-                            BackColor = Color.Black,
-                        };
-
-
-                        control.SetImage(bitmap.ToBitmap(), Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
-                            tex.ActualWidth, tex.ActualHeight);
-
-                        tab2.Controls.Add(control);
+                        AddTexture(vrfGuiContext, resource, resTabs);
                     }
                     catch (Exception e)
                     {
+                        var tab2 = new TabPage("TEXTURE")
+                        {
+                            AutoScroll = true,
+                        };
                         var control = new MonospaceTextBox
                         {
                             Text = e.ToString(),
                         };
 
                         tab2.Controls.Add(control);
+                        resTabs.TabPages.Add(tab2);
                     }
 
-                    resTabs.TabPages.Add(tab2);
                     break;
 
                 case ResourceType.Panorama:
@@ -476,6 +433,156 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(resTabs);
 
             return tab;
+        }
+
+        private static void AddTexture(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)
+        {
+            var tex = (Texture)resource.DataBlock;
+
+            // TODO: Generate depth tabs for non cubemaps
+            if ((tex.Flags & VTexFlags.CUBE_TEXTURE) != 0)
+            {
+                var cubemapContainer = new TabControl
+                {
+                    Dock = DockStyle.Fill,
+                };
+
+                var CUBEMAP_OFFSETS = new (float X, float Y)[]
+                {
+                    (2, 1), // PositiveX, // rt
+                    (0, 1), // NegativeX, // lf
+                    (1, 0), // PositiveY, // bk
+                    (1, 2), // NegativeY, // ft
+                    (1, 1), // PositiveZ, // up
+                    (3, 1), // NegativeZ, // dn
+                };
+
+                for (uint i = 0; i < tex.Depth; i++)
+                {
+                    var cubemapControl = new Forms.Texture
+                    {
+                        BackColor = Color.Black,
+                    };
+                    using var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                    using var cubemapCanvas = new SKCanvas(cubemapBitmap);
+
+                    for (int face = 0; face < 6; face++)
+                    {
+                        using var faceBitmap = tex.GenerateBitmap(depth: i, face: (Texture.CubemapFace)face);
+
+                        var offset = CUBEMAP_OFFSETS[face];
+                        cubemapCanvas.DrawBitmap(faceBitmap, tex.ActualWidth * offset.X, tex.ActualHeight * offset.Y);
+                    }
+
+                    cubemapControl.SetImage(
+                        cubemapBitmap.ToBitmap(),
+                        Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
+                        cubemapBitmap.Width,
+                        cubemapBitmap.Height
+                    );
+
+                    var cubemapTab = new TabPage($"#{i}")
+                    {
+                        AutoScroll = true,
+                    };
+                    cubemapTab.Controls.Add(cubemapControl);
+                    cubemapContainer.Controls.Add(cubemapTab);
+                }
+
+                var cubemapParentTab = new TabPage("CUBEMAP");
+                cubemapParentTab.Controls.Add(cubemapContainer);
+                resTabs.TabPages.Add(cubemapParentTab);
+
+                return;
+            }
+            else if (tex.Depth > 1)
+            {
+                var depthContainer = new TabControl
+                {
+                    Dock = DockStyle.Fill,
+                };
+
+                for (uint i = 0; i < tex.Depth; i++)
+                {
+                    var depthControl = new Forms.Texture
+                    {
+                        BackColor = Color.Black,
+                    };
+
+                    using var depthBitmap = tex.GenerateBitmap(depth: i);
+
+                    depthControl.SetImage(
+                        depthBitmap.ToBitmap(),
+                        Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
+                        tex.ActualWidth,
+                        tex.ActualHeight
+                    );
+
+                    var depthTab = new TabPage($"#{i}")
+                    {
+                        AutoScroll = true,
+                    };
+                    depthTab.Controls.Add(depthControl);
+                    depthContainer.Controls.Add(depthTab);
+                }
+
+                var cubemapParentTab = new TabPage("TEXTURE");
+                cubemapParentTab.Controls.Add(depthContainer);
+                resTabs.TabPages.Add(cubemapParentTab);
+
+                return;
+            }
+
+            var sheet = tex.GetSpriteSheetData();
+            using var bitmap = tex.GenerateBitmap();
+
+            if (sheet != null)
+            {
+                using var canvas = new SKCanvas(bitmap);
+                using var color1 = new SKPaint
+                {
+                    Style = SKPaintStyle.Stroke,
+                    Color = new SKColor(0, 100, 255, 200),
+                    StrokeWidth = 1,
+                };
+                using var color2 = new SKPaint
+                {
+                    Style = SKPaintStyle.Stroke,
+                    Color = new SKColor(255, 100, 0, 200),
+                    StrokeWidth = 1,
+                };
+
+                foreach (var sequence in sheet.Sequences)
+                {
+                    foreach (var frame in sequence.Frames)
+                    {
+                        foreach (var image in frame.Images)
+                        {
+                            canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
+                            canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
+                        }
+                    }
+                }
+            }
+
+            var control = new Forms.Texture
+            {
+                BackColor = Color.Black,
+            };
+
+            control.SetImage(
+                bitmap.ToBitmap(),
+                Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
+                tex.ActualWidth,
+                tex.ActualHeight
+            );
+
+            var tab = new TabPage("TEXTURE")
+            {
+                AutoScroll = true,
+            };
+            tab.Controls.Add(control);
+            resTabs.TabPages.Add(tab);
         }
     }
 }
