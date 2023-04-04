@@ -29,15 +29,11 @@ namespace GUI.Types.Renderer
 
         public void Load(Scene scene)
         {
-            var data = node.Data;
-            var sceneObjectLayerIndices = data.ContainsKey("m_sceneObjectLayerIndices") ? data.GetIntegerArray("m_sceneObjectLayerIndices") : null;
-            var sceneObjects = data.GetArray("m_sceneObjects");
             var i = 0;
-
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
-            foreach (var sceneObject in sceneObjects)
+            foreach (var sceneObject in node.SceneObjects)
             {
-                var layerIndex = sceneObjectLayerIndices?[i++] ?? -1;
+                var layerIndex = (int)(node.SceneObjectLayerIndices?[i++] ?? -1);
 
                 var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
                 var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
@@ -66,7 +62,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? node.LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
@@ -90,7 +86,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? node.LayerNames[(int)layerIndex] : "No layer",
                         Name = renderable,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
@@ -100,14 +96,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (!data.ContainsKey("m_aggregateSceneObjects"))
-            {
-                return;
-            }
-
-            var aggregateSceneObjects = data.GetArray("m_aggregateSceneObjects");
-
-            foreach (var sceneObject in aggregateSceneObjects)
+            foreach (var sceneObject in node.AggregateSceneObjects)
             {
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
 
@@ -122,7 +111,7 @@ namespace GUI.Types.Renderer
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
                     var aggregate = new SceneAggregate(scene, (Model)newResource.DataBlock)
                     {
-                        LayerName = LayerNames[layerIndex],
+                        LayerName = node.LayerNames[(int)layerIndex],
                         Name = renderableModel,
                     };
 
