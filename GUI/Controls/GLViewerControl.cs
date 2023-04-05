@@ -62,7 +62,6 @@ namespace GUI.Controls
 
             GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, flags);
             GLControl.Load += OnLoad;
-            GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;
             GLControl.MouseEnter += OnMouseEnter;
             GLControl.MouseLeave += OnMouseLeave;
@@ -188,15 +187,6 @@ namespace GUI.Controls
             GLControl.Disposed -= OnDisposed;
         }
 
-        private void OnVisibleChanged(object sender, EventArgs e)
-        {
-            if (GLControl.Visible)
-            {
-                GLControl.Focus();
-                HandleResize();
-            }
-        }
-
         private void OnMouseLeave(object sender, EventArgs e)
         {
             Camera.MouseOverRenderArea = false;
@@ -263,30 +253,25 @@ namespace GUI.Controls
             HandleResize();
             GLPostLoad?.Invoke(this);
             GLPostLoad = null;
-            Draw();
-        }
 
-        private void OnPaint(object sender, EventArgs e)
-        {
-            Application.DoEvents();
-            Draw();
+            GLControl.Paint += OnPaint;
+
+            RenderLoopThread.RegisterInstance();
+
+            if (GLControl.Visible)
+            {
+                RenderLoopThread.SetCurrentGLControl(GLControl);
+            }
         }
 
         private void Draw()
         {
-            if (!GLControl.Visible)
-            {
-                return;
-            }
-
             var currentTime = Stopwatch.GetTimestamp();
             var elapsed = currentTime - lastUpdate;
             lastUpdate = currentTime;
 
             if (elapsed <= TickFrequency)
             {
-                GLControl.Invalidate();
-
                 return;
             }
 
@@ -301,7 +286,6 @@ namespace GUI.Controls
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
 
             GLControl.SwapBuffers();
-            GLControl.Invalidate();
 
             frames++;
 
@@ -315,22 +299,41 @@ namespace GUI.Controls
             }
         }
 
-        private void OnResize(object sender, EventArgs e)
+        private void OnPaint(object sender, EventArgs e)
         {
-            HandleResize();
             Draw();
         }
 
-        private void HandleResize()
+        private void OnDisposing()
         {
-            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
+            RenderLoopThread.UnsetCurrentGLControl(GLControl);
+            RenderLoopThread.UnregisterInstance();
+        }
+
+        private void OnVisibleChanged(object sender, EventArgs e)
+        {
+            if (GLControl.Visible)
+            {
+                HandleResize();
+
+                RenderLoopThread.SetCurrentGLControl(GLControl);
+            }
+        }
+
+        private void OnResize(object sender, EventArgs e)
+        {
+            HandleResize();
         }
 
         private void OnGotFocus(object sender, EventArgs e)
         {
-            GLControl.MakeCurrent();
             HandleResize();
-            Draw();
+        }
+
+        private void HandleResize()
+        {
+            GLControl.MakeCurrent();
+            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
         }
 
         private static void CheckOpenGL()
