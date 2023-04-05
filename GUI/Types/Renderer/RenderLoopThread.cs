@@ -1,14 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using GUI.Controls;
+using GUI.Utils;
 using OpenTK;
-using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
@@ -96,10 +91,9 @@ namespace GUI.Types.Renderer
             Console.WriteLine("RenderLoop thread started");
 #endif
 
-            var desiredInterval = TicksPerSecond / 120;
-
             while (instances > 0)
             {
+                var desiredInterval = TicksPerSecond / Settings.Config.MaxFPS;
                 var nextFrame = Stopwatch.GetTimestamp() + desiredInterval;
                 var control = currentGLControl;
 

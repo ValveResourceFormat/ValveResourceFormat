@@ -37,7 +37,11 @@ namespace GUI.Forms
             maxTextureSizeLabel = new System.Windows.Forms.Label();
             maxTextureSizeInput = new System.Windows.Forms.NumericUpDown();
             divider1 = new System.Windows.Forms.Label();
+            maxFpsInput = new System.Windows.Forms.NumericUpDown();
+            maxFpsLabel = new System.Windows.Forms.Label();
+            vsyncLabel = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)maxFpsInput).BeginInit();
             SuspendLayout();
             // 
             // gamePaths
@@ -133,11 +137,44 @@ namespace GUI.Forms
             divider1.Size = new System.Drawing.Size(640, 2);
             divider1.TabIndex = 9;
             // 
+            // maxFpsInput
+            // 
+            maxFpsInput.Increment = new decimal(new int[] { 10, 0, 0, 0 });
+            maxFpsInput.Location = new System.Drawing.Point(116, 292);
+            maxFpsInput.Maximum = new decimal(new int[] { 500, 0, 0, 0 });
+            maxFpsInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            maxFpsInput.Name = "maxFpsInput";
+            maxFpsInput.Size = new System.Drawing.Size(120, 23);
+            maxFpsInput.TabIndex = 10;
+            maxFpsInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            maxFpsInput.ValueChanged += OnMaxFpsValueChanged;
+            // 
+            // maxFpsLabel
+            // 
+            maxFpsLabel.AutoSize = true;
+            maxFpsLabel.Location = new System.Drawing.Point(15, 294);
+            maxFpsLabel.Name = "maxFpsLabel";
+            maxFpsLabel.Size = new System.Drawing.Size(55, 15);
+            maxFpsLabel.TabIndex = 11;
+            maxFpsLabel.Text = "Max FPS:";
+            // 
+            // vsyncLabel
+            // 
+            vsyncLabel.AutoSize = true;
+            vsyncLabel.Location = new System.Drawing.Point(242, 294);
+            vsyncLabel.Name = "vsyncLabel";
+            vsyncLabel.Size = new System.Drawing.Size(152, 15);
+            vsyncLabel.TabIndex = 12;
+            vsyncLabel.Text = "(might be limited by vsync)";
+            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(668, 301);
+            ClientSize = new System.Drawing.Size(668, 338);
+            Controls.Add(vsyncLabel);
+            Controls.Add(maxFpsInput);
+            Controls.Add(maxFpsLabel);
             Controls.Add(divider1);
             Controls.Add(maxTextureSizeInput);
             Controls.Add(maxTextureSizeLabel);
@@ -154,6 +191,7 @@ namespace GUI.Forms
             Text = "Settings";
             Load += SettingsForm_Load;
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).EndInit();
+            ((System.ComponentModel.ISupportInitialize)maxFpsInput).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -169,5 +207,8 @@ namespace GUI.Forms
         private System.Windows.Forms.Label maxTextureSizeLabel;
         private System.Windows.Forms.NumericUpDown maxTextureSizeInput;
         private System.Windows.Forms.Label divider1;
+        private System.Windows.Forms.NumericUpDown maxFpsInput;
+        private System.Windows.Forms.Label maxFpsLabel;
+        private System.Windows.Forms.Label vsyncLabel;
     }
 }

@@ -20,6 +20,7 @@ namespace GUI.Utils
             public string SaveDirectory { get; set; } = string.Empty;
             public Dictionary<string, float[]> SavedCameras { get; set; } = new Dictionary<string, float[]>();
             public int MaxTextureSize { get; set; }
+            public int MaxFPS { get; set; }
             public int WindowTop { get; set; }
             public int WindowLeft { get; set; }
             public int WindowWidth { get; set; }
@@ -99,6 +100,15 @@ namespace GUI.Utils
             else if (Config.MaxTextureSize > 10240)
             {
                 Config.MaxTextureSize = 10240;
+            }
+
+            if (Config.MaxFPS <= 0)
+            {
+                Config.MaxFPS = 120;
+            }
+            else if (Config.MaxFPS > 500)
+            {
+                Config.MaxFPS = 500;
             }
         }
 

@@ -21,6 +21,7 @@ namespace GUI.Forms
             }
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
+            maxFpsInput.Value = Settings.Config.MaxFPS;
         }
 
         private void GamePathRemoveClick(object sender, EventArgs e)
@@ -120,6 +121,19 @@ namespace GUI.Forms
             }
 
             Settings.Config.MaxTextureSize = newValue;
+            Settings.Save();
+        }
+
+        private void OnMaxFpsValueChanged(object sender, EventArgs e)
+        {
+            var newValue = (int)maxFpsInput.Value;
+
+            if (newValue == Settings.Config.MaxFPS)
+            {
+                return;
+            }
+
+            Settings.Config.MaxFPS = newValue;
             Settings.Save();
         }
     }
