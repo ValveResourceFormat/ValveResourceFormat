@@ -56,6 +56,10 @@ namespace GUI.Types.Renderer
             if (currentGLControl == null)
             {
                 _ = WinApi.TimeBeginPeriod(1);
+
+#if DEBUG
+                Console.WriteLine("Called TimeBeginPeriod");
+#endif
             }
 
             Interlocked.Exchange(ref currentGLControl, glControl);
@@ -68,6 +72,10 @@ namespace GUI.Types.Renderer
             if (currentGLControl == null)
             {
                 _ = WinApi.TimeEndPeriod(1);
+
+#if DEBUG
+                Console.WriteLine("Called TimeEndPeriod");
+#endif
             }
         }
 
