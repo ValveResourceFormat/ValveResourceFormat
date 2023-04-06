@@ -68,9 +68,7 @@ namespace GUI.Controls
             GLControl.MouseUp += OnMouseUp;
             GLControl.MouseDown += OnMouseDown;
             GLControl.MouseWheel += OnMouseWheel;
-            GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
-            GLControl.Disposed += OnDisposed;
 
             GLControl.Dock = DockStyle.Fill;
             glControlContainer.Controls.Add(GLControl);
@@ -170,21 +168,6 @@ namespace GUI.Controls
         {
             control.Location = new Point(0, currentControlsHeight);
             currentControlsHeight += control.Height;
-        }
-
-        private void OnDisposed(object sender, EventArgs e)
-        {
-            GLControl.Load -= OnLoad;
-            GLControl.Paint -= OnPaint;
-            GLControl.Resize -= OnResize;
-            GLControl.MouseEnter -= OnMouseEnter;
-            GLControl.MouseLeave -= OnMouseLeave;
-            GLControl.MouseUp -= OnMouseUp;
-            GLControl.MouseDown -= OnMouseDown;
-            GLControl.MouseWheel -= OnMouseWheel;
-            GLControl.GotFocus -= OnGotFocus;
-            GLControl.VisibleChanged -= OnVisibleChanged;
-            GLControl.Disposed -= OnDisposed;
         }
 
         private void OnMouseLeave(object sender, EventArgs e)
@@ -306,6 +289,16 @@ namespace GUI.Controls
 
         private void OnDisposing()
         {
+            GLControl.Load -= OnLoad;
+            GLControl.Paint -= OnPaint;
+            GLControl.Resize -= OnResize;
+            GLControl.MouseEnter -= OnMouseEnter;
+            GLControl.MouseLeave -= OnMouseLeave;
+            GLControl.MouseUp -= OnMouseUp;
+            GLControl.MouseDown -= OnMouseDown;
+            GLControl.MouseWheel -= OnMouseWheel;
+            GLControl.VisibleChanged -= OnVisibleChanged;
+
             RenderLoopThread.UnsetCurrentGLControl(GLControl);
             RenderLoopThread.UnregisterInstance();
         }
@@ -321,11 +314,6 @@ namespace GUI.Controls
         }
 
         private void OnResize(object sender, EventArgs e)
-        {
-            HandleResize();
-        }
-
-        private void OnGotFocus(object sender, EventArgs e)
         {
             HandleResize();
         }
