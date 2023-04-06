@@ -275,12 +275,13 @@ namespace GUI
 
             //Close the requested tab
             Console.WriteLine($"Closing {tab.Text}");
-            mainTabs.TabPages.Remove(tab);
 
             if (isClosingCurrentTab && tabIndex > 0)
             {
                 mainTabs.SelectedIndex = tabIndex - 1;
             }
+
+            mainTabs.TabPages.Remove(tab);
 
             ShowHideSearch();
 
