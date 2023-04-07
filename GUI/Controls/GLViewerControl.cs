@@ -40,7 +40,6 @@ namespace GUI.Controls
         private static bool hasCheckedOpenGL;
 
         long lastFpsUpdate;
-        long lastUpdate;
         int frames;
 
         Vector2 initialMousePosition;
@@ -237,27 +236,16 @@ namespace GUI.Controls
             GLPostLoad?.Invoke(this);
             GLPostLoad = null;
 
-            GLControl.Paint += OnPaint;
-
             RenderLoopThread.RegisterInstance();
 
             if (GLControl.Visible)
             {
-                RenderLoopThread.SetCurrentGLControl(GLControl);
+                RenderLoopThread.SetCurrentGLControl(this);
             }
         }
 
-        private void Draw()
+        public void Draw(long currentTime, long elapsed)
         {
-            var currentTime = Stopwatch.GetTimestamp();
-            var elapsed = currentTime - lastUpdate;
-            lastUpdate = currentTime;
-
-            if (elapsed <= TickFrequency)
-            {
-                return;
-            }
-
             var frameTime = elapsed * TickFrequency / TicksPerSecond;
 
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
@@ -282,15 +270,9 @@ namespace GUI.Controls
             }
         }
 
-        private void OnPaint(object sender, EventArgs e)
-        {
-            Draw();
-        }
-
         private void OnDisposing()
         {
             GLControl.Load -= OnLoad;
-            GLControl.Paint -= OnPaint;
             GLControl.Resize -= OnResize;
             GLControl.MouseEnter -= OnMouseEnter;
             GLControl.MouseLeave -= OnMouseLeave;
@@ -299,7 +281,7 @@ namespace GUI.Controls
             GLControl.MouseWheel -= OnMouseWheel;
             GLControl.VisibleChanged -= OnVisibleChanged;
 
-            RenderLoopThread.UnsetCurrentGLControl(GLControl);
+            RenderLoopThread.UnsetCurrentGLControl(this);
             RenderLoopThread.UnregisterInstance();
         }
 
@@ -309,7 +291,7 @@ namespace GUI.Controls
             {
                 HandleResize();
 
-                RenderLoopThread.SetCurrentGLControl(GLControl);
+                RenderLoopThread.SetCurrentGLControl(this);
             }
         }
 

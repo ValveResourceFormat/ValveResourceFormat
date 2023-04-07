@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using OpenTK;
 
@@ -25,7 +27,7 @@ namespace GUI.Types.Renderer
 
         private static int instances;
         private static Thread loopThread;
-        private static GLControl currentGLControl;
+        private static GLViewerControl currentGLControl;
 
         public static void RegisterInstance()
         {
@@ -51,7 +53,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public static void SetCurrentGLControl(GLControl glControl)
+        public static void SetCurrentGLControl(GLViewerControl glControl)
         {
             if (currentGLControl == null)
             {
@@ -65,7 +67,7 @@ namespace GUI.Types.Renderer
             Interlocked.Exchange(ref currentGLControl, glControl);
         }
 
-        public static void UnsetCurrentGLControl(GLControl glControl)
+        public static void UnsetCurrentGLControl(GLViewerControl glControl)
         {
             Interlocked.CompareExchange(ref currentGLControl, null, glControl);
 
@@ -76,6 +78,16 @@ namespace GUI.Types.Renderer
 #if DEBUG
                 Console.WriteLine("Called TimeEndPeriod");
 #endif
+            }
+        }
+
+        public static void UnsetIfClosingParentOfCurrentGLControl(Control parentControl)
+        {
+            var glControl = currentGLControl;
+
+            if (parentControl.Contains(glControl))
+            {
+                UnsetCurrentGLControl(glControl);
             }
         }
 
@@ -99,11 +111,14 @@ namespace GUI.Types.Renderer
             Console.WriteLine("RenderLoop thread started");
 #endif
 
+            var lastUpdate = Stopwatch.GetTimestamp();
+
             while (instances > 0)
             {
-                var desiredInterval = TicksPerSecond / Settings.Config.MaxFPS;
-                var nextFrame = Stopwatch.GetTimestamp() + desiredInterval;
+                var currentTime = Stopwatch.GetTimestamp();
+                var elapsed = currentTime - lastUpdate;
                 var control = currentGLControl;
+                lastUpdate = currentTime;
 
                 if (control == null)
                 {
@@ -119,17 +134,21 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                // We're relying on the fact that Invalidate() will block for the duration of Draw() call
+                var desiredInterval = TicksPerSecond / Settings.Config.MaxFPS;
+                var nextFrame = currentTime + desiredInterval;
+
                 try
                 {
-                    control.Invoke(control.Invalidate);
+                    control.Invoke(control.Draw, currentTime, elapsed);
                 }
                 catch (ObjectDisposedException)
                 {
                     // Due to wonky Invoke, checking IsDisposed is not enough
+                    UnsetCurrentGLControl(control);
+                    continue;
                 }
 
-                var currentTime = Stopwatch.GetTimestamp();
+                currentTime = Stopwatch.GetTimestamp();
                 var sleep = Math.Max(1, (int)(nextFrame - currentTime) / TicksPerMillisecond);
 
                 Thread.Sleep(sleep);
