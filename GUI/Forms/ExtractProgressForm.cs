@@ -266,26 +266,17 @@ namespace GUI.Forms
 
                 string contentRelativeFolder;
 
-                // Handle the subfiles of external refs directly
-                if (contentFile.SubFilesAreExternal)
+                foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
                 {
-                    foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
-                    {
-                        SetProgress($"Extracting {refFileName}");
-                        extractedFiles.Add(refFileName);
+                    SetProgress($"Extracting {refFileName}");
+                    extractedFiles.Add(refFileName);
 
-                        contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(refFileName);
+                    contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(refFileName);
 
-                        await ExtractSubfiles(contentRelativeFolder, refContentFile).ConfigureAwait(false);
-                    }
-                    return;
+                    await ExtractSubfiles(contentRelativeFolder, refContentFile).ConfigureAwait(false);
                 }
 
                 extractedFiles.Add(inFilePath);
-                foreach (var handledFile in contentFile.ExternalRefsHandled.Keys)
-                {
-                    extractedFiles.Add(handledFile);
-                }
 
                 contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(inFilePath);
 
