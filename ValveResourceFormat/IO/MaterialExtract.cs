@@ -70,8 +70,6 @@ public sealed class MaterialExtract
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
             vmat.ExternalRefsHandled.Add(filePath + "_c", vtex);
-            vmat.SubFilesAreExternal = true;
-            vmat.SubFiles.AddRange(vtex.SubFiles);
         }
 
         return vmat;

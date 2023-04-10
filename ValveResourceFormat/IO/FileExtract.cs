@@ -12,6 +12,10 @@ namespace ValveResourceFormat.IO
     public class ContentFile : IDisposable
     {
         public byte[] Data { get; set; }
+
+        /// <summary>
+        /// Additional files that make up this content file.
+        /// </summary>
         public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
 
         /// <summary>
@@ -19,8 +23,12 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public List<string> GameFiles { get; init; } = new List<string>();
 
+        /// <summary>
+        /// External resource references handled by this extract.
+        /// You will want to extract the respective subfiles, and ignore further extracts on the filenames.
+        /// </summary>
         public Dictionary<string, ContentFile> ExternalRefsHandled { get; init; } = new();
-        public bool SubFilesAreExternal { get; set; }
+
         protected bool Disposed { get; private set; }
 
         public void AddSubFile(string fileName, Func<byte[]> extractMethod)
