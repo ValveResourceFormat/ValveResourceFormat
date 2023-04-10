@@ -81,12 +81,12 @@ namespace GUI.Types.Renderer
             {
                 var phys = (PhysAggregateData)physResource.DataBlock;
 
-                var physSceneNode = new PhysSceneNode(scene, phys)
+                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys))
                 {
-                    PhysGroupName = "world_physics", // TODO: Split by collision groups
-                    LayerName = "world_layer_base",
-                };
-                scene.Add(physSceneNode, false);
+                    physSceneNode.LayerName = "world_layer_base";
+
+                    scene.Add(physSceneNode, false);
+                }
             }
 
             return result;
@@ -347,13 +347,14 @@ namespace GUI.Types.Renderer
 
                 if (phys != null)
                 {
-                    var physSceneNode = new PhysSceneNode(scene, phys)
+                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys))
                     {
-                        Transform = transformationMatrix,
-                        PhysGroupName = classname,
-                        LayerName = layerName
-                    };
-                    scene.Add(physSceneNode, false);
+                        physSceneNode.Transform = transformationMatrix;
+                        physSceneNode.PhysGroupName = classname;
+                        physSceneNode.LayerName = layerName;
+
+                        scene.Add(physSceneNode, false);
+                    }
                 }
             }
         }

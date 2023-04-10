@@ -25,7 +25,8 @@ namespace GUI.Types.Renderer
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
-        private PhysSceneNode physSceneNode;
+        private IEnumerable<PhysSceneNode> physSceneNodes;
+        private bool physicsVisible;
 
         public GLModelViewer(VrfGuiContext guiContext, Model model)
             : base(guiContext, Frustum.CreateEmpty())
@@ -180,13 +181,31 @@ namespace GUI.Types.Renderer
 
             if (phys != null)
             {
-                physSceneNode = new PhysSceneNode(Scene, phys);
-                Scene.Add(physSceneNode, false);
+                physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys);
 
-                //disabled by default. Enable if viewing only phys or model without meshes
-                physSceneNode.Enabled = modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any();
+                foreach (var physSceneNode in physSceneNodes)
+                {
+                    Scene.Add(physSceneNode, false);
+                }
 
-                ViewerControl.AddCheckBox("Show Physics", physSceneNode.Enabled, (v) => { physSceneNode.Enabled = v; });
+                // Physics are not shown by default unless the model has no meshes
+                if (modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any())
+                {
+                    physicsVisible = true;
+
+                    foreach (var physSceneNode in physSceneNodes)
+                    {
+                        physSceneNode.Enabled = true;
+                    }
+                }
+
+                ViewerControl.AddCheckBox("Show Physics", physicsVisible, (v) =>
+                {
+                    foreach (var physSceneNode in physSceneNodes)
+                    {
+                        physSceneNode.Enabled = v;
+                    }
+                });
             }
         }
 

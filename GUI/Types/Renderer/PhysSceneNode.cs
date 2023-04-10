@@ -23,11 +23,50 @@ namespace GUI.Types.Renderer
         readonly int iboHandle;
         readonly int vaoHandle;
 
-        public PhysSceneNode(Scene scene, PhysAggregateData phys)
+
+        public PhysSceneNode(Scene scene, List<float> verts, List<int> inds)
             : base(scene)
         {
-            var verts = new List<float>();
-            var inds = new List<int>();
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
+            GL.UseProgram(shader.Program);
+
+            vaoHandle = GL.GenVertexArray();
+            GL.BindVertexArray(vaoHandle);
+
+            vboHandle = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
+            GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * sizeof(float), verts.ToArray(), BufferUsageHint.StaticDraw);
+
+            iboHandle = GL.GenBuffer();
+            indexCount = inds.Count;
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
+
+            const int stride = sizeof(float) * 7;
+            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
+            GL.EnableVertexAttribArray(positionAttributeLocation);
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
+
+            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
+            GL.EnableVertexAttribArray(colorAttributeLocation);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
+
+            GL.BindVertexArray(0);
+        }
+
+        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys)
+        {
+            var collisionAttributes = phys.Data.GetArray("m_collisionAttributes");
+            var verts = new List<float>[collisionAttributes.Length];
+            var inds = new List<int>[collisionAttributes.Length];
+            var boundingBoxes = new AABB[collisionAttributes.Length];
+            var isFirstBbox = new bool[collisionAttributes.Length];
+
+            for (var i = 0; i < collisionAttributes.Length; i++)
+            {
+                verts[i] = new();
+                inds[i] = new();
+            }
 
             var bindPose = phys.Data.GetArray("m_bindPose")
                  .Select(v => Matrix4x4FromArray(v
@@ -41,22 +80,18 @@ namespace GUI.Types.Renderer
             }
             //m_boneParents
 
-            var firstBbox = true;
-
-            // TODO: Split by collision group into separate VBOs, add UI for toggling them per m_InteractAsStrings (e.g. "playerclip")
-            var collisionAttributes = phys.Data.GetArray("m_collisionAttributes");
-
             var parts = phys.Data.GetArray("m_parts");
             for (var p = 0; p < parts.Length; p++)
             {
                 var shape = parts[p].GetSubCollection("m_rnShape");
-                var collisionAttributeIndices = shape.GetIntegerArray("m_CollisionAttributeIndices");
-                var partCollisionAttributeIndex = parts[p].GetIntegerProperty("m_nCollisionAttributeIndex");
+                //var collisionAttributeIndices = shape.GetIntegerArray("m_CollisionAttributeIndices");
+                //var partCollisionAttributeIndex = parts[p].GetIntegerProperty("m_nCollisionAttributeIndex");
 
                 // Spheres
                 var spheres = shape.GetArray("m_spheres");
                 foreach (var s in spheres)
                 {
+                    var collisionAttributeIndex = s.GetIntegerProperty("m_nCollisionAttributeIndex");
                     var sphere = s.GetSubCollection("m_Sphere");
                     var center = sphere.GetSubCollection("m_vCenter").ToVector3();
                     var radius = sphere.GetFloatProperty("m_flRadius");
@@ -66,18 +101,27 @@ namespace GUI.Types.Renderer
                         center = Vector3.Transform(center, bindPose[p]);
                     }
 
-                    AddSphere(verts, inds, center, radius);
+                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius);
 
                     var bbox = new AABB(center + new Vector3(radius),
                                          center - new Vector3(radius));
-                    LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
-                    firstBbox = false;
+
+                    if (isFirstBbox[collisionAttributeIndex])
+                    {
+                        isFirstBbox[collisionAttributeIndex] = false;
+                        boundingBoxes[collisionAttributeIndex] = bbox;
+                    }
+                    else
+                    {
+                        boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
+                    }
                 }
 
                 // Capsules
                 var capsules = shape.GetArray("m_capsules");
                 foreach (var c in capsules)
                 {
+                    var collisionAttributeIndex = c.GetIntegerProperty("m_nCollisionAttributeIndex");
                     var capsule = c.GetSubCollection("m_Capsule");
                     var center = capsule.GetArray("m_vCenter").Select(v => v.ToVector3()).ToArray();
                     var radius = capsule.GetFloatProperty("m_flRadius");
@@ -85,13 +129,21 @@ namespace GUI.Types.Renderer
                     center[0] = Vector3.Transform(center[0], bindPose[p]);
                     center[1] = Vector3.Transform(center[1], bindPose[p]);
 
-                    AddCapsule(verts, inds, center[0], center[1], radius);
+                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius);
                     foreach (var cn in center)
                     {
                         var bbox = new AABB(cn + new Vector3(radius),
                                              cn - new Vector3(radius));
-                        LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
-                        firstBbox = false;
+
+                        if (isFirstBbox[collisionAttributeIndex])
+                        {
+                            isFirstBbox[collisionAttributeIndex] = false;
+                            boundingBoxes[collisionAttributeIndex] = bbox;
+                        }
+                        else
+                        {
+                            boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
+                        }
                     }
                 }
 
@@ -119,7 +171,7 @@ namespace GUI.Types.Renderer
                                 BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
                                 BitConverter.ToSingle(verticesBlob, (i * 12) + 8)));
                     }
-                    var vertOffset = verts.Count / 7;
+                    var vertOffset = verts[collisionAttributeIndex].Count / 7;
                     foreach (var v in vertices)
                     {
                         var vec = v;
@@ -128,14 +180,14 @@ namespace GUI.Types.Renderer
                             vec = Vector3.Transform(vec, bindPose[p]);
                         }
 
-                        verts.Add(vec.X);
-                        verts.Add(vec.Y);
-                        verts.Add(vec.Z);
+                        verts[collisionAttributeIndex].Add(vec.X);
+                        verts[collisionAttributeIndex].Add(vec.Y);
+                        verts[collisionAttributeIndex].Add(vec.Z);
                         //color red
-                        verts.Add(1);
-                        verts.Add(0);
-                        verts.Add(0);
-                        verts.Add(1);
+                        verts[collisionAttributeIndex].Add(1);
+                        verts[collisionAttributeIndex].Add(0);
+                        verts[collisionAttributeIndex].Add(0);
+                        verts[collisionAttributeIndex].Add(1);
                     }
                     //m_Planes
                     (int origin, int next)[] edges = null;
@@ -156,17 +208,24 @@ namespace GUI.Types.Renderer
                     }
                     foreach (var e in edges)
                     {
-                        inds.Add(vertOffset + e.origin);
+                        inds[collisionAttributeIndex].Add(vertOffset + e.origin);
                         var next = edges[e.next];
-                        inds.Add(vertOffset + next.origin);
+                        inds[collisionAttributeIndex].Add(vertOffset + next.origin);
                     }
                     //m_Faces
                     var bounds = hull.GetSubCollection("m_Bounds");
                     var bbox = new AABB(bounds.GetSubCollection("m_vMinBounds").ToVector3(),
                                          bounds.GetSubCollection("m_vMaxBounds").ToVector3());
 
-                    LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
-                    firstBbox = false;
+                    if (isFirstBbox[collisionAttributeIndex])
+                    {
+                        isFirstBbox[collisionAttributeIndex] = false;
+                        boundingBoxes[collisionAttributeIndex] = bbox;
+                    }
+                    else
+                    {
+                        boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
+                    }
                 }
 
                 // Meshes
@@ -177,7 +236,7 @@ namespace GUI.Types.Renderer
                     var mesh = m.GetSubCollection("m_Mesh");
                     //m_Nodes
 
-                    var vertOffset = verts.Count / 7;
+                    var vertOffset = verts[collisionAttributeIndex].Count / 7;
                     Vector3[] vertices = null;
                     if (mesh is NTROStruct || ((KVObject)mesh).Properties["m_Vertices"].Type == KVType.ARRAY)
                     {
@@ -204,14 +263,14 @@ namespace GUI.Types.Renderer
                             v = Vector3.Transform(vec, bindPose[p]);
                         }
 
-                        verts.Add(v.X);
-                        verts.Add(v.Y);
-                        verts.Add(v.Z);
+                        verts[collisionAttributeIndex].Add(v.X);
+                        verts[collisionAttributeIndex].Add(v.Y);
+                        verts[collisionAttributeIndex].Add(v.Z);
                         //color green
-                        verts.Add(0);
-                        verts.Add(1);
-                        verts.Add(0);
-                        verts.Add(1);
+                        verts[collisionAttributeIndex].Add(0);
+                        verts[collisionAttributeIndex].Add(1);
+                        verts[collisionAttributeIndex].Add(0);
+                        verts[collisionAttributeIndex].Add(1);
                     }
 
                     int[] triangles = null;
@@ -232,46 +291,41 @@ namespace GUI.Types.Renderer
 
                     for (var i = 0; i < triangles.Length; i += 3)
                     {
-                        inds.Add(vertOffset + triangles[i]);
-                        inds.Add(vertOffset + triangles[i + 1]);
-                        inds.Add(vertOffset + triangles[i + 1]);
-                        inds.Add(vertOffset + triangles[i + 2]);
-                        inds.Add(vertOffset + triangles[i + 2]);
-                        inds.Add(vertOffset + triangles[i]);
+                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i]);
+                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 1]);
+                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 1]);
+                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 2]);
+                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 2]);
+                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i]);
                     }
 
                     var bbox = new AABB(mesh.GetSubCollection("m_vMin").ToVector3(),
                                          mesh.GetSubCollection("m_vMax").ToVector3());
-                    LocalBoundingBox = firstBbox ? bbox : LocalBoundingBox.Union(bbox);
-                    firstBbox = false;
+
+                    if (isFirstBbox[collisionAttributeIndex])
+                    {
+                        isFirstBbox[collisionAttributeIndex] = false;
+                        boundingBoxes[collisionAttributeIndex] = bbox;
+                    }
+                    else
+                    {
+                        boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
+                    }
                 }
             }
 
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
-            GL.UseProgram(shader.Program);
+            var scenes = collisionAttributes.Select((attributes, i) =>
+            {
+                var name = attributes.GetStringProperty("m_CollisionGroupString") + " " + string.Join(", ", attributes.GetArray<string>("m_InteractAsStrings"));
+                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
+                {
+                    PhysGroupName = name,
+                    LocalBoundingBox = boundingBoxes[i],
+                };
 
-            vaoHandle = GL.GenVertexArray();
-            GL.BindVertexArray(vaoHandle);
-
-            vboHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * sizeof(float), verts.ToArray(), BufferUsageHint.StaticDraw);
-
-            iboHandle = GL.GenBuffer();
-            indexCount = inds.Count;
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
-
-            const int stride = sizeof(float) * 7;
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
-
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
-
-            GL.BindVertexArray(0);
+                return physSceneNode;
+            }).ToArray();
+            return scenes;
         }
 
         static Matrix4x4 Matrix4x4FromArray(float[] a)
