@@ -12,7 +12,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Layer indices for <see cref="SceneObjects"/>.
-        /// For <see cref="AggregateSceneObjects"/> use the dedicated 'm_nLayer' member. 
+        /// For <see cref="AggregateSceneObjects"/> use the dedicated 'm_nLayer' member.
+        /// Value may be null if the node has no layer system.
         /// </summary>
         public IReadOnlyList<long> SceneObjectLayerIndices
             => Data.ContainsKey("m_sceneObjectLayerIndices")

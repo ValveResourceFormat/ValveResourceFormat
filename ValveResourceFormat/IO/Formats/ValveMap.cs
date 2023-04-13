@@ -152,3 +152,9 @@ internal class CMapEntity : BaseEntity
 internal class CMapGroup : BaseNode
 {
 }
+
+[CamelCaseProperties]
+internal class CMapWorldLayer : CMapGroup
+{
+    public string WorldLayerName { get; set; } = string.Empty;
+}
