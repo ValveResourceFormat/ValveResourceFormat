@@ -19,9 +19,11 @@ namespace ValveResourceFormat.IO
         public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
 
         /// <summary>
-        /// Game file references that can be extracted as is.
+        /// Game file references that should be extracted as-is, for cases where they might not be present
+        /// in the destination game dir but are required to form a valid content file. E.g. map models.
+        /// TODO: Maybe don't do this?
         /// </summary>
-        public List<string> GameFiles { get; init; } = new List<string>();
+        public List<string> RequiredGameFiles { get; init; } = new List<string>();
 
         /// <summary>
         /// External resource references handled by this extract.

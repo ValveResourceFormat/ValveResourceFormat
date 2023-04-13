@@ -86,7 +86,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? node.LayerNames[(int)layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? node.LayerNames[layerIndex] : "No layer",
                         Name = renderable,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
