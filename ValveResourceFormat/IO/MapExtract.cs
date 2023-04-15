@@ -13,19 +13,14 @@ namespace ValveResourceFormat.IO;
 
 public sealed class MapExtract
 {
-    public string MapName { get; private set; }
-    private string MapRoot { get; set; }
-
-    private string LumpFolder => Path.Combine(MapRoot, MapName);
+    public string LumpFolder { get; private set; }
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
 
     private List<string> AssetReferences { get; } = new List<string>();
     private List<string> FilesForExtract { get; } = new List<string>();
-    private CMapRootElement Vmap { get; } = new();
-
-    private string FolderName => MapName + "_d";
+    private CMapRootElement MapDoc { get; } = new();
 
     private readonly IFileLoader FileLoader;
 
@@ -53,6 +48,9 @@ public sealed class MapExtract
             case ResourceType.Map:
                 InitMapExtract(resource);
                 break;
+            case ResourceType.World:
+                InitWorldExtract(resource);
+                break;
             default:
                 throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported for map extraction.");
         }
@@ -61,60 +59,89 @@ public sealed class MapExtract
     /// <summary>
     /// Extract a map by name and a vpk-based file loader.
     /// </summary>
+    /// <param name="mapNameFull"> Full name of map, including the 'maps' root. The lump folder. E.g. 'maps/prefabs/ui/ui_background'. </param>
     public MapExtract(string mapNameFull, IFileLoader fileLoader)
     {
+        ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
         FileLoader = fileLoader;
 
-        MapName = Path.GetFileNameWithoutExtension(mapNameFull);
-        MapRoot = Path.GetDirectoryName(mapNameFull);
+        // Clean up any trailing slashes, or vmap_c extension
+        var mapName = Path.GetFileNameWithoutExtension(mapNameFull);
+        var mapRoot = Path.GetDirectoryName(mapNameFull);
+
+        LumpFolder = mapRoot + "/" + mapName;
+
+        var vmapPath = LumpFolder + ".vmap_c";
+        var vmapResource = FileLoader.LoadFile(vmapPath);
+        if (vmapResource is null)
+        {
+            throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
+        }
+
+        InitMapExtract(vmapResource);
     }
 
-    private void InitMapExtract(Resource vmap)
+    private static bool PathIsEqualOrSubPath(string equalOrSubPath, string path)
     {
-        MapName = Path.GetFileNameWithoutExtension(vmap.FileName);
-        MapRoot = Path.GetDirectoryName(vmap.FileName);
+        equalOrSubPath = equalOrSubPath.Replace('\\', '/').TrimEnd('/');
+        path = path.Replace('\\', '/').TrimEnd('/');
 
-        if (string.IsNullOrEmpty(MapRoot))
+        return path.EndsWith(equalOrSubPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void InitMapExtract(Resource vmapResource)
+    {
+        LumpFolder = GetLumpFolderFromVmapRERL(vmapResource.ExternalReferences);
+
+        // TODO: make these progressreporter warnings
+        // Not required, but good sanity checks
+        var mapName = Path.GetFileNameWithoutExtension(vmapResource.FileName);
+        var rootDir = Path.GetDirectoryName(vmapResource.FileName);
+        if (!string.IsNullOrEmpty(rootDir) && !PathIsEqualOrSubPath(LumpFolder, rootDir + "/" + mapName))
         {
-            CollectMapNameFromVmapRERL(vmap.ExternalReferences);
+            throw new InvalidDataException(
+                "vmap_c filename does not match or have the RERL-derived lump folder as a subpath. " +
+                "Make sure to load the resource from the correct location.\n" +
+                $"\tLump folder: {LumpFolder}\n\tResource filename: {vmapResource.FileName}"
+            );
         }
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
-        using var worldResource = FileLoader?.LoadFile(worldPath);
+        using var worldResource = FileLoader.LoadFile(worldPath);
 
         if (worldResource == null)
         {
-            throw new FileNotFoundException($"Failed to find {worldPath}.");
+            throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
         }
 
-        var world = (World)worldResource.DataBlock;
-        EntityLumpNames = world.GetEntityLumpNames();
-        WorldNodeNames = world.GetWorldNodeNames();
+        InitWorldExtract(worldResource);
     }
 
-    private void CollectMapNameFromVmapRERL(ResourceExtRefList rerl)
+    private static string GetLumpFolderFromVmapRERL(ResourceExtRefList rerl)
     {
         foreach (var info in rerl.ResourceRefInfoList)
         {
             if (info.Name.EndsWith("world.vrman", StringComparison.OrdinalIgnoreCase))
             {
-                CollectMapNameFromWorldPath(info.Name);
-                return;
+                return GetLumpFolderFromWorldPath(info.Name);
             }
         }
 
-        throw new InvalidDataException("Could not find world.vrman in RERL.");
+        throw new InvalidDataException("Could not find world.vrman in vmap_c RERL.");
+    }
+
+    private static string GetLumpFolderFromWorldPath(string worldPath)
+    {
+        return Path.GetDirectoryName(worldPath);
     }
 
     private void InitWorldExtract(Resource vworld)
     {
-        CollectMapNameFromWorldPath(vworld.FileName);
-    }
+        LumpFolder ??= GetLumpFolderFromWorldPath(vworld.FileName);
 
-    private void CollectMapNameFromWorldPath(string worldPath)
-    {
-        MapName = Directory.GetParent(worldPath).Name;
-        MapRoot = Path.GetDirectoryName(Path.GetDirectoryName(worldPath));
+        var world = (World)vworld.DataBlock;
+        EntityLumpNames = world.GetEntityLumpNames();
+        WorldNodeNames = world.GetWorldNodeNames();
     }
 
     public ContentFile ToContentFile()
@@ -131,10 +158,15 @@ public sealed class MapExtract
 
     public string ToValveMap()
     {
+        if (FileLoader is null)
+        {
+            throw new InvalidOperationException("A file loader must be provided to load the map's lumps.");
+        }
+
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
-        datamodel.Root = Vmap;
+        datamodel.Root = MapDoc;
 
         foreach (var entityLumpName in EntityLumpNames)
         {
@@ -168,15 +200,15 @@ public sealed class MapExtract
 
             if (compiledEntity.GetProperty<string>(CommonHashes.ClassName) == "worldspawn")
             {
-                AddProperties(Vmap.World, compiledEntity);
-                Vmap.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
+                AddProperties(MapDoc.World, compiledEntity);
+                MapDoc.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
                 continue;
             }
 
             var mapEntity = new CMapEntity();
             AddProperties(mapEntity, compiledEntity);
 
-            Vmap.World.Children.Add(mapEntity);
+            MapDoc.World.Children.Add(mapEntity);
         }
     }
 
@@ -232,7 +264,7 @@ public sealed class MapExtract
                 propStatic.EntityProperties["disablemeshmerging"] = "1";
             }
 
-            Vmap.World.Children.Add(propStatic);
+            MapDoc.World.Children.Add(propStatic);
         }
     }
 
