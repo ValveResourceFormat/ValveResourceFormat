@@ -17,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public IReadOnlyList<long> SceneObjectLayerIndices
             => Data.ContainsKey("m_sceneObjectLayerIndices")
-                ? Data.GetArray<long>("m_sceneObjectLayerIndices")
+                ? Data.GetIntegerArray("m_sceneObjectLayerIndices")
                 : null;
 
         public IReadOnlyList<IKeyValueCollection> AggregateSceneObjects
