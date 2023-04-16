@@ -214,8 +214,24 @@ public sealed class MapExtract
 
     private void AddWorldNodesAsStaticProps(WorldNode node)
     {
-        foreach (var sceneObject in node.SceneObjects)
+        var layerNodes = new List<MapNode>(node.LayerNames.Count);
+        foreach (var layerName in node.LayerNames)
         {
+            if (layerName == "world_layer_base")
+            {
+                layerNodes.Add(MapDoc.World);
+                continue;
+            }
+
+            var layer = new CMapWorldLayer { WorldLayerName = layerName };
+            layerNodes.Add(layer);
+        }
+
+        for (var i = 0; i < node.SceneObjects.Count; i++)
+        {
+            var sceneObject = node.SceneObjects[i];
+            var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
+
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
@@ -264,7 +280,22 @@ public sealed class MapExtract
                 propStatic.EntityProperties["disablemeshmerging"] = "1";
             }
 
+            if (layerIndex > -1)
+            {
+                layerNodes[layerIndex].Children.Add(propStatic);
+                continue;
+            }
+
             MapDoc.World.Children.Add(propStatic);
+        }
+
+        // Add any non-base world layers to the map
+        foreach (var layerNode in layerNodes)
+        {
+            if (layerNode != MapDoc.World)
+            {
+                MapDoc.World.Children.Add(layerNode);
+            }
         }
     }
 
