@@ -20,7 +20,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = new List<string>();
     private List<string> FilesForExtract { get; } = new List<string>();
-    private CMapRootElement MapDoc { get; } = new();
+    private CMapRootElement MapDocument { get; } = new();
 
     private readonly IFileLoader FileLoader;
 
@@ -166,14 +166,14 @@ public sealed class MapExtract
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
-        datamodel.Root = MapDoc;
+        datamodel.Root = MapDocument;
 
         foreach (var entityLumpName in EntityLumpNames)
         {
-            using var entityLump = FileLoader.LoadFile(entityLumpName + "_c");
-            if (entityLump is not null)
+            using var entityLumpResource = FileLoader.LoadFile(entityLumpName + "_c");
+            if (entityLumpResource is not null)
             {
-                GatherEntitiesFromLump((EntityLump)entityLump.DataBlock);
+                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
             }
         }
 
@@ -194,21 +194,42 @@ public sealed class MapExtract
 
     private void GatherEntitiesFromLump(EntityLump entityLump)
     {
+        var lumpName = entityLump.Data.GetStringProperty("m_name");
+
+        MapNode destNode = (string.IsNullOrEmpty(lumpName) || lumpName == "default_ents")
+            ? MapDocument.World
+            : new CMapGroup { Name = lumpName };
+
+        // If destination is a group, add it to the document
+        if (destNode != MapDocument.World)
+        {
+            MapDocument.World.Children.Add(destNode);
+        }
+
+        foreach (var childLumpName in entityLump.GetChildEntityNames())
+        {
+            using var entityLumpResource = FileLoader.LoadFile(childLumpName + "_c");
+            if (entityLumpResource is not null)
+            {
+                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
+            }
+        }
+
         foreach (var compiledEntity in entityLump.GetEntities())
         {
             FixUpEntityKeyValues(compiledEntity);
 
             if (compiledEntity.GetProperty<string>(CommonHashes.ClassName) == "worldspawn")
             {
-                AddProperties(MapDoc.World, compiledEntity);
-                MapDoc.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
+                AddProperties(MapDocument.World, compiledEntity);
+                MapDocument.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
                 continue;
             }
 
             var mapEntity = new CMapEntity();
             AddProperties(mapEntity, compiledEntity);
 
-            MapDoc.World.Children.Add(mapEntity);
+            destNode.Children.Add(mapEntity);
         }
     }
 
@@ -219,12 +240,21 @@ public sealed class MapExtract
         {
             if (layerName == "world_layer_base")
             {
-                layerNodes.Add(MapDoc.World);
+                layerNodes.Add(MapDocument.World);
                 continue;
             }
 
             var layer = new CMapWorldLayer { WorldLayerName = layerName };
             layerNodes.Add(layer);
+        }
+
+        // Add any non-base world layer to the document
+        foreach (var layerNode in layerNodes)
+        {
+            if (layerNode != MapDocument.World)
+            {
+                MapDocument.World.Children.Add(layerNode);
+            }
         }
 
         for (var i = 0; i < node.SceneObjects.Count; i++)
@@ -286,16 +316,7 @@ public sealed class MapExtract
                 continue;
             }
 
-            MapDoc.World.Children.Add(propStatic);
-        }
-
-        // Add any non-base world layers to the map
-        foreach (var layerNode in layerNodes)
-        {
-            if (layerNode != MapDoc.World)
-            {
-                MapDoc.World.Children.Add(layerNode);
-            }
+            MapDocument.World.Children.Add(propStatic);
         }
     }
 
