@@ -46,6 +46,8 @@ namespace GUI.Types.Viewers
                 Dock = DockStyle.Fill,
             };
 
+            var selectData = false;
+
             switch (resource.ResourceType)
             {
                 case ResourceType.Texture:
@@ -159,6 +161,10 @@ namespace GUI.Types.Viewers
                     var physRendererTab = new TabPage("PHYSICS");
                     physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock).ViewerControl);
                     resTabs.TabPages.Add(physRendererTab);
+                    break;
+
+                default:
+                    selectData = true;
                     break;
             }
 
@@ -358,6 +364,11 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
+                if (selectData)
+                {
+                    resTabs.SelectTab(tab2);
+                }
+
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Material:
@@ -406,22 +417,6 @@ namespace GUI.Types.Viewers
                         VcsShaderResourceBridge(resTabs, shaderFileContainer);
                         IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
                         break;
-                }
-            }
-
-            if (resource.ResourceType == ResourceType.PanoramaLayout
-                || resource.ResourceType == ResourceType.PanoramaScript
-                || resource.ResourceType == ResourceType.PanoramaStyle
-                || resource.ResourceType == ResourceType.SoundEventScript
-                || resource.ResourceType == ResourceType.SoundStackScript)
-            {
-                foreach (TabPage tab2 in resTabs.TabPages)
-                {
-                    if (tab2.Text == "DATA")
-                    {
-                        resTabs.SelectTab(tab2);
-                        break;
-                    }
                 }
             }
 
