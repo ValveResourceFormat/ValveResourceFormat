@@ -56,7 +56,7 @@ internal class CStoredCameras : DMElement
 }
 
 [CamelCaseProperties]
-internal abstract class BaseNode : DMElement
+internal abstract class MapNode : DMElement
 {
     public Vector3 Origin { get; set; }
     public Datamodel.QAngle Angles { get; set; }
@@ -76,7 +76,7 @@ internal abstract class BaseNode : DMElement
 }
 
 [CamelCaseProperties]
-internal abstract class BaseEntity : BaseNode
+internal abstract class BaseEntity : MapNode
 {
     public DmePlugList RelayPlugData { get; set; } = new DmePlugList();
     public Datamodel.ElementArray ConnectionsData { get; } = new();
@@ -117,7 +117,7 @@ internal class CMapWorld : BaseEntity
 }
 
 [CamelCaseProperties]
-internal class CVisibilityMgr : BaseNode
+internal class CVisibilityMgr : MapNode
 {
     public Datamodel.ElementArray Nodes { get; } = new();
     public Datamodel.IntArray HiddenFlags { get; } = new();
@@ -149,7 +149,7 @@ internal class CMapEntity : BaseEntity
     public bool IsProceduralEntity { get; set; }
 }
 
-internal class CMapGroup : BaseNode
+internal class CMapGroup : MapNode
 {
 }
 

@@ -9,7 +9,6 @@ namespace Tests
     [TestFixture]
     public class MapExtractTest
     {
-
         [Test]
         public void TestMapExtractVmapInit()
         {
