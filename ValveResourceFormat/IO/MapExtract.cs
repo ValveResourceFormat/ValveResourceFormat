@@ -257,18 +257,15 @@ public sealed class MapExtract
             }
         }
 
-        for (var i = 0; i < node.SceneObjects.Count; i++)
+        void SceneObjectToStaticProp(IKeyValueCollection sceneObject, int layerIndex, List<MapNode> layerNodes, bool isAggregate)
         {
-            var sceneObject = node.SceneObjects[i];
-            var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
-
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
-            var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
-            var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
-            var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-            var skin = sceneObject.GetProperty<string>("m_skin");
+            if (isAggregate)
+            {
+                return;
+            }
 
             var objectFlags = ObjectTypeFlags.None;
             try
@@ -283,17 +280,30 @@ public sealed class MapExtract
             if (modelName is null)
             {
                 // TODO: Generate model for mesh
-                continue;
+                return;
             }
 
             var propStatic = new CMapEntity();
             propStatic.EntityProperties["classname"] = "prop_static";
             propStatic.EntityProperties["model"] = modelName;
-            //propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
-            //propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
-            //propStatic.EntityProperties["rendercolor"] = $"{tintColor.X} {tintColor.Y} {tintColor.Z}";
-            //propStatic.EntityProperties["renderamt"] = tintColor.W.ToString(CultureInfo.InvariantCulture);
-            propStatic.EntityProperties["skin"] = string.IsNullOrEmpty(skin) ? "default" : skin;
+
+            if (!isAggregate)
+            {
+                var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
+                var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
+                //propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
+                //propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
+
+                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+                //propStatic.EntityProperties["rendercolor"] = $"{tintColor.X} {tintColor.Y} {tintColor.Z}";
+                //propStatic.EntityProperties["renderamt"] = tintColor.W.ToString(CultureInfo.InvariantCulture);
+
+                var skin = sceneObject.GetProperty<string>("m_skin");
+                if (!string.IsNullOrEmpty(skin))
+                {
+                    propStatic.EntityProperties["skin"] = skin;
+                }
+            }
 
             if ((objectFlags & ObjectTypeFlags.RenderToCubemaps) != 0)
             {
@@ -305,6 +315,11 @@ public sealed class MapExtract
                 propStatic.EntityProperties["disableshadows"] = "1";
             }
 
+            if ((objectFlags & ObjectTypeFlags.Model) != 0)
+            {
+                // This is a proper model reference (non baked mesh)
+            }
+
             if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
             {
                 propStatic.EntityProperties["disablemeshmerging"] = "1";
@@ -313,10 +328,24 @@ public sealed class MapExtract
             if (layerIndex > -1)
             {
                 layerNodes[layerIndex].Children.Add(propStatic);
-                continue;
+                return;
             }
 
             MapDocument.World.Children.Add(propStatic);
+        }
+
+        for (var i = 0; i < node.SceneObjects.Count; i++)
+        {
+            var sceneObject = node.SceneObjects[i];
+            var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
+            SceneObjectToStaticProp(sceneObject, layerIndex, layerNodes, isAggregate: false);
+        }
+
+        // TODO: Aggregates should be separated.
+        foreach (var aggregateSceneObject in node.AggregateSceneObjects)
+        {
+            var layerIndex = (int)aggregateSceneObject.GetIntegerProperty("m_nLayer");
+            SceneObjectToStaticProp(aggregateSceneObject, layerIndex, layerNodes, isAggregate: true);
         }
     }
 
