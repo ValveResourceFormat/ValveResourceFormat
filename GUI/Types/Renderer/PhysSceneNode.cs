@@ -316,7 +316,15 @@ namespace GUI.Types.Renderer
 
             var scenes = collisionAttributes.Select((attributes, i) =>
             {
-                var name = attributes.GetStringProperty("m_CollisionGroupString") + " " + string.Join(", ", attributes.GetArray<string>("m_InteractAsStrings"));
+                var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+                var group = attributes.GetStringProperty("m_CollisionGroupString");
+
+                var name = $"[{string.Join(", ", tags)}]";
+                if (group != null)
+                {
+                    name = $"{group} {name}";
+                }
+
                 var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
                 {
                     PhysGroupName = name,
