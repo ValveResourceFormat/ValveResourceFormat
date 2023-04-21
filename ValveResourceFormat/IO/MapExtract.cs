@@ -20,6 +20,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = new List<string>();
     private List<string> FilesForExtract { get; } = new List<string>();
+    private List<CMapGroup> EntityLumpGroups { get; } = new List<CMapGroup>();
     private CMapRootElement MapDocument { get; } = new();
 
     private readonly IFileLoader FileLoader;
@@ -204,6 +205,7 @@ public sealed class MapExtract
         if (destNode != MapDocument.World)
         {
             MapDocument.World.Children.Add(destNode);
+            EntityLumpGroups.Add((CMapGroup)destNode);
         }
 
         foreach (var childLumpName in entityLump.GetChildEntityNames())
@@ -246,6 +248,19 @@ public sealed class MapExtract
 
             var layer = new CMapWorldLayer { WorldLayerName = layerName };
             layerNodes.Add(layer);
+
+            var layerEntities = EntityLumpGroups.Find(x => x.Name == layerName);
+            if (layerEntities != null)
+            {
+                // Collapse grouped entities in this layer
+                foreach (var child in layerEntities.Children)
+                {
+                    layer.Children.Add(child);
+                }
+
+                MapDocument.World.Children.Remove(layerEntities);
+                EntityLumpGroups.Remove(layerEntities);
+            }
         }
 
         // Add any non-base world layer to the document
