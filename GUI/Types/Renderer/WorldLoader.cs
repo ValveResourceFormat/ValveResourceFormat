@@ -301,9 +301,25 @@ namespace GUI.Types.Renderer
                     modelNode.LoadAnimations();
                     modelNode.SetAnimation(animation);
 
-                    if (entity.GetProperty<bool>("holdanimation"))
+                    var holdAnimation = entity.GetProperty("holdanimation");
+                    if (holdAnimation != default)
                     {
-                        modelNode.AnimationController.PauseLastFrame();
+                        var holdAnimationOn = holdAnimation.Type switch
+                        {
+                            EntityFieldType.Boolean => (bool)holdAnimation.Data,
+                            EntityFieldType.CString => (string)holdAnimation.Data switch
+                            {
+                                "0" => false,
+                                "1" => true,
+                                _ => throw new NotImplementedException($"Unsupported holdanimation string value {holdAnimation.Data}"),
+                            },
+                            _ => throw new NotImplementedException($"Unsupported holdanimation type {holdAnimation.Type}"),
+                        };
+
+                        if (holdAnimationOn)
+                        {
+                            modelNode.AnimationController.PauseLastFrame();
+                        }
                     }
                 }
 
