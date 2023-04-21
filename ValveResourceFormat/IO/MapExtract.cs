@@ -20,7 +20,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = new List<string>();
     private List<string> FilesForExtract { get; } = new List<string>();
-    private List<CMapGroup> EntityLumpGroups { get; } = new List<CMapGroup>();
+    private List<CMapWorldLayer> WorldLayers { get; } = new();
     private CMapRootElement MapDocument { get; } = new();
 
     private readonly IFileLoader FileLoader;
@@ -169,21 +169,21 @@ public sealed class MapExtract
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
         datamodel.Root = MapDocument;
 
-        foreach (var entityLumpName in EntityLumpNames)
-        {
-            using var entityLumpResource = FileLoader.LoadFile(entityLumpName + "_c");
-            if (entityLumpResource is not null)
-            {
-                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
-            }
-        }
-
         foreach (var worldNodeName in WorldNodeNames)
         {
             using var worldNode = FileLoader.LoadFile(worldNodeName + ".vwnod_c");
             if (worldNode is not null)
             {
                 AddWorldNodesAsStaticProps((WorldNode)worldNode.DataBlock);
+            }
+        }
+
+        foreach (var entityLumpName in EntityLumpNames)
+        {
+            using var entityLumpResource = FileLoader.LoadFile(entityLumpName + "_c");
+            if (entityLumpResource is not null)
+            {
+                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
             }
         }
 
@@ -199,13 +199,14 @@ public sealed class MapExtract
 
         MapNode destNode = (string.IsNullOrEmpty(lumpName) || lumpName == "default_ents")
             ? MapDocument.World
-            : new CMapGroup { Name = lumpName };
+            : WorldLayers.Find(l => l.WorldLayerName == lumpName) is CMapWorldLayer worldLayer
+                ? worldLayer
+                : new CMapGroup { Name = lumpName };
 
         // If destination is a group, add it to the document
-        if (destNode != MapDocument.World)
+        if (destNode is CMapGroup)
         {
             MapDocument.World.Children.Add(destNode);
-            EntityLumpGroups.Add((CMapGroup)destNode);
         }
 
         foreach (var childLumpName in entityLump.GetChildEntityNames())
@@ -248,19 +249,7 @@ public sealed class MapExtract
 
             var layer = new CMapWorldLayer { WorldLayerName = layerName };
             layerNodes.Add(layer);
-
-            var layerEntities = EntityLumpGroups.Find(x => x.Name == layerName);
-            if (layerEntities != null)
-            {
-                // Collapse grouped entities in this layer
-                foreach (var child in layerEntities.Children)
-                {
-                    layer.Children.Add(child);
-                }
-
-                MapDocument.World.Children.Remove(layerEntities);
-                EntityLumpGroups.Remove(layerEntities);
-            }
+            WorldLayers.Add(layer);
         }
 
         // Add any non-base world layer to the document
@@ -330,9 +319,10 @@ public sealed class MapExtract
                 propStatic.EntityProperties["disableshadows"] = "1";
             }
 
+            var isEmbeddedModel = true;
             if ((objectFlags & ObjectTypeFlags.Model) != 0)
             {
-                // This is a proper model reference (non baked mesh)
+                isEmbeddedModel = false;
             }
 
             if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
@@ -340,13 +330,37 @@ public sealed class MapExtract
                 propStatic.EntityProperties["disablemeshmerging"] = "1";
             }
 
-            if (layerIndex > -1)
+            static void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
             {
-                layerNodes[layerIndex].Children.Add(propStatic);
-                return;
+                // Only group if there is a group name
+                if (!string.IsNullOrEmpty(groupName))
+                {
+                    if (!node.TryGetValue(groupName, out var group))
+                    {
+                        group = new CMapGroup { Name = groupName };
+                        node.Children.Add((CMapGroup)group);
+                        // An easy way to keep track of these groups is adding them to the kv
+                        // for later retrieval. Hammer ignores these properties.
+                        // Otherwise we would have to search the node each time.
+                        node[groupName] = group;
+                    }
+                    node = (CMapGroup)group;
+                }
+                node.Children.Add(child);
             }
 
-            MapDocument.World.Children.Add(propStatic);
+            MapNode destNode = MapDocument.World;
+            if (layerIndex > -1)
+            {
+                destNode = layerNodes[layerIndex];
+            }
+
+            // Only create a group on the base layer (don't want non-unique names)
+            var bakedGroup = isEmbeddedModel && destNode == MapDocument.World
+                ? "Baked World Models"
+                : null;
+
+            AddChildMaybeGrouped(destNode, propStatic, bakedGroup);
         }
 
         for (var i = 0; i < node.SceneObjects.Count; i++)
