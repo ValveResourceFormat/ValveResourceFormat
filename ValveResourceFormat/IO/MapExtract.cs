@@ -35,6 +35,7 @@ public sealed class MapExtract
         public static readonly uint Origin = StringToken.Get("origin");
         public static readonly uint Angles = StringToken.Get("angles");
         public static readonly uint Scales = StringToken.Get("scales");
+        public static readonly uint HammerUniqueId = StringToken.Get("hammeruniqueid");
     }
 
     /// <summary>
@@ -409,6 +410,11 @@ public sealed class MapExtract
             {
                 mapEntity.Scales = GetVector3Property(property);
                 continue;
+            }
+            else if (hash == CommonHashes.HammerUniqueId)
+            {
+                mapEntity.NodeID = int.Parse(PropertyToEditString(property).Split(':')[^1]);
+                //continue;
             }
 
             mapEntity.EntityProperties.Add(property.Name, PropertyToEditString(property));
