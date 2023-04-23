@@ -380,10 +380,6 @@ public sealed class MapExtract
 
             var mapEntity = new CMapEntity();
             var entityLineage = AddProperties(compiledEntity, mapEntity);
-
-            // TODO: destNode based on entity lineage
-            // [2, 1278, 4]
-
             if (entityLineage.Length > 1)
             {
                 foreach (var parentId in entityLineage[..^1])
@@ -431,6 +427,25 @@ public sealed class MapExtract
             mapEntity.EntityProperties.Add(property.Name, PropertyToEditString(property));
         }
 
+        if (compiledEntity.Connections != null)
+        {
+            foreach (var connection in compiledEntity.Connections)
+            {
+                var dmeConnection = new DmeConnectionData
+                {
+                    OutputName = connection.GetProperty<string>("m_outputName"),
+                    TargetType = connection.GetInt32Property("m_targetType"),
+                    TargetName = connection.GetProperty<string>("m_targetName"),
+                    InputName = connection.GetProperty<string>("m_inputName"),
+                    OverrideParam = connection.GetProperty<string>("m_overrideParam"),
+                    Delay = connection.GetFloatProperty("m_flDelay"),
+                    TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
+                };
+
+                mapEntity.ConnectionsData.Add(dmeConnection);
+            }
+        }
+
         return entityLineage;
     }
 
@@ -459,7 +474,7 @@ public sealed class MapExtract
             }
             catch (FormatException)
             {
-                // not essential, ignored
+                // not essential, ignore
             }
 
             if (lineage.Length > 0)
