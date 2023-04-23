@@ -53,14 +53,18 @@ public sealed class MaterialExtract
             Data = Encoding.UTF8.GetBytes(ToValveMaterial())
         };
 
+        var handledTextures = new List<string>(material.TextureParams.Count);
         foreach (var (type, filePath) in material.TextureParams)
         {
-            if (vmat.ExternalRefsHandled.ContainsKey(filePath + "_c"))
+            var textureCompiledName = filePath + "_c";
+            if (handledTextures.Contains(textureCompiledName))
             {
                 continue;
             }
 
-            var texture = fileLoader?.LoadFile(filePath + "_c");
+            handledTextures.Add(textureCompiledName);
+
+            var texture = fileLoader?.LoadFile(textureCompiledName);
             if (texture is null)
             {
                 continue;
@@ -69,7 +73,7 @@ public sealed class MaterialExtract
             var images = GetTextureUnpackInfos(type, filePath, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
-            vmat.ExternalRefsHandled.Add(filePath + "_c", vtex);
+            vmat.AdditionalFiles.Add(vtex);
         }
 
         return vmat;

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 
 namespace Tests
@@ -9,13 +10,19 @@ namespace Tests
     [TestFixture]
     public class MapExtractTest
     {
+        public class NullFileLoader : IFileLoader
+        {
+            public Resource LoadFile(string file) => null;
+            public ShaderCollection LoadShader(string shaderName) => null;
+        }
+
         [Test]
         public void TestMapExtractVmapInit()
         {
             using var vmapResource = new Resource();
             vmapResource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota.vmap_c"));
 
-            var exception = Assert.Throws<InvalidDataException>(() => new MapExtract(vmapResource, null));
+            var exception = Assert.Throws<InvalidDataException>(() => new MapExtract(vmapResource, new NullFileLoader()));
             Assert.That(exception.Message, Contains.Substring("filename does not match"));
             Assert.That(exception.Message, Contains.Substring("RERL-derived lump folder"));
 
@@ -30,11 +37,13 @@ namespace Tests
             var worldPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "world.vwrld_c");
             worldResource.Read(worldPath);
 
-            var extract = new MapExtract(worldResource, null);
+            var exception = Assert.Throws<ArgumentNullException>(() => new MapExtract(worldResource, null));
+            Assert.That(exception.Message, Contains.Substring("file loader must be provided to load the map's lumps"));
+
+            var extract = new MapExtract(worldResource, new NullFileLoader());
             Assert.AreEqual(extract.LumpFolder, Path.GetDirectoryName(worldPath));
 
-            var exception = Assert.Throws<InvalidOperationException>(() => extract.ToValveMap());
-            Assert.That(exception.Message, Contains.Substring("file loader must be provided to load the map's lumps"));
+            extract.ToValveMap();
 
             //var contentFile = extract.ToContentFile();
             //Assert.That(contentFile, Is.Not.Null);

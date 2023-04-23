@@ -13,23 +13,18 @@ namespace ValveResourceFormat.IO
     {
         public byte[] Data { get; set; }
 
+        public string OriginalFileName { get; set; }
+
         /// <summary>
         /// Additional files that make up this content file.
         /// </summary>
         public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
 
         /// <summary>
-        /// Game file references that should be extracted as-is, for cases where they might not be present
-        /// in the destination game dir but are required to form a valid content file. E.g. map models.
-        /// TODO: Maybe don't do this?
+        /// Additional extracted resources.
+        /// You will want to extract the files if data is non null, and their respective subfiles.
         /// </summary>
-        public List<string> RequiredGameFiles { get; init; } = new List<string>();
-
-        /// <summary>
-        /// External resource references handled by this extract.
-        /// You will want to extract the respective subfiles, and ignore further extracts on the filenames.
-        /// </summary>
-        public Dictionary<string, ContentFile> ExternalRefsHandled { get; init; } = new();
+        public List<ContentFile> AdditionalFiles { get; init; } = new();
 
         protected bool Disposed { get; private set; }
 
@@ -48,7 +43,7 @@ namespace ValveResourceFormat.IO
         {
             if (!Disposed && disposing)
             {
-                foreach (var externalRef in ExternalRefsHandled.Values)
+                foreach (var externalRef in AdditionalFiles)
                 {
                     externalRef.Dispose();
                 }
