@@ -8,6 +8,7 @@ using System;
 using System.Text;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Blocks;
+using System.Globalization;
 
 namespace ValveResourceFormat.IO;
 
@@ -18,10 +19,11 @@ public sealed class MapExtract
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
 
-    private List<string> AssetReferences { get; } = new List<string>();
-    private List<string> FilesForExtract { get; } = new List<string>();
-    private List<CMapWorldLayer> WorldLayers { get; } = new();
-    private CMapRootElement MapDocument { get; } = new();
+    private List<string> AssetReferences { get; } = new();
+    private List<string> FilesForExtract { get; } = new();
+    private List<CMapWorldLayer> WorldLayers { get; set; }
+    private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
+    private CMapRootElement MapDocument { get; set; }
 
     private readonly IFileLoader FileLoader;
 
@@ -168,7 +170,10 @@ public sealed class MapExtract
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
-        datamodel.Root = MapDocument;
+        datamodel.Root = MapDocument = new();
+
+        WorldLayers = new();
+        UniqueNodeIds = new();
 
         foreach (var worldNodeName in WorldNodeNames)
         {
@@ -192,49 +197,6 @@ public sealed class MapExtract
         datamodel.Save(stream, "keyvalues2", 4);
 
         return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private void GatherEntitiesFromLump(EntityLump entityLump)
-    {
-        var lumpName = entityLump.Data.GetStringProperty("m_name");
-
-        MapNode destNode = (string.IsNullOrEmpty(lumpName) || lumpName == "default_ents")
-            ? MapDocument.World
-            : WorldLayers.Find(l => l.WorldLayerName == lumpName) is CMapWorldLayer worldLayer
-                ? worldLayer
-                : new CMapGroup { Name = lumpName };
-
-        // If destination is a group, add it to the document
-        if (destNode is CMapGroup)
-        {
-            MapDocument.World.Children.Add(destNode);
-        }
-
-        foreach (var childLumpName in entityLump.GetChildEntityNames())
-        {
-            using var entityLumpResource = FileLoader.LoadFile(childLumpName + "_c");
-            if (entityLumpResource is not null)
-            {
-                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
-            }
-        }
-
-        foreach (var compiledEntity in entityLump.GetEntities())
-        {
-            FixUpEntityKeyValues(compiledEntity);
-
-            if (compiledEntity.GetProperty<string>(CommonHashes.ClassName) == "worldspawn")
-            {
-                AddProperties(MapDocument.World, compiledEntity);
-                MapDocument.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
-                continue;
-            }
-
-            var mapEntity = new CMapEntity();
-            AddProperties(mapEntity, compiledEntity);
-
-            destNode.Children.Add(mapEntity);
-        }
     }
 
     private void AddWorldNodesAsStaticProps(WorldNode node)
@@ -379,6 +341,70 @@ public sealed class MapExtract
         }
     }
 
+    #region Entities
+    private void GatherEntitiesFromLump(EntityLump entityLump)
+    {
+        var lumpName = entityLump.Data.GetStringProperty("m_name");
+
+        MapNode destNode = (string.IsNullOrEmpty(lumpName) || lumpName == "default_ents")
+            ? MapDocument.World
+            : WorldLayers.Find(l => l.WorldLayerName == lumpName) is CMapWorldLayer worldLayer
+                ? worldLayer
+                : new CMapGroup { Name = lumpName };
+
+        // If destination is a group, add it to the document
+        if (destNode is CMapGroup)
+        {
+            MapDocument.World.Children.Add(destNode);
+        }
+
+        foreach (var childLumpName in entityLump.GetChildEntityNames())
+        {
+            using var entityLumpResource = FileLoader.LoadFile(childLumpName + "_c");
+            if (entityLumpResource is not null)
+            {
+                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
+            }
+        }
+
+        foreach (var compiledEntity in entityLump.GetEntities())
+        {
+            FixUpEntityKeyValues(compiledEntity);
+
+            if (compiledEntity.GetProperty<string>(CommonHashes.ClassName) == "worldspawn")
+            {
+                AddProperties(compiledEntity, MapDocument.World);
+                MapDocument.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
+                continue;
+            }
+
+            var mapEntity = new CMapEntity();
+            var entityLineage = AddProperties(compiledEntity, mapEntity);
+
+            // TODO: destNode based on entity lineage
+            // [2, 1278, 4]
+
+            if (entityLineage.Length > 1)
+            {
+                foreach (var parentId in entityLineage[..^1])
+                {
+                    if (UniqueNodeIds.TryGetValue(parentId, out var existingNode))
+                    {
+                        destNode = existingNode;
+                        continue;
+                    }
+
+                    var newDestNode = new CMapGroup { NodeID = parentId, Name = parentId.ToString(CultureInfo.InvariantCulture) };
+                    UniqueNodeIds.Add(parentId, newDestNode);
+                    destNode.Children.Add(newDestNode);
+                    destNode = newDestNode;
+                }
+            }
+
+            destNode.Children.Add(mapEntity);
+        }
+    }
+
     private void FixUpEntityKeyValues(EntityLump.Entity entity)
     {
         foreach (var (hash, property) in entity.Properties)
@@ -387,38 +413,64 @@ public sealed class MapExtract
         }
     }
 
-    private static void AddProperties(BaseEntity mapEntity, EntityLump.Entity entity)
+    private static int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
-        foreach (var (hash, property) in entity.Properties)
+        var entityLineage = Array.Empty<int>();
+        foreach (var (hash, property) in compiledEntity.Properties)
         {
             if (property.Name is null)
             {
                 continue;
             }
 
-            if (hash == CommonHashes.Origin)
+            if (TryHandleSpecialHash(hash, property, mapEntity, ref entityLineage))
             {
-                mapEntity.Origin = GetVector3Property(property);
                 continue;
-            }
-            else if (hash == CommonHashes.Angles)
-            {
-                mapEntity.Angles = GetVector3Property(property);
-                continue;
-            }
-            else if (hash == CommonHashes.Scales)
-            {
-                mapEntity.Scales = GetVector3Property(property);
-                continue;
-            }
-            else if (hash == CommonHashes.HammerUniqueId)
-            {
-                mapEntity.NodeID = int.Parse(PropertyToEditString(property).Split(':')[^1]);
-                //continue;
             }
 
             mapEntity.EntityProperties.Add(property.Name, PropertyToEditString(property));
         }
+
+        return entityLineage;
+    }
+
+    private static bool TryHandleSpecialHash(uint hash, EntityLump.EntityProperty property, BaseEntity mapEntity, ref int[] lineage)
+    {
+        if (hash == CommonHashes.Origin)
+        {
+            mapEntity.Origin = GetVector3Property(property);
+            return true;
+        }
+        else if (hash == CommonHashes.Angles)
+        {
+            mapEntity.Angles = GetVector3Property(property);
+            return true;
+        }
+        else if (hash == CommonHashes.Scales)
+        {
+            mapEntity.Scales = GetVector3Property(property);
+            return true;
+        }
+        else if (hash == CommonHashes.HammerUniqueId)
+        {
+            try
+            {
+                lineage = Array.ConvertAll(PropertyToEditString(property).Split(':'), int.Parse);
+            }
+            catch (FormatException)
+            {
+                // not essential, ignored
+            }
+
+            if (lineage.Length > 0)
+            {
+                mapEntity.NodeID = lineage[^1];
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static Vector3 GetVector3Property(EntityLump.EntityProperty property)
@@ -444,4 +496,5 @@ public sealed class MapExtract
             _ => data.ToString()
         };
     }
+    #endregion Entities
 }
