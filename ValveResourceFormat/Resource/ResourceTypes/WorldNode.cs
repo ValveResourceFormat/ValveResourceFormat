@@ -25,6 +25,11 @@ namespace ValveResourceFormat.ResourceTypes
                 ? Data.GetArray("m_aggregateSceneObjects")
                 : Array.Empty<IKeyValueCollection>();
 
+        public IReadOnlyList<IKeyValueCollection> ClutterSceneObjects
+            => Data.ContainsKey("m_clutterSceneObjects")
+                ? Data.GetArray("m_clutterSceneObjects")
+                : Array.Empty<IKeyValueCollection>();
+
         public IReadOnlyList<string> LayerNames
             => Data.ContainsKey("m_layerNames")
                 ? Data.GetArray<string>("m_layerNames")

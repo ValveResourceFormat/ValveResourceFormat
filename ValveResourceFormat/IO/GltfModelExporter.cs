@@ -1522,12 +1522,12 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
-        private static float[] ReadAttributeBuffer(OnDiskBufferData buffer, RenderInputLayoutField attribute)
+        public static float[] ReadAttributeBuffer(OnDiskBufferData buffer, RenderInputLayoutField attribute)
             => Enumerable.Range(0, (int)buffer.ElementCount)
                 .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
                 .ToArray();
 
-        private static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
+        public static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
         {
             var indices = new int[count];
 
@@ -1552,7 +1552,7 @@ namespace ValveResourceFormat.IO
             return indices;
         }
 
-        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
+        public static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
         {
             var normals = new Vector3[compressedNormalsTangents.Length];
             var tangents = new Vector4[compressedNormalsTangents.Length];
@@ -1616,7 +1616,7 @@ namespace ValveResourceFormat.IO
             return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
         }
 
-        private static Vector3[] ToVector3Array(float[] buffer)
+        public static Vector3[] ToVector3Array(float[] buffer)
         {
             var vectorArray = new Vector3[buffer.Length / 3];
 
@@ -1628,7 +1628,7 @@ namespace ValveResourceFormat.IO
             return vectorArray;
         }
 
-        private static Vector2[] ToVector2Array(float[] buffer)
+        public static Vector2[] ToVector2Array(float[] buffer)
         {
             var vectorArray = new Vector2[buffer.Length / 2];
 
@@ -1640,7 +1640,7 @@ namespace ValveResourceFormat.IO
             return vectorArray;
         }
 
-        private static Vector4[] ToVector4Array(float[] buffer)
+        public static Vector4[] ToVector4Array(float[] buffer)
         {
             var vectorArray = new Vector4[buffer.Length / 4];
 

@@ -1,6 +1,6 @@
 using System.IO;
 using System.Collections.Generic;
-using ValveResourceFormat.IO.Formats.ValveMap;
+using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.Utils;
 using ValveResourceFormat.ResourceTypes;
 using System.Numerics;
@@ -9,6 +9,7 @@ using System.Text;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Blocks;
 using System.Globalization;
+using System.Linq;
 
 namespace ValveResourceFormat.IO;
 
@@ -18,9 +19,12 @@ public sealed class MapExtract
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
+    private PhysAggregateData WorldPhysics { get; set; }
 
     private List<string> AssetReferences { get; } = new();
-    private List<string> FilesForExtract { get; } = new();
+    private List<string> ModelsToExtract { get; } = new();
+    private List<string> HandledResources { get; } = new();
+
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
     private CMapRootElement MapDocument { get; set; }
@@ -45,7 +49,7 @@ public sealed class MapExtract
     /// </summary>
     public MapExtract(Resource resource, IFileLoader fileLoader)
     {
-        FileLoader = fileLoader;
+        FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
 
         switch (resource.ResourceType)
         {
@@ -105,12 +109,13 @@ public sealed class MapExtract
         {
             throw new InvalidDataException(
                 "vmap_c filename does not match or have the RERL-derived lump folder as a subpath. " +
-                "Make sure to load the resource from the correct location.\n" +
+                "Make sure to load the resource from the correct location inside vpk.\n" +
                 $"\tLump folder: {LumpFolder}\n\tResource filename: {vmapResource.FileName}"
             );
         }
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
+        HandledResources.Add(worldPath);
         using var worldResource = FileLoader.LoadFile(worldPath);
 
         if (worldResource == null)
@@ -146,6 +151,10 @@ public sealed class MapExtract
         var world = (World)vworld.DataBlock;
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
+
+        var physicsPath = Path.Combine(LumpFolder, "world_physics.vphys_c");
+        using var physResource = FileLoader.LoadFile(physicsPath);
+        WorldPhysics = (PhysAggregateData)physResource?.DataBlock;
     }
 
     public ContentFile ToContentFile()
@@ -155,18 +164,25 @@ public sealed class MapExtract
             Data = Encoding.UTF8.GetBytes(ToValveMap()),
         };
 
-        vmap.RequiredGameFiles.AddRange(FilesForExtract);
+        foreach (var modelName in ModelsToExtract)
+        {
+            var model = FileLoader.LoadFile(modelName + "_c");
+            if (model is not null)
+            {
+                var vmdl = new ModelExtract((Model)model.DataBlock, FileLoader).ToBakedMapModel();
+                vmdl.OriginalFileName = modelName + "_c";
+                vmap.AdditionalFiles.Add(vmdl);
+            }
+        }
+
+        // Add these files so they can be filtered out in folder extract
+        vmap.AdditionalFiles.AddRange(HandledResources.Select(r => new ContentFile { OriginalFileName = r }));
 
         return vmap;
     }
 
     public string ToValveMap()
     {
-        if (FileLoader is null)
-        {
-            throw new InvalidOperationException("A file loader must be provided to load the map's lumps.");
-        }
-
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
@@ -175,9 +191,17 @@ public sealed class MapExtract
         WorldLayers = new();
         UniqueNodeIds = new();
 
+        if (WorldPhysics is not null)
+        {
+            PhyiscsToMapMesh(WorldPhysics);
+        }
+
         foreach (var worldNodeName in WorldNodeNames)
         {
-            using var worldNode = FileLoader.LoadFile(worldNodeName + ".vwnod_c");
+            var worldNodeCompiled = worldNodeName + ".vwnod_c";
+            HandledResources.Add(worldNodeCompiled);
+
+            using var worldNode = FileLoader.LoadFile(worldNodeCompiled);
             if (worldNode is not null)
             {
                 AddWorldNodesAsStaticProps((WorldNode)worldNode.DataBlock);
@@ -186,7 +210,10 @@ public sealed class MapExtract
 
         foreach (var entityLumpName in EntityLumpNames)
         {
-            using var entityLumpResource = FileLoader.LoadFile(entityLumpName + "_c");
+            var entityLumpCompiled = entityLumpName + "_c";
+            HandledResources.Add(entityLumpCompiled);
+
+            using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
             if (entityLumpResource is not null)
             {
                 GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
@@ -197,6 +224,49 @@ public sealed class MapExtract
         datamodel.Save(stream, "keyvalues2", 4);
 
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void PhyiscsToMapMesh(PhysAggregateData physData)
+    {
+        if (physData.Parts.Length == 0)
+        {
+            return;
+        }
+
+        var physMeshes = physData.Parts[0].Shape.Meshes;
+        var collisionAttributes = physData.CollisionAttributes;
+
+        foreach (var mesh in physMeshes)
+        {
+            var attributes = collisionAttributes[mesh.CollisionAttributeIndex];
+            var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+
+            if (!tags.Contains("sky"))
+            {
+                continue;
+            }
+
+            /*
+            foreach (var tri in mesh.Shape.Triangles)
+            {
+                // TODO: Add the vertex stream as is, when mesh builder supports edge joining
+                builder.AddTriangle("materials/tools/toolsskybox.vmat",
+                    mesh.Shape.Vertices[tri.Indices[0]],
+                    mesh.Shape.Vertices[tri.Indices[1]],
+                    mesh.Shape.Vertices[tri.Indices[2]]
+                );
+            }
+
+            var skyboxMesh = new CMapMesh
+            {
+                Name = "toolsskybox mesh",
+                Origin = (mesh.Shape.Min + mesh.Shape.Max) / 2,
+                MeshData = builder.GenerateMesh(),
+            };
+
+            MapDocument.World.Children.Add(skyboxMesh);
+            */
+        }
     }
 
     private void AddWorldNodesAsStaticProps(WorldNode node)
@@ -229,11 +299,6 @@ public sealed class MapExtract
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
-            if (isAggregate)
-            {
-                return;
-            }
-
             var objectFlags = ObjectTypeFlags.None;
             try
             {
@@ -249,6 +314,8 @@ public sealed class MapExtract
                 // TODO: Generate model for mesh
                 return;
             }
+
+            AssetReferences.Add(modelName);
 
             var propStatic = new CMapEntity();
             propStatic.EntityProperties["classname"] = "prop_static";
@@ -272,20 +339,15 @@ public sealed class MapExtract
                 }
             }
 
-            if ((objectFlags & ObjectTypeFlags.RenderToCubemaps) != 0)
-            {
-                propStatic.EntityProperties["rendertocubemaps"] = "1";
-            }
+            propStatic.EntityProperties["rendertocubemaps"] = objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps) ? "1" : "0";
+            propStatic.EntityProperties["disableshadows"] = objectFlags.HasFlag(ObjectTypeFlags.NoShadows) ? "1" : "0";
 
-            if ((objectFlags & ObjectTypeFlags.NoShadows) != 0)
+            var isEmbeddedModel = false;
+            if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
             {
-                propStatic.EntityProperties["disableshadows"] = "1";
-            }
-
-            var isEmbeddedModel = true;
-            if ((objectFlags & ObjectTypeFlags.Model) != 0)
-            {
-                isEmbeddedModel = false;
+                isEmbeddedModel = true;
+                propStatic.EntityProperties["baketoworld"] = "1";
+                ModelsToExtract.Add(modelName);
             }
 
             if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
@@ -412,7 +474,7 @@ public sealed class MapExtract
     private static int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (hash, property) in compiledEntity.Properties)
+        foreach (var (hash, property) in compiledEntity.Properties.Reverse())
         {
             if (property.Name is null)
             {
