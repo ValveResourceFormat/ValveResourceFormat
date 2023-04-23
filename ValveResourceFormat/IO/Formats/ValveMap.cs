@@ -170,3 +170,154 @@ internal class CMapWorldLayer : CMapGroup
 {
     public string WorldLayerName { get; set; } = string.Empty;
 }
+
+[CamelCaseProperties]
+internal class CMapMesh : MapNode
+{
+    public string CubeMapName { get; set; } = string.Empty;
+    public string LightGroup { get; set; } = string.Empty;
+    [DMAttributeName("visexclude")]
+    public bool VisExclude { get; set; }
+    [DMAttributeName("renderwithdynamic")]
+    public bool RenderWithDynamic { get; set; }
+    public bool DisableHeightDisplacement { get; set; }
+    [DMAttributeName("fademindist")]
+    public float FadeMinDist { get; set; } = -1;
+    [DMAttributeName("fademaxdist")]
+    public float FadeMaxDist { get; set; }
+    [DMAttributeName("bakelighting")]
+    public bool BakeLighting { get; set; }
+    [DMAttributeName("precomputelightprobes")]
+    public bool PrecomputeLightProbes { get; set; } = true;
+    public bool RenderToCubemaps { get; set; } = true;
+    public bool DisableShadows { get; set; }
+    public float SmoothingAngle { get; set; } = 40f;
+    public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
+    [DMAttributeName("renderAmt")]
+    public int RenderAmount { get; set; } = 255;
+    public string PhysicsType { get; set; } = "default";
+    public string PhysicsGroup { get; set; } = string.Empty;
+    public string PhysicsInteractsAs { get; set; } = string.Empty;
+    public string PhysicsInteractWsith { get; set; } = string.Empty;
+    public string PhysicsInteractsExclude { get; set; } = string.Empty;
+    public CDmePolygonMesh MeshData { get; set; } = new CDmePolygonMesh();
+    public bool UseAsOccluder { get; set; }
+    public bool PhysicsSimplificationOverride { get; set; }
+    public float PhysicsSimplificationError { get; set; }
+}
+
+[CamelCaseProperties]
+internal class CDmePolygonMesh : MapNode
+{
+    /// <summary>
+    /// Index to one of the edges stemming from this vertex.
+    /// </summary>
+    public Datamodel.IntArray VertexEdgeIndices { get; } = new();
+
+    /// <summary>
+    /// Index to the <see cref="VertexData"/> streams.
+    /// </summary>
+    public Datamodel.IntArray VertexDataIndices { get; } = new();
+
+    /// <summary>
+    /// The origin (or destination, I'm not sure) vertex of this edge.
+    /// </summary>
+    public Datamodel.IntArray EdgeVertexIndices { get; } = new();
+
+    /// <summary>
+    /// Index to the opposite/twin edge.
+    /// </summary>
+    public Datamodel.IntArray EdgeOppositeIndices { get; } = new();
+
+    /// <summary>
+    /// Index to the next edge in the loop, in counter-clockwise order.
+    /// </summary>
+    public Datamodel.IntArray EdgeNextIndices { get; } = new();
+
+    /// <summary>
+    /// Per half-edge index to the adjacent face. -1 if void (open edge).
+    /// </summary>
+    public Datamodel.IntArray EdgeFaceIndices { get; } = new();
+
+    /// <summary>
+    /// Per half-edge index to the <see cref="EdgeData"/> streams.
+    /// </summary>
+    public Datamodel.IntArray EdgeDataIndices { get; } = new();
+
+    /// <summary>
+    /// Per half-edge index to the <see cref="FaceVertexData"/> streams.
+    /// </summary>
+    public Datamodel.IntArray EdgeVertexDataIndices { get; } = new();
+
+    /// <summary>
+    /// Per face index to one of the *inner* edges encapsulating this face.
+    /// </summary>
+    public Datamodel.IntArray FaceEdgeIndices { get; } = new();
+
+    /// <summary>
+    /// Per face index to the <see cref="FaceData"/> streams.
+    /// </summary>
+    public Datamodel.IntArray FaceDataIndices { get; } = new();
+
+    /// <summary>
+    /// List of material names. Indexed by the 'meshindex' <see cref="FaceData"/> stream.
+    /// </summary>
+    public Datamodel.StringArray Materials { get; } = new();
+
+    /// <summary>
+    /// Stores vertex positions.
+    /// </summary>
+    public CDmePolygonMeshDataArray VertexData { get; } = new();
+
+    /// <summary>
+    /// Stores vertex uv, normal, tangent, etc. Two per vertex (for each half?).
+    /// </summary>
+    public CDmePolygonMeshDataArray FaceVertexData { get; } = new();
+
+    /// <summary>
+    /// Stores edge data such as soft or hard normals.
+    /// </summary>
+    public CDmePolygonMeshDataArray EdgeData { get; } = new();
+
+    /// <summary>
+    /// Stores face data such as texture scale, UV offset, material, lightmap bias.
+    /// </summary>
+    public CDmePolygonMeshDataArray FaceData { get; } = new();
+
+    public CDmePolygonMeshSubdivisionData SubdivisionData { get; } = new();
+}
+
+[CamelCaseProperties]
+internal class CDmePolygonMeshDataArray : DMElement
+{
+    public int Size { get; set; }
+    /// <summary>
+    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
+    /// </summary>
+    public Datamodel.ElementArray Streams { get; } = new();
+}
+
+[CamelCaseProperties]
+internal class CDmePolygonMeshSubdivisionData : DMElement
+{
+    public Datamodel.IntArray SubdivisionLevels { get; set; } = new();
+    /// <summary>
+    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
+    /// </summary>
+    public Datamodel.ElementArray Streams { get; } = new();
+}
+
+[CamelCaseProperties]
+internal class CDmePolygonMeshDataStream<T> : DMElement
+{
+    public string StandardAttributeName { get; set; } = string.Empty;
+    public string SemanticName { get; set; } = string.Empty;
+    public int SemanticIndex { get; set; }
+    public int VertexBufferLocation { get; set; }
+    public int DataStateFlags { get; set; }
+    public DMElement SubdivisionBinding { get; set; }
+    /// <summary>
+    /// An int, vector2, vector3, or vector4 array.
+    /// </summary>
+    public Datamodel.Array<T> Data { get; set; }
+}

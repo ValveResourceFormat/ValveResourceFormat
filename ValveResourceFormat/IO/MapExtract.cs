@@ -9,6 +9,7 @@ using System.Text;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Blocks;
 using System.Globalization;
+using System.Linq;
 
 namespace ValveResourceFormat.IO;
 
@@ -18,9 +19,11 @@ public sealed class MapExtract
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
+    private PhysAggregateData WorldPhysics { get; set; }
 
     private List<string> AssetReferences { get; } = new();
     private List<string> FilesForExtract { get; } = new();
+
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
     private CMapRootElement MapDocument { get; set; }
@@ -45,7 +48,7 @@ public sealed class MapExtract
     /// </summary>
     public MapExtract(Resource resource, IFileLoader fileLoader)
     {
-        FileLoader = fileLoader;
+        FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
 
         switch (resource.ResourceType)
         {
@@ -105,7 +108,7 @@ public sealed class MapExtract
         {
             throw new InvalidDataException(
                 "vmap_c filename does not match or have the RERL-derived lump folder as a subpath. " +
-                "Make sure to load the resource from the correct location.\n" +
+                "Make sure to load the resource from the correct location inside vpk.\n" +
                 $"\tLump folder: {LumpFolder}\n\tResource filename: {vmapResource.FileName}"
             );
         }
@@ -146,6 +149,10 @@ public sealed class MapExtract
         var world = (World)vworld.DataBlock;
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
+
+        var physicsPath = Path.Combine(LumpFolder, "world_physics.vphys_c");
+        using var physResource = FileLoader.LoadFile(physicsPath);
+        WorldPhysics = (PhysAggregateData)physResource?.DataBlock;
     }
 
     public ContentFile ToContentFile()
@@ -162,11 +169,6 @@ public sealed class MapExtract
 
     public string ToValveMap()
     {
-        if (FileLoader is null)
-        {
-            throw new InvalidOperationException("A file loader must be provided to load the map's lumps.");
-        }
-
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
@@ -174,6 +176,11 @@ public sealed class MapExtract
 
         WorldLayers = new();
         UniqueNodeIds = new();
+
+        if (WorldPhysics is not null)
+        {
+            PhyiscsToMapMesh(WorldPhysics);
+        }
 
         foreach (var worldNodeName in WorldNodeNames)
         {
@@ -197,6 +204,52 @@ public sealed class MapExtract
         datamodel.Save(stream, "keyvalues2", 4);
 
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private void PhyiscsToMapMesh(PhysAggregateData physData)
+    {
+        if (physData.Parts.Length == 0)
+        {
+            return;
+        }
+
+        var physMeshes = physData.Parts[0].Shape.Meshes;
+        var collisionAttributes = physData.CollisionAttributes;
+
+        foreach (var mesh in physMeshes)
+        {
+            var attributes = collisionAttributes[mesh.CollisionAttributeIndex];
+            var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+
+            if (!tags.Contains("sky"))
+            {
+                continue;
+            }
+
+            var skyboxGroup = new CMapGroup { Name = "toolsskybox mesh" };
+
+            // A skybox mesh
+            foreach (var tri in mesh.Shape.Triangles)
+            {
+                var builder = new HammerMeshBuilder();
+
+                builder.AddFace("materials/tools/toolsskybox.vmat", new Vector3[]
+                {
+                    mesh.Shape.Vertices[tri.Indices[0]],
+                    mesh.Shape.Vertices[tri.Indices[1]],
+                    mesh.Shape.Vertices[tri.Indices[2]],
+                });
+
+                // One triangle per mesh for now, since we don't have a way to join edges
+                var mapMesh = builder.GenerateMesh();
+                skyboxGroup.Children.Add(new CMapMesh { MeshData = mapMesh });
+            }
+
+            if (skyboxGroup.Children.Count > 0)
+            {
+                MapDocument.World.Children.Add(skyboxGroup);
+            }
+        }
     }
 
     private void AddWorldNodesAsStaticProps(WorldNode node)
