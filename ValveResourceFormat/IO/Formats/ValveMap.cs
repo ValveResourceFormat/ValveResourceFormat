@@ -93,6 +93,18 @@ internal class DmePlugList : DMElement
     public Datamodel.StringArray Descriptions { get; } = new();
 }
 
+[CamelCaseProperties]
+internal class DmeConnectionData : DMElement
+{
+    public string OutputName { get; set; } = string.Empty;
+    public int TargetType { get; set; }
+    public string TargetName { get; set; } = string.Empty;
+    public string InputName { get; set; } = string.Empty;
+    public string OverrideParam { get; set; } = string.Empty;
+    public float Delay { get; set; }
+    public int TimesToFire { get; set; } = -1;
+}
+
 /// <summary>
 ///  A string->string dictionary. This stores entity KeyValues.
 /// </summary>
