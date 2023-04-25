@@ -6,6 +6,8 @@ using System.Numerics;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.Serialization
 {
@@ -72,6 +74,9 @@ namespace ValveResourceFormat.Serialization
         public static float GetFloatProperty(this IKeyValueCollection collection, string name)
             => (float)GetDoubleProperty(collection, name);
 
+        public static byte GetByteProperty(this IKeyValueCollection collection, string name)
+            => Convert.ToByte(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
+
         public static long[] GetIntegerArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<object>(name)
                 .Select(x => Convert.ToInt64(x, CultureInfo.InvariantCulture))
@@ -89,6 +94,9 @@ namespace ValveResourceFormat.Serialization
 
         public static IKeyValueCollection[] GetArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<IKeyValueCollection>(name);
+
+        public static bool IsNotBlobType(this IKeyValueCollection collection, string key)
+            => collection is NTROStruct || ((KVObject)collection).Properties[key].Type == KVType.ARRAY;
 
         public static Vector3 ToVector3(this IKeyValueCollection collection) => new(
             collection.GetFloatProperty("0"),
