@@ -54,7 +54,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>
             /// Index of first edge in CCW circular list around face
             /// </summary>
-            public HalfEdge Edge { get; set; }
+            public byte Edge { get; set; }
+
+            public Face(IKeyValueCollection data)
+            {
+                Edge = data.GetByteProperty("m_nEdge");
+            }
         }
 
         public Vector3 Centroid { get; set; }
@@ -115,15 +120,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 var verticesArr = data.GetArray("m_Vertices");
                 return verticesArr.Select(v => v.ToVector3()).ToArray();
             }
-            else
-            {
-                var verticesBlob = data.GetArray<byte>("m_Vertices");
-                return Enumerable.Range(0, verticesBlob.Length / 12)
-                    .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
-                        BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
-                        BitConverter.ToSingle(verticesBlob, (i * 12) + 8)))
-                    .ToArray();
-            }
+
+            var verticesBlob = data.GetArray<byte>("m_Vertices");
+            return Enumerable.Range(0, verticesBlob.Length / 12)
+                .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
+                    BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
+                    BitConverter.ToSingle(verticesBlob, (i * 12) + 8)))
+                .ToArray();
         }
 
         private static HalfEdge[] ParseEdges(IKeyValueCollection data)
@@ -133,13 +136,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 var edgesArr = data.GetArray("m_Edges");
                 return edgesArr.Select(e => new HalfEdge(e)).ToArray();
             }
-            else
-            {
-                var edgesBlob = data.GetArray<byte>("m_Edges");
-                return Enumerable.Range(0, edgesBlob.Length / 4)
-                    .Select(i => new HalfEdge(edgesBlob.AsSpan(i * 4, 4)))
-                    .ToArray();
-            }
+
+            var edgesBlob = data.GetArray<byte>("m_Edges");
+            return Enumerable.Range(0, edgesBlob.Length / 4)
+                .Select(i => new HalfEdge(edgesBlob.AsSpan(i * 4, 4)))
+                .ToArray();
         }
     }
 }

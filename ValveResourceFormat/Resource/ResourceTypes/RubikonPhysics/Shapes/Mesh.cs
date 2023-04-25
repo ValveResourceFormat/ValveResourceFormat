@@ -8,13 +8,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
     public struct Mesh
     {
+        public enum NodeType
+        {
+            SplitX = 0,
+            SplitY = 1,
+            SplitZ = 2,
+            Leaf = 3,
+        }
+
         public struct Node
         {
             public Vector3 Min { get; set; }
             public Vector3 Max { get; set; }
 
             /// <summary>
-            /// The 2nd child offset and the node type/split axis
+            /// The 2nd child offset and the node type/split axis.
+            /// Type is stored in the first 2 MSBs.
             /// </summary>
             public uint Children { get; set; }
 
@@ -23,20 +32,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public uint TriangleOffset { get; set; }
 
+            public Node(IKeyValueCollection data)
+            {
+                Min = data.GetSubCollection("m_vMin").ToVector3();
+                Max = data.GetSubCollection("m_vMax").ToVector3();
+                Children = data.GetUInt32Property("m_nChildren");
+                TriangleOffset = data.GetUInt32Property("m_nTriangleOffset");
+            }
+
             public Node(ReadOnlySpan<byte> data)
             {
-                // TODO: This isn't correct
                 Min = new Vector3(
                     BitConverter.ToSingle(data[..4]),
                     BitConverter.ToSingle(data.Slice(4, 4)),
                     BitConverter.ToSingle(data.Slice(8, 4))
                 );
+
+                Children = BitConverter.ToUInt32(data.Slice(12, 4));
+
                 Max = new Vector3(
-                    BitConverter.ToSingle(data.Slice(12, 4)),
                     BitConverter.ToSingle(data.Slice(16, 4)),
-                    BitConverter.ToSingle(data.Slice(20, 4))
+                    BitConverter.ToSingle(data.Slice(20, 4)),
+                    BitConverter.ToSingle(data.Slice(24, 4))
                 );
-                Children = BitConverter.ToUInt32(data.Slice(24, 4));
+
                 TriangleOffset = BitConverter.ToUInt32(data.Slice(28, 4));
             }
         }
@@ -99,6 +118,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 
         private static Node[] ParseNodes(IKeyValueCollection data)
         {
+            if (data.IsNotBlobType("m_Nodes"))
+            {
+                var nodesArr = data.GetArray("m_Nodes");
+                return nodesArr.Select(n => new Node(n)).ToArray();
+            }
+
             var nodesBlob = data.GetArray<byte>("m_Nodes");
             return Enumerable.Range(0, nodesBlob.Length / 32)
                 .Select(i => new Node(nodesBlob.AsSpan(i * 32, 32)))
@@ -107,6 +132,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 
         private static Triangle[] ParseTriangles(IKeyValueCollection data)
         {
+            if (data.IsNotBlobType("m_Triangles"))
+            {
+                var trianglesArr = data.GetArray("m_Triangles");
+                return trianglesArr.Select(t => new Triangle(t)).ToArray();
+            }
+
             var trianglesBlob = data.GetArray<byte>("m_Triangles");
             return Enumerable.Range(0, trianglesBlob.Length / 12)
                 .Select(i => new Triangle(trianglesBlob.AsSpan(i * 12, 12)))
