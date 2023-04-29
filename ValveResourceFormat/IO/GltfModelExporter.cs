@@ -56,6 +56,7 @@ namespace ValveResourceFormat.IO
         private string DstDir;
         private CancellationToken CancellationToken;
         private List<Task> MaterialGenerationTasks = new();
+        private bool IsExporting;
 
         // In SatelliteImages mode, SharpGLTF will still load and validate images.
         // To save memory, we initiate MemoryImage with a a dummy image instead.
@@ -96,9 +97,15 @@ namespace ValveResourceFormat.IO
         {
             if (FileLoader == null)
             {
-                throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
+                throw new InvalidOperationException($"{nameof(FileLoader)} must be set first.");
             }
 
+            if (IsExporting)
+            {
+                throw new InvalidOperationException($"{nameof(GltfModelExporter)} does not support multi threaded exporting, do not call Export while another export is in progress.");
+            }
+
+            IsExporting = true;
             CancellationToken = cancellationToken;
             DstDir = Path.GetDirectoryName(targetPath);
 
@@ -125,6 +132,7 @@ namespace ValveResourceFormat.IO
             finally
             {
                 MaterialGenerationTasks.Clear();
+                IsExporting = false;
             }
         }
 
