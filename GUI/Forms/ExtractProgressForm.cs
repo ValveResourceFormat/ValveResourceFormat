@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,6 +25,7 @@ namespace GUI.Forms
         private readonly HashSet<string> extractedFiles;
         private readonly GltfModelExporter gltfExporter;
         private CancellationTokenSource cancellationTokenSource;
+        private Stopwatch exportStopwatch;
 
         private static readonly List<ResourceType> ExtractOrder = new()
         {
@@ -73,6 +75,8 @@ namespace GUI.Forms
 
         protected override void OnShown(EventArgs e)
         {
+            exportStopwatch = Stopwatch.StartNew();
+
             if (ShownCallback != null)
             {
                 extractProgressBar.Style = ProgressBarStyle.Marquee;
@@ -110,6 +114,8 @@ namespace GUI.Forms
 
         public void ExportContinueWith(Task t)
         {
+            exportStopwatch.Stop();
+
             if (t.IsFaulted)
             {
                 Console.Error.WriteLine(t.Exception);
@@ -125,7 +131,7 @@ namespace GUI.Forms
                 extractProgressBar.Update();
             });
 
-            SetProgress("Export completed.");
+            SetProgress($"Export completed in {exportStopwatch.Elapsed}.");
         }
 
         protected override void OnClosing(CancelEventArgs e)
