@@ -1,7 +1,6 @@
 //#define DEBUG_VALIDATE_GLTF
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -634,9 +633,8 @@ namespace ValveResourceFormat.IO
             if (MaterialGenerationTasks.Count > 0)
             {
                 ProgressReporter?.Report("Waiting for materials to finish exporting...");
+                Task.WaitAll(MaterialGenerationTasks.ToArray(), CancellationToken);
             }
-
-            Task.WaitAll(MaterialGenerationTasks.ToArray(), CancellationToken);
 
             ProgressReporter?.Report("Writing model to file...");
 
@@ -1346,6 +1344,8 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private async Task<Image> LinkAndStoreImage(ChannelMapping channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
         {
+            CancellationToken.ThrowIfCancellationRequested();
+
             // TODO: MaterialsGeneratedSoFar is not entirely correct because LinkAndStoreImage can be called multiple times per material
             ProgressReporter?.Report($"[{MaterialsGeneratedSoFar}/{MaterialGenerationTasks.Count}] Exporting texture: {fileName}");
 
@@ -1365,7 +1365,7 @@ namespace ValveResourceFormat.IO
 
             var exportedTexturePath = Path.Join(DstDir, fileName);
             using var fs = File.Open(exportedTexturePath, FileMode.Create);
-            await fs.WriteAsync(TextureExtract.ToPngImageChannels(bitmap, channel)).ConfigureAwait(false);
+            await fs.WriteAsync(TextureExtract.ToPngImageChannels(bitmap, channel), CancellationToken).ConfigureAwait(false);
 
             return image;
         }
