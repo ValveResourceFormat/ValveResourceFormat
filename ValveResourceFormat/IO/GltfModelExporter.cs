@@ -56,6 +56,7 @@ namespace ValveResourceFormat.IO
         private string DstDir;
         private CancellationToken CancellationToken;
         private List<Task> MaterialGenerationTasks = new();
+        private int MaterialsGeneratedSoFar;
         private bool IsExporting;
 
         // In SatelliteImages mode, SharpGLTF will still load and validate images.
@@ -1336,6 +1337,8 @@ namespace ValveResourceFormat.IO
                     material.FindChannel("Occlusion")?.SetTexture(0, tex);
                 }
             }
+
+            Interlocked.Increment(ref MaterialsGeneratedSoFar);
         }
 
         /// <summary>
@@ -1343,8 +1346,10 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private async Task<Image> LinkAndStoreImage(ChannelMapping channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
         {
+            // TODO: MaterialsGeneratedSoFar is not entirely correct because LinkAndStoreImage can be called multiple times per material
+            ProgressReporter?.Report($"[{MaterialsGeneratedSoFar}/{MaterialGenerationTasks.Count}] Exporting texture: {fileName}");
+
             Image image;
-            ProgressReporter?.Report($"Exporting texture: {fileName}");
 
             if (!SatelliteImages)
             {
