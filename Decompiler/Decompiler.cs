@@ -891,7 +891,7 @@ namespace Decompiler
 
                             Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
-                            gltfModelExporter.Export(resource, outputFile, null);
+                            gltfModelExporter.Export(resource, outputFile);
 
                             continue;
                         }
@@ -1074,7 +1074,7 @@ namespace Decompiler
                     ProgressReporter = new Progress<string>(progress => { }),
                     FileLoader = new NullFileLoader(),
                 };
-                gltfModelExporter.Export(resource, null, null);
+                gltfModelExporter.Export(resource, null); // Filename passed as null which tells exporter to write gltf to a null stream
             }
         }
 
