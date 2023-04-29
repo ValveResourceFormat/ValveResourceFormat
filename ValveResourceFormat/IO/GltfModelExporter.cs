@@ -1,12 +1,14 @@
 //#define DEBUG_VALIDATE_GLTF
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using SharpGLTF.IO;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
@@ -15,8 +17,8 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
-using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 using static ValveResourceFormat.Blocks.VBIB;
+using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 using Material = SharpGLTF.Schema2.Material;
 using Mesh = SharpGLTF.Schema2.Mesh;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
@@ -52,7 +54,8 @@ namespace ValveResourceFormat.IO
         public bool SatelliteImages { get; set; } = true;
 
         private string DstDir;
-        private CancellationToken? CancellationToken;
+        private CancellationToken CancellationToken;
+        private List<Task> MaterialGenerationTasks = new();
 
         // In SatelliteImages mode, SharpGLTF will still load and validate images.
         // To save memory, we initiate MemoryImage with a a dummy image instead.
@@ -89,7 +92,7 @@ namespace ValveResourceFormat.IO
         /// <param name="resource">The resource being exported.</param>
         /// <param name="targetPath">Target file name.</param>
         /// <param name="cancellationToken">Optional task cancellation token</param>
-        public void Export(Resource resource, string targetPath, CancellationToken? cancellationToken)
+        public void Export(Resource resource, string targetPath, CancellationToken cancellationToken = default)
         {
             if (FileLoader == null)
             {
@@ -99,22 +102,29 @@ namespace ValveResourceFormat.IO
             CancellationToken = cancellationToken;
             DstDir = Path.GetDirectoryName(targetPath);
 
-            switch (resource.ResourceType)
+            try
             {
-                case ResourceType.Mesh:
-                    ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock);
-                    break;
-                case ResourceType.Model:
-                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
-                    break;
-                case ResourceType.WorldNode:
-                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
-                    break;
-                case ResourceType.World:
-                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
-                    break;
-                default:
-                    throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
+                switch (resource.ResourceType)
+                {
+                    case ResourceType.Mesh:
+                        ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock);
+                        break;
+                    case ResourceType.Model:
+                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
+                        break;
+                    case ResourceType.WorldNode:
+                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
+                        break;
+                    case ResourceType.World:
+                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
+                        break;
+                    default:
+                        throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
+                }
+            }
+            finally
+            {
+                MaterialGenerationTasks.Clear();
             }
         }
 
@@ -332,7 +342,7 @@ namespace ValveResourceFormat.IO
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
             Matrix4x4 transform, IDictionary<string, Mesh> loadedMeshDictionary, string skinName = null)
         {
-            CancellationToken?.ThrowIfCancellationRequested();
+            CancellationToken.ThrowIfCancellationRequested();
             var (skeletonNode, joints) = CreateGltfSkeleton(scene, model.Skeleton, name);
 
             if (skeletonNode != null)
@@ -612,6 +622,13 @@ namespace ValveResourceFormat.IO
 
         private void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
+            if (MaterialGenerationTasks.Count > 0)
+            {
+                ProgressReporter?.Report("Waiting for materials to finish exporting...");
+            }
+
+            Task.WaitAll(MaterialGenerationTasks.ToArray(), CancellationToken);
+
             ProgressReporter?.Report("Writing model to file...");
 
             var settings = new WriteSettings
@@ -898,7 +915,7 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
                 {
-                    CancellationToken?.ThrowIfCancellationRequested();
+                    CancellationToken.ThrowIfCancellationRequested();
                     var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
                     var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
 
@@ -975,10 +992,15 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
+                    var material = exportedModel
+                        .CreateMaterial(materialNameTrimmed)
+                        .WithDefault();
+                    primitive.WithMaterial(material);
+
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
-                    var bestMaterial = GenerateGLTFMaterialFromRenderMaterial(renderMaterial, exportedModel,
-                        materialNameTrimmed);
-                    primitive.WithMaterial(bestMaterial);
+
+                    var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
+                    MaterialGenerationTasks.Add(task);
                 }
             }
 
@@ -1049,12 +1071,9 @@ namespace ValveResourceFormat.IO
 
         internal record struct CollectInstruction(ChannelMapping ValveChannel, ChannelMapping GltfChannel, bool Invert = false);
 
-        private Material GenerateGLTFMaterialFromRenderMaterial(VMaterial renderMaterial, ModelRoot model,
-            string materialName)
+        private async Task GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model)
         {
-            var material = model
-                    .CreateMaterial(materialName)
-                    .WithDefault();
+            await Task.Yield(); // Yield as the first step so it doesn't actually block
 
             renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
             renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
@@ -1110,7 +1129,7 @@ namespace ValveResourceFormat.IO
             //share sampler for all textures
             var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
 
-            void TrySetupTexture(string textureName, Resource textureResource, List<(ChannelMapping Channel, string Name)> renderTextureInputs)
+            async Task TrySetupTexture(string textureName, Resource textureResource, List<(ChannelMapping Channel, string Name)> renderTextureInputs)
             {
                 var ormFileName = Path.GetFileNameWithoutExtension(textureResource.FileName) + "_orm.png";
                 ormImage = model.LogicalImages.SingleOrDefault(i => i.Name == ormFileName);
@@ -1144,14 +1163,14 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        WriteTexture(ChannelMapping.RGBA, gltfTexture, 0, 1);
+                        await WriteTexture(ChannelMapping.RGBA, gltfTexture, 0, 1).ConfigureAwait(false);
                         break;
                     }
 
                     // Render texture matches the glTF spec.
                     if (Enumerable.SequenceEqual(renderTextureInputs, gltfInputs, blendInputComparer))
                     {
-                        WriteTexture(ChannelMapping.RGBA, gltfTexture, 0, renderTextureInputs.Count);
+                        await WriteTexture(ChannelMapping.RGBA, gltfTexture, 0, renderTextureInputs.Count).ConfigureAwait(false);
                         break;
                     }
 
@@ -1163,7 +1182,7 @@ namespace ValveResourceFormat.IO
                             ? (trimAlpha ? gltfInputs[0].Channel : ChannelMapping.RGBA)
                             : renderTextureInputs[0].Channel;
 
-                        WriteTexture(channel, gltfTexture, 0, 1);
+                        await WriteTexture(channel, gltfTexture, 0, 1).ConfigureAwait(false);
                         break;
                     }
 
@@ -1174,7 +1193,7 @@ namespace ValveResourceFormat.IO
                             ? ChannelMapping.RGBA
                             : gltfInputs[0].Channel;
 
-                        WriteTexture(channel, gltfTexture, 0, 1);
+                        await WriteTexture(channel, gltfTexture, 0, 1).ConfigureAwait(false);
                         break;
                     }
                 }
@@ -1193,7 +1212,7 @@ namespace ValveResourceFormat.IO
                     CollectRemainingChannels(bitmap, instructions);
                 }
 
-                void WriteTexture(ChannelMapping channel, string gltfBestMatch, int index, int count)
+                async Task WriteTexture(ChannelMapping channel, string gltfBestMatch, int index, int count)
                 {
                     renderTextureInputs.RemoveRange(index, count);
                     var fileName = Path.GetFileName(textureResource.FileName);
@@ -1202,7 +1221,7 @@ namespace ValveResourceFormat.IO
                     {
                         using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
                         bitmap.SetImmutable();
-                        image = LinkAndStoreImage(channel, bitmap, model, fileName);
+                        image = await LinkAndStoreImage(channel, bitmap, model, fileName).ConfigureAwait(false);
                         CollectRemainingChannels(bitmap);
                     }
 
@@ -1272,7 +1291,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var renderTexture in renderMaterial.TextureParams)
             {
-                CancellationToken?.ThrowIfCancellationRequested();
+                CancellationToken.ThrowIfCancellationRequested();
                 var texturePath = renderTexture.Value;
                 var textureResource = FileLoader.LoadFile(texturePath + "_c");
 
@@ -1289,12 +1308,12 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                TrySetupTexture(renderTexture.Key, textureResource, inputImages);
+                await TrySetupTexture(renderTexture.Key, textureResource, inputImages).ConfigureAwait(false);
             }
 
             if (ormImage is null && occlusionRoughnessMetal.FileName is not null)
             {
-                ormImage = LinkAndStoreImage(ChannelMapping.RGBA, occlusionRoughnessMetal.Bitmap, model, occlusionRoughnessMetal.FileName);
+                ormImage = await LinkAndStoreImage(ChannelMapping.RGBA, occlusionRoughnessMetal.Bitmap, model, occlusionRoughnessMetal.FileName).ConfigureAwait(false);
             }
 
             if (ormImage is not null)
@@ -1309,14 +1328,12 @@ namespace ValveResourceFormat.IO
                     material.FindChannel("Occlusion")?.SetTexture(0, tex);
                 }
             }
-
-            return material;
         }
 
         /// <summary>
         /// Links the image to the model and stores it to disk if <see cref="SatelliteImages"/> is true.
         /// </summary>
-        private Image LinkAndStoreImage(ChannelMapping channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
+        private async Task<Image> LinkAndStoreImage(ChannelMapping channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
         {
             Image image;
             ProgressReporter?.Report($"Exporting texture: {fileName}");
@@ -1334,10 +1351,8 @@ namespace ValveResourceFormat.IO
             image.AlternateWriteFileName = fileName;
 
             var exportedTexturePath = Path.Join(DstDir, fileName);
-            using (var fs = File.Open(exportedTexturePath, FileMode.Create))
-            {
-                fs.Write(TextureExtract.ToPngImageChannels(bitmap, channel));
-            }
+            using var fs = File.Open(exportedTexturePath, FileMode.Create);
+            await fs.WriteAsync(TextureExtract.ToPngImageChannels(bitmap, channel)).ConfigureAwait(false);
 
             return image;
         }
