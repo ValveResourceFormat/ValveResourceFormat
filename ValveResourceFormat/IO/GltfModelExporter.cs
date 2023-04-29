@@ -91,19 +91,27 @@ namespace ValveResourceFormat.IO
         /// <param name="cancellationToken">Optional task cancellation token</param>
         public void Export(Resource resource, string targetPath, CancellationToken? cancellationToken)
         {
+            if (FileLoader == null)
+            {
+                throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
+            }
+
+            CancellationToken = cancellationToken;
+            DstDir = Path.GetDirectoryName(targetPath);
+
             switch (resource.ResourceType)
             {
                 case ResourceType.Mesh:
-                    ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock, cancellationToken);
+                    ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock);
                     break;
                 case ResourceType.Model:
-                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock, cancellationToken);
+                    ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
                     break;
                 case ResourceType.WorldNode:
-                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock, cancellationToken);
+                    ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
                     break;
                 case ResourceType.World:
-                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock, cancellationToken);
+                    ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
                     break;
                 default:
                     throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
@@ -116,16 +124,8 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="world">The world resource to export.</param>
-        /// <param name="cancellationToken">Optional task cancellation token</param>
-        public void ExportToFile(string resourceName, string fileName, VWorld world, CancellationToken? cancellationToken)
+        private void ExportToFile(string resourceName, string fileName, VWorld world)
         {
-            CancellationToken = cancellationToken;
-            if (FileLoader == null)
-            {
-                throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
-            }
-
-            DstDir = Path.GetDirectoryName(fileName);
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var loadedMeshDictionary = new Dictionary<string, Mesh>();
 
@@ -247,16 +247,8 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="worldNode">The worldNode resource to export.</param>
-        /// <param name="cancellationToken">Optional task cancellation token</param>
-        public void ExportToFile(string resourceName, string fileName, VWorldNode worldNode, CancellationToken? cancellationToken)
+        private void ExportToFile(string resourceName, string fileName, VWorldNode worldNode)
         {
-            CancellationToken = cancellationToken;
-            if (FileLoader == null)
-            {
-                throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
-            }
-
-            DstDir = Path.GetDirectoryName(fileName);
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var worldNodeModels = LoadWorldNodeModels(worldNode);
             var loadedMeshDictionary = new Dictionary<string, Mesh>();
@@ -326,17 +318,8 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="model">The model resource to export.</param>
-        /// <param name="cancellationToken">Optional task cancellation token</param>
-        public void ExportToFile(string resourceName, string fileName, VModel model, CancellationToken? cancellationToken)
+        private void ExportToFile(string resourceName, string fileName, VModel model)
         {
-            CancellationToken = cancellationToken;
-            if (FileLoader == null)
-            {
-                throw new InvalidOperationException(nameof(FileLoader) + " must be set first.");
-            }
-
-            DstDir = Path.GetDirectoryName(fileName);
-
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
             // Add meshes and their skeletons
@@ -566,12 +549,8 @@ namespace ValveResourceFormat.IO
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
         /// <param name="mesh">The mesh resource to export.</param>
-        /// <param name="cancellationToken">Optional task cancellation token</param>
-        public void ExportToFile(string resourceName, string fileName, VMesh mesh, CancellationToken? cancellationToken)
+        private void ExportToFile(string resourceName, string fileName, VMesh mesh)
         {
-            CancellationToken = cancellationToken;
-            DstDir = Path.GetDirectoryName(fileName);
-
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
             var loadedMeshDictionary = new Dictionary<string, Mesh>();
