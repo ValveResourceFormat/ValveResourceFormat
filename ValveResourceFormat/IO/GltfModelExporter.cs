@@ -15,6 +15,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.ThirdParty;
 using ValveResourceFormat.Utils;
 using static ValveResourceFormat.Blocks.VBIB;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
@@ -1181,11 +1182,12 @@ namespace ValveResourceFormat.IO
 
             // ORM is a texture that may be compiled from multiple inputs
             using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SkiaSharp.SKColor(255, 255, 0, 255) };
+            var ormTexturePaths = new List<string>();
             var ormHasOcclusion = false;
-            Image ormImage = null;
 
             async Task GenerateOrCollectGLTFTexture(string texturePath, IReadOnlyList<RemapInstruction> instructions)
             {
+                var textureName = Path.GetFileName(texturePath);
                 var textureResource = FileLoader.LoadFile(texturePath + "_c");
                 if (textureResource == null)
                 {
@@ -1195,19 +1197,23 @@ namespace ValveResourceFormat.IO
                 using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
                 bitmap.SetImmutable();
 
+                // TODO: ormHasOcclusion is not used
                 var ormInstructions = instructions
                     .Where(i => (i.ChannelName == "Occlusion" && ormHasOcclusion) || i.ChannelName == "MetallicRoughness")
                     .ToList();
 
+                // TODO: Overwriting multiple instructions into one file
                 foreach (var instruction in instructions.Except(ormInstructions))
                 {
                     var pngBytes = TextureExtract.ToPngImageChannels(bitmap, instruction.ValveChannel);
-                    await WriteTexture(Path.GetFileName(texturePath), instruction.ChannelName, pngBytes).ConfigureAwait(false);
+                    await WriteTexture(Path.GetFileNameWithoutExtension(textureName) + "_" + instruction.ChannelName + Path.GetExtension(textureName), instruction.ChannelName, pngBytes).ConfigureAwait(false);
                 }
 
                 // TODO: check if ORM already exists, and not collect if so
                 if (AdaptTextures && ormInstructions.Count > 0)
                 {
+                    ormTexturePaths.Add(textureName);
+
                     using var pixels = bitmap.PeekPixels();
                     foreach (var instruction in ormInstructions)
                     {
@@ -1287,9 +1293,12 @@ namespace ValveResourceFormat.IO
             // TODO: check if there is an O+RM combo. A material with just Occlusion shouldn't
             // be packing ORM. Instead it should dump the occlusion texture directly
 
-            if (ormImage is null)
+            if (ormTexturePaths.Count > 0)
             {
-                var ormFileName = Path.GetFileNameWithoutExtension(renderMaterial.Name) + "_orm" + ".png";
+                ormTexturePaths.Sort();
+                var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
+                var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
+
                 await WriteTexture(ormFileName, "MetallicRoughness", TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap)).ConfigureAwait(false);
             }
 
