@@ -1223,23 +1223,25 @@ namespace ValveResourceFormat.IO
                 {
                     renderTextureInputs.RemoveRange(index, count);
                     var fileName = Path.GetFileName(textureResource.FileName);
-                    var image = model.LogicalImages.SingleOrDefault(i => i.Name == fileName);
+                    var tex = model.LogicalTextures.SingleOrDefault(i => i.Name == fileName);
 
-                    if (image is null)
+                    // TODO: Race condition
+                    if (tex == default)
                     {
-                        image = model.CreateImage(fileName);
+                        var image = model.CreateImage(fileName);
 
                         using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
                         bitmap.SetImmutable();
                         await LinkAndStoreImage(image, channel, bitmap).ConfigureAwait(false);
                         CollectRemainingChannels(bitmap);
+
+                        tex = model.UseTexture(image, sampler);
+                        tex.Name = fileName;
                     }
-
-                    var tex = model.UseTexture(image, sampler);
-
-                    // TODO: Race condition with reused texture
-                    // TODO: Rewriting name with reused textures
-                    tex.Name = $"{fileName}_{model.LogicalTextures.Count - 1}";
+                    else
+                    {
+                        ProgressReporter?.Report($"Reusing texture {fileName}");
+                    }
 
                     material.FindChannel(gltfBestMatch)?.SetTexture(0, tex);
 
@@ -1249,7 +1251,7 @@ namespace ValveResourceFormat.IO
                         {
                             ["baseColorTexture"] = new Dictionary<string, object>
                             {
-                                { "index", image.LogicalIndex },
+                                { "index", tex.PrimaryImage.LogicalIndex },
                             },
                         });
                     }
@@ -1297,7 +1299,6 @@ namespace ValveResourceFormat.IO
                             instruction.ValveChannel,
                             instruction.GltfChannel,
                             instruction.Invert);
-
                     }
                 }
             }
