@@ -1077,7 +1077,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        internal record struct RemapInstruction(
+        internal record class RemapInstruction(
             string ChannelName,
             ChannelMapping ValveChannel,
             ChannelMapping GltfChannel,
@@ -1133,7 +1133,7 @@ namespace ValveResourceFormat.IO
 
             var allGltfInputs = MaterialExtract.GltfTextureMappings.Values.SelectMany(x => x);
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
-            //var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
+            var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
 
             void GetRemapInstructions(List<(ChannelMapping Channel, string Name)> renderTextureInputs, List<RemapInstruction> instructions)
             {
@@ -1151,25 +1151,39 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
+                    // Render texture matches the glTF spec.
+                    if (Enumerable.SequenceEqual(renderTextureInputs, GltfInputs, blendInputComparer))
+                    {
+                        instructions.Add(new RemapInstruction(GltfType, ChannelMapping.RGBA, ChannelMapping.RGBA));
+                        break;
+                    }
+
                     foreach (var gltfInput in GltfInputs)
                     {
                         foreach (var renderInput in renderTextureInputs)
                         {
                             if (blendNameComparer.Equals(renderInput.Name, gltfInput.Name))
                             {
-                                instructions.Add(new RemapInstruction(GltfType, renderInput.Channel, gltfInput.Channel));
+                                var src = renderInput.Channel;
+                                var dest = gltfInput.Channel;
+
+                                // Clean up alpha
+                                if (src == ChannelMapping.RGBA && dest == ChannelMapping.RGB)
+                                {
+                                    src = ChannelMapping.RGB;
+                                }
+
+                                instructions.Add(new RemapInstruction(GltfType, src, dest));
                                 continue;
                             }
 
                             if (blendNameComparer.Equals(renderInput.Name, "TextureMetalnessMask"))
                             {
-                                var grayscaleFallback = renderInput.Channel.Count > 1 ? ChannelMapping.R : renderInput.Channel;
-                                instructions.Add(new RemapInstruction("MetallicRoughness", grayscaleFallback, ChannelMapping.B));
+                                instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.B));
                             }
                             else if (blendNameComparer.Equals(renderInput.Name, "TextureSpecularMask")) // Ideally we should use material.WithSpecular()
                             {
-                                var grayscaleFallback = renderInput.Channel.Count > 1 ? ChannelMapping.R : renderInput.Channel;
-                                instructions.Add(new RemapInstruction("MetallicRoughness", grayscaleFallback, ChannelMapping.G, Invert: true));
+                                instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.G, Invert: true));
                             }
                         }
 
@@ -1183,11 +1197,11 @@ namespace ValveResourceFormat.IO
             // ORM is a texture that may be compiled from multiple inputs
             using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SkiaSharp.SKColor(255, 255, 0, 255) };
             var ormTexturePaths = new List<string>();
-            var ormHasOcclusion = false;
+            string ormRedChannel = null; // Can be Occlusion or Emmisive
 
-            async Task GenerateOrCollectGLTFTexture(string texturePath, IReadOnlyList<RemapInstruction> instructions)
+            async Task GenerateOrCollectGLTFEquivalentTexture(string texturePath, IReadOnlyList<RemapInstruction> instructions)
             {
-                var textureName = Path.GetFileName(texturePath);
+                var textureFileName = Path.GetFileName(texturePath);
                 var textureResource = FileLoader.LoadFile(texturePath + "_c");
                 if (textureResource == null)
                 {
@@ -1197,29 +1211,30 @@ namespace ValveResourceFormat.IO
                 using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
                 bitmap.SetImmutable();
 
-                // TODO: ormHasOcclusion is not used
                 var ormInstructions = instructions
-                    .Where(i => (i.ChannelName == "Occlusion" && ormHasOcclusion) || i.ChannelName == "MetallicRoughness")
+                    .Where(i => (i.ChannelName == ormRedChannel) || i.ChannelName == "MetallicRoughness")
                     .ToList();
 
-                // TODO: Overwriting multiple instructions into one file
-                foreach (var instruction in instructions.Except(ormInstructions))
+                // There should be only one
+                var mainInstruction = instructions.Except(ormInstructions).FirstOrDefault();
+                if (mainInstruction != null)
                 {
-                    var pngBytes = TextureExtract.ToPngImageChannels(bitmap, instruction.ValveChannel);
-                    await WriteTexture(Path.GetFileNameWithoutExtension(textureName) + "_" + instruction.ChannelName + Path.GetExtension(textureName), instruction.ChannelName, pngBytes).ConfigureAwait(false);
+                    var pngBytes = TextureExtract.ToPngImageChannels(bitmap, mainInstruction.ValveChannel);
+                    var textureName = Path.GetFileNameWithoutExtension(textureFileName) + "_" + mainInstruction.ChannelName + Path.GetExtension(textureFileName);
+                    await WriteTexture(textureName, mainInstruction.ChannelName, pngBytes).ConfigureAwait(false);
                 }
 
                 // TODO: check if ORM already exists, and not collect if so
                 if (AdaptTextures && ormInstructions.Count > 0)
                 {
-                    ormTexturePaths.Add(textureName);
+                    ormTexturePaths.Add(textureFileName);
 
                     using var pixels = bitmap.PeekPixels();
                     foreach (var instruction in ormInstructions)
                     {
                         occlusionRoughnessMetal.Collect(pixels,
                             instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
-                            instruction.GltfChannel,
+                            instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
                             instruction.Invert);
                     }
                 }
@@ -1264,14 +1279,11 @@ namespace ValveResourceFormat.IO
                 else if (gltfPackedName == "MetallicRoughness")
                 {
                     materialChannel?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
-                    if (ormHasOcclusion)
-                    {
-                        material.FindChannel("Occlusion")?.SetTexture(0, tex);
-                    }
+                    material.FindChannel(ormRedChannel)?.SetTexture(0, tex);
                 }
             }
 
-            //var remapDict = new Dictionary<string, List<RemapInstruction>>();
+            var remapDict = new Dictionary<string, List<RemapInstruction>>();
             foreach (var renderTexture in renderMaterial.TextureParams)
             {
                 CancellationToken.ThrowIfCancellationRequested();
@@ -1285,13 +1297,21 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                //remapDict[renderTexture.Value] = remapInstructions;
-                await GenerateOrCollectGLTFTexture(renderTexture.Value, remapInstructions).ConfigureAwait(false);
+                remapDict[renderTexture.Value] = remapInstructions;
+                ProgressReporter?.Report($"Remapping {renderTexture.Key} {string.Join(", ", remapInstructions.Select(i => i.ValveChannel + "->" + i.GltfChannel))}");
             }
 
-            // TODO: figure out filenames
-            // TODO: check if there is an O+RM combo. A material with just Occlusion shouldn't
-            // be packing ORM. Instead it should dump the occlusion texture directly
+            var allRemapInstructions = remapDict.Values.SelectMany(i => i);
+            if (remapDict.Values.SelectMany(i => i).Any(i => i.ChannelName == "MetallicRoughness"))
+            {
+                ormRedChannel = allRemapInstructions.FirstOrDefault(i => i.ChannelName == "Occlusion" || i.ChannelName == "Emmisive")?.ChannelName;
+            }
+
+            foreach (var (texturePath, instructions) in remapDict)
+            {
+                await GenerateOrCollectGLTFEquivalentTexture(texturePath, instructions).ConfigureAwait(false);
+            }
+
 
             if (ormTexturePaths.Count > 0)
             {
