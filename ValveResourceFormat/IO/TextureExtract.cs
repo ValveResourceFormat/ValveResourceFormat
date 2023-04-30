@@ -250,13 +250,11 @@ public sealed class TextureExtract
     {
         public SKColor DefaultColor { get; init; } = SKColors.Black;
         public SKBitmap Bitmap { get; private set; }
-        public string FileName { get; private set; }
+        public string FileName { get; set; }
         private readonly HashSet<ChannelMapping> Packed = new();
 
-        public void Collect(SKPixmap srcPixels, string fileName, ChannelMapping srcChannel, ChannelMapping dstChannel, bool invert = false)
+        public void Collect(SKPixmap srcPixels, ChannelMapping srcChannel, ChannelMapping dstChannel, bool invert = false)
         {
-            FileName ??= fileName;
-
             if (!Packed.Add(dstChannel))
             {
                 Console.WriteLine($"{dstChannel} has already been packed in texture: {FileName}");
