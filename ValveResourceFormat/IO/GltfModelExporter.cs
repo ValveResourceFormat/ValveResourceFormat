@@ -1224,15 +1224,21 @@ namespace ValveResourceFormat.IO
                     renderTextureInputs.RemoveRange(index, count);
                     var fileName = Path.GetFileName(textureResource.FileName);
                     var image = model.LogicalImages.SingleOrDefault(i => i.Name == fileName);
+
                     if (image is null)
                     {
+                        image = model.CreateImage(fileName);
+
                         using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
                         bitmap.SetImmutable();
-                        image = await LinkAndStoreImage(channel, bitmap, model, fileName).ConfigureAwait(false);
+                        await LinkAndStoreImage(image, channel, bitmap).ConfigureAwait(false);
                         CollectRemainingChannels(bitmap);
                     }
 
                     var tex = model.UseTexture(image, sampler);
+
+                    // TODO: Race condition with reused texture
+                    // TODO: Rewriting name with reused textures
                     tex.Name = $"{fileName}_{model.LogicalTextures.Count - 1}";
 
                     material.FindChannel(gltfBestMatch)?.SetTexture(0, tex);
@@ -1320,7 +1326,8 @@ namespace ValveResourceFormat.IO
 
             if (ormImage is null && occlusionRoughnessMetal.FileName is not null)
             {
-                ormImage = await LinkAndStoreImage(ChannelMapping.RGBA, occlusionRoughnessMetal.Bitmap, model, occlusionRoughnessMetal.FileName).ConfigureAwait(false);
+                ormImage = model.CreateImage(occlusionRoughnessMetal.FileName);
+                await LinkAndStoreImage(ormImage, ChannelMapping.RGBA, occlusionRoughnessMetal.Bitmap).ConfigureAwait(false);
             }
 
             if (ormImage is not null)
@@ -1342,35 +1349,29 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Links the image to the model and stores it to disk if <see cref="SatelliteImages"/> is true.
         /// </summary>
-        private async Task<Image> LinkAndStoreImage(ChannelMapping channel, SkiaSharp.SKBitmap bitmap, ModelRoot model, string fileName)
+        private async Task LinkAndStoreImage(Image image, ChannelMapping channel, SkiaSharp.SKBitmap bitmap)
         {
             CancellationToken.ThrowIfCancellationRequested();
 
             // TODO: MaterialsGeneratedSoFar is not entirely correct because LinkAndStoreImage can be called multiple times per material
-            ProgressReporter?.Report($"[{MaterialsGeneratedSoFar}/{MaterialGenerationTasks.Count}] Exporting texture: {fileName}");
-
-            Image image;
+            ProgressReporter?.Report($"[{MaterialsGeneratedSoFar}/{MaterialGenerationTasks.Count}] Exporting texture: {image.Name}");
 
             if (!SatelliteImages)
             {
-                image = model.CreateImage(fileName);
                 image.Content = TextureExtract.ToPngImageChannels(bitmap, channel);
-                return image;
+                return;
             }
 
-            image = model.CreateImage(fileName);
-            image.Content = new SharpGLTF.Memory.MemoryImage(dummyPng);
-            fileName = Path.ChangeExtension(fileName, "png");
+            var fileName = Path.ChangeExtension(image.Name, "png");
+            image.Content = new MemoryImage(dummyPng);
             image.AlternateWriteFileName = fileName;
 
             var exportedTexturePath = Path.Join(DstDir, fileName);
             using var fs = File.Open(exportedTexturePath, FileMode.Create);
             await fs.WriteAsync(TextureExtract.ToPngImageChannels(bitmap, channel), CancellationToken).ConfigureAwait(false);
-
-            return image;
         }
 
-        private static string ImageWriteCallback(WriteContext ctx, string uri, SharpGLTF.Memory.MemoryImage memoryImage)
+        private static string ImageWriteCallback(WriteContext ctx, string uri, MemoryImage memoryImage)
         {
             // Since we've already dumped images to disk, skip glTF image write.
             return uri;
