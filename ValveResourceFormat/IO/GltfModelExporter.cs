@@ -1410,16 +1410,7 @@ namespace ValveResourceFormat.IO
                         {
                             if (blendNameComparer.Equals(renderInput.Name, gltfInput.Name))
                             {
-                                var src = renderInput.Channel;
-                                var dest = gltfInput.Channel;
-
-                                // Clean up alpha
-                                if (src == ChannelMapping.RGBA && dest == ChannelMapping.RGB)
-                                {
-                                    src = ChannelMapping.RGB;
-                                }
-
-                                instructions.Add(new RemapInstruction(GltfType, src, dest));
+                                instructions.Add(new RemapInstruction(GltfType, renderInput.Channel, gltfInput.Channel));
                                 continue;
                             }
 
