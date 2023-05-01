@@ -139,6 +139,7 @@ namespace ValveResourceFormat.IO
             finally
             {
                 MaterialGenerationTasks.Clear();
+                ExportedTextures.Clear();
                 IsExporting = false;
             }
         }
