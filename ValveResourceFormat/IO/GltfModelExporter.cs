@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using SharpGLTF.IO;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
+using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -1007,6 +1008,7 @@ namespace ValveResourceFormat.IO
 
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
 
+                    MaterialsGeneratedSoFar++;
                     var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
                     MaterialGenerationTasks.Add(task);
                 }
@@ -1135,8 +1137,216 @@ namespace ValveResourceFormat.IO
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
             var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
 
-            void GetRemapInstructions(List<(ChannelMapping Channel, string Name)> renderTextureInputs, List<RemapInstruction> instructions)
+            // Share sampler for all textures
+            var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
+
+            // Remap vtex texture parameters into instructions that can be exported
+            var remapDict = new Dictionary<string, List<RemapInstruction>>();
+            foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
             {
+                var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, textureKey, renderMaterial.IntParams).ToList();
+                var remapInstructions = GetRemapInstructions(inputImages);
+
+                if (remapInstructions.Count == 0)
+                {
+                    continue;
+                }
+
+                remapDict[texturePath] = remapInstructions;
+
+#if DEBUG
+                ProgressReporter?.Report($"Remapping {texturePath} {string.Join(", ", remapInstructions.Select(i => i.ValveChannel + "->" + i.GltfChannel))}");
+#endif
+            }
+
+            // ORM is a texture that may be compiled from multiple inputs
+            using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SKColor(255, 255, 0, 255) };
+            var ormTextureInstructions = new Dictionary<string, List<RemapInstruction>>();
+            string ormRedChannel = null; // Can be Occlusion or Emissive
+
+            // Find and split ORM textures into separate instructions
+            if (AdaptTextures)
+            {
+                // TODO: too many loops over instructions here
+                // If this texture contains a MetallicRoughness parameter, also pack Occlusion or Emissive into the ORM texture for optimization
+                var allRemapInstructions = remapDict.Values.SelectMany(i => i);
+                if (allRemapInstructions.Any(i => i.ChannelName == "MetallicRoughness"))
+                {
+                    ormRedChannel = allRemapInstructions.FirstOrDefault(i => i.ChannelName == "Occlusion" || i.ChannelName == "Emissive")?.ChannelName;
+                }
+
+                foreach (var (texturePath, instructions) in remapDict)
+                {
+                    var ormInstructions = instructions
+                        .Where(i => i.ChannelName == ormRedChannel || i.ChannelName == "MetallicRoughness")
+                        .ToList();
+
+                    if (ormInstructions.Count > 0)
+                    {
+                        ormTextureInstructions[texturePath] = ormInstructions;
+
+                        foreach (var instruction in ormInstructions)
+                        {
+                            instructions.Remove(instruction);
+                        }
+                    }
+                }
+            }
+
+            var openBitmaps = new Dictionary<string, SKBitmap>();
+
+            // Actually go through the remapped textures and write them to disk
+            foreach (var (texturePath, instructions) in remapDict)
+            {
+                // There should be only one
+                var mainInstruction = instructions.FirstOrDefault();
+                if (mainInstruction == null)
+                {
+                    continue;
+                }
+
+                var textureName = Path.GetFileName(texturePath);
+
+#if DEBUG
+                if (instructions.Count != 1)
+                {
+                    ProgressReporter?.Report($"Texture {textureName} has {instructions.Count} instructions");
+                }
+#endif
+
+                // TODO: Race condition
+                var tex = model.LogicalTextures.SingleOrDefault(i => i.Name == textureName);
+
+                if (tex != default)
+                {
+#if DEBUG
+                    ProgressReporter?.Report($"Reusing texture {textureName}");
+#endif
+
+                    TieTextureToMaterial(tex, mainInstruction.ChannelName);
+
+                    continue;
+                }
+
+                CancellationToken.ThrowIfCancellationRequested();
+
+                var bitmap = GetBitmap(texturePath);
+                var pngBytes = TextureExtract.ToPngImageChannels(bitmap, mainInstruction.ValveChannel);
+
+                tex = await WriteTexture(textureName, pngBytes).ConfigureAwait(false);
+                TieTextureToMaterial(tex, mainInstruction.ChannelName);
+            }
+
+            // Now create ORM if there is one
+            if (ormTextureInstructions.Count > 0)
+            {
+                // Generate consistent file name for the ORM
+                var ormTexturePaths = ormTextureInstructions.Keys.ToArray();
+                Array.Sort(ormTexturePaths);
+                var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
+                var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
+
+                // TODO: Race condition
+                var tex = model.LogicalTextures.SingleOrDefault(i => i.Name == ormFileName);
+
+                if (tex == default)
+                {
+                    // Collect channels for the ORM texture
+                    foreach (var (texturePath, instructions) in ormTextureInstructions)
+                    {
+                        var bitmap = GetBitmap(texturePath);
+                        using var pixels = bitmap.PeekPixels();
+
+                        foreach (var instruction in instructions)
+                        {
+                            occlusionRoughnessMetal.Collect(pixels,
+                                instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
+                                instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
+                                instruction.Invert,
+                                texturePath // Used for logging
+                            );
+                        }
+                    }
+
+                    tex = await WriteTexture(ormFileName, TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap)).ConfigureAwait(false);
+                }
+#if DEBUG
+                else
+                {
+                    ProgressReporter?.Report($"Reusing ORM texture {ormFileName}");
+                }
+#endif
+
+                TieTextureToMaterial(tex, "MetallicRoughness");
+            }
+
+            foreach (var bitmap in openBitmaps.Values)
+            {
+                bitmap.Dispose();
+            }
+
+            SKBitmap GetBitmap(string texturePath)
+            {
+                if (openBitmaps.TryGetValue(texturePath, out var bitmap))
+                {
+                    return bitmap;
+                }
+
+                using var textureResource = FileLoader.LoadFile(texturePath + "_c");
+                if (textureResource == null)
+                {
+                    return new SKBitmap(); // TODO: Test that this doesn't cause issues
+                }
+
+                bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+                bitmap.SetImmutable();
+
+                openBitmaps[texturePath] = bitmap;
+
+                return bitmap;
+            }
+
+            async Task<SharpGLTF.Schema2.Texture> WriteTexture(string textureName, byte[] pngBytes)
+            {
+                var image = model.CreateImage(textureName);
+                await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
+
+                var tex = model.UseTexture(image, sampler);
+                tex.Name = textureName;
+
+                return tex;
+            }
+
+            void TieTextureToMaterial(SharpGLTF.Schema2.Texture tex, string gltfPackedName)
+            {
+                var materialChannel = material.FindChannel(gltfPackedName);
+                materialChannel?.SetTexture(0, tex);
+
+                if (gltfPackedName == "BaseColor")
+                {
+                    material.Extras = JsonContent.CreateFrom(new Dictionary<string, object>
+                    {
+                        ["baseColorTexture"] = new Dictionary<string, object>
+                            {
+                                { "index", tex.PrimaryImage.LogicalIndex },
+                            },
+                    });
+                }
+                else if (gltfPackedName == "MetallicRoughness")
+                {
+                    materialChannel?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
+
+                    if (ormRedChannel != null)
+                    {
+                        material.FindChannel(ormRedChannel)?.SetTexture(0, tex);
+                    }
+                }
+            }
+
+            List<RemapInstruction> GetRemapInstructions(List<(ChannelMapping Channel, string Name)> renderTextureInputs)
+            {
+                var instructions = new List<RemapInstruction>();
+
                 foreach (var (GltfType, GltfInputs) in MaterialExtract.GltfTextureMappings)
                 {
                     // Old behavior, use the texture directly if the first input matches.
@@ -1186,143 +1396,11 @@ namespace ValveResourceFormat.IO
                                 instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.G, Invert: true));
                             }
                         }
-
                     }
                 }
+
+                return instructions;
             }
-
-            //share sampler for all textures
-            var sampler = model.UseTextureSampler(TextureWrapMode.REPEAT, TextureWrapMode.REPEAT, TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
-
-            // ORM is a texture that may be compiled from multiple inputs
-            using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SkiaSharp.SKColor(255, 255, 0, 255) };
-            var ormTexturePaths = new List<string>();
-            string ormRedChannel = null; // Can be Occlusion or Emmisive
-
-            async Task GenerateOrCollectGLTFEquivalentTexture(string texturePath, IReadOnlyList<RemapInstruction> instructions)
-            {
-                var textureFileName = Path.GetFileName(texturePath);
-                var textureResource = FileLoader.LoadFile(texturePath + "_c");
-                if (textureResource == null)
-                {
-                    return;
-                }
-
-                using var bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
-                bitmap.SetImmutable();
-
-                var ormInstructions = instructions
-                    .Where(i => (i.ChannelName == ormRedChannel) || i.ChannelName == "MetallicRoughness")
-                    .ToList();
-
-                // There should be only one
-                var mainInstruction = instructions.Except(ormInstructions).FirstOrDefault();
-                if (mainInstruction != null)
-                {
-                    var pngBytes = TextureExtract.ToPngImageChannels(bitmap, mainInstruction.ValveChannel);
-                    var textureName = Path.GetFileNameWithoutExtension(textureFileName) + "_" + mainInstruction.ChannelName + Path.GetExtension(textureFileName);
-                    await WriteTexture(textureName, mainInstruction.ChannelName, pngBytes).ConfigureAwait(false);
-                }
-
-                // TODO: check if ORM already exists, and not collect if so
-                if (AdaptTextures && ormInstructions.Count > 0)
-                {
-                    ormTexturePaths.Add(textureFileName);
-
-                    using var pixels = bitmap.PeekPixels();
-                    foreach (var instruction in ormInstructions)
-                    {
-                        occlusionRoughnessMetal.Collect(pixels,
-                            instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
-                            instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
-                            instruction.Invert);
-                    }
-                }
-            }
-
-            async Task WriteTexture(string textureName, string gltfPackedName, byte[] pngBytes)
-            {
-                var tex = model.LogicalTextures.SingleOrDefault(i => i.Name == textureName);
-                // TODO: Race condition
-                // TODO: Don't check for duplicate texture at this stage.
-                if (tex == default)
-                {
-                    var image = model.CreateImage(textureName);
-                    await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
-
-                    tex = model.UseTexture(image, sampler);
-                    tex.Name = textureName;
-                }
-                else
-                {
-                    ProgressReporter?.Report($"Reusing texture {textureName}");
-                }
-
-                TieTextureToMaterial(tex, gltfPackedName);
-            }
-
-            void TieTextureToMaterial(SharpGLTF.Schema2.Texture tex, string gltfPackedName)
-            {
-                var materialChannel = material.FindChannel(gltfPackedName);
-                materialChannel?.SetTexture(0, tex);
-
-                if (gltfPackedName == "BaseColor")
-                {
-                    material.Extras = JsonContent.CreateFrom(new Dictionary<string, object>
-                    {
-                        ["baseColorTexture"] = new Dictionary<string, object>
-                            {
-                                { "index", tex.PrimaryImage.LogicalIndex },
-                            },
-                    });
-                }
-                else if (gltfPackedName == "MetallicRoughness")
-                {
-                    materialChannel?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
-                    material.FindChannel(ormRedChannel)?.SetTexture(0, tex);
-                }
-            }
-
-            var remapDict = new Dictionary<string, List<RemapInstruction>>();
-            foreach (var renderTexture in renderMaterial.TextureParams)
-            {
-                CancellationToken.ThrowIfCancellationRequested();
-
-                var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, renderTexture.Key, renderMaterial.IntParams).ToList();
-                var remapInstructions = new List<RemapInstruction>();
-                GetRemapInstructions(inputImages, remapInstructions);
-
-                if (remapInstructions.Count == 0)
-                {
-                    continue;
-                }
-
-                remapDict[renderTexture.Value] = remapInstructions;
-                ProgressReporter?.Report($"Remapping {renderTexture.Key} {string.Join(", ", remapInstructions.Select(i => i.ValveChannel + "->" + i.GltfChannel))}");
-            }
-
-            var allRemapInstructions = remapDict.Values.SelectMany(i => i);
-            if (remapDict.Values.SelectMany(i => i).Any(i => i.ChannelName == "MetallicRoughness"))
-            {
-                ormRedChannel = allRemapInstructions.FirstOrDefault(i => i.ChannelName == "Occlusion" || i.ChannelName == "Emmisive")?.ChannelName;
-            }
-
-            foreach (var (texturePath, instructions) in remapDict)
-            {
-                await GenerateOrCollectGLTFEquivalentTexture(texturePath, instructions).ConfigureAwait(false);
-            }
-
-
-            if (ormTexturePaths.Count > 0)
-            {
-                ormTexturePaths.Sort();
-                var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
-                var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
-
-                await WriteTexture(ormFileName, "MetallicRoughness", TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap)).ConfigureAwait(false);
-            }
-
-            Interlocked.Increment(ref MaterialsGeneratedSoFar);
         }
 
         /// <summary>

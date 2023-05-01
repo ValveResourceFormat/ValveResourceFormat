@@ -250,14 +250,13 @@ public sealed class TextureExtract
     {
         public SKColor DefaultColor { get; init; } = SKColors.Black;
         public SKBitmap Bitmap { get; private set; }
-        public string FileName { get; set; }
         private readonly HashSet<ChannelMapping> Packed = new();
 
-        public void Collect(SKPixmap srcPixels, ChannelMapping srcChannel, ChannelMapping dstChannel, bool invert = false)
+        public void Collect(SKPixmap srcPixels, ChannelMapping srcChannel, ChannelMapping dstChannel, bool invert, string fileName)
         {
             if (!Packed.Add(dstChannel))
             {
-                Console.WriteLine($"{dstChannel} has already been packed in texture: {FileName}");
+                Console.WriteLine($"{dstChannel} has already been packed in texture: {fileName}");
             }
 
             if (Bitmap is null)
@@ -281,7 +280,7 @@ public sealed class TextureExtract
                     using var newPixels = newBitmap.PeekPixels();
                     if (!oldPixels.ScalePixels(newPixels, SKFilterQuality.Low))
                     {
-                        throw new InvalidOperationException($"Failed to scale up pixels of {FileName}");
+                        throw new InvalidOperationException($"Failed to scale up pixels of {fileName}");
                     }
                 }
                 Bitmap = newBitmap;
@@ -293,7 +292,7 @@ public sealed class TextureExtract
                 using var newSrcPixels = newSrcBitmap.PeekPixels();
                 if (!srcPixels.ScalePixels(newSrcPixels, SKFilterQuality.Low))
                 {
-                    throw new InvalidOperationException($"Failed to scale up incoming pixels for {FileName}");
+                    throw new InvalidOperationException($"Failed to scale up incoming pixels for {fileName}");
                 }
                 using var dstPixels2 = Bitmap.PeekPixels();
                 CopyChannel(newSrcPixels, srcChannel, dstPixels2, dstChannel, invert);
