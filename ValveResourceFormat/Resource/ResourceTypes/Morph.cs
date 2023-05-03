@@ -131,11 +131,6 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                if (morphName == "jawSidewaysR")
-                {
-                    var t = 1;
-                }
-
                 FlexData.Add(morphName, rectData);
             }
         }
