@@ -20,6 +20,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 Normal = data.GetSubCollection("m_vNormal").ToVector3();
                 Offset = data.GetFloatProperty("m_flOffset");
             }
+
+            public Plane(ReadOnlySpan<byte> data)
+            {
+                Normal = new Vector3(BitConverter.ToSingle(data), BitConverter.ToSingle(data[4..8]), BitConverter.ToSingle(data[8..12]));
+                Offset = BitConverter.ToSingle(data[12..16]);
+            }
         }
 
         public struct HalfEdge
@@ -60,6 +66,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             {
                 Edge = data.GetByteProperty("m_nEdge");
             }
+
+            public Face(ReadOnlySpan<byte> data)
+            {
+                Edge = data[0];
+            }
+        }
+
+        public class Region
+        {
+            public Plane[] Planes { get; set; }
+            public object[] Nodes { get; set; }
+
+            public Region(IKeyValueCollection data)
+            {
+                Planes = ParsePlanes(data);
+                Nodes = null; // TODO
+            }
         }
 
         public Vector3 Centroid { get; set; }
@@ -68,6 +91,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// Angular radius for CCD
         /// </summary>
         public float MaxAngularRadius { get; set; }
+
+        public Region RegionSVM { get; set; }
 
         /// <summary>
         /// Hull vertices (x1, y1, z1, x2, y2, z2, ...)
@@ -102,15 +127,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Centroid = data.GetSubCollection("m_vCentroid").ToVector3();
             MaxAngularRadius = data.GetFloatProperty("m_flMaxAngularRadius");
             Vertices = ParseVertices(data);
-            Planes = data.GetArray("m_Planes").Select(p => new Plane(p)).ToArray();
             Edges = ParseEdges(data);
-            Faces = data.GetArray("m_Faces").Select(f => new Face()).ToArray(); // TODO: Implement
+            Faces = ParseFaces(data);
+            Planes = ParsePlanes(data);
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
             Volume = data.GetFloatProperty("m_flVolume");
 
             var bounds = data.GetSubCollection("m_Bounds");
             Min = bounds.GetSubCollection("m_vMinBounds").ToVector3();
             Max = bounds.GetSubCollection("m_vMaxBounds").ToVector3();
+
+            var regionSVM = data.GetSubCollection("m_pRegionSVM");
+            RegionSVM = regionSVM == null ? null : new Region(regionSVM);
         }
 
         public static Vector3[] ParseVertices(IKeyValueCollection data)
@@ -140,6 +168,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             var edgesBlob = data.GetArray<byte>("m_Edges");
             return Enumerable.Range(0, edgesBlob.Length / 4)
                 .Select(i => new HalfEdge(edgesBlob.AsSpan(i * 4, 4)))
+                .ToArray();
+        }
+
+        private static Face[] ParseFaces(IKeyValueCollection data)
+        {
+            if (data.IsNotBlobType("m_Faces"))
+            {
+                var edgesArr = data.GetArray("m_Faces");
+                return edgesArr.Select(e => new Face(e)).ToArray();
+            }
+
+            var edgesBlob = data.GetArray<byte>("m_Faces");
+            return Enumerable.Range(0, edgesBlob.Length / 1)
+                .Select(i => new Face(edgesBlob.AsSpan(i * 1, 1)))
+                .ToArray();
+        }
+
+        private static Plane[] ParsePlanes(IKeyValueCollection data)
+        {
+            if (data.IsNotBlobType("m_Planes"))
+            {
+                var planesArr = data.GetArray("m_Planes");
+                return planesArr.Select(p => new Plane(p)).ToArray();
+            }
+
+            var planesBlob = data.GetArray<byte>("m_Planes");
+            return Enumerable.Range(0, planesBlob.Length / 16)
+                .Select(i => new Plane(planesBlob.AsSpan(i * 16, 16)))
                 .ToArray();
         }
     }
