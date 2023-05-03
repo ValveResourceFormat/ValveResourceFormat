@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1063,32 +1062,31 @@ namespace ValveResourceFormat.IO
         private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexIndex, int vertexCount)
         {
             var morphIndex = 0;
+            var flexDesc = morph.GetFlexDescriptors();
 
-            foreach (var pair in morph.FlexData)
+            foreach (var morphName in flexDesc)
             {
-                var dict = new Dictionary<string, Accessor>();
+                if (!morph.FlexData.TryGetValue(morphName, out var rectData))
+                {
+                    continue;
+                }
+
+                var bufferView = model.CreateBufferView(3 * sizeof(float) * vertexCount, 0, BufferMode.ARRAY_BUFFER);
+                new Vector3Array(bufferView.Content).Fill(rectData[vertexIndex..vertexCount]);
 
                 var acc = model.CreateAccessor();
-                acc.Name = pair.Key;
+                acc.Name = morphName;
+                acc.SetData(bufferView, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
 
-                var buffer = new List<byte>(vertexCount * sizeof(float) * 3);
-                for (var i = vertexIndex; i < vertexCount + vertexIndex; i++)
+                var dict = new Dictionary<string, Accessor>
                 {
-                    var position = pair.Value[i];
-                    buffer.AddRange(BitConverter.GetBytes(position.X));
-                    buffer.AddRange(BitConverter.GetBytes(position.Y));
-                    buffer.AddRange(BitConverter.GetBytes(position.Z));
-                }
+                    { "POSITION", acc }
+                };
 
-                var buff = model.UseBufferView(buffer.ToArray(), 0, buffer.Count);
-                acc.SetData(buff, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
-                dict.Add("POSITION", acc);
-
-                if (dict.Any())
-                {
-                    primitive.SetMorphTargetAccessors(morphIndex++, dict);
-                }
+                primitive.SetMorphTargetAccessors(morphIndex++, dict);
             }
+
+            DebugValidateGLTF();
         }
 
         internal record class RemapInstruction(

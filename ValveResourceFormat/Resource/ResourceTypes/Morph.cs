@@ -18,6 +18,20 @@ namespace ValveResourceFormat.ResourceTypes
         {
         }
 
+        public List<string> GetFlexDescriptors()
+        {
+            var flexDesc = Data.GetArray("m_FlexDesc");
+            var result = new List<string>(flexDesc.Length);
+
+            foreach (var f in flexDesc)
+            {
+                var name = f.GetStringProperty("m_szFacs");
+                result.Add(name);
+            }
+
+            return result;
+        }
+
         public void LoadFlexData(IFileLoader fileLoader)
         {
             var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
