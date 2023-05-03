@@ -108,8 +108,8 @@ namespace ValveResourceFormat.ResourceTypes
                         var bundle = bundleData.Value as IKeyValueCollection;
                         var rectU = (int)Math.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
                         var rectV = (int)Math.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
-                        var ranges = bundle.GetFloatArray("m_ranges");
-                        var offsets = bundle.GetFloatArray("m_offsets");
+                        var ranges = new Vector4(bundle.GetFloatArray("m_ranges"));
+                        var offsets = new Vector4(bundle.GetFloatArray("m_offsets"));
 
                         for (var row = rectV; row < rectV + rectHeight; row++)
                         {
@@ -120,14 +120,20 @@ namespace ValveResourceFormat.ResourceTypes
                                 var dstI = row - rectV + yTopDst;
                                 var dstJ = col - rectU + xLeftDst;
 
-                                rectData[dstI * width + dstJ] = new Vector3(
-                                    color.Red / 255f * ranges[0] + offsets[0],
-                                    color.Green / 255f * ranges[1] + offsets[1],
-                                    color.Blue / 255f * ranges[2] + offsets[2]
-                                );
+                                var vec = new Vector4(color.Red, color.Green, color.Blue, color.Alpha);
+                                vec /= 255f;
+                                vec *= ranges;
+                                vec += offsets;
+
+                                rectData[dstI * width + dstJ] = new Vector3(vec.X, vec.Y, vec.Z); // We don't care about speed (alpha) yet
                             }
                         }
                     }
+                }
+
+                if (morphName == "jawSidewaysR")
+                {
+                    var t = 1;
                 }
 
                 FlexData.Add(morphName, rectData);
