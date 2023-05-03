@@ -931,6 +931,8 @@ namespace ValveResourceFormat.IO
                 return accessors;
             }).ToArray();
 
+            var vertexOffset = 0;
+
             foreach (var sceneObject in data.GetArray("m_sceneObjects"))
             {
                 foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -979,7 +981,8 @@ namespace ValveResourceFormat.IO
                     if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
                     {
                         var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, exportedModel, baseVertex, vertexCount);
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, exportedModel, vertexOffset, vertexCount);
+                        vertexOffset += vertexCount;
                     }
 
                     DebugValidateGLTF();
@@ -1059,7 +1062,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexIndex, int vertexCount)
+        private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
         {
             var morphIndex = 0;
             var flexDesc = morph.GetFlexDescriptors();
@@ -1072,7 +1075,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var bufferView = model.CreateBufferView(3 * sizeof(float) * vertexCount, 0, BufferMode.ARRAY_BUFFER);
-                new Vector3Array(bufferView.Content).Fill(rectData[vertexIndex..vertexCount]);
+                new Vector3Array(bufferView.Content).Fill(rectData[vertexOffset..(vertexOffset + vertexCount)]);
 
                 var acc = model.CreateAccessor();
                 acc.Name = morphName;
