@@ -1153,11 +1153,21 @@ namespace ValveResourceFormat.IO
             // Load shader
             GetRemapInstructionsFromShader(renderMaterial.ShaderName);
 
+            // Features contain parameters, but there is no zframes to figure out the variant ones
+            // Zframes are in Pixel or Vertex
+            var collection = new CompiledShader.ShaderCollection();
+            var shader = FileLoader.LoadShader(renderMaterial.ShaderName);
+            if (shader != null)
+            {
+                collection.Add(shader);
+            }
+
             // Remap vtex texture parameters into instructions that can be exported
             var remapDict = new Dictionary<string, List<RemapInstruction>>();
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
             {
                 var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, textureKey, renderMaterial.IntParams).ToList();
+                var inputImagesFromShader = shader != null ? MaterialExtract.GetTextureInputs(collection, textureKey, renderMaterial.IntParams) : null;
                 var remapInstructions = GetRemapInstructions(inputImages);
 
                 if (remapInstructions.Count == 0)

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
@@ -149,6 +150,21 @@ public sealed class MaterialExtract
         }
     };
 
+    private static readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappingsCache = new();
+
+    private static readonly Dictionary<string, Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>>> VariantTextureMappingsCache = new()
+    {
+        ["vrf_example"] = new()
+        {
+            ["g_tMyTexture"] = new()
+            {
+                // Key = feature state
+                ["00101001010"] = new[] { (Channel.R, "TestInput") },
+                ["01020010220"] = new[] { (Channel.R, "TestInputOther") }
+            }
+        }
+    };
+
     public static readonly Dictionary<string, (Channel Channel, string Name)[]> GltfTextureMappings = new()
     {
         ["BaseColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
@@ -277,6 +293,59 @@ public sealed class MaterialExtract
         return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : "png");
     }
 
+    /// <summary>
+    /// Get precise texture inputs from the shader collection. 
+    /// </summary>
+    public static List<(Channel Channel, string Name)> GetTextureInputs(ShaderCollection shader, string textureType, Dictionary<string, long> featureState)
+    {
+        var inputs = new List<(Channel Channel, string Name)>(4);
+        var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
+
+        TextureMappingsCache.Clear();
+        VariantTextureMappingsCache.Clear();
+
+        if (@params.Length == 0)
+        {
+            throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
+        }
+        else if (@params.Length == 1)
+        {
+            inputs.AddRange(GetParameterInputs(@params[0]));
+        }
+        else
+        {
+            // TODO: Resolve variant parameters, by loading the zframe pertaining to the feature state
+            // and checking which of the parameters is referenced.
+            var possibliities = new List<(Channel Channel, string Name)>[@params.Length];
+            for (var i = 0; i < @params.Length; i++)
+            {
+                possibliities[i] = GetParameterInputs(@params[i]).ToList();
+            }
+        }
+
+        IEnumerable<(Channel Channel, string Name)> GetParameterInputs(ParamBlock param)
+        {
+            for (var i = 0; i < param.ChannelCount; i++)
+            {
+                var channelIndex = param.ChannelIndices[i];
+                var channel = shader.Features.ChannelBlocks[channelIndex];
+
+                // Only add first mip input, TODO: whats the meaning of these (multiple inputs per mip)
+                // g_tRoughness RGBA, AnisoNormal(TextureNormal, TextureGlossiness)
+                // g_tColor RGB, AlphaWeighted(TextureColor, TextureTranslucency) A, PreserveCoverage(TextureTranslucency) // Alpha test
+                // g_tColor RGB, AlphaWeighted(TextureColor, TextureTranslucency) A, Box(TextureTranslucency) // Translucent
+                // edit: g_tNormal returns RGBA, HemiOctIsoRoughness_RG_B(TextureNormal, TextureRoughness),
+                // but the simplified, post-decode output should be RGB-Normal, A-Roughness
+                yield return (channel.Channel, shader.Features.ParamBlocks[channel.InputTextureIndices[0]].Name);
+            }
+        }
+
+        return inputs;
+    }
+
+    /// <summary>
+    /// Get hardcoded texture inputs. If no mappings are found it will be a single *guessed* RGBA input. 
+    /// </summary>
     public static IEnumerable<(Channel Channel, string Name)> GetTextureInputs(string shaderName, string textureType, Dictionary<string, long> featureState)
     {
         shaderName = shaderName[..^4]; // strip '.vfx'
