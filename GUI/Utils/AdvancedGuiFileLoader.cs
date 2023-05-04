@@ -21,6 +21,7 @@ namespace GUI.Utils
         private readonly VrfGuiContext GuiContext;
         private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".addon" };
         private bool GamePackagesScanned;
+        private bool ShaderPackagesScanned;
 
         public AdvancedGuiFileLoader(VrfGuiContext guiContext)
         {
@@ -117,6 +118,12 @@ namespace GUI.Utils
             {
                 GamePackagesScanned = true;
                 FindAndLoadSearchPaths();
+            }
+
+            if (!ShaderPackagesScanned && Path.GetExtension(file) == ".vcs")
+            {
+                ShaderPackagesScanned = true;
+                FindAndLoadShaderPackages();
             }
 
             var paths = Settings.Config.GameSearchPaths.ToList();
@@ -269,7 +276,7 @@ namespace GUI.Utils
             var rootFolder = Path.GetDirectoryName(modIdentifierPath);
             var assumedGameRoot = Path.GetDirectoryName(rootFolder);
 
-            if (modIdentifierPath.EndsWith("gameinfo.gi", StringComparison.InvariantCultureIgnoreCase))
+            if (Path.GetFileName(modIdentifierPath) == "gameinfo.gi")
             {
                 HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
             }
@@ -323,7 +330,6 @@ namespace GUI.Utils
                     CurrentGamePackages.Add(package);
                 }
 
-
                 if (!Settings.Config.GameSearchPaths.Contains(folder) && !CurrentGameSearchPaths.Contains(folder))
                 {
                     Console.WriteLine($"Added folder \"{folder}\" to game search paths");
@@ -362,6 +368,34 @@ namespace GUI.Utils
             }
 
             return null;
+        }
+
+        private void FindAndLoadShaderPackages()
+        {
+            var shaderNames = new string[]
+            {
+                "shaders_pc_dir.vpk",
+                "shaders_vulkan_dir.vpk",
+            };
+
+            foreach (var folder in CurrentGameSearchPaths)
+            {
+                foreach (var shaderName in shaderNames)
+                {
+                    var vpk = Path.Combine(folder, shaderName);
+
+                    if (File.Exists(vpk))
+                    {
+                        Console.WriteLine($"Preloading vpk \"{vpk}\"");
+
+                        var package = new Package();
+                        package.Read(vpk);
+                        CurrentGamePackages.Add(package);
+
+                        break; // One for each folder
+                    }
+                }
+            }
         }
 
         private static string FindResourcePath(IList<string> paths, string file, string currentFullPath = null)
