@@ -1,14 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Serialization.NTRO;
 
 namespace GUI.Types.Renderer
 {
@@ -56,45 +53,33 @@ namespace GUI.Types.Renderer
 
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys)
         {
-            var collisionAttributes = phys.Data.GetArray("m_collisionAttributes");
-            var verts = new List<float>[collisionAttributes.Length];
-            var inds = new List<int>[collisionAttributes.Length];
-            var boundingBoxes = new AABB[collisionAttributes.Length];
-            var isFirstBbox = new bool[collisionAttributes.Length];
+            var groupCount = phys.CollisionAttributes.Count;
+            var verts = new List<float>[groupCount];
+            var inds = new List<int>[groupCount];
+            var boundingBoxes = new AABB[groupCount];
+            var isFirstBbox = new bool[groupCount];
 
-            for (var i = 0; i < collisionAttributes.Length; i++)
+            for (var i = 0; i < groupCount; i++)
             {
                 verts[i] = new();
                 inds[i] = new();
             }
 
-            var bindPose = phys.Data.GetArray("m_bindPose")
-                 .Select(v => Matrix4x4FromArray(v
-                    .Select(m => Convert.ToSingle(m.Value, CultureInfo.InvariantCulture))
-                    .ToArray()))
-                 .ToArray();
-
-            if (bindPose.Length == 0)
-            {
-                bindPose = new Matrix4x4[] { Matrix4x4.Identity };
-            }
+            var bindPose = phys.BindPose;
             //m_boneParents
 
-            var parts = phys.Data.GetArray("m_parts");
-            for (var p = 0; p < parts.Length; p++)
+            for (var p = 0; p < phys.Parts.Length; p++)
             {
-                var shape = parts[p].GetSubCollection("m_rnShape");
-                //var collisionAttributeIndices = shape.GetIntegerArray("m_CollisionAttributeIndices");
-                //var partCollisionAttributeIndex = parts[p].GetIntegerProperty("m_nCollisionAttributeIndex");
+                var shape = phys.Parts[p].Shape;
+                //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
 
                 // Spheres
-                var spheres = shape.GetArray("m_spheres");
-                foreach (var s in spheres)
+                foreach (var sphere in shape.Spheres)
                 {
-                    var collisionAttributeIndex = s.GetIntegerProperty("m_nCollisionAttributeIndex");
-                    var sphere = s.GetSubCollection("m_Sphere");
-                    var center = sphere.GetSubCollection("m_vCenter").ToVector3();
-                    var radius = sphere.GetFloatProperty("m_flRadius");
+                    var collisionAttributeIndex = sphere.CollisionAttributeIndex;
+                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+                    var center = sphere.Shape.Center;
+                    var radius = sphere.Shape.Radius;
 
                     if (bindPose.Any())
                     {
@@ -104,7 +89,7 @@ namespace GUI.Types.Renderer
                     AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius);
 
                     var bbox = new AABB(center + new Vector3(radius),
-                                         center - new Vector3(radius));
+                                        center - new Vector3(radius));
 
                     if (isFirstBbox[collisionAttributeIndex])
                     {
@@ -118,16 +103,18 @@ namespace GUI.Types.Renderer
                 }
 
                 // Capsules
-                var capsules = shape.GetArray("m_capsules");
-                foreach (var c in capsules)
+                foreach (var capsule in shape.Capsules)
                 {
-                    var collisionAttributeIndex = c.GetIntegerProperty("m_nCollisionAttributeIndex");
-                    var capsule = c.GetSubCollection("m_Capsule");
-                    var center = capsule.GetArray("m_vCenter").Select(v => v.ToVector3()).ToArray();
-                    var radius = capsule.GetFloatProperty("m_flRadius");
+                    var collisionAttributeIndex = capsule.CollisionAttributeIndex;
+                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+                    var center = capsule.Shape.Center;
+                    var radius = capsule.Shape.Radius;
 
-                    center[0] = Vector3.Transform(center[0], bindPose[p]);
-                    center[1] = Vector3.Transform(center[1], bindPose[p]);
+                    if (bindPose.Any())
+                    {
+                        center[0] = Vector3.Transform(center[0], bindPose[p]);
+                        center[1] = Vector3.Transform(center[1], bindPose[p]);
+                    }
 
                     AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius);
                     foreach (var cn in center)
@@ -148,31 +135,13 @@ namespace GUI.Types.Renderer
                 }
 
                 // Hulls
-                var hulls = shape.GetArray("m_hulls");
-                foreach (var h in hulls)
+                foreach (var hull in shape.Hulls)
                 {
-                    var collisionAttributeIndex = h.GetIntegerProperty("m_nCollisionAttributeIndex");
-                    var hull = h.GetSubCollection("m_Hull");
+                    var collisionAttributeIndex = hull.CollisionAttributeIndex;
+                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
-                    //m_vCentroid
-                    //m_flMaxAngularRadius
-                    //m_Vertices
-                    IEnumerable<Vector3> vertices = null;
-                    if (hull is NTROStruct || ((KVObject)hull).Properties["m_Vertices"].Type == KVType.ARRAY)
-                    {
-                        var verticesArr = hull.GetArray("m_Vertices");
-                        vertices = verticesArr.Select(v => v.ToVector3());
-                    }
-                    else
-                    {
-                        var verticesBlob = hull.GetArray<byte>("m_Vertices");
-                        vertices = Enumerable.Range(0, verticesBlob.Length / 12)
-                            .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
-                                BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
-                                BitConverter.ToSingle(verticesBlob, (i * 12) + 8)));
-                    }
                     var vertOffset = verts[collisionAttributeIndex].Count / 7;
-                    foreach (var v in vertices)
+                    foreach (var v in hull.Shape.Vertices)
                     {
                         var vec = v;
                         if (bindPose.Any())
@@ -189,33 +158,15 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(0);
                         verts[collisionAttributeIndex].Add(1);
                     }
-                    //m_Planes
-                    (int origin, int next)[] edges = null;
-                    if (hull is NTROStruct || ((KVObject)hull).Properties["m_Edges"].Type == KVType.ARRAY)
+
+                    foreach (var e in hull.Shape.Edges)
                     {
-                        var edgesArr = hull.GetArray("m_Edges");
-                        edges = edgesArr
-                            .Select(e => (e.GetInt32Property("m_nOrigin"), e.GetInt32Property("m_nNext")))
-                            .ToArray();
+                        inds[collisionAttributeIndex].Add(vertOffset + e.Origin);
+                        var next = hull.Shape.Edges[e.Next];
+                        inds[collisionAttributeIndex].Add(vertOffset + next.Origin);
                     }
-                    else
-                    {
-                        // 0 - m_nNext, 1 - m_nTwin, 2 - m_nOrigin, 3 - m_nFace
-                        var edgesBlob = hull.GetArray<byte>("m_Edges");
-                        edges = Enumerable.Range(0, edgesBlob.Length / 4)
-                            .Select(i => ((int)edgesBlob[i * 4 + 2], (int)edgesBlob[i * 4 + 1]))
-                            .ToArray();
-                    }
-                    foreach (var e in edges)
-                    {
-                        inds[collisionAttributeIndex].Add(vertOffset + e.origin);
-                        var next = edges[e.next];
-                        inds[collisionAttributeIndex].Add(vertOffset + next.origin);
-                    }
-                    //m_Faces
-                    var bounds = hull.GetSubCollection("m_Bounds");
-                    var bbox = new AABB(bounds.GetSubCollection("m_vMinBounds").ToVector3(),
-                                         bounds.GetSubCollection("m_vMaxBounds").ToVector3());
+
+                    var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
 
                     if (isFirstBbox[collisionAttributeIndex])
                     {
@@ -229,33 +180,13 @@ namespace GUI.Types.Renderer
                 }
 
                 // Meshes
-                var meshes = shape.GetArray("m_meshes");
-                foreach (var m in meshes)
+                foreach (var mesh in shape.Meshes)
                 {
-                    var collisionAttributeIndex = m.GetIntegerProperty("m_nCollisionAttributeIndex");
-                    var mesh = m.GetSubCollection("m_Mesh");
-                    //m_Nodes
+                    var collisionAttributeIndex = mesh.CollisionAttributeIndex;
+                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
                     var vertOffset = verts[collisionAttributeIndex].Count / 7;
-                    Vector3[] vertices = null;
-                    if (mesh is NTROStruct || ((KVObject)mesh).Properties["m_Vertices"].Type == KVType.ARRAY)
-                    {
-                        //NTRO has vertices as array of structs
-                        var verticesArr = mesh.GetArray("m_Vertices");
-                        vertices = verticesArr.Select(v => v.ToVector3()).ToArray();
-                    }
-                    else
-                    {
-                        //KV3 has vertices as blob
-                        var verticesBlob = mesh.GetArray<byte>("m_Vertices");
-                        vertices = Enumerable.Range(0, verticesBlob.Length / 12)
-                            .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
-                                BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
-                                BitConverter.ToSingle(verticesBlob, (i * 12) + 8)))
-                            .ToArray();
-                    }
-
-                    foreach (var vec in vertices)
+                    foreach (var vec in mesh.Shape.Vertices)
                     {
                         var v = vec;
                         if (bindPose.Any())
@@ -273,34 +204,17 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(1);
                     }
 
-                    int[] triangles = null;
-                    if (mesh is NTROStruct || ((KVObject)mesh).Properties["m_Triangles"].Type == KVType.ARRAY)
+                    foreach (var tri in mesh.Shape.Triangles)
                     {
-                        //NTRO and SOME KV3 has triangles as array of structs
-                        var trianglesArr = mesh.GetArray("m_Triangles");
-                        triangles = trianglesArr.SelectMany(t => t.GetArray<object>("m_nIndex").
-                                                            Select(Convert.ToInt32)).ToArray();
-                    }
-                    else
-                    {
-                        //some KV3 has triangles as blob
-                        var trianglesBlob = mesh.GetArray<byte>("m_Triangles");
-                        triangles = new int[trianglesBlob.Length / 4];
-                        System.Buffer.BlockCopy(trianglesBlob, 0, triangles, 0, trianglesBlob.Length);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[0]);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[1]);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[1]);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[2]);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[2]);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[0]);
                     }
 
-                    for (var i = 0; i < triangles.Length; i += 3)
-                    {
-                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i]);
-                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 1]);
-                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 1]);
-                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 2]);
-                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i + 2]);
-                        inds[collisionAttributeIndex].Add(vertOffset + triangles[i]);
-                    }
-
-                    var bbox = new AABB(mesh.GetSubCollection("m_vMin").ToVector3(),
-                                         mesh.GetSubCollection("m_vMax").ToVector3());
+                    var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
 
                     if (isFirstBbox[collisionAttributeIndex])
                     {
@@ -314,7 +228,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var scenes = collisionAttributes.Select((attributes, i) =>
+            var scenes = phys.CollisionAttributes.Select((attributes, i) =>
             {
                 var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
@@ -334,14 +248,6 @@ namespace GUI.Types.Renderer
                 return physSceneNode;
             }).ToArray();
             return scenes;
-        }
-
-        static Matrix4x4 Matrix4x4FromArray(float[] a)
-        {
-            return new Matrix4x4(a[0], a[4], a[8], 0,
-                a[1], a[5], a[9], 0,
-                a[2], a[6], a[10], 0,
-                a[3], a[7], a[11], 1);
         }
 
         private static void AddCapsule(List<float> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
