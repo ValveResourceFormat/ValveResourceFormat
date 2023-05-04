@@ -8,6 +8,7 @@ using System.Linq;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 
 namespace GUI.Utils
@@ -120,12 +121,6 @@ namespace GUI.Utils
                 FindAndLoadSearchPaths();
             }
 
-            if (!ShaderPackagesScanned && Path.GetExtension(file) == ".vcs")
-            {
-                ShaderPackagesScanned = true;
-                FindAndLoadShaderPackages();
-            }
-
             var paths = Settings.Config.GameSearchPaths.ToList();
             var packages = CurrentGamePackages.ToList();
 
@@ -193,6 +188,55 @@ namespace GUI.Utils
             }
 
             return (null, null, null, null);
+        }
+
+        public ShaderFile LoadShader(string shaderName)
+        {
+            if (GuiContext.ParentGuiContext != null)
+            {
+                return GuiContext.ParentGuiContext.FileLoader.LoadShader(shaderName);
+            }
+
+            if (!GamePackagesScanned)
+            {
+                GamePackagesScanned = true;
+                FindAndLoadSearchPaths();
+            }
+
+            if (!ShaderPackagesScanned)
+            {
+                ShaderPackagesScanned = true;
+                FindAndLoadShaderPackages();
+            }
+
+            // TODO
+            var pathsToTry = new string[]
+            {
+                Path.Join("shaders", "vfx", Path.GetFileNameWithoutExtension(shaderName) + "_pc_40_features.vcs"),
+                Path.Join("shaders", "vfx", Path.GetFileNameWithoutExtension(shaderName) + "_pc_50_features.vcs"),
+            };
+
+            foreach (var name in pathsToTry)
+            {
+                var foundFile = FindFile(name);
+
+                if (foundFile.PathOnDisk != null)
+                {
+                    using var stream = File.OpenRead(foundFile.PathOnDisk);
+                    var shader = new ShaderFile();
+                    shader.Read(name, stream);
+                    return shader;
+                }
+                else if (foundFile.PackageEntry != null)
+                {
+                    using var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                    var shader = new ShaderFile();
+                    shader.Read(name, stream);
+                    return shader;
+                }
+            }
+
+            return null;
         }
 
         public Resource LoadFile(string file)
@@ -330,11 +374,9 @@ namespace GUI.Utils
                     CurrentGamePackages.Add(package);
                 }
 
-                if (!Settings.Config.GameSearchPaths.Contains(folder) && !CurrentGameSearchPaths.Contains(folder))
+                if (!Settings.Config.GameSearchPaths.Contains(folder) && CurrentGameSearchPaths.Add(folder))
                 {
                     Console.WriteLine($"Added folder \"{folder}\" to game search paths");
-
-                    CurrentGameSearchPaths.Add(folder);
                 }
             }
         }

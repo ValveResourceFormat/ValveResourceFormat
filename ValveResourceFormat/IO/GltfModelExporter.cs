@@ -1150,6 +1150,9 @@ namespace ValveResourceFormat.IO
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
             var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
 
+            // Load shader
+            GetRemapInstructionsFromShader(renderMaterial.ShaderName);
+
             // Remap vtex texture parameters into instructions that can be exported
             var remapDict = new Dictionary<string, List<RemapInstruction>>();
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
@@ -1429,6 +1432,19 @@ namespace ValveResourceFormat.IO
 
                 return instructions;
             }
+        }
+
+        private void GetRemapInstructionsFromShader(string shaderName)
+        {
+            // TODO: Cache
+            var shader = FileLoader.LoadShader(shaderName);
+
+            if (shader == null)
+            {
+                return;
+            }
+
+            ProgressReporter?.Report($"Loaded shader {shader.ShaderName} ({shader.VcsProgramType} / {shader.VcsPlatformType} / {shader.VcsShaderModelType})");
         }
 
         /// <summary>
