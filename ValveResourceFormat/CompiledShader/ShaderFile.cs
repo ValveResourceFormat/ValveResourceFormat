@@ -23,9 +23,9 @@ namespace ValveResourceFormat.CompiledShader
 
         public string FilenamePath { get; private set; }
         public string ShaderName { get; private set; }
-        public VcsProgramType VcsProgramType { get; private set; }
-        public VcsPlatformType VcsPlatformType { get; private set; }
-        public VcsShaderModelType VcsShaderModelType { get; private set; }
+        public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
+        public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
+        public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
         public VsPsHeaderBlock VspsHeader { get; private set; }
         public int VcsVersion { get; private set; }

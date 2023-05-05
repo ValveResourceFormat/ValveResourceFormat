@@ -294,15 +294,27 @@ public sealed class MaterialExtract
     }
 
     /// <summary>
-    /// Get precise texture inputs from the shader collection. 
+    /// Get precise texture inputs by querying the shader files. 
     /// </summary>
-    public static List<(Channel Channel, string Name)> GetTextureInputs(ShaderCollection shader, string textureType, Dictionary<string, long> featureState)
+    public IEnumerable<(Channel Channel, string Name)> GetTextureInputs(string textureType)
     {
-        var inputs = new List<(Channel Channel, string Name)>(4);
-        var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
+        if (TextureMappingsCache.TryGetValue(material.ShaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings))
+        {
+            return channelMappings;
+        }
+        else if (VariantTextureMappingsCache.TryGetValue(material.ShaderName, out var shaderSpecificV) && shaderSpecificV.TryGetValue(textureType, out var variantSpecific)
+            && variantSpecific.TryGetValue("intparams", out var variantChannelMappings))
+        {
+            return variantChannelMappings;
+        }
 
-        TextureMappingsCache.Clear();
-        VariantTextureMappingsCache.Clear();
+        var shader = fileLoader.LoadShader(material.ShaderName);
+        if (shader?.Features == null)
+        {
+            return null;
+        }
+
+        var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
 
         if (@params.Length == 0)
         {
@@ -310,7 +322,9 @@ public sealed class MaterialExtract
         }
         else if (@params.Length == 1)
         {
-            inputs.AddRange(GetParameterInputs(@params[0]));
+            var inputs = GetParameterInputs(@params[0]);
+            TextureMappingsCache[material.ShaderName][textureType] = inputs.ToArray();
+            return inputs;
         }
         else
         {
@@ -330,17 +344,21 @@ public sealed class MaterialExtract
                 var channelIndex = param.ChannelIndices[i];
                 var channel = shader.Features.ChannelBlocks[channelIndex];
 
-                // Only add first mip input, TODO: whats the meaning of these (multiple inputs per mip)
-                // g_tRoughness RGBA, AnisoNormal(TextureNormal, TextureGlossiness)
-                // g_tColor RGB, AlphaWeighted(TextureColor, TextureTranslucency) A, PreserveCoverage(TextureTranslucency) // Alpha test
-                // g_tColor RGB, AlphaWeighted(TextureColor, TextureTranslucency) A, Box(TextureTranslucency) // Translucent
-                // edit: g_tNormal returns RGBA, HemiOctIsoRoughness_RG_B(TextureNormal, TextureRoughness),
-                // but the simplified, post-decode output should be RGB-Normal, A-Roughness
-                yield return (channel.Channel, shader.Features.ParamBlocks[channel.InputTextureIndices[0]].Name);
+                var cutoff = Array.IndexOf(channel.InputTextureIndices, -1);
+                var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => shader.Features.ParamBlocks[idx].Name).ToArray();
+
+                if (channel.TexProcessorName == "HemiOctIsoRoughness_RG_B" || channel.TexProcessorName == "AnisoNormal")
+                {
+                    yield return (Channel.RGB, textureProcessorInputs[0]);
+                    yield return (Channel.A, textureProcessorInputs[1]);
+                    yield break;
+                }
+
+                yield return (channel.Channel, textureProcessorInputs[0]);
             }
         }
 
-        return inputs;
+        return null;
     }
 
     /// <summary>

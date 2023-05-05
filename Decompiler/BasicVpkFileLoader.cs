@@ -35,7 +35,7 @@ namespace ValveResourceFormat.IO
             return resource;
         }
 
-        public ShaderFile LoadShader(string shaderName) => null;
+        public ShaderCollection LoadShader(string shaderName) => null;
 
         public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
         {

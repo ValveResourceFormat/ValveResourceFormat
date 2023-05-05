@@ -190,7 +190,7 @@ namespace GUI.Utils
             return (null, null, null, null);
         }
 
-        public ShaderFile LoadShader(string shaderName)
+        public ShaderCollection LoadShader(string shaderName)
         {
             if (GuiContext.ParentGuiContext != null)
             {
@@ -209,34 +209,42 @@ namespace GUI.Utils
                 FindAndLoadShaderPackages();
             }
 
-            // TODO
-            var pathsToTry = new string[]
-            {
-                Path.Join("shaders", "vfx", Path.GetFileNameWithoutExtension(shaderName) + "_pc_40_features.vcs"),
-                Path.Join("shaders", "vfx", Path.GetFileNameWithoutExtension(shaderName) + "_pc_50_features.vcs"),
-            };
+            var collection = new ShaderCollection();
 
-            foreach (var name in pathsToTry)
+            for (var programType = VcsProgramType.Features; programType < VcsProgramType.Undetermined; programType++)
             {
-                var foundFile = FindFile(name);
+                var shaderFile = new ShaderFile();
 
-                if (foundFile.PathOnDisk != null)
+                for (var platformType = VcsPlatformType.PC; platformType < VcsPlatformType.Undetermined; platformType++)
                 {
-                    using var stream = File.OpenRead(foundFile.PathOnDisk);
-                    var shader = new ShaderFile();
-                    shader.Read(name, stream);
-                    return shader;
-                }
-                else if (foundFile.PackageEntry != null)
-                {
-                    using var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                    var shader = new ShaderFile();
-                    shader.Read(name, stream);
-                    return shader;
+                    for (var modelType = VcsShaderModelType._60; modelType > VcsShaderModelType._20; modelType--)
+                    {
+                        var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
+                        var foundFile = FindFile(path);
+
+                        if (foundFile.PathOnDisk != null)
+                        {
+                            using var stream = File.OpenRead(foundFile.PathOnDisk);
+                            shaderFile.Read(path, stream);
+                            break;
+                        }
+                        else if (foundFile.PackageEntry != null)
+                        {
+                            using var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                            shaderFile.Read(path, stream);
+                            break;
+                        }
+                    }
+
+                    if (shaderFile.VcsPlatformType == platformType)
+                    {
+                        collection.Add(shaderFile);
+                        break;
+                    }
                 }
             }
 
-            return null;
+            return collection;
         }
 
         public Resource LoadFile(string file)

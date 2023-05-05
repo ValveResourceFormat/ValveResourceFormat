@@ -1244,6 +1244,6 @@ public sealed class ShaderExtract
         var cutoff = Array.IndexOf(channelBlock.InputTextureIndices, -1);
         var inputs = string.Join(", ", channelBlock.InputTextureIndices[..cutoff].Select(idx => paramBlocks[idx].Name));
 
-        return $"Channel({channelBlock.Channel}, {channelBlock.Name}({inputs}), {mode});";
+        return $"Channel({channelBlock.Channel}, {channelBlock.TexProcessorName}({inputs}), {mode});";
     }
 }

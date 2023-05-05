@@ -1146,28 +1146,17 @@ namespace ValveResourceFormat.IO
 
             material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
 
+            var matExtract = new MaterialExtract(renderMaterial, null, FileLoader);
             var allGltfInputs = MaterialExtract.GltfTextureMappings.Values.SelectMany(x => x);
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
             var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
-
-            // Load shader
-            GetRemapInstructionsFromShader(renderMaterial.ShaderName);
-
-            // Features contain parameters, but there is no zframes to figure out the variant ones
-            // Zframes are in Pixel or Vertex
-            var collection = new CompiledShader.ShaderCollection();
-            var shader = FileLoader.LoadShader(renderMaterial.ShaderName);
-            if (shader != null)
-            {
-                collection.Add(shader);
-            }
 
             // Remap vtex texture parameters into instructions that can be exported
             var remapDict = new Dictionary<string, List<RemapInstruction>>();
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
             {
                 var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, textureKey, renderMaterial.IntParams).ToList();
-                var inputImagesFromShader = shader != null ? MaterialExtract.GetTextureInputs(collection, textureKey, renderMaterial.IntParams) : null;
+                var inputImagesFromShader = matExtract.GetTextureInputs(textureKey);
                 var remapInstructions = GetRemapInstructions(inputImages);
 
                 if (remapInstructions.Count == 0)
@@ -1442,19 +1431,6 @@ namespace ValveResourceFormat.IO
 
                 return instructions;
             }
-        }
-
-        private void GetRemapInstructionsFromShader(string shaderName)
-        {
-            // TODO: Cache
-            var shader = FileLoader.LoadShader(shaderName);
-
-            if (shader == null)
-            {
-                return;
-            }
-
-            ProgressReporter?.Report($"Loaded shader {shader.ShaderName} ({shader.VcsProgramType} / {shader.VcsPlatformType} / {shader.VcsShaderModelType})");
         }
 
         /// <summary>

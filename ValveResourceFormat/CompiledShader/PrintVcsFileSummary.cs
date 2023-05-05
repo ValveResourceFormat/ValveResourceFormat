@@ -393,7 +393,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             foreach (var channelBlock in shaderFile.ChannelBlocks)
             {
-                output.AddTabulatedRow(new string[] { $"[{channelBlock.BlockIndex,2}]", $"{channelBlock.Name}",
+                output.AddTabulatedRow(new string[] { $"[{channelBlock.BlockIndex,2}]", $"{channelBlock.TexProcessorName}",
                     channelBlock.Channel.ToString(), string.Join(" ", channelBlock.InputTextureIndices), $"{channelBlock.ColorMode,2}" });
             }
             output.PrintTabulatedValues();

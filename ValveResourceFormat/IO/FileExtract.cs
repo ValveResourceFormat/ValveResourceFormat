@@ -77,7 +77,7 @@ namespace ValveResourceFormat.IO
             return resource;
         }
 
-        public ShaderFile LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
+        public ShaderCollection LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
         public TrackingFileLoader(IFileLoader fileLoader)
         {

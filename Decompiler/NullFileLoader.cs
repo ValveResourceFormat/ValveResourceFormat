@@ -7,6 +7,6 @@ namespace Decompiler
     public class NullFileLoader : IFileLoader
     {
         public Resource LoadFile(string file) => null;
-        public ShaderFile LoadShader(string shaderName) => null;
+        public ShaderCollection LoadShader(string shaderName) => null;
     }
 }
