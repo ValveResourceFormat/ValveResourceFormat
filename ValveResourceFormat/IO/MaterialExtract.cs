@@ -150,9 +150,9 @@ public sealed class MaterialExtract
         }
     };
 
-    private static readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappingsCache = new();
+    private readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappingsCache = new();
 
-    private static readonly Dictionary<string, Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>>> VariantTextureMappingsCache = new()
+    private readonly Dictionary<string, Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>>> VariantTextureMappingsCache = new()
     {
         ["vrf_example"] = new()
         {
@@ -309,7 +309,8 @@ public sealed class MaterialExtract
         }
 
         var shader = fileLoader.LoadShader(material.ShaderName);
-        if (shader?.Features == null)
+
+        if (shader.Features == null)
         {
             return null;
         }
@@ -366,7 +367,7 @@ public sealed class MaterialExtract
     /// </summary>
     public static IEnumerable<(Channel Channel, string Name)> GetTextureInputs(string shaderName, string textureType, Dictionary<string, long> featureState)
     {
-        shaderName = shaderName[..^4]; // strip '.vfx'
+        shaderName = Path.ChangeExtension(shaderName, null); // strip '.vfx'
 
         if (!(TextureMappings.TryGetValue(shaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings)))
         {

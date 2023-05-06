@@ -97,7 +97,7 @@ namespace GUI.Utils
             return (newContext, foundFile.PackageEntry);
         }
 
-        public (string PathOnDisk, VrfGuiContext Context, Package Package, PackageEntry PackageEntry) FindFile(string file)
+        public (string PathOnDisk, VrfGuiContext Context, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
         {
             var entry = GuiContext.CurrentPackage?.FindEntry(file);
 
@@ -180,7 +180,10 @@ namespace GUI.Utils
                 return (path, null, null, null);
             }
 
-            Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
+            if (logNotFound)
+            {
+                Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
+            }
 
             if (string.IsNullOrEmpty(file) || file == "_c")
             {
@@ -211,37 +214,58 @@ namespace GUI.Utils
 
             var collection = new ShaderCollection();
 
-            for (var programType = VcsProgramType.Features; programType < VcsProgramType.Undetermined; programType++)
+            bool TryLoadShader(VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType modelType)
             {
                 var shaderFile = new ShaderFile();
+                var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
+                var foundFile = FindFile(path, logNotFound: false);
 
-                for (var platformType = VcsPlatformType.PC; platformType < VcsPlatformType.Undetermined; platformType++)
+                if (foundFile.PathOnDisk != null)
                 {
-                    for (var modelType = VcsShaderModelType._60; modelType > VcsShaderModelType._20; modelType--)
-                    {
-                        var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
-                        var foundFile = FindFile(path);
+                    using var stream = File.OpenRead(foundFile.PathOnDisk);
+                    shaderFile.Read(path, stream);
+                }
+                else if (foundFile.PackageEntry != null)
+                {
+                    using var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                    shaderFile.Read(path, stream);
+                }
 
-                        if (foundFile.PathOnDisk != null)
-                        {
-                            using var stream = File.OpenRead(foundFile.PathOnDisk);
-                            shaderFile.Read(path, stream);
-                            break;
-                        }
-                        else if (foundFile.PackageEntry != null)
-                        {
-                            using var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                            shaderFile.Read(path, stream);
-                            break;
-                        }
-                    }
+                if (shaderFile.VcsPlatformType == platformType)
+                {
+                    collection.Add(shaderFile);
+                    return true;
+                }
 
-                    if (shaderFile.VcsPlatformType == platformType)
+                return false;
+            }
+
+            var selectedPlatformType = VcsPlatformType.Undetermined;
+            var selectedModelType = VcsShaderModelType.Undetermined;
+
+            for (var platformType = VcsPlatformType.PC; platformType < VcsPlatformType.Undetermined && selectedPlatformType == VcsPlatformType.Undetermined; platformType++)
+            {
+                for (var modelType = VcsShaderModelType._60; modelType > VcsShaderModelType._20; modelType--)
+                {
+                    if (TryLoadShader(VcsProgramType.Features, platformType, modelType))
                     {
-                        collection.Add(shaderFile);
+                        selectedPlatformType = platformType;
+                        selectedModelType = modelType;
                         break;
                     }
                 }
+            }
+
+            if (selectedPlatformType == VcsPlatformType.Undetermined)
+            {
+                Console.Error.WriteLine($"Failed to find shader \"{shaderName}\".");
+
+                return collection;
+            }
+
+            for (var programType = VcsProgramType.VertexShader; programType < VcsProgramType.Undetermined; programType++)
+            {
+                TryLoadShader(programType, selectedPlatformType, selectedModelType);
             }
 
             return collection;

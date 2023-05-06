@@ -1156,7 +1156,18 @@ namespace ValveResourceFormat.IO
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
             {
                 var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, textureKey, renderMaterial.IntParams).ToList();
-                var inputImagesFromShader = matExtract.GetTextureInputs(textureKey);
+
+                try
+                {
+                    var inputImagesFromShader = matExtract.GetTextureInputs(textureKey);
+                }
+                catch (Exception e)
+                {
+                    // Shaders are complicated, so do not stop exporting if they throw
+                    ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
+                    Console.Error.WriteLine(e);
+                }
+
                 var remapInstructions = GetRemapInstructions(inputImages);
 
                 if (remapInstructions.Count == 0)
