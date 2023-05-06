@@ -101,6 +101,7 @@
  *
  */
 using System;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -125,25 +126,33 @@ namespace ValveResourceFormat.CompiledShader
         private static void DecodeDictionary()
         {
             zstdDict = new byte[65536];
-            byte[] b = null;
+            var b = new byte[3];
+
             for (var i = 0; i < zstdDict.Length; i++)
             {
                 // for every 3 bytes in the dictionary we decode 4 characters onto a 3-length byte[] b
                 // the encoded string `Zstd2bc2fa87` is zero-padded to be divisible by 4
                 if (i % 3 == 0)
                 {
-                    b = Dec(Zstd2bc2fa87.Substring(i / 3 * 4, 4));
+                    Dec(b, i / 3 * 4);
                 }
                 zstdDict[i] = b[i % 3];
             }
         }
 
-        private static byte[] Dec(string enc)
+        private static void Dec(byte[] b, int i)
         {
             // a base 64 character is 6 bits long, shifted in increments of 6 occupy the last 24 bits in
             // the assigned `int val`. The 24 bits are then read as 3 bytes; retrieved in increments of 8
-            var val = Ctv(enc[0], 18) + Ctv(enc[1], 12) + Ctv(enc[2], 6) + Ctv(enc[3], 0);
-            return new byte[] { (byte)(val >> 16), (byte)(0xFF & (val >> 8)), (byte)(0xFF & val) };
+            var val =
+                Ctv(Zstd2bc2fa87[i], 18) +
+                Ctv(Zstd2bc2fa87[i + 1], 12) +
+                Ctv(Zstd2bc2fa87[i + 2], 6) +
+                Ctv(Zstd2bc2fa87[i + 3], 0);
+
+            b[0] = (byte)(val >> 16);
+            b[1] = (byte)(0xFF & (val >> 8));
+            b[2] = (byte)(0xFF & val);
         }
 
         private static int Ctv(char c, int shift)
