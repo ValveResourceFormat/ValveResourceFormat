@@ -298,12 +298,15 @@ public sealed class MaterialExtract
     /// </summary>
     public IEnumerable<(Channel Channel, string Name)> GetTextureInputs(string textureType)
     {
+        var featureState = material.IntParams.Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal));
+        var featureStateCacheKey = string.Join("", featureState.OrderBy(p => p.Key).Select(p => p.Value.ToString()));
+
         if (TextureMappingsCache.TryGetValue(material.ShaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings))
         {
             return channelMappings;
         }
         else if (VariantTextureMappingsCache.TryGetValue(material.ShaderName, out var shaderSpecificV) && shaderSpecificV.TryGetValue(textureType, out var variantSpecific)
-            && variantSpecific.TryGetValue("intparams", out var variantChannelMappings))
+            && variantSpecific.TryGetValue(featureStateCacheKey, out var variantChannelMappings))
         {
             return variantChannelMappings;
         }
@@ -316,37 +319,111 @@ public sealed class MaterialExtract
         }
 
         var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
-
         if (@params.Length == 0)
         {
             throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
         }
         else if (@params.Length == 1)
         {
-            var inputs = GetParameterInputs(@params[0]);
-            TextureMappingsCache[material.ShaderName][textureType] = inputs.ToArray();
+            if (!TextureMappingsCache.TryGetValue(material.ShaderName, out var perShaderMappings))
+            {
+                perShaderMappings = new();
+                TextureMappingsCache.Add(material.ShaderName, perShaderMappings);
+            }
+
+            var inputs = GetParameterInputs(@params[0], shader.Features);
+            perShaderMappings[textureType] = inputs.ToArray();
             return inputs;
         }
         else
         {
-            // TODO: Resolve variant parameters, by loading the zframe pertaining to the feature state
-            // and checking which of the parameters is referenced.
-            var possibliities = new List<(Channel Channel, string Name)>[@params.Length];
-            for (var i = 0; i < @params.Length; i++)
+            foreach (var shaderFile in shader)
             {
-                possibliities[i] = GetParameterInputs(@params[i]).ToList();
+                if (shaderFile.VcsProgramType == VcsProgramType.Features)
+                {
+                    continue;
+                }
+
+                var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
+                if (fileParams.Length == 0)
+                {
+                    continue;
+                }
+
+                var staticConfiguration = new int[shaderFile.SfBlocks.Count];
+                var configGen = new ConfigMappingSParams(shaderFile);
+
+                foreach (var condition in shaderFile.SfBlocks)
+                {
+                    if (condition.FeatureIndex == -1)
+                    {
+                        continue;
+                    }
+
+                    var feature = shader.Features.SfBlocks[condition.FeatureIndex];
+
+                    foreach (var (Name, Value) in featureState)
+                    {
+                        if (feature.Name == Name)
+                        {
+                            if (Value > feature.RangeMax || Value < feature.RangeMin)
+                            {
+                                throw new InvalidDataException($"Material feature '{Name}' is out of range for '{shader.Features.ShaderName}'");
+                            }
+
+                            staticConfiguration[condition.BlockIndex] = (int)Value;
+                            break;
+                        }
+                    }
+                }
+
+                var zframeId = configGen.GetZframeId(staticConfiguration);
+                if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
+                {
+                    continue;
+                }
+
+                var staticVariant = shaderFile.GetZFrameFile(zframeId);
+
+                // Should non-leading write sequences be checked too?
+                foreach (var writeSequenceField in staticVariant.LeadingData.Fields)
+                {
+                    var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.ParamId);
+                    if (referencedParam != null)
+                    {
+                        if (!VariantTextureMappingsCache.TryGetValue(material.ShaderName, out var textures))
+                        {
+                            textures = new();
+                            VariantTextureMappingsCache.Add(material.ShaderName, textures);
+                        }
+
+                        if (!textures.TryGetValue(textureType, out var perVariantMappings))
+                        {
+                            perVariantMappings = new();
+                            textures.Add(textureType, perVariantMappings);
+                        }
+
+                        var inputs = GetParameterInputs(referencedParam, shaderFile);
+                        perVariantMappings[featureStateCacheKey] = inputs.ToArray();
+                        return inputs;
+                    }
+                }
             }
+
+            throw new InvalidDataException(
+                $"Varying parameter '{textureType}' in '{shader.Features.ShaderName}' could not be resolved. "
+                + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
         }
 
-        IEnumerable<(Channel Channel, string Name)> GetParameterInputs(ParamBlock param)
+        IEnumerable<(Channel Channel, string Name)> GetParameterInputs(ParamBlock param, ShaderFile shaderFile)
         {
             for (var i = 0; i < param.ChannelCount; i++)
             {
                 var channelIndex = param.ChannelIndices[i];
-                var channel = shader.Features.ChannelBlocks[channelIndex];
+                var channel = shaderFile.ChannelBlocks[channelIndex];
 
                 var cutoff = Array.IndexOf(channel.InputTextureIndices, -1);
-                var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => shader.Features.ParamBlocks[idx].Name).ToArray();
+                var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => shaderFile.ParamBlocks[idx].Name).ToArray();
 
                 if (channel.TexProcessorName == "HemiOctIsoRoughness_RG_B" || channel.TexProcessorName == "AnisoNormal")
                 {
@@ -358,8 +435,6 @@ public sealed class MaterialExtract
                 yield return (channel.Channel, textureProcessorInputs[0]);
             }
         }
-
-        return null;
     }
 
     /// <summary>

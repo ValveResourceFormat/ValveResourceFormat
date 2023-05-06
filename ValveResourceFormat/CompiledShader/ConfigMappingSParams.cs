@@ -158,6 +158,17 @@ namespace ValveResourceFormat.CompiledShader
             }
             return state;
         }
+
+        public long GetZframeId(int[] configState)
+        {
+            var zframeId = 0L;
+            for (var i = 0; i < nr_states.Length; i++)
+            {
+                zframeId += configState[i] * offsets[i];
+            }
+            return zframeId;
+        }
+
         int[] offsets;
         int[] nr_states;
         /*

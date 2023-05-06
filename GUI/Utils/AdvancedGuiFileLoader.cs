@@ -222,12 +222,12 @@ namespace GUI.Utils
 
                 if (foundFile.PathOnDisk != null)
                 {
-                    using var stream = File.OpenRead(foundFile.PathOnDisk);
+                    var stream = File.OpenRead(foundFile.PathOnDisk);
                     shaderFile.Read(path, stream);
                 }
                 else if (foundFile.PackageEntry != null)
                 {
-                    using var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                    var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
                     shaderFile.Read(path, stream);
                 }
 
