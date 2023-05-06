@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 
@@ -10,25 +11,7 @@ namespace Tests
 {
     public class MaterialExtractTest
     {
-        [Test]
-        public void TextureInputsForFeatureState([Values(false, true)] bool translucent)
-        {
-            var featureState = new Dictionary<string, long>
-            {
-                ["F_TRANSLUCENT"] = translucent ? 1 : 0
-            };
-
-            var vr_complex_expected_inputs = new[] {
-                (ChannelMapping.RGB, "TextureColor"),
-                (ChannelMapping.A, translucent ? "TextureTranslucency" : "TextureMetalness")
-            };
-
-            var result = MaterialExtract.GetTextureInputs("vr_complex.vfx", "g_tColor", featureState);
-            Assert.That(result, Is.EquivalentTo(vr_complex_expected_inputs));
-        }
-
-        [Test]
-        public void TextureInputPaths([Values(false, true)] bool translucent)
+        private static Material GetMockMaterial(bool translucent)
         {
             var mockMaterial = new Material()
             {
@@ -36,7 +19,24 @@ namespace Tests
             };
 
             mockMaterial.IntParams["F_TRANSLUCENT"] = translucent ? 1 : 0;
+            return mockMaterial;
+        }
 
+        [Test]
+        public void TextureInputsForFeatureState([Values(false, true)] bool translucent)
+        {
+            var vr_complex_expected_inputs = new[] {
+                (ChannelMapping.RGB, "TextureColor"),
+                (ChannelMapping.A, translucent ? "TextureTranslucency" : "TextureMetalness")
+            };
+
+            var result = new BasicShaderDataProvider().GetInputsForTexture("g_tColor", GetMockMaterial(translucent));
+            Assert.That(result, Is.EquivalentTo(vr_complex_expected_inputs));
+        }
+
+        [Test]
+        public void TextureInputPaths([Values(false, true)] bool translucent)
+        {
             var vr_complex_expected_inputs = new[] {
                 new MaterialExtract.UnpackInfo()
                 {
@@ -52,7 +52,8 @@ namespace Tests
                 }
             };
 
-            var result = MaterialExtract.GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", mockMaterial, false, false);
+            var result = new MaterialExtract(GetMockMaterial(translucent), null, null, new BasicShaderDataProvider())
+                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", false, false);
             Assert.That(result, Is.EquivalentTo(vr_complex_expected_inputs));
         }
 

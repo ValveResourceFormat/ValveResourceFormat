@@ -14,6 +14,7 @@ using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -1099,6 +1100,19 @@ namespace ValveResourceFormat.IO
             bool Invert = false
         );
 
+        public static readonly Dictionary<string, (ChannelMapping Channel, string Name)[]> GltfTextureMappings = new()
+        {
+            ["BaseColor"] = new[] { (ChannelMapping.RGB, "TextureColor"), (ChannelMapping.A, "TextureTranslucency") },
+            ["Normal"] = new[] { (ChannelMapping.RGB, "TextureNormal") },
+            ["MetallicRoughness"] = new[] {
+                (ChannelMapping.R, string.Empty),
+                (ChannelMapping.G, "TextureRoughness"),
+                (ChannelMapping.B, "TextureMetalness")
+            },
+            ["Occlusion"] = new[] { (ChannelMapping.R, "TextureAmbientOcclusion") },
+            ["Emissive"] = new[] { (ChannelMapping.R, "TextureSelfIllumMask") },
+        };
+
         private async Task GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model)
         {
             await Task.Yield(); // Yield as the first step so it doesn't actually block
@@ -1146,20 +1160,21 @@ namespace ValveResourceFormat.IO
 
             material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
 
-            var matExtract = new MaterialExtract(renderMaterial, null, FileLoader);
-            var allGltfInputs = MaterialExtract.GltfTextureMappings.Values.SelectMany(x => x);
+            var allGltfInputs = GltfTextureMappings.Values.SelectMany(x => x);
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
             var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
+
+            var shaderData = new FullShaderDataProvider(FileLoader);
+            var shaderDataBackup = new BasicShaderDataProvider();
 
             // Remap vtex texture parameters into instructions that can be exported
             var remapDict = new Dictionary<string, List<RemapInstruction>>();
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
             {
-                var inputImages = MaterialExtract.GetTextureInputs(renderMaterial.ShaderName, textureKey, renderMaterial.IntParams).ToList();
-
+                List<(ChannelMapping Channel, string Name)> inputImages = null;
                 try
                 {
-                    var inputImagesFromShader = matExtract.GetTextureInputs(textureKey);
+                    inputImages = shaderData.GetInputsForTexture(textureKey, renderMaterial).ToList();
                 }
                 catch (Exception e)
                 {
@@ -1168,15 +1183,14 @@ namespace ValveResourceFormat.IO
                     Console.Error.WriteLine(e);
                 }
 
+                inputImages ??= shaderDataBackup.GetInputsForTexture(textureKey, renderMaterial).ToList();
                 var remapInstructions = GetRemapInstructions(inputImages);
-
                 if (remapInstructions.Count == 0)
                 {
                     continue;
                 }
 
                 remapDict[texturePath] = remapInstructions;
-
 #if DEBUG
                 ProgressReporter?.Report($"Remapping {texturePath} {string.Join(", ", remapInstructions.Select(i => i.ValveChannel + "->" + i.GltfChannel))}");
 #endif
@@ -1397,7 +1411,7 @@ namespace ValveResourceFormat.IO
             {
                 var instructions = new List<RemapInstruction>();
 
-                foreach (var (GltfType, GltfInputs) in MaterialExtract.GltfTextureMappings)
+                foreach (var (GltfType, GltfInputs) in GltfTextureMappings)
                 {
                     // Old behavior, use the texture directly if the first input matches.
                     if (!AdaptTextures)
