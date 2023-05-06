@@ -10,7 +10,7 @@
  * ----------------------------------
  *
  *      byte[] zstdDict = ZstdDictionary.GetDictionary();
- *      var zstdDecoder = new ZstdSharp.Decompressor();
+ *      using var zstdDecoder = new ZstdSharp.Decompressor();
  *      zstdDecoder.LoadDictionary(zstdDict);
  *      byte[] decompressedData = zstdDecoder.Unwrap(compressedZstdFrame).ToArray();
  *
@@ -107,28 +107,40 @@ namespace ValveResourceFormat.CompiledShader
     public static class ZstdDictionary
     {
         private static byte[] zstdDict;
+        private static object zstdDictLock = new object();
+
         public static byte[] GetDictionary()
         {
-            if (zstdDict == null)
+            lock (zstdDictLock)
             {
-                zstdDict = new byte[65536];
-                // ascii characters 0x30 = '0' to 0x6f = 'o' are used to encode the dictionary (base 64)
-                // because '\' cannot be stored in a string 'p' is used as a placeholder
-                var zstd = Zstd2bc2fa87.Replace("p", "\\", StringComparison.InvariantCulture);
-                byte[] b = null;
-                for (var i = 0; i < zstdDict.Length; i++)
+                if (zstdDict == null)
                 {
-                    // for every 3 bytes in the dictionary we decode 4 characters onto a 3-length byte[] b
-                    // the encoded string `Zstd2bc2fa87` is zero-padded to be divisible by 4
-                    if (i % 3 == 0)
-                    {
-                        b = Dec(zstd.Substring(i / 3 * 4, 4));
-                    }
-                    zstdDict[i] = b[i % 3];
+                    DecodeDictionary();
                 }
+
+                return zstdDict;
             }
-            return zstdDict;
         }
+
+        private static void DecodeDictionary()
+        {
+            zstdDict = new byte[65536];
+            // ascii characters 0x30 = '0' to 0x6f = 'o' are used to encode the dictionary (base 64)
+            // because '\' cannot be stored in a string 'p' is used as a placeholder
+            var zstd = Zstd2bc2fa87.Replace("p", "\\", StringComparison.InvariantCulture);
+            byte[] b = null;
+            for (var i = 0; i < zstdDict.Length; i++)
+            {
+                // for every 3 bytes in the dictionary we decode 4 characters onto a 3-length byte[] b
+                // the encoded string `Zstd2bc2fa87` is zero-padded to be divisible by 4
+                if (i % 3 == 0)
+                {
+                    b = Dec(zstd.Substring(i / 3 * 4, 4));
+                }
+                zstdDict[i] = b[i % 3];
+            }
+        }
+
         private static byte[] Dec(string enc)
         {
             // a base 64 character is 6 bits long, shifted in increments of 6 occupy the last 24 bits in
@@ -136,6 +148,7 @@ namespace ValveResourceFormat.CompiledShader
             var val = Ctv(enc[0], 18) + Ctv(enc[1], 12) + Ctv(enc[2], 6) + Ctv(enc[3], 0);
             return new byte[] { (byte)(val >> 16), (byte)(0xFF & (val >> 8)), (byte)(0xFF & val) };
         }
+
         private static int Ctv(char c, int shift)
         {
             return (c - 0x30) << shift;
