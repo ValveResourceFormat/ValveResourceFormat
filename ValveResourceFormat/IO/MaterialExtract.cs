@@ -428,8 +428,12 @@ public sealed class MaterialExtract
                 if (channel.TexProcessorName == "HemiOctIsoRoughness_RG_B" || channel.TexProcessorName == "AnisoNormal")
                 {
                     yield return (Channel.RGB, textureProcessorInputs[0]);
-                    yield return (Channel.A, textureProcessorInputs[1]);
-                    yield break;
+                    if (textureProcessorInputs.Length == 2)
+                    {
+                        yield return (Channel.A, textureProcessorInputs[1]);
+                    }
+
+                    continue;
                 }
 
                 yield return (channel.Channel, textureProcessorInputs[0]);
