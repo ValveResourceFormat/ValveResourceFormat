@@ -446,16 +446,11 @@ namespace GUI.Utils
 
         private void FindAndLoadShaderPackages()
         {
-            var shaderNames = new string[]
-            {
-                "shaders_pc_dir.vpk",
-                "shaders_vulkan_dir.vpk",
-            };
-
             foreach (var folder in CurrentGameSearchPaths)
             {
-                foreach (var shaderName in shaderNames)
+                for (var platformType = VcsPlatformType.PC; platformType < VcsPlatformType.Undetermined; platformType++)
                 {
+                    var shaderName = $"shaders_{platformType.ToString().ToLowerInvariant()}_dir.vpk";
                     var vpk = Path.Combine(folder, shaderName);
 
                     if (File.Exists(vpk))
