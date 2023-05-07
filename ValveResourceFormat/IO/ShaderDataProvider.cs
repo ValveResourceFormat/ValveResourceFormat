@@ -5,6 +5,7 @@ using System.Linq;
 using ValveResourceFormat.CompiledShader;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 using ValveResourceFormat.ResourceTypes;
+using System.Collections.Concurrent;
 
 namespace ValveResourceFormat.IO.ShaderDataProvider
 {
@@ -16,45 +17,80 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
 
     public class FullShaderDataProvider : IShaderDataProvider
     {
-        public class BackedUpProvider : IShaderDataProvider
+        private readonly IFileLoader fileLoader;
+        private readonly IShaderDataProvider basicProvider;
+        private static readonly Cache cache = new();
+
+        public class Cache : IDisposable
         {
-            private readonly IShaderDataProvider primary;
-            private readonly IShaderDataProvider basic = new BasicShaderDataProvider();
+            public Dictionary<string, ShaderCollection> ShaderCache { get; } = new();
+            private readonly object cacheLock = new();
 
-            public BackedUpProvider(IShaderDataProvider primary)
+            public ShaderCollection GetOrAddShader(string shaderName, Func<string, ShaderCollection> factory)
             {
-                this.primary = primary;
+                lock (cacheLock)
+                {
+                    if (ShaderCache.TryGetValue(shaderName, out var shader))
+                    {
+                        return shader;
+                    }
+
+                    shader = factory(shaderName);
+                    ShaderCache.Add(shaderName, shader);
+                    return shader;
+                }
             }
 
-            public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
+            public void Clear()
             {
-                return primary.GetInputsForTexture(textureType, material) ?? basic.GetInputsForTexture(textureType, material);
+                lock (cacheLock)
+                {
+                    foreach (var shader in ShaderCache.Values)
+                    {
+                        shader.Dispose();
+                    }
+
+                    ShaderCache.Clear();
+                }
             }
 
-            public string GetSuffixForInputTexture(string inputName, Material material)
+            protected virtual void Dispose(bool disposing)
             {
-                return primary.GetSuffixForInputTexture(inputName, material) ?? basic.GetSuffixForInputTexture(inputName, material);
+                if (disposing)
+                {
+                    Clear();
+                }
+            }
+
+            public void Dispose()
+            {
+                Dispose(disposing: true);
+                GC.SuppressFinalize(this);
             }
         }
 
-        private readonly IFileLoader fileLoader;
-
-        public FullShaderDataProvider(IFileLoader fileLoader)
+        public FullShaderDataProvider(IFileLoader fileLoader, bool fallBackToBasic = true)
         {
             this.fileLoader = fileLoader;
+            basicProvider = fallBackToBasic ? new BasicShaderDataProvider() : null;
         }
 
-        public static IShaderDataProvider WithBasicShaderDataBackup(IFileLoader fileLoader)
+        public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
-            return new BackedUpProvider(new FullShaderDataProvider(fileLoader));
+            return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material);
+        }
+
+        public string GetSuffixForInputTexture(string inputName, Material material)
+        {
+            return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
 
         /// <summary>
         /// Get precise texture inputs by querying the shader files. 
         /// </summary>
-        public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
+        private IEnumerable<(Channel Channel, string Name)> GetInputsForTexture_Internal(string textureType, Material material)
         {
-            var shader = fileLoader.LoadShader(material.ShaderName);
+            var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
             if (shader.Features == null)
             {
                 return null;
@@ -164,9 +200,9 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             }
         }
 
-        public string GetSuffixForInputTexture(string inputName, Material material)
+        private string GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
-            var shader = fileLoader.LoadShader(material.ShaderName);
+            var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
             if (shader.Features != null)
             {
                 foreach (var param in shader.Features.ParamBlocks)

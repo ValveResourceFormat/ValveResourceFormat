@@ -1164,8 +1164,8 @@ namespace ValveResourceFormat.IO
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
             var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
 
-            var shaderData = new FullShaderDataProvider(FileLoader);
-            var shaderDataBackup = new BasicShaderDataProvider();
+            var shaderData = new FullShaderDataProvider(FileLoader, false);
+            var shaderDataFallback = new BasicShaderDataProvider();
 
             // Remap vtex texture parameters into instructions that can be exported
             var remapDict = new Dictionary<string, List<RemapInstruction>>();
@@ -1180,10 +1180,10 @@ namespace ValveResourceFormat.IO
                 {
                     // Shaders are complicated, so do not stop exporting if they throw
                     ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
-                    Console.Error.WriteLine(e);
+                    await Console.Error.WriteLineAsync(e.ToString()).ConfigureAwait(false);
                 }
 
-                inputImages ??= shaderDataBackup.GetInputsForTexture(textureKey, renderMaterial).ToList();
+                inputImages ??= shaderDataFallback.GetInputsForTexture(textureKey, renderMaterial).ToList();
                 var remapInstructions = GetRemapInstructions(inputImages);
                 if (remapInstructions.Count == 0)
                 {

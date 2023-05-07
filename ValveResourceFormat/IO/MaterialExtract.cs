@@ -42,7 +42,7 @@ public sealed class MaterialExtract
     {
         if (fileLoader is not null)
         {
-            shaderDataProvider = FullShaderDataProvider.WithBasicShaderDataBackup(fileLoader);
+            shaderDataProvider = new FullShaderDataProvider(fileLoader);
         }
     }
 
