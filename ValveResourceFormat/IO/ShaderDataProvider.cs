@@ -111,7 +111,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
                 var featureState = material.IntParams.Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal));
                 foreach (var shaderFile in shader)
                 {
-                    if (shaderFile.VcsProgramType == VcsProgramType.Features)
+                    if (shaderFile.VcsProgramType == VcsProgramType.Features || shaderFile.ZframesLookup.Count == 0)
                     {
                         continue;
                     }
@@ -150,9 +150,14 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
                     }
 
                     var zframeId = configGen.GetZframeId(staticConfiguration);
+
+                    // It can happen that the shader feature rules don't match static rules, producing
+                    // materials with bad feature configuration. That or the material data is just bad/incompatible.
                     if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
                     {
-                        continue;
+                        // Game code probably goes through the sfRules and switches off only some of the parameters.
+                        // But here we just fall back to first zframe (effectively switches all off).
+                        zframeId = 0;
                     }
 
                     using var staticVariant = shaderFile.GetZFrameFile(zframeId);
