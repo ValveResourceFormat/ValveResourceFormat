@@ -79,7 +79,7 @@ namespace ValveResourceFormat.IO
 
                 var edge = mesh.EdgeDataIndices.Count > firstInner
                     ? mesh.EdgeDataIndices[firstInner]
-                    : mesh.EdgeDataIndices.Count;
+                    : mesh.EdgeDataIndices.Count / 2;
 
                 // For each vertex pair, build an edge (half+twin)
                 for (var i = 0; i < face.VertexIndices.Count; i++)

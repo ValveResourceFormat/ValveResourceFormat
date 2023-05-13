@@ -226,29 +226,20 @@ public sealed class MapExtract
                 continue;
             }
 
-            var skyboxGroup = new CMapGroup { Name = "toolsskybox mesh" };
-
-            // A skybox mesh
+            var builder = new HammerMeshBuilder();
             foreach (var tri in mesh.Shape.Triangles)
             {
-                var builder = new HammerMeshBuilder();
-
+                // TODO: Add the vertex stream as is, when mesh builder supports edge joining
                 builder.AddFace("materials/tools/toolsskybox.vmat", new Vector3[]
                 {
                     mesh.Shape.Vertices[tri.Indices[0]],
                     mesh.Shape.Vertices[tri.Indices[1]],
                     mesh.Shape.Vertices[tri.Indices[2]],
                 });
-
-                // One triangle per mesh for now, since we don't have a way to join edges
-                var mapMesh = builder.GenerateMesh();
-                skyboxGroup.Children.Add(new CMapMesh { MeshData = mapMesh });
             }
 
-            if (skyboxGroup.Children.Count > 0)
-            {
-                MapDocument.World.Children.Add(skyboxGroup);
-            }
+            var skyboxMesh = new CMapMesh { Name = "toolsskybox mesh", MeshData = builder.GenerateMesh() };
+            MapDocument.World.Children.Add(skyboxMesh);
         }
     }
 
@@ -325,20 +316,14 @@ public sealed class MapExtract
                 }
             }
 
-            if ((objectFlags & ObjectTypeFlags.RenderToCubemaps) != 0)
-            {
-                propStatic.EntityProperties["rendertocubemaps"] = "1";
-            }
+            propStatic.EntityProperties["rendertocubemaps"] = objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps) ? "1" : "0";
+            propStatic.EntityProperties["disableshadows"] = objectFlags.HasFlag(ObjectTypeFlags.NoShadows) ? "1" : "0";
 
-            if ((objectFlags & ObjectTypeFlags.NoShadows) != 0)
+            var isEmbeddedModel = false;
+            if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
             {
-                propStatic.EntityProperties["disableshadows"] = "1";
-            }
-
-            var isEmbeddedModel = true;
-            if ((objectFlags & ObjectTypeFlags.Model) != 0)
-            {
-                isEmbeddedModel = false;
+                isEmbeddedModel = true;
+                propStatic.EntityProperties["baketoworld"] = "1";
             }
 
             if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
@@ -465,7 +450,7 @@ public sealed class MapExtract
     private static int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (hash, property) in compiledEntity.Properties)
+        foreach (var (hash, property) in compiledEntity.Properties.Reverse())
         {
             if (property.Name is null)
             {

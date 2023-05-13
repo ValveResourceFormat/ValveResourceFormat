@@ -186,7 +186,7 @@ internal class CMapMesh : MapNode
     [DMAttributeName("fademaxdist")]
     public float FadeMaxDist { get; set; }
     [DMAttributeName("bakelighting")]
-    public bool BakeLighting { get; set; }
+    public bool BakeLighting { get; set; } = true;
     [DMAttributeName("precomputelightprobes")]
     public bool PrecomputeLightProbes { get; set; } = true;
     public bool RenderToCubemaps { get; set; } = true;
