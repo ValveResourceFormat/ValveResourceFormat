@@ -1,4 +1,6 @@
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using ValveResourceFormat.CompiledShader;
 
 namespace GUI.Forms
 {
@@ -17,6 +19,17 @@ namespace GUI.Forms
         {
             if (disposing && (components != null))
             {
+                cts?.Cancel();
+                cts?.Dispose();
+                if (channelChangingTask?.Status == TaskStatus.Running)
+                {
+                    channelChangingTask.ContinueWith(t =>
+                    {
+                        t.Dispose();
+                        skBitmap.Dispose();
+                    });
+                }
+
                 components.Dispose();
             }
             base.Dispose(disposing);
@@ -102,6 +115,7 @@ namespace GUI.Forms
             this.viewChannelsRed.Name = "viewChannelsRed";
             this.viewChannelsRed.Size = new System.Drawing.Size(180, 22);
             this.viewChannelsRed.Text = "Red";
+            this.viewChannelsRed.Tag = ChannelMapping.R;
             this.viewChannelsRed.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // viewChannelsGreen
@@ -109,6 +123,7 @@ namespace GUI.Forms
             this.viewChannelsGreen.Name = "viewChannelsGreen";
             this.viewChannelsGreen.Size = new System.Drawing.Size(180, 22);
             this.viewChannelsGreen.Text = "Green";
+            this.viewChannelsGreen.Tag = ChannelMapping.G;
             this.viewChannelsGreen.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // viewChannelsBlue
@@ -116,6 +131,7 @@ namespace GUI.Forms
             this.viewChannelsBlue.Name = "viewChannelsBlue";
             this.viewChannelsBlue.Size = new System.Drawing.Size(180, 22);
             this.viewChannelsBlue.Text = "Blue";
+            this.viewChannelsBlue.Tag = ChannelMapping.B;
             this.viewChannelsBlue.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // viewChannelsAlpha
@@ -123,6 +139,7 @@ namespace GUI.Forms
             this.viewChannelsAlpha.Name = "viewChannelsAlpha";
             this.viewChannelsAlpha.Size = new System.Drawing.Size(180, 22);
             this.viewChannelsAlpha.Text = "Alpha";
+            this.viewChannelsAlpha.Tag = ChannelMapping.A;
             this.viewChannelsAlpha.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // toolStripSeparator2
@@ -132,18 +149,20 @@ namespace GUI.Forms
             // 
             // viewChannelsOpaque
             // 
-            this.viewChannelsOpaque.Checked = true;
-            this.viewChannelsOpaque.CheckState = System.Windows.Forms.CheckState.Checked;
             this.viewChannelsOpaque.Name = "viewChannelsOpaque";
             this.viewChannelsOpaque.Size = new System.Drawing.Size(180, 22);
             this.viewChannelsOpaque.Text = "Opaque";
+            this.viewChannelsOpaque.Tag = ChannelMapping.RGB;
             this.viewChannelsOpaque.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // viewChannelsTransparent
             // 
+            this.viewChannelsTransparent.Checked = true;
+            this.viewChannelsTransparent.CheckState = System.Windows.Forms.CheckState.Checked;
             this.viewChannelsTransparent.Name = "viewChannelsTransparent";
             this.viewChannelsTransparent.Size = new System.Drawing.Size(180, 22);
             this.viewChannelsTransparent.Text = "Transparent";
+            this.viewChannelsTransparent.Tag = ChannelMapping.RGBA;
             this.viewChannelsTransparent.Click += new System.EventHandler(this.OnChannelMenuItem_Click);
             // 
             // Texture
