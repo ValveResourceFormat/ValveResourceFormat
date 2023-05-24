@@ -130,7 +130,9 @@ namespace GUI.Types.Renderer
             {
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
-                    .Distinct();
+                    .Distinct()
+                    .Concat(ViewerControl.Camera.Picker.Shader.RenderModes);
+
                 SetAvailableRenderModes(supportedRenderModes);
             }
 
@@ -213,20 +215,10 @@ namespace GUI.Types.Renderer
         private void SetAvailableRenderModes(IEnumerable<string> renderModes)
         {
             renderModeComboBox.Items.Clear();
-            if (renderModes.Any())
-            {
-                renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.Add("Default Render Mode");
-                renderModeComboBox.Items.AddRange(renderModes.ToArray());
-                renderModeComboBox.Items.Add("Object Id");
-                renderModeComboBox.SelectedIndex = 0;
-            }
-            else
-            {
-                renderModeComboBox.Items.Add("(no render modes available)");
-                renderModeComboBox.SelectedIndex = 0;
-                renderModeComboBox.Enabled = false;
-            }
+            renderModeComboBox.Enabled = true;
+            renderModeComboBox.Items.Add("Default Render Mode");
+            renderModeComboBox.Items.AddRange(renderModes.ToArray());
+            renderModeComboBox.SelectedIndex = 0;
         }
 
         protected void SetEnabledLayers(HashSet<string> layers)
@@ -237,16 +229,20 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            if (ViewerControl.Camera is not null)
+#if DEBUG_SHADERS
+            if (ViewerControl.Camera?.Picker.GetAvailableRenderModes().Contains(renderMode) == true)
             {
-                if (renderMode == "Object Id")
-                {
-                    ViewerControl.Camera.Picker.Debug = true;
-                    return;
-                }
-
-                ViewerControl.Camera.Picker.Debug = false;
+                ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
+                return;
             }
+            else if (ViewerControl.Camera?.Picker.DebugShader != null)
+            {
+                ViewerControl.Camera?.Picker.SetRenderMode(null);
+                return;
+            }
+#else
+            ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
+#endif
 
             foreach (var node in Scene.AllNodes)
             {

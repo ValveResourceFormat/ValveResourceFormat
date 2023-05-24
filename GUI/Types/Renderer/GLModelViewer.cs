@@ -224,7 +224,7 @@ namespace GUI.Types.Renderer
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
             {
-                Console.WriteLine("Selected mesh with index " + pickingResponse.PixelInfo.MeshId);
+                Console.WriteLine($"Selected mesh {pickingResponse.PixelInfo.MeshId}, ({pickingResponse.PixelInfo.ObjectId}.");
                 return;
             }
 

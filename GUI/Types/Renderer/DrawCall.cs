@@ -11,11 +11,15 @@ namespace GUI.Types.Renderer
         //public uint VertexCount { get; set; }
         public uint StartIndex { get; set; }
         public int IndexCount { get; set; }
-        //public uint InstanceIndex { get; set; }   //TODO
-        //public uint InstanceCount { get; set; }   //TODO
         //public float UvDensity { get; set; }     //TODO
         //public string Flags { get; set; }        //TODO
         public Vector3 TintColor { get; set; } = Vector3.One;
+
+        public AABB? DrawBounds { get; set; }
+
+        public int MeshId { get; set; }
+        public int FirstMeshlet { get; set; }
+        public int NumMeshlets { get; set; }
         public RenderMaterial Material { get; set; }
         public uint VertexArrayObject { get; set; }
         public DrawBuffer VertexBuffer { get; set; }

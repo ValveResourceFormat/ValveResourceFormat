@@ -46,23 +46,22 @@ internal class PickingTexture : IDisposable
 
     public event EventHandler<PickingResponse> OnPicked;
     public readonly PickingRequest Request = new();
-
-    public readonly Shader shader;
-    public readonly Shader debugShader;
+    public readonly Shader Shader;
+    public Shader DebugShader;
 
     public bool IsActive => Request.ActiveNextFrame;
-    public bool Debug { get; set; }
 
     private int width = 4;
     private int height = 4;
     private int fboHandle;
     private int colorHandle;
     private int depthHandle;
+    private readonly VrfGuiContext guiContext;
 
     public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
     {
-        shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
-        debugShader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>() { { "F_DEBUG_PICKER", true } });
+        guiContext = vrfGuiContext;
+        Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
         OnPicked += onPicked;
         Setup();
     }
@@ -144,6 +143,24 @@ internal class PickingTexture : IDisposable
         GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
 
         return pixelInfo;
+    }
+
+    public IEnumerable<string> GetAvailableRenderModes()
+        => Shader.RenderModes;
+
+    public void SetRenderMode(string renderMode)
+    {
+        if (Shader.RenderModes.Contains(renderMode))
+        {
+            DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>
+            {
+                { "F_DEBUG_PICKER", true },
+                { "renderMode_" + renderMode, true },
+            });
+            return;
+        }
+
+        DebugShader = null;
     }
 
     public void Dispose()

@@ -107,10 +107,13 @@ namespace GUI.Types.Renderer
                 guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIB);
             }
 
-            var i = 0;
             foreach (var sceneObject in sceneObjects)
             {
+                var i = 0;
                 var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
+                var objectDrawBounds = sceneObject.ContainsKey("m_drawBounds")
+                    ? sceneObject.GetArray("m_drawBounds")
+                    : Array.Empty<IKeyValueCollection>();
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
@@ -122,14 +125,6 @@ namespace GUI.Types.Renderer
                     }
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var isOverlay = material.Material.IntParams.ContainsKey("F_OVERLAY");
-
-                    // Ignore overlays for now
-                    if (isOverlay)
-                    {
-                        continue;
-                    }
-
                     var shaderArguments = new Dictionary<string, bool>();
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
@@ -141,6 +136,13 @@ namespace GUI.Types.Renderer
                     {
                         // TODO: Don't pass around so much shit
                         var drawCall = CreateDrawCall(objectDrawCall, shaderArguments, material);
+                        if (objectDrawBounds.Length > i)
+                        {
+                            drawCall.DrawBounds = new AABB(
+                                objectDrawBounds[i].GetSubCollection("m_vMinBounds").ToVector3(),
+                                objectDrawBounds[i].GetSubCollection("m_vMaxBounds").ToVector3()
+                            );
+                        }
 
                         DrawCallsAll.Add(drawCall);
 
@@ -153,6 +155,7 @@ namespace GUI.Types.Renderer
                             DrawCallsOpaque.Add(drawCall);
                         }
 
+                        i++;
                         continue;
                     }
 
@@ -207,6 +210,17 @@ namespace GUI.Types.Renderer
             {
                 var tintColor = objectDrawCall.GetSubCollection("m_vTintColor").ToVector3();
                 drawCall.TintColor = new OpenTK.Vector3(tintColor.X, tintColor.Y, tintColor.Z);
+            }
+
+            if (objectDrawCall.ContainsKey("m_nMeshID"))
+            {
+                drawCall.MeshId = objectDrawCall.GetInt32Property("m_nMeshID");
+            }
+
+            if (objectDrawCall.ContainsKey("m_nFirstMeshlet"))
+            {
+                drawCall.FirstMeshlet = objectDrawCall.GetInt32Property("m_nFirstMeshlet");
+                drawCall.NumMeshlets = objectDrawCall.GetInt32Property("m_nNumMeshlets");
             }
 
             if (indexElementSize == 2)

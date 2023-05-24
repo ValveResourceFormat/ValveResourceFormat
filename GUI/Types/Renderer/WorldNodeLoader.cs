@@ -115,20 +115,23 @@ namespace GUI.Types.Renderer
                 if (renderableModel != null)
                 {
                     var newResource = guiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
-
                     if (newResource == null)
                     {
                         continue;
                     }
 
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
-                    var modelNode = new ModelSceneNode(scene, (Model)newResource.DataBlock, null, false)
+                    var aggregate = new SceneAggregate(scene, (Model)newResource.DataBlock)
                     {
                         LayerName = worldLayers[layerIndex],
                         Name = renderableModel,
                     };
 
-                    scene.Add(modelNode, false);
+                    scene.Add(aggregate, false);
+                    foreach (var fragment in aggregate.CreateFragments(sceneObject.GetArray("m_aggregateMeshes")))
+                    {
+                        scene.Add(fragment, false);
+                    }
                 }
             }
         }

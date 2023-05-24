@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -16,7 +17,6 @@ namespace GUI.Types.Renderer
             public DrawCall Call;
             public float DistanceFromCamera;
             public uint NodeId;
-            public uint MeshId;
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -42,6 +42,22 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private struct Uniforms
+        {
+            public int Animated;
+            public int AnimationTexture;
+            public int NumBones;
+            public int Transform;
+            public int Tint;
+            public int TintDrawCall;
+            public int Time;
+            public int ObjectId;
+            public int MeshId;
+        }
+
+        /// <summary>
+        /// Minimizes state changes by grouping draw calls by shader and material.
+        /// </summary>
         private static void DrawBatch(IEnumerable<Request> drawCalls, Scene.RenderContext context)
         {
             GL.Enable(EnableCap.DepthTest);
@@ -57,16 +73,18 @@ namespace GUI.Types.Renderer
             foreach (var shaderGroup in groupedDrawCalls)
             {
                 var shader = shaderGroup.Key;
-
-                var uniformLocationAnimated = shader.GetUniformLocation("bAnimated");
-                var uniformLocationAnimationTexture = shader.GetUniformLocation("animationTexture");
-                var uniformLocationNumBones = shader.GetUniformLocation("fNumBones");
-                var uniformLocationTransform = shader.GetUniformLocation("transform");
-                var uniformLocationTint = shader.GetUniformLocation("m_vTintColorSceneObject");
-                var uniformLocationTintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall");
-                var uniformLocationTime = shader.GetUniformLocation("g_flTime");
-                var uniformLocationObjectId = shader.GetUniformLocation("sceneObjectId");
-                var uniformLocationMeshId = shader.GetUniformLocation("meshId");
+                var uniforms = new Uniforms
+                {
+                    Animated = shader.GetUniformLocation("bAnimated"),
+                    AnimationTexture = shader.GetUniformLocation("animationTexture"),
+                    NumBones = shader.GetUniformLocation("fNumBones"),
+                    Transform = shader.GetUniformLocation("transform"),
+                    Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
+                    TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
+                    Time = shader.GetUniformLocation("g_flTime"),
+                    ObjectId = shader.GetUniformLocation("sceneObjectId"),
+                    MeshId = shader.GetUniformLocation("meshId"),
+                };
 
                 GL.UseProgram(shader.Program);
 
@@ -87,59 +105,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var request in materialGroup)
                     {
-                        var transformTk = request.Transform.ToOpenTK();
-                        GL.UniformMatrix4(uniformLocationTransform, false, ref transformTk);
-
-                        if (uniformLocationObjectId != -1)
-                        {
-                            GL.Uniform1(uniformLocationObjectId, request.NodeId);
-                        }
-
-                        if (uniformLocationMeshId != -1)
-                        {
-                            GL.Uniform1(uniformLocationMeshId, request.MeshId);
-                        }
-
-                        if (uniformLocationTime != 1)
-                        {
-                            GL.Uniform1(uniformLocationTime, request.Mesh.Time);
-                        }
-
-                        if (uniformLocationAnimated != -1)
-                        {
-                            GL.Uniform1(uniformLocationAnimated, request.Mesh.AnimationTexture.HasValue ? 1.0f : 0.0f);
-                        }
-
-                        //Push animation texture to the shader (if it supports it)
-                        if (request.Mesh.AnimationTexture.HasValue)
-                        {
-                            if (uniformLocationAnimationTexture != -1)
-                            {
-                                GL.ActiveTexture(TextureUnit.Texture0);
-                                GL.BindTexture(TextureTarget.Texture2D, request.Mesh.AnimationTexture.Value);
-                                GL.Uniform1(uniformLocationAnimationTexture, 0);
-                            }
-
-                            if (uniformLocationNumBones != -1)
-                            {
-                                var v = (float)Math.Max(1, request.Mesh.AnimationTextureSize - 1);
-                                GL.Uniform1(uniformLocationNumBones, v);
-                            }
-                        }
-
-                        if (uniformLocationTint > -1)
-                        {
-                            var tint = request.Mesh.Tint.ToOpenTK();
-                            GL.Uniform4(uniformLocationTint, tint);
-                        }
-
-                        if (uniformLocationTintDrawCall > -1)
-                        {
-                            GL.Uniform3(uniformLocationTintDrawCall, request.Call.TintColor);
-                        }
-
-                        GL.BindVertexArray(request.Call.VertexArrayObject);
-                        GL.DrawElements(request.Call.PrimitiveType, request.Call.IndexCount, request.Call.IndexType, (IntPtr)request.Call.StartIndex);
+                        Draw(uniforms, request);
                     }
 
                     material.PostRender();
@@ -147,6 +113,64 @@ namespace GUI.Types.Renderer
             }
 
             GL.Disable(EnableCap.DepthTest);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Draw(Uniforms uniforms, Request request)
+        {
+            var transformTk = request.Transform.ToOpenTK();
+            GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
+
+            if (uniforms.ObjectId != -1)
+            {
+                GL.Uniform1(uniforms.ObjectId, request.NodeId);
+            }
+
+            if (uniforms.MeshId != -1)
+            {
+                GL.Uniform1(uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+            }
+
+            if (uniforms.Time != 1)
+            {
+                GL.Uniform1(uniforms.Time, request.Mesh.Time);
+            }
+
+            if (uniforms.Animated != -1)
+            {
+                GL.Uniform1(uniforms.Animated, request.Mesh.AnimationTexture.HasValue ? 1.0f : 0.0f);
+            }
+
+            //Push animation texture to the shader (if it supports it)
+            if (request.Mesh.AnimationTexture.HasValue)
+            {
+                if (uniforms.AnimationTexture != -1)
+                {
+                    GL.ActiveTexture(TextureUnit.Texture0);
+                    GL.BindTexture(TextureTarget.Texture2D, request.Mesh.AnimationTexture.Value);
+                    GL.Uniform1(uniforms.AnimationTexture, 0);
+                }
+
+                if (uniforms.NumBones != -1)
+                {
+                    var v = (float)Math.Max(1, request.Mesh.AnimationTextureSize - 1);
+                    GL.Uniform1(uniforms.NumBones, v);
+                }
+            }
+
+            if (uniforms.Tint > -1)
+            {
+                var tint = request.Mesh.Tint.ToOpenTK();
+                GL.Uniform4(uniforms.Tint, tint);
+            }
+
+            if (uniforms.TintDrawCall > -1)
+            {
+                GL.Uniform3(uniforms.TintDrawCall, request.Call.TintColor);
+            }
+
+            GL.BindVertexArray(request.Call.VertexArrayObject);
+            GL.DrawElements(request.Call.PrimitiveType, request.Call.IndexCount, request.Call.IndexType, (IntPtr)request.Call.StartIndex);
         }
     }
 }

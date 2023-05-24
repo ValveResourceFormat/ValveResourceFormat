@@ -133,7 +133,6 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
-                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
 
@@ -146,10 +145,23 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
-                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
                     }
+                }
+                else if (node is SceneAggregate aggregate)
+                {
+                }
+                else if (node is SceneAggregate.Fragment fragment)
+                {
+                    opaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                    {
+                        Transform = fragment.Parent.Transform,
+                        Mesh = fragment.RenderMesh,
+                        Call = fragment.DrawCall,
+                        DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                        NodeId = node.Id,
+                    });
                 }
                 else
                 {
@@ -179,11 +191,11 @@ namespace GUI.Types.Renderer
                 if (camera.Picker.IsActive)
                 {
                     camera.Picker.Render();
-                    renderContext.ReplacementShader = camera.Picker.shader;
+                    renderContext.ReplacementShader = camera.Picker.Shader;
                 }
-                else if (camera.Picker.Debug)
+                else if (camera.Picker.DebugShader is not null)
                 {
-                    renderContext.ReplacementShader = camera.Picker.debugShader;
+                    renderContext.ReplacementShader = camera.Picker.DebugShader;
                 }
             }
 
