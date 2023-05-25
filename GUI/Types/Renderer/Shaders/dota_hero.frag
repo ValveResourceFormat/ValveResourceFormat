@@ -1,13 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
-#define param_renderMode_FullBright 0
-#define param_renderMode_Color 0
-#define param_renderMode_Normals 0
-#define param_renderMode_Tangents 0
-#define param_renderMode_BumpMap 0
-#define param_renderMode_BumpNormals 0
-#define param_renderMode_Illumination 0
+#include "common/rendermodes.glsl"
 #define param_renderMode_Mask1 0
 #define param_renderMode_Mask2 0
 #define param_renderMode_Metalness 0

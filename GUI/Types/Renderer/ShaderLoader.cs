@@ -58,10 +58,11 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, arguments));
+                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments);
+                GL.ShaderSource(vertexShader, preprocessedShaderSource);
 
                 // Find defines supported from source
-                defines.AddRange(FindDefines(shaderSource));
+                defines.AddRange(FindDefines(preprocessedShaderSource));
             }
 
             GL.CompileShader(vertexShader);
@@ -86,10 +87,11 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, arguments));
+                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments);
+                GL.ShaderSource(fragmentShader, preprocessedShaderSource);
 
                 // Find render modes supported from source, take union to avoid duplicates
-                defines = defines.Union(FindDefines(shaderSource)).ToList();
+                defines = defines.Union(FindDefines(preprocessedShaderSource)).ToList();
             }
 
             GL.CompileShader(fragmentShader);
@@ -155,16 +157,14 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        //Preprocess a vertex shader's source to include the #version plus #defines for parameters
-        private static string PreprocessVertexShader(string source, IDictionary<string, bool> arguments)
+        private static string PreprocessShader(string source, IDictionary<string, bool> arguments)
         {
-            //Update parameter defines
-            var paramSource = UpdateDefines(source, arguments);
-
             //Inject code into shader based on #includes
-            var includedSource = ResolveIncludes(paramSource);
+            var withCollapsedIncludes = ResolveIncludes(source);
 
-            return includedSource;
+            //Update parameter defines
+            var withReplacedDefines = UpdateDefines(withCollapsedIncludes, arguments);
+            return withReplacedDefines;
         }
 
         //Update default defines with possible overrides from the model
@@ -206,7 +206,8 @@ namespace GUI.Types.Renderer
 #if DEBUG_SHADERS && DEBUG
                 using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open);
 #else
-                using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups["IncludeName"].Value}");
+                var includeResource = define.Groups["IncludeName"].Value.Replace('/', '.');
+                using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{includeResource}");
 #endif
                 using var reader = new StreamReader(stream);
                 var includedCode = reader.ReadToEnd();

@@ -1,15 +1,9 @@
 #version 330
 
 // Render modes -- Switched on/off by code
-#define param_renderMode_FullBright 0
-#define param_renderMode_Color 0
+#include "common/rendermodes.glsl"
 #define param_renderMode_Terrain_Blend 0
 #define param_renderMode_Ambient_Occlusion 0
-#define param_renderMode_Normals 0
-#define param_renderMode_Tangents 0
-#define param_renderMode_BumpMap 0
-#define param_renderMode_BumpNormals 0
-#define param_renderMode_Illumination 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define param_F_TINT_MASK 0
