@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
             /// <summary>
             /// In the format of 255,255,255
             /// </summary>
-            public Vector3 Tint { get; set; }
+            public Vector3? Tint { get; set; }
 
             public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
             {
@@ -45,11 +45,33 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<Fragment> CreateFragments(IKeyValueCollection[] aggregateMeshes)
         {
+            // Aperture Desk Job goes from draw call -> aggregate mesh
+            if (aggregateMeshes.Length > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
+            {
+                foreach (var drawCall in RenderMesh.DrawCallsOpaque)
+                {
+                    var fragmentData = aggregateMeshes[drawCall.MeshId];
+                    var worldBounds = fragmentData.GetArray("m_vWorldBounds");
+                    drawCall.DrawBounds = new AABB(worldBounds[0].ToVector3(), worldBounds[1].ToVector3());
+                    var fragment = new Fragment(Scene, this, drawCall.DrawBounds.Value)
+                    {
+                        DrawCall = drawCall,
+                        RenderMesh = RenderMesh,
+                        Parent = this,
+                    };
+
+                    yield return fragment;
+                }
+
+                yield break;
+            }
+
+            // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
-                var drawBounds = RenderMesh.DrawCallsOpaque[drawCallIndex].DrawBounds ?? RenderMesh.BoundingBox;
+                var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
                 var fragment = new Fragment(Scene, this, drawBounds)
                 {
                     Tint = fragmentData.GetSubCollection("m_vTintColor").ToVector3(),
