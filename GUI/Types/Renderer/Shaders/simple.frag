@@ -22,12 +22,10 @@ in vec3 vFragPosition;
 in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
-
 in vec2 vTexCoordOut;
 
 out vec4 outputColor;
 
-uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
@@ -41,6 +39,8 @@ uniform vec3 m_vTintColorDrawCall;
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
 uniform vec4 g_vColorTint;
+
+uniform float g_flAlphaTestReference = 0.5;
 
 // glass specific params
 #if param_F_GLASS == 1

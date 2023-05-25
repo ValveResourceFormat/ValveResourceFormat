@@ -12,20 +12,12 @@ namespace GUI.Types.Renderer
         public bool IsBlended { get; }
         public bool IsToolsMaterial { get; }
 
-        private readonly float flAlphaTestReference;
         private readonly bool isAdditiveBlend;
         private readonly bool isRenderBackfaces;
 
         public RenderMaterial(Material material)
         {
             Material = material;
-
-            if (material.IntParams.ContainsKey("F_ALPHA_TEST") &&
-                material.IntParams["F_ALPHA_TEST"] == 1 &&
-                material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-            {
-                flAlphaTestReference = material.FloatParams["g_flAlphaTestReference"];
-            }
 
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
@@ -75,13 +67,6 @@ namespace GUI.Types.Renderer
                 {
                     GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
                 }
-            }
-
-            var alphaReference = shader.GetUniformLocation("g_flAlphaTestReference");
-
-            if (alphaReference > -1)
-            {
-                GL.Uniform1(alphaReference, flAlphaTestReference);
             }
 
             if (IsBlended)
