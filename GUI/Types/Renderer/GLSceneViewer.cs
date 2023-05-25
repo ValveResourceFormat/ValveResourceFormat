@@ -126,15 +126,7 @@ namespace GUI.Types.Renderer
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
-            if (renderModeComboBox != null)
-            {
-                var supportedRenderModes = Scene.AllNodes
-                    .SelectMany(r => r.GetSupportedRenderModes())
-                    .Distinct()
-                    .Concat(ViewerControl.Camera.Picker.Shader.RenderModes);
-
-                SetAvailableRenderModes(supportedRenderModes);
-            }
+            SetAvailableRenderModes();
 
             if (ShowSkybox && SkyboxScene != null)
             {
@@ -205,6 +197,7 @@ namespace GUI.Types.Renderer
                 }
 
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
+                SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
             };
             ViewerControl.AddControl(button);
 #endif
@@ -212,13 +205,22 @@ namespace GUI.Types.Renderer
             renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
         }
 
-        private void SetAvailableRenderModes(IEnumerable<string> renderModes)
+        private void SetAvailableRenderModes(int index = 0)
         {
-            renderModeComboBox.Items.Clear();
-            renderModeComboBox.Enabled = true;
-            renderModeComboBox.Items.Add("Default Render Mode");
-            renderModeComboBox.Items.AddRange(renderModes.ToArray());
-            renderModeComboBox.SelectedIndex = 0;
+            if (renderModeComboBox != null)
+            {
+                var supportedRenderModes = Scene.AllNodes
+                    .SelectMany(r => r.GetSupportedRenderModes())
+                    .Distinct()
+                    .Concat(ViewerControl.Camera.Picker.Shader.RenderModes);
+
+                renderModeComboBox.Items.Clear();
+                renderModeComboBox.Enabled = true;
+                renderModeComboBox.Items.Add("Default Render Mode");
+                renderModeComboBox.Items.AddRange(supportedRenderModes.ToArray());
+                renderModeComboBox.SelectedIndex = index;
+            }
+
         }
 
         protected void SetEnabledLayers(HashSet<string> layers)

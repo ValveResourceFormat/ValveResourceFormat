@@ -24,8 +24,6 @@ namespace GUI.Types.Renderer
         public int? AnimationTexture { get; private set; }
         public int AnimationTextureSize { get; private set; }
 
-        public float Time { get; private set; }
-
         public int MeshIndex { get; }
 
         private readonly Mesh mesh;
@@ -84,11 +82,6 @@ namespace GUI.Types.Renderer
         {
             AnimationTexture = texture;
             AnimationTextureSize = animationTextureSize;
-        }
-
-        public void Update(float timeStep)
-        {
-            Time += timeStep;
         }
 
         public void SetSkin(Dictionary<string, string> skinMaterials)

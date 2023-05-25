@@ -105,7 +105,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var request in materialGroup)
                     {
-                        Draw(uniforms, request);
+                        Draw(uniforms, request, context.Time);
                     }
 
                     material.PostRender();
@@ -116,7 +116,7 @@ namespace GUI.Types.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(Uniforms uniforms, Request request)
+        private static void Draw(Uniforms uniforms, Request request, float time)
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
@@ -133,7 +133,7 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Time != 1)
             {
-                GL.Uniform1(uniforms.Time, request.Mesh.Time);
+                GL.Uniform1(uniforms.Time, time);
             }
 
             if (uniforms.Animated != -1)

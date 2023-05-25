@@ -68,7 +68,6 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
-            RenderMesh.Update(context.Timestep);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => RenderMesh.GetSupportedRenderModes();

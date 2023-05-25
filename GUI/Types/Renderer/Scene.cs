@@ -20,6 +20,7 @@ namespace GUI.Types.Renderer
         public class RenderContext
         {
             public Camera Camera { get; init; }
+            public float Time { get; init; }
             public Vector3? LightPosition { get; init; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
@@ -27,6 +28,7 @@ namespace GUI.Types.Renderer
         }
 
         public Camera MainCamera { get; set; }
+        public float Time { get; set; }
         public Vector3? LightPosition { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
@@ -96,6 +98,8 @@ namespace GUI.Types.Renderer
         public void Update(float timestep)
         {
             var updateContext = new UpdateContext(timestep);
+            Time += timestep;
+
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
@@ -181,6 +185,7 @@ namespace GUI.Types.Renderer
             var renderContext = new RenderContext
             {
                 Camera = camera,
+                Time = Time,
                 LightPosition = LightPosition,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,

@@ -22,10 +22,8 @@ namespace GUI.Types.Renderer
         private static readonly Regex RegexInclude = new(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
         private static readonly Regex RegexDefine = new(@"^#define (?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
-#if !DEBUG_SHADERS || !DEBUG
         private readonly Dictionary<uint, Shader> CachedShaders = new();
         private readonly Dictionary<string, List<string>> ShaderDefines = new();
-#endif
 
         public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
@@ -145,15 +143,12 @@ namespace GUI.Types.Renderer
             GL.DetachShader(shader.Program, fragmentShader);
             GL.DeleteShader(fragmentShader);
 
-#if !DEBUG_SHADERS || !DEBUG
             ShaderDefines[shaderFileName] = defines;
             var newShaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
 
             CachedShaders[newShaderCacheHash] = shader;
 
             Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
-#endif
-
             return shader;
         }
 
@@ -261,7 +256,6 @@ namespace GUI.Types.Renderer
             }
         }
 
-#if !DEBUG_SHADERS || !DEBUG
         private uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
@@ -277,7 +271,6 @@ namespace GUI.Types.Renderer
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
         }
-#endif
 
 #if DEBUG_SHADERS && DEBUG
         // Reload shaders at runtime
