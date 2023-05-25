@@ -4,10 +4,10 @@
 #include "common/rendermodes.glsl"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define param_F_FULLBRIGHT 0
-#define param_F_TINT_MASK 0
-#define param_F_ALPHA_TEST 0
-#define param_F_GLASS 0
+#define F_FULLBRIGHT 0
+#define F_TINT_MASK 0
+#define F_ALPHA_TEST 0
+#define F_GLASS 0
 #define param_HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
@@ -37,7 +37,7 @@ uniform vec4 g_vColorTint;
 uniform float g_flAlphaTestReference = 0.5;
 
 // glass specific params
-#if param_F_GLASS == 1
+#if F_GLASS == 1
 uniform bool g_bFresnel = true;
 uniform float g_flEdgeColorFalloff = 3.0;
 uniform float g_flEdgeColorMaxOpacity = 0.5;
@@ -89,7 +89,7 @@ void main()
     //Get the ambient color from the color texture
     vec4 color = texture(g_tColor, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 
-#if param_F_ALPHA_TEST == 1
+#if F_ALPHA_TEST == 1
     if (color.a < g_flAlphaTestReference)
     {
        discard;
@@ -103,7 +103,7 @@ void main()
     //Get the world normal for this fragment
     vec3 worldNormal = calculateWorldNormal();
 
-#if param_renderMode_FullBright == 1 || param_F_FULLBRIGHT == 1
+#if renderMode_FullBright == 1 || F_FULLBRIGHT == 1
     float illumination = 1.0;
 #else
     //Calculate lambert lighting
@@ -114,14 +114,14 @@ void main()
     //Calculate tint color
     vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
 
-#if param_F_TINT_MASK == 1
+#if F_TINT_MASK == 1
     float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
     vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
 #else
     vec3 tintFactor = tintColor;
 #endif
 
-#if param_F_GLASS == 1
+#if F_GLASS == 1
     vec4 glassColor = vec4(illumination * color.rgb * g_vColorTint.rgb, color.a);
 
     float viewDotNormalInv = clamp(1.0 - (dot(viewDirection, worldNormal) - g_flEdgeColorThickness), 0.0, 1.0);
@@ -135,27 +135,27 @@ void main()
 #endif
 
     // Different render mode definitions
-#if param_renderMode_Color == 1
+#if renderMode_Color == 1
     outputColor = vec4(color.rgb, 1.0);
 #endif
 
-#if param_renderMode_BumpMap == 1
+#if renderMode_BumpMap == 1
     outputColor = texture(g_tNormal, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 #endif
 
-#if param_renderMode_Tangents == 1
+#if renderMode_Tangents == 1
     outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_Normals == 1
+#if renderMode_Normals == 1
     outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_BumpNormals == 1
+#if renderMode_BumpNormals == 1
     outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_Illumination == 1
+#if renderMode_Illumination == 1
     outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 }

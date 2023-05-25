@@ -2,13 +2,13 @@
 
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
-#define param_renderMode_Terrain_Blend 0
-#define param_renderMode_Ambient_Occlusion 0
+#define renderMode_Terrain_Blend 0
+#define renderMode_Ambient_Occlusion 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define param_F_TINT_MASK 0
-#define param_F_NORMAL_MAP 0
-#define param_F_TWO_LAYER_BLEND 0
+#define F_TINT_MASK 0
+#define F_NORMAL_MAP 0
+#define F_TWO_LAYER_BLEND 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -88,7 +88,7 @@ void main()
     //Calculate coordinates
     vec2 coord0 = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0);
     vec2 coord1 = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1);
-#if param_F_TWO_LAYER_BLEND == 0
+#if F_TWO_LAYER_BLEND == 0
     vec2 coord2 = getTexCoord(g_flTexCoordScale2, g_flTexCoordRotate2);
     vec2 coord3 = getTexCoord(g_flTexCoordScale3, g_flTexCoordRotate3);
 #endif
@@ -96,7 +96,7 @@ void main()
     //Get the ambient color from the color texture
     vec4 color0 = texture(g_tColor0, coord0);
     vec4 color1 = texture(g_tColor1, coord1);
-#if param_F_TWO_LAYER_BLEND == 0
+#if F_TWO_LAYER_BLEND == 0
     vec4 color2 = texture(g_tColor2, coord2);
     vec4 color3 = texture(g_tColor3, coord3);
 #endif
@@ -104,7 +104,7 @@ void main()
     //Get normal
     vec4 normal0 = texture(g_tNormal0, coord0);
     vec4 normal1 = texture(g_tNormal1, coord1);
-#if param_F_TWO_LAYER_BLEND == 0
+#if F_TWO_LAYER_BLEND == 0
     vec4 normal2 = texture(g_tNormal2, coord2);
     vec4 normal3 = texture(g_tNormal3, coord3);
 #endif
@@ -112,7 +112,7 @@ void main()
     //Get specular
     vec4 specular0 = texture(g_tSpecular0, coord0);
     vec4 specular1 = texture(g_tSpecular1, coord1);
-#if param_F_TWO_LAYER_BLEND == 0
+#if F_TWO_LAYER_BLEND == 0
     vec4 specular2 = texture(g_tSpecular2, coord2);
     vec4 specular3 = texture(g_tSpecular3, coord3);
 #endif
@@ -123,25 +123,25 @@ void main()
 
     //Simple blending
     //Calculate each of the 4 colours to blend
-#if param_F_TINT_MASK
+#if F_TINT_MASK
     // Include tint mask
     vec4 c0 = blend.x * color0 * interpolateTint(0, g_vColorTint0, g_vColorTintB0, g_flTexCoordScale0, g_flTexCoordRotate0);
     vec4 c1 = blend.y * color1 * interpolateTint(1, g_vColorTint1, g_vColorTintB1, g_flTexCoordScale1, g_flTexCoordRotate1);
-    #if param_F_TWO_LAYER_BLEND == 0
+    #if F_TWO_LAYER_BLEND == 0
         vec4 c2 = blend.z * color2 * interpolateTint(2, g_vColorTint2, g_vColorTintB2, g_flTexCoordScale2, g_flTexCoordRotate2);
         vec4 c3 = blend.w * color3 * interpolateTint(3, g_vColorTint3, g_vColorTintB3, g_flTexCoordScale3, g_flTexCoordRotate3);
     #endif
 #else
     vec4 c0 = blend.x * color0;
     vec4 c1 = blend.y * color1;
-    #if param_F_TWO_LAYER_BLEND == 0
+    #if F_TWO_LAYER_BLEND == 0
         // TODO: this blending is probably wrong
         vec4 c2 = blend.z * color2;
         vec4 c3 = blend.w * color3;
     #endif
 #endif
 
-#if param_F_TWO_LAYER_BLEND == 0
+#if F_TWO_LAYER_BLEND == 0
     //Add up the result
     vec4 finalColor = c0 + c1 + c2 + c3;
 #else
@@ -149,8 +149,8 @@ void main()
     vec4 finalColor = c0 + c1;
 #endif
 
-#if param_F_NORMAL_MAP
-    #if param_F_TWO_LAYER_BLEND == 0
+#if F_NORMAL_MAP
+    #if F_TWO_LAYER_BLEND == 0
         //calculate blended normal
         vec4 bumpNormal = blend.x * normal0 + blend.y * normal1 + blend.z * normal2 + blend.w * normal3;
     #else
@@ -178,7 +178,7 @@ void main()
     //Get the direction from the fragment to the light - light position == camera position for now
     vec3 lightDirection = normalize(vLightPosition - vFragPosition);
 
-#if param_renderMode_FullBright == 1
+#if renderMode_FullBright == 1
     float illumination = 1.0;
 #else
     //Calculate half-lambert lighting
@@ -188,7 +188,7 @@ void main()
     illumination = min(illumination + 0.3, 1.0);
 #endif
 
-#if param_F_TWO_LAYER_BLEND == 0
+#if F_TWO_LAYER_BLEND == 0
     //Calculate specular
     vec4 blendSpecular = blend.x * specular0 + blend.y * specular1 + blend.z * specular2 + blend.w * specular3;
 #else
@@ -203,35 +203,35 @@ void main()
 
     outputColor = vec4(illumination * occludedColor.xyz + vec3(0.7) * specular, 1);
 
-#if param_renderMode_Color == 1
+#if renderMode_Color == 1
     outputColor = vec4(finalColor.rgb, 1.0);
 #endif
 
-#if param_renderMode_Terrain_Blend == 1
+#if renderMode_Terrain_Blend == 1
     outputColor = vec4(blend.xyz, 1.0);
 #endif
 
-#if param_renderMode_Ambient_Occlusion == 1
+#if renderMode_Ambient_Occlusion == 1
     outputColor = vec4(vWeightsOut2.xyz, 1.0);
 #endif
 
-#if param_renderMode_Normals == 1
+#if renderMode_Normals == 1
     outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_Tangents == 1 && param_F_NORMAL_MAP == 1
+#if renderMode_Tangents == 1 && F_NORMAL_MAP == 1
     outputColor = vec4(tangent * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_BumpMap == 1 && param_F_NORMAL_MAP == 1
+#if renderMode_BumpMap == 1 && F_NORMAL_MAP == 1
     outputColor = vec4(bumpNormal.xyz, 1.0);
 #endif
 
-#if param_renderMode_BumpNormals == 1
+#if renderMode_BumpNormals == 1
     outputColor = vec4(finalNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_Illumination == 1
+#if renderMode_Illumination == 1
     outputColor = vec4(illumination, 0.0, 0.0, 1.0);
 #endif
 }

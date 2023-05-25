@@ -1,4 +1,4 @@
-//#define DEBUG_SHADERS
+#define DEBUG_SHADERS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
         private static readonly Regex RegexInclude = new(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
-        private static readonly Regex RegexDefine = new(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
+        private static readonly Regex RegexDefine = new(@"^#define (?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
 #if !DEBUG_SHADERS || !DEBUG
         private readonly Dictionary<uint, Shader> CachedShaders = new();
