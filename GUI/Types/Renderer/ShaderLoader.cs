@@ -251,6 +251,8 @@ namespace GUI.Types.Renderer
                     return "dota_hero";
                 case "multiblend.vfx":
                     return "multiblend";
+                case "csgo_effects.vfx":
+                    return "csgo_effects";
                 default:
                     return "simple";
             }
