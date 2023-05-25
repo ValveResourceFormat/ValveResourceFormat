@@ -196,6 +196,7 @@ namespace GUI.Types.Renderer
                     ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
                 }
 
+                GuiContext.ShaderLoader.ClearCache();
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
                 SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
             };
@@ -231,20 +232,7 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-#if DEBUG_SHADERS
-            if (ViewerControl.Camera?.Picker.GetAvailableRenderModes().Contains(renderMode) == true)
-            {
-                ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
-                return;
-            }
-            else if (ViewerControl.Camera?.Picker.DebugShader != null)
-            {
-                ViewerControl.Camera?.Picker.SetRenderMode(null);
-                return;
-            }
-#else
             ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
-#endif
 
             foreach (var node in Scene.AllNodes)
             {

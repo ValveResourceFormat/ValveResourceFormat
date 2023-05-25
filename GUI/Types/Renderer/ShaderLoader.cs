@@ -1,4 +1,3 @@
-#define DEBUG_SHADERS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,13 +8,9 @@ using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
-#if DEBUG_SHADERS
-#pragma warning disable
-#endif
-
 namespace GUI.Types.Renderer
 {
-    public class ShaderLoader
+    public class ShaderLoader : IDisposable
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
@@ -28,8 +23,6 @@ namespace GUI.Types.Renderer
         public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-
-#if !DEBUG_SHADERS || !DEBUG
             if (ShaderDefines.ContainsKey(shaderFileName))
             {
                 var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
@@ -39,7 +32,6 @@ namespace GUI.Types.Renderer
                     return cachedShader;
                 }
             }
-#endif
 
             var defines = new List<string>();
 
@@ -48,7 +40,7 @@ namespace GUI.Types.Renderer
 
             var assembly = Assembly.GetExecutingAssembly();
 
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
             using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.vert"), FileMode.Open))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
@@ -77,7 +69,7 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
             using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.frag"), FileMode.Open))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
@@ -197,8 +189,7 @@ namespace GUI.Types.Renderer
 
             foreach (var define in includes.Cast<Match>())
             {
-                //Read included code
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
                 using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open);
 #else
                 var includeResource = define.Groups["IncludeName"].Value.Replace('/', '.');
@@ -226,6 +217,11 @@ namespace GUI.Types.Renderer
         // Map Valve's shader names to shader files VRF has
         private static string GetShaderFileByName(string shaderName)
         {
+            if (shaderName.Contains("black_unlit", StringComparison.InvariantCulture))
+            {
+                return "vr_black_unlit";
+            }
+
             switch (shaderName)
             {
                 case "vrf.error":
@@ -258,6 +254,31 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void ClearCache()
+        {
+            ShaderDefines.Clear();
+            CachedShaders.Clear();
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ClearCache();
+
+                foreach (var shader in CachedShaders.Values)
+                {
+                    GL.DeleteProgram(shader.Program);
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
         private uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
@@ -274,7 +295,7 @@ namespace GUI.Types.Renderer
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
         }
 
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
         // Reload shaders at runtime
         private static string GetShaderDiskPath(string name)
         {

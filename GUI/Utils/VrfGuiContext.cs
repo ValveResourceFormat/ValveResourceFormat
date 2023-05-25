@@ -47,7 +47,11 @@ namespace GUI.Utils
         public Resource LoadFileByAnyMeansNecessary(string file) =>
             FileLoader.LoadFile(file);
 
-        public void ClearCache() => FileLoader.ClearCache();
+        public void ClearCache()
+        {
+            FileLoader.ClearCache();
+            //ShaderLoader.ClearCache();
+        }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -62,6 +66,7 @@ namespace GUI.Utils
                 }
 
                 FileLoader.Dispose();
+                ShaderLoader.Dispose();
             }
         }
 
