@@ -14,6 +14,7 @@ namespace GUI.Types.Renderer
 
         private readonly bool isAdditiveBlend;
         private readonly bool isRenderBackfaces;
+        private readonly bool isOverlay;
 
         public RenderMaterial(Material material)
         {
@@ -27,6 +28,9 @@ namespace GUI.Types.Renderer
                 || material.ShaderName == "tools_sprite.vfx";
             isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
+            isOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
+                || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1
+                || material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal);
         }
 
         public void Render(Shader shader)
@@ -76,6 +80,12 @@ namespace GUI.Types.Renderer
                 GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
             }
 
+            if (isOverlay)
+            {
+                GL.Enable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffset(-0.05f, -64);
+            }
+
             if (isRenderBackfaces)
             {
                 GL.Disable(EnableCap.CullFace);
@@ -88,6 +98,12 @@ namespace GUI.Types.Renderer
             {
                 GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);
+            }
+
+            if (isOverlay)
+            {
+                GL.Disable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffset(0, 0);
             }
 
             if (isRenderBackfaces)
