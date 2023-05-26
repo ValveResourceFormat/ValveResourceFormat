@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
-                        shaderArguments.Add("param_fulltangent", false);
+                        shaderArguments.Add("fulltangent", false);
                     }
 
                     if (firstSetup)

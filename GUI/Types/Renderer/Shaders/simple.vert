@@ -6,15 +6,17 @@
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define param_fulltangent 1
 #define VERTEX_COLOR 1
+#define fulltangent 1
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
-in vec4 vTANGENT;
 #if VERTEX_COLOR == 1
+#if fulltangent == 1
+    in vec3 vTANGENT;
+#endif
     in vec4 vCOLOR;
     out vec4 vColorOut;
 #endif
@@ -40,7 +42,7 @@ void main()
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
 
     //Unpack normals
-#if param_fulltangent == 1
+#if fulltangent == 1
     vNormalOut = normalize(normalTransform * vNORMAL.xyz);
     vTangentOut = normalize(normalTransform * vTANGENT.xyz);
     vBitangentOut = cross(vNormalOut, vTangentOut);

@@ -11,7 +11,7 @@
 #define F_TINT_MASK 0
 #define F_ALPHA_TEST 0
 #define F_GLASS 0
-#define param_HemiOctIsoRoughness_RG_B 0
+#define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -66,7 +66,7 @@ vec3 calculateWorldNormal()
     vec4 bumpNormal = texture(g_tNormal, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy);
 
     //Reconstruct the tangent vector from the map
-#if param_HemiOctIsoRoughness_RG_B == 1
+#if HemiOctIsoRoughness_RG_B == 1
     vec2 temp = vec2(bumpNormal.x + bumpNormal.y -1.003922, bumpNormal.x - bumpNormal.y);
     vec3 tangentNormal = oct_to_float32x3(temp);
 #else

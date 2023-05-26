@@ -123,7 +123,7 @@ namespace ValveResourceFormat.ResourceTypes
             var hemiOctIsoRoughness_RG_B = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
             if (hemiOctIsoRoughness_RG_B)
             {
-                arguments.Add("param_HemiOctIsoRoughness_RG_B", true);
+                arguments.Add("HemiOctIsoRoughness_RG_B", true);
             }
 
             if (ShaderName == "vr_glass.vfx")
