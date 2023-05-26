@@ -7,15 +7,22 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define fulltangent 1
-#define F_VERTEX_COLOR 1
+#define F_VERTEX_COLOR 0
 #define F_LAYERS 0
+#define simple_2way_blend 0
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 #if F_LAYERS > 0
-    in vec4 vTEXCOORD3; // Real semantic index is 4
+    #if simple_2way_blend == 1
+        #define vBLEND_COLOR vTEXCOORD2
+    #else
+        // ligthtmappedgeneric - real semantic index is 4
+        #define vBLEND_COLOR vTEXCOORD3
+    #endif
+    in vec4 vBLEND_COLOR;
     out vec4 vColorBlendValues;
 #endif
 #if fulltangent == 1
@@ -65,7 +72,7 @@ void main()
 #endif
 
 #if F_LAYERS > 0
-    vColorBlendValues = vTEXCOORD3 / 255.0f;
+    vColorBlendValues = vBLEND_COLOR / 255.0f;
 #endif
 
 }

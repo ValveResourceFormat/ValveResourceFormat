@@ -14,6 +14,7 @@
 #define F_GLASS 0
 #define F_LAYERS 0
 #define F_FANCY_BLENDING 0
+#define simple_2way_blend 0
 #define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
@@ -115,7 +116,11 @@ void main()
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (F_FANCY_BLENDING == 1)
         vec4 blendModTexel = texture(g_tBlendModulation, texCoord);
-        float blendModFactor = blendModTexel.r;
+        float blendModFactor = blendModTexel.g;
+        #if simple_2way_blend == 1
+            blendModFactor = blendModTexel.r;
+        #endif
+
         float minb = max(0, blendModFactor - g_flBlendSoftness);
         float maxb = min(1, blendModFactor + g_flBlendSoftness);
         blendFactor = smoothstep(minb, maxb, blendFactor);

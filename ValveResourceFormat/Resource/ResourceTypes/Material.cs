@@ -131,6 +131,13 @@ namespace ValveResourceFormat.ResourceTypes
                 arguments.Add("F_GLASS", true);
             }
 
+            if (ShaderName.EndsWith("2way_blend.vfx", StringComparison.OrdinalIgnoreCase))
+            {
+                arguments.Add("F_LAYERS", true);
+                arguments.Add("F_FANCY_BLENDING", true);
+                arguments.Add("simple_2way_blend", true);
+            }
+
             return arguments;
         }
     }
