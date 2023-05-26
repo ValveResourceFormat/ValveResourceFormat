@@ -6,17 +6,22 @@
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define VERTEX_COLOR 1
 #define fulltangent 1
+#define F_VERTEX_COLOR 1
+#define F_LAYERS 0
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
-#if VERTEX_COLOR == 1
+#if F_LAYERS > 0
+    in vec4 vTEXCOORD3; // Real semantic index is 4
+    out vec4 vColorBlendValues;
+#endif
 #if fulltangent == 1
     in vec3 vTANGENT;
 #endif
+#if F_VERTEX_COLOR == 1
     in vec4 vCOLOR;
     out vec4 vColorOut;
 #endif
@@ -55,7 +60,12 @@ void main()
 
     vTexCoordOut = vTEXCOORD;
 
-#if VERTEX_COLOR == 1
+#if F_VERTEX_COLOR == 1
     vColorOut = vCOLOR;
 #endif
+
+#if F_LAYERS > 0
+    vColorBlendValues = vTEXCOORD3 / 255.0f;
+#endif
+
 }
