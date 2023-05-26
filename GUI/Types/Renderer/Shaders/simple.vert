@@ -7,12 +7,17 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define param_fulltangent 1
+#define VERTEX_COLOR 1
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 in vec4 vTANGENT;
+#if VERTEX_COLOR == 1
+    in vec4 vCOLOR;
+    out vec4 vColorOut;
+#endif
 
 out vec3 vFragPosition;
 
@@ -47,4 +52,8 @@ void main()
 #endif
 
     vTexCoordOut = vTEXCOORD;
+
+#if VERTEX_COLOR == 1
+    vColorOut = vCOLOR;
+#endif
 }

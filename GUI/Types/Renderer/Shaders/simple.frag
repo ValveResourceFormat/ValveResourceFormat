@@ -2,6 +2,9 @@
 
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
+#define renderMode_VertexColor 0
+
+#define VERTEX_COLOR 1
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
@@ -17,6 +20,9 @@ in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
+#if VERTEX_COLOR == 1
+    in vec4 vColorOut;
+#endif
 
 out vec4 outputColor;
 
@@ -157,5 +163,9 @@ void main()
 
 #if renderMode_Illumination == 1
     outputColor = vec4(illumination, illumination, illumination, 1.0);
+#endif
+
+#if renderMode_VertexColor == 1
+    outputColor = vColorOut == vec4(vec3(0), 1) ? outputColor : vColorOut;
 #endif
 }
