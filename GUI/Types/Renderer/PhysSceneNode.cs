@@ -236,7 +236,7 @@ namespace GUI.Types.Renderer
                 var name = $"[{string.Join(", ", tags)}]";
                 if (group != null)
                 {
-                    name = $"{group} {name}";
+                    name = $"{name} {group}";
                 }
 
                 var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
