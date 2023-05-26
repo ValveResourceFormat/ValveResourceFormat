@@ -7,18 +7,21 @@ namespace GUI.Types.Renderer
 {
     public class RenderMaterial
     {
+        public Shader Shader => shader;
         public Material Material { get; }
         public Dictionary<string, int> Textures { get; } = new Dictionary<string, int>();
         public bool IsBlended { get; }
         public bool IsToolsMaterial { get; }
 
+        private readonly Shader shader;
         private readonly bool isAdditiveBlend;
         private readonly bool isRenderBackfaces;
         private readonly bool isOverlay;
 
-        public RenderMaterial(Material material)
+        public RenderMaterial(Material material, ShaderLoader shaderLoader)
         {
             Material = material;
+            shader = shaderLoader.LoadShader(material.ShaderName, material.GetShaderArguments());
 
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
@@ -33,11 +36,13 @@ namespace GUI.Types.Renderer
                 || material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal);
         }
 
-        public void Render(Shader shader)
+        public void Render(Shader shader = default)
         {
             //Start at 1, texture unit 0 is reserved for the animation texture
             var textureUnit = 1;
             int uniformLocation;
+
+            shader ??= this.shader;
 
             foreach (var texture in Textures)
             {

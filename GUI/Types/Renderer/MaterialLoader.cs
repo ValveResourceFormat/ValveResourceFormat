@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
@@ -18,6 +19,12 @@ namespace GUI.Types.Renderer
         private int DefaultNormalID;
         private int DefaultMaskID;
         public static int MaxTextureMaxAnisotropy { get; set; }
+
+        private readonly Dictionary<string, string[]> TextureAliases = new()
+        {
+            ["g_tColor"] = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" },
+            ["g_tNormal"] = new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" },
+        };
 
         public MaterialLoader(VrfGuiContext guiContext)
         {
@@ -52,13 +59,36 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
-            var mat = new RenderMaterial((VrfMaterial)resource.DataBlock);
+            var mat = new RenderMaterial((VrfMaterial)resource.DataBlock, VrfGuiContext.ShaderLoader);
 
-            foreach (var textureReference in mat.Material.TextureParams)
+            foreach (var (textureName, texturePath) in mat.Material.TextureParams)
             {
-                var key = textureReference.Key;
+                if (TryBindTexture(mat, textureName, texturePath))
+                {
+                    continue;
+                }
 
-                mat.Textures[key] = LoadTexture(textureReference.Value);
+                foreach (var (possibleAlias, aliases) in TextureAliases)
+                {
+                    if (aliases.Contains(textureName))
+                    {
+                        if (TryBindTexture(mat, possibleAlias, texturePath))
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            bool TryBindTexture(RenderMaterial mat, string name, string path)
+            {
+                if (mat.Shader.GetUniformLocation(name) != -1)
+                {
+                    mat.Textures[name] = LoadTexture(path);
+                    return true;
+                }
+
+                return false;
             }
 
             if (mat.Material.IntParams.ContainsKey("F_SOLID_COLOR") && mat.Material.IntParams["F_SOLID_COLOR"] == 1)
@@ -67,50 +97,16 @@ namespace GUI.Types.Renderer
 
                 mat.Textures["g_tColor"] = GenerateColorTexture(1, 1, new[] { a.X, a.Y, a.Z, a.W });
             }
-            else
-            {
-                SetDefault("g_tColor", mat.Textures, GetErrorTexture(),
-                    new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" });
-            }
 
-            SetDefault("g_tTintMask", mat.Textures, GetDefaultMask());
-            SetDefault("g_tNormal", mat.Textures, GetDefaultNormal(),
-                new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" });
 
-            SetDefault("g_vTexCoordScale", mat.Material.VectorParams, Vector4.One);
-            SetDefault("g_vTexCoordOffset", mat.Material.VectorParams, Vector4.Zero);
-            SetDefault("g_vColorTint", mat.Material.VectorParams, Vector4.One);
+            mat.Textures.TryAdd("g_tColor", GetErrorTexture());
+            mat.Textures.TryAdd("g_tNormal", GetDefaultNormal());
+            mat.Textures.TryAdd("g_tTintMask", GetDefaultMask());
+            mat.Material.VectorParams.TryAdd("g_vTexCoordScale", Vector4.One);
+            mat.Material.VectorParams.TryAdd("g_vTexCoordOffset", Vector4.Zero);
+            mat.Material.VectorParams.TryAdd("g_vColorTint", Vector4.One);
 
             return mat;
-        }
-
-        private static void SetDefault<T>(string name, Dictionary<string, T> dict, T @default = default, string[] namesToTry = null)
-        {
-            if (dict.ContainsKey(name))
-            {
-                return;
-            }
-
-            var foundReplacement = false;
-            if (namesToTry is not null)
-            {
-                foreach (var replacement in namesToTry)
-                {
-                    if (!dict.ContainsKey(replacement))
-                    {
-                        continue;
-                    }
-
-                    dict[name] = dict[replacement];
-                    foundReplacement = true;
-                    break;
-                }
-            }
-
-            if (!foundReplacement)
-            {
-                dict[name] = @default;
-            }
         }
 
         public int LoadTexture(string name)
@@ -260,9 +256,9 @@ namespace GUI.Types.Renderer
 
         public RenderMaterial GetErrorMaterial()
         {
-            var errorMat = new RenderMaterial(new VrfMaterial());
+            var materialData = new VrfMaterial { ShaderName = "vrf.error" };
+            var errorMat = new RenderMaterial(materialData, VrfGuiContext.ShaderLoader);
             errorMat.Textures["g_tColor"] = GetErrorTexture();
-            errorMat.Material.ShaderName = "vrf.error";
 
             return errorMat;
         }

@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
-            shader = vrfGuiContext.ShaderLoader.LoadShader(material.Material.ShaderName, material.Material.GetShaderArguments());
+            shader = material.Shader;
 
             if (quadVao == 0)
             {
