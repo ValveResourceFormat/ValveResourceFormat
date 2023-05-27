@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
         private Model Model { get; }
         public RenderableMesh RenderMesh { get; }
 
-        internal class Fragment : SceneNode
+        internal sealed class Fragment : SceneNode
         {
             public SceneNode Parent { get; init; }
             public RenderableMesh RenderMesh { get; init; }
@@ -43,8 +43,10 @@ namespace GUI.Types.Renderer
             LocalBoundingBox = RenderMesh.BoundingBox;
         }
 
-        public IEnumerable<Fragment> CreateFragments(IKeyValueCollection[] aggregateMeshes)
+        public IEnumerable<Fragment> CreateFragments(IKeyValueCollection aggregateSceneObject)
         {
+            var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
+
             // Aperture Desk Job goes from draw call -> aggregate mesh
             if (aggregateMeshes.Length > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
             {
@@ -66,6 +68,9 @@ namespace GUI.Types.Renderer
                 yield break;
             }
 
+            var transformIndex = 0;
+            var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
+
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
@@ -79,6 +84,11 @@ namespace GUI.Types.Renderer
                     RenderMesh = RenderMesh,
                     Parent = this,
                 };
+
+                if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
+                {
+                    fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
+                }
 
                 yield return fragment;
             }

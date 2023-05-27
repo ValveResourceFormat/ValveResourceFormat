@@ -160,7 +160,7 @@ namespace GUI.Types.Renderer
                 {
                     opaqueDrawCalls.Add(new MeshBatchRenderer.Request
                     {
-                        Transform = fragment.Parent.Transform,
+                        Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
                         DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),

@@ -128,7 +128,7 @@ namespace GUI.Types.Renderer
                     };
 
                     scene.Add(aggregate, false);
-                    foreach (var fragment in aggregate.CreateFragments(sceneObject.GetArray("m_aggregateMeshes")))
+                    foreach (var fragment in aggregate.CreateFragments(sceneObject))
                     {
                         scene.Add(fragment, false);
                     }
