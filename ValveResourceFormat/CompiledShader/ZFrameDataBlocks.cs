@@ -39,13 +39,15 @@ namespace ValveResourceFormat.CompiledShader
 
     public class WriteSeqField : ShaderDataBlock
     {
-        public int ParamId { get; }
+        public byte ParamId { get; }
+        public byte UnknBuff { get; }
         public byte Dest { get; }
         public byte Control { get; }
 
         public WriteSeqField(ShaderDataReader datareader) : base(datareader)
         {
-            ParamId = datareader.ReadUInt16();
+            ParamId = datareader.ReadByte();
+            UnknBuff = datareader.ReadByte();
             Dest = datareader.ReadByte();
             Control = datareader.ReadByte();
         }
