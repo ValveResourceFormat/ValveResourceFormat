@@ -24,9 +24,9 @@ uniform uint meshId;
     void main()
     {
         #if renderMode_ObjectId == 1
-            outputColor = ColorFromId(sceneObjectId, 0);
+            outputColor = ColorFromId(sceneObjectId, 0u);
         #elif renderMode_MeshId == 1
-            outputColor = ColorFromId(meshId, 19);
+            outputColor = ColorFromId(meshId, 19u);
         #endif
     }
 #else
