@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
         public MaterialRenderer(VrfGuiContext vrfGuiContext, Resource resource)
         {
             material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
-            shader = vrfGuiContext.ShaderLoader.LoadShader(material.Material.ShaderName, material.Material.GetShaderArguments());
+            shader = material.Shader;
             quadVao = SetupQuadBuffer();
         }
 

@@ -1,4 +1,3 @@
-//#define DEBUG_SHADERS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,29 +8,21 @@ using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
-#if DEBUG_SHADERS
-#pragma warning disable
-#endif
-
 namespace GUI.Types.Renderer
 {
-    public class ShaderLoader
+    public class ShaderLoader : IDisposable
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
         private static readonly Regex RegexInclude = new(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
-        private static readonly Regex RegexDefine = new(@"^#define param_(?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
+        private static readonly Regex RegexDefine = new(@"^#define (?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
 
-#if !DEBUG_SHADERS || !DEBUG
         private readonly Dictionary<uint, Shader> CachedShaders = new();
         private readonly Dictionary<string, List<string>> ShaderDefines = new();
-#endif
 
         public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
-
-#if !DEBUG_SHADERS || !DEBUG
             if (ShaderDefines.ContainsKey(shaderFileName))
             {
                 var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
@@ -41,7 +32,6 @@ namespace GUI.Types.Renderer
                     return cachedShader;
                 }
             }
-#endif
 
             var defines = new List<string>();
 
@@ -50,7 +40,7 @@ namespace GUI.Types.Renderer
 
             var assembly = Assembly.GetExecutingAssembly();
 
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
             using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.vert"), FileMode.Open))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
@@ -58,10 +48,11 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(vertexShader, PreprocessVertexShader(shaderSource, arguments));
+                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments);
+                GL.ShaderSource(vertexShader, preprocessedShaderSource);
 
                 // Find defines supported from source
-                defines.AddRange(FindDefines(shaderSource));
+                defines.AddRange(FindDefines(preprocessedShaderSource));
             }
 
             GL.CompileShader(vertexShader);
@@ -78,7 +69,7 @@ namespace GUI.Types.Renderer
             /* Fragment shader */
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
             using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.frag"), FileMode.Open))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
@@ -86,10 +77,11 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                GL.ShaderSource(fragmentShader, UpdateDefines(shaderSource, arguments));
+                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments);
+                GL.ShaderSource(fragmentShader, preprocessedShaderSource);
 
                 // Find render modes supported from source, take union to avoid duplicates
-                defines = defines.Union(FindDefines(shaderSource)).ToList();
+                defines = defines.Union(FindDefines(preprocessedShaderSource)).ToList();
             }
 
             GL.CompileShader(fragmentShader);
@@ -143,28 +135,23 @@ namespace GUI.Types.Renderer
             GL.DetachShader(shader.Program, fragmentShader);
             GL.DeleteShader(fragmentShader);
 
-#if !DEBUG_SHADERS || !DEBUG
             ShaderDefines[shaderFileName] = defines;
             var newShaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
 
             CachedShaders[newShaderCacheHash] = shader;
 
             Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
-#endif
-
             return shader;
         }
 
-        //Preprocess a vertex shader's source to include the #version plus #defines for parameters
-        private static string PreprocessVertexShader(string source, IDictionary<string, bool> arguments)
+        private static string PreprocessShader(string source, IDictionary<string, bool> arguments)
         {
-            //Update parameter defines
-            var paramSource = UpdateDefines(source, arguments);
-
             //Inject code into shader based on #includes
-            var includedSource = ResolveIncludes(paramSource);
+            var withCollapsedIncludes = ResolveIncludes(source);
 
-            return includedSource;
+            //Update parameter defines
+            var withReplacedDefines = UpdateDefines(withCollapsedIncludes, arguments);
+            return withReplacedDefines;
         }
 
         //Update default defines with possible overrides from the model
@@ -202,11 +189,11 @@ namespace GUI.Types.Renderer
 
             foreach (var define in includes.Cast<Match>())
             {
-                //Read included code
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
                 using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open);
 #else
-                using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{define.Groups["IncludeName"].Value}");
+                var includeResource = define.Groups["IncludeName"].Value.Replace('/', '.');
+                using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{includeResource}");
 #endif
                 using var reader = new StreamReader(stream);
                 var includedCode = reader.ReadToEnd();
@@ -230,6 +217,11 @@ namespace GUI.Types.Renderer
         // Map Valve's shader names to shader files VRF has
         private static string GetShaderFileByName(string shaderName)
         {
+            if (shaderName.Contains("black_unlit", StringComparison.InvariantCulture))
+            {
+                return "vr_black_unlit";
+            }
+
             switch (shaderName)
             {
                 case "vrf.error":
@@ -255,12 +247,38 @@ namespace GUI.Types.Renderer
                     return "dota_hero";
                 case "multiblend.vfx":
                     return "multiblend";
+                case "csgo_effects.vfx":
+                    return "csgo_effects";
                 default:
                     return "simple";
             }
         }
 
-#if !DEBUG_SHADERS || !DEBUG
+        public void ClearCache()
+        {
+            ShaderDefines.Clear();
+            CachedShaders.Clear();
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ClearCache();
+
+                foreach (var shader in CachedShaders.Values)
+                {
+                    GL.DeleteProgram(shader.Program);
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
         private uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
@@ -276,9 +294,8 @@ namespace GUI.Types.Renderer
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
         }
-#endif
 
-#if DEBUG_SHADERS && DEBUG
+#if DEBUG
         // Reload shaders at runtime
         private static string GetShaderDiskPath(string name)
         {

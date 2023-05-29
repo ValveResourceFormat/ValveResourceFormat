@@ -30,7 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AssetTypes\*" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\*" />
+    <EmbeddedResource Include="Types\Renderer\Shaders\**" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">

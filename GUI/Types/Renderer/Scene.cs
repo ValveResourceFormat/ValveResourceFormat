@@ -20,6 +20,7 @@ namespace GUI.Types.Renderer
         public class RenderContext
         {
             public Camera Camera { get; init; }
+            public float Time { get; init; }
             public Vector3? LightPosition { get; init; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
@@ -27,6 +28,7 @@ namespace GUI.Types.Renderer
         }
 
         public Camera MainCamera { get; set; }
+        public float Time { get; set; }
         public Vector3? LightPosition { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
@@ -96,6 +98,8 @@ namespace GUI.Types.Renderer
         public void Update(float timestep)
         {
             var updateContext = new UpdateContext(timestep);
+            Time += timestep;
+
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
@@ -133,7 +137,6 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
-                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
 
@@ -146,10 +149,23 @@ namespace GUI.Types.Renderer
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 NodeId = node.Id,
-                                MeshId = (uint)mesh.MeshIndex,
                             });
                         }
                     }
+                }
+                else if (node is SceneAggregate aggregate)
+                {
+                }
+                else if (node is SceneAggregate.Fragment fragment)
+                {
+                    opaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                    {
+                        Transform = fragment.Transform,
+                        Mesh = fragment.RenderMesh,
+                        Call = fragment.DrawCall,
+                        DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                        NodeId = node.Id,
+                    });
                 }
                 else
                 {
@@ -169,6 +185,7 @@ namespace GUI.Types.Renderer
             var renderContext = new RenderContext
             {
                 Camera = camera,
+                Time = Time,
                 LightPosition = LightPosition,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,
@@ -179,11 +196,11 @@ namespace GUI.Types.Renderer
                 if (camera.Picker.IsActive)
                 {
                     camera.Picker.Render();
-                    renderContext.ReplacementShader = camera.Picker.shader;
+                    renderContext.ReplacementShader = camera.Picker.Shader;
                 }
-                else if (camera.Picker.Debug)
+                else if (camera.Picker.DebugShader is not null)
                 {
-                    renderContext.ReplacementShader = camera.Picker.debugShader;
+                    renderContext.ReplacementShader = camera.Picker.DebugShader;
                 }
             }
 

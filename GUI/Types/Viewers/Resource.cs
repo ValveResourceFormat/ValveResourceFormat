@@ -441,6 +441,14 @@ namespace GUI.Types.Viewers
                 {
                     Dock = DockStyle.Fill,
                 };
+                cubemapContainer.MouseWheel += (sender, args) =>
+                {
+                    var count = args.Delta > 0 ? -1 : 1;
+                    cubemapContainer.SelectedIndex = Math.Clamp(cubemapContainer.SelectedIndex + count,
+                        0,
+                        cubemapContainer.TabCount - 1
+                    );
+                };
 
                 var CUBEMAP_OFFSETS = new (float X, float Y)[]
                 {

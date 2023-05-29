@@ -7,25 +7,21 @@ namespace GUI.Types.Renderer
 {
     public class RenderMaterial
     {
+        public Shader Shader => shader;
         public Material Material { get; }
         public Dictionary<string, int> Textures { get; } = new Dictionary<string, int>();
         public bool IsBlended { get; }
         public bool IsToolsMaterial { get; }
 
-        private readonly float flAlphaTestReference;
+        private readonly Shader shader;
         private readonly bool isAdditiveBlend;
         private readonly bool isRenderBackfaces;
+        private readonly bool isOverlay;
 
-        public RenderMaterial(Material material)
+        public RenderMaterial(Material material, ShaderLoader shaderLoader)
         {
             Material = material;
-
-            if (material.IntParams.ContainsKey("F_ALPHA_TEST") &&
-                material.IntParams["F_ALPHA_TEST"] == 1 &&
-                material.FloatParams.ContainsKey("g_flAlphaTestReference"))
-            {
-                flAlphaTestReference = material.FloatParams["g_flAlphaTestReference"];
-            }
+            shader = shaderLoader.LoadShader(material.ShaderName, material.GetShaderArguments());
 
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
@@ -35,13 +31,18 @@ namespace GUI.Types.Renderer
                 || material.ShaderName == "tools_sprite.vfx";
             isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
+            isOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
+                || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1
+                || material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal);
         }
 
-        public void Render(Shader shader)
+        public void Render(Shader shader = default)
         {
             //Start at 1, texture unit 0 is reserved for the animation texture
             var textureUnit = 1;
             int uniformLocation;
+
+            shader ??= this.shader;
 
             foreach (var texture in Textures)
             {
@@ -77,18 +78,17 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var alphaReference = shader.GetUniformLocation("g_flAlphaTestReference");
-
-            if (alphaReference > -1)
-            {
-                GL.Uniform1(alphaReference, flAlphaTestReference);
-            }
-
             if (IsBlended)
             {
                 GL.DepthMask(false);
                 GL.Enable(EnableCap.Blend);
                 GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
+            }
+
+            if (isOverlay)
+            {
+                GL.Enable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffset(-0.05f, -64);
             }
 
             if (isRenderBackfaces)
@@ -103,6 +103,12 @@ namespace GUI.Types.Renderer
             {
                 GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);
+            }
+
+            if (isOverlay)
+            {
+                GL.Disable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffset(0, 0);
             }
 
             if (isRenderBackfaces)

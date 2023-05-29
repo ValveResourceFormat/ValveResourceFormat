@@ -1,24 +1,18 @@
 #version 330
 
 // Render modes -- Switched on/off by code
-#define param_renderMode_FullBright 0
-#define param_renderMode_Color 0
-#define param_renderMode_Normals 0
-#define param_renderMode_Tangents 0
-#define param_renderMode_BumpMap 0
-#define param_renderMode_BumpNormals 0
-#define param_renderMode_Illumination 0
-#define param_renderMode_Mask1 0
-#define param_renderMode_Mask2 0
-#define param_renderMode_Metalness 0
-#define param_renderMode_Specular 0
-#define param_renderMode_RimLight 0
+#include "common/rendermodes.glsl"
+#define renderMode_Mask1 0
+#define renderMode_Mask2 0
+#define renderMode_Metalness 0
+#define renderMode_Specular 0
+#define renderMode_RimLight 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define param_F_MASKS_1 0
-#define param_F_MASKS_2 0
-#define param_F_ALPHA_TEST 0
-#define param_F_SPECULAR_CUBE_MAP 0
+#define F_MASKS_1 0
+#define F_MASKS_2 0
+#define F_ALPHA_TEST 0
+#define F_SPECULAR_CUBE_MAP 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -77,18 +71,18 @@ void main()
     //Read textures
     vec4 color = texture(g_tColor, vTexCoordOut);
 
-#if param_F_ALPHA_TEST == 1
+#if F_ALPHA_TEST == 1
     if (color.a < g_flAlphaTestReference)
     {
        discard;
     }
 #endif
 
-#if param_F_MASKS_1
+#if F_MASKS_1
     vec4 mask1 = texture(g_tMasks1, vTexCoordOut);
 #endif
 
-#if param_F_MASKS_2
+#if F_MASKS_2
     vec4 mask2 = texture(g_tMasks2, vTexCoordOut);
 #endif
 
@@ -98,7 +92,7 @@ void main()
     //Get shadow and light color
     //vec3 shadowColor = texture(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
-#if param_renderMode_FullBright == 1
+#if renderMode_FullBright == 1
     float illumination = 1.0;
 #else
     //Calculate half-lambert lighting
@@ -106,7 +100,7 @@ void main()
     illumination = illumination * 0.5 + 0.5;
     illumination = illumination * illumination;
 
-    #if param_F_MASKS_1
+    #if F_MASKS_1
         //Self illumination - mask 1 channel A
         illumination = illumination + mask1.a;
     #endif
@@ -115,7 +109,7 @@ void main()
     //Calculate ambient color
     vec3 ambientColor = illumination * color.rgb;
 
-#if param_F_MASKS_1
+#if F_MASKS_1
     //Get metalness for future use - mask 1 channel B
     float metalness = mask1.b;
 #else
@@ -126,7 +120,7 @@ void main()
     vec3 halfDir = normalize(lightDirection + viewDirection);
     float specularAngle = max(dot(halfDir, worldNormal), 0.0);
 
-#if param_F_MASKS_2 && !param_F_SPECULAR_CUBE_MAP
+#if F_MASKS_2 && !F_SPECULAR_CUBE_MAP
     //Calculate final specular based on specular exponent - mask 2 channel A
     float specular = pow(specularAngle, mask2.a * g_flSpecularExponent);
     //Multiply by mapped specular intensity - mask 2 channel R
@@ -143,7 +137,7 @@ void main()
     float rimLight = 1.0 - abs(dot(worldNormal, viewDirection));
     rimLight = pow(rimLight, 2);
 
-#if param_F_MASKS_2
+#if F_MASKS_2
     //Multiply the rim light by the rim light intensity - mask 2 channel G
     rimLight = rimLight * mask2.g;
 #endif
@@ -157,47 +151,47 @@ void main()
     // == End of shader
 
     // Different render mode definitions
-#if param_renderMode_Color == 1
+#if renderMode_Color == 1
     outputColor = vec4(color.rgb, 1.0);
 #endif
 
-#if param_renderMode_Illumination == 1
+#if renderMode_Illumination == 1
     outputColor = vec4(illumination, 0.0, 0.0, 1.0);
 #endif
 
-#if param_renderMode_Mask1 == 1 && param_F_MASKS_1
+#if renderMode_Mask1 == 1 && F_MASKS_1
     outputColor = vec4(mask1.rgb, 1.0);
 #endif
 
-#if param_renderMode_Mask2 == 1 && param_F_MASKS_2
+#if renderMode_Mask2 == 1 && F_MASKS_2
     outputColor = vec4(mask2.rgb, 1.0);
 #endif
 
-#if param_renderMode_BumpMap == 1
+#if renderMode_BumpMap == 1
     outputColor = texture(g_tNormal, vTexCoordOut);
 #endif
 
-#if param_renderMode_Tangents == 1
+#if renderMode_Tangents == 1
     outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_Normals == 1
+#if renderMode_Normals == 1
     outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_BumpNormals == 1
+#if renderMode_BumpNormals == 1
     outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
-#if param_renderMode_Metalness == 1
+#if renderMode_Metalness == 1
     outputColor = vec4(metalness, metalness, metalness, 1.0);
 #endif
 
-#if param_renderMode_Specular == 1
+#if renderMode_Specular == 1
     outputColor = vec4(specularColor * specular, 1.0);
 #endif
 
-#if param_renderMode_RimLight == 1
+#if renderMode_RimLight == 1
     outputColor = vec4(color.rgb * rimLight, 1.0);
 #endif
 }

@@ -459,6 +459,7 @@ public sealed class MaterialExtract
         var attributesThatAreSystemAttributes = new HashSet<string>
         {
             "physicssurfaceproperties",
+            "physicssurfaceproperties1",
             "physicssurfaceproperties2",
             "physicssurfaceproperties3",
             "physicssurfaceproperties4",

@@ -12,8 +12,8 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Material : KeyValuesOrNTRO
     {
-        public string Name { get; set; }
-        public string ShaderName { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ShaderName { get; set; } = string.Empty;
 
         public Dictionary<string, long> IntParams { get; } = new Dictionary<string, long>();
         public Dictionary<string, float> FloatParams { get; } = new Dictionary<string, float>();
@@ -113,7 +113,10 @@ namespace ValveResourceFormat.ResourceTypes
                 var name = intParam.GetProperty<string>("m_name");
                 var value = intParam.GetIntegerProperty("m_nValue");
 
-                arguments.Add(name, value != 0);
+                if (name.StartsWith("F_", StringComparison.OrdinalIgnoreCase))
+                {
+                    arguments.Add(name, value != 0);
+                }
             }
 
             var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
@@ -126,6 +129,13 @@ namespace ValveResourceFormat.ResourceTypes
             if (ShaderName == "vr_glass.vfx")
             {
                 arguments.Add("F_GLASS", true);
+            }
+
+            if (ShaderName.EndsWith("2way_blend.vfx", StringComparison.OrdinalIgnoreCase))
+            {
+                arguments.Add("F_LAYERS", true);
+                arguments.Add("F_FANCY_BLENDING", true);
+                arguments.Add("simple_2way_blend", true);
             }
 
             return arguments;

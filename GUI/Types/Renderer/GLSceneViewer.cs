@@ -126,13 +126,7 @@ namespace GUI.Types.Renderer
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
-            if (renderModeComboBox != null)
-            {
-                var supportedRenderModes = Scene.AllNodes
-                    .SelectMany(r => r.GetSupportedRenderModes())
-                    .Distinct();
-                SetAvailableRenderModes(supportedRenderModes);
-            }
+            SetAvailableRenderModes();
 
             if (ShowSkybox && SkyboxScene != null)
             {
@@ -202,7 +196,9 @@ namespace GUI.Types.Renderer
                     ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
                 }
 
+                GuiContext.ShaderLoader.ClearCache();
                 SetRenderMode(renderModeComboBox?.SelectedItem as string);
+                SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
             };
             ViewerControl.AddControl(button);
 #endif
@@ -210,23 +206,22 @@ namespace GUI.Types.Renderer
             renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
         }
 
-        private void SetAvailableRenderModes(IEnumerable<string> renderModes)
+        private void SetAvailableRenderModes(int index = 0)
         {
-            renderModeComboBox.Items.Clear();
-            if (renderModes.Any())
+            if (renderModeComboBox != null)
             {
+                var supportedRenderModes = Scene.AllNodes
+                    .SelectMany(r => r.GetSupportedRenderModes())
+                    .Distinct()
+                    .Concat(ViewerControl.Camera.Picker.Shader.RenderModes);
+
+                renderModeComboBox.Items.Clear();
                 renderModeComboBox.Enabled = true;
                 renderModeComboBox.Items.Add("Default Render Mode");
-                renderModeComboBox.Items.AddRange(renderModes.ToArray());
-                renderModeComboBox.Items.Add("Object Id");
-                renderModeComboBox.SelectedIndex = 0;
+                renderModeComboBox.Items.AddRange(supportedRenderModes.ToArray());
+                renderModeComboBox.SelectedIndex = index;
             }
-            else
-            {
-                renderModeComboBox.Items.Add("(no render modes available)");
-                renderModeComboBox.SelectedIndex = 0;
-                renderModeComboBox.Enabled = false;
-            }
+
         }
 
         protected void SetEnabledLayers(HashSet<string> layers)
@@ -237,16 +232,7 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            if (ViewerControl.Camera is not null)
-            {
-                if (renderMode == "Object Id")
-                {
-                    ViewerControl.Camera.Picker.Debug = true;
-                    return;
-                }
-
-                ViewerControl.Camera.Picker.Debug = false;
-            }
+            ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
 
             foreach (var node in Scene.AllNodes)
             {

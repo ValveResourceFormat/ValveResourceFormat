@@ -5,7 +5,7 @@
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define param_fulltangent 1
+#define fulltangent 1
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
@@ -14,7 +14,9 @@ in vec2 vTEXCOORD;
 in vec4 vTEXCOORD1;
 in vec4 vTEXCOORD2;
 in vec4 vTEXCOORD3;
-in vec4 vTANGENT;
+#if fulltangent == 1
+    in vec4 vTANGENT;
+#endif
 in ivec4 vBLENDINDICES;
 in vec4 vBLENDWEIGHT;
 
@@ -40,7 +42,7 @@ void main()
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     //Unpack normals
-#if param_fulltangent == 1
+#if fulltangent == 1
     vNormalOut = vNORMAL.xyz;
 #else
     vNormalOut = DecompressNormal(vNORMAL);

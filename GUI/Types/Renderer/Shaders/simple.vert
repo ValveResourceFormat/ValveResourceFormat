@@ -6,13 +6,32 @@
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define param_fulltangent 1
+#define fulltangent 1
+#define F_VERTEX_COLOR 0
+#define F_LAYERS 0
+#define simple_2way_blend 0
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
-in vec4 vTANGENT;
+#if F_LAYERS > 0
+    #if simple_2way_blend == 1
+        #define vBLEND_COLOR vTEXCOORD2
+    #else
+        // ligthtmappedgeneric - real semantic index is 4
+        #define vBLEND_COLOR vTEXCOORD3
+    #endif
+    in vec4 vBLEND_COLOR;
+    out vec4 vColorBlendValues;
+#endif
+#if fulltangent == 1
+    in vec3 vTANGENT;
+#endif
+#if F_VERTEX_COLOR == 1
+    in vec4 vCOLOR;
+    out vec4 vColorOut;
+#endif
 
 out vec3 vFragPosition;
 
@@ -35,7 +54,7 @@ void main()
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
 
     //Unpack normals
-#if param_fulltangent == 1
+#if fulltangent == 1
     vNormalOut = normalize(normalTransform * vNORMAL.xyz);
     vTangentOut = normalize(normalTransform * vTANGENT.xyz);
     vBitangentOut = cross(vNormalOut, vTangentOut);
@@ -47,4 +66,13 @@ void main()
 #endif
 
     vTexCoordOut = vTEXCOORD;
+
+#if F_VERTEX_COLOR == 1
+    vColorOut = vCOLOR;
+#endif
+
+#if F_LAYERS > 0
+    vColorBlendValues = vBLEND_COLOR / 255.0f;
+#endif
+
 }
