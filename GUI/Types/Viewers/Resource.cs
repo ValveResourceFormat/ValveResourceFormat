@@ -466,7 +466,7 @@ namespace GUI.Types.Viewers
                     {
                         BackColor = Color.Black,
                     };
-                    using var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                    var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
                     using var cubemapCanvas = new SKCanvas(cubemapBitmap);
 
                     for (int face = 0; face < 6; face++)
@@ -478,7 +478,7 @@ namespace GUI.Types.Viewers
                     }
 
                     cubemapControl.SetImage(
-                        cubemapBitmap.ToBitmap(),
+                        cubemapBitmap,
                         Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
                         cubemapBitmap.Width,
                         cubemapBitmap.Height
@@ -512,10 +512,10 @@ namespace GUI.Types.Viewers
                         BackColor = Color.Black,
                     };
 
-                    using var depthBitmap = tex.GenerateBitmap(depth: i);
+                    var depthBitmap = tex.GenerateBitmap(depth: i);
 
                     depthControl.SetImage(
-                        depthBitmap.ToBitmap(),
+                        depthBitmap,
                         Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
                         tex.ActualWidth,
                         tex.ActualHeight
@@ -537,7 +537,7 @@ namespace GUI.Types.Viewers
             }
 
             var sheet = tex.GetSpriteSheetData();
-            using var bitmap = tex.GenerateBitmap();
+            var bitmap = tex.GenerateBitmap();
 
             if (sheet != null)
             {
@@ -574,7 +574,7 @@ namespace GUI.Types.Viewers
             };
 
             control.SetImage(
-                bitmap.ToBitmap(),
+                bitmap,
                 Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
                 tex.ActualWidth,
                 tex.ActualHeight
