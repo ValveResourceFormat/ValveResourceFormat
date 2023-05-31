@@ -23,9 +23,9 @@ namespace ValveResourceFormat.CompiledShader
 
         public string FilenamePath { get; private set; }
         public string ShaderName { get; private set; }
-        public VcsProgramType VcsProgramType { get; private set; }
-        public VcsPlatformType VcsPlatformType { get; private set; }
-        public VcsShaderModelType VcsShaderModelType { get; private set; }
+        public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
+        public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
+        public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
         public VsPsHeaderBlock VspsHeader { get; private set; }
         public int VcsVersion { get; private set; }
@@ -199,7 +199,6 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            List<long> zframeIds = new();
             var zframesCount = DataReader.ReadInt32();
             if (zframesCount == 0)
             {
@@ -210,15 +209,17 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 return;
             }
+
+            var zframeIdsAndOffsets = new (long Id, int Offset)[zframesCount];
+
             for (var i = 0; i < zframesCount; i++)
             {
-                zframeIds.Add(DataReader.ReadInt64());
+                zframeIdsAndOffsets[i].Id = DataReader.ReadInt64();
             }
 
-            List<(long, int)> zframeIdsAndOffsets = new();
-            foreach (var zframeId in zframeIds)
+            for (var i = 0; i < zframesCount; i++)
             {
-                zframeIdsAndOffsets.Add((zframeId, DataReader.ReadInt32()));
+                zframeIdsAndOffsets[i].Offset = DataReader.ReadInt32();
             }
 
             var offsetToEndOffile = DataReader.ReadInt32();
@@ -227,11 +228,9 @@ namespace ValveResourceFormat.CompiledShader
                 throw new ShaderParserException($"Pointer to end of file expected, value read = {offsetToEndOffile}");
             }
 
-            foreach (var item in zframeIdsAndOffsets)
+            foreach (var zFrame in zframeIdsAndOffsets)
             {
-                var zframeId = item.Item1;
-                var offsetToZframeHeader = item.Item2;
-                DataReader.BaseStream.Position = offsetToZframeHeader;
+                DataReader.BaseStream.Position = zFrame.Offset;
                 var chunkSizeOrZframeDelim = DataReader.ReadUInt32();
                 var compressionType = chunkSizeOrZframeDelim == ZSTD_DELIM ? ZSTD_COMPRESSION : LZMA_COMPRESSION;
 
@@ -253,9 +252,9 @@ namespace ValveResourceFormat.CompiledShader
                     compressedLength = DataReader.ReadInt32();
                 }
 
-                var zframeDataDesc = new ZFrameDataDescription(zframeId, offsetToZframeHeader,
+                var zframeDataDesc = new ZFrameDataDescription(zFrame.Id, zFrame.Offset,
                     compressionType, uncompressedLength, compressedLength, DataReader);
-                ZframesLookup.Add(zframeId, zframeDataDesc);
+                ZframesLookup.Add(zFrame.Id, zframeDataDesc);
             }
         }
 

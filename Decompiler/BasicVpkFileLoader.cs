@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.IO
 {
@@ -33,6 +34,8 @@ namespace ValveResourceFormat.IO
 
             return resource;
         }
+
+        public ShaderCollection LoadShader(string shaderName) => null;
 
         public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
         {

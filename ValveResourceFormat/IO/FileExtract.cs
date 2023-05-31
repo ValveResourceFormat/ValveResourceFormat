@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
@@ -75,6 +76,8 @@ namespace ValveResourceFormat.IO
 
             return resource;
         }
+
+        public ShaderCollection LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
         public TrackingFileLoader(IFileLoader fileLoader)
         {

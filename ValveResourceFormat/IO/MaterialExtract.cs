@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
@@ -18,185 +19,31 @@ public sealed class MaterialExtract
         public Channel Channel { get; init; }
     }
 
-    public static readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappings = new()
-    {
-        ["global_lit_simple"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-            ["g_tSpecular"] = new[] { (Channel.R, "TextureReflectance"), (Channel.G, "TextureSelfIllum"), (Channel.B, "TextureBloom") },
-        },
-
-        ["multiblend"] = new()
-        {
-            ["g_tColor0"] = new[] { (Channel.RGB, "TextureColor0") },
-            ["g_tColor1"] = new[] { (Channel.RGB, "TextureColor1"), (Channel.A, "TextureRevealMask1") },
-            ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor2"), (Channel.A, "TextureRevealMask2") },
-            ["g_tColor3"] = new[] { (Channel.RGB, "TextureColor3"), (Channel.A, "TextureRevealMask3") },
-            ["g_tSpecular0"] = new[] { (Channel.R, "TextureReflectance0"), (Channel.G, "TextureSelfIllum0"), (Channel.B, "TextureBloom0") },
-            ["g_tSpecular1"] = new[] { (Channel.R, "TextureReflectance1"), (Channel.G, "TextureSelfIllum1"), (Channel.B, "TextureBloom1") },
-            ["g_tSpecular2"] = new[] { (Channel.R, "TextureReflectance2"), (Channel.G, "TextureSelfIllum2"), (Channel.B, "TextureBloom2") },
-            ["g_tSpecular3"] = new[] { (Channel.R, "TextureReflectance3"), (Channel.G, "TextureSelfIllum3"), (Channel.B, "TextureBloom3") },
-            ["g_tTintMasks"] = new[] { (Channel.R, "TextureTintMask0"), (Channel.G, "TextureTintMask1"), (Channel.B, "TextureTintMask2"), (Channel.A, "TextureTintMask3") },
-            ["g_tTint2Masks"] = new[] { (Channel.R, "TextureTint2Mask0"), (Channel.G, "TextureTint2Mask1"), (Channel.B, "TextureTint2Mask2"), (Channel.A, "TextureTint2Mask3") },
-        },
-
-        ["hero"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-            ["g_tCubeMap"] = new[] { (Channel.RGBA, "TextureCubeMap") },
-            ["g_tCubeMapSeparateMask"] = new[] { (Channel.G, "TextureCubeMapSeparateMask") },
-            ["g_tFresnelWarp"] = new[] { (Channel.R, "TextureFresnelWarpRim"), (Channel.G, "TextureFresnelWarpColor"), (Channel.B, "TextureFresnelWarpSpec") },
-            ["g_tMasks1"] = new[] { (Channel.R, "TextureDetailMask"), (Channel.G, "TextureDiffuseWarpMask"), (Channel.B, "TextureMetalnessMask"), (Channel.A, "TextureSelfIllumMask") },
-            ["g_tMasks2"] = new[] { (Channel.R, "TextureSpecularMask"), (Channel.G, "TextureRimMask"), (Channel.B, "TextureTintByBaseMask"), (Channel.A, "TextureSpecularExponent") },
-            ["g_tDetail"] = new[] { (Channel.RGBA, "TextureDetail") },
-            ["g_tDetail2"] = new[] { (Channel.RGBA, "TextureDetail2") },
-        },
-
-        ["grasstile_preview"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-            ["g_tTintMask"] = new[] { (Channel.G, "TextureTintMask") },
-            ["g_tSpecular"] = new[] { (Channel.G, "TextureReflectance") },
-            ["g_tSelfIllum"] = new[] { (Channel.G, "TextureSelfIllum") },
-        },
-
-        ["generic"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor") },
-            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-            ["g_tMetalnessReflectanceFresnel"] = new[] { (Channel.R, "TextureMetalness"), (Channel.G, "TextureReflectance"), (Channel.B, "TextureFresnel") },
-            ["g_tRoughness"] = new[] { (Channel.R, "TextureRoughness"), },
-        },
-
-        ["vr_standard"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-            ["g_tColor1"] = new[] { (Channel.RGB, "TextureColor") },
-            ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor") },
-            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-            ["g_tNormal1"] = new[] { (Channel.RGB, "TextureNormal") },
-            ["g_tNormal2"] = new[] { (Channel.RGB, "TextureNormal") },
-        },
-
-        ["vr_complex"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, string.Empty) }, // Alpha can be metal or translucency
-            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal"), (Channel.A, "TextureRoughness") }, // TODO: Figure out anisotropic gloss
-
-            // These all work fine thanks to consistent names, but we can clean them up to save disk size.
-            // E.g. RGBA -> R (Grayscale)
-            ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
-            ["g_tTintMask"] = new[] { (Channel.R, "TextureTintMask") },
-
-            ["g_tMetalness"] = new[] { (Channel.R, "TextureMetalness") },
-            ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
-            ["g_tBentNormal"] = new[] { (Channel.RGB, "TextureBentNormal") }, // ATI2N
-
-            ["g_tDetail"] = new[] { (Channel.RGB, "TextureDetail") },
-            ["g_tDetailMask"] = new[] { (Channel.R, "TextureDetailMask") },
-            ["g_tNormalDetail"] = new[] { (Channel.RGB, "TextureNormalDetail") }, // ATI2N
-
-            ["g_tSquishColor"] = new[] { (Channel.RGB, "TextureSquishColor") },
-            ["g_tStretchColor"] = new[] { (Channel.RGB, "TextureStretchColor") },
-            ["g_tSquishNormal"] = new[] { (Channel.RGB, "TextureSquishNormal") },
-            ["g_tStretchNormal"] = new[] { (Channel.RGB, "TextureStretchNormal") },
-            ["g_tSquishAmbientOcclusion"] = new[] { (Channel.R, "TextureSquishAmbientOcclusion") },
-            ["g_tStretchAmbientOcclusion"] = new[] { (Channel.R, "TextureStretchAmbientOcclusion") },
-
-        },
-
-        ["vr_simple"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, string.Empty) }, // Alpha can be ao, metal or nothing at all
-            ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal"), (Channel.A, "TextureRoughness") },
-
-            ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
-            ["g_tTintMask"] = new[] { (Channel.R, "TextureTintMask") },
-        },
-
-        ["vr_simple_2way_blend"] = new()
-        {
-            ["g_tColorA"] = new[] { (Channel.RGB, "TextureColorA"), (Channel.A, "TextureMetalnessA") },
-            ["g_tNormalA"] = new[] { (Channel.RGB, "TextureNormalA"), (Channel.A, "TextureRoughnessA") },
-            ["g_tColorB"] = new[] { (Channel.RGB, "TextureColorB"), (Channel.A, "TextureMetalnessB") },
-            ["g_tNormalB"] = new[] { (Channel.RGB, "TextureNormalB"), (Channel.A, "TextureRoughnessB") },
-
-            ["g_tMask"] = new[] { (Channel.R, "TextureMask") },
-        },
-
-        ["vr_eyeball"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureReflectance") },
-            ["g_tIris"] = new[] { (Channel.RGB, "IrisNormal"), (Channel.A, "IrisRoughness") },
-            ["g_tNormal"] = new[] { (Channel.AG, "TextureNormal") },
-
-            ["g_tIrisMask"] = new[] { (Channel.R, "TextureIrisMask") },
-            ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
-        },
-
-        ["csgo_weapon"] = new()
-        {
-            ["g_tColor"] = new[] { (Channel.RGB, "TextureColor") },
-            ["g_tMetalness"] = new[] { (Channel.R, "TextureRoughness"), (Channel.G, "TextureMetalness") },
-            ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
-        },
-
-        ["sky"] = new()
-        {
-            ["g_tSkyTexture"] = new[] { (Channel.RGBA, "SkyTexture") },
-        }
-    };
-
-    public static readonly Dictionary<string, (Channel Channel, string Name)[]> GltfTextureMappings = new()
-    {
-        ["BaseColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-        ["Normal"] = new[] { (Channel.RGB, "TextureNormal") },
-        ["MetallicRoughness"] = new[] { (Channel.R, string.Empty), (Channel.G, "TextureRoughness"), (Channel.B, "TextureMetalness") },
-        ["Occlusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
-        ["Emissive"] = new[] { (Channel.R, "TextureSelfIllumMask") },
-    };
-
-    public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
-    {
-        { "TextureDetailMask", "_detailmask" },
-        { "TextureDiffuseWarpMask", "_diffusemask" },
-        { "TextureMetalnessMask", "_metalnessmask" },
-        { "TextureSelfIllumMask", "_selfillummask" },
-
-        { "TextureSpecularMask", "_specmask" },
-        { "TextureRimMask", "_rimmask" },
-        { "TextureTintByBaseMask", "_basetintmask" },
-        { "TextureSpecularExponent", "_specexp" },
-        { "TextureRevealMask", "_blend" },
-
-        { "TextureColor", "_color" },
-        { "TextureNormal", "_normal" },
-        { "TextureRoughness", "_rough" },
-        { "TextureMetalness", "_metal" },
-        { "TextureAmbientOcclusion", "_ao" },
-        { "TextureReflectance", "_refl"},
-        { "TextureTranslucency", "_trans"},
-    };
-
     private static bool IsDefaultTexture(string textureFileName)
         => textureFileName.StartsWith("materials/default/", StringComparison.OrdinalIgnoreCase);
 
     private readonly Material material;
     private readonly ResourceEditInfo editInfo;
     private readonly IFileLoader fileLoader;
+    private readonly IShaderDataProvider shaderDataProvider;
 
-    public MaterialExtract(Material material, ResourceEditInfo editInfo, IFileLoader fileLoader)
+    public MaterialExtract(Material material, ResourceEditInfo editInfo, IFileLoader fileLoader,
+        IShaderDataProvider shaderDataProvider = null)
     {
+        ArgumentNullException.ThrowIfNull(material);
         this.material = material;
         this.editInfo = editInfo;
         this.fileLoader = fileLoader;
+        this.shaderDataProvider = shaderDataProvider ?? new BasicShaderDataProvider();
     }
 
     public MaterialExtract(Resource resource, IFileLoader fileLoader = null)
         : this((Material)resource.DataBlock, resource.EditInfo, fileLoader)
     {
+        if (fileLoader is not null)
+        {
+            shaderDataProvider = new FullShaderDataProvider(fileLoader);
+        }
     }
 
     public ContentFile ToContentFile()
@@ -219,7 +66,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            var images = GetTextureUnpackInfos(type, filePath, material, omitDefaults: true, omitUniforms: true);
+            var images = GetTextureUnpackInfos(type, filePath, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
             vmat.ExternalRefsHandled.Add(filePath + "_c", vtex);
@@ -261,7 +108,7 @@ public sealed class MaterialExtract
             // Strip e.g. _color if we want _metal
             if (!texturePath.EndsWith(desiredSuffix, StringComparison.OrdinalIgnoreCase))
             {
-                foreach (var suffix in CommonTextureSuffixes.Values)
+                foreach (var suffix in BasicShaderDataProvider.CommonTextureSuffixes.Values)
                 {
                     if (texturePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                     {
@@ -277,32 +124,10 @@ public sealed class MaterialExtract
         return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : "png");
     }
 
-    public static IEnumerable<(Channel Channel, string Name)> GetTextureInputs(string shaderName, string textureType, Dictionary<string, long> featureState)
-    {
-        shaderName = shaderName[..^4]; // strip '.vfx'
-
-        if (!(TextureMappings.TryGetValue(shaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings)))
-        {
-            yield return (Channel.RGBA, textureType.Replace("g_t", "Texture", StringComparison.Ordinal));
-            yield break;
-        }
-
-        foreach (var mapping in channelMappings)
-        {
-            var (channel, newTextureType) = mapping;
-            if (newTextureType.Length == 0 && !TryFigureOutNonStaticMap(shaderName, textureType, featureState, out newTextureType))
-            {
-                continue;
-            }
-
-            yield return (channel, newTextureType);
-        }
-    }
-
-    public static IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Material material, bool omitDefaults, bool omitUniforms)
+    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, bool omitDefaults, bool omitUniforms)
     {
         var isInput0 = true;
-        foreach (var (channel, newTextureType) in GetTextureInputs(material.ShaderName, textureType, material.IntParams))
+        foreach (var (channel, newTextureType) in shaderDataProvider.GetInputsForTexture(textureType, material))
         {
             if (omitUniforms && material.VectorParams.ContainsKey(newTextureType))
             {
@@ -312,16 +137,7 @@ public sealed class MaterialExtract
             string desiredSuffix = null;
             if (!isInput0)
             {
-                desiredSuffix = "-" + channel;
-                foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
-                {
-                    // Allow matching TextureColorB with TextureColor
-                    if (newTextureType.StartsWith(commonType, StringComparison.OrdinalIgnoreCase))
-                    {
-                        desiredSuffix = commonSuffix;
-                        break;
-                    }
-                }
+                desiredSuffix = shaderDataProvider.GetSuffixForInputTexture(newTextureType, material) ?? "-" + channel;
             }
 
             var keepOriginalExtension = false;
@@ -345,40 +161,6 @@ public sealed class MaterialExtract
 
             isInput0 = false;
         }
-    }
-
-    public static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string newTextureType)
-    {
-        if (shader == "vr_simple" && textureType == "g_tColor")
-        {
-            if (intParams.GetValueOrDefault("F_METALNESS_TEXTURE") != 0)
-            {
-                newTextureType = "TextureMetalness";
-                return true;
-            }
-
-            if (intParams.GetValueOrDefault("F_AMBIENT_OCCLUSION_TEXTURE") != 0)
-            {
-                newTextureType = "TextureAmbientOcclusion";
-                return true;
-            }
-        }
-
-        else if (shader == "vr_complex" && textureType == "g_tColor")
-        {
-            newTextureType = "TextureMetalness";
-
-            if (intParams.GetValueOrDefault("F_TRANSLUCENT") != 0
-            || intParams.GetValueOrDefault("F_ALPHA_TEST") != 0)
-            {
-                newTextureType = "TextureTranslucency";
-            }
-
-            return true;
-        }
-
-        newTextureType = null;
-        return false;
     }
 
     public string ToValveMaterial()
@@ -406,7 +188,7 @@ public sealed class MaterialExtract
         var originalTextures = new KVObject("VRF Original Textures", new List<KVObject>());
         foreach (var (key, value) in material.TextureParams)
         {
-            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, material, false, true))
+            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, false, true))
             {
                 root.Add(new KVObject(unpackInfo.TextureType, unpackInfo.FileName));
             }
@@ -490,7 +272,7 @@ public sealed class MaterialExtract
         {
             subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.ToLowerInvariant() == "subrectdefinition").FirstOrDefault().Value as string;
         }
-        else
+        else if (editInfo is not null)
         {
             var extraStringData = (Blocks.ResourceEditInfoStructs.ExtraStringData)editInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
             subrectDefinition = extraStringData.List.Where(x => x.Name.ToLowerInvariant() == "subrectdefinition").FirstOrDefault()?.Value;

@@ -71,6 +71,26 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        public static string ComputeVCSFileName(string shaderName,
+            VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType shaderModelType)
+        {
+            var shaderModelTypeString = shaderModelType switch
+            {
+                VcsShaderModelType._20 => "20",
+                VcsShaderModelType._2b => "2b",
+                VcsShaderModelType._30 => "30",
+                VcsShaderModelType._31 => "31",
+                VcsShaderModelType._40 => "40",
+                VcsShaderModelType._41 => "41",
+                VcsShaderModelType._50 => "50",
+                VcsShaderModelType._60 => "60",
+                _ => throw new ShaderParserException($"Unknown VCS shader model type {shaderModelType}")
+            };
+
+            return string.Join('_', Path.GetFileNameWithoutExtension(shaderName),
+                platformType.ToString().ToLowerInvariant(), shaderModelTypeString, ComputeVcsProgramType(programType)) + ".vcs";
+        }
+
         public static VcsProgramType ComputeVcsProgramType(string abbrev)
         {
             return abbrev switch
@@ -85,6 +105,23 @@ namespace ValveResourceFormat.CompiledShader
                 "ds" => VcsProgramType.DomainShader,
                 "rtx" => VcsProgramType.RaytracingShader,
                 _ => VcsProgramType.Undetermined
+            };
+        }
+
+        public static string ComputeVcsProgramType(VcsProgramType type)
+        {
+            return type switch
+            {
+                VcsProgramType.Features => "features",
+                VcsProgramType.VertexShader => "vs",
+                VcsProgramType.PixelShader => "ps",
+                VcsProgramType.PixelShaderRenderState => "psrs",
+                VcsProgramType.GeometryShader => "gs",
+                VcsProgramType.ComputeShader => "cs",
+                VcsProgramType.HullShader => "hs",
+                VcsProgramType.DomainShader => "ds",
+                VcsProgramType.RaytracingShader => "rtx",
+                _ => throw new ShaderParserException($"Unknown VCS program type {type}")
             };
         }
 
