@@ -146,6 +146,8 @@ namespace GUI.Types.Renderer
 
             GL.Enable(EnableCap.CullFace);
 
+            Scene.Sky?.Render(new Scene.RenderContext { Camera = e.Camera });
+
             if (ShowBaseGrid)
             {
                 baseGrid.Render(e.Camera, RenderPass.Both);
@@ -233,6 +235,12 @@ namespace GUI.Types.Renderer
         private void SetRenderMode(string renderMode)
         {
             ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
+            if (Scene.Sky != null)
+            {
+                using var mat = GuiContext.LoadFileByAnyMeansNecessary(Scene.Sky?.Material.Material.Name + "_c");
+                Scene.Sky.Material = GuiContext.MaterialLoader.LoadMaterial(mat);
+            }
+
 
             foreach (var node in Scene.AllNodes)
             {

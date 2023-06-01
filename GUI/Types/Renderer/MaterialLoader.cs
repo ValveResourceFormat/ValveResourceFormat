@@ -88,7 +88,14 @@ namespace GUI.Types.Renderer
             {
                 if (mat.Shader.GetUniformLocation(name) != -1)
                 {
-                    mat.Textures[name] = LoadTexture(path);
+                    if (name != "g_tSkyTexture")
+                    {
+                        mat.Textures[name] = LoadTexture(path);
+                    }
+                    else
+                    {
+                        mat.Cubemaps[name] = LoadTexture(path);
+                    }
                     return true;
                 }
 
@@ -131,10 +138,19 @@ namespace GUI.Types.Renderer
 
             var id = GL.GenTexture();
 
-            GL.BindTexture(TextureTarget.Texture2D, id);
+            var target = tex.Flags.HasFlag(VTexFlags.CUBE_TEXTURE)
+                ? TextureTarget.TextureCubeMap
+                : TextureTarget.Texture2D;
+
+            GL.BindTexture(target, id);
 
             var internalFormat = GetPixelInternalFormat(tex.Format);
             var format = GetInternalFormat(tex.Format);
+
+            if (target == TextureTarget.TextureCubeMap)
+            {
+                return LoadCubemap(tex, id, format, internalFormat);
+            }
 
             if (!format.HasValue && !internalFormat.HasValue)
             {
@@ -176,8 +192,8 @@ namespace GUI.Types.Renderer
                 ArrayPool<byte>.Shared.Return(buffer);
             }
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBaseLevel, minMipLevel);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, maxMipLevel);
+            GL.TexParameter(target, TextureParameterName.TextureBaseLevel, minMipLevel);
+            GL.TexParameter(target, TextureParameterName.TextureMaxLevel, maxMipLevel);
 
             // Dispose texture otherwise we run out of memory
             // TODO: This might conflict when opening multiple files due to shit caching
@@ -185,14 +201,14 @@ namespace GUI.Types.Renderer
 
             if (MaxTextureMaxAnisotropy >= 4)
             {
-                GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+                GL.TexParameter(target, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                GL.TexParameter(target, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
+                GL.TexParameter(target, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
             }
             else
             {
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                GL.TexParameter(target, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+                GL.TexParameter(target, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             }
 
             var clampModeS = tex.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS)
@@ -202,10 +218,40 @@ namespace GUI.Types.Renderer
                 ? TextureWrapMode.Clamp
                 : TextureWrapMode.Repeat;
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)clampModeS);
+            GL.TexParameter(target, TextureParameterName.TextureWrapS, (int)clampModeS);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)clampModeT);
 
-            GL.BindTexture(TextureTarget.Texture2D, 0);
+            GL.BindTexture(target, 0);
+
+            return id;
+        }
+
+        private static int LoadCubemap(Texture tex, int id, InternalFormat? format, PixelInternalFormat? internalFormat)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(tex.GetBiggestBufferSize());
+            try
+            {
+                var it = tex.GetEveryMipLevelTexture(buffer);
+                var c = it.Last();
+                for (var face = Texture.CubemapFace.PositiveX; face <= Texture.CubemapFace.NegativeZ; face++)
+                {
+                    var pixelFormat = GetPixelFormat(tex.Format);
+                    var pixelType = GetPixelType(tex.Format);
+
+                    var faceSize = c.BufferSize / 6;
+                    var faceOffset = faceSize * (int)face;
+
+                    GL.CompressedTexImage2D(TextureTarget.TextureCubeMapPositiveX + (int)face, 0,
+                        format.Value, c.Width, c.Height, 0, faceSize, buffer[faceOffset..(faceOffset + faceSize)]);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+
+            GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureBaseLevel, 0);
+            GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMaxLevel, 0);
 
             return id;
         }
@@ -222,7 +268,8 @@ namespace GUI.Types.Renderer
                 VTexFormat.BC6H => InternalFormat.CompressedRgbBptcUnsignedFloat,
                 VTexFormat.BC7 => InternalFormat.CompressedRgbaBptcUnorm,
                 VTexFormat.RGBA8888 => InternalFormat.Rgba8,
-                VTexFormat.RGBA16161616 => InternalFormat.Rgba16f,
+                VTexFormat.RGBA16161616 => InternalFormat.Rgba16,
+                VTexFormat.RGBA16161616F => InternalFormat.Rgba16f,
                 VTexFormat.I8 => InternalFormat.Intensity8,
                 _ => null // Unsupported texture format
             };

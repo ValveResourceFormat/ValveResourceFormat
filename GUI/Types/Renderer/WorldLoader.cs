@@ -169,6 +169,17 @@ namespace GUI.Types.Renderer
                         result.Skybox = (World)skyboxPackage.DataBlock;
                     }
                 }
+                else if (classname == "env_sky")
+                {
+                    var skyname = entity.GetProperty<string>("skyname");
+                    using var skyMaterial = guiContext.LoadFileByAnyMeansNecessary(skyname + "_c");
+                    scene.Sky = new SceneSky(scene)
+                    {
+                        Name = skyname,
+                        LayerName = layerName,
+                        Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
+                    };
+                }
 
                 var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
 

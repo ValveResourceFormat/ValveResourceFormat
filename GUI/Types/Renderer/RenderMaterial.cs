@@ -9,7 +9,8 @@ namespace GUI.Types.Renderer
     {
         public Shader Shader => shader;
         public Material Material { get; }
-        public Dictionary<string, int> Textures { get; } = new Dictionary<string, int>();
+        public Dictionary<string, int> Textures { get; } = new();
+        public Dictionary<string, int> Cubemaps { get; } = new();
         public bool IsBlended { get; }
         public bool IsToolsMaterial { get; }
 
@@ -26,10 +27,12 @@ namespace GUI.Types.Renderer
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
+                || material.IntParams.ContainsKey("F_BLEND_MODE") && material.IntParams["F_BLEND_MODE"] > 0
                 || material.ShaderName == "vr_glass.vfx"
                 || material.ShaderName == "csgo_effects.vfx"
                 || material.ShaderName == "tools_sprite.vfx";
-            isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
+            isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1
+                || material.IntParams.ContainsKey("F_BLEND_MODE") && material.IntParams["F_BLEND_MODE"] == 4;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
             isOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
                 || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1
@@ -52,6 +55,20 @@ namespace GUI.Types.Renderer
                 {
                     GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
                     GL.BindTexture(TextureTarget.Texture2D, texture.Value);
+                    GL.Uniform1(uniformLocation, textureUnit);
+
+                    textureUnit++;
+                }
+            }
+
+            foreach (var cubemap in Cubemaps)
+            {
+                uniformLocation = shader.GetUniformLocation(cubemap.Key);
+
+                if (uniformLocation > -1)
+                {
+                    GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
+                    GL.BindTexture(TextureTarget.TextureCubeMap, cubemap.Value);
                     GL.Uniform1(uniformLocation, textureUnit);
 
                     textureUnit++;

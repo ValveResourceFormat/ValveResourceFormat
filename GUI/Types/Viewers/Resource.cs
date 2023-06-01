@@ -142,6 +142,15 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Material:
+                    if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
+                    {
+                        var skyboxTab = new TabPage("SKYBOX");
+                        var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
+                        skyboxTab.Controls.Add(skybox.ViewerControl);
+                        resTabs.TabPages.Add(skyboxTab);
+                        break;
+                    }
+
                     var materialViewerControl = new GLMaterialViewer();
 
                     materialViewerControl.Load += (_, __) =>

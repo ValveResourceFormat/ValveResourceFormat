@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 
@@ -81,6 +82,18 @@ namespace GUI.Types.Renderer
         private Vector3 GetRightVector()
         {
             return new Vector3((float)Math.Cos(Yaw - OpenTK.MathHelper.PiOver2), (float)Math.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
+        }
+
+        public void SetPerViewUniforms(Shader shader)
+        {
+            var worldToProjection = ProjectionMatrix.ToOpenTK();
+            var worldToView = CameraViewMatrix.ToOpenTK();
+            var viewToProjection = ViewProjectionMatrix.ToOpenTK();
+
+            GL.UniformMatrix4(shader.GetUniformLocation("g_matWorldToProjection"), false, ref worldToProjection);
+            GL.UniformMatrix4(shader.GetUniformLocation("g_matWorldToView"), false, ref worldToView);
+            GL.UniformMatrix4(shader.GetUniformLocation("g_matViewToProjection"), false, ref viewToProjection);
+            GL.Uniform3(shader.GetUniformLocation("g_vCameraPositionWs"), Location.ToOpenTK());
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
