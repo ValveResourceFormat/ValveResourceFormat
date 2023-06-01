@@ -155,11 +155,27 @@ public sealed class TextureExtract
 
             return EncodePng(newPixelmap);
         }
-
-        // Shift a combination of two channels to RG
-        if (channel == ChannelMapping.AG)
+        else if (channel == ChannelMapping.RG || channel == ChannelMapping.RGB)
         {
+            // Wipe out the alpha channel
             using var newBitmap = new SKBitmap(bitmap.Info);
+            using var newPixelmap = newBitmap.PeekPixels();
+            using var pixelmap = bitmap.PeekPixels();
+            pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
+
+            return EncodePng(newPixelmap.WithAlphaType(SKAlphaType.Opaque));
+        }
+        else if (channel == ChannelMapping.RGBA)
+        {
+            return EncodePng(bitmap);
+        }
+        else
+        {
+            // Swizzled channels, e.g. alpha-green DXT5nm
+            var newBitmapType = bitmap.Info
+                .WithAlphaType(channel.Count < 4 ? SKAlphaType.Opaque : SKAlphaType.Unpremul)
+                .WithColorType(SKColorType.Rgba8888);
+            using var newBitmap = new SKBitmap(newBitmapType);
             using var newPixelmap = newBitmap.PeekPixels();
             using var pixelmap = bitmap.PeekPixels();
 
@@ -168,29 +184,26 @@ public sealed class TextureExtract
 
             for (var i = 0; i < pixels.Length; i++)
             {
-                newPixels[i] = newPixels[i].WithRed(pixels[i].Green).WithGreen(pixels[i].Alpha);
+                var color = (uint)newPixels[i];
+                for (var j = 0; j < channel.Count; j++)
+                {
+                    var c = channel.Channels[j] switch
+                    {
+                        ChannelMapping.Channel.R => pixels[i].Red,
+                        ChannelMapping.Channel.G => pixels[i].Green,
+                        ChannelMapping.Channel.B => pixels[i].Blue,
+                        ChannelMapping.Channel.A => pixels[i].Alpha,
+                        _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, null)
+                    };
+
+                    color |= ((uint)c) << (j * 8);
+                }
+
+                newPixels[i] = new SKColor(color);
             }
 
             return EncodePng(newPixelmap);
         }
-
-        // Wipes out the alpha channel
-        if (channel == ChannelMapping.RGB)
-        {
-            using var newBitmap = new SKBitmap(bitmap.Info);
-            using var newPixelmap = newBitmap.PeekPixels();
-            using var pixelmap = bitmap.PeekPixels();
-            pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
-
-            return EncodePng(newPixelmap.WithAlphaType(SKAlphaType.Opaque));
-        }
-
-        if (channel == ChannelMapping.RGBA)
-        {
-            return EncodePng(bitmap);
-        }
-
-        throw new InvalidOperationException($"{channel} is not a valid channel to extract.");
     }
 
     public static void CopyChannel(SKPixmap srcPixels, ChannelMapping srcChannel, SKPixmap dstPixels, ChannelMapping dstChannel, bool invert)
