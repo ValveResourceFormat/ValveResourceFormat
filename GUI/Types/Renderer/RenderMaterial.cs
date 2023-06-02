@@ -9,8 +9,7 @@ namespace GUI.Types.Renderer
     {
         public Shader Shader => shader;
         public Material Material { get; }
-        public Dictionary<string, int> Textures { get; } = new();
-        public Dictionary<string, int> Cubemaps { get; } = new();
+        public Dictionary<string, RenderTexture> Textures { get; } = new();
         public bool IsBlended { get; }
         public bool IsToolsMaterial { get; }
 
@@ -47,28 +46,14 @@ namespace GUI.Types.Renderer
 
             shader ??= this.shader;
 
-            foreach (var texture in Textures)
+            foreach (var (name, texture) in Textures)
             {
-                uniformLocation = shader.GetUniformLocation(texture.Key);
+                uniformLocation = shader.GetUniformLocation(name);
 
                 if (uniformLocation > -1)
                 {
                     GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-                    GL.BindTexture(TextureTarget.Texture2D, texture.Value);
-                    GL.Uniform1(uniformLocation, textureUnit);
-
-                    textureUnit++;
-                }
-            }
-
-            foreach (var cubemap in Cubemaps)
-            {
-                uniformLocation = shader.GetUniformLocation(cubemap.Key);
-
-                if (uniformLocation > -1)
-                {
-                    GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-                    GL.BindTexture(TextureTarget.TextureCubeMap, cubemap.Value);
+                    GL.BindTexture(texture.Target, texture.Handle);
                     GL.Uniform1(uniformLocation, textureUnit);
 
                     textureUnit++;

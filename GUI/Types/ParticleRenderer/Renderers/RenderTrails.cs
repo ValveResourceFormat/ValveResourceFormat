@@ -4,7 +4,6 @@ using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Renderers
@@ -16,9 +15,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private Shader shader;
         private readonly VrfGuiContext guiContext;
         private readonly int quadVao;
-        private readonly int glTexture;
+        private readonly RenderTexture texture;
 
-        private readonly Texture.SpritesheetData spriteSheetData;
         private readonly float animationRate = 0.1f;
 
         private readonly bool additive;
@@ -56,16 +54,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 }
             }
 
-            if (textureName != null)
-            {
-                var textureSetup = LoadTexture(textureName, vrfGuiContext);
-                glTexture = textureSetup.TextureIndex;
-                spriteSheetData = textureSetup.TextureData?.GetSpriteSheetData();
-            }
-            else
-            {
-                glTexture = vrfGuiContext.MaterialLoader.GetErrorTexture();
-            }
+            texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
 
             additive = keyValues.GetProperty<bool>("m_bAdditive");
             if (keyValues.ContainsKey("m_flOverbrightFactor"))
@@ -135,18 +124,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        private static (int TextureIndex, Texture TextureData) LoadTexture(string textureName, VrfGuiContext vrfGuiContext)
-        {
-            var textureResource = vrfGuiContext.LoadFileByAnyMeansNecessary(textureName + "_c");
-
-            if (textureResource == null)
-            {
-                return (vrfGuiContext.MaterialLoader.GetErrorTexture(), null);
-            }
-
-            return (vrfGuiContext.MaterialLoader.LoadTexture(textureName), (Texture)textureResource.DataBlock);
-        }
-
         public void Render(ParticleBag particleBag, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
             var particles = particleBag.LiveParticles;
@@ -167,7 +144,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.EnableVertexAttribArray(0);
 
             GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, glTexture);
+            texture.Bind();
 
             GL.Uniform1(shader.GetUniformLocation("uTexture"), 0); // set texture unit 0 as uTexture uniform
 
@@ -223,6 +200,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var otkModelMatrix = modelMatrix.ToOpenTK();
                 GL.UniformMatrix4(modelMatrixLocation, false, ref otkModelMatrix);
 
+                var spriteSheetData = texture.SpritesheetData;
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {
                     var sequence = spriteSheetData.Sequences[0];
