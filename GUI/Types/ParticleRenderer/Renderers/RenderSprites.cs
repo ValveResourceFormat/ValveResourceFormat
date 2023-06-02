@@ -31,7 +31,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
             guiContext = vrfGuiContext;
-            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, new Dictionary<string, bool>());
+            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
             quadIndices = vrfGuiContext.QuadIndices;
 
             // The same quad is reused for all particles
@@ -280,11 +280,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public void SetRenderMode(string renderMode)
         {
-            var parameters = new Dictionary<string, bool>();
+            var parameters = new Dictionary<string, byte>();
 
             if (renderMode != null && shader.RenderModes.Contains(renderMode))
             {
-                parameters.Add($"renderMode_{renderMode}", true);
+                parameters.Add($"renderMode_{renderMode}", 1);
             }
 
             shader = guiContext.ShaderLoader.LoadShader(ShaderName, parameters);

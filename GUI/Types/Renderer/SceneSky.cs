@@ -93,5 +93,11 @@ namespace GUI.Types.Renderer
             GL.CullFace(CullFaceMode.Back);
             GL.Enable(EnableCap.CullFace);
         }
+
+        public override void SetRenderMode(string mode)
+        {
+            using var mat = Scene.GuiContext.LoadFileByAnyMeansNecessary(Scene.Sky?.Material.Material.Name + "_c");
+            Material = Scene.GuiContext.MaterialLoader.LoadMaterial(mat);
+        }
     }
 }

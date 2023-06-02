@@ -20,9 +20,13 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<uint, Shader> CachedShaders = new();
         private readonly Dictionary<string, List<string>> ShaderDefines = new();
 
-        public Shader LoadShader(string shaderName, IDictionary<string, bool> arguments)
+        private static IReadOnlyDictionary<string, byte> EmptyArgs { get; } = new Dictionary<string, byte>(0);
+
+        public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
+            arguments ??= EmptyArgs;
+
             if (ShaderDefines.ContainsKey(shaderFileName))
             {
                 var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
@@ -144,7 +148,7 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        private static string PreprocessShader(string source, IDictionary<string, bool> arguments)
+        private static string PreprocessShader(string source, IReadOnlyDictionary<string, byte> arguments)
         {
             //Inject code into shader based on #includes
             var withCollapsedIncludes = ResolveIncludes(source);
@@ -155,7 +159,7 @@ namespace GUI.Types.Renderer
         }
 
         //Update default defines with possible overrides from the model
-        private static string UpdateDefines(string source, IDictionary<string, bool> arguments)
+        private static string UpdateDefines(string source, IReadOnlyDictionary<string, byte> arguments)
         {
             //Find all #define param_(paramName) (paramValue) using regex
             var defines = RegexDefine.Matches(source);
@@ -172,7 +176,7 @@ namespace GUI.Types.Renderer
                 var defaultValue = define.Groups["DefaultValue"];
                 var index = defaultValue.Index;
                 var length = defaultValue.Length;
-                var newValue = value ? "1" : "0";
+                var newValue = $"{value}";
 
                 source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, newValue);
             }
@@ -281,7 +285,7 @@ namespace GUI.Types.Renderer
             GC.SuppressFinalize(this);
         }
 
-        private uint CalculateShaderCacheHash(string shaderFileName, IDictionary<string, bool> arguments)
+        private uint CalculateShaderCacheHash(string shaderFileName, IReadOnlyDictionary<string, byte> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
             shaderCacheHashString.AppendLine(shaderFileName);
@@ -290,8 +294,8 @@ namespace GUI.Types.Renderer
 
             foreach (var key in parameters)
             {
-                shaderCacheHashString.AppendLine(key);
-                shaderCacheHashString.AppendLine(arguments[key] ? "t" : "f");
+                shaderCacheHashString.Append(key);
+                shaderCacheHashString.Append(Convert.ToBase64String(new[] { arguments[key] }));
             }
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);

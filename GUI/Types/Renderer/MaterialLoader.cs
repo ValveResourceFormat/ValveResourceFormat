@@ -26,8 +26,6 @@ namespace GUI.Types.Renderer
             ["g_tColor"] = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" },
             ["g_tNormal"] = new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" },
             ["g_tLayer2NormalRoughness"] = new[] { "g_tNormalB" },
-            ["g_tBlendModulation"] = new[] { "g_tMask" },
-
         };
 
         public MaterialLoader(VrfGuiContext guiContext)
@@ -128,9 +126,19 @@ namespace GUI.Types.Renderer
         public RenderTexture LoadTexture(Resource textureResource)
         {
             var data = (Texture)textureResource.DataBlock;
-            var target = data.Flags.HasFlag(VTexFlags.CUBE_TEXTURE)
-                ? TextureTarget.TextureCubeMap
-                : TextureTarget.Texture2D;
+
+            var target = TextureTarget.Texture2D;
+            var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+            var clampModeT = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+            var clampModeU = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPU) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+
+            if (data.Flags.HasFlag(VTexFlags.CUBE_TEXTURE))
+            {
+                target = TextureTarget.TextureCubeMap;
+                clampModeS = TextureWrapMode.ClampToEdge;
+                clampModeT = TextureWrapMode.ClampToEdge;
+                clampModeU = TextureWrapMode.ClampToEdge;
+            }
 
             var tex = new RenderTexture(target, GL.GenTexture())
             {
@@ -141,11 +149,6 @@ namespace GUI.Types.Renderer
             var format = GetInternalFormat(data.Format);
 
             tex.Bind();
-            if (target == TextureTarget.TextureCubeMap)
-            {
-                // TODO: merge loaders in one place
-                return LoadCubemap(data, tex, format, internalFormat);
-            }
 
             if (!format.HasValue && !internalFormat.HasValue)
             {
@@ -169,16 +172,19 @@ namespace GUI.Types.Renderer
 
                     minMipLevel = i;
 
-                    if (internalFormat.HasValue)
+                    if (target == TextureTarget.TextureCubeMap)
                     {
-                        var pixelFormat = GetPixelFormat(data.Format);
-                        var pixelType = GetPixelType(data.Format);
-
-                        GL.TexImage2D(TextureTarget.Texture2D, i, internalFormat.Value, width, height, 0, pixelFormat, pixelType, buffer);
+                        for (var face = Texture.CubemapFace.PositiveX; face <= Texture.CubemapFace.NegativeZ; face++)
+                        {
+                            var faceSize = bufferSize / 6;
+                            var faceOffset = faceSize * (int)face;
+                            LoadTextureImplShared(data.Format, internalFormat, format, i, width, height,
+                                faceSize, buffer[faceOffset..(faceOffset + faceSize)], TextureTarget.TextureCubeMapPositiveX + (int)face);
+                        }
                     }
                     else
                     {
-                        GL.CompressedTexImage2D(TextureTarget.Texture2D, i, format.Value, width, height, 0, bufferSize, buffer);
+                        LoadTextureImplShared(data.Format, internalFormat, format, i, width, height, bufferSize, buffer, target);
                     }
                 }
             }
@@ -206,58 +212,28 @@ namespace GUI.Types.Renderer
                 GL.TexParameter(target, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             }
 
-            var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS)
-                ? TextureWrapMode.Clamp
-                : TextureWrapMode.Repeat;
-            var clampModeT = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT)
-                ? TextureWrapMode.Clamp
-                : TextureWrapMode.Repeat;
-
             GL.TexParameter(target, TextureParameterName.TextureWrapS, (int)clampModeS);
             GL.TexParameter(target, TextureParameterName.TextureWrapT, (int)clampModeT);
+            GL.TexParameter(target, TextureParameterName.TextureWrapR, (int)clampModeU);
 
             tex.Unbind();
             return tex;
         }
 
-        private static RenderTexture LoadCubemap(Texture data, RenderTexture tex, InternalFormat? format, PixelInternalFormat? internalFormat)
+        private static void LoadTextureImplShared(VTexFormat vtexFormat, PixelInternalFormat? internalFormat, InternalFormat? format,
+            int level, int width, int height, int bufferSize, byte[] buffer, TextureTarget target)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
-            try
+            if (internalFormat.HasValue)
             {
-                var it = data.GetEveryMipLevelTexture(buffer);
-                var c = it.Last();
-                for (var face = Texture.CubemapFace.PositiveX; face <= Texture.CubemapFace.NegativeZ; face++)
-                {
-                    var pixelFormat = GetPixelFormat(data.Format);
-                    var pixelType = GetPixelType(data.Format);
+                var pixelFormat = GetPixelFormat(vtexFormat);
+                var pixelType = GetPixelType(vtexFormat);
 
-                    var faceSize = c.BufferSize / 6;
-                    var faceOffset = faceSize * (int)face;
-
-                    GL.CompressedTexImage2D(TextureTarget.TextureCubeMapPositiveX + (int)face, 0,
-                        format.Value, c.Width, c.Height, 0, faceSize, buffer[faceOffset..(faceOffset + faceSize)]);
-                }
+                GL.TexImage2D(target, level, internalFormat.Value, width, height, 0, pixelFormat, pixelType, buffer);
             }
-            finally
+            else
             {
-                ArrayPool<byte>.Shared.Return(buffer);
+                GL.CompressedTexImage2D(target, level, format.Value, width, height, 0, bufferSize, buffer);
             }
-
-            GL.TexParameter(tex.Target, TextureParameterName.TextureBaseLevel, 0);
-            GL.TexParameter(tex.Target, TextureParameterName.TextureMaxLevel, 0);
-
-            var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS)
-                ? TextureWrapMode.Clamp
-                : TextureWrapMode.Repeat;
-            var clampModeT = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT)
-                ? TextureWrapMode.Clamp
-                : TextureWrapMode.Repeat;
-
-            GL.TexParameter(tex.Target, TextureParameterName.TextureWrapS, (int)clampModeS);
-            GL.TexParameter(tex.Target, TextureParameterName.TextureWrapT, (int)clampModeT);
-
-            return tex;
         }
 
         private static InternalFormat? GetInternalFormat(VTexFormat vformat)
@@ -285,6 +261,9 @@ namespace GUI.Types.Renderer
                 VTexFormat.R16F => PixelInternalFormat.R16f,
                 VTexFormat.RG1616 => PixelInternalFormat.Rg16,
                 VTexFormat.RG1616F => PixelInternalFormat.Rg16f,
+                VTexFormat.RGBA16161616 => PixelInternalFormat.Rgba16,
+                VTexFormat.RGBA16161616F => PixelInternalFormat.Rgba16f,
+                VTexFormat.RGBA8888 => PixelInternalFormat.Rgba8,
                 _ => null // Unsupported texture format
             };
 
@@ -293,8 +272,10 @@ namespace GUI.Types.Renderer
             {
                 VTexFormat.R16 => PixelFormat.Red,
                 VTexFormat.R16F => PixelFormat.Red,
+                VTexFormat.R32F => PixelFormat.Red,
                 VTexFormat.RG1616 => PixelFormat.Rg,
                 VTexFormat.RG1616F => PixelFormat.Rg,
+                VTexFormat.RG3232F => PixelFormat.Rg,
                 _ => PixelFormat.Rgba
             };
 
@@ -302,9 +283,14 @@ namespace GUI.Types.Renderer
             => vformat switch
             {
                 VTexFormat.R16 => PixelType.UnsignedShort,
-                VTexFormat.R16F => PixelType.Float,
                 VTexFormat.RG1616 => PixelType.UnsignedShort,
-                VTexFormat.RG1616F => PixelType.Float,
+                VTexFormat.RGBA16161616 => PixelType.UnsignedShort,
+                VTexFormat.R16F => PixelType.HalfFloat,
+                VTexFormat.RG1616F => PixelType.HalfFloat,
+                VTexFormat.RGBA16161616F => PixelType.HalfFloat,
+                VTexFormat.R32F => PixelType.Float,
+                VTexFormat.RG3232F => PixelType.Float,
+                VTexFormat.RGBA32323232F => PixelType.Float,
                 _ => PixelType.UnsignedByte
             };
 

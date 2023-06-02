@@ -11,7 +11,7 @@ uniform vec3 g_vCameraPositionWs;
 
 void main()
 {
-    vec4 vPositionWs = (g_matWorldToProjection * mat4(mat3(g_matWorldToView))) * vec4(aVertexPosition * 20000, 1.0);
+    vec4 vPositionWs = (g_matWorldToProjection * mat4(mat3(g_matWorldToView))) * vec4(aVertexPosition, 1.0);
     gl_Position = vPositionWs.xyww;
     vSkyLookupInterpolant = aVertexPosition;
 }

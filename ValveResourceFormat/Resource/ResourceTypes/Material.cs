@@ -99,9 +99,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public IDictionary<string, bool> GetShaderArguments()
+        public Dictionary<string, byte> GetShaderArguments()
         {
-            var arguments = new Dictionary<string, bool>();
+            var arguments = new Dictionary<string, byte>();
 
             if (Data == null)
             {
@@ -115,7 +115,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (name.StartsWith("F_", StringComparison.OrdinalIgnoreCase))
                 {
-                    arguments.Add(name, value != 0);
+                    arguments.Add(name, (byte)value);
                 }
             }
 
@@ -123,19 +123,18 @@ namespace ValveResourceFormat.ResourceTypes
             var hemiOctIsoRoughness_RG_B = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
             if (hemiOctIsoRoughness_RG_B)
             {
-                arguments.Add("HemiOctIsoRoughness_RG_B", true);
+                arguments.Add("HemiOctIsoRoughness_RG_B", 1);
             }
 
             if (ShaderName == "vr_glass.vfx")
             {
-                arguments.Add("F_GLASS", true);
+                arguments.Add("F_GLASS", 1);
             }
 
             if (ShaderName.EndsWith("2way_blend.vfx", StringComparison.OrdinalIgnoreCase))
             {
-                arguments.Add("F_LAYERS", true);
-                arguments.Add("F_FANCY_BLENDING", true);
-                arguments.Add("simple_2way_blend", true);
+                arguments.Add("F_LAYERS", 1);
+                arguments.Add("simple_2way_blend", 1);
             }
 
             return arguments;

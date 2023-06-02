@@ -169,9 +169,9 @@ namespace GUI.Types.Renderer
                         result.Skybox = (World)skyboxPackage.DataBlock;
                     }
                 }
-                else if (classname == "env_sky")
+                else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
                 {
-                    var skyname = entity.GetProperty<string>("skyname");
+                    var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
                     using var skyMaterial = guiContext.LoadFileByAnyMeansNecessary(skyname + "_c");
                     scene.Sky = new SceneSky(scene)
                     {

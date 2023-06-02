@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
 
         protected override void InitializeControl()
         {
+            AddRenderModeSelectionControl();
         }
 
         protected override void LoadScene()
