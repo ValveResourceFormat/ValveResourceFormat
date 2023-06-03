@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer
             vertexCount = vertices.Length / 3; // Number of vertices in our buffer
             const int stride = sizeof(float) * 7;
 
-            shader = guiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
+            shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
 
             GL.UseProgram(shader.Program);
 

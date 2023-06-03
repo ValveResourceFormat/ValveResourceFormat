@@ -61,7 +61,7 @@ internal class PickingTexture : IDisposable
     public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
     {
         guiContext = vrfGuiContext;
-        Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>());
+        Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
         OnPicked += onPicked;
         Setup();
     }
@@ -152,10 +152,10 @@ internal class PickingTexture : IDisposable
     {
         if (Shader.RenderModes.Contains(renderMode))
         {
-            DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, bool>
+            DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, byte>
             {
-                { "F_DEBUG_PICKER", true },
-                { "renderMode_" + renderMode, true },
+                { "F_DEBUG_PICKER", 1 },
+                { "renderMode_" + renderMode, 1 },
             });
             return;
         }

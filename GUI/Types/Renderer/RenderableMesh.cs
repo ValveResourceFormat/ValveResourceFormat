@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
@@ -65,7 +64,7 @@ namespace GUI.Types.Renderer
 
                 if (renderMode != null && call.Shader.RenderModes.Contains(renderMode))
                 {
-                    parameters.Add($"renderMode_{renderMode}", true);
+                    parameters.Add($"renderMode_{renderMode}", 1);
                 }
 
                 call.Shader = guiContext.ShaderLoader.LoadShader(call.Shader.Name, parameters);
@@ -118,11 +117,11 @@ namespace GUI.Types.Renderer
                     }
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var shaderArguments = new Dictionary<string, bool>();
+                    var shaderArguments = new Dictionary<string, byte>();
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
-                        shaderArguments.Add("fulltangent", false);
+                        shaderArguments.Add("fulltangent", 0);
                     }
 
                     if (firstSetup)
@@ -157,7 +156,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, IDictionary<string, bool> shaderArguments, RenderMaterial material)
+        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, IDictionary<string, byte> shaderArguments, RenderMaterial material)
         {
             var drawCall = new DrawCall();
             var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
@@ -248,7 +247,7 @@ namespace GUI.Types.Renderer
             return drawCall;
         }
 
-        private void SetupDrawCallMaterial(DrawCall drawCall, IDictionary<string, bool> shaderArguments, RenderMaterial material)
+        private void SetupDrawCallMaterial(DrawCall drawCall, IDictionary<string, byte> shaderArguments, RenderMaterial material)
         {
             drawCall.Material = material;
             // Add shader parameters from material to the shader parameters from the draw call

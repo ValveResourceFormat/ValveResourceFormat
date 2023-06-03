@@ -11,9 +11,6 @@
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
-in vec4 vTANGENT;
-in ivec4 vBLENDINDICES;
-in vec4 vBLENDWEIGHT;
 
 out vec3 vFragPosition;
 

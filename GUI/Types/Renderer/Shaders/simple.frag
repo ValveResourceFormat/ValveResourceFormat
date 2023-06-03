@@ -27,7 +27,7 @@ in vec2 vTexCoordOut;
 #if VERTEX_COLOR == 1
     in vec4 vColorOut;
 #endif
-#if F_LAYERS > 0
+#if (simple_2way_blend == 1 || F_LAYERS > 0)
     in vec4 vColorBlendValues;
     uniform sampler2D g_tLayer2Color;
     uniform sampler2D g_tLayer2NormalRoughness;
@@ -62,9 +62,13 @@ uniform float g_flRefractScale = 0.1;
 uniform float g_flOpacityScale = 1.0;
 #endif
 
-#if F_FANCY_BLENDING == 1
+#if (F_FANCY_BLENDING > 0)
     uniform sampler2D g_tBlendModulation;
     uniform float g_flBlendSoftness;
+#endif
+
+#if (simple_2way_blend == 1)
+    uniform sampler2D g_tMask;
 #endif
 
 vec3 oct_to_float32x3(vec2 e)
@@ -114,16 +118,29 @@ void main()
     float blendFactor = vColorBlendValues.r;
 
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
-    #if (F_FANCY_BLENDING == 1)
+    #if (F_FANCY_BLENDING > 0)
         vec4 blendModTexel = texture(g_tBlendModulation, texCoord);
-        float blendModFactor = blendModTexel.g;
-        #if simple_2way_blend == 1
-            blendModFactor = blendModTexel.r;
+
+        #if (F_FANCY_BLENDING == 1 || F_FANCY_BLENDING == 2)
+            float blendModFactor = blendModTexel.g;
+        #else
+            float blendModFactor = blendModTexel.a;
         #endif
 
-        float minb = max(0, blendModFactor - g_flBlendSoftness);
-        float maxb = min(1, blendModFactor + g_flBlendSoftness);
+        #if (F_FANCY_BLENDING == 1)
+            float minb = max(0, blendModFactor - blendModTexel.r);
+            float maxb = min(1, blendModFactor + blendModTexel.r);
+        #elif (F_FANCY_BLENDING == 2 || F_FANCY_BLENDING == 3)
+            float minb = max(0, blendModFactor - g_flBlendSoftness);
+            float maxb = min(1, blendModFactor + g_flBlendSoftness);
+        #endif
+
         blendFactor = smoothstep(minb, maxb, blendFactor);
+    #endif
+
+    #if (simple_2way_blend == 1)
+        vec4 blendModTexel = texture(g_tMask, texCoord);
+        blendFactor *= blendModTexel.r;
     #endif
 
     color = mix(color, color2, blendFactor);

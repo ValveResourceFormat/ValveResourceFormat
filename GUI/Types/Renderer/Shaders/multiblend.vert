@@ -44,12 +44,12 @@ void main()
     //Unpack normals
 #if fulltangent == 1
     vNormalOut = vNORMAL.xyz;
+    vBitangentOut = vTANGENT.xyz;
 #else
     vNormalOut = DecompressNormal(vNORMAL);
 #endif
 
     vTexCoordOut = vTEXCOORD;
-    vBitangentOut = vTANGENT.xyz;
 
     //Normalize (?)
     //vTEXCOORD1 - seems empty

@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
 
         public SelectedNodeRenderer(VrfGuiContext guiContext)
         {
-            shader = shader = guiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
+            shader = shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
             GL.UseProgram(shader.Program);
 
             vboHandle = GL.GenBuffer();

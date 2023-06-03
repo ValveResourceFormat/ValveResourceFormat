@@ -7,10 +7,8 @@ namespace GUI.Types.Renderer
     {
         public string Name { get; set; }
         public int Program { get; set; }
-#pragma warning disable CA2227 // Collection properties should be read only
-        public IDictionary<string, bool> Parameters { get; set; }
-        public List<string> RenderModes { get; set; }
-#pragma warning restore CA2227 // Collection properties should be read only
+        public IReadOnlyDictionary<string, byte> Parameters { get; init; }
+        public List<string> RenderModes { get; init; }
 
         private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
 

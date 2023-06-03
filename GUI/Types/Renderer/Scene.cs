@@ -29,6 +29,7 @@ namespace GUI.Types.Renderer
 
         public Camera MainCamera { get; set; }
         public float Time { get; set; }
+        public SceneSky Sky { get; set; }
         public Vector3? LightPosition { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }

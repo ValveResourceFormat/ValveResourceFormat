@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
         public PhysSceneNode(Scene scene, List<float> verts, List<int> inds)
             : base(scene)
         {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid", new Dictionary<string, bool>());
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
             GL.UseProgram(shader.Program);
 
             vaoHandle = GL.GenVertexArray();
