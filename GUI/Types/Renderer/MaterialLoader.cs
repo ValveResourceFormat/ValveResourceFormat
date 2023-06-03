@@ -111,7 +111,7 @@ namespace GUI.Types.Renderer
             return mat;
         }
 
-        public RenderTexture LoadTexture(string name, TextureTarget targetHint = TextureTarget.Texture2D)
+        public RenderTexture LoadTexture(string name)
         {
             var textureResource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
 

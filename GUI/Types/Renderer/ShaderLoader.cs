@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -176,7 +177,7 @@ namespace GUI.Types.Renderer
                 var defaultValue = define.Groups["DefaultValue"];
                 var index = defaultValue.Index;
                 var length = defaultValue.Length;
-                var newValue = $"{value}";
+                var newValue = value.ToString(CultureInfo.InvariantCulture);
 
                 source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, newValue);
             }
@@ -294,8 +295,8 @@ namespace GUI.Types.Renderer
 
             foreach (var key in parameters)
             {
-                shaderCacheHashString.Append(key);
-                shaderCacheHashString.Append(Convert.ToBase64String(new[] { arguments[key] }));
+                shaderCacheHashString.AppendLine(key);
+                shaderCacheHashString.AppendLine(arguments[key].ToString(CultureInfo.InvariantCulture));
             }
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
