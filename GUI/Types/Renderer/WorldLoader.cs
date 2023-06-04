@@ -6,6 +6,7 @@ using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
@@ -23,6 +24,8 @@ namespace GUI.Types.Renderer
             public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
 
             public Vector3? GlobalLightPosition { get; set; }
+            public RenderTexture Irradiance { get; set; }
+            public Vector4 LightmapUvScale { get; set; } = Vector4.One;
 
             public World Skybox { get; set; }
             public float SkyboxScale { get; set; } = 1.0f;
@@ -39,6 +42,18 @@ namespace GUI.Types.Renderer
         {
             var result = new LoadResult();
             result.DefaultEnabledLayers.Add("Entities");
+
+            var worldLightingInfo = world.GetWorldLightingInfo();
+            result.LightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector4();
+
+            var irradiance = worldLightingInfo.GetArray<string>("m_lightMaps")[1];
+            using (var irradianceResource = guiContext.LoadFileByAnyMeansNecessary(irradiance + "_c"))
+            {
+                if (irradianceResource != null)
+                {
+                    result.Irradiance = guiContext.MaterialLoader.LoadTexture(irradianceResource);
+                }
+            }
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();

@@ -2,10 +2,13 @@
 
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
+#define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
 
 #define F_VERTEX_COLOR 0
+
+#define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
@@ -26,6 +29,10 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 #if VERTEX_COLOR == 1
     in vec4 vColorOut;
+#endif
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    in vec2 vLightmapUV;
+    uniform sampler2D g_tLightmap;
 #endif
 #if (simple_2way_blend == 1 || F_LAYERS > 0)
     in vec4 vColorBlendValues;
@@ -190,6 +197,10 @@ void main()
 #else
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
+
+    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+        outputColor *= texture(g_tLightmap, vLightmapUV);
+    #endif
 #endif
 
     // Different render mode definitions
@@ -215,6 +226,10 @@ void main()
 
 #if renderMode_Illumination == 1
     outputColor = vec4(illumination, illumination, illumination, 1.0);
+#endif
+
+#if (renderMode_Irradiance == 1) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    outputColor = texture(g_tLightmap, vLightmapUV);
 #endif
 
 #if renderMode_VertexColor == 1 && F_VERTEX_COLOR == 1

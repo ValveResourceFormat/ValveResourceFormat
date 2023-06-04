@@ -100,6 +100,16 @@ namespace GUI.Types.Renderer
                 var result = loader.Load(Scene);
                 Scene.LightPosition = result.GlobalLightPosition;
 
+                foreach (var sceneNode in Scene.AllNodes)
+                {
+                    if (sceneNode is SceneAggregate.Fragment fragment)
+                    {
+                        fragment.DrawCall.Material.Textures.TryAdd("g_tLightmap", result.Irradiance);
+                        fragment.DrawCall.Material.Material
+                            .VectorParams.TryAdd("g_vLightmapUvScale", result.LightmapUvScale);
+                    }
+                }
+
                 if (result.Skybox != null)
                 {
                     SkyboxScene = new Scene(GuiContext);

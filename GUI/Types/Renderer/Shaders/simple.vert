@@ -7,6 +7,7 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define fulltangent 1
+#define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define F_VERTEX_COLOR 0
 #define F_LAYERS 0
 #define simple_2way_blend 0
@@ -15,6 +16,16 @@
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
+#if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
+    #if simple_2way_blend == 1
+        #define vLIGHTMAPUV vTEXCOORD4
+    #else
+        #define vLIGHTMAPUV vTEXCOORD2
+    #endif
+    in vec2 vLIGHTMAPUV;
+    out vec2 vLightmapUV;
+    uniform vec4 g_vLightmapUvScale;
+#endif
 #if F_LAYERS > 0
     #if simple_2way_blend == 1
         #define vBLEND_COLOR vTEXCOORD2
@@ -66,6 +77,10 @@ void main()
 #endif
 
     vTexCoordOut = vTEXCOORD;
+
+#if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
+    vLightmapUV = vLIGHTMAPUV * g_vLightmapUvScale.xy;
+#endif
 
 #if F_VERTEX_COLOR == 1
     vColorOut = vCOLOR;
