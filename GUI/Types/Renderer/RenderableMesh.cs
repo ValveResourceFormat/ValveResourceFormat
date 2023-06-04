@@ -124,6 +124,11 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("fulltangent", 0);
                     }
 
+                    if (objectDrawCall.ContainsKey("m_bHasBakedLightingFromLightMap"))
+                    {
+                        shaderArguments.Add("D_BAKED_LIGHTING_FROM_LIGHTMAP", 1);
+                    }
+
                     if (firstSetup)
                     {
                         // TODO: Don't pass around so much shit
