@@ -9,6 +9,8 @@
 #define F_VERTEX_COLOR 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
+#define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
+#define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
@@ -32,7 +34,7 @@ in vec2 vTexCoordOut;
 #endif
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
-    uniform sampler2DArray g_tLightmap;
+    uniform sampler2DArray g_tIrradiance;
 #endif
 #if (simple_2way_blend == 1 || F_LAYERS > 0)
     in vec4 vColorBlendValues;
@@ -199,7 +201,7 @@ void main()
     outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-        outputColor *= texture(g_tLightmap, vLightmapUVScaled);
+        outputColor *= texture(g_tIrradiance, vLightmapUVScaled);
     #endif
 #endif
 
@@ -229,7 +231,7 @@ void main()
 #endif
 
 #if (renderMode_Irradiance == 1) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    outputColor = texture(g_tLightmap, vLightmapUVScaled);
+    outputColor = texture(g_tIrradiance, vLightmapUVScaled);
 #endif
 
 #if renderMode_VertexColor == 1 && F_VERTEX_COLOR == 1
