@@ -494,6 +494,8 @@ namespace GUI
             task.ContinueWith(
                 t =>
                 {
+                    Cursor.Current = Cursors.WaitCursor;
+
                     tab.SuspendLayout();
 
                     try
@@ -511,6 +513,8 @@ namespace GUI
                     }
 
                     ShowHideSearch();
+
+                    Cursor.Current = Cursors.Default;
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
