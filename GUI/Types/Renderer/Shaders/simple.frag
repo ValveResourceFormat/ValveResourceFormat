@@ -31,8 +31,8 @@ in vec2 vTexCoordOut;
     in vec4 vColorOut;
 #endif
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    in vec2 vLightmapUV;
-    uniform sampler2D g_tLightmap;
+    in vec3 vLightmapUVScaled;
+    uniform sampler2DArray g_tLightmap;
 #endif
 #if (simple_2way_blend == 1 || F_LAYERS > 0)
     in vec4 vColorBlendValues;
@@ -199,7 +199,7 @@ void main()
     outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-        outputColor *= texture(g_tLightmap, vLightmapUV);
+        outputColor *= texture(g_tLightmap, vLightmapUVScaled);
     #endif
 #endif
 
@@ -229,7 +229,7 @@ void main()
 #endif
 
 #if (renderMode_Irradiance == 1) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    outputColor = texture(g_tLightmap, vLightmapUV);
+    outputColor = texture(g_tLightmap, vLightmapUVScaled);
 #endif
 
 #if renderMode_VertexColor == 1 && F_VERTEX_COLOR == 1

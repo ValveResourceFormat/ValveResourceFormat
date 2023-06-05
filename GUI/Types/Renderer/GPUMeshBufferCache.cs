@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -38,7 +39,8 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public uint GetVertexArrayObject(VBIB vbib, Shader shader, uint vtxIndex, uint idxIndex, uint baseVertex)
+        public uint GetVertexArrayObject(VBIB vbib, Shader shader, RenderMaterial material,
+            uint vtxIndex, uint idxIndex, uint baseVertex)
         {
             var gpuVbib = GetVertexIndexBuffers(vbib);
             var vaoKey = new VAOKey
@@ -78,7 +80,35 @@ namespace GUI.Types.Renderer
                         attributeName += colorNum;
                     }
 
-                    BindVertexAttrib(attribute, attributeName, shader.Program, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
+                    var attributeLocation = GL.GetAttribLocation(shader.Program, attributeName);
+                    if (attributeLocation == -1)
+                    {
+                        if (material.VsInputSignature == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (var elem in material.VsInputSignature.GetArray<IKeyValueCollection>("m_elems"))
+                        {
+                            var d3dSemanticName = elem.GetProperty<string>("m_pD3DSemanticName");
+                            var d3dSemanticIndex = elem.GetIntegerProperty("m_nD3DSemanticIndex");
+
+                            if (d3dSemanticName == attribute.SemanticName && d3dSemanticIndex == attribute.SemanticIndex)
+                            {
+                                attributeLocation = GL.GetAttribLocation(shader.Program,
+                                    elem.GetProperty<string>("m_pName"));
+                                break;
+                            }
+                        }
+
+                        // Ignore this attribute if it is not found in the shader
+                        if (attributeLocation == -1)
+                        {
+                            continue;
+                        }
+                    }
+
+                    BindVertexAttrib(attribute, attributeName, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
                 }
 
                 GL.BindVertexArray(0);
@@ -89,16 +119,8 @@ namespace GUI.Types.Renderer
         }
 
         private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, string attributeName,
-            int shaderProgram, int stride, uint baseVertex)
+            int attributeLocation, int stride, uint baseVertex)
         {
-            var attributeLocation = GL.GetAttribLocation(shaderProgram, attributeName);
-
-            //Ignore this attribute if it is not found in the shader
-            if (attributeLocation == -1)
-            {
-                return;
-            }
-
             GL.EnableVertexAttribArray(attributeLocation);
 
             switch (attribute.Format)

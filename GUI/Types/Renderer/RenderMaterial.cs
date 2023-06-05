@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -9,6 +10,7 @@ namespace GUI.Types.Renderer
     {
         public Shader Shader => shader;
         public Material Material { get; }
+        public IKeyValueCollection VsInputSignature { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = new();
         public bool IsBlended { get; }
         public bool IsToolsMaterial { get; }
@@ -18,9 +20,10 @@ namespace GUI.Types.Renderer
         private readonly bool isRenderBackfaces;
         private readonly bool isOverlay;
 
-        public RenderMaterial(Material material, ShaderLoader shaderLoader)
+        public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader)
         {
             Material = material;
+            VsInputSignature = insg;
             shader = shaderLoader.LoadShader(material.ShaderName, material.GetShaderArguments());
 
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");

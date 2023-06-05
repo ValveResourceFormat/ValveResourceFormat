@@ -1,12 +1,16 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Numerics;
+using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Text;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
@@ -61,7 +65,11 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
-            var mat = new RenderMaterial((VrfMaterial)resource.DataBlock, VrfGuiContext.ShaderLoader);
+            var mat = new RenderMaterial(
+                (VrfMaterial)resource.DataBlock,
+                GetInputSignature(resource),
+                VrfGuiContext.ShaderLoader
+            );
 
             foreach (var (textureName, texturePath) in mat.Material.TextureParams)
             {
@@ -135,6 +143,13 @@ namespace GUI.Types.Renderer
             if (data.Flags.HasFlag(VTexFlags.CUBE_TEXTURE))
             {
                 target = TextureTarget.TextureCubeMap;
+                clampModeS = TextureWrapMode.ClampToEdge;
+                clampModeT = TextureWrapMode.ClampToEdge;
+                clampModeU = TextureWrapMode.ClampToEdge;
+            }
+            else if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY))
+            {
+                target = TextureTarget.Texture2DArray;
                 clampModeS = TextureWrapMode.ClampToEdge;
                 clampModeT = TextureWrapMode.ClampToEdge;
                 clampModeU = TextureWrapMode.ClampToEdge;
@@ -235,7 +250,16 @@ namespace GUI.Types.Renderer
                 var pixelFormat = GetPixelFormat(vtexFormat);
                 var pixelType = GetPixelType(vtexFormat);
 
+                if (target == TextureTarget.Texture2DArray)
+                {
+                    throw new NotImplementedException();
+                }
+
                 GL.TexImage2D(target, level, internalFormat.Value, width, height, 0, pixelFormat, pixelType, buffer);
+            }
+            else if (target == TextureTarget.Texture2DArray)
+            {
+                GL.CompressedTexImage3D(target, level, format.Value, width, height, 1, 0, bufferSize, buffer); // TODO: 1 is depth
             }
             else
             {
@@ -305,7 +329,7 @@ namespace GUI.Types.Renderer
         public RenderMaterial GetErrorMaterial()
         {
             var materialData = new VrfMaterial { ShaderName = "vrf.error" };
-            var errorMat = new RenderMaterial(materialData, VrfGuiContext.ShaderLoader);
+            var errorMat = new RenderMaterial(materialData, null, VrfGuiContext.ShaderLoader);
             errorMat.Textures["g_tColor"] = GetErrorTexture();
 
             return errorMat;
@@ -374,6 +398,31 @@ namespace GUI.Types.Renderer
             texture.Unbind();
 
             return texture;
+        }
+
+        private static IKeyValueCollection GetInputSignature(Resource resource)
+        {
+            if (resource.ContainsBlockType(BlockType.INSG))
+            {
+                return ((BinaryKV3)resource.GetBlockByType(BlockType.INSG)).Data;
+            }
+
+            var extraStringData = (ValveResourceFormat.Blocks.ResourceEditInfoStructs.ExtraStringData)resource.EditInfo.Structs[ValveResourceFormat.Blocks.ResourceEditInfo.REDIStruct.ExtraStringData];
+            var inputSignatureString = extraStringData.List.Where(x => x.Name == "VSInputSignature").FirstOrDefault()?.Value;
+
+            if (inputSignatureString == null)
+            {
+                return null;
+            }
+
+            if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.InvariantCulture))
+            {
+                return null;
+            }
+
+            var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
+
+            return KeyValues3.ParseKVFile(ms).Root;
         }
     }
 }

@@ -71,6 +71,7 @@ namespace GUI.Types.Renderer
                 call.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
                     VBIB,
                     call.Shader,
+                    call.Material,
                     call.VertexBuffer.Id,
                     call.IndexBuffer.Id,
                     call.BaseVertex);
@@ -245,6 +246,7 @@ namespace GUI.Types.Renderer
             drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
                 VBIB,
                 drawCall.Shader,
+                drawCall.Material,
                 drawCall.VertexBuffer.Id,
                 drawCall.IndexBuffer.Id,
                 drawCall.BaseVertex);
