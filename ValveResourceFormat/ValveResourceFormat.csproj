@@ -5,6 +5,7 @@
     <PackageReleaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</PackageReleaseNotes>
     <PackageIcon>vrf_library.png</PackageIcon>
     <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
   <ItemGroup>
@@ -20,9 +21,7 @@
     <PackageReference Include="ZstdSharp.Port" Version="0.7.0" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Icons\vrf_library.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
+    <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md"/>
+    <None Include="..\Icons\vrf_library.png" Pack="true" PackagePath="\"/>
   </ItemGroup>
 </Project>
