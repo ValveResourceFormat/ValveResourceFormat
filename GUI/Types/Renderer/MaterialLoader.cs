@@ -161,9 +161,16 @@ namespace GUI.Types.Renderer
             var maxMipLevel = 0;
             var minMipLevel = 0;
 
+            var maxTextureSize = Settings.Config.MaxTextureSize;
+
+            if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) || data.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE))
+            {
+                maxTextureSize = int.MaxValue;
+            }
+
             try
             {
-                foreach (var (i, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, Settings.Config.MaxTextureSize))
+                foreach (var (i, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, maxTextureSize))
                 {
                     if (maxMipLevel == 0)
                     {
