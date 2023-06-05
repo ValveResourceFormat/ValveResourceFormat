@@ -7,7 +7,7 @@ namespace GUI.Types.Renderer
         public RenderMaterial Material { get; set; }
         private readonly int boxVao;
         private readonly float[] boxTriangles = {
-            // positions          
+            // positions
             -1.0f,  1.0f, -1.0f,
             -1.0f, -1.0f, -1.0f,
             1.0f, -1.0f, -1.0f,
@@ -60,7 +60,6 @@ namespace GUI.Types.Renderer
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
             GL.BufferData(BufferTarget.ArrayBuffer, boxTriangles.Length * sizeof(float), boxTriangles, BufferUsageHint.StaticDraw);
 
-            //var positionAttributeLocation = GL.GetAttribLocation(Material.Shader.Program, "aVertexPosition");
             GL.EnableVertexAttribArray(0);
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 0, 0);
 
@@ -83,7 +82,7 @@ namespace GUI.Types.Renderer
             context.Camera.SetPerViewUniforms(Material.Shader);
 
             Material.Render();
-            GL.DrawArrays(PrimitiveType.TriangleStrip, 0, boxTriangles.Length / 3);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, boxTriangles.Length / 3);
             Material.PostRender();
 
             GL.BindVertexArray(0);
