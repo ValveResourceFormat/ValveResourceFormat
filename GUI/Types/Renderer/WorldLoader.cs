@@ -92,20 +92,34 @@ namespace GUI.Types.Renderer
 
             var worldLightingInfo = world.GetWorldLightingInfo();
             var lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector4();
-            var irradianceTexture = guiContext.MaterialLoader.GetDefaultMask();
+            RenderTexture irradiance = null;
 
-            var irradiance = worldLightingInfo.GetArray<string>("m_lightMaps")[1];
-            using (var irradianceResource = guiContext.LoadFileByAnyMeansNecessary(irradiance + "_c"))
+            foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
             {
-                if (irradianceResource != null)
+                if (Path.GetFileNameWithoutExtension(lightmap) == "irradiance")
                 {
-                    irradianceTexture = guiContext.MaterialLoader.LoadTexture(irradianceResource);
+                    using var irradianceResource = guiContext.LoadFileByAnyMeansNecessary(lightmap + "_c");
+                    if (irradianceResource != null)
+                    {
+                        irradiance = guiContext.MaterialLoader.LoadTexture(irradianceResource);
+                    }
                 }
             }
 
+
             void SetupLightmap(DrawCall drawCall)
             {
-                drawCall.Material.Textures.TryAdd("g_tLightmap", irradianceTexture);
+                if (!drawCall.Shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_LIGHTMAP")
+                    || drawCall.Shader.Parameters["D_BAKED_LIGHTING_FROM_LIGHTMAP"] != 1)
+                {
+                    return;
+                }
+
+                if (irradiance != null)
+                {
+                    drawCall.Material.Textures.TryAdd("g_tIrradiance", irradiance);
+                }
+
                 drawCall.Material.Material.VectorParams.TryAdd("g_vLightmapUvScale", lightmapUvScale);
             }
 

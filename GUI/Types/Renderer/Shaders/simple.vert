@@ -8,6 +8,9 @@
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define fulltangent 1
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
+#define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
+#define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
+
 #define F_VERTEX_COLOR 0
 #define F_LAYERS 0
 #define simple_2way_blend 0
