@@ -19,11 +19,16 @@
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
+
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
     uniform vec4 g_vLightmapUvScale;
+#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+    in vec4 vPerVertexLighting;
+    out vec4 vPerVertexLightingOut;
 #endif
+
 #if F_LAYERS > 0
     #if simple_2way_blend == 1
         #define vBLEND_COLOR vTEXCOORD2
@@ -78,6 +83,8 @@ void main()
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
+#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+    vPerVertexLightingOut = vPerVertexLighting;
 #endif
 
 #if F_VERTEX_COLOR == 1
