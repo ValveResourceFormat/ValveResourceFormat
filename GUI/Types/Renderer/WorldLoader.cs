@@ -91,21 +91,25 @@ namespace GUI.Types.Renderer
             }
 
             var worldLightingInfo = world.GetWorldLightingInfo();
-            var lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector4();
+            var lightmapUvScale = Vector4.Zero;
             RenderTexture irradiance = null;
 
-            foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
+            if (worldLightingInfo != null)
             {
-                if (Path.GetFileNameWithoutExtension(lightmap) == "irradiance")
+                lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector4();
+
+                foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
                 {
-                    using var irradianceResource = guiContext.LoadFileByAnyMeansNecessary(lightmap + "_c");
-                    if (irradianceResource != null)
+                    if (Path.GetFileNameWithoutExtension(lightmap) == "irradiance")
                     {
-                        irradiance = guiContext.MaterialLoader.LoadTexture(irradianceResource);
+                        using var irradianceResource = guiContext.LoadFileByAnyMeansNecessary(lightmap + "_c");
+                        if (irradianceResource != null)
+                        {
+                            irradiance = guiContext.MaterialLoader.LoadTexture(irradianceResource);
+                        }
                     }
                 }
             }
-
 
             void SetupLightmap(DrawCall drawCall)
             {
