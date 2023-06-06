@@ -119,26 +119,17 @@ namespace GUI.Types.Renderer
             GL.LinkProgram(shader.Program);
             GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
 
-            if (linkStatus != 1)
-            {
-                GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {programLog}");
-            }
-
-            GL.ValidateProgram(shader.Program);
-            GL.GetProgram(shader.Program, GetProgramParameterName.ValidateStatus, out var validateStatus);
-
-            if (validateStatus != 1)
-            {
-                GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error validating shader \"{shaderName}\": {programLog}");
-            }
-
             GL.DetachShader(shader.Program, vertexShader);
             GL.DeleteShader(vertexShader);
 
             GL.DetachShader(shader.Program, fragmentShader);
             GL.DeleteShader(fragmentShader);
+
+            if (linkStatus != 1)
+            {
+                GL.GetProgramInfoLog(shader.Program, out var programLog);
+                throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {programLog}");
+            }
 
             ShaderDefines[shaderFileName] = defines;
             var newShaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
