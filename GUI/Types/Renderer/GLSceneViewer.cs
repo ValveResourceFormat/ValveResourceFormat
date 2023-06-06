@@ -199,8 +199,23 @@ namespace GUI.Types.Renderer
                 }
 
                 GuiContext.ShaderLoader.ClearCache();
-                SetRenderMode(renderModeComboBox?.SelectedItem as string);
-                SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
+
+                try
+                {
+                    SetRenderMode(renderModeComboBox?.SelectedItem as string);
+                    SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex.Message);
+
+                    MessageBox.Show(
+                        $"{ex.Message}",
+                        "Failed to reload shaders",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
+                }
             };
             ViewerControl.AddControl(button);
 #endif

@@ -68,7 +68,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(vertexShader, out var vsInfo);
 
-                throw new InvalidProgramException($"Error setting up Vertex Shader \"{shaderName}\": {vsInfo}");
+                throw new InvalidProgramException($"Error setting up Vertex Shader {shaderFileName} ({shaderName}):\n{vsInfo}");
             }
 
             /* Fragment shader */
@@ -97,7 +97,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
 
-                throw new InvalidProgramException($"Error setting up Fragment Shader \"{shaderName}\": {fsInfo}");
+                throw new InvalidProgramException($"Error setting up Fragment Shader {shaderFileName} ({shaderName}):\n{fsInfo}");
             }
 
             const string renderMode = "renderMode_";
