@@ -29,7 +29,7 @@ in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
-#if VERTEX_COLOR == 1
+#if F_VERTEX_COLOR == 1
     in vec4 vColorOut;
 #endif
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -198,11 +198,18 @@ void main()
     outputColor = mix(glassColor, fresnelColor, g_flOpacityScale);
 #else
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
+    outputColor = vec4(color.rgb * g_vColorTint.xyz * tintFactor, color.a);
+
+    float overbrightFactor = 2.2;
+    vec3 irradiance = vec3(1/overbrightFactor);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-        outputColor *= texture(g_tIrradiance, vLightmapUVScaled);
+        irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
+    #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+        irradiance = vPerVertexLightingOut.rgb;
     #endif
+
+    outputColor.rgb *= (irradiance * overbrightFactor);
 #endif
 
     // Different render mode definitions
@@ -230,8 +237,8 @@ void main()
     outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 
-#if (renderMode_Irradiance == 1) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    outputColor = texture(g_tIrradiance, vLightmapUVScaled);
+#if renderMode_Irradiance == 1 && F_GLASS == 0
+    outputColor = vec4(irradiance, 1.0);
 #endif
 
 #if renderMode_VertexColor == 1 && F_VERTEX_COLOR == 1

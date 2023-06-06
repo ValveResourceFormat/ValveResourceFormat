@@ -89,6 +89,14 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
+        public static bool HasBakedLightingFromLightMap(IKeyValueCollection drawCall)
+            => drawCall.ContainsKey("m_bHasBakedLightingFromLightMap")
+                && drawCall.GetProperty<bool>("m_bHasBakedLightingFromLightMap");
+
+        public static bool HasBakedLightingFromVertexStream(IKeyValueCollection drawCall)
+            => drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream")
+                && drawCall.GetProperty<bool>("m_bHasBakedLightingFromVertexStream");
+
         public void LoadExternalMorphData(IFileLoader fileLoader)
         {
             if (MorphData == null)

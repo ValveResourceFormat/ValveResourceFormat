@@ -125,9 +125,13 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("fulltangent", 0);
                     }
 
-                    if (objectDrawCall.ContainsKey("m_bHasBakedLightingFromLightMap"))
+                    if (Mesh.HasBakedLightingFromLightMap(objectDrawCall))
                     {
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_LIGHTMAP", 1);
+                    }
+                    else if (Mesh.HasBakedLightingFromVertexStream(objectDrawCall))
+                    {
+                        shaderArguments.Add("D_BAKED_LIGHTING_FROM_VERTEX_STREAM", 1);
                     }
 
                     if (firstSetup)
