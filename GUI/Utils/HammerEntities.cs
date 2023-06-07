@@ -29,6 +29,7 @@ internal static class HammerEntities
             "combine_attached_armor_prop" => "models/characters/combine_soldier_heavy/combine_hand_shield.vmdl",
             "combine_mine" => "models/props_combine/combine_mine/combine_mine.vmdl",
             "commentary_auto" => "materials/editor/commentary_auto.vmat",
+            "csm_fov_override" => "models/editor/camera.vmdl",
             "devtest_hierarchy2" => "models/survivors/survivor_gambler.vmdl",
             "dota_color_correction" => "materials/editor/color_correction.vmat",
             "dota_world_particle_system" => "models/editor/cone_helper.vmdl",
