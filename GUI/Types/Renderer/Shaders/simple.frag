@@ -9,6 +9,7 @@
 #define F_VERTEX_COLOR 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
+#define LightmapGameVersionNumber 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 
@@ -32,10 +33,22 @@ in vec2 vTexCoordOut;
 #if F_VERTEX_COLOR == 1
     in vec4 vColorOut;
 #endif
+
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
+    uniform sampler2DArray g_tDirectionalIrradiance;
+    #if (LightmapGameVersionNumber == 1)
+        uniform sampler2DArray g_tDirectLightIndices;
+        uniform sampler2DArray g_tDirectLightStrengths;
+    #elif (LightmapGameVersionNumber == 2)
+        uniform sampler2DArray g_tDirectLightShadows;
+    #endif
+
+#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+    in vec4 vPerVertexLightingOut;
 #endif
+
 #if (simple_2way_blend == 1 || F_LAYERS > 0)
     in vec4 vColorBlendValues;
     uniform sampler2D g_tLayer2Color;
@@ -48,7 +61,7 @@ uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
-uniform vec3 vLightPosition;
+#include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
 uniform vec4 m_vTintColorSceneObject;
@@ -113,10 +126,20 @@ vec3 calculateWorldNormal(vec4 bumpNormal)
     return normalize(tangentSpace * tangentNormal);
 }
 
-//Main entry point
+#include "common/pbr.glsl"
+
+vec3 getSunColor(float brightness)
+{
+    vec3 color = vec3(255, 222, 189);
+    return vec3(
+        (color.r / 255.0),
+        (color.g / 255.0),
+        (color.b / 255.0)
+    );
+}
+
 void main()
 {
-    //Get the ambient color from the color texture
     vec2 texCoord = vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
     vec4 color = texture(g_tColor, texCoord);
     vec4 normal = texture(g_tNormal, texCoord);
@@ -163,21 +186,6 @@ void main()
     }
 #endif
 
-    //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
-    vec3 viewDirection = normalize(vEyePosition - vFragPosition);
-
-    //Get the world normal for this fragment
-    vec3 worldNormal = calculateWorldNormal(normal);
-
-#if renderMode_FullBright == 1 || F_FULLBRIGHT == 1
-    float illumination = 1.0;
-#else
-    //Calculate lambert lighting
-    float illumination = max(0.0, dot(worldNormal, lightDirection));
-    illumination = illumination * 0.7 + 0.3;//add ambient
-#endif
-
     //Calculate tint color
     vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
 
@@ -188,31 +196,81 @@ void main()
     vec3 tintFactor = tintColor;
 #endif
 
-#if F_GLASS == 1
-    vec4 glassColor = vec4(illumination * color.rgb * g_vColorTint.rgb, color.a);
+    // Get the world normal for this fragment
+    vec3 N = calculateWorldNormal(normal);
 
-    float viewDotNormalInv = clamp(1.0 - (dot(viewDirection, worldNormal) - g_flEdgeColorThickness), 0.0, 1.0);
+    // Get the direction from the fragment to the light
+    vec3 V = normalize(vEyePosition - vFragPosition);
+
+#if F_GLASS == 1
+    vec4 glassColor = vec4(color.rgb * g_vColorTint.rgb, color.a);
+
+    float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
     float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
     vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);
 
     outputColor = mix(glassColor, fresnelColor, g_flOpacityScale);
 #else
-    //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(color.rgb * g_vColorTint.xyz * tintFactor, color.a);
+    outputColor = vec4(color.rgb * g_vColorTint.rgb * tintFactor, color.a);
 
-    float overbrightFactor = 2.2;
+    vec3 L = normalize(-getSunDir());
+    vec3 H = normalize(V + L);
+
+    vec3 F0 = vec3(0.04); 
+	F0 = mix(F0, color.rgb, 0.0);
+    vec3 Lo = vec3(0.0);
+
+    float visibility = 1.0;
+
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    #if (LightmapGameVersionNumber == 1)
+        vec4 vLightStrengths = texture(g_tDirectLightStrengths, vLightmapUVScaled);
+        vec4 strengthSquared = vLightStrengths * vLightStrengths;
+        vec4 vLightIndices = texture(g_tDirectLightIndices, vLightmapUVScaled) * 255;
+        // TODO
+        float index = 0.0;
+        if (vLightIndices.r == index) visibility = strengthSquared.r;
+        else if (vLightIndices.g == index) visibility = strengthSquared.g;
+        else if (vLightIndices.b == index) visibility = strengthSquared.b;
+        else if (vLightIndices.a == index) visibility = strengthSquared.a;
+        else visibility = 0.0;
+
+    #elif (LightmapGameVersionNumber == 2)
+        visibility = 1 - texture(g_tDirectLightShadows, vLightmapUVScaled).r;
+    #endif
+#endif
+
+    if (visibility > 0.0)
+    {
+        Lo += specularContribution(L, V, N, F0, outputColor.rgb, 0.0, normal.b) * visibility;
+        Lo += diffuseLobe(max(dot(N, L), 0.0) * getSunColor(1.5)) * visibility;
+    }
+
+    float overbrightFactor = 1;
     vec3 irradiance = vec3(1/overbrightFactor);
 
-    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
         irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
+        vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
+        const float DirectionalLightmapMinZ = 0.05;
+        irradiance *= mix(1.0, vAHDData.z, DirectionalLightmapMinZ);
     #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
         irradiance = vPerVertexLightingOut.rgb;
     #endif
 
-    outputColor.rgb *= (irradiance * overbrightFactor);
+    outputColor.rgb *= (irradiance *overbrightFactor );
+    outputColor.rgb += Lo;
+
+    float gamma = 1.2;
+    outputColor.rgb = pow(outputColor.rgb, vec3(1.0 / gamma));
 #endif
 
     // Different render mode definitions
+
+#if renderMode_FullBright == 1
+    outputColor = vec4(normal.bbb, 1.0);
+#endif
+
 #if renderMode_Color == 1
     outputColor = vec4(color.rgb, 1.0);
 #endif
@@ -230,7 +288,7 @@ void main()
 #endif
 
 #if renderMode_BumpNormals == 1
-    outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(N * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
 #if renderMode_Illumination == 1

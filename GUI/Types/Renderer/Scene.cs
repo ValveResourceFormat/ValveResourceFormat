@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
         {
             public Camera Camera { get; init; }
             public float Time { get; init; }
-            public Vector3? LightPosition { get; init; }
+            public Matrix4x4? GlobalLightTransform { get; init; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
             public bool RenderToolsMaterials { get; init; }
@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
         public Camera MainCamera { get; set; }
         public float Time { get; set; }
         public SceneSky Sky { get; set; }
-        public Vector3? LightPosition { get; set; }
+        public Matrix4x4? GlobalLightTransform { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
@@ -187,7 +187,7 @@ namespace GUI.Types.Renderer
             {
                 Camera = camera,
                 Time = Time,
-                LightPosition = LightPosition,
+                GlobalLightTransform = GlobalLightTransform,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,
             };

@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
 
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
             var cameraPosition = context.Camera.Location.ToOpenTK();
-            var lightPosition = cameraPosition; // (context.LightPosition ?? context.Camera.Location).ToOpenTK();
+            var dirLight = (context.GlobalLightTransform ?? context.Camera.CameraViewMatrix).ToOpenTK();
 
             var groupedDrawCalls = context.ReplacementShader == null
                 ? drawCalls.GroupBy(a => a.Call.Shader)
@@ -88,7 +88,7 @@ namespace GUI.Types.Renderer
 
                 GL.UseProgram(shader.Program);
 
-                GL.Uniform3(shader.GetUniformLocation("vLightPosition"), lightPosition);
+                GL.UniformMatrix4(shader.GetUniformLocation("vLightPosition"), false, ref dirLight);
                 GL.Uniform3(shader.GetUniformLocation("vEyePosition"), cameraPosition);
                 GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
 

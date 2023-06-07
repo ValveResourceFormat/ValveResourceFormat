@@ -252,18 +252,23 @@ namespace GUI.Types.Renderer
 
                 if (target == TextureTarget.Texture2DArray)
                 {
-                    throw new NotImplementedException();
+                    GL.TexImage3D(target, level, internalFormat.Value, width, height, 1, 0, pixelFormat, pixelType, buffer);
                 }
-
-                GL.TexImage2D(target, level, internalFormat.Value, width, height, 0, pixelFormat, pixelType, buffer);
-            }
-            else if (target == TextureTarget.Texture2DArray)
-            {
-                GL.CompressedTexImage3D(target, level, format.Value, width, height, 1, 0, bufferSize, buffer); // TODO: 1 is depth
+                else
+                {
+                    GL.TexImage2D(target, level, internalFormat.Value, width, height, 0, pixelFormat, pixelType, buffer);
+                }
             }
             else
             {
-                GL.CompressedTexImage2D(target, level, format.Value, width, height, 0, bufferSize, buffer);
+                if (target == TextureTarget.Texture2DArray)
+                {
+                    GL.CompressedTexImage3D(target, level, format.Value, width, height, 1, 0, bufferSize, buffer); // TODO: 1 is depth
+                }
+                else
+                {
+                    GL.CompressedTexImage2D(target, level, format.Value, width, height, 0, bufferSize, buffer);
+                }
             }
         }
 

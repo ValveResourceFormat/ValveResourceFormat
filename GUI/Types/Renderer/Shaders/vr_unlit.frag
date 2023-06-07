@@ -14,8 +14,6 @@ uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor2;
 uniform sampler2D g_tTintMask;
 
-uniform vec3 vLightPosition;
-
 uniform vec4 m_vTintColorSceneObject;
 uniform vec3 m_vTintColorDrawCall;
 

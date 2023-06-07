@@ -23,12 +23,16 @@ namespace GUI.Types.Renderer
 
             public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
 
-            public Vector3? GlobalLightPosition { get; set; }
-
             public World Skybox { get; set; }
             public float SkyboxScale { get; set; } = 1.0f;
             public Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
         }
+
+        private record WorldLightingInfo(
+            Dictionary<string, RenderTexture> Lightmaps,
+            int LightmapGameVersionNumber,
+            Vector4 LightmapUvScale
+        );
 
         public WorldLoader(VrfGuiContext vrfGuiContext, World world)
         {
@@ -40,6 +44,11 @@ namespace GUI.Types.Renderer
         {
             var result = new LoadResult();
             result.DefaultEnabledLayers.Add("Entities");
+
+            var lighting = LoadWorldLightingInfo();
+            // Needs to be set before draw calls are configured
+            // Scenes within a context should have the same value.
+            guiContext.RenderArgs.TryAdd("LightmapGameVersionNumber", (byte)lighting.LightmapGameVersionNumber);
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -76,6 +85,8 @@ namespace GUI.Types.Renderer
                 LoadEntitiesFromLump(scene, result, entityLump, "world_layer_base"); // TODO
             }
 
+            SetupWorldLighting(scene, lighting);
+
             // TODO: Ideally we would use the vrman files to find relevant files
             var physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(Path.GetDirectoryName(guiContext.FileName), "world_physics.vphys_c"));
             if (physResource != null)
@@ -90,28 +101,51 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            return result;
+        }
+
+        private WorldLightingInfo LoadWorldLightingInfo()
+        {
             var worldLightingInfo = world.GetWorldLightingInfo();
-            var lightmapUvScale = Vector4.Zero;
-            RenderTexture irradiance = null;
-
-            if (worldLightingInfo != null)
+            if (worldLightingInfo == null)
             {
-                lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector4();
+                return default;
+            }
 
-                foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
+            var lightmapGameVersionNumber = 0;
+            var lightmapUvScale = Vector4.One;
+            if (worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber") == 8)
+            {
+                lightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
+                lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector4();
+            }
+
+            var result = new WorldLightingInfo(new(), lightmapGameVersionNumber, lightmapUvScale);
+
+            foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
+            {
+                var name = Path.GetFileNameWithoutExtension(lightmap);
+                if (LightmapNameToUniformName.ContainsKey(name))
                 {
-                    if (Path.GetFileNameWithoutExtension(lightmap) == "irradiance")
-                    {
-                        using var irradianceResource = guiContext.LoadFileByAnyMeansNecessary(lightmap + "_c");
-                        if (irradianceResource != null)
-                        {
-                            irradiance = guiContext.MaterialLoader.LoadTexture(irradianceResource);
-                        }
-                    }
+                    result.Lightmaps[name] = guiContext.MaterialLoader.LoadTexture(lightmap);
                 }
             }
 
-            void SetupLightmap(DrawCall drawCall)
+            return result;
+        }
+
+        private readonly Dictionary<string, string> LightmapNameToUniformName = new()
+        {
+            {"irradiance", "g_tIrradiance"},
+            {"directional_irradiance", "g_tDirectionalIrradiance"},
+            {"direct_light_shadows", "g_tDirectLightShadows"},
+            {"direct_light_indices", "g_tDirectLightIndices"},
+            {"direct_light_strengths", "g_tDirectLightStrengths"},
+        };
+
+        private void SetupWorldLighting(Scene scene, WorldLightingInfo lighting)
+        {
+            void SetupLighting(DrawCall drawCall)
             {
                 if (!drawCall.Shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_LIGHTMAP")
                     || drawCall.Shader.Parameters["D_BAKED_LIGHTING_FROM_LIGHTMAP"] != 1)
@@ -119,31 +153,30 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                if (irradiance != null)
+                foreach (var (name, texture) in lighting.Lightmaps)
                 {
-                    drawCall.Material.Textures.TryAdd("g_tIrradiance", irradiance);
+                    var uniformName = LightmapNameToUniformName[name];
+                    drawCall.Material.Textures.TryAdd(uniformName, texture);
                 }
 
-                drawCall.Material.Material.VectorParams.TryAdd("g_vLightmapUvScale", lightmapUvScale);
+                drawCall.Material.Material.VectorParams.TryAdd("g_vLightmapUvScale", lighting.LightmapUvScale);
             }
 
             foreach (var sceneNode in scene.AllNodes)
             {
                 if (sceneNode is SceneAggregate.Fragment fragment)
                 {
-                    SetupLightmap(fragment.DrawCall);
+                    SetupLighting(fragment.DrawCall);
                 }
                 else if (sceneNode is ModelSceneNode model)
                 {
                     foreach (var mesh in model.RenderableMeshes)
                     {
-                        mesh.DrawCallsOpaque.ForEach(SetupLightmap);
-                        mesh.DrawCallsBlended.ForEach(SetupLightmap);
+                        mesh.DrawCallsOpaque.ForEach(SetupLighting);
+                        mesh.DrawCallsBlended.ForEach(SetupLighting);
                     }
                 }
             }
-
-            return result;
         }
 
         private void LoadEntitiesFromLump(Scene scene, LoadResult result, EntityLump entityLump, string layerName = null)
@@ -309,7 +342,7 @@ namespace GUI.Types.Renderer
                 }
                 else if (isGlobalLight)
                 {
-                    result.GlobalLightPosition = positionVector;
+                    scene.GlobalLightTransform = transformationMatrix;
                 }
 
                 var objColor = Vector4.One;

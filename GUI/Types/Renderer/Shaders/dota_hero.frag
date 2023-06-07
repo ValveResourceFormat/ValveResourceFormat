@@ -32,7 +32,7 @@ uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
 //uniform sampler2D g_tDiffuseWarp;
 
-uniform vec3 vLightPosition;
+#include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
 // Material properties
@@ -63,7 +63,7 @@ vec3 calculateWorldNormal()
 void main()
 {
     //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
+    vec3 lightDirection = normalize(getSunDir() - vFragPosition);
 
     //Get the view direction
     vec3 viewDirection = normalize(vEyePosition - vFragPosition);

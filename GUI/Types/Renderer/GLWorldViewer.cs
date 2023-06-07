@@ -98,7 +98,6 @@ namespace GUI.Types.Renderer
             {
                 var loader = new WorldLoader(GuiContext, world);
                 var result = loader.Load(Scene);
-                Scene.LightPosition = result.GlobalLightPosition;
 
                 if (result.Skybox != null)
                 {
@@ -108,7 +107,6 @@ namespace GUI.Types.Renderer
 
                     SkyboxScale = skyboxResult.SkyboxScale;
                     SkyboxOrigin = skyboxResult.SkyboxOrigin;
-                    SkyboxScene.LightPosition = result.GlobalLightPosition;
 
                     ViewerControl.AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
