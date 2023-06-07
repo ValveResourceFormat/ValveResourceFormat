@@ -6296,7 +6296,7 @@ namespace ValveResourceFormat.Utils
 
             foreach (var field in list)
             {
-                StringToken.Get(field);
+                StringToken.Add(field);
             }
         }
     }

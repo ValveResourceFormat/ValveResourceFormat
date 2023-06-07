@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using ValveResourceFormat.ThirdParty;
@@ -32,7 +33,22 @@ namespace ValveResourceFormat.Utils
 
         public static uint Get(string key)
         {
-            return Lookup.GetOrAdd(key, s => MurmurHash2.Hash(s, MURMUR2SEED));
+            return Lookup.GetOrAdd(key, s =>
+            {
+#if DEBUG
+                Console.WriteLine($"New string: {s}");
+#endif
+
+                return MurmurHash2.Hash(s, MURMUR2SEED);
+            });
+        }
+
+        internal static void Add(string key)
+        {
+            if (!Lookup.TryAdd(key, MurmurHash2.Hash(key, MURMUR2SEED)))
+            {
+                throw new InvalidOperationException($"Key {key} already exists");
+            }
         }
     }
 }
