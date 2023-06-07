@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Sledge.Formats.GameData" Version="1.1.0" />
+    <PackageReference Include="Sledge.Formats.GameData" Version="1.1.2" />
   </ItemGroup>
 
 </Project>

@@ -3,7 +3,7 @@ using Sledge.Formats.FileSystem;
 
 namespace VrfFgdParser;
 
-public class FgdFileResolver : IFileResolver
+public sealed class FgdFileResolver : IFileResolver
 {
     private string directory;
 
@@ -12,7 +12,7 @@ public class FgdFileResolver : IFileResolver
         directory = Path.GetDirectoryName(path)!;
     }
 
-    public Stream OpenFile(string path)
+    Stream IFileResolver.OpenFile(string path)
     {
         var parent = Path.GetDirectoryName(directory);
         var paths = new List<string>
@@ -35,7 +35,17 @@ public class FgdFileResolver : IFileResolver
         return Stream.Null;
     }
 
-    public string[] OpenFolder(string path)
+    bool IFileResolver.FileExists(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    IEnumerable<string> IFileResolver.GetFiles(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    IEnumerable<string> IFileResolver.GetFolders(string path)
     {
         throw new NotImplementedException();
     }

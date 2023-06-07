@@ -31,7 +31,7 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
         using var stream = File.OpenRead(file);
         using var reader = new StreamReader(stream);
 
-        var fgdFormatter = new FgdFormatter(new FgdFileResolver(file));
+        var fgdFormatter = new FgdFormat(new FgdFileResolver(file));
         fgd = fgdFormatter.Read(reader);
     }
     catch (Exception e)
