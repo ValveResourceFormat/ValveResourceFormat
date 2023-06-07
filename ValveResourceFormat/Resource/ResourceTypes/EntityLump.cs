@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -60,18 +61,103 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
-                .Select(entity => ParseEntityProperties(entity.GetArray<byte>("m_keyValuesData"), entity.GetArray("m_connections")))
+                .Select(ParseEntityProperties)
                 .ToList();
 
-        private static Entity ParseEntityProperties(byte[] bytes, IKeyValueCollection[] connections)
+        private static Entity ParseEntityProperties(IKeyValueCollection entityKv)
+        {
+            var connections = entityKv.GetArray("m_connections");
+            Entity entity;
+
+            if (entityKv.ContainsKey("keyValues3Data"))
+            {
+                entity = ParseEntityPropertiesKV3(entityKv.GetSubCollection("keyValues3Data"));
+            }
+            else
+            {
+                entity = ParseEntityProperties(entityKv.GetArray<byte>("m_keyValuesData"));
+            }
+
+            if (connections.Length > 0)
+            {
+                entity.Connections = connections.ToList();
+            }
+
+            return entity;
+        }
+
+        private static Entity ParseEntityPropertiesKV3(IKeyValueCollection entityKv)
+        {
+            var entityVersion = entityKv.GetInt32Property("version");
+
+            if (entityVersion != 1)
+            {
+                throw new UnexpectedMagicException("Unsupported entity data version", entityVersion, nameof(entityVersion));
+            }
+
+            if (entityKv.GetSubCollection("attributes").Any())
+            {
+                throw new NotImplementedException("Entity has attributes, not yet supported");
+            }
+
+            var entity = new Entity();
+
+            var values = ((KVObject)entityKv).Properties["values"];
+
+            if (values.Type != KVType.OBJECT)
+            {
+                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
+            }
+
+            foreach (var value in ((KVObject)values.Value).Properties)
+            {
+                var hash = StringToken.Get(value.Key.ToLowerInvariant());
+                var data = value.Value.Value;
+                EntityFieldType type;
+
+                if (value.Value.Type == KVType.ARRAY)
+                {
+                    var arrayKv = (IKeyValueCollection)value.Value.Value;
+
+                    type = arrayKv.Count() switch
+                    {
+                        2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
+                        3 => EntityFieldType.Vector,
+                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
+                    };
+                    data = type switch
+                    {
+                        EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
+                        EntityFieldType.Vector => arrayKv.ToVector3(),
+                        _ => throw new NotImplementedException(),
+                    };
+                }
+                else
+                {
+                    type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
+                }
+
+                var entityProperty = new EntityProperty
+                {
+                    Type = type,
+                    Name = value.Key,
+                    Data = data,
+                };
+                entity.Properties.Add(hash, entityProperty);
+            }
+
+            return entity;
+        }
+
+        private static Entity ParseEntityProperties(byte[] bytes)
         {
             using var dataStream = new MemoryStream(bytes);
             using var dataReader = new BinaryReader(dataStream);
-            var a = dataReader.ReadUInt32(); // always 1?
+            var entityVersion = dataReader.ReadUInt32();
 
-            if (a != 1)
+            if (entityVersion != 1)
             {
-                throw new NotImplementedException($"First field in entity lump is not 1");
+                throw new UnexpectedMagicException("Unsupported entity data version", entityVersion, nameof(entityVersion));
             }
 
             var hashedFieldsCount = dataReader.ReadUInt32();
@@ -117,11 +203,6 @@ namespace ValveResourceFormat.ResourceTypes
                 var keyName = dataReader.ReadNullTermString(Encoding.UTF8);
 
                 ReadTypedValue(keyHash, keyName);
-            }
-
-            if (connections.Length > 0)
-            {
-                entity.Connections = connections.ToList();
             }
 
             return entity;
@@ -231,6 +312,19 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return builder.ToString();
+        }
+
+        private static EntityFieldType ConvertKV3TypeToEntityFieldType(KVType type)
+        {
+            return type switch
+            {
+                KVType.BOOLEAN => EntityFieldType.Boolean,
+                KVType.DOUBLE => EntityFieldType.Float64,
+                KVType.INT64 => EntityFieldType.Integer, // TODO: Incorrect type?
+                KVType.UINT64 => EntityFieldType.Integer64,
+                KVType.STRING => EntityFieldType.CString,
+                _ => throw new NotImplementedException($"Unsupported kv3 entity data type: {type}")
+            };
         }
     }
 }
