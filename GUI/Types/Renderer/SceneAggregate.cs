@@ -1,4 +1,5 @@
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -40,17 +41,27 @@ namespace GUI.Types.Renderer
         {
             Model = model;
 
-            var embeddedMeshes = Model.GetEmbeddedMeshesAndLoD();
+            var embeddedMeshes = Model.GetEmbeddedMeshesAndLoD().ToList();
 
             /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
             if (embeddedMeshes.Any())
             {
                 RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene.GuiContext, null, model);
+
+                if (embeddedMeshes.Count > 1)
+                {
+                    throw new NotImplementedException("More than one embedded mesh");
+                }
             }
             else
             {
-                var refMeshes = Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0);
+                var refMeshes = Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
                 var refMesh = refMeshes.First();
+
+                if (refMeshes.Count > 1)
+                {
+                    throw new NotImplementedException("More than one referenced mesh");
+                }
 
                 var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
                 if (newResource == null)
