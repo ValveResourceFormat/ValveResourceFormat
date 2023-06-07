@@ -39,7 +39,28 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             Model = model;
-            RenderMesh = new RenderableMesh(Model.GetEmbeddedMeshesAndLoD().First().Mesh, 0, Scene.GuiContext);
+
+            var embeddedMeshes = Model.GetEmbeddedMeshesAndLoD();
+
+            /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
+            if (embeddedMeshes.Any())
+            {
+                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene.GuiContext, null, model);
+            }
+            else
+            {
+                var refMeshes = Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0);
+                var refMesh = refMeshes.First();
+
+                var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
+                if (newResource == null)
+                {
+                    return;
+                }
+
+                RenderMesh = new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene.GuiContext, null, model);
+            }
+
             LocalBoundingBox = RenderMesh.BoundingBox;
         }
 
