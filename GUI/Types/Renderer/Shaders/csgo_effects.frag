@@ -48,7 +48,6 @@ uniform vec3 m_vTintColorDrawCall;
 
 uniform float g_flTime;
 
-uniform vec3 vLightPosition;
 uniform vec3 vEyePosition;
 
 //Main entry point

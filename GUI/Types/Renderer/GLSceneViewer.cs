@@ -252,7 +252,6 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
             Scene.Sky?.SetRenderMode(renderMode);
 
-
             foreach (var node in Scene.AllNodes)
             {
                 node.SetRenderMode(renderMode);

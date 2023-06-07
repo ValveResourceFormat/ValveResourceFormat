@@ -61,7 +61,7 @@ uniform float g_flTexCoordRotate1;
 uniform float g_flTexCoordRotate2;
 uniform float g_flTexCoordRotate3;
 
-uniform vec3 vLightPosition;
+#include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
 vec2 getTexCoord(float scale, float rotation) {
@@ -176,7 +176,7 @@ void main()
 
     //Don't need lighting yet
     //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vLightPosition - vFragPosition);
+    vec3 lightDirection = normalize(getSunDir() - vFragPosition);
 
 #if renderMode_FullBright == 1
     float illumination = 1.0;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
@@ -14,6 +15,7 @@ namespace GUI.Utils
 
         public MaterialLoader MaterialLoader { get; }
 
+        public Dictionary<string, byte> RenderArgs { get; } = new();
         public ShaderLoader ShaderLoader { get; }
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; }

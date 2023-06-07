@@ -118,14 +118,16 @@ namespace GUI.Types.Renderer
                     }
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var shaderArguments = new Dictionary<string, byte>();
+                    var shaderArguments = new Dictionary<string, byte>(guiContext.RenderArgs);
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
                         shaderArguments.Add("fulltangent", 0);
                     }
 
-                    if (Mesh.HasBakedLightingFromLightMap(objectDrawCall))
+                    if (Mesh.HasBakedLightingFromLightMap(objectDrawCall)
+                        && shaderArguments.TryGetValue("LightmapGameVersionNumber", out var version)
+                        && version > 0)
                     {
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_LIGHTMAP", 1);
                     }
