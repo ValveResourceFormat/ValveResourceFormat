@@ -3,6 +3,7 @@ using System.IO;
 using System.Numerics;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 
 namespace Tests
@@ -13,6 +14,7 @@ namespace Tests
         public class NullFileLoader : IFileLoader
         {
             public Resource LoadFile(string file) => null;
+            public ShaderCollection LoadShader(string shaderName) => null;
         }
 
         [Test]
@@ -54,13 +56,12 @@ namespace Tests
         public void TestHalfEdgeGenerator()
         {
             HammerMeshBuilder builder = new();
-            builder.AddFace("materials/dev/reflectivity_30.vmat", new Vector3[]
-            {
-                new Vector3(160, 0, 0),
-                new Vector3(224, 0, 0),
-                new Vector3(224, 256, 128),
-                new Vector3(160, 256, 128),
-            });
+            builder.AddFace("materials/dev/reflectivity_30.vmat",
+                builder.AddVertex(new Vector3(160, 0, 0)),
+                builder.AddVertex(new Vector3(224, 0, 0)),
+                builder.AddVertex(new Vector3(224, 256, 128)),
+                builder.AddVertex(new Vector3(160, 256, 128))
+            );
 
             var mesh = builder.GenerateMesh();
 

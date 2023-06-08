@@ -216,6 +216,12 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        public int AddVertex(Vector3 position)
+        {
+            VertexSoup.Add(new MeshVertex { Position = position });
+            return VertexSoup.Count - 1;
+        }
+
         public MeshFace AddFace(MeshFace face)
         {
             if (!VerifyIndicesWithinBounds(face.VertexIndices))

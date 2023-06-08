@@ -180,7 +180,7 @@ public sealed class MapExtract
 
         if (WorldPhysics is not null)
         {
-            PhyiscsToMapMesh(WorldPhysics);
+            //PhyiscsToMapMesh(WorldPhysics);
         }
 
         foreach (var worldNodeName in WorldNodeNames)
