@@ -23,7 +23,7 @@ in vec2 vTEXCOORD;
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
-    uniform vec4 g_vLightmapUvScale;
+    uniform vec2 g_vLightmapUvScale;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     in vec4 vPerVertexLighting;
     out vec4 vPerVertexLightingOut;
@@ -82,7 +82,7 @@ void main()
     vTexCoordOut = vTEXCOORD;
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
-    vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
+    vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     vPerVertexLightingOut = vPerVertexLighting;
 #endif

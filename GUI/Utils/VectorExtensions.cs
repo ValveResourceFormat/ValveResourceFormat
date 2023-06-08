@@ -4,6 +4,11 @@ namespace GUI.Utils
 {
     internal static class VectorExtensions
     {
+        public static OpenTK.Vector2 ToOpenTK(this Vector2 vec)
+        {
+            return new OpenTK.Vector2(vec.X, vec.Y);
+        }
+
         public static OpenTK.Vector3 ToOpenTK(this Vector3 vec)
         {
             return new OpenTK.Vector3(vec.X, vec.Y, vec.Z);

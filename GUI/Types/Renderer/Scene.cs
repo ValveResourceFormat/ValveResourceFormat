@@ -17,11 +17,12 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public class RenderContext
+        public struct RenderContext
         {
             public Camera Camera { get; init; }
             public float Time { get; init; }
             public Matrix4x4? GlobalLightTransform { get; init; }
+            public WorldLightingInfo LightingInfo { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
             public bool RenderToolsMaterials { get; init; }
@@ -31,6 +32,7 @@ namespace GUI.Types.Renderer
         public float Time { get; set; }
         public SceneSky Sky { get; set; }
         public Matrix4x4? GlobalLightTransform { get; set; }
+        public WorldLightingInfo LightingInfo { get; set; }
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
@@ -188,6 +190,7 @@ namespace GUI.Types.Renderer
                 Camera = camera,
                 Time = Time,
                 GlobalLightTransform = GlobalLightTransform,
+                LightingInfo = LightingInfo,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,
             };

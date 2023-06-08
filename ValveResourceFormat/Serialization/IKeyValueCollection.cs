@@ -118,6 +118,10 @@ namespace ValveResourceFormat.Serialization
         public static bool IsNotBlobType(this IKeyValueCollection collection, string key)
             => collection is NTROStruct || ((KVObject)collection).Properties[key].Type == KVType.ARRAY;
 
+        public static Vector2 ToVector2(this IKeyValueCollection collection) => new(
+            collection.GetFloatProperty("0"),
+            collection.GetFloatProperty("1"));
+
         public static Vector3 ToVector3(this IKeyValueCollection collection) => new(
             collection.GetFloatProperty("0"),
             collection.GetFloatProperty("1"),
