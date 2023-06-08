@@ -101,7 +101,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    material.Render(shader);
+                    material.Render(shader, context.LightingInfo);
 
                     foreach (var request in materialGroup)
                     {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
-using OpenTK;
+using System.Linq;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -41,7 +42,7 @@ namespace GUI.Types.Renderer
                 || material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal);
         }
 
-        public void Render(Shader shader = default)
+        public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
         {
             //Start at 1, texture unit 0 is reserved for the animation texture
             var textureUnit = 1;
@@ -49,7 +50,21 @@ namespace GUI.Types.Renderer
 
             shader ??= this.shader;
 
-            foreach (var (name, texture) in Textures)
+            IEnumerable<KeyValuePair<string, RenderTexture>> textures = Textures;
+
+            if (lightingInfo != default)
+            {
+                textures = Textures.Concat(lightingInfo?.Lightmaps);
+
+                uniformLocation = shader.GetUniformLocation("g_vLightmapUvScale");
+
+                if (uniformLocation > -1)
+                {
+                    GL.Uniform2(uniformLocation, lightingInfo.LightmapUvScale.ToOpenTK());
+                }
+            }
+
+            foreach (var (name, texture) in textures)
             {
                 uniformLocation = shader.GetUniformLocation(name);
 
@@ -79,7 +94,7 @@ namespace GUI.Types.Renderer
 
                 if (uniformLocation > -1)
                 {
-                    GL.Uniform4(uniformLocation, new Vector4(param.Value.X, param.Value.Y, param.Value.Z, param.Value.W));
+                    GL.Uniform4(uniformLocation, param.Value.ToOpenTK());
                 }
             }
 
