@@ -186,7 +186,7 @@ void main()
     }
 #endif
 
-    //Calculate tint color
+    // TODO: calculate tint in the vertex stage
     vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
 
 #if F_TINT_MASK == 1
@@ -203,6 +203,7 @@ void main()
     vec3 V = normalize(vEyePosition - vFragPosition);
 
 #if F_GLASS == 1
+    // TODO: make this receive lightmaps
     vec4 glassColor = vec4(color.rgb * g_vColorTint.rgb, color.a);
 
     float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
@@ -227,7 +228,7 @@ void main()
         vec4 vLightStrengths = texture(g_tDirectLightStrengths, vLightmapUVScaled);
         vec4 strengthSquared = vLightStrengths * vLightStrengths;
         vec4 vLightIndices = texture(g_tDirectLightIndices, vLightmapUVScaled) * 255;
-        // TODO
+        // TODO: figure this out, it's barely working
         float index = 0.0;
         if (vLightIndices.r == index) visibility = strengthSquared.r;
         else if (vLightIndices.g == index) visibility = strengthSquared.g;
@@ -246,8 +247,7 @@ void main()
         Lo += diffuseLobe(max(dot(N, L), 0.0) * getSunColor(1.5)) * visibility;
     }
 
-    float overbrightFactor = 1;
-    vec3 irradiance = vec3(1/overbrightFactor);
+    vec3 irradiance = vec3(0.5);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
         irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
@@ -258,17 +258,17 @@ void main()
         irradiance = vPerVertexLightingOut.rgb;
     #endif
 
-    outputColor.rgb *= (irradiance *overbrightFactor );
-    outputColor.rgb += Lo;
+    float gamma = 2.2;
+    irradiance = pow(irradiance, vec3(1.0/gamma));
 
-    float gamma = 1.2;
-    outputColor.rgb = pow(outputColor.rgb, vec3(1.0 / gamma));
+    outputColor.rgb *= irradiance;
+    outputColor.rgb += Lo;
 #endif
 
-    // Different render mode definitions
-
 #if renderMode_FullBright == 1
-    outputColor = vec4(normal.bbb, 1.0);
+    vec3 illumination = vec3(max(0.0, dot(V, N)));
+    illumination = illumination * 0.7 + 0.3;
+    outputColor = vec4(illumination * color.rgb, color.a);
 #endif
 
 #if renderMode_Color == 1
@@ -292,7 +292,7 @@ void main()
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(illumination, illumination, illumination, 1.0);
+    outputColor = vec4(Lo, 1.0);
 #endif
 
 #if renderMode_Irradiance == 1 && F_GLASS == 0
