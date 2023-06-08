@@ -57,13 +57,15 @@ namespace ValveResourceFormat.CompiledShader
             Arg3 = datareader.ReadInt32();
             Arg4 = datareader.ReadInt32();
             Arg5 = datareader.ReadInt32();
-            Arg6 = datareader.ReadInt32();
-
-            if (VcsFileVersion >= 64)
+            if (VcsFileVersion < 68)
             {
-                Arg7 = datareader.ReadInt32();
-            }
+                Arg6 = datareader.ReadInt32();
 
+                if (VcsFileVersion >= 64)
+                {
+                    Arg7 = datareader.ReadInt32();
+                }
+            }
             var modeCount = datareader.ReadInt32();
             for (var i = VcsAdditionalFiles.None; i < AdditionalFiles; i++)
             {
@@ -87,8 +89,12 @@ namespace ValveResourceFormat.CompiledShader
                 Modes.Add((name, shader, static_config));
             }
 
-            // Editor Id bytes, the length in-so-far is 16 bytes * (6 + AdditionalFiles + 1)
             var maxFileReference = (int)VcsProgramType.PixelShaderRenderState + (int)AdditionalFiles;
+            if (VcsFileVersion >= 68)
+            {
+                maxFileReference -= 2;
+            }
+
             for (var i = 0; i < maxFileReference; i++)
             {
                 EditorIDs.Add((datareader.ReadBytesAsString(16), $"// Editor ref {i} to program {(VcsProgramType)i}"));
