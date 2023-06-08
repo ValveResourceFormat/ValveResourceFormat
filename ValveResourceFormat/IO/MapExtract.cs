@@ -10,6 +10,7 @@ using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Blocks;
 using System.Globalization;
 using System.Linq;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.IO;
 
@@ -230,15 +231,20 @@ public sealed class MapExtract
             foreach (var tri in mesh.Shape.Triangles)
             {
                 // TODO: Add the vertex stream as is, when mesh builder supports edge joining
-                builder.AddFace("materials/tools/toolsskybox.vmat", new Vector3[]
-                {
+                builder.AddTriangle("materials/tools/toolsskybox.vmat",
                     mesh.Shape.Vertices[tri.Indices[0]],
                     mesh.Shape.Vertices[tri.Indices[1]],
-                    mesh.Shape.Vertices[tri.Indices[2]],
-                });
+                    mesh.Shape.Vertices[tri.Indices[2]]
+                );
             }
 
-            var skyboxMesh = new CMapMesh { Name = "toolsskybox mesh", MeshData = builder.GenerateMesh() };
+            var skyboxMesh = new CMapMesh
+            {
+                Name = "toolsskybox mesh",
+                Origin = (mesh.Shape.Min + mesh.Shape.Max) / 2,
+                MeshData = builder.GenerateMesh(),
+            };
+
             MapDocument.World.Children.Add(skyboxMesh);
         }
     }

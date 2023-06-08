@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using System.Diagnostics;
 using ValveResourceFormat.IO.Formats.ValveMap;
 
 namespace ValveResourceFormat.IO
@@ -18,6 +19,7 @@ namespace ValveResourceFormat.IO
         {
             public List<int> VertexIndices { get; set; }
             public string Material { get; set; }
+            public Vector3 Normal { get; set; }
         }
 
         [Flags]
@@ -81,6 +83,10 @@ namespace ValveResourceFormat.IO
                     ? mesh.EdgeDataIndices[firstInner]
                     : mesh.EdgeDataIndices.Count / 2;
 
+                textureCoords.Data.AddRange(new Vector2[face.VertexIndices.Count * 2]);
+                normals.Data.AddRange(new Vector3[face.VertexIndices.Count * 2]);
+                tangent.Data.AddRange(new Vector4[face.VertexIndices.Count * 2]);
+
                 // For each vertex pair, build an edge (half+twin)
                 for (var i = 0; i < face.VertexIndices.Count; i++)
                 {
@@ -106,8 +112,12 @@ namespace ValveResourceFormat.IO
                     mesh.EdgeNextIndices.Add(twin + 1); // Last one will need to be set to firstInner
                     mesh.EdgeFaceIndices.Add(faceDataIndex);
                     mesh.EdgeDataIndices.Add(edge);
-
                     mesh.EdgeVertexDataIndices.Add(v2);
+
+                    // Inner EdgeVertexData
+                    textureCoords.Data[v2] = VertexSoup[v1].TexCoord;
+                    normals.Data[v2] = face.Normal != Vector3.Zero ? face.Normal : Vector3.Zero;
+                    tangent.Data[v2] = new Vector4(0, 1, 0, -1);
 
                     // Outer
                     mesh.EdgeVertexIndices.Add(v1);
@@ -115,17 +125,7 @@ namespace ValveResourceFormat.IO
                     mesh.EdgeNextIndices.Add(-1); // Will update these at the end
                     mesh.EdgeFaceIndices.Add(-1); // Since this is a brand new edge, outside will be facing void
                     mesh.EdgeDataIndices.Add(edge);
-                    // Indices probably dont matter here. Just data being correct.
-                    // So need to figure out what this data is for/how's it laid out
-                    mesh.EdgeVertexDataIndices.Add(i + face.VertexIndices.Count);
-
-                    // Fill with dummy data
-                    textureCoords.Data.Add(VertexSoup[v1].TexCoord);
-                    normals.Data.Add(new Vector3(0, -0.44f, 0.89f));
-                    tangent.Data.Add(new Vector4(1, 0, 0, -1));
-                    textureCoords.Data.Add(VertexSoup[v2].TexCoord);
-                    normals.Data.Add(new Vector3(0, -0.44f, 0.89f));
-                    tangent.Data.Add(new Vector4(1, 0, 0, -1));
+                    mesh.EdgeVertexDataIndices.Add(i + face.VertexIndices.Count); // No meaningful data for void-facing edges
 
                     edgeFlags.Data.Add((int)EdgeFlag.None);
                     mesh.FaceVertexData.Size += 2;
@@ -243,28 +243,28 @@ namespace ValveResourceFormat.IO
             return AddFace(face);
         }
 
-        public MeshFace AddFace(string material, params Vector3[] vertices)
+        public MeshFace AddTriangle(string material, Vector3 v1, Vector3 v2, Vector3 v3)
         {
+            Debug.Assert(v1 != v2 && v2 != v3 && v3 != v1, "Triangle vertex positions must be unique.");
+
             var face = new MeshFace
             {
                 VertexIndices = new List<int>(),
                 Material = material,
+                Normal = Vector3.Normalize(Vector3.Cross(v2 - v1, v3 - v1)),
             };
 
-            foreach (var vertex in vertices)
-            {
-                var index = VertexSoup.Count;
+            Faces.Add(face);
 
-                VertexSoup.Add(new MeshVertex
-                {
-                    Position = vertex,
-                    TexCoord = Vector2.Zero,
-                });
+            face.VertexIndices.Add(VertexSoup.Count);
+            face.VertexIndices.Add(VertexSoup.Count + 1);
+            face.VertexIndices.Add(VertexSoup.Count + 2);
 
-                face.VertexIndices.Add(index);
-            }
+            VertexSoup.Add(new MeshVertex { Position = v1 });
+            VertexSoup.Add(new MeshVertex { Position = v2 });
+            VertexSoup.Add(new MeshVertex { Position = v3 });
 
-            return AddFace(face);
+            return face;
         }
 
         private bool VerifyIndicesWithinBounds(IEnumerable<int> indices)
