@@ -292,13 +292,15 @@ namespace GUI.Types.Renderer
         // Prevent camera from going upside-down
         private void ClampRotation()
         {
-            if (Pitch >= OpenTK.MathHelper.PiOver2)
+            const float PITCH_LIMIT = 89.5f * ((float)Math.PI / 180f);
+
+            if (Pitch >= PITCH_LIMIT)
             {
-                Pitch = OpenTK.MathHelper.PiOver2 - 0.001f;
+                Pitch = PITCH_LIMIT;
             }
-            else if (Pitch <= -OpenTK.MathHelper.PiOver2)
+            else if (Pitch <= -PITCH_LIMIT)
             {
-                Pitch = -OpenTK.MathHelper.PiOver2 + 0.001f;
+                Pitch = -PITCH_LIMIT;
             }
         }
     }
