@@ -368,7 +368,7 @@ namespace GUI.Controls
 
             if (extensions.Contains("GL_EXT_texture_filter_anisotropic"))
             {
-                MaterialLoader.MaxTextureMaxAnisotropy = GL.GetInteger((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
+                MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
             }
             else
             {

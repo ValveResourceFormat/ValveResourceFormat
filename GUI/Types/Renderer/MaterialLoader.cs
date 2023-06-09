@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
         private RenderTexture ErrorTexture;
         private RenderTexture DefaultNormal;
         private RenderTexture DefaultMask;
-        public static int MaxTextureMaxAnisotropy { get; set; }
+        public static float MaxTextureMaxAnisotropy { get; set; }
 
         private readonly Dictionary<string, string[]> TextureAliases = new()
         {
