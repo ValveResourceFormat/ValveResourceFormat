@@ -240,6 +240,11 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var emitterInfo in emitterData)
             {
+                if (IsOperatorDisabled(emitterInfo))
+                {
+                    continue;
+                }
+
                 var emitterClass = emitterInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateEmitter(emitterClass, baseProperties, emitterInfo, out var emitter))
                 {
@@ -260,6 +265,11 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var initializerInfo in initializerData)
             {
+                if (IsOperatorDisabled(initializerInfo))
+                {
+                    continue;
+                }
+
                 var initializerClass = initializerInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateInitializer(initializerClass, initializerInfo, out var initializer))
                 {
@@ -280,6 +290,11 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var operatorInfo in operatorData)
             {
+                if (IsOperatorDisabled(operatorInfo))
+                {
+                    continue;
+                }
+
                 var operatorClass = operatorInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateOperator(operatorClass, operatorInfo, out var @operator))
                 {
@@ -300,6 +315,11 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var rendererInfo in rendererData)
             {
+                if (IsOperatorDisabled(rendererInfo))
+                {
+                    continue;
+                }
+
                 var rendererClass = rendererInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext, out var renderer))
                 {
@@ -323,6 +343,16 @@ namespace GUI.Types.ParticleRenderer
 
                 childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0)));
             }
+        }
+
+        private static bool IsOperatorDisabled(IKeyValueCollection op)
+        {
+            if (op.ContainsKey("m_bDisableOperator"))
+            {
+                return op.GetProperty<bool>("m_bDisableOperator");
+            }
+
+            return false;
         }
     }
 }

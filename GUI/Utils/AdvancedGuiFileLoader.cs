@@ -188,6 +188,10 @@ namespace GUI.Utils
             if (string.IsNullOrEmpty(file) || file == "_c")
             {
                 Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
+
+#if DEBUG_FILE_LOAD
+                System.Diagnostics.Debugger.Break();
+#endif
             }
 
             return (null, null, null, null);
