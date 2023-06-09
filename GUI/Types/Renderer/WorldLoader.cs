@@ -130,43 +130,46 @@ namespace GUI.Types.Renderer
                 }
                 else if (classname == "skybox_reference")
                 {
-                    var worldgroupid = entity.GetProperty<string>("worldgroupid");
+                    //var worldgroupid = entity.GetProperty<string>("worldgroupid");
                     var targetmapname = entity.GetProperty<string>("targetmapname");
 
-                    // TODO: Skybox loading always differs per game for some reason, we need to figure out how to load them properly without hackery
-                    var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
-                    var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
-
-                    if (skyboxPackage == null && guiContext.ParentGuiContext != null)
+                    if (targetmapname != null)
                     {
-                        var mapName = Path.GetFileNameWithoutExtension(guiContext.ParentGuiContext.FileName);
-                        var mapsFolder = Path.GetDirectoryName(guiContext.ParentGuiContext.FileName);
-                        string skyboxVpk;
+                        // TODO: Skybox loading always differs per game for some reason, we need to figure out how to load them properly without hackery
+                        var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
+                        var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
 
-                        if (targetmapname.EndsWith(".vmap")) // CS2
+                        if (skyboxPackage == null && guiContext.ParentGuiContext != null)
                         {
-                            skyboxVpk = Path.Join(Path.GetDirectoryName(mapsFolder), string.Concat(targetmapname[..^5], ".vpk"));
-                            skyboxWorldPath = string.Concat(targetmapname[..^5], "/world.vwrld_c");
+                            var mapName = Path.GetFileNameWithoutExtension(guiContext.ParentGuiContext.FileName);
+                            var mapsFolder = Path.GetDirectoryName(guiContext.ParentGuiContext.FileName);
+                            string skyboxVpk;
+
+                            if (targetmapname.EndsWith(".vmap")) // CS2
+                            {
+                                skyboxVpk = Path.Join(Path.GetDirectoryName(mapsFolder), string.Concat(targetmapname[..^5], ".vpk"));
+                                skyboxWorldPath = string.Concat(targetmapname[..^5], "/world.vwrld_c");
+                            }
+                            else
+                            {
+                                skyboxVpk = Path.Join(mapsFolder, mapName, $"{Path.GetFileNameWithoutExtension(targetmapname)}.vpk");
+                                skyboxWorldPath = $"maps/{mapName}/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
+                            }
+
+                            if (File.Exists(skyboxVpk))
+                            {
+                                var skyboxNewPackage = new SteamDatabase.ValvePak.Package();
+                                skyboxNewPackage.Read(skyboxVpk);
+
+                                guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(skyboxNewPackage);
+                                skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
+                            }
                         }
-                        else
+
+                        if (skyboxPackage != null)
                         {
-                            skyboxVpk = Path.Join(mapsFolder, mapName, $"{Path.GetFileNameWithoutExtension(targetmapname)}.vpk");
-                            skyboxWorldPath = $"maps/{mapName}/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
+                            result.Skybox = (World)skyboxPackage.DataBlock;
                         }
-
-                        if (File.Exists(skyboxVpk))
-                        {
-                            var skyboxNewPackage = new SteamDatabase.ValvePak.Package();
-                            skyboxNewPackage.Read(skyboxVpk);
-
-                            guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(skyboxNewPackage);
-                            skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
-                        }
-                    }
-
-                    if (skyboxPackage != null)
-                    {
-                        result.Skybox = (World)skyboxPackage.DataBlock;
                     }
                 }
                 else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
