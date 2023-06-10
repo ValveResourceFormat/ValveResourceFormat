@@ -32,6 +32,7 @@ namespace GUI.Types.Renderer
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
                 || material.IntParams.ContainsKey("F_BLEND_MODE") && material.IntParams["F_BLEND_MODE"] > 0
                 || material.ShaderName == "vr_glass.vfx"
+                || material.ShaderName == "vr_glass_markable.vfx"
                 || material.ShaderName == "csgo_glass.vfx"
                 || material.ShaderName == "csgo_effects.vfx"
                 || material.ShaderName == "tools_sprite.vfx";
