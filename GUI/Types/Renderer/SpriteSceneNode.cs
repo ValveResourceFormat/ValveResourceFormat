@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -79,7 +80,9 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            GL.UseProgram(shader.Program);
+            var renderShader = context.ReplacementShader ?? shader;
+
+            GL.UseProgram(renderShader.Program);
             GL.BindVertexArray(quadVao);
 
             var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
@@ -96,12 +99,19 @@ namespace GUI.Types.Renderer
             var test = billboardMatrix * scaleMatrix * translationMatrix;
             var test2 = test.ToOpenTK();
 
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
+            GL.UniformMatrix4(renderShader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
 
             var transformTk = Transform.ToOpenTK();
-            GL.UniformMatrix4(shader.GetUniformLocation("transform"), false, ref test2);
+            GL.UniformMatrix4(renderShader.GetUniformLocation("transform"), false, ref test2);
 
-            material.Render(shader);
+            var objectId = renderShader.GetUniformLocation("sceneObjectId");
+
+            if (objectId > -1)
+            {
+                GL.Uniform1(objectId, Id);
+            }
+
+            material.Render(renderShader);
 
             GL.Disable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
