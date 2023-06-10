@@ -5,14 +5,10 @@
 #include "animation.incl"
 //End of includes
 
-//Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define fulltangent 1
-//End of parameter defines
-
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
-#if fulltangent == 1
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     in vec4 vTANGENT;
 #endif
 
@@ -37,7 +33,7 @@ void main()
     mat3 normalTransform = transpose(inverse(mat3(skinTransformMatrix)));
 
     //Unpack normals
-#if fulltangent == 1
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     vNormalOut = normalize(normalTransform * vNORMAL.xyz);
     vTangentOut = normalize(normalTransform * vTANGENT.xyz);
     vBitangentOut = cross(vNormalOut, vTangentOut);

@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
-                        shaderArguments.Add("fulltangent", 0);
+                        shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", 1);
                     }
 
                     if (Mesh.HasBakedLightingFromLightMap(objectDrawCall)

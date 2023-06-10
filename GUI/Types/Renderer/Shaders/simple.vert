@@ -6,7 +6,6 @@
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define fulltangent 1
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
@@ -43,7 +42,7 @@ in vec2 vTEXCOORD;
     in vec4 vBLEND_COLOR;
     out vec4 vColorBlendValues;
 #endif
-#if fulltangent == 1
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     in vec3 vTANGENT;
 #endif
 #if F_VERTEX_COLOR == 1
@@ -76,7 +75,7 @@ void main()
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
 
     //Unpack normals
-#if fulltangent == 1
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     vNormalOut = normalize(normalTransform * vNORMAL.xyz);
     vTangentOut = normalize(normalTransform * vTANGENT.xyz);
     vBitangentOut = cross(vNormalOut, vTangentOut);
