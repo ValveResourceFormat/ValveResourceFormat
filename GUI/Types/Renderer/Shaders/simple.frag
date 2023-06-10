@@ -71,7 +71,7 @@ uniform vec4 g_vTexCoordScale;
 uniform float g_flAlphaTestReference = 0.5;
 
 // glass specific params
-#if F_GLASS == 1
+#if F_GLASS == 1 || defined(vr_glass)
 uniform bool g_bFresnel = true;
 uniform float g_flEdgeColorFalloff = 3.0;
 uniform float g_flEdgeColorMaxOpacity = 0.5;
