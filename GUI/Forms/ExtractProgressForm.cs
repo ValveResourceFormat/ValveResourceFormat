@@ -120,11 +120,13 @@ namespace GUI.Forms
             {
                 Console.Error.WriteLine(t.Exception);
                 SetProgress(t.Exception.ToString());
+
+                cancellationTokenSource.Cancel();
             }
 
             Invoke(() =>
             {
-                Text = "VRF - Export completed";
+                Text = t.IsFaulted ? "VRF - Export failed, check console for details" : "VRF - Export completed";
                 cancelButton.Text = "Close";
                 extractProgressBar.Value = 100;
                 extractProgressBar.Style = ProgressBarStyle.Blocks;

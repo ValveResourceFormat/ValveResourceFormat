@@ -1117,6 +1117,8 @@ namespace ValveResourceFormat.IO
         {
             await Task.Yield(); // Yield as the first step so it doesn't actually block
 
+            CancellationToken.ThrowIfCancellationRequested();
+
             renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
             renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
 
