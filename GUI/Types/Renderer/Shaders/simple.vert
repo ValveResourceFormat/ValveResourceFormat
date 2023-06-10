@@ -11,10 +11,14 @@
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 
+#define F_NOTINT 0
 #define F_VERTEX_COLOR 0
 #define F_LAYERS 0
-#define simple_2way_blend 0
 //End of parameter defines
+
+#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
+    #define simple_2way_blend
+#endif
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
@@ -30,7 +34,7 @@ in vec2 vTEXCOORD;
 #endif
 
 #if F_LAYERS > 0
-    #if simple_2way_blend == 1
+    #if defined(simple_2way_blend)
         #define vBLEND_COLOR vTEXCOORD2
     #else
         // ligthtmappedgeneric - real semantic index is 4
@@ -44,9 +48,9 @@ in vec2 vTEXCOORD;
 #endif
 #if F_VERTEX_COLOR == 1
     in vec4 vCOLOR;
-    out vec4 vColorOut;
 #endif
 
+out vec4 vVertexColorOut;
 out vec3 vFragPosition;
 
 out vec3 vNormalOut;
@@ -54,6 +58,10 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 
 out vec2 vTexCoordOut;
+
+uniform vec4 m_vTintColorSceneObject;
+uniform vec3 m_vTintColorDrawCall;
+uniform vec4 g_vColorTint = vec4(1.0);
 
 uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
@@ -87,8 +95,14 @@ void main()
     vPerVertexLightingOut = vPerVertexLighting;
 #endif
 
+    vVertexColorOut = vec4(1.0);
+#if F_NOTINT == 0
+    vVertexColorOut.rgb *= m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
+    vVertexColorOut.rgb *= g_vColorTint.rgb;
+#endif
+
 #if F_VERTEX_COLOR == 1
-    vColorOut = vCOLOR;
+    //vVertexColorOut *= vCOLOR;
 #endif
 
 #if F_LAYERS > 0

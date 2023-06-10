@@ -2,11 +2,10 @@
 
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
+#define renderMode_PBR 0
 #define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
-
-#define F_VERTEX_COLOR 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define LightmapGameVersionNumber 0
@@ -15,14 +14,18 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
+#define F_UNLIT 0
 #define F_TINT_MASK 0
 #define F_ALPHA_TEST 0
 #define F_GLASS 0
 #define F_LAYERS 0
 #define F_FANCY_BLENDING 0
-#define simple_2way_blend 0
 #define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
+
+#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
+    #define simple_2way_blend
+#endif
 
 in vec3 vFragPosition;
 
@@ -30,9 +33,7 @@ in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
-#if F_VERTEX_COLOR == 1
-    in vec4 vColorOut;
-#endif
+in vec4 vVertexColorOut;
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
@@ -49,7 +50,7 @@ in vec2 vTexCoordOut;
     in vec4 vPerVertexLightingOut;
 #endif
 
-#if (simple_2way_blend == 1 || F_LAYERS > 0)
+#if (defined(simple_2way_blend) || F_LAYERS > 0)
     in vec4 vColorBlendValues;
     uniform sampler2D g_tLayer2Color;
     uniform sampler2D g_tLayer2NormalRoughness;
@@ -64,12 +65,8 @@ uniform sampler2D g_tTintMask;
 #include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
-uniform vec4 m_vTintColorSceneObject;
-uniform vec3 m_vTintColorDrawCall;
-
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
-uniform vec4 g_vColorTint;
 
 uniform float g_flAlphaTestReference = 0.5;
 
@@ -89,8 +86,17 @@ uniform float g_flOpacityScale = 1.0;
     uniform float g_flBlendSoftness;
 #endif
 
-#if (simple_2way_blend == 1)
+#if (defined(simple_2way_blend))
     uniform sampler2D g_tMask;
+#endif
+
+#if defined(csgo_character) || defined(csgo_weapon)
+    uniform sampler2D g_tMetalness;
+    uniform sampler2D g_tAmbientOcclusion;
+#endif
+
+#if defined(csgo_foliage)
+    uniform sampler2D g_tAmbientOcclusion;
 #endif
 
 vec3 oct_to_float32x3(vec2 e)
@@ -144,7 +150,7 @@ void main()
     vec4 color = texture(g_tColor, texCoord);
     vec4 normal = texture(g_tNormal, texCoord);
 
-#if (F_LAYERS > 0)
+#if (F_LAYERS > 0) || defined(simple_2way_blend)
     vec4 color2 = texture(g_tLayer2Color, texCoord);
     vec4 normal2 = texture(g_tLayer2NormalRoughness, texCoord);
     float blendFactor = vColorBlendValues.r;
@@ -170,7 +176,7 @@ void main()
         blendFactor = smoothstep(minb, maxb, blendFactor);
     #endif
 
-    #if (simple_2way_blend == 1)
+    #if (defined(simple_2way_blend))
         vec4 blendModTexel = texture(g_tMask, texCoord);
         blendFactor *= blendModTexel.r;
     #endif
@@ -186,14 +192,32 @@ void main()
     }
 #endif
 
-    // TODO: calculate tint in the vertex stage
-    vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
-
 #if F_TINT_MASK == 1
     float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
-    vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
+    vec3 tintFactor = tintStrength * vVertexColorOut.rgb + (1 - tintStrength) * vec3(1);
 #else
-    vec3 tintFactor = tintColor;
+    vec3 tintFactor = vVertexColorOut.rgb;
+#endif
+
+    vec3 albedo = color.rgb * tintFactor;
+    float opacity = color.a * vVertexColorOut.a;
+    float metalness = 0.0;
+    float roughness = normal.b;
+    float occlusion = 1.0;
+
+    vec3 irradiance = vec3(0.3);
+    vec3 Lo = vec3(0.0);
+    
+#if defined(csgo_character)
+    metalness = texture(g_tMetalness, texCoord).g;
+    // b = cloth, a = rimmask
+    occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+#elif defined(csgo_weapon)
+    roughness = texture(g_tMetalness, texCoord).r;
+    metalness = texture(g_tMetalness, texCoord).g;
+    occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+#elif defined(csgo_foliage)
+    occlusion = texture(g_tAmbientOcclusion, texCoord).r;
 #endif
 
     // Get the world normal for this fragment
@@ -202,24 +226,26 @@ void main()
     // Get the direction from the fragment to the light
     vec3 V = normalize(vEyePosition - vFragPosition);
 
-#if F_GLASS == 1
-    // TODO: make this receive lightmaps
-    vec4 glassColor = vec4(color.rgb * g_vColorTint.rgb, color.a);
-
-    float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
-    float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
-    vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);
-
-    outputColor = mix(glassColor, fresnelColor, g_flOpacityScale);
+#if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
+    outputColor = vec4(albedo, color.a);
 #else
-    outputColor = vec4(color.rgb * g_vColorTint.rgb * tintFactor, color.a);
+    #if (F_GLASS == 1) || defined(vr_glass)
+        float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
+        float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
+        vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);
+
+        vec4 glassResult = mix(vec4(albedo, opacity), fresnelColor, g_flOpacityScale);
+        albedo = glassResult.rgb;
+        opacity = glassResult.a;
+    #endif
+
+    outputColor = vec4(albedo, opacity);
 
     vec3 L = normalize(-getSunDir());
     vec3 H = normalize(V + L);
 
     vec3 F0 = vec3(0.04); 
-	F0 = mix(F0, color.rgb, 0.0);
-    vec3 Lo = vec3(0.0);
+	F0 = mix(F0, albedo, metalness);
 
     float visibility = 1.0;
 
@@ -243,23 +269,23 @@ void main()
 
     if (visibility > 0.0)
     {
-        Lo += specularContribution(L, V, N, F0, outputColor.rgb, 0.0, normal.b) * visibility;
+        Lo += specularContribution(L, V, N, F0, albedo, metalness, roughness) * visibility;
         Lo += diffuseLobe(max(dot(N, L), 0.0) * getSunColor(1.5)) * visibility;
     }
-
-    vec3 irradiance = vec3(0.5);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
         irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
         vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
         const float DirectionalLightmapMinZ = 0.05;
         irradiance *= mix(1.0, vAHDData.z, DirectionalLightmapMinZ);
+        occlusion *= vAHDData.w;
     #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
         irradiance = vPerVertexLightingOut.rgb;
     #endif
 
     float gamma = 2.2;
     irradiance = pow(irradiance, vec3(1.0/gamma));
+    Lo *= occlusion;
 
     outputColor.rgb *= irradiance;
     outputColor.rgb += Lo;
@@ -268,7 +294,7 @@ void main()
 #if renderMode_FullBright == 1
     vec3 illumination = vec3(max(0.0, dot(V, N)));
     illumination = illumination * 0.7 + 0.3;
-    outputColor = vec4(illumination * color.rgb, color.a);
+    outputColor = vec4(illumination * albedo, opacity);
 #endif
 
 #if renderMode_Color == 1
@@ -291,6 +317,10 @@ void main()
     outputColor = vec4(N * vec3(0.5) + vec3(0.5), 1.0);
 #endif
 
+#if renderMode_PBR == 1
+    outputColor = vec4(occlusion, roughness, metalness, 1.0);
+#endif
+
 #if renderMode_Illumination == 1
     outputColor = vec4(Lo, 1.0);
 #endif
@@ -299,8 +329,8 @@ void main()
     outputColor = vec4(irradiance, 1.0);
 #endif
 
-#if renderMode_VertexColor == 1 && F_VERTEX_COLOR == 1
-    outputColor = vColorOut == vec4(vec3(0), 1) ? outputColor : vColorOut;
+#if renderMode_VertexColor == 1
+    outputColor = vVertexColorOut;
 #endif
 
 #if renderMode_Terrain_Blend == 1 && F_LAYERS > 0

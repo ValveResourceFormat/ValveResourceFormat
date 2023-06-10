@@ -28,9 +28,9 @@ namespace GUI.Types.Renderer
             var shaderFileName = GetShaderFileByName(shaderName);
             arguments ??= EmptyArgs;
 
-            if (ShaderDefines.ContainsKey(shaderFileName))
+            if (ShaderDefines.ContainsKey(shaderName))
             {
-                var shaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
+                var shaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
 
                 if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
                 {
@@ -53,7 +53,7 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments);
+                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments, shaderName);
                 GL.ShaderSource(vertexShader, preprocessedShaderSource);
 
                 // Find defines supported from source
@@ -82,7 +82,7 @@ namespace GUI.Types.Renderer
             using (var reader = new StreamReader(stream))
             {
                 var shaderSource = reader.ReadToEnd();
-                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments);
+                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments, shaderName);
                 GL.ShaderSource(fragmentShader, preprocessedShaderSource);
 
                 // Find render modes supported from source, take union to avoid duplicates
@@ -131,8 +131,8 @@ namespace GUI.Types.Renderer
                 throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {programLog}");
             }
 
-            ShaderDefines[shaderFileName] = defines;
-            var newShaderCacheHash = CalculateShaderCacheHash(shaderFileName, arguments);
+            ShaderDefines[shaderName] = defines;
+            var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
 
             CachedShaders[newShaderCacheHash] = shader;
 
@@ -140,14 +140,18 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        private static string PreprocessShader(string source, IReadOnlyDictionary<string, byte> arguments)
+        private static string PreprocessShader(string source, IReadOnlyDictionary<string, byte> arguments,
+            string shaderName)
         {
             //Inject code into shader based on #includes
             var withCollapsedIncludes = ResolveIncludes(source);
 
             //Update parameter defines
             var withReplacedDefines = UpdateDefines(withCollapsedIncludes, arguments);
-            return withReplacedDefines;
+
+            // Define the original shader name
+            var withShaderName = DefineName(withReplacedDefines, Path.GetFileNameWithoutExtension(shaderName));
+            return withShaderName;
         }
 
         //Update default defines with possible overrides from the model
@@ -208,6 +212,13 @@ namespace GUI.Types.Renderer
         {
             var defines = RegexDefine.Matches(source);
             return defines.Select(match => match.Groups["ParamName"].Value).ToList();
+        }
+
+        private static string DefineName(string source, string name)
+        {
+            var sb = new StringBuilder(source);
+            sb.Insert(source.IndexOf('\n', StringComparison.Ordinal) + 1, $"#define {name}\n");
+            return sb.ToString();
         }
 
         // Map Valve's shader names to shader files VRF has
@@ -277,12 +288,12 @@ namespace GUI.Types.Renderer
             GC.SuppressFinalize(this);
         }
 
-        private uint CalculateShaderCacheHash(string shaderFileName, IReadOnlyDictionary<string, byte> arguments)
+        private uint CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
-            shaderCacheHashString.AppendLine(shaderFileName);
+            shaderCacheHashString.AppendLine(shaderName);
 
-            var parameters = ShaderDefines[shaderFileName].Intersect(arguments.Keys);
+            var parameters = ShaderDefines[shaderName].Intersect(arguments.Keys);
 
             foreach (var key in parameters)
             {
