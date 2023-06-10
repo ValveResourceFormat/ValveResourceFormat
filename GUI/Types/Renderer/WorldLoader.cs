@@ -310,10 +310,10 @@ namespace GUI.Types.Renderer
                     EntityData = entity,
                 };
 
-                if (animation != default)
+                // Animation
                 {
                     modelNode.LoadAnimations();
-                    modelNode.SetAnimation(animation);
+                    modelNode.SetAnimationForWorldPreview(animation);
 
                     var holdAnimation = entity.GetProperty("holdanimation");
                     if (holdAnimation != default)
@@ -415,6 +415,10 @@ namespace GUI.Types.Renderer
                     Name = filename,
                     EntityData = entity,
                 };
+
+                modelNode.LoadAnimations();
+                modelNode.SetAnimationForWorldPreview("tools_preview");
+
                 scene.Add(modelNode, false);
             }
             else if (resource.ResourceType == ResourceType.Material)

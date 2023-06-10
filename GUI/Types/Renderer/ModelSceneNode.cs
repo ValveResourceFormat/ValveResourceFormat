@@ -216,14 +216,32 @@ namespace GUI.Types.Renderer
         public void SetAnimation(string animationName)
         {
             var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+            SetAnimation(activeAnimation);
+        }
+
+        public void SetAnimationForWorldPreview(string animationName)
+        {
+            // TODO: How does Hammer select animations?
+            animationName ??= "idle";
+
+            var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName || (a.Name[0] == '@' && a.Name[1..] == animationName));
+
+            if (activeAnimation != null)
+            {
+                SetAnimation(activeAnimation);
+            }
+        }
+
+        public void SetAnimation(Animation activeAnimation)
+        {
             AnimationController.SetAnimation(activeAnimation);
             UpdateBoundingBox();
 
             if (activeAnimation != default)
             {
-                for (var i = 0; i < meshRenderers.Count; i++)
+                foreach (var renderer in meshRenderers)
                 {
-                    meshRenderers[i].SetAnimationTexture(animationTexture, Model.Skeleton.Bones.Length);
+                    renderer.SetAnimationTexture(animationTexture, Model.Skeleton.Bones.Length);
                 }
             }
             else
