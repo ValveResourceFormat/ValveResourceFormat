@@ -27,7 +27,7 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<string, string[]> TextureAliases = new()
         {
             ["g_tLayer2Color"] = new[] { "g_tColorB" },
-            ["g_tColor"] = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC" },
+            ["g_tColor"] = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust" },
             ["g_tNormal"] = new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" },
             ["g_tLayer2NormalRoughness"] = new[] { "g_tNormalB" },
         };
