@@ -113,7 +113,6 @@ namespace GUI.Types.Renderer
             mat.Textures.TryAdd("g_tTintMask", GetDefaultMask());
             mat.Material.VectorParams.TryAdd("g_vTexCoordScale", Vector4.One);
             mat.Material.VectorParams.TryAdd("g_vTexCoordOffset", Vector4.Zero);
-            mat.Material.VectorParams.TryAdd("g_vColorTint", Vector4.One);
 
             return mat;
         }

@@ -126,17 +126,6 @@ namespace ValveResourceFormat.ResourceTypes
                 arguments.Add("HemiOctIsoRoughness_RG_B", 1);
             }
 
-            if (ShaderName == "vr_glass.vfx")
-            {
-                arguments.Add("F_GLASS", 1);
-            }
-
-            if (ShaderName.EndsWith("2way_blend.vfx", StringComparison.OrdinalIgnoreCase))
-            {
-                arguments.Add("F_LAYERS", 1);
-                arguments.Add("simple_2way_blend", 1);
-            }
-
             return arguments;
         }
     }
