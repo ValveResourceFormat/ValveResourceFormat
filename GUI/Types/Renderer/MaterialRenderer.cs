@@ -20,10 +20,10 @@ namespace GUI.Types.Renderer
         {
             material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
             shader = material.Shader;
-            quadVao = SetupQuadBuffer();
+            quadVao = SetupSquareQuadBuffer(shader);
         }
 
-        private int SetupQuadBuffer()
+        public static int SetupSquareQuadBuffer(Shader shader)
         {
             GL.UseProgram(shader.Program);
 

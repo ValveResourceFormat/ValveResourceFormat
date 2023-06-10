@@ -24,58 +24,12 @@ namespace GUI.Types.Renderer
             material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
             shader = material.Shader;
 
-            if (quadVao == 0)
-            {
-                quadVao = SetupQuadBuffer();
-            }
-
+            quadVao = MaterialRenderer.SetupSquareQuadBuffer(shader);
             size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
 
             this.position = position;
             var size3 = new Vector3(size);
             LocalBoundingBox = new AABB(position - size3, position + size3);
-        }
-
-        private int SetupQuadBuffer()
-        {
-            GL.UseProgram(shader.Program);
-
-            var vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
-
-            var vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-
-            var vertices = new[]
-            {
-                // position          ; texcoord
-                -1.0f, -1.0f, 0.0f,  0.0f, 1.0f,
-                -1.0f, 1.0f, 0.0f,   0.0f, 0.0f,
-                1.0f, -1.0f, 0.0f,   1.0f, 1.0f,
-                1.0f, 1.0f, 0.0f,    1.0f, 0.0f,
-            };
-
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
-
-            var attributes = new List<(string Name, int Size)>
-            {
-                ("vPOSITION", 3),
-                ("vTEXCOORD", 2),
-            };
-            var stride = sizeof(float) * attributes.Sum(x => x.Size);
-            var offset = 0;
-
-            foreach (var (Name, Size) in attributes)
-            {
-                var attributeLocation = GL.GetAttribLocation(shader.Program, Name);
-                GL.EnableVertexAttribArray(attributeLocation);
-                GL.VertexAttribPointer(attributeLocation, Size, VertexAttribPointerType.Float, false, stride, offset);
-                offset += sizeof(float) * Size;
-            }
-
-            GL.BindVertexArray(0);
-
-            return vao;
         }
 
         public override void Render(Scene.RenderContext context)
