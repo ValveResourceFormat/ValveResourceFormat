@@ -71,7 +71,7 @@ uniform vec4 g_vTexCoordScale;
 uniform float g_flAlphaTestReference = 0.5;
 
 // glass specific params
-#if F_GLASS == 1 || defined(vr_glass)
+#if (F_GLASS == 1) || defined(vr_glass) || defined(csgo_glass)
 uniform bool g_bFresnel = true;
 uniform float g_flEdgeColorFalloff = 3.0;
 uniform float g_flEdgeColorMaxOpacity = 0.5;
@@ -229,7 +229,7 @@ void main()
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
 #else
-    #if (F_GLASS == 1) || defined(vr_glass)
+    #if (F_GLASS == 1) || defined(vr_glass) || defined(csgo_glass)
         float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
         float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
         vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);

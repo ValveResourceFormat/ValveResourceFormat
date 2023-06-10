@@ -1122,7 +1122,7 @@ namespace ValveResourceFormat.IO
             renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
             renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
 
-            if (renderMaterial.ShaderName == "vr_glass.vfx")
+            if (renderMaterial.ShaderName.EndsWith("_glass.vfx", StringComparison.InvariantCulture))
             {
                 isTranslucent = 1;
             }
