@@ -6,6 +6,8 @@
     Note: #include is not standard GLSL functionality and is resolved by VRF before compiling the shader.
 */
 
+#define D_COMPRESSED_NORMALS_AND_TANGENTS 0
+
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
 vec4 DecompressTangent( vec4 inputNormal )
 {

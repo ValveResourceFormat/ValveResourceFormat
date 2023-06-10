@@ -4,17 +4,13 @@
 #include "compression.incl"
 //End of includes
 
-//Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define fulltangent 1
-//End of parameter defines
-
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 in vec4 vTEXCOORD1;
 in vec4 vTEXCOORD2;
 in vec4 vTEXCOORD3;
-#if fulltangent == 1
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     in vec4 vTANGENT;
 #endif
 in ivec4 vBLENDINDICES;
@@ -42,7 +38,7 @@ void main()
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     //Unpack normals
-#if fulltangent == 1
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     vNormalOut = vNORMAL.xyz;
     vBitangentOut = vTANGENT.xyz;
 #else
