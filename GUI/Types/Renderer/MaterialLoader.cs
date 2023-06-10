@@ -108,11 +108,7 @@ namespace GUI.Types.Renderer
                 mat.Textures["g_tColor"] = GenerateColorTexture(1, 1, new[] { a.X, a.Y, a.Z, a.W });
             }
 
-            mat.Textures.TryAdd("g_tColor", GetErrorTexture());
-            mat.Textures.TryAdd("g_tNormal", GetDefaultNormal());
-            mat.Textures.TryAdd("g_tTintMask", GetDefaultMask());
-            mat.Material.VectorParams.TryAdd("g_vTexCoordScale", Vector4.One);
-            mat.Material.VectorParams.TryAdd("g_vTexCoordOffset", Vector4.Zero);
+            ApplyMaterialDefaults(mat);
 
             return mat;
         }
@@ -333,11 +329,32 @@ namespace GUI.Types.Renderer
         {
             var materialData = new VrfMaterial { ShaderName = "vrf.error" };
             var errorMat = new RenderMaterial(materialData, null, VrfGuiContext.ShaderLoader);
-            errorMat.Textures["g_tColor"] = GetErrorTexture();
+
+            ApplyMaterialDefaults(errorMat);
 
             return errorMat;
         }
 
+        private void ApplyMaterialDefaults(RenderMaterial mat)
+        {
+            if (!mat.Textures.ContainsKey("g_tColor"))
+            {
+                mat.Textures["g_tColor"] = GetErrorTexture();
+            }
+
+            if (!mat.Textures.ContainsKey("g_tNormal"))
+            {
+                mat.Textures["g_tNormal"] = GetDefaultNormal();
+            }
+
+            if (!mat.Textures.ContainsKey("g_tTintMask"))
+            {
+                mat.Textures["g_tTintMask"] = GetDefaultMask();
+            }
+
+            mat.Material.VectorParams.TryAdd("g_vTexCoordScale", Vector4.One);
+            mat.Material.VectorParams.TryAdd("g_vTexCoordOffset", Vector4.Zero);
+        }
 
         public RenderTexture GetErrorTexture()
         {
