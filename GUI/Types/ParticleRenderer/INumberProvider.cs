@@ -35,6 +35,20 @@ namespace GUI.Types.ParticleRenderer
         public double NextNumber() => min + (Random.Shared.NextDouble() * (max - min));
     }
 
+    public readonly struct BiasedRandomNumberProvider : INumberProvider
+    {
+        private readonly RandomNumberProvider rng;
+        private readonly double exponent;
+
+        public BiasedRandomNumberProvider(double min, double max, double exponent)
+        {
+            this.exponent = exponent;
+            this.rng = new RandomNumberProvider(min, max);
+        }
+
+        public double NextNumber() => Math.Pow(rng.NextNumber(), exponent);
+    }
+
     public static class INumberProviderExtensions
     {
         public static INumberProvider GetNumberProvider(this IKeyValueCollection keyValues, string propertyName)
@@ -50,10 +64,10 @@ namespace GUI.Types.ParticleRenderer
                         return new LiteralNumberProvider(numberProviderParameters.GetDoubleProperty("m_flLiteralValue"));
 
                     case "PF_TYPE_RANDOM_BIASED":
-                        // TODO: Implement biased random
-                        return new RandomNumberProvider(
+                        return new BiasedRandomNumberProvider(
                             numberProviderParameters.GetDoubleProperty("m_flRandomMin"),
-                            numberProviderParameters.GetDoubleProperty("m_flRandomMax")
+                            numberProviderParameters.GetDoubleProperty("m_flRandomMax"),
+                            numberProviderParameters.GetDoubleProperty("m_flBiasParameter")
                         );
 
                     case "PF_TYPE_RANDOM_UNIFORM":
@@ -66,6 +80,14 @@ namespace GUI.Types.ParticleRenderer
                             numberProviderParameters.GetDoubleProperty("m_flRandomMin"),
                             numberProviderParameters.GetDoubleProperty("m_flRandomMax")
                         );
+
+                    case "PF_TYPE_CONTROL_POINT_COMPONENT":
+                        // No control points in our renderer (yet?), falling back to 0
+                        return new LiteralNumberProvider(0);
+
+                    case "PF_TYPE_PARTICLE_FLOAT":
+                        // idk what this is
+                        return new LiteralNumberProvider(0);
 
                     default:
                         if (numberProviderParameters.ContainsKey("m_flLiteralValue"))

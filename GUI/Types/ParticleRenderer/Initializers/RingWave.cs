@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private readonly bool evenDistribution;
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
-        private readonly float thickness;
+        private readonly INumberProvider thickness = new LiteralNumberProvider(1);
         private readonly float particlesPerOrbit = -1f;
         private float orbitCount;
 
@@ -31,17 +31,17 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (keyValues.ContainsKey("m_flThickness"))
             {
-                thickness = keyValues.GetFloatProperty("m_flThickness");
+                thickness = keyValues.GetNumberProvider("m_flThickness");
             }
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var radius = (float)initialRadius.NextNumber() + ((float)Random.Shared.NextDouble() * thickness);
+            var radius = initialRadius.NextNumber() + (Random.Shared.NextDouble() * thickness.NextNumber());
 
             var angle = GetNextAngle();
 
-            particle.Position += radius * new Vector3((float)Math.Cos(angle), (float)Math.Sin(angle), 0);
+            particle.Position += (float)radius * new Vector3((float)Math.Cos(angle), (float)Math.Sin(angle), 0);
 
             return particle;
         }

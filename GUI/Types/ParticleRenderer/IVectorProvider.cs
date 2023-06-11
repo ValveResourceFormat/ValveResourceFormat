@@ -39,6 +39,8 @@ namespace GUI.Types.ParticleRenderer
                 {
                     case "PVEC_TYPE_LITERAL":
                         return new LiteralVectorProvider(numberProviderParameters.GetArray<double>("m_vLiteralValue"));
+                    case "PVEC_TYPE_FLOAT_COMPONENTS":
+                        return new LiteralVectorProvider(new double[] { 0.0, 0.0, 0.0 });
                     default:
                         if (numberProviderParameters.ContainsKey("m_vLiteralValue"))
                         {

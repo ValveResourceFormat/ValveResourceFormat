@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
@@ -47,7 +48,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                     }
                 case ParticleAttribute.Roll:
                     {
-                        particle.Rotation = new Vector3(0.0f, 0.0f, (float)value.NextNumber());
+                        particle.Rotation = new Vector3(0.0f, 0.0f, (float)(value.NextNumber() * Math.PI / 180.0));
                         break;
                     }
 

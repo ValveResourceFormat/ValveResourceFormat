@@ -4,6 +4,7 @@ using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Renderers
@@ -64,14 +65,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
-                /* TODO: Support strings here
-                PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED
-                PARTICLE_ORIENTATION_WORLD_Z_ALIGNED
-                PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
-                PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL
-                */
-                orientationType = keyValues.GetIntegerProperty("m_nOrientationType");
+                orientationType = (long)keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType");
             }
 
             if (keyValues.ContainsKey("m_flAnimationRate"))
@@ -177,7 +171,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                     var particleTime = particles[i].ConstantLifetime - particles[i].Lifetime;
 
-                    var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * particleTime / particles[i].ConstantLifetime)];
+                    var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * animationRate * particleTime / particles[i].ConstantLifetime) % sequence.Frames.Length];
                     var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
 
                     // Lerp frame coords and size

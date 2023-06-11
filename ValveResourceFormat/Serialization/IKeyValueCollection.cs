@@ -95,6 +95,19 @@ namespace ValveResourceFormat.Serialization
         public static IKeyValueCollection[] GetArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<IKeyValueCollection>(name);
 
+        public static TEnum GetEnumValue<TEnum>(this IKeyValueCollection collection, string name) where TEnum : Enum
+        {
+            var strValue = collection.GetProperty<string>(name);
+            if (Enum.TryParse(typeof(TEnum), strValue, false, out var value))
+            {
+                return (TEnum)value;
+            }
+            else
+            {
+                throw new ArgumentException($"Unable to map {strValue} to a member of enum {typeof(TEnum).Name}");
+            }
+        }
+
         public static bool IsNotBlobType(this IKeyValueCollection collection, string key)
             => collection is NTROStruct || ((KVObject)collection).Properties[key].Type == KVType.ARRAY;
 
