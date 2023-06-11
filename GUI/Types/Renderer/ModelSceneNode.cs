@@ -221,10 +221,14 @@ namespace GUI.Types.Renderer
 
         public void SetAnimationForWorldPreview(string animationName)
         {
-            // TODO: How does Hammer select animations?
-            animationName ??= "idle";
+            Animation activeAnimation = null;
 
-            var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName || (a.Name[0] == '@' && a.Name[1..] == animationName));
+            if (animationName != null)
+            {
+                activeAnimation = animations.FirstOrDefault(a => a.Name == animationName || (a.Name[0] == '@' && a.Name[1..] == animationName));
+            }
+
+            activeAnimation ??= animations.FirstOrDefault(); // Fallback to the first animation
 
             if (activeAnimation != null)
             {
