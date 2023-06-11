@@ -176,25 +176,22 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     var sequence = spriteSheetData.Sequences[particles[i].Sequence % spriteSheetData.Sequences.Length];
 
                     var particleTime = particles[i].ConstantLifetime - particles[i].Lifetime;
-                    var frame = particleTime * sequence.FramesPerSecond * animationRate;
 
-                    var currentFrame = sequence.Frames[(int)Math.Floor(frame) % sequence.Frames.Length];
+                    var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * particleTime / particles[i].ConstantLifetime)];
                     var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
 
                     // Lerp frame coords and size
-                    var subFrameTime = frame % 1.0f;
-                    var offset = (currentImage.CroppedMin * (1 - subFrameTime)) + (currentImage.UncroppedMin * subFrameTime);
-                    var scale = ((currentImage.CroppedMax - currentImage.CroppedMin) * (1 - subFrameTime))
-                            + ((currentImage.UncroppedMax - currentImage.UncroppedMin) * subFrameTime);
+                    var offset = currentImage.CroppedMin;
+                    var scale = currentImage.CroppedMax - currentImage.CroppedMin;
 
-                    rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X + (scale.X * 0);
-                    rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + (scale.Y * 1);
-                    rawVertices[quadStart + (VertexSize * 1) + 7] = offset.X + (scale.X * 0);
-                    rawVertices[quadStart + (VertexSize * 1) + 8] = offset.Y + (scale.Y * 0);
-                    rawVertices[quadStart + (VertexSize * 2) + 7] = offset.X + (scale.X * 1);
-                    rawVertices[quadStart + (VertexSize * 2) + 8] = offset.Y + (scale.Y * 0);
-                    rawVertices[quadStart + (VertexSize * 3) + 7] = offset.X + (scale.X * 1);
-                    rawVertices[quadStart + (VertexSize * 3) + 8] = offset.Y + (scale.Y * 1);
+                    rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X;
+                    rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + scale.Y;
+                    rawVertices[quadStart + (VertexSize * 1) + 7] = offset.X;
+                    rawVertices[quadStart + (VertexSize * 1) + 8] = offset.Y;
+                    rawVertices[quadStart + (VertexSize * 2) + 7] = offset.X + scale.X;
+                    rawVertices[quadStart + (VertexSize * 2) + 8] = offset.Y;
+                    rawVertices[quadStart + (VertexSize * 3) + 7] = offset.X + scale.X;
+                    rawVertices[quadStart + (VertexSize * 3) + 8] = offset.Y + scale.Y;
                 }
                 else
                 {
@@ -250,7 +247,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref otkProjection);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor.NextNumber());
+            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), (float)overbrightFactor.NextNumber());
 
             GL.Disable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);

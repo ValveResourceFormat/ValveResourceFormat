@@ -22,6 +22,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (Count < particles.Length)
             {
+                particles[Count] = new Particle();
                 return Count++;
             }
             else if (isGrowable)

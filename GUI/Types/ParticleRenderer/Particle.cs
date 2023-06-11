@@ -43,42 +43,48 @@ namespace GUI.Types.ParticleRenderer
 
         public Vector3 Velocity { get; set; }
 
-        public Particle(IKeyValueCollection baseProperties)
+        public Particle()
         {
             ParticleCount = 0;
             Alpha = 1.0f;
             AlphaAlternate = 1.0f;
+            Color = Vector3.One;
+            Lifetime = 1f;
             Position = Vector3.Zero;
             PositionPrevious = Vector3.Zero;
+            Radius = 5.0f;
             Rotation = Vector3.Zero;
             RotationSpeed = Vector3.Zero;
             Velocity = Vector3.Zero;
-            ConstantRadius = 5.0f;
-            ConstantAlpha = 1.0f;
-            ConstantColor = Vector3.One;
-            ConstantLifetime = 1;
             TrailLength = 1;
             Sequence = 0;
 
+            ConstantAlpha = Alpha;
+            ConstantColor = Color;
+            ConstantLifetime = Lifetime;
+            ConstantRadius = Radius;
+        }
+
+        public Particle(IKeyValueCollection baseProperties) : this()
+        {
             if (baseProperties.ContainsKey("m_ConstantColor"))
             {
                 var vectorValues = baseProperties.GetIntegerArray("m_ConstantColor");
                 ConstantColor = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
+                Color = ConstantColor;
             }
 
             if (baseProperties.ContainsKey("m_flConstantRadius"))
             {
                 ConstantRadius = baseProperties.GetFloatProperty("m_flConstantRadius");
+                Radius = ConstantRadius;
             }
 
             if (baseProperties.ContainsKey("m_flConstantLifespan"))
             {
                 ConstantLifetime = baseProperties.GetFloatProperty("m_flConstantLifespan");
+                Lifetime = ConstantLifetime;
             }
-
-            Color = ConstantColor;
-            Lifetime = ConstantLifetime;
-            Radius = ConstantRadius;
         }
 
         public Matrix4x4 GetTransformationMatrix()

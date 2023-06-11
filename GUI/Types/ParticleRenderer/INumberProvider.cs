@@ -49,6 +49,13 @@ namespace GUI.Types.ParticleRenderer
                     case "PF_TYPE_LITERAL":
                         return new LiteralNumberProvider(numberProviderParameters.GetDoubleProperty("m_flLiteralValue"));
 
+                    case "PF_TYPE_RANDOM_BIASED":
+                        // TODO: Implement biased random
+                        return new RandomNumberProvider(
+                            numberProviderParameters.GetDoubleProperty("m_flRandomMin"),
+                            numberProviderParameters.GetDoubleProperty("m_flRandomMax")
+                        );
+
                     case "PF_TYPE_RANDOM_UNIFORM":
                         if (numberProviderParameters.GetStringProperty("m_nRandomMode") != "PF_RANDOM_MODE_CONSTANT")
                         {
