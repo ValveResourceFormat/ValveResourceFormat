@@ -56,7 +56,7 @@ namespace GUI.Types.Renderer
 
             if (lightingInfo != default)
             {
-                textures = Textures.Concat(lightingInfo?.Lightmaps);
+                textures = Textures.Concat(lightingInfo.Lightmaps);
 
                 uniformLocation = shader.GetUniformLocation("g_vLightmapUvScale");
 

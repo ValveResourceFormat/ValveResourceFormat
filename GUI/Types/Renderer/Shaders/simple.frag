@@ -54,7 +54,7 @@ in vec4 vVertexColorOut;
     uniform sampler2D g_tLPV_Irradiance;
     #if (LightmapGameVersionNumber == 1)
         uniform sampler2D g_tLPV_Indices;
-        uniform sampler2DArray g_tLPV_Scalars;
+        uniform sampler2D g_tLPV_Scalars;
     #elif (LightmapGameVersionNumber == 2)
         uniform sampler2D g_tLPV_Shadows;
     #endif

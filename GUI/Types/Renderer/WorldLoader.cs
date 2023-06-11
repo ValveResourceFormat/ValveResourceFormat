@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -243,11 +244,13 @@ namespace GUI.Types.Renderer
                         entity.GetProperty<string>("cubemaptexture")
                     );
 
+                    scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
+
                     var arrayIndexData = entity.GetProperty("array_index")?.Data;
                     var arrayIndex = arrayIndexData switch
                     {
                         int i => i,
-                        string s => int.Parse(s),
+                        string s => int.Parse(s, CultureInfo.InvariantCulture),
                         _ => 0,
                     };
 
