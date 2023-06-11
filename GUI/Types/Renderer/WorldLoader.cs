@@ -198,9 +198,6 @@ namespace GUI.Types.Renderer
                     classname == "sky_camera" ||
                     classname == "point_devshot_camera" ||
                     classname == "point_camera";
-                var isTrigger =
-                    classname.Contains("trigger", StringComparison.InvariantCulture) ||
-                    classname == "post_processing_volume";
 
                 var positionVector = transformationMatrix.Translation;
 
@@ -272,7 +269,7 @@ namespace GUI.Types.Renderer
                     objColor.W = colourBytes[3] / 255.0f;
                 }
 
-                if (!isTrigger && model == null)
+                if (model == null)
                 {
                     AddToolModel(scene, classname, transformationMatrix, positionVector);
                     continue;
