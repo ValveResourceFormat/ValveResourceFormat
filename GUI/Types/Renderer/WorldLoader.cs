@@ -231,6 +231,76 @@ namespace GUI.Types.Renderer
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                     };
                 }
+                else if (classname == "env_combined_light_probe_volume")
+                {
+                    var handShakeString = entity.GetProperty<string>("handshake");
+                    if (!int.TryParse(handShakeString, out var handShake))
+                    {
+                        handShake = 0;
+                    }
+
+                    var envMapTexture = guiContext.MaterialLoader.GetTexture(
+                        entity.GetProperty<string>("cubemaptexture")
+                    );
+
+                    var arrayIndexData = entity.GetProperty("array_index")?.Data;
+                    var arrayIndex = arrayIndexData switch
+                    {
+                        int i => i,
+                        string s => int.Parse(s),
+                        _ => 0,
+                    };
+
+                    var irradianceTexture = guiContext.MaterialLoader.GetTexture(
+                        entity.GetProperty<string>("lightprobetexture")
+                    );
+
+                    var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
+
+                    var bounds = new AABB(
+                        entity.GetProperty<Vector3>("box_mins"),
+                        entity.GetProperty<Vector3>("box_maxs")
+                    );
+
+                    var envMap = new SceneEnvMap(scene, bounds)
+                    {
+                        LayerName = layerName,
+                        Transform = transform,
+                        HandShake = handShake,
+                        ArrayIndex = arrayIndex,
+                        EnvMapTexture = envMapTexture,
+                    };
+
+                    var lightProbe = new SceneLightProbe(scene, bounds)
+                    {
+                        LayerName = layerName,
+                        Transform = transform,
+                        HandShake = handShake,
+                        Irradiance = irradianceTexture,
+                    };
+
+                    var dliName = entity.GetProperty<string>("lightprobetexture_dli");
+                    var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
+                    var dlsdName = entity.GetProperty<string>("lightprobetexture_dlsd");
+
+                    if (dlsName != null)
+                    {
+                        lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
+                    }
+
+                    if (dliName != null)
+                    {
+                        lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
+                    }
+
+                    if (dlsdName != null)
+                    {
+                        lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+                    }
+
+                    scene.Add(envMap, false);
+                    scene.Add(lightProbe, false);
+                }
 
                 var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
 

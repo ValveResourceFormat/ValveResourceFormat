@@ -18,6 +18,7 @@ namespace GUI.Types.Renderer
     public class MaterialLoader
     {
         private readonly Dictionary<string, RenderMaterial> Materials = new();
+        private readonly Dictionary<string, RenderTexture> Textures = new();
         private readonly VrfGuiContext VrfGuiContext;
         private RenderTexture ErrorTexture;
         private RenderTexture DefaultNormal;
@@ -94,7 +95,7 @@ namespace GUI.Types.Renderer
             {
                 if (mat.Shader.GetUniformLocation(name) != -1)
                 {
-                    mat.Textures[name] = LoadTexture(path);
+                    mat.Textures[name] = GetTexture(path);
                     return true;
                 }
 
@@ -111,6 +112,19 @@ namespace GUI.Types.Renderer
             ApplyMaterialDefaults(mat);
 
             return mat;
+        }
+
+
+        public RenderTexture GetTexture(string name)
+        {
+            if (Textures.TryGetValue(name, out var tex))
+            {
+                return tex;
+            }
+
+            tex = LoadTexture(name);
+            Textures.Add(name, tex);
+            return tex;
         }
 
         public RenderTexture LoadTexture(string name)
