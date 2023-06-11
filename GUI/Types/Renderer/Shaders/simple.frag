@@ -3,6 +3,7 @@
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
 #define renderMode_PBR 0
+#define renderMode_EnvironmentMap 0
 #define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
@@ -11,6 +12,8 @@
 #define LightmapGameVersionNumber 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
+
+#define S_SPECULAR 1 // Indirect
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
@@ -45,9 +48,20 @@ in vec4 vVertexColorOut;
     #elif (LightmapGameVersionNumber == 2)
         uniform sampler2DArray g_tDirectLightShadows;
     #endif
-
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     in vec4 vPerVertexLightingOut;
+#else
+    uniform sampler2D g_tLPV_Irradiance;
+    #if (LightmapGameVersionNumber == 1)
+        uniform sampler2D g_tLPV_Indices;
+        uniform sampler2DArray g_tLPV_Scalars;
+    #elif (LightmapGameVersionNumber == 2)
+        uniform sampler2D g_tLPV_Shadows;
+    #endif
+#endif
+
+#if (S_SPECULAR == 1)
+    uniform samplerCube g_tEnvironmentMap;
 #endif
 
 #if (defined(simple_2way_blend) || F_LAYERS > 0)
@@ -223,8 +237,11 @@ void main()
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal);
 
-    // Get the direction from the fragment to the light
+    // Get the view direction vector for this fragment
     vec3 V = normalize(vEyePosition - vFragPosition);
+
+    // Get the reflection vector for this fragment
+    vec3 R = normalize(reflect(V, N));
 
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
@@ -319,6 +336,10 @@ void main()
 
 #if renderMode_PBR == 1
     outputColor = vec4(occlusion, roughness, metalness, 1.0);
+#endif
+
+#if renderMode_EnvironmentMap == 1
+    outputColor.rgb = texture(g_tEnvironmentMap, R).rgb;
 #endif
 
 #if renderMode_Illumination == 1
