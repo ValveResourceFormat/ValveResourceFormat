@@ -170,7 +170,7 @@ namespace GUI.Types.Renderer
             else
             {
                 SetAvailableAnimations(Enumerable.Empty<string>());
-                ViewerControl.Camera.Picker.OnPicked -= OnPickerDoubleClick;
+                ViewerControl.Camera.Picker.OnPicked -= OnPicked;
             }
 
             if (mesh != null)
@@ -209,7 +209,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        protected override void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pickingResponse)
+        protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
         {
             if (modelSceneNode == null)
             {
@@ -254,7 +254,6 @@ namespace GUI.Types.Renderer
                     }
                 }
             }
-
         }
 
         private void SetAvailableAnimations(IEnumerable<string> animations)

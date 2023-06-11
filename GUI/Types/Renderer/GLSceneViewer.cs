@@ -94,7 +94,7 @@ namespace GUI.Types.Renderer
 
         protected abstract void LoadScene();
 
-        protected abstract void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pixelInfo);
+        protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
 
         private void OnLoad(object sender, EventArgs e)
         {
@@ -105,7 +105,7 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.SetLocation(new Vector3(256));
             ViewerControl.Camera.LookAt(new Vector3(0));
 
-            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
+            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
             var timer = new Stopwatch();
             timer.Start();
@@ -194,7 +194,7 @@ namespace GUI.Types.Renderer
                 if (ViewerControl.Camera.Picker is not null)
                 {
                     ViewerControl.Camera.Picker.Dispose();
-                    ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPickerDoubleClick);
+                    ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
                     ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
                 }
 

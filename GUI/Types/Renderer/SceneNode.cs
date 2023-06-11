@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
@@ -33,6 +34,8 @@ namespace GUI.Types.Renderer
         public uint Id { get; set; }
 
         public Scene Scene { get; }
+
+        public EntityLump.Entity EntityData { get; set; }
 
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;

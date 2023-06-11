@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
             };
         }
 
-        protected override void OnPickerDoubleClick(object sender, PickingTexture.PickingResponse pixelInfo)
+        protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)
         {
         }
     }

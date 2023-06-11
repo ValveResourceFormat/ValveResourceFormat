@@ -26,7 +26,8 @@ internal class PickingTexture : IDisposable
     internal enum PickingIntent
     {
         Select,
-        Open
+        Open,
+        Details,
     }
 
     internal struct PickingResponse

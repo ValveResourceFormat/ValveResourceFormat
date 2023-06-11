@@ -228,6 +228,7 @@ namespace GUI.Types.Renderer
                             {
                                 Transform = Matrix4x4.CreateTranslation(origin),
                                 LayerName = layerName,
+                                EntityData = entity,
                             };
                             scene.Add(particleNode, true);
                         }
@@ -271,7 +272,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    AddToolModel(scene, classname, transformationMatrix, positionVector);
+                    AddToolModel(scene, entity, classname, transformationMatrix, positionVector);
                     continue;
                 }
 
@@ -287,6 +288,7 @@ namespace GUI.Types.Renderer
                         {
                             Transform = transformationMatrix,
                             LayerName = layerName,
+                            EntityData = entity,
                         };
                         scene.Add(errorModel, false);
                     }
@@ -302,6 +304,7 @@ namespace GUI.Types.Renderer
                     Tint = objColor,
                     LayerName = layerName,
                     Name = model,
+                    EntityData = entity,
                 };
 
                 if (animation != default)
@@ -376,6 +379,7 @@ namespace GUI.Types.Renderer
                         physSceneNode.Transform = transformationMatrix;
                         physSceneNode.PhysGroupName = classname;
                         physSceneNode.LayerName = layerName;
+                        physSceneNode.EntityData = entity;
 
                         scene.Add(physSceneNode, false);
                     }
@@ -383,7 +387,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void AddToolModel(Scene scene, string classname, Matrix4x4 transformationMatrix, Vector3 position)
+        private void AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix, Vector3 position)
         {
             var filename = HammerEntities.GetToolModel(classname);
             var resource = guiContext.LoadFileByAnyMeansNecessary(filename + "_c");
@@ -406,6 +410,7 @@ namespace GUI.Types.Renderer
                     Transform = transformationMatrix,
                     LayerName = "Entities",
                     Name = filename,
+                    EntityData = entity,
                 };
                 scene.Add(modelNode, false);
             }
@@ -415,6 +420,7 @@ namespace GUI.Types.Renderer
                 {
                     LayerName = "Entities",
                     Name = filename,
+                    EntityData = entity,
                 };
                 scene.Add(spriteNode, false);
             }

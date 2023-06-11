@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using static GUI.Controls.SavedCameraPositionsControl;
@@ -187,7 +188,7 @@ namespace GUI.Types.Renderer
             ViewerControl.Invoke(savedCameraPositionsControl.RefreshSavedPositions);
         }
 
-        protected override void OnPickerDoubleClick(object sender, PickingResponse pickingResponse)
+        protected override void OnPicked(object sender, PickingResponse pickingResponse)
         {
             var pixelInfo = pickingResponse.PixelInfo;
 
@@ -206,7 +207,35 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            Console.WriteLine($"Selected {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
+            if (pickingResponse.Intent == PickingIntent.Details)
+            {
+                if (sceneNode.EntityData == null)
+                {
+                    return;
+                }
+
+                using var entityDialog = new EntityInfoForm();
+                using var control = new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = true,
+                    ReadOnly = true,
+                    AllowUserToAddRows = false,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                    DataSource = new BindingSource(new System.ComponentModel.BindingList<EntityLump.EntityProperty>(sceneNode.EntityData.Properties.Values.ToList()), null),
+                    ScrollBars = ScrollBars.Both,
+                };
+                entityDialog.Controls.Add(control);
+
+                var classname = sceneNode.EntityData.GetProperty<string>("classname");
+                entityDialog.Text = $"Object: {classname}";
+
+                entityDialog.ShowDialog();
+
+                return;
+            }
+
+            Console.WriteLine($"Opening {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
 
             var foundFile = GuiContext.FileLoader.FindFileWithContext(sceneNode.Name + "_c");
 

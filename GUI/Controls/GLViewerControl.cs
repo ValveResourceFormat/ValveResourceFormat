@@ -217,6 +217,14 @@ namespace GUI.Controls
                     Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Open);
                 }
             }
+            else if (e.Button == MouseButtons.Right)
+            {
+                initialMousePosition = new Vector2(e.X, e.Y);
+                if (e.Clicks == 2)
+                {
+                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Details);
+                }
+            }
         }
 
         private void OnMouseUp(object sender, WinFormsMouseEventArgs e)
