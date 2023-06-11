@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly bool evenDistribution;
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
         private readonly INumberProvider thickness = new LiteralNumberProvider(1);
-        private readonly float particlesPerOrbit = -1f;
+        private readonly INumberProvider particlesPerOrbit = new LiteralNumberProvider(-1);
         private float orbitCount;
 
         public RingWave(IKeyValueCollection keyValues)
@@ -21,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (keyValues.ContainsKey("m_flParticlesPerOrbit"))
             {
-                particlesPerOrbit = keyValues.GetFloatProperty("m_flParticlesPerOrbit");
+                particlesPerOrbit = keyValues.GetNumberProvider("m_flParticlesPerOrbit");
             }
 
             if (keyValues.ContainsKey("m_flInitialRadius"))
@@ -50,9 +50,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             if (evenDistribution)
             {
-                var offset = orbitCount / particlesPerOrbit;
+                var particleCount = (int)particlesPerOrbit.NextNumber();
 
-                orbitCount = (orbitCount + 1) % particlesPerOrbit;
+                var offset = orbitCount / particleCount;
+
+                orbitCount = (orbitCount + 1) % particleCount;
 
                 return offset * 2 * Math.PI;
             }
