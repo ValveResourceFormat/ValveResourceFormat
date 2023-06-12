@@ -187,12 +187,6 @@ namespace GUI.Types.ParticleRenderer
                 childParticleRenderer.Update(frameTime);
                 BoundingBox = BoundingBox.Union(childParticleRenderer.BoundingBox);
             }
-
-            // Restart if all emitters are done and all particles expired
-            if (IsFinished())
-            {
-                Restart();
-            }
         }
 
         public bool IsFinished()
