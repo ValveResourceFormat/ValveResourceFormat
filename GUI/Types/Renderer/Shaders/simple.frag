@@ -1,4 +1,4 @@
-#version 330
+#version 400
 
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
@@ -61,7 +61,7 @@ in vec4 vVertexColorOut;
 #endif
 
 #if (S_SPECULAR == 1)
-    uniform samplerCube g_tEnvironmentMap;
+    uniform samplerCubeArray g_tEnvironmentMap;
 #endif
 
 #if (defined(simple_2way_blend) || F_LAYERS > 0)
@@ -339,7 +339,7 @@ void main()
 #endif
 
 #if renderMode_EnvironmentMap == 1
-    outputColor.rgb = texture(g_tEnvironmentMap, R).rgb;
+    outputColor.rgb = texture(g_tEnvironmentMap, vec4(R, 0)).rgb; // TODO: 0 is the cubemap in the array to use
 #endif
 
 #if renderMode_Illumination == 1
