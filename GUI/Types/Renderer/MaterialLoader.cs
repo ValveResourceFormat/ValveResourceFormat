@@ -154,6 +154,11 @@ namespace GUI.Types.Renderer
                 clampModeS = TextureWrapMode.ClampToEdge;
                 clampModeT = TextureWrapMode.ClampToEdge;
                 clampModeU = TextureWrapMode.ClampToEdge;
+
+                if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY))
+                {
+                    target = TextureTarget.TextureCubeMapArray;
+                }
             }
             else if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY))
             {
@@ -208,13 +213,13 @@ namespace GUI.Types.Renderer
                         {
                             var faceSize = bufferSize / 6;
                             var faceOffset = faceSize * (int)face;
-                            LoadTextureImplShared(data.Format, internalFormat, format, i, width, height,
+                            LoadTextureImplShared(data.Format, internalFormat, format, i, width, height, data.Depth,
                                 faceSize, buffer[faceOffset..(faceOffset + faceSize)], TextureTarget.TextureCubeMapPositiveX + (int)face);
                         }
                     }
                     else
                     {
-                        LoadTextureImplShared(data.Format, internalFormat, format, i, width, height, bufferSize, buffer, target);
+                        LoadTextureImplShared(data.Format, internalFormat, format, i, width, height, data.Depth, bufferSize, buffer, target);
                     }
                 }
             }
@@ -251,16 +256,23 @@ namespace GUI.Types.Renderer
         }
 
         private static void LoadTextureImplShared(VTexFormat vtexFormat, PixelInternalFormat? internalFormat, InternalFormat? format,
-            int level, int width, int height, int bufferSize, byte[] buffer, TextureTarget target)
+            int level, int width, int height, int depth, int bufferSize, byte[] buffer, TextureTarget target)
         {
+            if (target == TextureTarget.TextureCubeMapArray)
+            {
+                depth *= 6;
+            }
+
+            var is3d = target == TextureTarget.Texture2DArray || target == TextureTarget.TextureCubeMapArray;
+
             if (internalFormat.HasValue)
             {
                 var pixelFormat = GetPixelFormat(vtexFormat);
                 var pixelType = GetPixelType(vtexFormat);
 
-                if (target == TextureTarget.Texture2DArray)
+                if (is3d)
                 {
-                    GL.TexImage3D(target, level, internalFormat.Value, width, height, 1, 0, pixelFormat, pixelType, buffer);
+                    GL.TexImage3D(target, level, internalFormat.Value, width, height, depth, 0, pixelFormat, pixelType, buffer);
                 }
                 else
                 {
@@ -269,9 +281,9 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                if (target == TextureTarget.Texture2DArray)
+                if (is3d)
                 {
-                    GL.CompressedTexImage3D(target, level, format.Value, width, height, 1, 0, bufferSize, buffer); // TODO: 1 is depth
+                    GL.CompressedTexImage3D(target, level, format.Value, width, height, depth, 0, bufferSize, buffer);
                 }
                 else
                 {
