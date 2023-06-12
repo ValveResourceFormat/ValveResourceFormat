@@ -97,7 +97,14 @@ namespace ValveResourceFormat.Serialization
 
         public static TEnum GetEnumValue<TEnum>(this IKeyValueCollection collection, string name) where TEnum : Enum
         {
-            var strValue = collection.GetProperty<string>(name);
+            var rawValue = collection.GetProperty<object>(name);
+
+            if (rawValue is int)
+            {
+                return (TEnum)rawValue;
+            }
+
+            var strValue = (string)rawValue;
             if (Enum.TryParse(typeof(TEnum), strValue, false, out var value))
             {
                 return (TEnum)value;

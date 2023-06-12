@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private readonly bool additive;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
-        private readonly long orientationType;
+        private readonly ParticleOrientation orientationType;
 
         private float[] rawVertices;
         private readonly QuadIndexBuffer quadIndices;
@@ -65,7 +65,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
-                orientationType = (long)keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType");
+                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType");
             }
 
             if (keyValues.ContainsKey("m_flAnimationRate"))
@@ -131,7 +131,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             for (var i = 0; i < particleBag.Count; ++i)
             {
                 // Positions
-                var modelMatrix = orientationType == 0
+                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
                     ? particles[i].GetRotationMatrix() * billboardMatrix * particles[i].GetTransformationMatrix()
                     : particles[i].GetRotationMatrix() * particles[i].GetTransformationMatrix();
 
