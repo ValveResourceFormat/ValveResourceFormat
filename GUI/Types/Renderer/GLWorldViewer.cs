@@ -146,8 +146,6 @@ namespace GUI.Types.Renderer
                                 {
                                     Scene.MainCamera.SetFromTransformMatrix(cameraMatrix);
                                 }
-
-                                cameraComboBox.SelectedIndex = 0;
                             }
                         });
 
