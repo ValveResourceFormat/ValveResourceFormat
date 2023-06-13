@@ -324,6 +324,7 @@ namespace GUI.Types.Renderer
                 var isCamera =
                     classname == "sky_camera" ||
                     classname == "point_devshot_camera" ||
+                    classname == "point_camera_vertical_fov" ||
                     classname == "point_camera";
 
                 var positionVector = transformationMatrix.Translation;
@@ -375,7 +376,7 @@ namespace GUI.Types.Renderer
                         ? classname
                         : name;
 
-                    result.CameraMatrices.Add(cameraName, transformationMatrix);
+                    result.CameraMatrices.TryAdd(cameraName, transformationMatrix);
                 }
                 else if (isGlobalLight)
                 {
