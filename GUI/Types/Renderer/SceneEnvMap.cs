@@ -1,6 +1,6 @@
 namespace GUI.Types.Renderer;
 
-internal class SceneEnvMap : SceneNode
+class SceneEnvMap : SceneNode
 {
     public int HandShake { get; init; }
     public RenderTexture EnvMapTexture { get; init; }

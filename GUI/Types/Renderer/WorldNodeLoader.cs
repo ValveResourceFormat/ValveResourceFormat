@@ -6,7 +6,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class WorldNodeLoader
+    class WorldNodeLoader
     {
         private readonly WorldNode node;
         private readonly VrfGuiContext guiContext;

@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace GUI.Types.Renderer
 {
-    internal class Frustum
+    class Frustum
     {
         private Vector4[] Planes = new Vector4[6];
 

@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class InitFloat : IParticleInitializer
+    class InitFloat : IParticleInitializer
     {
         private readonly ParticleAttribute field;
         private readonly INumberProvider value = new LiteralNumberProvider(0);

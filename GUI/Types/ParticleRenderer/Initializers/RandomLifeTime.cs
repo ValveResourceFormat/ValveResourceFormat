@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RandomLifeTime : IParticleInitializer
+    class RandomLifeTime : IParticleInitializer
     {
         private readonly float lifetimeMin;
         private readonly float lifetimeMax;

@@ -8,7 +8,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.Renderer
 {
-    internal class MaterialRenderer : IRenderer
+    class MaterialRenderer : IRenderer
     {
         private readonly RenderMaterial material;
         private readonly Shader shader;

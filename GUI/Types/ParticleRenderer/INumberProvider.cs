@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public interface INumberProvider
+    interface INumberProvider
     {
         double NextNumber();
     }
@@ -35,7 +35,7 @@ namespace GUI.Types.ParticleRenderer
         public double NextNumber() => min + (Random.Shared.NextDouble() * (max - min));
     }
 
-    public static class INumberProviderExtensions
+    static class INumberProviderExtensions
     {
         public static INumberProvider GetNumberProvider(this IKeyValueCollection keyValues, string propertyName)
         {

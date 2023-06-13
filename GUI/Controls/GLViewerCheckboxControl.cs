@@ -2,7 +2,7 @@ using System.Windows.Forms;
 
 namespace GUI.Controls
 {
-    public partial class GLViewerCheckboxControl : UserControl
+    partial class GLViewerCheckboxControl : UserControl
     {
         public CheckBox CheckBox => checkBox;
 

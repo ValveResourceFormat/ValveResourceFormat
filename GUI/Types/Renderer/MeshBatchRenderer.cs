@@ -8,7 +8,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal static class MeshBatchRenderer
+    static class MeshBatchRenderer
     {
         public struct Request
         {

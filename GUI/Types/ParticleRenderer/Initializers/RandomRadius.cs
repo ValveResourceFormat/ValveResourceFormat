@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RandomRadius : IParticleInitializer
+    class RandomRadius : IParticleInitializer
     {
         private readonly float radiusMin;
         private readonly float radiusMax;

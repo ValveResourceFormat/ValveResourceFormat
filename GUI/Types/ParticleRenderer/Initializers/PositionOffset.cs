@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class PositionOffset : IParticleInitializer
+    class PositionOffset : IParticleInitializer
     {
         private readonly IVectorProvider offsetMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider offsetMax = new LiteralVectorProvider(Vector3.Zero);

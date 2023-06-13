@@ -5,7 +5,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    public class ByteViewer : IViewer
+    class ByteViewer : IViewer
     {
         public static bool IsAccepted() => true;
 

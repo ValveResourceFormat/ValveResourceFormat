@@ -2,7 +2,7 @@ using System;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    public interface IParticleEmitter
+    interface IParticleEmitter
     {
         void Start(Action particleEmitCallback);
 

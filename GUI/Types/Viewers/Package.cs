@@ -13,7 +13,7 @@ using System.Text;
 
 namespace GUI.Types.Viewers
 {
-    public class Package : IViewer
+    class Package : IViewer
     {
         internal const string DELETED_FILES_FOLDER = "@@ VRF Deleted Files @@";
         public ImageList ImageList { get; set; }

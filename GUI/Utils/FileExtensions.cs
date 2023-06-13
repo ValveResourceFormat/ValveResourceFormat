@@ -2,7 +2,7 @@ using System;
 
 namespace GUI.Utils
 {
-    internal static class FileExtensions
+    static class FileExtensions
     {
         // http://stackoverflow.com/a/4975942/272647
         public static string ToFileSizeString(this uint byteCount)

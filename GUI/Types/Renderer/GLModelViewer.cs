@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
     /// <summary>
     /// GL Render control with model controls (render mode, animation panels).
     /// </summary>
-    internal class GLModelViewer : GLSceneViewer
+    class GLModelViewer : GLSceneViewer
     {
         private readonly Model model;
         private readonly Mesh mesh;

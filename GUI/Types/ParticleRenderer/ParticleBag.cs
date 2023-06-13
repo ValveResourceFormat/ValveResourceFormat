@@ -2,7 +2,7 @@ using System;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public class ParticleBag
+    class ParticleBag
     {
         private readonly bool isGrowable;
 

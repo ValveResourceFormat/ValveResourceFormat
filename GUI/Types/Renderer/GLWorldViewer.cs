@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
     /// GL Render control with world controls (render mode, camera selection).
     /// </summary>
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
-    internal class GLWorldViewer : GLSceneViewer
+    class GLWorldViewer : GLSceneViewer
 #pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private readonly World world;

@@ -13,7 +13,7 @@ using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
-    public class AdvancedGuiFileLoader : IFileLoader, IDisposable
+    class AdvancedGuiFileLoader : IFileLoader, IDisposable
     {
         private static readonly Dictionary<string, Package> CachedPackages = new();
         private readonly HashSet<string> CurrentGameSearchPaths = new();

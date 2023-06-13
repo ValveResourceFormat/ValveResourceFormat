@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace GUI.Utils
 {
-    internal static class VectorExtensions
+    static class VectorExtensions
     {
         public static OpenTK.Vector2 ToOpenTK(this Vector2 vec)
         {

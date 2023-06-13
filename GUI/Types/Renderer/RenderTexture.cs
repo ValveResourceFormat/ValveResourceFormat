@@ -3,7 +3,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    public class RenderTexture
+    class RenderTexture
     {
         public TextureTarget Target { get; }
         public int Handle { get; }

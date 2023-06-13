@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer
         AlphaAlternate = 16,
     }
 
-    public static class ParticleFieldExtensions
+    static class ParticleFieldExtensions
     {
         public static float GetScalar(this Particle particle, ParticleField field)
         {

@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public struct Particle
+    struct Particle
     {
         public int ParticleCount { get; set; }
 

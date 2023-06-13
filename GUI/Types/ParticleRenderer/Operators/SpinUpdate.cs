@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class SpinUpdate : IParticleOperator
+    class SpinUpdate : IParticleOperator
     {
         public SpinUpdate()
         {

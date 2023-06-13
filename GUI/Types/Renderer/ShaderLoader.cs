@@ -11,7 +11,7 @@ using ValveResourceFormat.ThirdParty;
 
 namespace GUI.Types.Renderer
 {
-    public class ShaderLoader : IDisposable
+    class ShaderLoader : IDisposable
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;

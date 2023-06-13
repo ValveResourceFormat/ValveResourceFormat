@@ -3,7 +3,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    internal class ParticleSceneNode : SceneNode
+    class ParticleSceneNode : SceneNode
     {
         private readonly ParticleRenderer.ParticleRenderer particleRenderer;
 

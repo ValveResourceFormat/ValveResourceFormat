@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace GUI.Types.Renderer
 {
-    internal class Octree<T>
+    class Octree<T>
         where T : class
     {
         private const int MaximumElementsBeforeSubdivide = 4;

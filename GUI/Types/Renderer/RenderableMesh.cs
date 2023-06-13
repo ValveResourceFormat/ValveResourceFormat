@@ -12,7 +12,7 @@ using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
-    internal class RenderableMesh
+    class RenderableMesh
     {
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;

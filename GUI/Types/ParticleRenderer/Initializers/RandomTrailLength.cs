@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RandomTrailLength : IParticleInitializer
+    class RandomTrailLength : IParticleInitializer
     {
         private readonly float minLength = 0.1f;
         private readonly float maxLength = 0.1f;

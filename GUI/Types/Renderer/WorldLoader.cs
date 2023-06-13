@@ -12,7 +12,7 @@ using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
-    internal class WorldLoader
+    class WorldLoader
     {
         private readonly World world;
         private readonly VrfGuiContext guiContext;

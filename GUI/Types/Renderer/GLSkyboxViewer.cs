@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.Renderer
 {
-    internal class GLSkyboxViewer : GLSceneViewer
+    class GLSkyboxViewer : GLSceneViewer
     {
         private readonly Resource materialResource;
 

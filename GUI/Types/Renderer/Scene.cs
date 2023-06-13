@@ -5,7 +5,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer
 {
-    internal class Scene
+    class Scene
     {
         public class UpdateContext
         {

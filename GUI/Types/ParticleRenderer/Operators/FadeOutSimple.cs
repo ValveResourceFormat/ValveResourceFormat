@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class FadeOutSimple : IParticleOperator
+    class FadeOutSimple : IParticleOperator
     {
         private readonly float fadeOutTime = 0.25f;
 

@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RingWave : IParticleInitializer
+    class RingWave : IParticleInitializer
     {
         private readonly bool evenDistribution;
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);

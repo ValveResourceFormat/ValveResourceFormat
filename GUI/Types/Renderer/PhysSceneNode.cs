@@ -9,7 +9,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class PhysSceneNode : SceneNode
+    class PhysSceneNode : SceneNode
     {
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }

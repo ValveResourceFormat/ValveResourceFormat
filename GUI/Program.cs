@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 namespace GUI
 {
-    internal static class Program
+    static class Program
     {
         public static MainForm MainForm { get; private set; }
 

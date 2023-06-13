@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class OscillateScalar : IParticleOperator
+    class OscillateScalar : IParticleOperator
     {
         private readonly ParticleField outputField = ParticleField.Alpha;
         private readonly float rateMin;

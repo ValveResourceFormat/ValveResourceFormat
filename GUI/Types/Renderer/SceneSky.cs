@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class SceneSky : SceneNode
+    class SceneSky : SceneNode
     {
         public RenderMaterial Material { get; set; }
         private readonly int boxVao;

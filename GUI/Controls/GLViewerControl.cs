@@ -16,7 +16,7 @@ using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Controls
 {
-    internal partial class GLViewerControl : UserControl
+    partial class GLViewerControl : UserControl
     {
         private const long TicksPerSecond = 10_000_000;
         private static readonly float TickFrequency = TicksPerSecond / Stopwatch.Frequency;

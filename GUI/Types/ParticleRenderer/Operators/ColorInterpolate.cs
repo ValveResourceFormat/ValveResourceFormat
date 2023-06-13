@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class ColorInterpolate : IParticleOperator
+    class ColorInterpolate : IParticleOperator
     {
         private readonly Vector3 colorFade = Vector3.One;
         private readonly float fadeStartTime;

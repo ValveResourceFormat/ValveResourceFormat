@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.Renderer;
+
+class WorldLightingInfo
 {
-    public record WorldLightingInfo(
-        Dictionary<string, RenderTexture> Lightmaps,
-        int LightmapGameVersionNumber,
-        Vector2 LightmapUvScale
-    );
+    public Dictionary<string, RenderTexture> Lightmaps { get; } = new();
+    public int LightmapGameVersionNumber { get; init; }
+    public Vector2 LightmapUvScale { get; init; }
 }

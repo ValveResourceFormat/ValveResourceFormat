@@ -19,7 +19,7 @@ using SteamDatabase.ValvePak;
 
 namespace GUI
 {
-    public partial class MainForm : Form
+    partial class MainForm : Form
     {
         private SearchForm searchForm;
 #pragma warning disable CA2213

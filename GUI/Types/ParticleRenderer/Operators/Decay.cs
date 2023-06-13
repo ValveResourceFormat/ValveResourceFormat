@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class Decay : IParticleOperator
+    class Decay : IParticleOperator
     {
         public Decay()
         {

@@ -6,7 +6,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class OctreeDebugRenderer<T>
+    class OctreeDebugRenderer<T>
         where T : class
     {
         private readonly Shader shader;

@@ -4,7 +4,7 @@ using GUI.Utils;
 
 namespace GUI.Controls
 {
-    public partial class SavedCameraPositionsControl : UserControl
+    partial class SavedCameraPositionsControl : UserControl
     {
         public class RestoreCameraRequestEvent : EventArgs
         {

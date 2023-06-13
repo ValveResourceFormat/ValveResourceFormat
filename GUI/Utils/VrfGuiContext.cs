@@ -7,7 +7,7 @@ using ValveResourceFormat;
 
 namespace GUI.Utils
 {
-    public class VrfGuiContext : IDisposable
+    class VrfGuiContext : IDisposable
     {
         public string FileName { get; }
 

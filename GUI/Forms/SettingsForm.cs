@@ -6,7 +6,7 @@ using GUI.Utils;
 
 namespace GUI.Forms
 {
-    public partial class SettingsForm : Form
+    partial class SettingsForm : Form
     {
         public SettingsForm()
         {
