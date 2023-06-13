@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class BasicMovement : IParticleOperator
+    class BasicMovement : IParticleOperator
     {
         private readonly Vector3 gravity;
         private readonly float drag;

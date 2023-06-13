@@ -13,13 +13,13 @@ using VrfPackage = SteamDatabase.ValvePak.Package;
 
 namespace GUI.Types.Viewers
 {
-    public class CompiledShader : IDisposable, IViewer
+    class CompiledShader : IDisposable, IViewer
     {
         public static bool IsAccepted(uint magic)
         {
             return magic == ShaderFile.MAGIC;
         }
-        public class ShaderTabControl : TabControl
+        class ShaderTabControl : TabControl
         {
             public ShaderTabControl() : base() { }
             protected override void OnKeyDown(KeyEventArgs ke)

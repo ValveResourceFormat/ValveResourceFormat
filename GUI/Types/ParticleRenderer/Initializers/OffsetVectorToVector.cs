@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class OffsetVectorToVector : IParticleInitializer
+    class OffsetVectorToVector : IParticleInitializer
     {
         private readonly ParticleField inputField = ParticleField.Position;
         private readonly ParticleField outputField = ParticleField.Position;

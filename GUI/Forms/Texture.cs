@@ -11,7 +11,7 @@ using Channels = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace GUI.Forms
 {
-    public partial class Texture : UserControl
+    partial class Texture : UserControl
     {
         private string name;
         private SKBitmap skBitmap;

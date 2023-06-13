@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class InitialVelocityNoise : IParticleInitializer
+    class InitialVelocityNoise : IParticleInitializer
     {
         private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);

@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -7,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    public class BinaryKeyValues1 : IViewer
+    class BinaryKeyValues1 : IViewer
     {
         public static bool IsAccepted(uint magic)
         {

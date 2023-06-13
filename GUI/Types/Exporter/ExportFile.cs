@@ -12,7 +12,7 @@ using Resource = ValveResourceFormat.Resource;
 
 namespace GUI.Types.Exporter
 {
-    public static class ExportFile
+    static class ExportFile
     {
         public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
         {

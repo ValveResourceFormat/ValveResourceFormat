@@ -13,7 +13,7 @@ namespace GUI.Controls
     /// this control allows for searching to occur within the TreeView and have the results displayed in a ListView with details about the resulting
     /// items.
     /// </summary>
-    public partial class TreeViewWithSearchResults : UserControl
+    partial class TreeViewWithSearchResults : UserControl
     {
         private readonly ImageList imageList;
         public bool DeletedFilesRecovered { get; private set; }

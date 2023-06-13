@@ -4,7 +4,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.Exporter
 {
-    public class ExportData
+    class ExportData
     {
         public PackageEntry PackageEntry { get; set; }
         public VrfGuiContext VrfGuiContext { get; set; }

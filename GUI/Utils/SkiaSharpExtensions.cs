@@ -5,7 +5,7 @@ using System;
 
 namespace GUI.Utils
 {
-    internal static class SkiaSharpExtensions
+    static class SkiaSharpExtensions
     {
         public static Bitmap ToBitmap(this SKBitmap skiaBitmap)
         {

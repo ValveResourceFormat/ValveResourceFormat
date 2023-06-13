@@ -8,7 +8,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class SceneAggregate : SceneNode
+    class SceneAggregate : SceneNode
     {
         private Model Model { get; }
         public RenderableMesh RenderMesh { get; }

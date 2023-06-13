@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RandomAlpha : IParticleInitializer
+    class RandomAlpha : IParticleInitializer
     {
         private readonly int alphaMin = 255;
         private readonly int alphaMax = 255;

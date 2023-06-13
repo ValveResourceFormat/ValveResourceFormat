@@ -5,7 +5,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    public class Image : IViewer
+    class Image : IViewer
     {
         public static bool IsAccepted(uint magic)
         {

@@ -6,7 +6,7 @@ using ValveResourceFormat.ClosedCaptions;
 
 namespace GUI.Types.Viewers
 {
-    public class ClosedCaptions : IViewer
+    class ClosedCaptions : IViewer
     {
         public static bool IsAccepted(uint magic)
         {

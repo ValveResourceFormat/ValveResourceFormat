@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    public class BinaryKeyValues : IViewer
+    class BinaryKeyValues : IViewer
     {
         public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 

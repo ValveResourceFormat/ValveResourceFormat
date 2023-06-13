@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public class ParticleSystemRenderState
+    class ParticleSystemRenderState
     {
         public float Lifetime { get; set; }
 

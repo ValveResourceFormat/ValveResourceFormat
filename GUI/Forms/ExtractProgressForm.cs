@@ -15,7 +15,7 @@ using ValveResourceFormat.IO;
 
 namespace GUI.Forms
 {
-    public partial class ExtractProgressForm : Form
+    partial class ExtractProgressForm : Form
     {
         private bool decompile;
         private readonly string path;

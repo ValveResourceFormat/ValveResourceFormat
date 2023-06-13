@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RandomColor : IParticleInitializer
+    class RandomColor : IParticleInitializer
     {
         private readonly Vector3 colorMin = Vector3.One;
         private readonly Vector3 colorMax = Vector3.One;

@@ -5,9 +5,9 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
-internal class PickingTexture : IDisposable
+class PickingTexture : IDisposable
 {
-    internal class PickingRequest
+    public class PickingRequest
     {
         public bool ActiveNextFrame;
         public int CursorPositionX;

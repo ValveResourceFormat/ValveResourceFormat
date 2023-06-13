@@ -9,7 +9,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    internal class ModelSceneNode : SceneNode, IRenderableMeshCollection
+    class ModelSceneNode : SceneNode, IRenderableMeshCollection
     {
         private Model Model { get; }
         public Vector4 Tint

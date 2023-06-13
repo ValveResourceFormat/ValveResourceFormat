@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class CreateWithinSphere : IParticleInitializer
+    class CreateWithinSphere : IParticleInitializer
     {
         private readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
         private readonly INumberProvider radiusMax = new LiteralNumberProvider(0);

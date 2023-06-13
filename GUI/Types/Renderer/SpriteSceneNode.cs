@@ -9,7 +9,7 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace GUI.Types.Renderer
 {
-    internal class SpriteSceneNode : SceneNode
+    class SpriteSceneNode : SceneNode
     {
         private readonly int quadVao;
 

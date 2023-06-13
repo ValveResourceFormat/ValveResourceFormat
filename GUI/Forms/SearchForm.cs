@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace GUI.Forms
 {
-    public partial class SearchForm : Form
+    partial class SearchForm : Form
     {
         /// <summary>
         /// Gets whatever text was entered by the user in the search textbox.

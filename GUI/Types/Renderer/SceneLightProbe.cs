@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace GUI.Types.Renderer;
 
-internal class SceneLightProbe : SceneNode
+class SceneLightProbe : SceneNode
 {
     public int HandShake { get; set; }
 

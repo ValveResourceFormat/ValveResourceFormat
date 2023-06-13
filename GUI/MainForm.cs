@@ -19,7 +19,7 @@ using SteamDatabase.ValvePak;
 
 namespace GUI
 {
-    public partial class MainForm : Form
+    partial class MainForm : Form
     {
         // Disposable fields should be disposed
         // for some reason disposing it makes closing GUI very slow

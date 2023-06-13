@@ -1,6 +1,6 @@
 namespace GUI.Forms
 {
-    public class SearchTypeItem
+    class SearchTypeItem
     {
         public string Name { get; }
         public SearchType Type { get; }

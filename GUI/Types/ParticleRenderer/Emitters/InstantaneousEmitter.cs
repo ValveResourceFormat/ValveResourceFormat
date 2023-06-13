@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    public class InstantaneousEmitter : IParticleEmitter
+    class InstantaneousEmitter : IParticleEmitter
     {
         public bool IsFinished { get; private set; }
 

@@ -4,7 +4,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    public class ToolsAssetInfo : IViewer
+    class ToolsAssetInfo : IViewer
     {
         public static bool IsAccepted(uint magic)
         {

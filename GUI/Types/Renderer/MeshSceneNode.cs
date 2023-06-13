@@ -4,7 +4,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    internal class MeshSceneNode : SceneNode, IRenderableMeshCollection
+    class MeshSceneNode : SceneNode, IRenderableMeshCollection
     {
         public Vector4 Tint
         {

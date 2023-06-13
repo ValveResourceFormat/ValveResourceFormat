@@ -4,12 +4,12 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public interface IVectorProvider
+    interface IVectorProvider
     {
         Vector3 NextVector();
     }
 
-    public readonly struct LiteralVectorProvider : IVectorProvider
+    readonly struct LiteralVectorProvider : IVectorProvider
     {
         private readonly Vector3 value;
 
@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer
         public Vector3 NextVector() => value;
     }
 
-    public static class IVectorProviderExtensions
+    static class IVectorProviderExtensions
     {
         public static IVectorProvider GetVectorProvider(this IKeyValueCollection keyValues, string propertyName)
         {

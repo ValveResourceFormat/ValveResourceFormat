@@ -15,7 +15,7 @@ using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
 {
-    public class MaterialLoader
+    class MaterialLoader
     {
         private readonly Dictionary<string, RenderMaterial> Materials = new();
         private readonly Dictionary<string, RenderTexture> Textures = new();

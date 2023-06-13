@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RemapParticleCountToScalar : IParticleInitializer
+    class RemapParticleCountToScalar : IParticleInitializer
     {
         private readonly long fieldOutput = 3;
         private readonly long inputMin;

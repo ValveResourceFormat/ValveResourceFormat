@@ -2,7 +2,7 @@ using System.Windows.Forms;
 
 namespace GUI.Controls
 {
-    public partial class GLViewerMultiSelectionControl : UserControl
+    partial class GLViewerMultiSelectionControl : UserControl
     {
         public CheckedListBox CheckedListBox => checkedListBox;
 

@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
     /// Renders a list of MatarialRenderers.
     /// </summary>
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
-    internal class GLMaterialViewer : IGLViewer
+    class GLMaterialViewer : IGLViewer
 #pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private ICollection<MaterialRenderer> Renderers { get; } = new HashSet<MaterialRenderer>();

@@ -6,7 +6,7 @@ using OpenTK.Input;
 
 namespace GUI.Types.Renderer
 {
-    internal class Camera
+    class Camera
     {
         private const float MovementSpeed = 300f; // WASD movement, per second
         private const float AltMovementSpeed = 10f; // Holding shift or alt movement

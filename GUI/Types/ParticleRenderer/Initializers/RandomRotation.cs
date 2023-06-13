@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    public class RandomRotation : IParticleInitializer
+    class RandomRotation : IParticleInitializer
     {
         private const float PiOver180 = (float)Math.PI / 180f;
 

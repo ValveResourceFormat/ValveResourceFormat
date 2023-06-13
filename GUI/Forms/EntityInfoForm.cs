@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace GUI.Forms
 {
-    public partial class EntityInfoForm : Form
+    partial class EntityInfoForm : Form
     {
         public EntityInfoForm()
         {

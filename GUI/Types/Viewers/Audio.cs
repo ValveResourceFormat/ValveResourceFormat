@@ -8,7 +8,7 @@ using NLayer.NAudioSupport;
 
 namespace GUI.Types.Viewers
 {
-    public class Audio : IViewer
+    class Audio : IViewer
     {
         public static bool IsAccepted(uint magic, string fileName)
         {

@@ -1,6 +1,6 @@
 namespace GUI.Utils;
 
-internal static class HammerEntities
+static class HammerEntities
 {
     public static string GetToolModel(string classname)
     {

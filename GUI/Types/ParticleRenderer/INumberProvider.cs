@@ -4,12 +4,12 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    public interface INumberProvider
+    interface INumberProvider
     {
         double NextNumber();
     }
 
-    public readonly struct LiteralNumberProvider : INumberProvider
+    readonly struct LiteralNumberProvider : INumberProvider
     {
         private readonly double value;
 
@@ -21,7 +21,7 @@ namespace GUI.Types.ParticleRenderer
         public double NextNumber() => value;
     }
 
-    public readonly struct RandomNumberProvider : INumberProvider
+    readonly struct RandomNumberProvider : INumberProvider
     {
         private readonly double min;
         private readonly double max;
@@ -35,7 +35,7 @@ namespace GUI.Types.ParticleRenderer
         public double NextNumber() => min + (Random.Shared.NextDouble() * (max - min));
     }
 
-    public readonly struct BiasedRandomNumberProvider : INumberProvider
+    readonly struct BiasedRandomNumberProvider : INumberProvider
     {
         private readonly RandomNumberProvider rng;
         private readonly double exponent;
@@ -49,7 +49,7 @@ namespace GUI.Types.ParticleRenderer
         public double NextNumber() => Math.Pow(rng.NextNumber(), exponent);
     }
 
-    public static class INumberProviderExtensions
+    static class INumberProviderExtensions
     {
         public static INumberProvider GetNumberProvider(this IKeyValueCollection keyValues, string propertyName)
         {

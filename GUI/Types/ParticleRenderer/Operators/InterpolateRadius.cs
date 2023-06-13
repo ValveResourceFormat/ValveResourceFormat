@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    public class InterpolateRadius : IParticleOperator
+    class InterpolateRadius : IParticleOperator
     {
         private readonly float startTime;
         private readonly float endTime = 1;

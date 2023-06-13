@@ -10,7 +10,7 @@ using ValveKeyValue;
 
 namespace GUI.Utils
 {
-    internal static class Settings
+    static class Settings
     {
         private const int RecentFilesLimit = 20;
 

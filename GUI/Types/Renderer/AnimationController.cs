@@ -4,7 +4,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.Renderer
 {
-    public class AnimationController
+    class AnimationController
     {
         private readonly AnimationFrameCache animationFrameCache;
         private Action<Animation, int> updateHandler = (_, __) => { };

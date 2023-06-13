@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    public class RenderMaterial
+    class RenderMaterial
     {
         public Shader Shader => shader;
         public Material Material { get; }

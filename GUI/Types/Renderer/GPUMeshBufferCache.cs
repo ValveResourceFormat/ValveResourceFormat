@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    public class GPUMeshBufferCache
+    class GPUMeshBufferCache
     {
         private readonly Dictionary<VBIB, GPUMeshBuffers> gpuBuffers = new();
         private readonly Dictionary<VAOKey, uint> vertexArrayObjects = new();

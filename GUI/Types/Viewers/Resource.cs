@@ -16,7 +16,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    public class Resource : IViewer
+    class Resource : IViewer
     {
         public static bool IsAccepted(uint magic)
         {

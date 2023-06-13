@@ -3,7 +3,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class DrawCall
+    class DrawCall
     {
         public PrimitiveType PrimitiveType { get; set; }
         public Shader Shader { get; set; }

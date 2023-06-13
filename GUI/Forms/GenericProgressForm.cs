@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 namespace GUI.Forms
 {
-    public partial class GenericProgressForm : Form
+    partial class GenericProgressForm : Form
     {
         private CancellationTokenSource cancellationTokenSource;
         public event EventHandler OnProcess;
