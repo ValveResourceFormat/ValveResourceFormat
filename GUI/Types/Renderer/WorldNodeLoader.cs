@@ -10,28 +10,26 @@ namespace GUI.Types.Renderer
     {
         private readonly WorldNode node;
         private readonly VrfGuiContext guiContext;
+        public string[] LayerNames { get; }
 
         public WorldNodeLoader(VrfGuiContext vrfGuiContext, WorldNode node)
         {
             this.node = node;
             guiContext = vrfGuiContext;
+
+            if (node.Data.ContainsKey("m_layerNames"))
+            {
+                LayerNames = node.Data.GetArray<string>("m_layerNames");
+            }
+            else
+            {
+                LayerNames = Array.Empty<string>();
+            }
         }
 
         public void Load(Scene scene)
         {
             var data = node.Data;
-
-            string[] worldLayers;
-
-            if (data.ContainsKey("m_layerNames"))
-            {
-                worldLayers = data.GetArray<string>("m_layerNames");
-            }
-            else
-            {
-                worldLayers = Array.Empty<string>();
-            }
-
             var sceneObjectLayerIndices = data.ContainsKey("m_sceneObjectLayerIndices") ? data.GetIntegerArray("m_sceneObjectLayerIndices") : null;
             var sceneObjects = data.GetArray("m_sceneObjects");
             var i = 0;
@@ -71,7 +69,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? worldLayers[layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
                     };
 
@@ -93,7 +91,7 @@ namespace GUI.Types.Renderer
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? worldLayers[layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderable,
                     };
 
@@ -123,7 +121,7 @@ namespace GUI.Types.Renderer
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
                     var aggregate = new SceneAggregate(scene, (Model)newResource.DataBlock)
                     {
-                        LayerName = worldLayers[layerIndex],
+                        LayerName = LayerNames[layerIndex],
                         Name = renderableModel,
                     };
 

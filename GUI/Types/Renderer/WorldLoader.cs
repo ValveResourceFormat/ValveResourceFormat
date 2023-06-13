@@ -48,23 +48,6 @@ namespace GUI.Types.Renderer
                 guiContext.RenderArgs.TryAdd("LightmapGameVersionNumber", (byte)scene.LightingInfo.LightmapGameVersionNumber);
             }
 
-            // Output is World_t we need to iterate m_worldNodes inside it.
-            var worldNodes = world.GetWorldNodeNames();
-            foreach (var worldNode in worldNodes)
-            {
-                if (worldNode != null)
-                {
-                    var newResource = guiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
-                    if (newResource == null)
-                    {
-                        continue;
-                    }
-
-                    var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock);
-                    subloader.Load(scene);
-                }
-            }
-
             foreach (var lumpName in world.GetEntityLumpNames())
             {
                 if (lumpName == null)
@@ -83,7 +66,27 @@ namespace GUI.Types.Renderer
                 LoadEntitiesFromLump(scene, result, entityLump, "world_layer_base"); // TODO
             }
 
-            //SetupWorldLighting(scene, lighting);
+            // Output is World_t we need to iterate m_worldNodes inside it.
+            var worldNodes = world.GetWorldNodeNames();
+            foreach (var worldNode in worldNodes)
+            {
+                if (worldNode != null)
+                {
+                    var newResource = guiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
+                    if (newResource == null)
+                    {
+                        continue;
+                    }
+
+                    var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock);
+                    subloader.Load(scene);
+
+                    foreach (var layer in subloader.LayerNames)
+                    {
+                        result.DefaultEnabledLayers.Add(layer);
+                    }
+                }
+            }
 
             // TODO: Ideally we would use the vrman files to find relevant files
             var physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(Path.GetDirectoryName(guiContext.FileName), "world_physics.vphys_c"));
