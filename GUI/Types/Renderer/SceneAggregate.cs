@@ -85,6 +85,7 @@ namespace GUI.Types.Renderer
                 foreach (var drawCall in RenderMesh.DrawCallsOpaque)
                 {
                     var fragmentData = aggregateMeshes[drawCall.MeshId];
+                    var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                     var worldBounds = fragmentData.GetArray("m_vWorldBounds");
                     drawCall.DrawBounds = new AABB(worldBounds[0].ToVector3(), worldBounds[1].ToVector3());
                     var fragment = new Fragment(Scene, this, drawCall.DrawBounds.Value)
@@ -92,6 +93,7 @@ namespace GUI.Types.Renderer
                         DrawCall = drawCall,
                         RenderMesh = RenderMesh,
                         Parent = this,
+                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     };
 
                     yield return fragment;
@@ -106,6 +108,7 @@ namespace GUI.Types.Renderer
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
+                var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
                 var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
@@ -115,6 +118,7 @@ namespace GUI.Types.Renderer
                     DrawCall = drawCall,
                     RenderMesh = RenderMesh,
                     Parent = this,
+                    LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                 };
 
                 if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)

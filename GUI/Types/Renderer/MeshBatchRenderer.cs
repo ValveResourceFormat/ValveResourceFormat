@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
-            public uint NodeId;
+            public SceneNode Node;
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -53,6 +53,7 @@ namespace GUI.Types.Renderer
             public int Time;
             public int ObjectId;
             public int MeshId;
+            public int CubeMapArrayIndex;
         }
 
         /// <summary>
@@ -83,6 +84,7 @@ namespace GUI.Types.Renderer
                     TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
                     Time = shader.GetUniformLocation("g_flTime"),
                     ObjectId = shader.GetUniformLocation("sceneObjectId"),
+                    CubeMapArrayIndex = shader.GetUniformLocation("g_iEnvironmentMapArrayIndex"),
                     MeshId = shader.GetUniformLocation("meshId"),
                 };
 
@@ -105,7 +107,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var request in materialGroup)
                     {
-                        Draw(uniforms, request, context.Time);
+                        Draw(uniforms, request, context);
                     }
 
                     material.PostRender();
@@ -116,14 +118,26 @@ namespace GUI.Types.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(Uniforms uniforms, Request request, float time)
+        private static void Draw(Uniforms uniforms, Request request, Scene.RenderContext context)
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
 
             if (uniforms.ObjectId != -1)
             {
-                GL.Uniform1(uniforms.ObjectId, request.NodeId);
+                GL.Uniform1(uniforms.ObjectId, request.Node.Id);
+            }
+
+            if (uniforms.CubeMapArrayIndex != -1)
+            {
+                var arrayIndex = 0;
+
+                if (request.Node.CubeMapPrecomputedHandshake > 0 && context.LightingInfo.EnvMaps.TryGetValue(request.Node.CubeMapPrecomputedHandshake, out var envMap))
+                {
+                    arrayIndex = envMap.ArrayIndex;
+                }
+
+                GL.Uniform1(uniforms.CubeMapArrayIndex, arrayIndex);
             }
 
             if (uniforms.MeshId != -1)
@@ -133,7 +147,7 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Time != 1)
             {
-                GL.Uniform1(uniforms.Time, time);
+                GL.Uniform1(uniforms.Time, context.Time);
             }
 
             if (uniforms.Animated != -1)

@@ -139,7 +139,7 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
-                                NodeId = node.Id,
+                                Node = node,
                             });
                         }
 
@@ -151,7 +151,7 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
-                                NodeId = node.Id,
+                                Node = node,
                             });
                         }
                     }
@@ -167,7 +167,7 @@ namespace GUI.Types.Renderer
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
                         DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
-                        NodeId = node.Id,
+                        Node = node,
                     });
                 }
                 else
@@ -178,11 +178,11 @@ namespace GUI.Types.Renderer
 
             // Sort loose nodes by distance from camera
             looseNodes.Sort((a, b) =>
-            {
-                var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
-                var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
-                return bLength.CompareTo(aLength);
-            });
+                {
+                    var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
+                    var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
+                    return bLength.CompareTo(aLength);
+                });
 
             // Opaque render pass
             var renderContext = new RenderContext

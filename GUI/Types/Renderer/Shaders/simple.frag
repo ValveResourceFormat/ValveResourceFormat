@@ -62,6 +62,7 @@ in vec4 vVertexColorOut;
 
 #if (S_SPECULAR == 1)
     uniform samplerCubeArray g_tEnvironmentMap;
+    uniform int g_iEnvironmentMapArrayIndex;
 #endif
 
 #if (defined(simple_2way_blend) || F_LAYERS > 0)
@@ -338,8 +339,8 @@ void main()
     outputColor = vec4(occlusion, roughness, metalness, 1.0);
 #endif
 
-#if renderMode_EnvironmentMap == 1
-    outputColor.rgb = texture(g_tEnvironmentMap, vec4(R, 0)).rgb; // TODO: 0 is the cubemap in the array to use
+#if renderMode_EnvironmentMap == 1 && (S_SPECULAR == 1)
+    outputColor.rgb = texture(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex)).rgb;
 #endif
 
 #if renderMode_Illumination == 1
