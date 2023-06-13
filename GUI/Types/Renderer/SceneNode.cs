@@ -30,10 +30,13 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public string Name { get; set; }
+        public string Name { get; init; }
         public uint Id { get; set; }
 
         public Scene Scene { get; }
+
+        public int CubeMapPrecomputedHandshake { get; set; }
+        public int LightProbeVolumePrecomputedHandshake { get; set; }
 
         public EntityLump.Entity EntityData { get; set; }
 

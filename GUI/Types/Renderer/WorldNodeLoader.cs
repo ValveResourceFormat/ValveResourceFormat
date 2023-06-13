@@ -39,6 +39,9 @@ namespace GUI.Types.Renderer
             {
                 var layerIndex = sceneObjectLayerIndices?[i++] ?? -1;
 
+                var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
+                var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
+
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
@@ -71,6 +74,8 @@ namespace GUI.Types.Renderer
                         Tint = tintColor,
                         LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
+                        CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
+                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     };
 
                     scene.Add(modelNode, false);
@@ -93,6 +98,8 @@ namespace GUI.Types.Renderer
                         Tint = tintColor,
                         LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderable,
+                        CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
+                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     };
 
                     scene.Add(meshNode, false);

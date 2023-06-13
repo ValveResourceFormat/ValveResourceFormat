@@ -121,7 +121,11 @@ namespace GUI.Types.Renderer
                 lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
             }
 
-            var result = new WorldLightingInfo(new(), lightmapGameVersionNumber, lightmapUvScale);
+            var result = new WorldLightingInfo
+            {
+                LightmapGameVersionNumber = lightmapGameVersionNumber,
+                LightmapUvScale = lightmapUvScale,
+            };
 
             foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
             {
@@ -304,8 +308,12 @@ namespace GUI.Types.Renderer
                         lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
                     }
 
+                    scene.LightingInfo.EnvMaps.Add(handShake, envMap);
+                    scene.LightingInfo.LightProbes.Add(handShake, lightProbe);
+                    /*
                     scene.Add(envMap, false);
                     scene.Add(lightProbe, false);
+                    */
                 }
 
                 var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
@@ -400,7 +408,20 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    AddToolModel(scene, entity, classname, transformationMatrix, positionVector);
+                    var sceneNode = AddToolModel(scene, entity, classname, transformationMatrix, positionVector);
+
+                    if (sceneNode != null && classname == "env_combined_light_probe_volume")
+                    {
+                        var handShakeString = entity.GetProperty<string>("handshake");
+                        if (!int.TryParse(handShakeString, out var handShake))
+                        {
+                            handShake = 0;
+                        }
+
+                        sceneNode.CubeMapPrecomputedHandshake = handShake;
+                        sceneNode.LightProbeVolumePrecomputedHandshake = handShake;
+                    }
+
                     continue;
                 }
 
@@ -515,7 +536,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix, Vector3 position)
+        private SceneNode AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix, Vector3 position)
         {
             var filename = HammerEntities.GetToolModel(classname);
             var resource = guiContext.LoadFileByAnyMeansNecessary(filename + "_c");
@@ -527,7 +548,7 @@ namespace GUI.Types.Renderer
 
                 if (resource == null)
                 {
-                    return;
+                    return null;
                 }
             }
 
@@ -545,6 +566,8 @@ namespace GUI.Types.Renderer
                 modelNode.SetAnimationForWorldPreview("tools_preview");
 
                 scene.Add(modelNode, false);
+
+                return modelNode;
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
@@ -555,6 +578,8 @@ namespace GUI.Types.Renderer
                     EntityData = entity,
                 };
                 scene.Add(spriteNode, false);
+
+                return spriteNode;
             }
             else
             {
