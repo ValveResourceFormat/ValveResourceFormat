@@ -228,7 +228,8 @@ namespace GUI.Types.Renderer
                 activeAnimation = animations.FirstOrDefault(a => a.Name == animationName || (a.Name[0] == '@' && a.Name[1..] == animationName));
             }
 
-            activeAnimation ??= animations.FirstOrDefault(); // Fallback to the first animation
+            // TODO: CS2 falls back to the first animation, but other games seemingly do not.
+            //activeAnimation ??= animations.FirstOrDefault(); // Fallback to the first animation
 
             if (activeAnimation != null)
             {
