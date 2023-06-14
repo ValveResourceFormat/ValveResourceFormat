@@ -32,7 +32,7 @@ in vec2 vTEXCOORD;
     out vec4 vPerVertexLightingOut;
 #endif
 
-#if F_LAYERS > 0
+#if (F_LAYERS > 0) || defined(simple_2way_blend)
     #if defined(simple_2way_blend)
         #define vBLEND_COLOR vTEXCOORD2
     #else
@@ -104,7 +104,7 @@ void main()
     //vVertexColorOut *= vCOLOR;
 #endif
 
-#if F_LAYERS > 0
+#if (F_LAYERS > 0) || defined(simple_2way_blend)
     vColorBlendValues = vBLEND_COLOR / 255.0f;
 #endif
 

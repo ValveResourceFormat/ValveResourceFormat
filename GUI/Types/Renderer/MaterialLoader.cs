@@ -378,8 +378,11 @@ namespace GUI.Types.Renderer
                 mat.Textures["g_tTintMask"] = GetDefaultMask();
             }
 
+            // Prevent materials from sharing state when these values are missing
             mat.Material.VectorParams.TryAdd("g_vTexCoordScale", Vector4.One);
             mat.Material.VectorParams.TryAdd("g_vTexCoordOffset", Vector4.Zero);
+            mat.Material.VectorParams.TryAdd("g_vColorTint", Vector4.One);
+            mat.Material.FloatParams.TryAdd("g_flMetalness", 0f);
         }
 
         public RenderTexture GetErrorTexture()
