@@ -3,7 +3,7 @@
 // Render modes -- Switched on/off by code
 #include "common/rendermodes.glsl"
 #define renderMode_PBR 0
-#define renderMode_EnvironmentMap 0
+#define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
@@ -13,8 +13,6 @@
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 
-#define S_SPECULAR 1 // Indirect
-
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
 #define F_UNLIT 0
@@ -23,6 +21,9 @@
 #define F_GLASS 0
 #define F_LAYERS 0
 #define F_FANCY_BLENDING 0
+#define F_SPECULAR 0
+#define F_SPECULAR_INDIRECT 0
+#define F_METALNESS_TEXTURE 0
 #define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
@@ -60,8 +61,21 @@ in vec4 vVertexColorOut;
     #endif
 #endif
 
-#if (S_SPECULAR == 1)
+#if defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
+    #define S_SPECULAR F_SPECULAR_INDIRECT
+#elif defined(vr_complex) || defined(csgo_complex)
+    #define S_SPECULAR F_SPECULAR
+#else
+    #define S_SPECULAR 1 // Indirect
+#endif
+
+#include "common/environment.glsl"
+#if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
     uniform samplerCubeArray g_tEnvironmentMap;
+    uniform mat4 g_matEnvMapWorldToLocal[144];
+    uniform vec4 g_vEnvMapPositionWs[144];
+    uniform vec4 g_vEnvMapBoxMins[144];
+    uniform vec4 g_vEnvMapBoxMaxs[144];
     uniform int g_iEnvironmentMapArrayIndex;
 #endif
 
@@ -94,6 +108,11 @@ uniform float g_flEdgeColorThickness = 0.1;
 uniform vec4 g_vEdgeColor;
 uniform float g_flRefractScale = 0.1;
 uniform float g_flOpacityScale = 1.0;
+#endif
+
+#define hasUniformMetalness (defined(vr_simple) || defined(csgo_simple)) && (F_METALNESS_TEXTURE == 0)
+#if hasUniformMetalness
+    uniform float g_flMetalness = 0.0;
 #endif
 
 #if (F_FANCY_BLENDING > 0)
@@ -233,7 +252,14 @@ void main()
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
 #elif defined(csgo_foliage)
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+#elif hasUniformMetalness
+    metalness = g_flMetalness;
 #endif
+
+    roughness = clamp(roughness, 0.005, 1.0);
+
+    // Gamma correct
+    vec3 power = vec3(0.45454545);
 
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal);
@@ -242,7 +268,7 @@ void main()
     vec3 V = normalize(vEyePosition - vFragPosition);
 
     // Get the reflection vector for this fragment
-    vec3 R = normalize(reflect(V, N)) * -1.0;
+    vec3 R = normalize(reflect(-V, N));
 
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
@@ -264,6 +290,10 @@ void main()
 
     vec3 F0 = vec3(0.04); 
 	F0 = mix(F0, albedo, metalness);
+
+    vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
+    vec3 kD = 1.0 - F;
+	kD *= 1.0 - metalness;
 
     float visibility = 1.0;
 
@@ -301,12 +331,25 @@ void main()
         irradiance = vPerVertexLightingOut.rgb;
     #endif
 
-    float gamma = 2.2;
-    irradiance = pow(irradiance, vec3(1.0/gamma));
+    irradiance = pow(irradiance, vec3(power));
     Lo *= occlusion;
 
-    outputColor.rgb *= irradiance;
+    outputColor.rgb *= (irradiance * kD);
     outputColor.rgb += Lo;
+
+    #if (S_SPECULAR == 1)
+        R = CubeMapBoxProjection(
+            vFragPosition,
+            R,
+            g_vEnvMapBoxMins[g_iEnvironmentMapArrayIndex].xyz,
+            g_vEnvMapBoxMaxs[g_iEnvironmentMapArrayIndex].xyz,
+            g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].xyz
+        );
+
+        vec3 specular = F * pow(texture(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex)).rgb, power);
+        outputColor.rgb += specular;
+    #endif
+
 #endif
 
 #if renderMode_FullBright == 1
@@ -339,8 +382,17 @@ void main()
     outputColor = vec4(occlusion, roughness, metalness, 1.0);
 #endif
 
-#if renderMode_EnvironmentMap == 1 && (S_SPECULAR == 1)
-    outputColor.rgb = texture(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex)).rgb;
+#if renderMode_Cubemaps == 1
+    R = normalize(reflect(-V, vNormalOut)); // No bumpmaps
+    R = CubeMapBoxProjection(
+        vFragPosition,
+        R,
+        g_vEnvMapBoxMins[g_iEnvironmentMapArrayIndex].xyz,
+        g_vEnvMapBoxMaxs[g_iEnvironmentMapArrayIndex].xyz,
+        g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].xyz
+    );
+
+    outputColor.rgb = pow(texture(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex)).rgb, power);
 #endif
 
 #if renderMode_Illumination == 1

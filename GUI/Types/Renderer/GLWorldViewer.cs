@@ -182,6 +182,10 @@ namespace GUI.Types.Renderer
                 SetAvailablPhysicsGroups(physGroups);
             }
 
+            Scene.LightingInfo.EnvMapPositionsUniform = new float[Scene.LightingInfo.EnvMaps.Count * 4];
+            Scene.LightingInfo.EnvMapMinsUniform = new float[Scene.LightingInfo.EnvMaps.Count * 4];
+            Scene.LightingInfo.EnvMapMaxsUniform = new float[Scene.LightingInfo.EnvMaps.Count * 4];
+
             foreach (var envMap in Scene.LightingInfo.EnvMaps)
             {
                 var nodes = Scene.StaticOctree.Query(envMap.Value.BoundingBox);
@@ -191,6 +195,20 @@ namespace GUI.Types.Renderer
                     node.EnvMaps.Add(envMap.Value);
                     //node.CubeMapPrecomputedHandshake = envMap.Key;
                 }
+
+                int offsetFl = envMap.Value.ArrayIndex * 4;
+
+                Scene.LightingInfo.EnvMapPositionsUniform[offsetFl] = envMap.Value.Transform.M41;
+                Scene.LightingInfo.EnvMapPositionsUniform[offsetFl + 1] = envMap.Value.Transform.M42;
+                Scene.LightingInfo.EnvMapPositionsUniform[offsetFl + 2] = envMap.Value.Transform.M43;
+
+                Scene.LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.Value.BoundingBox.Min.X;
+                Scene.LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Min.Y;
+                Scene.LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Min.Z;
+
+                Scene.LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.Value.BoundingBox.Max.X;
+                Scene.LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Max.Y;
+                Scene.LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Max.Z;
             }
 
             foreach (var node in Scene.AllNodes)
