@@ -239,7 +239,7 @@ namespace GUI.Types.Renderer
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                     };
                 }
-                else if (classname == "env_combined_light_probe_volume")
+                else if (classname == "env_combined_light_probe_volume" || classname == "env_cubemap_box")
                 {
                     var handShakeString = entity.GetProperty<string>("handshake");
                     if (!int.TryParse(handShakeString, out var handShake))
@@ -261,10 +261,6 @@ namespace GUI.Types.Renderer
                         _ => 0,
                     };
 
-                    var irradianceTexture = guiContext.MaterialLoader.GetTexture(
-                        entity.GetProperty<string>("lightprobetexture")
-                    );
-
                     var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
                     var bounds = new AABB(
@@ -281,39 +277,44 @@ namespace GUI.Types.Renderer
                         EnvMapTexture = envMapTexture,
                     };
 
-                    var lightProbe = new SceneLightProbe(scene, bounds)
-                    {
-                        LayerName = layerName,
-                        Transform = transform,
-                        HandShake = handShake,
-                        Irradiance = irradianceTexture,
-                    };
-
-                    var dliName = entity.GetProperty<string>("lightprobetexture_dli");
-                    var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
-                    var dlsdName = entity.GetProperty<string>("lightprobetexture_dlsd");
-
-                    if (dlsName != null)
-                    {
-                        lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
-                    }
-
-                    if (dliName != null)
-                    {
-                        lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
-                    }
-
-                    if (dlsdName != null)
-                    {
-                        lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
-                    }
-
                     scene.LightingInfo.EnvMaps.Add(handShake, envMap);
-                    scene.LightingInfo.LightProbes.Add(handShake, lightProbe);
-                    /*
-                    scene.Add(envMap, false);
-                    scene.Add(lightProbe, false);
-                    */
+
+                    // TODO: env_light_probe_volume?
+                    if (classname == "env_combined_light_probe_volume")
+                    {
+                        var irradianceTexture = guiContext.MaterialLoader.GetTexture(
+                            entity.GetProperty<string>("lightprobetexture")
+                        );
+
+                        var lightProbe = new SceneLightProbe(scene, bounds)
+                        {
+                            LayerName = layerName,
+                            Transform = transform,
+                            HandShake = handShake,
+                            Irradiance = irradianceTexture,
+                        };
+
+                        var dliName = entity.GetProperty<string>("lightprobetexture_dli");
+                        var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
+                        var dlsdName = entity.GetProperty<string>("lightprobetexture_dlsd");
+
+                        if (dlsName != null)
+                        {
+                            lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
+                        }
+
+                        if (dliName != null)
+                        {
+                            lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
+                        }
+
+                        if (dlsdName != null)
+                        {
+                            lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+                        }
+
+                        scene.LightingInfo.LightProbes.Add(handShake, lightProbe);
+                    }
                 }
 
                 var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
@@ -410,7 +411,7 @@ namespace GUI.Types.Renderer
                 {
                     var sceneNode = AddToolModel(scene, entity, classname, transformationMatrix, positionVector);
 
-                    if (sceneNode != null && classname == "env_combined_light_probe_volume")
+                    if (sceneNode != null && (classname == "env_combined_light_probe_volume" || classname == "env_cubemap_box"))
                     {
                         var handShakeString = entity.GetProperty<string>("handshake");
                         if (!int.TryParse(handShakeString, out var handShake))
