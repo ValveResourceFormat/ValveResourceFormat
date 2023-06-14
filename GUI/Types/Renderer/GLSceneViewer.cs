@@ -120,6 +120,12 @@ namespace GUI.Types.Renderer
 
                 foreach (var node in Scene.AllNodes)
                 {
+                    // TODO: Ignore animated models because bbox calculation is bugged for them
+                    if (this is GLWorldViewer && node is ModelSceneNode modelSceneNode && modelSceneNode.AnimationController.ActiveAnimation != null)
+                    {
+                        continue;
+                    }
+
                     if (first)
                     {
                         first = false;
