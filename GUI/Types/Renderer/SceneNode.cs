@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
 
         public Scene Scene { get; }
 
+        public List<SceneEnvMap> EnvMaps { get; set; } = new();
         public int CubeMapPrecomputedHandshake { get; set; }
         public int LightProbeVolumePrecomputedHandshake { get; set; }
 
