@@ -94,6 +94,8 @@ namespace GUI.Types.Renderer
         {
             ShowBaseGrid = false;
 
+            // TODO: This method iterates over Scene.AllNodes multiple types with linq, do one big loop instead
+
             if (world != null)
             {
                 var loader = new WorldLoader(GuiContext, world);
@@ -176,6 +178,32 @@ namespace GUI.Types.Renderer
                     .Select(r => r.PhysGroupName)
                     .Distinct();
                 SetAvailablPhysicsGroups(physGroups);
+            }
+
+            foreach (var envMap in Scene.LightingInfo.EnvMaps)
+            {
+                var nodes = Scene.StaticOctree.Query(envMap.Value.BoundingBox);
+
+                foreach (var node in nodes)
+                {
+                    node.EnvMaps.Add(envMap.Value);
+                    //node.CubeMapPrecomputedHandshake = envMap.Key;
+                }
+            }
+
+            foreach (var node in Scene.AllNodes)
+            {
+                if (!node.EnvMaps.Any())
+                {
+                    continue;
+                }
+
+                var envMaps = node.EnvMaps.OrderBy((envMap) =>
+                {
+                    return Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center);
+                }).ToList();
+
+                node.CubeMapPrecomputedHandshake = envMaps.First().HandShake;
             }
 
             ViewerControl.Invoke(savedCameraPositionsControl.RefreshSavedPositions);

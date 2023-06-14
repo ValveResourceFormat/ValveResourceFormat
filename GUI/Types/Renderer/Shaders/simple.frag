@@ -242,7 +242,7 @@ void main()
     vec3 V = normalize(vEyePosition - vFragPosition);
 
     // Get the reflection vector for this fragment
-    vec3 R = normalize(reflect(V, N));
+    vec3 R = normalize(reflect(V, N)) * -1.0;
 
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
