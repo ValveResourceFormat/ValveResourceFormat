@@ -27,7 +27,6 @@ namespace GUI.Types.Renderer
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
-        private bool showToolsMaterials = true;
         private Frustum lockedCullFrustum;
 
         private ComboBox renderModeComboBox;
@@ -66,7 +65,7 @@ namespace GUI.Types.Renderer
                 }
             });
             ViewerControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-            ViewerControl.AddCheckBox("Show Tools Materials", showToolsMaterials, (v) =>
+            ViewerControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
             {
                 Scene.ShowToolsMaterials = v;
 

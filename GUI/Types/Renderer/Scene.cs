@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
 
-        public bool ShowToolsMaterials { get; set; } = true;
+        public bool ShowToolsMaterials { get; set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
