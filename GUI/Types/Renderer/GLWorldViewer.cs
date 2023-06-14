@@ -180,9 +180,11 @@ namespace GUI.Types.Renderer
                 SetAvailablPhysicsGroups(physGroups);
             }
 
-            Scene.LightingInfo.EnvMapPositionsUniform = new float[Scene.LightingInfo.EnvMaps.Count * 4];
-            Scene.LightingInfo.EnvMapMinsUniform = new float[Scene.LightingInfo.EnvMaps.Count * 4];
-            Scene.LightingInfo.EnvMapMaxsUniform = new float[Scene.LightingInfo.EnvMaps.Count * 4];
+            var maxEnvMapArrayIndex = 1 + Scene.LightingInfo.EnvMaps.Max(x => x.Value.ArrayIndex);
+
+            Scene.LightingInfo.EnvMapPositionsUniform = new float[maxEnvMapArrayIndex * 4];
+            Scene.LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
+            Scene.LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
 
             foreach (var envMap in Scene.LightingInfo.EnvMaps)
             {
