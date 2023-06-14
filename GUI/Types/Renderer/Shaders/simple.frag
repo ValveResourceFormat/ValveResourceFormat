@@ -13,6 +13,16 @@
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 
+#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
+    #define simple_2way_blend
+#elif defined(vr_simple) || defined(csgo_simple)
+    #define simple
+#elif defined(vr_complex) || defined(csgo_complex)
+    #define complex
+#elif defined(vr_glass) || defined(csgo_glass)
+    #define glass
+#endif
+
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
 #define F_UNLIT 0
@@ -24,12 +34,9 @@
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
 #define F_METALNESS_TEXTURE 0
+#define F_AMBIENT_OCCLUSION_TEXTURE 0
 #define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
-
-#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
-    #define simple_2way_blend
-#endif
 
 in vec3 vFragPosition;
 
@@ -61,21 +68,27 @@ in vec4 vVertexColorOut;
     #endif
 #endif
 
-#if defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
+#if (LightmapGameVersionNumber == 0)
+    #define S_SPECULAR 0 // No cubemaps unless viewing map
+#elif defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
     #define S_SPECULAR F_SPECULAR_INDIRECT
-#elif defined(vr_complex) || defined(csgo_complex)
+#elif defined(complex)
     #define S_SPECULAR F_SPECULAR
+#elif defined(generic)
+    #define S_SPECULAR 0
 #else
     #define S_SPECULAR 1 // Indirect
 #endif
 
 #include "common/environment.glsl"
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
+    #define MAX_ENVMAPS 144
+    #define MAX_ENVMAP_LOD 7
     uniform samplerCubeArray g_tEnvironmentMap;
-    uniform mat4 g_matEnvMapWorldToLocal[144];
-    uniform vec4 g_vEnvMapPositionWs[144];
-    uniform vec4 g_vEnvMapBoxMins[144];
-    uniform vec4 g_vEnvMapBoxMaxs[144];
+    uniform mat4 g_matEnvMapWorldToLocal[MAX_ENVMAPS];
+    uniform vec4 g_vEnvMapPositionWs[MAX_ENVMAPS];
+    uniform vec4 g_vEnvMapBoxMins[MAX_ENVMAPS];
+    uniform vec4 g_vEnvMapBoxMaxs[MAX_ENVMAPS];
     uniform int g_iEnvironmentMapArrayIndex;
 #endif
 
@@ -100,7 +113,7 @@ uniform vec4 g_vTexCoordScale;
 uniform float g_flAlphaTestReference = 0.5;
 
 // glass specific params
-#if (F_GLASS == 1) || defined(vr_glass) || defined(csgo_glass)
+#if (F_GLASS == 1) || defined(glass)
 uniform bool g_bFresnel = true;
 uniform float g_flEdgeColorFalloff = 3.0;
 uniform float g_flEdgeColorMaxOpacity = 0.5;
@@ -110,7 +123,8 @@ uniform float g_flRefractScale = 0.1;
 uniform float g_flOpacityScale = 1.0;
 #endif
 
-#define hasUniformMetalness (defined(vr_simple) || defined(csgo_simple)) && (F_METALNESS_TEXTURE == 0)
+#define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
+#define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
 #if hasUniformMetalness
     uniform float g_flMetalness = 0.0;
 #endif
@@ -120,8 +134,10 @@ uniform float g_flOpacityScale = 1.0;
     uniform float g_flBlendSoftness;
 #endif
 
-#if (defined(simple_2way_blend))
+#if defined(simple_2way_blend)
     uniform sampler2D g_tMask;
+    uniform float g_flMetalnessA;
+    uniform float g_flMetalnessB;
 #endif
 
 #if defined(csgo_character) || defined(csgo_weapon)
@@ -129,7 +145,7 @@ uniform float g_flOpacityScale = 1.0;
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
-#if defined(csgo_foliage)
+#if defined(csgo_foliage) || (defined(vr_simple) && F_AMBIENT_OCCLUSION_TEXTURE == 1 && F_METALNESS_TEXTURE == 1)
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
@@ -252,8 +268,20 @@ void main()
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
 #elif defined(csgo_foliage)
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
-#elif hasUniformMetalness
+#elif (hasUniformMetalness)
     metalness = g_flMetalness;
+#elif (hasColorAlphaMetalness)
+    metalness = color.a;
+#elif (defined(simple_2way_blend))
+    metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
+#endif
+
+#if defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1)
+    #if (F_METALNESS_TEXTURE == 0)
+        occlusion = color.a;
+    #else
+        occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+    #endif
 #endif
 
     roughness = clamp(roughness, 0.005, 1.0);
@@ -273,7 +301,7 @@ void main()
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
 #else
-    #if (F_GLASS == 1) || defined(vr_glass) || defined(csgo_glass)
+    #if (F_GLASS == 1) || defined(glass)
         float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
         float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
         vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);
@@ -293,7 +321,9 @@ void main()
 
     vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
     vec3 kD = 1.0 - F;
-	kD *= 1.0 - metalness;
+    #if (LightmapGameVersionNumber >= 1)
+        kD *= 1.0 - metalness;
+    #endif
 
     float visibility = 1.0;
 
@@ -346,8 +376,9 @@ void main()
             g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].xyz
         );
 
-        vec3 specular = F * pow(texture(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex)).rgb, power);
-        outputColor.rgb += specular;
+        float layer = sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
+        vec3 specular = F * pow(textureLod(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex), layer).rgb, power);
+        outputColor.rgb += specular * occlusion;
     #endif
 
 #endif
@@ -382,7 +413,7 @@ void main()
     outputColor = vec4(occlusion, roughness, metalness, 1.0);
 #endif
 
-#if renderMode_Cubemaps == 1
+#if (renderMode_Cubemaps == 1)
     R = normalize(reflect(-V, vNormalOut)); // No bumpmaps
     R = CubeMapBoxProjection(
         vFragPosition,
@@ -407,7 +438,7 @@ void main()
     outputColor = vVertexColorOut;
 #endif
 
-#if renderMode_Terrain_Blend == 1 && F_LAYERS > 0
+#if renderMode_Terrain_Blend == 1 && (F_LAYERS > 0 || defined(simple_2way_blend))
     outputColor.rgb = vColorBlendValues.rgb;
 #endif
 }
