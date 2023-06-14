@@ -9,6 +9,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 using static GUI.Controls.SavedCameraPositionsControl;
 using static GUI.Types.Renderer.PickingTexture;
 
@@ -253,6 +254,25 @@ namespace GUI.Types.Renderer
                 if (sceneNode.EntityData == null)
                 {
                     return;
+                }
+
+                Dictionary<uint, string> knownKeys = null;
+
+                // TODO: Color32 type is displayed as Byte[], convert it
+                foreach (var property in sceneNode.EntityData.Properties)
+                {
+                    if (property.Value.Name == null)
+                    {
+                        if (knownKeys == null)
+                        {
+                            knownKeys = StringToken.InvertedTable;
+                        }
+
+                        if (knownKeys.TryGetValue(property.Key, out var knownKey))
+                        {
+                            property.Value.Name = knownKey;
+                        }
+                    }
                 }
 
                 using var entityDialog = new EntityInfoForm();
