@@ -10,4 +10,8 @@ class WorldLightingInfo
     public Dictionary<int, SceneLightProbe> LightProbes { get; } = new();
     public int LightmapGameVersionNumber { get; init; }
     public Vector2 LightmapUvScale { get; init; }
+
+    public float[] EnvMapPositionsUniform { get; set; }
+    public float[] EnvMapMinsUniform { get; set; }
+    public float[] EnvMapMaxsUniform { get; set; }
 }

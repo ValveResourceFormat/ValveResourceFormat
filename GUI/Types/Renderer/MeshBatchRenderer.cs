@@ -94,6 +94,14 @@ namespace GUI.Types.Renderer
                 GL.Uniform3(shader.GetUniformLocation("vEyePosition"), cameraPosition);
                 GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
 
+                if (context.LightingInfo?.EnvMapPositionsUniform is not null)
+                {
+                    var count = context.LightingInfo.EnvMaps.Count;
+                    GL.Uniform4(shader.GetUniformLocation("g_vEnvMapPositionWs"), count, context.LightingInfo.EnvMapPositionsUniform);
+                    GL.Uniform4(shader.GetUniformLocation("g_vEnvMapBoxMins"), count, context.LightingInfo.EnvMapMinsUniform);
+                    GL.Uniform4(shader.GetUniformLocation("g_vEnvMapBoxMaxs"), count, context.LightingInfo.EnvMapMaxsUniform);
+                }
+
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
                 {
                     var material = materialGroup.Key;
