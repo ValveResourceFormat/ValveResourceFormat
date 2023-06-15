@@ -270,29 +270,30 @@ namespace GUI.Types.Renderer
             LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
             LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
 
-            foreach (var envMap in LightingInfo.EnvMaps)
+            foreach (var envMap in LightingInfo.EnvMaps.Values)
             {
-                var nodes = StaticOctree.Query(envMap.Value.BoundingBox);
+                var nodes = StaticOctree.Query(envMap.BoundingBox);
 
                 foreach (var node in nodes)
                 {
-                    node.EnvMaps.Add(envMap.Value);
-                    //node.CubeMapPrecomputedHandshake = envMap.Key;
+                    node.EnvMaps.Add(envMap);
+                    //node.CubeMapPrecomputedHandshake = envMap.HandShake;
                 }
 
-                var offsetFl = envMap.Value.ArrayIndex * 4;
+                var offsetFl = envMap.ArrayIndex * 4;
 
-                LightingInfo.EnvMapPositionsUniform[offsetFl] = envMap.Value.Transform.M41;
-                LightingInfo.EnvMapPositionsUniform[offsetFl + 1] = envMap.Value.Transform.M42;
-                LightingInfo.EnvMapPositionsUniform[offsetFl + 2] = envMap.Value.Transform.M43;
+                LightingInfo.EnvMapPositionsUniform[offsetFl] = envMap.Transform.M41;
+                LightingInfo.EnvMapPositionsUniform[offsetFl + 1] = envMap.Transform.M42;
+                LightingInfo.EnvMapPositionsUniform[offsetFl + 2] = envMap.Transform.M43;
+                LightingInfo.EnvMapPositionsUniform[offsetFl + 3] = envMap.ProjectionMode;
 
-                LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.Value.BoundingBox.Min.X;
-                LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Min.Y;
-                LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Min.Z;
+                LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.BoundingBox.Min.X;
+                LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.BoundingBox.Min.Y;
+                LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.BoundingBox.Min.Z;
 
-                LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.Value.BoundingBox.Max.X;
-                LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Max.Y;
-                LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Max.Z;
+                LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.BoundingBox.Max.X;
+                LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.BoundingBox.Max.Y;
+                LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.BoundingBox.Max.Z;
             }
 
             foreach (var node in AllNodes)

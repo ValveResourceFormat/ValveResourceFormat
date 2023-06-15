@@ -241,7 +241,10 @@ namespace GUI.Types.Renderer
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                     };
                 }
-                else if (classname == "env_combined_light_probe_volume" || classname == "env_cubemap_box")
+                else if (classname == "env_combined_light_probe_volume"
+                    || classname == "env_light_probe_volume"
+                    || classname == "env_cubemap_box"
+                    || classname == "env_cubemap")
                 {
                     var handShakeString = entity.GetProperty<string>("handshake");
                     if (!int.TryParse(handShakeString, out var handShake))
@@ -249,40 +252,53 @@ namespace GUI.Types.Renderer
                         handShake = 0;
                     }
 
-                    var envMapTexture = guiContext.MaterialLoader.GetTexture(
-                        entity.GetProperty<string>("cubemaptexture")
-                    );
-
-                    scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
-
-                    var arrayIndexData = entity.GetProperty("array_index")?.Data;
-                    var arrayIndex = arrayIndexData switch
-                    {
-                        int i => i,
-                        string s => int.Parse(s, CultureInfo.InvariantCulture),
-                        _ => 0,
-                    };
-
                     var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
-                    var bounds = new AABB(
-                        entity.GetProperty<Vector3>("box_mins"),
-                        entity.GetProperty<Vector3>("box_maxs")
-                    );
-
-                    var envMap = new SceneEnvMap(scene, bounds)
+                    AABB bounds = default;
+                    if (classname == "env_cubemap")
                     {
-                        LayerName = layerName,
-                        Transform = transform,
-                        HandShake = handShake,
-                        ArrayIndex = arrayIndex,
-                        EnvMapTexture = envMapTexture,
-                    };
+                        var radius = entity.GetProperty<float>("influenceradius");
+                        bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                    }
+                    else
+                    {
+                        bounds = new AABB(
+                            entity.GetProperty<Vector3>("box_mins"),
+                            entity.GetProperty<Vector3>("box_maxs")
+                        );
+                    }
 
-                    scene.LightingInfo.EnvMaps.Add(handShake, envMap);
+                    if (classname != "env_light_probe_volume")
+                    {
+                        var envMapTexture = guiContext.MaterialLoader.GetTexture(
+                            entity.GetProperty<string>("cubemaptexture")
+                        );
 
-                    // TODO: env_light_probe_volume?
-                    if (classname == "env_combined_light_probe_volume")
+                        scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
+
+                        var arrayIndexData = entity.GetProperty("array_index")?.Data;
+                        var arrayIndex = arrayIndexData switch
+                        {
+                            int i => i,
+                            string s => int.Parse(s, CultureInfo.InvariantCulture),
+                            _ => 0,
+                        };
+
+                        var envMap = new SceneEnvMap(scene, bounds)
+                        {
+                            LayerName = layerName,
+                            Transform = transform,
+                            HandShake = handShake,
+                            ArrayIndex = arrayIndex,
+                            ProjectionMode = classname == "env_cubemap" ? 0 : 1,
+                            EnvMapTexture = envMapTexture,
+                        };
+
+                        scene.LightingInfo.EnvMaps.Add(handShake, envMap);
+                        scene.Add(envMap, true);
+                    }
+
+                    if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
                         var irradianceTexture = guiContext.MaterialLoader.GetTexture(
                             entity.GetProperty<string>("lightprobetexture")
@@ -412,19 +428,6 @@ namespace GUI.Types.Renderer
                 if (model == null)
                 {
                     var sceneNode = AddToolModel(scene, entity, classname, transformationMatrix, positionVector);
-
-                    if (sceneNode != null && (classname == "env_combined_light_probe_volume" || classname == "env_cubemap_box"))
-                    {
-                        var handShakeString = entity.GetProperty<string>("handshake");
-                        if (!int.TryParse(handShakeString, out var handShake))
-                        {
-                            handShake = 0;
-                        }
-
-                        sceneNode.CubeMapPrecomputedHandshake = handShake;
-                        sceneNode.LightProbeVolumePrecomputedHandshake = handShake;
-                    }
-
                     continue;
                 }
 
