@@ -259,7 +259,7 @@ namespace GUI.Types.Renderer
 
         public void CalculateEnvironmentMaps()
         {
-            if (LightingInfo.EnvMaps.Count == 0)
+            if (LightingInfo == null || LightingInfo.EnvMaps.Count == 0)
             {
                 return;
             }
