@@ -112,7 +112,7 @@ namespace GUI.Types.Renderer
             var worldLightingInfo = world.GetWorldLightingInfo();
             if (worldLightingInfo == null)
             {
-                return default;
+                return new WorldLightingInfo();
             }
 
             var lightmapGameVersionNumber = 0;
@@ -294,7 +294,11 @@ namespace GUI.Types.Renderer
                             EnvMapTexture = envMapTexture,
                         };
 
-                        scene.LightingInfo.EnvMaps.Add(handShake, envMap);
+                        if (handShake > 0)
+                        {
+                            scene.LightingInfo.EnvMaps.Add(handShake, envMap);
+                        }
+
                         scene.Add(envMap, true);
                     }
 
@@ -331,7 +335,10 @@ namespace GUI.Types.Renderer
                             lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
                         }
 
-                        scene.LightingInfo.LightProbes.Add(handShake, lightProbe);
+                        if (handShake > 0)
+                        {
+                            scene.LightingInfo.LightProbes.Add(handShake, lightProbe);
+                        }
                     }
                 }
 
