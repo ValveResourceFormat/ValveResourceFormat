@@ -4,10 +4,12 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using Vortice.SpirvCross;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using VrfPackage = SteamDatabase.ValvePak.Package;
 
@@ -61,7 +63,14 @@ namespace GUI.Types.Viewers
             var helpText = "[ctrl+click to open and focus links, ESC or right-click on tabs to close]\n\n";
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
 
-            var extract = new ShaderExtract(shaderCollection);
+            var spvToHlsl = (VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
+                => ZFrameRichTextBox.AttemptSpirvReflection(v, c, s, z, d, Backend.HLSL);
+
+            var extract = new ShaderExtract(shaderCollection)
+            {
+                SpirvCompiler = spvToHlsl,
+            };
+
             IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, true);
 
             return tab;
@@ -186,7 +195,7 @@ namespace GUI.Types.Viewers
                 {
                     relatedFiles.Add(Path.GetFileName(shader.FilenamePath));
                 }
-                var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 if (!byteVersion)
                 {
                     shaderFile.PrintSummary(buffer.Write, showRichTextBoxLinks: true, relatedfiles: relatedFiles);
@@ -240,7 +249,7 @@ namespace GUI.Types.Viewers
                 }
                 var zframeId = Convert.ToInt64(linkText, 16);
                 var zframeTab = new TabPage($"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeId:x}]");
-                var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, zframeId);
+                var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, shaderCollection, zframeId);
                 zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                 zframeTab.Controls.Add(zframeRichTextBox);
                 tabControl.Controls.Add(zframeTab);
@@ -251,18 +260,20 @@ namespace GUI.Types.Viewers
             }
         }
 
-
         private class ZFrameRichTextBox : RichTextBox, IDisposable
         {
             private readonly TabControl tabControl;
+            private readonly ShaderCollection shaderCollection;
             private readonly ShaderFile shaderFile;
             private ZFrameFile zframeFile;
 
-            public ZFrameRichTextBox(TabControl tabControl, ShaderFile shaderFile, long zframeId, bool byteVersion = false) : base()
+            public ZFrameRichTextBox(TabControl tabControl, ShaderFile shaderFile, ShaderCollection shaderCollection,
+                long zframeId, bool byteVersion = false) : base()
             {
                 this.tabControl = tabControl;
                 this.shaderFile = shaderFile;
-                var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                this.shaderCollection = shaderCollection;
+                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 zframeFile = shaderFile.GetZFrameFile(zframeId, outputWriter: buffer.Write);
                 if (byteVersion)
                 {
@@ -311,7 +322,7 @@ namespace GUI.Types.Viewers
                     // linkTokens[0].Split('-')[^2] evaluates as ZFRAME00000000, number is read as base 16
                     var zframeId = Convert.ToInt64(linkTokens[0].Split('-')[^2][6..], 16);
                     var zframeTab = new TabPage($"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeId:x}] bytes");
-                    var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, zframeId, byteVersion: true);
+                    var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, shaderCollection, zframeId, byteVersion: true);
                     zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                     zframeTab.Controls.Add(zframeRichTextBox);
                     tabControl.Controls.Add(zframeTab);
@@ -327,38 +338,99 @@ namespace GUI.Types.Viewers
                 // they are enumerated in each zframe file starting from 0)
                 var gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
                 var gpuSourceTabTitle = $"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeFile.ZframeId:x}]({gpuSourceId})";
+                var gpuSource = zframeFile.GpuSources[gpuSourceId];
 
                 TabPage gpuSourceTab = null;
-                var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile.PrintGpuSource(gpuSourceId, buffer.Write);
-                switch (zframeFile.GpuSources[gpuSourceId])
+
+                switch (gpuSource)
                 {
                     case GlslSource:
-                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceRichTextBox = new RichTextBox
                         {
-                            Font = new Font(FontFamily.GenericMonospace, Font.Size),
-                            DetectUrls = true,
-                            Dock = DockStyle.Fill,
-                            Multiline = true,
-                            ReadOnly = true,
-                            WordWrap = false,
-                            Text = buffer.ToString().ReplaceLineEndings(),
-                            ScrollBars = RichTextBoxScrollBars.Both
-                        };
-                        gpuSourceTab.Controls.Add(gpuSourceRichTextBox);
-                        break;
+                            gpuSourceTab = new TabPage(gpuSourceTabTitle);
+                            var gpuSourceGlslText = new MonospaceTextBox
+                            {
+                                Text = Encoding.UTF8.GetString(gpuSource.Sourcebytes).ReplaceLineEndings(),
+                            };
+                            gpuSourceTab.Controls.Add(gpuSourceGlslText);
+                            break;
+                        }
 
                     case DxbcSource:
                     case DxilSource:
-                    case VulkanSource:
-                        var input = zframeFile.GpuSources[gpuSourceId].Sourcebytes;
-                        gpuSourceTab = CreateByteViewerTab(input, buffer.ToString());
-                        gpuSourceTab.Text = gpuSourceTabTitle;
-                        break;
+                        {
+                            gpuSourceTab = new TabPage
+                            {
+                                Text = gpuSourceTabTitle
+                            };
+
+                            var sourceBv = new System.ComponentModel.Design.ByteViewer
+                            {
+                                Dock = DockStyle.Fill,
+                            };
+                            gpuSourceTab.Controls.Add(sourceBv);
+
+                            Program.MainForm.Invoke((MethodInvoker)(() =>
+                            {
+                                sourceBv.SetBytes(gpuSource.Sourcebytes);
+                            }));
+
+                            break;
+                        }
+
+                    case VulkanSource vulkanSource:
+                        {
+                            gpuSourceTab = new TabPage
+                            {
+                                Text = gpuSourceTabTitle
+                            };
+                            var resTabs = new TabControl
+                            {
+                                Dock = DockStyle.Fill,
+                            };
+                            gpuSourceTab.Controls.Add(resTabs);
+
+                            // source
+                            var sourceBvTab = new TabPage("Source");
+                            var sourceBv = new System.ComponentModel.Design.ByteViewer
+                            {
+                                Dock = DockStyle.Fill,
+                            };
+                            sourceBvTab.Controls.Add(sourceBv);
+                            resTabs.TabPages.Add(sourceBvTab);
+
+                            // metadata
+                            var metadataBvTab = new TabPage("Metadata");
+                            var metadataBv = new System.ComponentModel.Design.ByteViewer
+                            {
+                                Dock = DockStyle.Fill,
+                            };
+                            metadataBvTab.Controls.Add(metadataBv);
+                            resTabs.TabPages.Add(metadataBvTab);
+
+                            // text
+                            var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
+                                zframeFile.ZframeId, 0, Backend.GLSL);
+
+                            var textTab = new TabPage("SPIR-V");
+                            var textBox = new MonospaceTextBox()
+                            {
+                                Text = reflectedSource.ReplaceLineEndings(),
+                            };
+                            textTab.Controls.Add(textBox);
+                            resTabs.TabPages.Add(textTab);
+                            resTabs.SelectedTab = textTab;
+
+                            Program.MainForm.Invoke((MethodInvoker)(() =>
+                            {
+                                sourceBv.SetBytes(vulkanSource.GetSpirvBytes());
+                                metadataBv.SetBytes(vulkanSource.GetMetaDataBytes());
+                            }));
+
+                            break;
+                        }
 
                     default:
-                        throw new InvalidDataException($"Unimplemented GPU source type {zframeFile.GpuSources[gpuSourceId].GetType()}");
+                        throw new InvalidDataException($"Unimplemented GPU source type {gpuSource.GetType()}");
                 }
 
                 tabControl.Controls.Add(gpuSourceTab);
@@ -368,39 +440,54 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            private static TabPage CreateByteViewerTab(byte[] databytes, string dataFormatted)
+            public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
+                long zFrameId, long dynamicId, Backend backend)
             {
-                var tab = new TabPage();
-                var resTabs = new TabControl
+                using var context = new Context();
+                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
+
+                try
                 {
-                    Dock = DockStyle.Fill,
-                };
-                tab.Controls.Add(resTabs);
-                var bvTab = new TabPage("Hex");
-                var bv = new System.ComponentModel.Design.ByteViewer
+                    context.ParseSpirv(vulkanSource.GetSpirvBytes(), out var parsedIr).CheckResult();
+
+                    var compiler = context.CreateCompiler(backend, parsedIr, CaptureMode.TakeOwnership);
+
+                    if (backend == Backend.GLSL)
+                    {
+                        compiler.Options.SetBool(CompilerOption.GLSL_VulkanSemantics, true);
+                        compiler.Options.SetBool(CompilerOption.GLSL_EMIT_UNIFORMBuffer_AS_PLAIN_UNIFORMS, true);
+                    }
+                    else if (backend == Backend.HLSL)
+                    {
+                        compiler.Options.SetUInt(CompilerOption.HLSL_ShaderModel, 61);
+                    }
+
+                    compiler.Apply();
+
+                    var code = compiler.Compile();
+
+                    buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
+                    buffer.WriteLine("// VRF - https://vrf.steamdb.info/");
+                    buffer.WriteLine();
+                    buffer.WriteLine(code.ReplaceLineEndings());
+                }
+                catch (Exception e)
                 {
-                    Dock = DockStyle.Fill,
-                };
-                bvTab.Controls.Add(bv);
-                resTabs.TabPages.Add(bvTab);
-                var textTab = new TabPage("Bytes");
-                var textBox = new System.Windows.Forms.RichTextBox
-                {
-                    Dock = DockStyle.Fill,
-                    ScrollBars = RichTextBoxScrollBars.Both,
-                    Multiline = true,
-                    ReadOnly = true,
-                    WordWrap = false,
-                    Text = dataFormatted,
-                };
-                textBox.Font = new Font(FontFamily.GenericMonospace, textBox.Font.Size);
-                textTab.Controls.Add(textBox);
-                resTabs.TabPages.Add(textTab);
-                resTabs.SelectedTab = textTab;
-                Program.MainForm.Invoke((MethodInvoker)(
-                    () => bv.SetBytes(databytes)
-                ));
-                return tab;
+                    buffer.WriteLine("/*");
+                    buffer.WriteLine($"SPIR-V reflection failed: {e.Message}");
+
+                    var lastError = context.GetLastErrorString();
+
+                    if (!string.IsNullOrEmpty(lastError))
+                    {
+                        buffer.WriteLine();
+                        buffer.WriteLine(lastError);
+                    }
+
+                    buffer.WriteLine("*/");
+                }
+
+                return buffer.ToString();
             }
         }
     }

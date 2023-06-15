@@ -57,6 +57,11 @@ public sealed class ShaderExtract
 
     public ShaderCollection Shaders { get; init; }
 
+    /// <summary>
+    /// A delegate that takes in SPIR-V bytecode and returns HLSL.
+    /// </summary>
+    public Func<VulkanSource, ShaderCollection, VcsProgramType, long, long, string> SpirvCompiler { get; set; }
+
     public ShaderFile Features => Shaders.Features;
     public ShaderFile Vertex => Shaders.Vertex;
     public ShaderFile Geometry => Shaders.Geometry;
@@ -566,6 +571,9 @@ public sealed class ShaderExtract
         var perConditionParameters = new Dictionary<(int Index, int State), HashSet<int>>(staticConfig.SumStates);
         var hasParameters = shader.ParamBlocks.Count > 0;
 
+        // Raw glsl (old) or SPIR-V reflected source for variant 0
+        var variant0Source = new StringBuilder();
+
         foreach (var i in Enumerable.Range(0, shader.GetZFrameCount()))
         {
             if (Options.ZFrameReadingCap >= 0 && i >= Options.ZFrameReadingCap)
@@ -578,6 +586,23 @@ public sealed class ShaderExtract
 
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
             attributesDisect[staticConfigState] = zframeAttributes;
+
+            if (zFrame.GpuSourceCount > 0 && variant0Source.Length == 0)
+            {
+                var dynamicId = 0;
+                var gpuSource = zFrame.GpuSources[dynamicId];
+                if (gpuSource is GlslSource glsl)
+                {
+                    variant0Source.AppendLine("// --------- GLSL source begin --------- ");
+                    variant0Source.Append(Encoding.UTF8.GetString(glsl.Sourcebytes));
+                    variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
+                }
+                else if (gpuSource is VulkanSource spirv && !spirv.HasEmptySource() && SpirvCompiler is not null)
+                {
+                    variant0Source.Append(SpirvCompiler.Invoke(spirv, Shaders, shader.VcsProgramType, zFrame.ZframeId, dynamicId));
+                    variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");
+                }
+            }
 
             if (!hasParameters)
             {
@@ -607,6 +632,18 @@ public sealed class ShaderExtract
         {
             writer.WriteLine();
             WriteVariantParameters(shader.SfBlocks, shader.ParamBlocks, shader.ChannelBlocks, writer, perConditionParameters);
+        }
+
+        if (variant0Source.Length > 0)
+        {
+            writer.WriteLine();
+
+            foreach (var line in variant0Source.ToString().Split(new string[] { "\n", "\r\n" }, StringSplitOptions.None))
+            {
+                writer.WriteLine(line);
+            }
+
+            writer.WriteLine();
         }
 
         WriteAttributes(shader.SfBlocks, writer, attributesDisect, perConditionAttributes);

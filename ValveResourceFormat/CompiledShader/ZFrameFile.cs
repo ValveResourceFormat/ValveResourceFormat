@@ -216,37 +216,6 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        /*
-         * Prints the GPU source as text (GLSL) or bytes (DXIL, DXBC, Vulkan)
-         *
-         * Method accepts a HandleOutputWrite to redirect output, this needed by the GUI
-         * when opening data in different window tabs.
-         *
-         */
-        public void PrintGpuSource(int sourceId, HandleOutputWrite outputWriter = null)
-        {
-            outputWriter ??= (x) => { Console.Write(x); };
-            var sourceDetails =
-                $"// {GpuSources[sourceId].GetBlockName()}[{sourceId}] source bytes " +
-                $"({GpuSources[sourceId].Sourcebytes.Length}) ref={GpuSources[sourceId].GetEditorRefIdAsString()}\n";
-            if (GpuSources[sourceId].Sourcebytes.Length == 0)
-            {
-                outputWriter(sourceDetails);
-                outputWriter("[empty source]");
-                return;
-            }
-            if (GpuSources[sourceId] is GlslSource)
-            {
-                var glslSourceFile = Encoding.UTF8.GetString(GpuSources[sourceId].Sourcebytes);
-                outputWriter(glslSourceFile);
-            }
-            else
-            {
-                outputWriter(sourceDetails);
-                outputWriter(BytesToString(GpuSources[sourceId].Sourcebytes) + "\n");
-            }
-        }
-
         public class Attribute
         {
             public string Name0 { get; }
@@ -356,7 +325,7 @@ namespace ValveResourceFormat.CompiledShader
                 int flag1 = datareader.ReadByte();
                 int flag2 = datareader.ReadByte();
 
-                if (flag0 != 0 && flag0 != 1 || flag1 != 0 && flag1 != 1 || flag2 != 0 && flag2 != 1)
+                if ((flag0 != 0 && flag0 != 1) || (flag1 != 0 && flag1 != 1) || (flag2 != 0 && flag2 != 1))
                 {
                     throw new ShaderParserException("unexpected data");
                 }
@@ -847,5 +816,4 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.ShowBytes(dynExpLen);
         }
     }
-
 }

@@ -1,8 +1,7 @@
-using System;
-using System.Numerics;
 using System.Collections.Generic;
-using OpenTK.Graphics.OpenGL;
+using System.Numerics;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
