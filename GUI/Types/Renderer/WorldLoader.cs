@@ -88,6 +88,8 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            scene.CalculateEnvironmentMaps();
+
             // TODO: Ideally we would use the vrman files to find relevant files
             var physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(Path.GetDirectoryName(guiContext.FileName), "world_physics.vphys_c"));
             if (physResource != null)

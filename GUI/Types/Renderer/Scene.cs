@@ -256,5 +256,59 @@ namespace GUI.Types.Renderer
                 }
             }
         }
+
+        public void CalculateEnvironmentMaps()
+        {
+            if (LightingInfo.EnvMaps.Count == 0)
+            {
+                return;
+            }
+
+            var maxEnvMapArrayIndex = 1 + LightingInfo.EnvMaps.Max(x => x.Value.ArrayIndex);
+
+            LightingInfo.EnvMapPositionsUniform = new float[maxEnvMapArrayIndex * 4];
+            LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
+            LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
+
+            foreach (var envMap in LightingInfo.EnvMaps)
+            {
+                var nodes = StaticOctree.Query(envMap.Value.BoundingBox);
+
+                foreach (var node in nodes)
+                {
+                    node.EnvMaps.Add(envMap.Value);
+                    //node.CubeMapPrecomputedHandshake = envMap.Key;
+                }
+
+                var offsetFl = envMap.Value.ArrayIndex * 4;
+
+                LightingInfo.EnvMapPositionsUniform[offsetFl] = envMap.Value.Transform.M41;
+                LightingInfo.EnvMapPositionsUniform[offsetFl + 1] = envMap.Value.Transform.M42;
+                LightingInfo.EnvMapPositionsUniform[offsetFl + 2] = envMap.Value.Transform.M43;
+
+                LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.Value.BoundingBox.Min.X;
+                LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Min.Y;
+                LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Min.Z;
+
+                LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.Value.BoundingBox.Max.X;
+                LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Max.Y;
+                LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Max.Z;
+            }
+
+            foreach (var node in AllNodes)
+            {
+                if (!node.EnvMaps.Any())
+                {
+                    continue;
+                }
+
+                var envMaps = node.EnvMaps.OrderBy((envMap) =>
+                {
+                    return Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center);
+                }).ToList();
+
+                node.CubeMapPrecomputedHandshake = envMaps.First().HandShake;
+            }
+        }
     }
 }

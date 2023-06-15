@@ -181,52 +181,6 @@ namespace GUI.Types.Renderer
                 SetAvailablPhysicsGroups(physGroups);
             }
 
-            var maxEnvMapArrayIndex = 1 + Scene.LightingInfo.EnvMaps.Max(x => x.Value.ArrayIndex);
-
-            Scene.LightingInfo.EnvMapPositionsUniform = new float[maxEnvMapArrayIndex * 4];
-            Scene.LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
-            Scene.LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
-
-            foreach (var envMap in Scene.LightingInfo.EnvMaps)
-            {
-                var nodes = Scene.StaticOctree.Query(envMap.Value.BoundingBox);
-
-                foreach (var node in nodes)
-                {
-                    node.EnvMaps.Add(envMap.Value);
-                    //node.CubeMapPrecomputedHandshake = envMap.Key;
-                }
-
-                int offsetFl = envMap.Value.ArrayIndex * 4;
-
-                Scene.LightingInfo.EnvMapPositionsUniform[offsetFl] = envMap.Value.Transform.M41;
-                Scene.LightingInfo.EnvMapPositionsUniform[offsetFl + 1] = envMap.Value.Transform.M42;
-                Scene.LightingInfo.EnvMapPositionsUniform[offsetFl + 2] = envMap.Value.Transform.M43;
-
-                Scene.LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.Value.BoundingBox.Min.X;
-                Scene.LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Min.Y;
-                Scene.LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Min.Z;
-
-                Scene.LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.Value.BoundingBox.Max.X;
-                Scene.LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.Value.BoundingBox.Max.Y;
-                Scene.LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.Value.BoundingBox.Max.Z;
-            }
-
-            foreach (var node in Scene.AllNodes)
-            {
-                if (!node.EnvMaps.Any())
-                {
-                    continue;
-                }
-
-                var envMaps = node.EnvMaps.OrderBy((envMap) =>
-                {
-                    return Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center);
-                }).ToList();
-
-                node.CubeMapPrecomputedHandshake = envMaps.First().HandShake;
-            }
-
             ViewerControl.Invoke(savedCameraPositionsControl.RefreshSavedPositions);
         }
 
