@@ -101,8 +101,6 @@ namespace GUI.Types.Renderer
             selectedNodeRenderer = new(GuiContext);
 
             ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
-            ViewerControl.Camera.SetLocation(new Vector3(256));
-            ViewerControl.Camera.LookAt(new Vector3(0));
 
             ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
@@ -112,19 +110,13 @@ namespace GUI.Types.Renderer
             timer.Stop();
             Console.WriteLine($"Loading scene time: {timer.Elapsed}");
 
-            if (Scene.AllNodes.Any())
+            if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {
                 var first = true;
                 var bbox = new AABB();
 
                 foreach (var node in Scene.AllNodes)
                 {
-                    // TODO: Ignore animated models because bbox calculation is bugged for them
-                    if (this is GLWorldViewer && node is ModelSceneNode modelSceneNode && modelSceneNode.AnimationController.ActiveAnimation != null)
-                    {
-                        continue;
-                    }
-
                     if (first)
                     {
                         first = false;
@@ -140,6 +132,11 @@ namespace GUI.Types.Renderer
 
                 ViewerControl.Camera.SetLocation(location);
                 ViewerControl.Camera.LookAt(bbox.Center);
+            }
+            else
+            {
+                ViewerControl.Camera.SetLocation(new Vector3(256));
+                ViewerControl.Camera.LookAt(new Vector3(0));
             }
 
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
