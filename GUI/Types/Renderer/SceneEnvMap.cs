@@ -10,6 +10,11 @@ class SceneEnvMap : SceneNode
     /// </summary>
     public int ArrayIndex { get; init; }
 
+    /// <summary>
+    /// 0 = Sphere, 1 = Box
+    /// </summary>
+    public int ProjectionMode { get; init; }
+
     public SceneEnvMap(Scene scene, AABB bounds) : base(scene)
     {
         LocalBoundingBox = bounds;

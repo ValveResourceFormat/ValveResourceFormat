@@ -80,16 +80,8 @@ in vec4 vVertexColorOut;
     #define S_SPECULAR 1 // Indirect
 #endif
 
-#include "common/environment.glsl"
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
-    #define MAX_ENVMAPS 144
-    #define MAX_ENVMAP_LOD 7
-    uniform samplerCubeArray g_tEnvironmentMap;
-    uniform mat4 g_matEnvMapWorldToLocal[MAX_ENVMAPS];
-    uniform vec4 g_vEnvMapPositionWs[MAX_ENVMAPS];
-    uniform vec4 g_vEnvMapBoxMins[MAX_ENVMAPS];
-    uniform vec4 g_vEnvMapBoxMaxs[MAX_ENVMAPS];
-    uniform int g_iEnvironmentMapArrayIndex;
+#include "common/environment.glsl"
 #endif
 
 #if (defined(simple_2way_blend) || F_LAYERS > 0)
@@ -368,16 +360,8 @@ void main()
     outputColor.rgb += Lo;
 
     #if (S_SPECULAR == 1)
-        R = CubeMapBoxProjection(
-            vFragPosition,
-            R,
-            g_vEnvMapBoxMins[g_iEnvironmentMapArrayIndex].xyz,
-            g_vEnvMapBoxMaxs[g_iEnvironmentMapArrayIndex].xyz,
-            g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].xyz
-        );
-
         float layer = sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
-        vec3 specular = F * pow(textureLod(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex), layer).rgb, power);
+        vec3 specular = F * pow(GetEnvironment(R, layer), power);
         outputColor.rgb += specular * occlusion;
     #endif
 
@@ -415,15 +399,11 @@ void main()
 
 #if (renderMode_Cubemaps == 1)
     R = normalize(reflect(-V, vNormalOut)); // No bumpmaps
-    R = CubeMapBoxProjection(
-        vFragPosition,
-        R,
-        g_vEnvMapBoxMins[g_iEnvironmentMapArrayIndex].xyz,
-        g_vEnvMapBoxMaxs[g_iEnvironmentMapArrayIndex].xyz,
-        g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].xyz
-    );
-
-    outputColor.rgb = pow(texture(g_tEnvironmentMap, vec4(R, g_iEnvironmentMapArrayIndex)).rgb, power);
+    float lod = 0.0;
+    #if (SCENE_ENVIRONMENT_TYPE > 0)
+        lod = textureQueryLod(g_tEnvironmentMap, R).x;
+    #endif
+    outputColor.rgb = pow(GetEnvironment(R, lod), power);
 #endif
 
 #if renderMode_Illumination == 1
