@@ -23,6 +23,7 @@ namespace GUI.Utils
         private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".addon" };
         private bool GamePackagesScanned;
         private bool ShaderPackagesScanned;
+        private bool ProvidedGameInfosScanned;
 
         public AdvancedGuiFileLoader(VrfGuiContext guiContext)
         {
@@ -139,6 +140,18 @@ namespace GUI.Utils
 
                 packages.Add(package);
             }
+
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
+            {
+                paths.Remove(searchPath);
+
+                if (!ProvidedGameInfosScanned)
+                {
+                    FindAndLoadSearchPaths(searchPath);
+                }
+            }
+
+            ProvidedGameInfosScanned = true;
 
             if (GuiContext.CurrentPackage != null && GuiContext.CurrentPackage.Entries.ContainsKey("vpk"))
             {
@@ -343,9 +356,9 @@ namespace GUI.Utils
             }
         }
 
-        private void FindAndLoadSearchPaths()
+        private void FindAndLoadSearchPaths(string modIdentifierPath = null)
         {
-            var modIdentifierPath = GetModIdentifierFile();
+            modIdentifierPath ??= GetModIdentifierFile();
 
             if (modIdentifierPath == null)
             {

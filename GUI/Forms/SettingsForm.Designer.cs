@@ -55,9 +55,9 @@ namespace GUI.Forms
             gamePathsAdd.Location = new System.Drawing.Point(14, 150);
             gamePathsAdd.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             gamePathsAdd.Name = "gamePathsAdd";
-            gamePathsAdd.Size = new System.Drawing.Size(88, 27);
+            gamePathsAdd.Size = new System.Drawing.Size(150, 27);
             gamePathsAdd.TabIndex = 1;
-            gamePathsAdd.Text = "Add .vpk";
+            gamePathsAdd.Text = "Add .vpk or gameinfo.gi";
             gamePathsAdd.UseVisualStyleBackColor = true;
             gamePathsAdd.Click += GamePathAdd;
             // 
@@ -95,7 +95,7 @@ namespace GUI.Forms
             // 
             // gamePathsAddFolder
             // 
-            gamePathsAddFolder.Location = new System.Drawing.Point(108, 150);
+            gamePathsAddFolder.Location = new System.Drawing.Point(172, 150);
             gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             gamePathsAddFolder.Name = "gamePathsAddFolder";
             gamePathsAddFolder.Size = new System.Drawing.Size(88, 27);

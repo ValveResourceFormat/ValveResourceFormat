@@ -41,7 +41,7 @@ namespace GUI.Forms
             using var dlg = new OpenFileDialog
             {
                 InitialDirectory = Settings.Config.OpenDirectory,
-                Filter = "Valve Pak (*.vpk)|*.vpk|All files (*.*)|*.*",
+                Filter = "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*",
             };
             if (dlg.ShowDialog() != DialogResult.OK)
             {
