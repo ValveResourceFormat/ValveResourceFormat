@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
+using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.ShaderDataProvider;
@@ -70,6 +71,54 @@ namespace Tests
             var materialExtract = new MaterialExtract(resource);
 
             Assert.That(materialExtract.ToValveMaterial(), Is.Not.Empty);
+        }
+
+        public static IEnumerable<TestCaseData> PngImageChannelsSource()
+        {
+            var c1234 = new SKColor(1, 2, 3, 4);
+            yield return new TestCaseData(c1234, ChannelMapping.R, new SKColor(1, 1, 1));
+            yield return new TestCaseData(c1234, ChannelMapping.G, new SKColor(2, 2, 2));
+            yield return new TestCaseData(c1234, ChannelMapping.B, new SKColor(3, 3, 3));
+            yield return new TestCaseData(c1234, ChannelMapping.A, new SKColor(4, 4, 4, 255));
+
+            yield return new TestCaseData(c1234, ChannelMapping.RG, new SKColor(1, 2, 3, 255));
+            yield return new TestCaseData(c1234, ChannelMapping.RGB, new SKColor(1, 2, 3, 255));
+
+            yield return new TestCaseData(c1234, ChannelMapping.AG, new SKColor(4, 2, 0));
+
+            // Alpha is 4, so it multiplies the colors making them 0
+            // should be c1234
+            yield return new TestCaseData(c1234, ChannelMapping.RGBA, new SKColor(0, 0, 0, 4));
+
+            yield return new TestCaseData(c1234, ChannelMapping.NULL, SKColors.Black);
+
+            yield return new TestCaseData(
+                new SKColor(1, 2, 3, 4),
+                ChannelMapping.FromChannels(1, 2, 0), // GBR
+                new SKColor(2, 3, 1)
+            );
+
+            yield return new TestCaseData(
+                new SKColor(1, 2, 3, 4),
+                ChannelMapping.FromChannels(1, 2, 0, 3), // GBRA
+                new SKColor(0, 0, 0, 4) // should be new SKColor(2, 3, 1, 4)
+            );
+        }
+
+
+        [Test, TestCaseSource(nameof(PngImageChannelsSource))]
+        public void TestPngImageChannels(SKColor colorIn, ChannelMapping channels, SKColor colorOut)
+        {
+            using var img = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            img.SetPixel(0, 0, colorIn);
+            Assert.That(img.GetPixel(0, 0), Is.EqualTo(colorIn), "Failed on setup");
+
+            var png = TextureExtract.ToPngImageChannels(img, channels);
+            using var result = SKBitmap.Decode(png);
+            Assert.That(result.Width, Is.EqualTo(1));
+            Assert.That(result.Height, Is.EqualTo(1));
+
+            Assert.That(result.GetPixel(0, 0), Is.EqualTo(colorOut));
         }
     }
 }

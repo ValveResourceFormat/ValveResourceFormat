@@ -5,7 +5,6 @@ using System.Linq;
 using ValveResourceFormat.CompiledShader;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 using ValveResourceFormat.ResourceTypes;
-using System.Collections.Concurrent;
 
 namespace ValveResourceFormat.IO.ShaderDataProvider
 {
@@ -88,7 +87,8 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
         /// <summary>
         /// Get precise texture inputs by querying the shader files. 
         /// </summary>
-        private IEnumerable<(Channel Channel, string Name)> GetInputsForTexture_Internal(string textureType, Material material)
+        private IEnumerable<(Channel Channel, string Name)>
+            GetInputsForTexture_Internal(string textureType, Material material, string forcedStaticName = null)
         {
             var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
             if (shader.Features == null)
@@ -109,13 +109,14 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             else
             {
                 var featureState = material.IntParams.Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal));
-                foreach (var shaderFile in shader)
-                {
-                    if (shaderFile.VcsProgramType == VcsProgramType.Features || shaderFile.ZframesLookup.Count == 0)
-                    {
-                        continue;
-                    }
 
+                // Pixel shader first
+                var collectionOrdered = shader
+                    .Where(sh => sh.VcsProgramType != VcsProgramType.Features && sh.ZframesLookup.Count > 0)
+                    .OrderByDescending(sh => sh.VcsProgramType == VcsProgramType.PixelShader);
+
+                foreach (var shaderFile in collectionOrdered)
+                {
                     var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
                     if (fileParams.Length == 0)
                     {
@@ -127,6 +128,15 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
 
                     foreach (var condition in shaderFile.SfBlocks)
                     {
+                        // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled
+                        // for textures to be referenced in the writeseq blocks.
+                        if ((condition.Name == "S_MODE_FORWARD" && condition.FeatureIndex == -1)
+                            || (forcedStaticName is not null && condition.Name == forcedStaticName))
+                        {
+                            staticConfiguration[condition.BlockIndex] = 1;
+                            continue;
+                        }
+
                         if (condition.FeatureIndex == -1)
                         {
                             continue;
@@ -171,6 +181,14 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
                             var inputs = GetParameterInputs(referencedParam, shaderFile);
                             return inputs;
                         }
+                    }
+
+                    if (forcedStaticName is null)
+                    {
+                        // Try again with S_MODE_TOOLS_VIS
+                        // Fixes hlvr/pak01/materials/skybox/sky_stars_01.vmat
+                        // Jumps from zframe 0x230a to 0x280230a, ends up matching the 2nd g_tNormal, with Box mips.
+                        return GetInputsForTexture_Internal(textureType, material, forcedStaticName: "S_MODE_TOOLS_VIS");
                     }
                 }
 
