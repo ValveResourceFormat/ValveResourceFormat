@@ -1,7 +1,10 @@
 #version 400
 
-// Render modes -- Switched on/off by code
+// Includes
+#include "common/utils.glsl"
 #include "common/rendermodes.glsl"
+
+// Render modes -- Switched on/off by code
 #define renderMode_PBR 0
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
@@ -287,9 +290,6 @@ void main()
     // Get the view direction vector for this fragment
     vec3 V = normalize(vEyePosition - vFragPosition);
 
-    // Get the reflection vector for this fragment
-    vec3 R = normalize(reflect(-V, N));
-
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
 #else
@@ -353,17 +353,19 @@ void main()
         irradiance = vPerVertexLightingOut.rgb;
     #endif
 
-    irradiance = pow(irradiance, vec3(power));
     Lo *= occlusion;
 
     outputColor.rgb *= (irradiance * kD);
     outputColor.rgb += Lo;
 
+    // Environment Map
     #if (S_SPECULAR == 1)
-        float layer = sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
-        vec3 specular = F * pow(GetEnvironment(R, layer), power);
+        vec3 specular = F * GetEnvironment(N, V, roughness, irradiance);
         outputColor.rgb += specular * occlusion;
     #endif
+
+
+    outputColor.rgb = pow(outputColor.rgb, vec3(power));
 
 #endif
 
@@ -398,20 +400,18 @@ void main()
 #endif
 
 #if (renderMode_Cubemaps == 1)
-    R = normalize(reflect(-V, vNormalOut)); // No bumpmaps
+    // No bumpmaps, full reflectivity
     float lod = 0.0;
-    #if (SCENE_ENVIRONMENT_TYPE > 0)
-        lod = textureQueryLod(g_tEnvironmentMap, R).x;
-    #endif
-    outputColor.rgb = pow(GetEnvironment(R, lod), power);
+    vec3 EnvMap = GetEnvironment(vNormalOut, V, roughness, vec3(0.0)).rgb;
+    outputColor.rgb = pow(EnvMap, vec3(power));
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(Lo, 1.0);
+    outputColor = vec4(pow(Lo, vec3(power)), 1.0);
 #endif
 
 #if renderMode_Irradiance == 1 && F_GLASS == 0
-    outputColor = vec4(irradiance, 1.0);
+    outputColor = vec4(pow(irradiance, vec3(power)), 1.0);
 #endif
 
 #if renderMode_VertexColor == 1

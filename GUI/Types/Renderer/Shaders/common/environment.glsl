@@ -38,11 +38,45 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
     uniform int g_iEnvironmentMapArrayIndex;
 #endif
 
-vec3 GetEnvironment(vec3 R, float lod)
+float GetEnvMapLOD(float roughness, vec3 R)
+{
+    #if (renderMode_Cubemaps == 0)
+        return sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
+    #else
+        return textureQueryLod(g_tEnvironmentMap, R).x;;
+    #endif
+}
+
+// Cubemap Normalization
+// Used in HLA, maybe later vr renderer games too.
+// Further explanation here: https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc2019/presentations/Hobson_Josh_The_Indirect_Lighting.pdf
+#define bUseCubemapNormalization 1
+const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445);
+
+float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
+{
+    #if (bUseCubemapNormalization == 1 && renderMode_Cubemaps == 0)
+        // Cancel out lighting
+        // edit: no cancellation. I don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
+        float NormalizationTerm = GetLuma(irradiance);// / dot(vec4(N, 1.0), g_vEnvironmentMapNormalizationSH[EnvMapIndex]);
+
+        // Reduce cubemap mix on glossier surfaces
+        float NormalizationClamp = max(1.0, rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y);
+        return min(NormalizationTerm, NormalizationClamp);
+    #else
+        return 1.0;
+    #endif
+}
+
+
+vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 irradiance)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
         return vec3(0.0, 0.0, 0.0);
     #else
+
+    // Reflection Vector
+    vec3 R = normalize(reflect(-V, N));
 
     #if (SCENE_ENVIRONMENT_TYPE == 1)
         vec3 coords = R;
@@ -60,6 +94,14 @@ vec3 GetEnvironment(vec3 R, float lod)
         }
     #endif
 
-    return textureLod(g_tEnvironmentMap, coords, lod).rgb;
+    coords.xyz = normalize(mix(coords.xyz, N, rough));
+
+    float lod = GetEnvMapLOD(rough, R);
+    float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
+    // todo: brdf (setup lut).
+
+    vec3 envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
+
+    return envMap * normalizationTerm;
     #endif
 }

@@ -33,6 +33,9 @@
     <EmbeddedResource Include="Types\Renderer\Shaders\**" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="Types\Renderer\Shaders\common\utils.glsl" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">
       <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
       <Name>ValveResourceFormat</Name>
