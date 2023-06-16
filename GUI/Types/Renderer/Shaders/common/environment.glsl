@@ -23,7 +23,8 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
 
 #if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map
     // ...
-#elif (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
+#else
+#if (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
     uniform samplerCube g_tEnvironmentMap;
     uniform vec4 g_vEnvMapBoxMins;
     uniform vec4 g_vEnvMapBoxMaxs;
@@ -38,11 +39,46 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
     uniform int g_iEnvironmentMapArrayIndex;
 #endif
 
-vec3 GetEnvironment(vec3 R, float lod)
+float GetEnvMapLOD(float roughness, vec3 R)
+{
+    #if (renderMode_Cubemaps == 1)
+        return textureQueryLod(g_tEnvironmentMap, R).x;
+    #else
+        return sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
+    #endif
+}
+#endif
+
+// Cubemap Normalization
+// Used in HLA, maybe later vr renderer games too.
+// Further explanation here: https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc2019/presentations/Hobson_Josh_The_Indirect_Lighting.pdf
+#define bUseCubemapNormalization 0
+const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
+
+float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
+{
+    #if (bUseCubemapNormalization == 1 && renderMode_Cubemaps == 0)
+        // Cancel out lighting
+        // edit: no cancellation. I don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
+        float NormalizationTerm = GetLuma(irradiance);// / dot(vec4(N, 1.0), g_vEnvironmentMapNormalizationSH[EnvMapIndex]);
+
+        // Reduce cancellation on glossier surfaces
+        float NormalizationClamp = max(1.0, rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y);
+        return min(NormalizationTerm, NormalizationClamp);
+    #else
+        return 1.0;
+    #endif
+}
+
+
+vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 irradiance)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
         return vec3(0.0, 0.0, 0.0);
     #else
+
+    // Reflection Vector
+    vec3 R = normalize(reflect(-V, N));
 
     #if (SCENE_ENVIRONMENT_TYPE == 1)
         vec3 coords = R;
@@ -60,6 +96,15 @@ vec3 GetEnvironment(vec3 R, float lod)
         }
     #endif
 
-    return textureLod(g_tEnvironmentMap, coords, lod).rgb;
+    // blend 
+    coords.xyz = normalize(mix(coords.xyz, N, rough));
+
+    float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
+    // todo: brdf (setup lut).
+    float lod = GetEnvMapLOD(rough, R);
+
+    vec3 envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
+
+    return envMap * normalizationTerm;
     #endif
 }
