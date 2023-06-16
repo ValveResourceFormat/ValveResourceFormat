@@ -343,6 +343,10 @@ public sealed class ShaderExtract
                     {
                         type = "float2";
                     }
+                    else if (symbol.Option == "PosXyz")
+                    {
+                        type = "float3";
+                    }
 
                     type = $"{type,-7}";
                 }

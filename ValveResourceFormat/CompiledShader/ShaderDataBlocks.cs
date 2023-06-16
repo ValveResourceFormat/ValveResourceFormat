@@ -289,7 +289,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg0 { get; }
         public int RangeMin { get; }
         public int RangeMax { get; }
-        public int Arg3 { get; }
+        public int Arg3 { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
         public int FeatureIndex { get; }
         public int Arg5 { get; }
         public List<string> CheckboxNames { get; } = new();
