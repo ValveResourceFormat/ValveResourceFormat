@@ -282,7 +282,7 @@ void main()
     roughness = clamp(roughness, 0.005, 1.0);
 
     // Gamma correct
-    vec3 power = vec3(0.45454545);
+    vec3 power = vec3(1.0 / 2.2);
 
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal);
@@ -303,7 +303,10 @@ void main()
         opacity = glassResult.a;
     #endif
 
+    albedo.rgb = pow(albedo.rgb, vec3(2.2));
+
     outputColor = vec4(albedo, opacity);
+
 
     vec3 L = normalize(-getSunDir());
     vec3 H = normalize(V + L);
@@ -311,11 +314,8 @@ void main()
     vec3 F0 = vec3(0.04); 
 	F0 = mix(F0, albedo, metalness);
 
-    vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
-    vec3 kD = 1.0 - F;
-    #if (LightmapGameVersionNumber >= 1)
-        kD *= 1.0 - metalness;
-    #endif
+    vec3 diffuseColor = albedo * (1.0 - metalness);
+    vec3 specularColor = F0;
 
     float visibility = 1.0;
 
@@ -355,18 +355,17 @@ void main()
 
     Lo *= occlusion;
 
-    outputColor.rgb *= (irradiance * kD);
+    outputColor.rgb = diffuseColor * irradiance;
     outputColor.rgb += Lo;
 
     // Environment Map
     #if (S_SPECULAR == 1)
-        vec3 specular = F * GetEnvironment(N, V, roughness, irradiance);
+        vec3 specular = GetEnvironment(N, V, roughness, F0, irradiance);
         outputColor.rgb += specular * occlusion;
     #endif
 
 
     outputColor.rgb = pow(outputColor.rgb, vec3(power));
-
 #endif
 
 #if renderMode_FullBright == 1
@@ -402,7 +401,7 @@ void main()
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
     float lod = 0.0;
-    vec3 EnvMap = GetEnvironment(vNormalOut, V, roughness, vec3(0.0)).rgb;
+    vec3 EnvMap = GetEnvironment(vNormalOut, V, roughness, vec3(1.0), vec3(0.0)).rgb;
     outputColor.rgb = pow(EnvMap, vec3(power));
 #endif
 

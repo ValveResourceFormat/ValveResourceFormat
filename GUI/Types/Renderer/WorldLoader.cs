@@ -41,6 +41,7 @@ namespace GUI.Types.Renderer
             result.DefaultEnabledLayers.Add("Entities");
 
             scene.LightingInfo = LoadWorldLightingInfo();
+            scene.LightingInfo.BRDFLookup = guiContext.MaterialLoader.LoadTexture("textures/dev/ggx_integrate_brdf_lut_schlick.vtex"); // TODO: add annoying force clamp for lut
             // Needs to be set before draw calls are configured
             // Scenes within a context should have the same value.
             if (scene.LightingInfo != null)
