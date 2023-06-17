@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -12,6 +13,8 @@ namespace GUI.Controls
 {
     public partial class ExplorerControl : UserControl
     {
+        private List<(TreeNode ParentNode, TreeNode[] Children)> TreeData = new();
+
         public ExplorerControl()
         {
             InitializeComponent();
@@ -62,6 +65,11 @@ namespace GUI.Controls
                     var gamePath = Path.Combine(steamPath, "common", installDir);
                     var allFoundGamePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                    if (!Directory.Exists(gamePath))
+                    {
+                        continue;
+                    }
+
                     var gameInfos = Directory.GetFiles(gamePath, "gameinfo.gi", new EnumerationOptions
                     {
                         RecurseSubdirectories = true,
@@ -71,10 +79,10 @@ namespace GUI.Controls
                     foreach (var file in gameInfos)
                     {
                         KVObject gameInfo;
-                        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
 
                         try
                         {
+                            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
                             gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
                         }
                         catch (Exception)
@@ -93,7 +101,10 @@ namespace GUI.Controls
 
                             var path = Path.Combine(gameRoot, searchPath.Value.ToString());
 
-                            allFoundGamePaths.Add(path);
+                            if (Directory.Exists(path))
+                            {
+                                allFoundGamePaths.Add(path);
+                            }
                         }
                     }
 
@@ -125,7 +136,7 @@ namespace GUI.Controls
                                 icon = "wrld";
                             }
 
-                            var vpkName = vpk[(gamePath.Length + 1)..];
+                            var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
                             var toAdd = new TreeNode(vpkName)
                             {
                                 Tag = vpk,
@@ -141,8 +152,9 @@ namespace GUI.Controls
                     if (foundFiles.Count > 0)
                     {
                         foundFiles.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                        var foundFilesArray = foundFiles.ToArray();
 
-                        var treeNodeName = $"{appName} ({appId}) - {gamePath}";
+                        var treeNodeName = $"{appName} ({appId}) - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
                         var treeNode = new TreeNode(treeNodeName)
                         {
                             Tag = gamePath,
@@ -150,9 +162,11 @@ namespace GUI.Controls
                             ImageKey = "_folder",
                             SelectedImageKey = "_folder",
                         };
-                        treeNode.Nodes.AddRange(foundFiles.ToArray());
+                        treeNode.Nodes.AddRange(foundFilesArray);
                         treeNode.Expand();
                         treeView.Nodes.Add(treeNode);
+
+                        TreeData.Add((treeNode, foundFilesArray));
                     }
                 }
             }
@@ -175,6 +189,33 @@ namespace GUI.Controls
             }
 
             Program.MainForm.OpenFile(path);
+        }
+
+        private void OnFilterTextBoxTextChanged(object sender, EventArgs e)
+        {
+            treeView.BeginUpdate();
+            treeView.Nodes.Clear();
+
+            var foundNodes = new List<TreeNode>(TreeData.Count);
+
+            foreach (var node in TreeData)
+            {
+                node.ParentNode.Nodes.Clear();
+
+                var foundChildren = Array.FindAll(node.Children, (child) =>
+                {
+                    return child.Name.Contains(filterTextBox.Text, StringComparison.OrdinalIgnoreCase);
+                });
+
+                if (foundChildren.Any())
+                {
+                    node.ParentNode.Nodes.AddRange(foundChildren);
+                    foundNodes.Add(node.ParentNode);
+                }
+            }
+
+            treeView.Nodes.AddRange(foundNodes.ToArray());
+            treeView.EndUpdate();
         }
     }
 }

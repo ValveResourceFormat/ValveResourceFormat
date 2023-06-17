@@ -29,28 +29,42 @@ namespace GUI.Controls
         private void InitializeComponent()
         {
             treeView = new System.Windows.Forms.TreeView();
+            filterTextBox = new System.Windows.Forms.TextBox();
             SuspendLayout();
             // 
             // treeView
             // 
             treeView.Dock = System.Windows.Forms.DockStyle.Fill;
-            treeView.Location = new System.Drawing.Point(0, 0);
+            treeView.Location = new System.Drawing.Point(0, 23);
             treeView.Name = "treeView";
-            treeView.Size = new System.Drawing.Size(581, 354);
-            treeView.TabIndex = 0;
+            treeView.Size = new System.Drawing.Size(581, 331);
+            treeView.TabIndex = 2;
             treeView.NodeMouseDoubleClick += OnTreeViewNodeMouseDoubleClick;
+            // 
+            // filterTextBox
+            // 
+            filterTextBox.Dock = System.Windows.Forms.DockStyle.Top;
+            filterTextBox.Location = new System.Drawing.Point(0, 0);
+            filterTextBox.Name = "filterTextBox";
+            filterTextBox.PlaceholderText = "Filter…";
+            filterTextBox.Size = new System.Drawing.Size(581, 23);
+            filterTextBox.TabIndex = 0;
+            filterTextBox.TextChanged += OnFilterTextBoxTextChanged;
             // 
             // ExplorerControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(treeView);
+            Controls.Add(filterTextBox);
             Name = "ExplorerControl";
             Size = new System.Drawing.Size(581, 354);
             ResumeLayout(false);
+            PerformLayout();
         }
         #endregion
 
         private System.Windows.Forms.TreeView treeView;
+        private System.Windows.Forms.TextBox filterTextBox;
     }
 }
