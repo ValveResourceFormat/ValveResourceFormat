@@ -50,8 +50,8 @@ float GetEnvMapLOD(float roughness, vec3 R)
 // Cubemap Normalization
 // Used in HLA, maybe later vr renderer games too.
 // Further explanation here: https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc2019/presentations/Hobson_Josh_The_Indirect_Lighting.pdf
-#define bUseCubemapNormalization 1
-const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445);
+#define bUseCubemapNormalization 0
+const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
 
 float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 {
@@ -60,7 +60,7 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
         // edit: no cancellation. I don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
         float NormalizationTerm = GetLuma(irradiance);// / dot(vec4(N, 1.0), g_vEnvironmentMapNormalizationSH[EnvMapIndex]);
 
-        // Reduce cubemap mix on glossier surfaces
+        // Reduce cancellation on glossier surfaces
         float NormalizationClamp = max(1.0, rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y);
         return min(NormalizationTerm, NormalizationClamp);
     #else
@@ -94,11 +94,12 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 irradiance)
         }
     #endif
 
+    // blend 
     coords.xyz = normalize(mix(coords.xyz, N, rough));
 
-    float lod = GetEnvMapLOD(rough, R);
     float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
     // todo: brdf (setup lut).
+    float lod = GetEnvMapLOD(rough, R);
 
     vec3 envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
 
