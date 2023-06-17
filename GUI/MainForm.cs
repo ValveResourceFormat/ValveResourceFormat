@@ -449,6 +449,8 @@ namespace GUI
 
             var vrfGuiContext = new VrfGuiContext(fileName, null);
             OpenFile(vrfGuiContext, null);
+
+            Settings.TrackRecentFile(fileName);
         }
 
         public Task<TabPage> OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file)
@@ -473,35 +475,7 @@ namespace GUI
             }
 
             tab.Controls.Add(new LoadingFile());
-
-            // Tab image
-            {
-                var extension = Path.GetExtension(tab.Text);
-
-                if (extension.Length > 0)
-                {
-                    extension = extension[1..];
-                }
-
-                if (extension.EndsWith("_c", StringComparison.Ordinal))
-                {
-                    extension = extension[0..^2];
-                }
-
-                var imageKey = ImageList.Images.IndexOfKey(extension);
-
-                if (imageKey == -1 && extension.Length > 0 && extension[0] == 'v')
-                {
-                    imageKey = ImageList.Images.IndexOfKey(extension[1..]);
-                }
-
-                if (imageKey == -1)
-                {
-                    imageKey = ImageList.Images.IndexOfKey("_default");
-                }
-
-                tab.ImageIndex = imageKey;
-            }
+            tab.ImageIndex = GetImageIndexForExtension(Path.GetExtension(tab.Text));
 
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
@@ -901,6 +875,33 @@ namespace GUI
                     ActiveControl = explorer;
                 });
             });
+        }
+
+        public static int GetImageIndexForExtension(string extension)
+        {
+            if (extension.Length > 0)
+            {
+                extension = extension[1..];
+            }
+
+            if (extension.EndsWith("_c", StringComparison.Ordinal))
+            {
+                extension = extension[0..^2];
+            }
+
+            var image = ImageList.Images.IndexOfKey(extension);
+
+            if (image == -1 && extension.Length > 0 && extension[0] == 'v')
+            {
+                image = ImageList.Images.IndexOfKey(extension[1..]);
+            }
+
+            if (image == -1)
+            {
+                image = ImageList.Images.IndexOfKey("_default");
+            }
+
+            return image;
         }
     }
 }

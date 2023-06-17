@@ -153,11 +153,12 @@ namespace GUI.Controls
             }
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
+            var vpkImage = MainForm.ImageList.Images.IndexOfKey("vpk");
             var root = new BetterTreeNode(name, vrfGuiContext.CurrentPackage.Entries.Count)
             {
                 Name = "root",
-                ImageKey = "vpk",
-                SelectedImageKey = "vpk",
+                ImageIndex = vpkImage,
+                SelectedImageIndex = vpkImage,
             };
             control.Nodes.Add(root);
             root.Expand();
@@ -200,14 +201,16 @@ namespace GUI.Controls
 
                 Invoke((MethodInvoker)(() =>
                 {
+                    var deletedImage = MainForm.ImageList.Images.IndexOfKey("_deleted");
+
                     if (foundFiles.Count == 0)
                     {
                         const string NO_FILES_FOUND = "No deleted files found";
                         mainTreeView.Nodes.Add(new BetterTreeNode(NO_FILES_FOUND, 0)
                         {
                             Name = NO_FILES_FOUND,
-                            ImageKey = "_deleted",
-                            SelectedImageKey = "_deleted",
+                            ImageIndex = deletedImage,
+                            SelectedImageIndex = deletedImage,
                         });
                         return;
                     }
@@ -218,8 +221,8 @@ namespace GUI.Controls
                     var root = new BetterTreeNode(name, foundFiles.Count)
                     {
                         Name = name,
-                        ImageKey = "_deleted",
-                        SelectedImageKey = "_deleted",
+                        ImageIndex = deletedImage,
+                        SelectedImageIndex = deletedImage,
                     };
                     mainTreeView.Nodes.Add(root);
 
@@ -350,7 +353,7 @@ namespace GUI.Controls
         {
             var item = new ListViewItem(node.Text)
             {
-                ImageKey = node.ImageKey,
+                ImageIndex = node.ImageIndex,
                 Tag = node,
             };
 

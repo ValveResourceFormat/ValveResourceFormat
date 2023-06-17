@@ -33,6 +33,11 @@ namespace GUI.Controls
 
         private void Scan()
         {
+            var vpkImage = MainForm.ImageList.Images.IndexOfKey("vpk");
+            var vcsImage = MainForm.ImageList.Images.IndexOfKey("vcs");
+            var mapImage = MainForm.ImageList.Images.IndexOfKey("map");
+            var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
+
             var steam = Settings.GetSteamPath();
 
             var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
@@ -138,24 +143,23 @@ namespace GUI.Controls
                                 continue;
                             }
 
-                            var icon = "vpk";
+                            var image = vpkImage;
 
                             if (Path.GetFileName(vpk).StartsWith("shaders_", StringComparison.Ordinal))
                             {
-                                icon = "vcs";
+                                image = vcsImage;
                             }
                             else if (vpk[path.Length..].StartsWith($"{Path.DirectorySeparatorChar}maps{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
                             {
-                                icon = "wrld";
+                                image = mapImage;
                             }
 
                             var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
                             var toAdd = new TreeNode(vpkName)
                             {
                                 Tag = vpk,
-                                Name = vpkName,
-                                ImageKey = icon,
-                                SelectedImageKey = icon,
+                                ImageIndex = image,
+                                SelectedImageIndex = image,
                             };
 
                             foundFiles.Add(toAdd);
@@ -171,9 +175,8 @@ namespace GUI.Controls
                         var treeNode = new TreeNode(treeNodeName)
                         {
                             Tag = gamePath,
-                            Name = treeNodeName,
-                            ImageKey = "_folder",
-                            SelectedImageKey = "_folder",
+                            ImageIndex = folderImage,
+                            SelectedImageIndex = folderImage,
                         };
                         treeNode.Nodes.AddRange(foundFilesArray);
                         treeNode.Expand();
@@ -181,6 +184,34 @@ namespace GUI.Controls
                         TreeData.Add((treeNode, appId, foundFilesArray));
                     }
                 }
+            }
+
+            // Recent files
+            // TODO: Refreh recent files after opening new file (or when explorer gets shown again)
+            {
+                var recentFiles = Settings.Config.RecentFiles.Select(path =>
+                {
+                    var imageIndex = MainForm.GetImageIndexForExtension(Path.GetExtension(path));
+                    var toAdd = new TreeNode(path)
+                    {
+                        Tag = path,
+                        ImageIndex = imageIndex,
+                        SelectedImageIndex = imageIndex,
+                    };
+
+                    return toAdd;
+                }).Reverse().ToArray();
+
+                var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
+                var recentFilesTreeNode = new TreeNode("Recent files")
+                {
+                    ImageIndex = recentImage,
+                    SelectedImageIndex = recentImage,
+                };
+                recentFilesTreeNode.Nodes.AddRange(recentFiles);
+                recentFilesTreeNode.Expand();
+
+                TreeData.Add((recentFilesTreeNode, -1, recentFiles));
             }
 
             TreeData.Sort((a, b) => a.AppID - b.AppID);
@@ -192,7 +223,11 @@ namespace GUI.Controls
         {
             var path = (string)e.Node.Tag;
 
-            if (e.Node.ImageKey == "_folder")
+            if (File.Exists(path))
+            {
+                Program.MainForm.OpenFile(path);
+            }
+            else if (Directory.Exists(path))
             {
                 Process.Start(new ProcessStartInfo()
                 {
@@ -200,11 +235,7 @@ namespace GUI.Controls
                     UseShellExecute = true,
                     Verb = "open"
                 });
-
-                return;
             }
-
-            Program.MainForm.OpenFile(path);
         }
 
         private void OnFilterTextBoxTextChanged(object sender, EventArgs e)
@@ -220,7 +251,7 @@ namespace GUI.Controls
 
                 var foundChildren = Array.FindAll(node.Children, (child) =>
                 {
-                    return child.Name.Contains(filterTextBox.Text, StringComparison.OrdinalIgnoreCase);
+                    return child.Text.Contains(filterTextBox.Text, StringComparison.OrdinalIgnoreCase);
                 });
 
                 if (foundChildren.Any())

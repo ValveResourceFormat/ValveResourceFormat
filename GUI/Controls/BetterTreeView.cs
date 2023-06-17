@@ -18,7 +18,7 @@ namespace GUI.Controls
     /// </summary>
     public partial class BetterTreeView : TreeView
     {
-        private Dictionary<string, string> ExtensionIconList;
+        private Dictionary<string, int> ExtensionIconList;
 
         public VrfGuiContext VrfGuiContext { get; set; }
 
@@ -242,16 +242,16 @@ namespace GUI.Controls
                 {
                     var fileName = file.GetFileName();
 
-                    if (!ExtensionIconList.TryGetValue(file.TypeName, out var ext))
+                    if (!ExtensionIconList.TryGetValue(file.TypeName, out var image))
                     {
-                        ext = "_default";
+                        image = ExtensionIconList["_default"];
                     }
 
                     var newNode = new BetterTreeNode(fileName, file)
                     {
                         Name = fileName,
-                        ImageKey = ext,
-                        SelectedImageKey = ext,
+                        ImageIndex = image,
+                        SelectedImageIndex = image,
                     };
                     results.Add(newNode);
                 }
@@ -312,7 +312,11 @@ namespace GUI.Controls
 
         public void GenerateIconList(IEnumerable<string> extensions)
         {
-            ExtensionIconList = new Dictionary<string, string>();
+            ExtensionIconList = new()
+            {
+                { "_default", ImageList.Images.IndexOfKey("_default") },
+                { "_folder", ImageList.Images.IndexOfKey("_folder") },
+            };
 
             foreach (var originalExtension in extensions)
             {
@@ -323,24 +327,19 @@ namespace GUI.Controls
                     extension = extension[0..^2];
                 }
 
-                if (!ImageList.Images.ContainsKey(extension))
-                {
-                    if (extension.Length > 0 && extension[0] == 'v')
-                    {
-                        extension = extension[1..];
+                var image = ImageList.Images.IndexOfKey(extension);
 
-                        if (!ImageList.Images.ContainsKey(extension))
-                        {
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        continue;
-                    }
+                if (image == -1 && extension.Length > 0 && extension[0] == 'v')
+                {
+                    image = ImageList.Images.IndexOfKey(extension[1..]);
                 }
 
-                ExtensionIconList.Add(originalExtension, extension);
+                if (image == -1)
+                {
+                    continue;
+                }
+
+                ExtensionIconList.Add(originalExtension, image);
             }
         }
 
@@ -354,6 +353,7 @@ namespace GUI.Controls
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
+                var folderImage = ExtensionIconList["_folder"];
                 var subPaths = file.DirectoryName.Split(Package.DirectorySeparatorChar);
 
                 foreach (var subPath in subPaths)
@@ -370,8 +370,8 @@ namespace GUI.Controls
                         var toAdd = new BetterTreeNode(subPath, 1)
                         {
                             Name = subPath,
-                            ImageKey = "_folder",
-                            SelectedImageKey = "_folder",
+                            ImageIndex = folderImage,
+                            SelectedImageIndex = folderImage,
                         };
                         currentNode.Nodes.Add(toAdd);
                         currentNode = toAdd;
@@ -386,16 +386,16 @@ namespace GUI.Controls
 
             var fileName = file.GetFileName();
 
-            if (!ExtensionIconList.TryGetValue(file.TypeName, out var ext))
+            if (!ExtensionIconList.TryGetValue(file.TypeName, out var image))
             {
-                ext = "_default";
+                image = ExtensionIconList["_default"];
             }
 
             var newNode = new BetterTreeNode(fileName, file)
             {
                 Name = fileName,
-                ImageKey = ext,
-                SelectedImageKey = ext,
+                ImageIndex = image,
+                SelectedImageIndex = image,
             };
 
             currentNode.Nodes.Add(newNode);

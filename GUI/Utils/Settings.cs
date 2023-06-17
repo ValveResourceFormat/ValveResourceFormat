@@ -12,13 +12,16 @@ namespace GUI.Utils
 {
     internal static class Settings
     {
+        private const int RecentFilesLimit = 20;
+
         public class AppConfig
         {
-            public List<string> GameSearchPaths { get; set; } = new List<string>();
+            public List<string> GameSearchPaths { get; set; } = new();
             public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
-            public Dictionary<string, float[]> SavedCameras { get; set; } = new Dictionary<string, float[]>();
+            public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
+            public Dictionary<string, float[]> SavedCameras { get; set; } = new();
             public int MaxTextureSize { get; set; }
             public int WindowTop { get; set; }
             public int WindowLeft { get; set; }
@@ -82,10 +85,8 @@ namespace GUI.Utils
                 BackgroundColor = Color.FromArgb(60, 60, 60);
             }
 
-            if (Config.SavedCameras == null)
-            {
-                Config.SavedCameras = new Dictionary<string, float[]>();
-            }
+            Config.SavedCameras ??= new();
+            Config.RecentFiles ??= new(RecentFilesLimit);
 
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -108,6 +109,19 @@ namespace GUI.Utils
 
             using var stream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
+        }
+
+        public static void TrackRecentFile(string path)
+        {
+            Config.RecentFiles.Remove(path);
+            Config.RecentFiles.Add(path);
+
+            if (Config.RecentFiles.Count > RecentFilesLimit)
+            {
+                Config.RecentFiles.RemoveRange(0, Config.RecentFiles.Count - RecentFilesLimit);
+            }
+
+            Save();
         }
 
         public static string GetSteamPath()
