@@ -94,13 +94,13 @@ namespace GUI.Types.Renderer
                 phys = model.GetEmbeddedPhys();
                 if (phys == null)
                 {
-                    var refPhysicsPaths = model.GetReferencedPhysNames();
+                    var refPhysicsPaths = model.GetReferencedPhysNames().ToArray();
                     if (refPhysicsPaths.Any())
                     {
                         //TODO are there any models with more than one vphys?
-                        if (refPhysicsPaths.Count() != 1)
+                        if (refPhysicsPaths.Length != 1)
                         {
-                            Console.WriteLine($"Model has more than 1 vphys ({refPhysicsPaths.Count()})." +
+                            Console.WriteLine($"Model has more than 1 vphys ({refPhysicsPaths.Length})." +
                                 " Please report this on https://github.com/SteamDatabase/ValveResourceFormat and provide the file that caused this.");
                         }
 
@@ -112,13 +112,14 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                var meshGroups = modelSceneNode.GetMeshGroups();
+                var meshGroups = modelSceneNode.GetMeshGroups().ToArray<object>();
 
-                if (meshGroups.Count() > 1)
+                if (meshGroups.Length > 1)
                 {
                     meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", listBox =>
                     {
-                        listBox.Items.AddRange(modelSceneNode.GetMeshGroups().ToArray<object>());
+                        listBox.Items.AddRange(meshGroups);
+
                         foreach (var group in modelSceneNode.GetActiveMeshGroups())
                         {
                             listBox.SetItemChecked(listBox.FindStringExact(group), true);
@@ -129,16 +130,16 @@ namespace GUI.Types.Renderer
                     });
                 }
 
-                var materialGroups = model.GetMaterialGroups();
+                var materialGroups = model.GetMaterialGroups().ToArray<object>();
 
-                if (materialGroups.Count() > 1)
+                if (materialGroups.Length > 1)
                 {
                     materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         modelSceneNode?.SetSkin(selectedGroup);
                     });
 
-                    materialGroupListBox.Items.AddRange(materialGroups.ToArray<object>());
+                    materialGroupListBox.Items.AddRange(materialGroups);
                     materialGroupListBox.SelectedIndex = 0;
                 }
 
@@ -261,13 +262,13 @@ namespace GUI.Types.Renderer
             animationComboBox.BeginUpdate();
             animationComboBox.Items.Clear();
 
-            var count = animations.Count();
+            var animationsArray = animations.ToArray();
 
-            if (count > 0)
+            if (animationsArray.Length > 0)
             {
                 animationComboBox.Enabled = true;
-                animationComboBox.Items.Add($"({count} animations available)");
-                animationComboBox.Items.AddRange(animations.ToArray());
+                animationComboBox.Items.Add($"({animationsArray.Length} animations available)");
+                animationComboBox.Items.AddRange(animationsArray);
                 animationComboBox.SelectedIndex = 0;
             }
             else

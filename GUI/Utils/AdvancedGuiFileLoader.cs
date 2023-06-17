@@ -153,9 +153,9 @@ namespace GUI.Utils
 
             ProvidedGameInfosScanned = true;
 
-            if (GuiContext.CurrentPackage != null && GuiContext.CurrentPackage.Entries.ContainsKey("vpk"))
+            if (GuiContext.CurrentPackage != null && GuiContext.CurrentPackage.Entries.TryGetValue("vpk", out var vpkEntries))
             {
-                foreach (var searchPath in GuiContext.CurrentPackage.Entries["vpk"])
+                foreach (var searchPath in vpkEntries)
                 {
                     if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
                     {

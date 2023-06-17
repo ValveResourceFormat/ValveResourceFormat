@@ -101,6 +101,9 @@ dotnet_diagnostic.CS0219.severity = suggestion
 # CA1308: Normalize strings to uppercase
 dotnet_diagnostic.CA1308.severity = none
 
+# CA1852: Seal internal types
+dotnet_diagnostic.CA1852.severity = none
+
 dotnet_diagnostic.IDE0059.severity = none
 
 #

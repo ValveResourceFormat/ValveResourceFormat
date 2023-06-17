@@ -321,10 +321,13 @@ namespace GUI.Types.Renderer
         private void SetAvailableLayers(IEnumerable<string> worldLayers)
         {
             worldLayersComboBox.Items.Clear();
-            if (worldLayers.Any())
+
+            var worldLayersArray = worldLayers.ToArray();
+
+            if (worldLayersArray.Length > 0)
             {
                 worldLayersComboBox.Enabled = true;
-                worldLayersComboBox.Items.AddRange(worldLayers.ToArray());
+                worldLayersComboBox.Items.AddRange(worldLayersArray);
             }
             else
             {
@@ -335,10 +338,13 @@ namespace GUI.Types.Renderer
         private void SetAvailablPhysicsGroups(IEnumerable<string> physicsGroups)
         {
             physicsGroupsComboBox.Items.Clear();
-            if (physicsGroups.Any())
+
+            var physicsGroupsArray = physicsGroups.ToArray();
+
+            if (physicsGroupsArray.Length > 0)
             {
                 physicsGroupsComboBox.Enabled = true;
-                physicsGroupsComboBox.Items.AddRange(physicsGroups.ToArray());
+                physicsGroupsComboBox.Items.AddRange(physicsGroupsArray);
             }
             else
             {

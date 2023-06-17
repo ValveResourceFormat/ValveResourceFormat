@@ -24,11 +24,8 @@ namespace ValveResourceFormat.ResourceTypes
                 var soundName = ((NTROValue<string>)sound["m_SoundName"]).Value;
                 var soundValue = ((NTROValue<string>)sound["m_OperatorsKV"]).Value.Replace("\n", Environment.NewLine, StringComparison.InvariantCulture); // make sure we have new lines
 
-                if (SoundEventScriptValue.ContainsKey(soundName))
-                {
-                    // Valve have duplicates, assume last is correct?
-                    SoundEventScriptValue.Remove(soundName);
-                }
+                // Valve have duplicates, assume last is correct?
+                SoundEventScriptValue.Remove(soundName);
 
                 SoundEventScriptValue.Add(soundName, soundValue);
             }

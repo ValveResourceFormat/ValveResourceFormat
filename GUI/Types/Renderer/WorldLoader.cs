@@ -338,10 +338,10 @@ namespace GUI.Types.Renderer
                 }
 
                 var bodyHash = StringToken.Get("body");
-                if (entity.Properties.ContainsKey(bodyHash))
+                if (entity.Properties.TryGetValue(bodyHash, out var bodyProp))
                 {
                     var groups = modelNode.GetMeshGroups();
-                    var body = entity.Properties[bodyHash].Data;
+                    var body = bodyProp.Data;
                     var bodyGroup = -1;
 
                     if (body is ulong bodyGroupLong)
@@ -364,7 +364,7 @@ namespace GUI.Types.Renderer
                 var phys = newModel.GetEmbeddedPhys();
                 if (phys == null)
                 {
-                    var refPhysicsPaths = newModel.GetReferencedPhysNames();
+                    var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
                     if (refPhysicsPaths.Any())
                     {
                         var newResource = guiContext.LoadFileByAnyMeansNecessary(refPhysicsPaths.First() + "_c");

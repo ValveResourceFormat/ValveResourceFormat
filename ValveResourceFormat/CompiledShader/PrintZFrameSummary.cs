@@ -247,7 +247,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriteLine("");
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = zframeFile.GpuSources[0].GetBlockName().ToLower();
+            var gpuSourceName = zframeFile.GpuSources[0].GetBlockName().ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
                     new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", "unknown-arg" } :

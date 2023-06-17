@@ -16,9 +16,9 @@ namespace Tests
             {
                 Assert.That(key.Key, Is.EqualTo(key.Key.ToLowerInvariant()));
 
-                if (seen.ContainsKey(key.Value))
+                if (seen.TryGetValue(key.Value, out var collision))
                 {
-                    Assert.Fail($"{key.Key} ({key.Value}) collides with {seen[key.Value]}");
+                    Assert.Fail($"{key.Key} ({key.Value}) collides with {collision}");
                 }
 
                 seen[key.Value] = key.Key;

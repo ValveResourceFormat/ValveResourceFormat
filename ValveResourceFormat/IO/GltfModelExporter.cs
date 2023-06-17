@@ -1208,7 +1208,7 @@ namespace ValveResourceFormat.IO
             {
                 // TODO: too many loops over instructions here
                 // If this texture contains a MetallicRoughness parameter, also pack Occlusion or Emissive into the ORM texture for optimization
-                var allRemapInstructions = remapDict.Values.SelectMany(i => i);
+                var allRemapInstructions = remapDict.Values.SelectMany(i => i).ToList();
                 if (allRemapInstructions.Any(i => i.ChannelName == "MetallicRoughness"))
                 {
                     ormRedChannel = allRemapInstructions.FirstOrDefault(i => i.ChannelName == "Occlusion" || i.ChannelName == "Emissive")?.ChannelName;

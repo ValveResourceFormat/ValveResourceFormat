@@ -78,7 +78,7 @@ namespace ValveResourceFormat.ResourceTypes
         private static void PrintPanelBase(string name, IKeyValueCollection node, IndentedTextWriter writer)
         {
             var attributes = NodeAttributes(node);
-            var nodeChildren = NodeChildren(node);
+            var nodeChildren = NodeChildren(node).ToList();
 
             if (!nodeChildren.Any())
             {

@@ -41,11 +41,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                 reader.BaseStream.Position = offset;
 
-                if (SoundStackScriptValue.ContainsKey(name))
-                {
-                    // Valve have duplicates, assume last is correct?
-                    SoundStackScriptValue.Remove(name);
-                }
+                // Valve have duplicates, assume last is correct?
+                SoundStackScriptValue.Remove(name);
 
                 SoundStackScriptValue.Add(name, value);
             }
