@@ -42,7 +42,16 @@ namespace GUI.Types.Renderer
             result.DefaultEnabledLayers.Add("Entities");
 
             LoadWorldLightingInfo(scene);
+
             scene.RenderAttributes.TryAdd("LightmapGameVersionNumber", (byte)scene.LightingInfo.LightmapGameVersionNumber);
+
+            var brdfLut = guiContext.MaterialLoader.LoadTexture("textures/dev/ggx_integrate_brdf_lut_schlick.vtex");
+
+            if (brdfLut != null)
+            {
+                // TODO: add annoying force clamp for lut
+                scene.LightingInfo.Lightmaps["g_tBRDFLookup"] = brdfLut;
+            }
 
             foreach (var lumpName in world.GetEntityLumpNames())
             {
