@@ -28,7 +28,7 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            treeView = new System.Windows.Forms.TreeView();
+            treeView = new GUI.Utils.TreeViewDoubleBuffered();
             filterTextBox = new System.Windows.Forms.TextBox();
             SuspendLayout();
             // 
