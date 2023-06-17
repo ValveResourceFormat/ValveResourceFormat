@@ -857,7 +857,7 @@ namespace GUI
             var explorerTab = new TabPage("Explorer");
             explorerTab.Controls.Add(new LoadingFile());
             explorerTab.ImageIndex = ImageList.Images.IndexOfKey("_folder_star");
-            mainTabs.TabPages.Add(explorerTab);
+            mainTabs.TabPages.Insert(1, explorerTab);
             mainTabs.SelectTab(explorerTab);
 
             Task.Factory.StartNew(() =>
