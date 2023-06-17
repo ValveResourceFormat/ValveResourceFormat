@@ -32,6 +32,7 @@ namespace GUI
         {
             InitializeComponent();
 
+            mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += (tabControl, e) =>
             {
                 if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
@@ -145,15 +146,6 @@ namespace GUI
 
                 continue;
             }
-
-            var explorerTab = new TabPage("Explorer");
-            var explorer = new ExplorerControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            explorerTab.Controls.Add(explorer);
-            mainTabs.TabPages.Add(explorerTab);
-            mainTabs.SelectTab(explorerTab);
         }
 
         protected override void OnShown(EventArgs e)
@@ -839,6 +831,40 @@ namespace GUI
 
             var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
             treeView.RecoverDeletedFiles();
+        }
+
+        private void OpenExplorer_Click(object sender, EventArgs e)
+        {
+            foreach (TabPage tabPage in mainTabs.TabPages)
+            {
+                if (tabPage.Text == "Explorer")
+                {
+                    mainTabs.SelectTab(tabPage);
+                    return;
+                }
+            }
+
+            var explorerTab = new TabPage("Explorer");
+            explorerTab.Controls.Add(new LoadingFile());
+            explorerTab.ImageIndex = ImageList.Images.IndexOfKey("_folder_star");
+            mainTabs.TabPages.Add(explorerTab);
+            mainTabs.SelectTab(explorerTab);
+
+            Task.Factory.StartNew(() =>
+            {
+                //
+                var explorer = new ExplorerControl
+                {
+                    Dock = DockStyle.Fill,
+                };
+
+                Invoke(() =>
+                {
+                    explorerTab.Controls.Clear();
+                    explorerTab.Controls.Add(explorer);
+                    ActiveControl = explorer;
+                });
+            });
         }
     }
 }

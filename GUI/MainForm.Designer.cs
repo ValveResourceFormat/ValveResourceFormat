@@ -41,6 +41,7 @@ namespace GUI
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             menuStrip = new MenuStrip();
             openToolStripMenuItem = new ToolStripMenuItem();
+            explorerToolStripMenuItem = new ToolStripMenuItem();
             findToolStripButton = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
@@ -69,7 +70,7 @@ namespace GUI
             // 
             menuStrip.BackColor = System.Drawing.SystemColors.Window;
             menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            menuStrip.Items.AddRange(new ToolStripItem[] { openToolStripMenuItem, findToolStripButton, recoverDeletedToolStripMenuItem, settingsToolStripMenuItem, aboutToolStripMenuItem, versionToolStripLabel });
+            menuStrip.Items.AddRange(new ToolStripItem[] { openToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, recoverDeletedToolStripMenuItem, settingsToolStripMenuItem, aboutToolStripMenuItem, versionToolStripLabel });
             menuStrip.Location = new System.Drawing.Point(0, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.RenderMode = ToolStripRenderMode.System;
@@ -86,6 +87,15 @@ namespace GUI
             openToolStripMenuItem.Size = new System.Drawing.Size(64, 20);
             openToolStripMenuItem.Text = "&Open";
             openToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
+            // 
+            // explorerToolStripMenuItem
+            // 
+            explorerToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("explorerToolStripMenuItem.Image");
+            explorerToolStripMenuItem.ImageScaling = ToolStripItemImageScaling.None;
+            explorerToolStripMenuItem.Name = "explorerToolStripMenuItem";
+            explorerToolStripMenuItem.Size = new System.Drawing.Size(78, 20);
+            explorerToolStripMenuItem.Text = "Explorer";
+            explorerToolStripMenuItem.Click += OpenExplorer_Click;
             // 
             // findToolStripButton
             // 
@@ -278,26 +288,27 @@ namespace GUI
 
         #endregion
 
-        private System.Windows.Forms.MenuStrip menuStrip;
-        private System.Windows.Forms.TabControl mainTabs;
-        private System.Windows.Forms.ContextMenuStrip tabContextMenuStrip;
-        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItem;
-        private System.Windows.Forms.ContextMenuStrip vpkContextMenu;
-        private System.Windows.Forms.ToolStripMenuItem extractToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem copyFileNameToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToLeft;
-        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItemsToRight;
-        private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItems;
-        private System.Windows.Forms.ToolStripMenuItem findToolStripButton;
-        private System.Windows.Forms.ToolStripMenuItem openWithDefaultAppToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem decompileToolStripMenuItem;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
-        private System.Windows.Forms.ToolStripMenuItem openToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
+        private MenuStrip menuStrip;
+        private TabControl mainTabs;
+        private ContextMenuStrip tabContextMenuStrip;
+        private ToolStripMenuItem closeToolStripMenuItem;
+        private ContextMenuStrip vpkContextMenu;
+        private ToolStripMenuItem extractToolStripMenuItem;
+        private ToolStripMenuItem copyFileNameToolStripMenuItem;
+        private ToolStripMenuItem closeToolStripMenuItemsToLeft;
+        private ToolStripMenuItem closeToolStripMenuItemsToRight;
+        private ToolStripMenuItem closeToolStripMenuItems;
+        private ToolStripMenuItem findToolStripButton;
+        private ToolStripMenuItem openWithDefaultAppToolStripMenuItem;
+        private ToolStripMenuItem decompileToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator1;
+        private ToolStripMenuItem openToolStripMenuItem;
+        private ToolStripMenuItem settingsToolStripMenuItem;
+        private ToolStripMenuItem aboutToolStripMenuItem;
         private ToolStripMenuItem recoverDeletedToolStripMenuItem;
         private ToolStripMenuItem exportAsIsToolStripMenuItem;
         private ToolStripMenuItem decompileExportToolStripMenuItem;
+        private ToolStripMenuItem explorerToolStripMenuItem;
         private ToolStripLabel versionToolStripLabel;
     }
 }
