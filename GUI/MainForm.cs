@@ -21,17 +21,15 @@ namespace GUI
 {
     public partial class MainForm : Form
     {
-        private SearchForm searchForm;
-#pragma warning disable CA2213
         // Disposable fields should be disposed
         // for some reason disposing it makes closing GUI very slow
-        private ImageList ImageList;
-#pragma warning restore CA2213
+        public static ImageList ImageList { get; } = LoadAssetTypes();
+
+        private SearchForm searchForm;
         public ContextMenuStrip VpkContextMenu => vpkContextMenu; // TODO
 
         public MainForm()
         {
-            LoadAssetTypes();
             InitializeComponent();
 
             mainTabs.SelectedIndexChanged += (tabControl, e) =>
@@ -147,6 +145,15 @@ namespace GUI
 
                 continue;
             }
+
+            var explorerTab = new TabPage("Explorer");
+            var explorer = new ExplorerControl
+            {
+                Dock = DockStyle.Fill,
+            };
+            explorerTab.Controls.Add(explorer);
+            mainTabs.TabPages.Add(explorerTab);
+            mainTabs.SelectTab(explorerTab);
         }
 
         protected override void OnShown(EventArgs e)
@@ -338,9 +345,9 @@ namespace GUI
             ShowHideSearch();
         }
 
-        private void LoadAssetTypes()
+        private static ImageList LoadAssetTypes()
         {
-            ImageList = new ImageList
+            var imageList = new ImageList
             {
                 ColorDepth = ColorDepth.Depth32Bit
             };
@@ -353,8 +360,10 @@ namespace GUI
                 var res = name.Split('.');
 
                 using var stream = assembly.GetManifestResourceStream(name);
-                ImageList.Images.Add(res[2], Image.FromStream(stream));
+                imageList.Images.Add(res[2], Image.FromStream(stream));
             }
+
+            return imageList;
         }
 
         private void OnTabClick(object sender, MouseEventArgs e)
@@ -424,7 +433,7 @@ namespace GUI
             }
         }
 
-        private void OpenFile(string fileName)
+        public void OpenFile(string fileName)
         {
             Console.WriteLine($"Opening {fileName}");
 
@@ -523,7 +532,7 @@ namespace GUI
             return task;
         }
 
-        private TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry file)
+        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
             uint magic = 0;
             ushort magicResourceVersion = 0;

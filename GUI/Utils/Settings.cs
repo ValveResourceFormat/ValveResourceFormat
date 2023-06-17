@@ -89,7 +89,7 @@ namespace GUI.Utils
 
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Config.OpenDirectory = GetSteamPath();
+                Config.OpenDirectory = Path.Join(GetSteamPath(), "common");
             }
 
             if (Config.MaxTextureSize <= 0)
@@ -110,7 +110,7 @@ namespace GUI.Utils
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
         }
 
-        private static string GetSteamPath()
+        public static string GetSteamPath()
         {
             try
             {
@@ -120,7 +120,7 @@ namespace GUI.Utils
 
                 if (key?.GetValue("SteamPath") is string steamPath)
                 {
-                    return Path.GetFullPath(Path.Combine(steamPath, "steamapps", "common"));
+                    return Path.GetFullPath(Path.Combine(steamPath, "steamapps"));
                 }
             }
             catch
