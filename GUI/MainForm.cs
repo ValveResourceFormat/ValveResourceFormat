@@ -48,7 +48,9 @@ namespace GUI
             };
 
             var consoleTab = new ConsoleTab();
-            mainTabs.TabPages.Add(consoleTab.CreateTab());
+            var consoleTabPage = consoleTab.CreateTab();
+            consoleTabPage.ImageIndex = ImageList.Images.IndexOfKey("_console");
+            mainTabs.TabPages.Add(consoleTabPage);
 
             Console.WriteLine($"VRF v{Application.ProductVersion}");
 
@@ -471,6 +473,35 @@ namespace GUI
             }
 
             tab.Controls.Add(new LoadingFile());
+
+            // Tab image
+            {
+                var extension = Path.GetExtension(tab.Text);
+
+                if (extension.Length > 0)
+                {
+                    extension = extension[1..];
+                }
+
+                if (extension.EndsWith("_c", StringComparison.Ordinal))
+                {
+                    extension = extension[0..^2];
+                }
+
+                var imageKey = ImageList.Images.IndexOfKey(extension);
+
+                if (imageKey == -1 && extension.Length > 0 && extension[0] == 'v')
+                {
+                    imageKey = ImageList.Images.IndexOfKey(extension[1..]);
+                }
+
+                if (imageKey == -1)
+                {
+                    imageKey = ImageList.Images.IndexOfKey("_default");
+                }
+
+                tab.ImageIndex = imageKey;
+            }
 
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
