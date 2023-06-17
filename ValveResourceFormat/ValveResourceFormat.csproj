@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <Description>Library to decompile Valve Source 2 files</Description>
     <PackageReleaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</PackageReleaseNotes>
     <PackageIcon>vrf_library.png</PackageIcon>
@@ -21,7 +21,7 @@
     <PackageReference Include="ZstdSharp.Port" Version="0.7.0" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md"/>
-    <None Include="..\Icons\vrf_library.png" Pack="true" PackagePath="\"/>
+    <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md" />
+    <None Include="..\Icons\vrf_library.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
