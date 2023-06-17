@@ -372,6 +372,7 @@ namespace GUI
             else if (e.Button == MouseButtons.Right)
             {
                 var tabIndex = GetTabIndex(thisTab);
+                var tabName = thisTab.Text;
 
                 //Can't close tabs to the left/right if there aren't any!
                 closeToolStripMenuItemsToLeft.Visible = tabIndex > 1;
@@ -379,6 +380,10 @@ namespace GUI
 
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
                 closeToolStripMenuItem.Visible = tabIndex != 0;
+
+                var canExport = tabName != "Console" && tabName != "Explorer";
+                exportAsIsToolStripMenuItem.Visible = canExport;
+                decompileExportToolStripMenuItem.Visible = canExport;
 
                 //Show context menu at the mouse position
                 tabContextMenuStrip.Tag = e.Location;
