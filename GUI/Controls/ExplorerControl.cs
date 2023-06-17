@@ -16,8 +16,20 @@ namespace GUI.Controls
         {
             InitializeComponent();
 
-            treeView.ImageList = MainForm.ImageList;
+            try
+            {
+                treeView.BeginUpdate();
+                treeView.ImageList = MainForm.ImageList;
+                Scan();
+            }
+            finally
+            {
+                treeView.EndUpdate();
+            }
+        }
 
+        private void Scan()
+        {
             var steam = Settings.GetSteamPath();
 
             var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
@@ -48,14 +60,6 @@ namespace GUI.Controls
                     var installDir = appManifestKv["installdir"].ToString();
 
                     var gamePath = Path.Combine(steamPath, "common", installDir);
-                    var treeNodeName = $"{appName} ({appId}) - {gamePath}";
-                    var treeNode = new TreeNode(treeNodeName)
-                    {
-                        Tag = gamePath,
-                        Name = treeNodeName,
-                        ImageKey = "_folder",
-                        SelectedImageKey = "_folder",
-                    };
                     var allFoundGamePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     var gameInfos = Directory.GetFiles(gamePath, "gameinfo.gi", new EnumerationOptions
@@ -93,6 +97,8 @@ namespace GUI.Controls
                         }
                     }
 
+                    var foundFiles = new List<TreeNode>();
+
                     foreach (var path in allFoundGamePaths)
                     {
                         var vpks = Directory.GetFiles(path, "*.vpk", new EnumerationOptions
@@ -128,12 +134,23 @@ namespace GUI.Controls
                                 SelectedImageKey = icon,
                             };
 
-                            treeNode.Nodes.Add(toAdd);
+                            foundFiles.Add(toAdd);
                         }
                     }
 
-                    if (treeNode.Nodes.Count > 0)
+                    if (foundFiles.Count > 0)
                     {
+                        foundFiles.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+
+                        var treeNodeName = $"{appName} ({appId}) - {gamePath}";
+                        var treeNode = new TreeNode(treeNodeName)
+                        {
+                            Tag = gamePath,
+                            Name = treeNodeName,
+                            ImageKey = "_folder",
+                            SelectedImageKey = "_folder",
+                        };
+                        treeNode.Nodes.AddRange(foundFiles.ToArray());
                         treeNode.Expand();
                         treeView.Nodes.Add(treeNode);
                     }
