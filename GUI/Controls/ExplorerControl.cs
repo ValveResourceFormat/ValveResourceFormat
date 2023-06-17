@@ -13,7 +13,7 @@ namespace GUI.Controls
 {
     public partial class ExplorerControl : UserControl
     {
-        private List<(TreeNode ParentNode, TreeNode[] Children)> TreeData = new();
+        private List<(TreeNode ParentNode, int AppID, TreeNode[] Children)> TreeData = new();
 
         public ExplorerControl()
         {
@@ -71,7 +71,7 @@ namespace GUI.Controls
                         continue;
                     }
 
-                    var appId = appManifestKv["appid"].ToInt64(CultureInfo.InvariantCulture);
+                    var appId = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
                     var appName = appManifestKv["name"].ToString();
                     var installDir = appManifestKv["installdir"].ToString();
 
@@ -167,7 +167,7 @@ namespace GUI.Controls
                         foundFiles.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
                         var foundFilesArray = foundFiles.ToArray();
 
-                        var treeNodeName = $"{appName} ({appId}) - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
+                        var treeNodeName = $"[{appId}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
                         var treeNode = new TreeNode(treeNodeName)
                         {
                             Tag = gamePath,
@@ -177,12 +177,15 @@ namespace GUI.Controls
                         };
                         treeNode.Nodes.AddRange(foundFilesArray);
                         treeNode.Expand();
-                        treeView.Nodes.Add(treeNode);
 
-                        TreeData.Add((treeNode, foundFilesArray));
+                        TreeData.Add((treeNode, appId, foundFilesArray));
                     }
                 }
             }
+
+            TreeData.Sort((a, b) => a.AppID - b.AppID);
+
+            treeView.Nodes.AddRange(TreeData.Select(node => node.ParentNode).ToArray());
         }
 
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
