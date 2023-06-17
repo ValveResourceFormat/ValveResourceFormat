@@ -11,6 +11,8 @@ class WorldLightingInfo
     public int LightmapGameVersionNumber { get; init; }
     public Vector2 LightmapUvScale { get; init; }
 
+    public RenderTexture BRDFLookup { get; set; }
+
     public float[] EnvMapPositionsUniform { get; set; }
     public float[] EnvMapMinsUniform { get; set; }
     public float[] EnvMapMaxsUniform { get; set; }
