@@ -39,8 +39,12 @@ namespace GUI.Controls
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
 
             var libraryfolders = Path.Join(steam, "libraryfolders.vdf");
-            using var libraryFoldersStream = File.OpenRead(libraryfolders);
-            var libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
+            KVObject libraryFoldersKv;
+
+            using (var libraryFoldersStream = File.OpenRead(libraryfolders))
+            {
+                libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
+            }
 
             var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steam };
 
@@ -55,8 +59,17 @@ namespace GUI.Controls
 
                 foreach (var appManifestPath in manifests)
                 {
-                    using var appManifestStream = File.OpenRead(appManifestPath);
-                    var appManifestKv = kvDeserializer.Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
+                    KVObject appManifestKv;
+
+                    try
+                    {
+                        using var appManifestStream = File.OpenRead(appManifestPath);
+                        appManifestKv = kvDeserializer.Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
 
                     var appId = appManifestKv["appid"].ToInt64(CultureInfo.InvariantCulture);
                     var appName = appManifestKv["name"].ToString();
