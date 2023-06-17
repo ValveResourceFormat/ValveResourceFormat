@@ -187,21 +187,8 @@ namespace GUI.Controls
             }
 
             // Recent files
-            // TODO: Refreh recent files after opening new file (or when explorer gets shown again)
             {
-                var recentFiles = Settings.Config.RecentFiles.Select(path =>
-                {
-                    var imageIndex = MainForm.GetImageIndexForExtension(Path.GetExtension(path));
-                    var toAdd = new TreeNode(path)
-                    {
-                        Tag = path,
-                        ImageIndex = imageIndex,
-                        SelectedImageIndex = imageIndex,
-                    };
-
-                    return toAdd;
-                }).Reverse().ToArray();
-
+                var recentFiles = GetRecentFileNodes();
                 var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
                 var recentFilesTreeNode = new TreeNode("Recent files")
                 {
@@ -264,5 +251,37 @@ namespace GUI.Controls
             treeView.Nodes.AddRange(foundNodes.ToArray());
             treeView.EndUpdate();
         }
+
+        private void OnVisibleChanged(object sender, EventArgs e)
+        {
+            // Refresh recent files list whenever explorer becomes visible
+            if (!Visible)
+            {
+                return;
+            }
+
+            var recentFiles = GetRecentFileNodes();
+            var recentFilesNode = TreeData.Find(node => node.AppID == -1);
+            recentFilesNode.ParentNode.Nodes.Clear();
+            recentFilesNode.ParentNode.Nodes.AddRange(recentFiles);
+            recentFilesNode.Children = recentFiles;
+        }
+
+        private static TreeNode[] GetRecentFileNodes()
+        {
+            return Settings.Config.RecentFiles.Select(path =>
+            {
+                var imageIndex = MainForm.GetImageIndexForExtension(Path.GetExtension(path));
+                var toAdd = new TreeNode(path)
+                {
+                    Tag = path,
+                    ImageIndex = imageIndex,
+                    SelectedImageIndex = imageIndex,
+                };
+
+                return toAdd;
+            }).Reverse().ToArray();
+        }
+
     }
 }

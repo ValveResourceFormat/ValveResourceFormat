@@ -872,7 +872,6 @@ namespace GUI
                 {
                     explorerTab.Controls.Clear();
                     explorerTab.Controls.Add(explorer);
-                    ActiveControl = explorer;
                 });
             });
         }
