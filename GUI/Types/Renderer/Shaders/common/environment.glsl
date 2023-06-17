@@ -68,8 +68,25 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
     #endif
 }
 
+// BRDF
+uniform sampler2D g_tBRDFLookup;
 
-vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 irradiance)
+vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
+{
+    #if (renderMode_Cubemaps == 0)
+        // done here because of bent normals
+        float NdotV = ClampToPositive(dot(N, V));
+        vec2 lutCoords = vec2(NdotV, sqrt(rough));
+
+        vec2 GGXLut = pow2(textureLod(g_tBRDFLookup, lutCoords, 0.0).xy);
+        return specColor * GGXLut.x + GGXLut.y;
+    #else
+        return vec3(1.0);
+    #endif
+}
+
+
+vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
         return vec3(0.0, 0.0, 0.0);
@@ -97,12 +114,13 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 irradiance)
     // blend 
     coords.xyz = normalize(mix(coords.xyz, N, rough));
 
+    vec3 brdf = EnvBRDF(specColor, rough, N, V);
     float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
     // todo: brdf (setup lut).
     float lod = GetEnvMapLOD(rough, R);
 
     vec3 envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
 
-    return envMap * normalizationTerm;
+    return brdf * envMap * normalizationTerm;
     #endif
 }
