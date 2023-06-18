@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -69,6 +70,12 @@ namespace GUI.Controls
                 steamPaths.Add(Path.GetFullPath(Path.Join(child["path"].ToString(), "steamapps")));
             }
 
+            var enumerationOptions = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                MaxRecursionDepth = 5,
+            };
+
             foreach (var steamPath in steamPaths)
             {
                 var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
@@ -100,11 +107,13 @@ namespace GUI.Controls
                     }
 
                     // Find all the gameinfo.gi files, open them to get game paths
-                    var gameInfos = Directory.GetFiles(gamePath, "gameinfo.gi", new EnumerationOptions
+                    var gameInfos = new FileSystemEnumerable<string>(
+                        gamePath,
+                        (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
+                        enumerationOptions)
                     {
-                        RecurseSubdirectories = true,
-                        MaxRecursionDepth = 10,
-                    });
+                        ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Equals("gameinfo.gi", StringComparison.Ordinal)
+                    };
 
                     foreach (var file in gameInfos)
                     {
@@ -143,11 +152,13 @@ namespace GUI.Controls
                     // Find all the vpks in the game paths found above
                     foreach (var path in allFoundGamePaths)
                     {
-                        var vpks = Directory.GetFiles(path, "*.vpk", new EnumerationOptions
+                        var vpks = new FileSystemEnumerable<string>(
+                            path,
+                            (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
+                            enumerationOptions)
                         {
-                            RecurseSubdirectories = true,
-                            MaxRecursionDepth = 5,
-                        });
+                            ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && Path.GetExtension(entry.FileName).Equals(".vpk", StringComparison.Ordinal)
+                        };
 
                         foreach (var vpk in vpks)
                         {
