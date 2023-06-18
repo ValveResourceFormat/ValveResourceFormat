@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveKeyValue;
@@ -19,6 +20,10 @@ namespace GUI.Controls
         {
             InitializeComponent();
 
+#if DEBUG
+            var timer = Stopwatch.StartNew();
+#endif
+
             try
             {
                 treeView.BeginUpdate();
@@ -29,6 +34,11 @@ namespace GUI.Controls
             {
                 treeView.EndUpdate();
             }
+
+#if DEBUG
+            timer.Stop();
+            Console.WriteLine($"Explorer scan time: {timer.Elapsed}");
+#endif
         }
 
         private void Scan()
@@ -62,7 +72,7 @@ namespace GUI.Controls
             {
                 var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
 
-                foreach (var appManifestPath in manifests)
+                Parallel.ForEach(manifests, (appManifestPath) =>
                 {
                     KVObject appManifestKv;
 
@@ -73,7 +83,7 @@ namespace GUI.Controls
                     }
                     catch (Exception)
                     {
-                        continue;
+                        return;
                     }
 
                     var appId = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
@@ -85,7 +95,7 @@ namespace GUI.Controls
 
                     if (!Directory.Exists(gamePath))
                     {
-                        continue;
+                        return;
                     }
 
                     var gameInfos = Directory.GetFiles(gamePath, "gameinfo.gi", new EnumerationOptions
@@ -181,9 +191,12 @@ namespace GUI.Controls
                         treeNode.Nodes.AddRange(foundFilesArray);
                         treeNode.Expand();
 
-                        TreeData.Add((treeNode, appId, foundFilesArray));
+                        lock (TreeData)
+                        {
+                            TreeData.Add((treeNode, appId, foundFilesArray));
+                        }
                     }
-                }
+                });
             }
 
             // Recent files
