@@ -51,7 +51,7 @@ void main()
 
     vec3 viewDirection = normalize(vEyePosition - vFragPosition);
 
-    vec3 lightDirection = normalize(getSunDir() - vFragPosition);
+    vec3 lightDirection = normalize(vEyePosition - vFragPosition);
 
     //Calculate Blinn specular based on reflected light
     vec3 halfDir = normalize(lightDirection + viewDirection);

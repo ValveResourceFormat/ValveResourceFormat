@@ -247,6 +247,8 @@ namespace GUI.Types.Renderer
                     return "vr_unlit";
                 case "vr_black_unlit.vfx":
                     return "vr_black_unlit";
+                case "global_lit_simple.vfx":
+                    return "global_lit_simple";
                 case "water_dota.vfx":
                     return "water";
                 case "hero.vfx":

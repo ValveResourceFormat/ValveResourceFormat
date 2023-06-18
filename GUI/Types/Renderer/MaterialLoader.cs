@@ -102,13 +102,6 @@ namespace GUI.Types.Renderer
                 return false;
             }
 
-            if (mat.Material.IntParams.TryGetValue("F_SOLID_COLOR", out var solidColor) && solidColor == 1)
-            {
-                var a = mat.Material.VectorParams["g_vColorTint"];
-
-                mat.Textures["g_tColor"] = GenerateColorTexture(1, 1, new[] { a.X, a.Y, a.Z, a.W });
-            }
-
             ApplyMaterialDefaults(mat);
 
             return mat;

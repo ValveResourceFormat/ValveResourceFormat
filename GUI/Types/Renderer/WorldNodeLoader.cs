@@ -46,17 +46,11 @@ namespace GUI.Types.Renderer
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
 
-                var tintColorWrongVector = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-
-                Vector4 tintColor;
-                if (tintColorWrongVector.W == 0)
+                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+                if (tintColor.W == 0)
                 {
                     // Ignoring tintColor, it will fuck things up.
                     tintColor = Vector4.One;
-                }
-                else
-                {
-                    tintColor = new Vector4(tintColorWrongVector.X, tintColorWrongVector.Y, tintColorWrongVector.Z, tintColorWrongVector.W);
                 }
 
                 if (renderableModel != null)

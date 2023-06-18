@@ -63,7 +63,7 @@ vec3 calculateWorldNormal()
 void main()
 {
     //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(getSunDir() - vFragPosition);
+    vec3 lightDirection = normalize(vEyePosition - vFragPosition);
 
     //Get the view direction
     vec3 viewDirection = normalize(vEyePosition - vFragPosition);
@@ -156,7 +156,7 @@ void main()
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(illumination, 0.0, 0.0, 1.0);
+    outputColor = vec4(illumination, illumination, illumination, 1.0);
 #endif
 
 #if renderMode_Mask1 == 1 && F_MASKS_1
