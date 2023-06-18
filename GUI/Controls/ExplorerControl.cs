@@ -12,9 +12,9 @@ using ValveKeyValue;
 
 namespace GUI.Controls
 {
-    public partial class ExplorerControl : UserControl
+    partial class ExplorerControl : UserControl
     {
-        private List<(TreeNode ParentNode, int AppID, TreeNode[] Children)> TreeData = new();
+        private readonly List<(TreeNode ParentNode, int AppID, TreeNode[] Children)> TreeData = new();
 
         public ExplorerControl()
         {
@@ -47,6 +47,7 @@ namespace GUI.Controls
             var vcsImage = MainForm.ImageList.Images.IndexOfKey("vcs");
             var mapImage = MainForm.ImageList.Images.IndexOfKey("map");
             var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
+            var pluginImage = MainForm.ImageList.Images.IndexOfKey("_plugin");
 
             var steam = Settings.GetSteamPath();
 
@@ -98,6 +99,7 @@ namespace GUI.Controls
                         return;
                     }
 
+                    // Find all the gameinfo.gi files, open them to get game paths
                     var gameInfos = Directory.GetFiles(gamePath, "gameinfo.gi", new EnumerationOptions
                     {
                         RecurseSubdirectories = true,
@@ -111,7 +113,7 @@ namespace GUI.Controls
                         try
                         {
                             using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
-                            gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+                            gameInfo = kvDeserializer.Deserialize(stream);
                         }
                         catch (Exception)
                         {
@@ -138,6 +140,7 @@ namespace GUI.Controls
 
                     var foundFiles = new List<TreeNode>();
 
+                    // Find all the vpks in the game paths found above
                     foreach (var path in allFoundGamePaths)
                     {
                         var vpks = Directory.GetFiles(path, "*.vpk", new EnumerationOptions
@@ -165,36 +168,76 @@ namespace GUI.Controls
                             }
 
                             var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
-                            var toAdd = new TreeNode(vpkName)
+                            foundFiles.Add(new TreeNode(vpkName)
                             {
                                 Tag = vpk,
                                 ImageIndex = image,
                                 SelectedImageIndex = image,
-                            };
-
-                            foundFiles.Add(toAdd);
+                            });
                         }
                     }
 
-                    if (foundFiles.Count > 0)
+                    if (foundFiles.Count == 0)
                     {
-                        foundFiles.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-                        var foundFilesArray = foundFiles.ToArray();
+                        return;
+                    }
 
-                        var treeNodeName = $"[{appId}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
-                        var treeNode = new TreeNode(treeNodeName)
-                        {
-                            Tag = gamePath,
-                            ImageIndex = folderImage,
-                            SelectedImageIndex = folderImage,
-                        };
-                        treeNode.Nodes.AddRange(foundFilesArray);
-                        treeNode.Expand();
+                    // Find workshop content
+                    try
+                    {
 
-                        lock (TreeData)
+                        KVObject workshopInfo;
+                        var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appId}.acf");
+                        using (var stream = new FileStream(workshopManifest, FileMode.Open, FileAccess.Read))
                         {
-                            TreeData.Add((treeNode, appId, foundFilesArray));
+                            workshopInfo = kvDeserializer.Deserialize(stream);
                         }
+
+                        foreach (var item in (IEnumerable<KVObject>)workshopInfo["WorkshopItemsInstalled"])
+                        {
+                            var addonPath = Path.Join(steamPath, "workshop", "content", appId.ToString(), item.Name);
+                            var publishDataPath = Path.Join(addonPath, "publish_data.txt");
+                            var vpk = Path.Join(addonPath, $"{item.Name}.vpk");
+
+                            if (!File.Exists(vpk))
+                            {
+                                continue;
+                            }
+
+                            using var stream = new FileStream(publishDataPath, FileMode.Open, FileAccess.Read);
+                            var publishData = kvDeserializer.Deserialize(stream);
+                            var addonTitle = publishData["title"];
+
+                            foundFiles.Add(new TreeNode($"[Workshop {item.Name}] {addonTitle}")
+                            {
+                                Tag = vpk,
+                                ImageIndex = pluginImage,
+                                SelectedImageIndex = pluginImage,
+                            });
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        //
+                    }
+
+                    // Sort the files and create the nodes
+                    foundFiles.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                    var foundFilesArray = foundFiles.ToArray();
+
+                    var treeNodeName = $"[{appId}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
+                    var treeNode = new TreeNode(treeNodeName)
+                    {
+                        Tag = gamePath,
+                        ImageIndex = folderImage,
+                        SelectedImageIndex = folderImage,
+                    };
+                    treeNode.Nodes.AddRange(foundFilesArray);
+                    treeNode.Expand();
+
+                    lock (TreeData)
+                    {
+                        TreeData.Add((treeNode, appId, foundFilesArray));
                     }
                 });
             }
@@ -295,6 +338,5 @@ namespace GUI.Controls
                 return toAdd;
             }).Reverse().ToArray();
         }
-
     }
 }
