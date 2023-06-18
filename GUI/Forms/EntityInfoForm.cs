@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -15,6 +15,11 @@ namespace GUI.Forms
         public EntityInfoForm()
         {
             InitializeComponent();
+        }
+
+        public void AddColumn(string name, string value)
+        {
+            dataGrid.Rows.Add(new string[] { name, value });
         }
     }
 }

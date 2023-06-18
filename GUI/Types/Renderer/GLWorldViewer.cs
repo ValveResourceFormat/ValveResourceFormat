@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
@@ -212,10 +213,13 @@ namespace GUI.Types.Renderer
 
                 Dictionary<uint, string> knownKeys = null;
 
-                // TODO: Color32 type is displayed as Byte[], convert it
+                using var entityDialog = new EntityInfoForm();
+
                 foreach (var property in sceneNode.EntityData.Properties)
                 {
-                    if (property.Value.Name == null)
+                    var name = property.Value.Name;
+
+                    if (name == null)
                     {
                         if (knownKeys == null)
                         {
@@ -224,23 +228,24 @@ namespace GUI.Types.Renderer
 
                         if (knownKeys.TryGetValue(property.Key, out var knownKey))
                         {
-                            property.Value.Name = knownKey;
+                            name = knownKey;
+                        }
+                        else
+                        {
+                            name = $"key={property.Key}";
                         }
                     }
-                }
 
-                using var entityDialog = new EntityInfoForm();
-                using var control = new DataGridView
-                {
-                    Dock = DockStyle.Fill,
-                    AutoSize = true,
-                    ReadOnly = true,
-                    AllowUserToAddRows = false,
-                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                    DataSource = new BindingSource(new System.ComponentModel.BindingList<EntityLump.EntityProperty>(sceneNode.EntityData.Properties.Values.ToList()), null),
-                    ScrollBars = ScrollBars.Both,
-                };
-                entityDialog.Controls.Add(control);
+                    var value = property.Value.Data;
+
+                    if (value.GetType() == typeof(byte[]))
+                    {
+                        var tmp = value as byte[];
+                        value = string.Join(' ', tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray());
+                    }
+
+                    entityDialog.AddColumn(name, value.ToString());
+                }
 
                 var classname = sceneNode.EntityData.GetProperty<string>("classname");
                 entityDialog.Text = $"Object: {classname}";
