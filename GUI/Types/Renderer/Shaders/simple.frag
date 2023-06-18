@@ -176,16 +176,6 @@ vec3 calculateWorldNormal(vec4 bumpNormal)
 
 #include "common/pbr.glsl"
 
-vec3 getSunColor(float brightness)
-{
-    vec3 color = vec3(255, 222, 189);
-    return vec3(
-        (color.r / 255.0),
-        (color.g / 255.0),
-        (color.b / 255.0)
-    );
-}
-
 void main()
 {
     vec2 texCoord = vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
@@ -340,7 +330,7 @@ void main()
     if (visibility > 0.0)
     {
         Lo += specularContribution(L, V, N, F0, albedo, metalness, roughness) * visibility;
-        Lo += diffuseLobe(max(dot(N, L), 0.0) * getSunColor(1.5)) * visibility;
+        Lo += diffuseLobe(max(dot(N, L), 0.0) * getSunColor()) * visibility;
     }
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)

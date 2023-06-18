@@ -22,6 +22,7 @@ namespace GUI.Types.Renderer
             public Camera Camera { get; init; }
             public float Time { get; init; }
             public Matrix4x4? GlobalLightTransform { get; init; }
+            public Vector4 GlobalLightColor { get; init; }
             public WorldLightingInfo LightingInfo { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
@@ -32,6 +33,7 @@ namespace GUI.Types.Renderer
         public float Time { get; set; }
         public SceneSky Sky { get; set; }
         public Matrix4x4? GlobalLightTransform { get; set; }
+        public Vector4 GlobalLightColor { get; set; }
         public WorldLightingInfo LightingInfo { get; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = new();
         public VrfGuiContext GuiContext { get; }
@@ -191,6 +193,7 @@ namespace GUI.Types.Renderer
                 Camera = camera,
                 Time = Time,
                 GlobalLightTransform = GlobalLightTransform,
+                GlobalLightColor = GlobalLightColor,
                 LightingInfo = LightingInfo,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,

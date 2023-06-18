@@ -425,6 +425,20 @@ namespace GUI.Types.Renderer
                 else if (isGlobalLight)
                 {
                     scene.GlobalLightTransform = transformationMatrix;
+                    var colorNormalized = entity.GetProperty("color").Data switch
+                    {
+                        byte[] bytes => new Vector3(bytes[0], bytes[1], bytes[2]),
+                        Vector3 vec => vec,
+                        _ => throw new NotImplementedException()
+                    } / 255.0f;
+
+                    var brightness = 1.0f;
+                    if (classname == "light_environment")
+                    {
+                        brightness = Convert.ToSingle(entity.GetProperty("brightness").Data, CultureInfo.InvariantCulture);
+                    }
+
+                    scene.GlobalLightColor = new Vector4(colorNormalized, brightness);
                 }
 
                 var objColor = Vector4.One;
