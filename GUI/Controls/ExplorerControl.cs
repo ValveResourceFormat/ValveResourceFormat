@@ -121,7 +121,7 @@ namespace GUI.Controls
 
                         try
                         {
-                            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
+                            using var stream = File.OpenRead(file);
                             gameInfo = kvDeserializer.Deserialize(stream);
                         }
                         catch (Exception)
@@ -199,32 +199,36 @@ namespace GUI.Controls
 
                         KVObject workshopInfo;
                         var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appId}.acf");
-                        using (var stream = new FileStream(workshopManifest, FileMode.Open, FileAccess.Read))
-                        {
-                            workshopInfo = kvDeserializer.Deserialize(stream);
-                        }
 
-                        foreach (var item in (IEnumerable<KVObject>)workshopInfo["WorkshopItemsInstalled"])
+                        if (File.Exists(workshopManifest))
                         {
-                            var addonPath = Path.Join(steamPath, "workshop", "content", appId.ToString(), item.Name);
-                            var publishDataPath = Path.Join(addonPath, "publish_data.txt");
-                            var vpk = Path.Join(addonPath, $"{item.Name}.vpk");
-
-                            if (!File.Exists(vpk))
+                            using (var stream = File.OpenRead(workshopManifest))
                             {
-                                continue;
+                                workshopInfo = kvDeserializer.Deserialize(stream);
                             }
 
-                            using var stream = new FileStream(publishDataPath, FileMode.Open, FileAccess.Read);
-                            var publishData = kvDeserializer.Deserialize(stream);
-                            var addonTitle = publishData["title"];
-
-                            foundFiles.Add(new TreeNode($"[Workshop {item.Name}] {addonTitle}")
+                            foreach (var item in (IEnumerable<KVObject>)workshopInfo["WorkshopItemsInstalled"])
                             {
-                                Tag = vpk,
-                                ImageIndex = pluginImage,
-                                SelectedImageIndex = pluginImage,
-                            });
+                                var addonPath = Path.Join(steamPath, "workshop", "content", appId.ToString(), item.Name);
+                                var publishDataPath = Path.Join(addonPath, "publish_data.txt");
+                                var vpk = Path.Join(addonPath, $"{item.Name}.vpk");
+
+                                if (!File.Exists(vpk))
+                                {
+                                    continue;
+                                }
+
+                                using var stream = File.OpenRead(publishDataPath);
+                                var publishData = kvDeserializer.Deserialize(stream);
+                                var addonTitle = publishData["title"];
+
+                                foundFiles.Add(new TreeNode($"[Workshop {item.Name}] {addonTitle}")
+                                {
+                                    Tag = vpk,
+                                    ImageIndex = pluginImage,
+                                    SelectedImageIndex = pluginImage,
+                                });
+                            }
                         }
                     }
                     catch (Exception)
