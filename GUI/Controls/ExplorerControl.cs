@@ -237,7 +237,7 @@ namespace GUI.Controls
                     }
 
                     // Sort the files and create the nodes
-                    foundFiles.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                    foundFiles.Sort((a, b) => string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase));
                     var foundFilesArray = foundFiles.ToArray();
 
                     var treeNodeName = $"[{appId}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
