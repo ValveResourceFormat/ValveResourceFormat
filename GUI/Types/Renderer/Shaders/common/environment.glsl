@@ -19,7 +19,7 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
 }
 
 #define MAX_ENVMAP_LOD 7
-#define SCENE_ENVIRONMENT_TYPE 2
+#define SCENE_ENVIRONMENT_TYPE 0
 
 #if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map
     // ...

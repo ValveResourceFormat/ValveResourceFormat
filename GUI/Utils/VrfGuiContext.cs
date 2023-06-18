@@ -15,7 +15,6 @@ namespace GUI.Utils
 
         public MaterialLoader MaterialLoader { get; }
 
-        public Dictionary<string, byte> RenderArgs { get; } = new();
         public ShaderLoader ShaderLoader { get; }
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; }

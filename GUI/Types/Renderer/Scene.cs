@@ -32,7 +32,8 @@ namespace GUI.Types.Renderer
         public float Time { get; set; }
         public SceneSky Sky { get; set; }
         public Matrix4x4? GlobalLightTransform { get; set; }
-        public WorldLightingInfo LightingInfo { get; set; }
+        public WorldLightingInfo LightingInfo { get; } = new();
+        public Dictionary<string, byte> RenderAttributes { get; } = new();
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }

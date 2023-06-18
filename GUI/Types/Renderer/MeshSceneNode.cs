@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
         public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex, Dictionary<string, string> skinMaterials = null)
             : base(scene)
         {
-            meshRenderer = new RenderableMesh(mesh, meshIndex, Scene.GuiContext, skinMaterials);
+            meshRenderer = new RenderableMesh(mesh, meshIndex, Scene, skinMaterials);
             LocalBoundingBox = meshRenderer.BoundingBox;
         }
 

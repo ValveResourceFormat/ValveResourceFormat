@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -40,13 +41,8 @@ namespace GUI.Types.Renderer
             var result = new LoadResult();
             result.DefaultEnabledLayers.Add("Entities");
 
-            scene.LightingInfo = LoadWorldLightingInfo();
-            // Needs to be set before draw calls are configured
-            // Scenes within a context should have the same value.
-            if (scene.LightingInfo != null)
-            {
-                guiContext.RenderArgs.TryAdd("LightmapGameVersionNumber", (byte)scene.LightingInfo.LightmapGameVersionNumber);
-            }
+            LoadWorldLightingInfo(scene);
+            scene.RenderAttributes.TryAdd("LightmapGameVersionNumber", (byte)scene.LightingInfo.LightmapGameVersionNumber);
 
             foreach (var lumpName in world.GetEntityLumpNames())
             {
@@ -107,27 +103,33 @@ namespace GUI.Types.Renderer
             return result;
         }
 
-        private WorldLightingInfo LoadWorldLightingInfo()
+        private readonly Dictionary<string, string> LightmapNameToUniformName = new()
+        {
+            {"irradiance", "g_tIrradiance"},
+            {"directional_irradiance", "g_tDirectionalIrradiance"},
+            {"direct_light_shadows", "g_tDirectLightShadows"},
+            {"direct_light_indices", "g_tDirectLightIndices"},
+            {"direct_light_strengths", "g_tDirectLightStrengths"},
+        };
+
+        private readonly string[] LightmapSetV81 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths" };
+        private readonly string[] LightmapSetV82 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows" };
+
+        private void LoadWorldLightingInfo(Scene scene)
         {
             var worldLightingInfo = world.GetWorldLightingInfo();
             if (worldLightingInfo == null)
             {
-                return new WorldLightingInfo();
+                return;
             }
 
-            var lightmapGameVersionNumber = 0;
-            var lightmapUvScale = Vector2.One;
-            if (worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber") == 8)
+            var result = scene.LightingInfo;
+            result.LightmapVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber");
+            if (scene.LightingInfo.LightmapVersionNumber == 8)
             {
-                lightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
-                lightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
+                result.LightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
+                result.LightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
             }
-
-            var result = new WorldLightingInfo
-            {
-                LightmapGameVersionNumber = lightmapGameVersionNumber,
-                LightmapUvScale = lightmapUvScale,
-            };
 
             foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
             {
@@ -138,17 +140,15 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            return result;
+            bool lightmapPresent(string x) => result.Lightmaps.ContainsKey(x);
+            result.HasValidLightmaps = (result.LightmapVersionNumber, result.LightmapGameVersionNumber) switch
+            {
+                (6, 0) => false,
+                (8, 1) => LightmapSetV81.All(lightmapPresent),
+                (8, 2) => LightmapSetV82.All(lightmapPresent),
+                _ => false,
+            };
         }
-
-        private readonly Dictionary<string, string> LightmapNameToUniformName = new()
-        {
-            {"irradiance", "g_tIrradiance"},
-            {"directional_irradiance", "g_tDirectionalIrradiance"},
-            {"direct_light_shadows", "g_tDirectLightShadows"},
-            {"direct_light_indices", "g_tDirectLightIndices"},
-            {"direct_light_strengths", "g_tDirectLightStrengths"},
-        };
 
         private void LoadEntitiesFromLump(Scene scene, LoadResult result, EntityLump entityLump, string layerName = null)
         {
@@ -169,12 +169,18 @@ namespace GUI.Types.Renderer
                 LoadEntitiesFromLump(scene, result, childLump, childName);
             }
 
-            var worldEntities = entityLump.GetEntities();
+            static bool IsCubemapOrProbe(string cls)
+                => cls == "env_combined_light_probe_volume"
+                || cls == "env_light_probe_volume"
+                || cls == "env_cubemap_box"
+                || cls == "env_cubemap";
 
-            foreach (var entity in worldEntities)
+            var entitiesReordered = entityLump.GetEntities()
+                .Select(e => (e, e.GetProperty<string>("classname")))
+                .OrderByDescending(x => IsCubemapOrProbe(x.Item2));
+
+            foreach (var (entity, classname) in entitiesReordered)
             {
-                var classname = entity.GetProperty<string>("classname");
-
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetProperty<uint>("spawnflags");
@@ -241,10 +247,7 @@ namespace GUI.Types.Renderer
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                     };
                 }
-                else if (classname == "env_combined_light_probe_volume"
-                    || classname == "env_light_probe_volume"
-                    || classname == "env_cubemap_box"
-                    || classname == "env_cubemap")
+                else if (IsCubemapOrProbe(classname))
                 {
                     var handShakeString = entity.GetProperty<string>("handshake");
                     if (!int.TryParse(handShakeString, out var handShake))
@@ -273,6 +276,13 @@ namespace GUI.Types.Renderer
                         var envMapTexture = guiContext.MaterialLoader.GetTexture(
                             entity.GetProperty<string>("cubemaptexture")
                         );
+
+                        scene.RenderAttributes["SCENE_ENVIRONMENT_TYPE"] = envMapTexture.Target switch
+                        {
+                            TextureTarget.TextureCubeMapArray => 2,
+                            TextureTarget.TextureCubeMap => 1,
+                            _ => 0,
+                        };
 
                         scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
 

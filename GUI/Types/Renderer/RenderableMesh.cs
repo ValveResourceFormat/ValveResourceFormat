@@ -17,6 +17,7 @@ namespace GUI.Types.Renderer
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
 
+        private readonly Scene scene;
         private readonly VrfGuiContext guiContext;
         public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
         public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
@@ -29,10 +30,11 @@ namespace GUI.Types.Renderer
         private readonly VBIB VBIB;
         private readonly List<DrawCall> DrawCallsAll = new();
 
-        public RenderableMesh(Mesh mesh, int meshIndex, VrfGuiContext guiContext,
+        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene,
             Dictionary<string, string> skinMaterials = null, Model model = null)
         {
-            this.guiContext = guiContext;
+            this.scene = scene;
+            guiContext = scene.GuiContext;
             this.mesh = mesh;
             VBIB = mesh.VBIB;
             if (model != null)
@@ -118,16 +120,14 @@ namespace GUI.Types.Renderer
                     }
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName);
-                    var shaderArguments = new Dictionary<string, byte>(guiContext.RenderArgs);
+                    var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
                         shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", 1);
                     }
 
-                    if (Mesh.HasBakedLightingFromLightMap(objectDrawCall)
-                        && shaderArguments.TryGetValue("LightmapGameVersionNumber", out var version)
-                        && version > 0)
+                    if (Mesh.HasBakedLightingFromLightMap(objectDrawCall) && scene.LightingInfo.HasValidLightmaps)
                     {
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_LIGHTMAP", 1);
                     }
