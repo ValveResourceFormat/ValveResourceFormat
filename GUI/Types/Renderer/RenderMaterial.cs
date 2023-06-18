@@ -48,7 +48,6 @@ namespace GUI.Types.Renderer
         {
             //Start at 1, texture unit 0 is reserved for the animation texture
             var textureUnit = 1;
-            int uniformLocation;
 
             shader ??= this.shader;
 
@@ -58,46 +57,25 @@ namespace GUI.Types.Renderer
             {
                 textures = Textures.Concat(lightingInfo.Lightmaps);
 
-                uniformLocation = shader.GetUniformLocation("g_vLightmapUvScale");
-
-                if (uniformLocation > -1)
-                {
-                    GL.Uniform2(uniformLocation, lightingInfo.LightmapUvScale.ToOpenTK());
-                }
+                shader.SetUniform2("g_vLightmapUvScale", lightingInfo.LightmapUvScale);
             }
 
             foreach (var (name, texture) in textures)
             {
-                uniformLocation = shader.GetUniformLocation(name);
-
-                if (uniformLocation > -1)
+                if (shader.SetTexture(textureUnit, name, texture.Handle, texture.Target))
                 {
-                    GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-                    GL.BindTexture(texture.Target, texture.Handle);
-                    GL.Uniform1(uniformLocation, textureUnit);
-
                     textureUnit++;
                 }
             }
 
             foreach (var param in Material.FloatParams)
             {
-                uniformLocation = shader.GetUniformLocation(param.Key);
-
-                if (uniformLocation > -1)
-                {
-                    GL.Uniform1(uniformLocation, param.Value);
-                }
+                shader.SetUniform1(param.Key, param.Value);
             }
 
             foreach (var param in Material.VectorParams)
             {
-                uniformLocation = shader.GetUniformLocation(param.Key);
-
-                if (uniformLocation > -1)
-                {
-                    GL.Uniform4(uniformLocation, param.Value.ToOpenTK());
-                }
+                shader.SetUniform4(param.Key, param.Value);
             }
 
             if (IsBlended)

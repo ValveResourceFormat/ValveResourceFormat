@@ -63,10 +63,10 @@ namespace GUI.Types.Renderer
         {
             GL.Enable(EnableCap.DepthTest);
 
-            var viewProjectionMatrix = context.Camera.ViewProjectionMatrix.ToOpenTK();
-            var cameraPosition = context.Camera.Location.ToOpenTK();
-            var dirLight = (context.GlobalLightTransform ?? context.Camera.CameraViewMatrix).ToOpenTK();
-            var dirLightColor = context.GlobalLightColor.ToOpenTK();
+            var viewProjectionMatrix = context.Camera.ViewProjectionMatrix;
+            var cameraPosition = context.Camera.Location;
+            var dirLight = (context.GlobalLightTransform ?? context.Camera.CameraViewMatrix);
+            var dirLightColor = context.GlobalLightColor;
 
             var groupedDrawCalls = context.ReplacementShader == null
                 ? drawCalls.GroupBy(a => a.Call.Shader)
@@ -91,17 +91,17 @@ namespace GUI.Types.Renderer
 
                 GL.UseProgram(shader.Program);
 
-                GL.UniformMatrix4(shader.GetUniformLocation("vLightPosition"), false, ref dirLight);
-                GL.Uniform4(shader.GetUniformLocation("vLightColor"), dirLightColor);
-                GL.Uniform3(shader.GetUniformLocation("vEyePosition"), cameraPosition);
-                GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
+                shader.SetUniform4x4("vLightPosition", dirLight);
+                shader.SetUniform4("vLightColor", dirLightColor);
+                shader.SetUniform3("vEyePosition", cameraPosition);
+                shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
 
                 if (context.LightingInfo?.EnvMapPositionsUniform is not null)
                 {
                     var count = context.LightingInfo.EnvMaps.Count;
-                    GL.Uniform4(shader.GetUniformLocation("g_vEnvMapPositionWs"), count, context.LightingInfo.EnvMapPositionsUniform);
-                    GL.Uniform4(shader.GetUniformLocation("g_vEnvMapBoxMins"), count, context.LightingInfo.EnvMapMinsUniform);
-                    GL.Uniform4(shader.GetUniformLocation("g_vEnvMapBoxMaxs"), count, context.LightingInfo.EnvMapMaxsUniform);
+                    shader.SetUniform4Array("g_vEnvMapPositionWs", count, context.LightingInfo.EnvMapPositionsUniform);
+                    shader.SetUniform4Array("g_vEnvMapBoxMins", count, context.LightingInfo.EnvMapMinsUniform);
+                    shader.SetUniform4Array("g_vEnvMapBoxMaxs", count, context.LightingInfo.EnvMapMaxsUniform);
                 }
 
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))

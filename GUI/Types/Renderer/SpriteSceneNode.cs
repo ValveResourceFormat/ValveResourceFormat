@@ -72,12 +72,8 @@ namespace GUI.Types.Renderer
             var transformTk = Transform.ToOpenTK();
             GL.UniformMatrix4(renderShader.GetUniformLocation("transform"), false, ref test2);
 
-            var objectId = renderShader.GetUniformLocation("sceneObjectId");
-
-            if (objectId > -1)
-            {
-                GL.Uniform1(objectId, Id);
-            }
+            renderShader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetUniform1("sceneObjectId", Id);
 
             material.Render(renderShader);
 
