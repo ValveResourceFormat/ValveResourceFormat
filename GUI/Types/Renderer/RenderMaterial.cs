@@ -48,7 +48,6 @@ namespace GUI.Types.Renderer
         {
             //Start at 2, texture unit 0 is reserved for the animation texture, and 1 is reserved for the brdf lookup.
             var textureUnit = 2;
-            int uniformLocation;
 
             shader ??= this.shader;
 
