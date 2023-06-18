@@ -348,7 +348,7 @@ void main()
 
     // Environment Map
     #if (S_SPECULAR == 1)
-        vec3 specular = F * GetEnvironment(N, V, roughness, F0, irradiance);
+        vec3 specular = GetEnvironment(N, V, roughness, F0, irradiance);
         outputColor.rgb += specular * occlusion;
     #endif
 
