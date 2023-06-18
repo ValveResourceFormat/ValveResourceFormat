@@ -1,8 +1,8 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
 using GUI.Utils;
-using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 
@@ -81,31 +81,10 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
 
-            var uniformLocation = shader.GetUniformLocation("m_vTintColorSceneObject");
-            if (uniformLocation > -1)
-            {
-                GL.Uniform4(uniformLocation, Vector4.One);
-            }
-
-            uniformLocation = shader.GetUniformLocation("m_vTintColorDrawCall");
-            if (uniformLocation > -1)
-            {
-                GL.Uniform3(uniformLocation, Vector3.One);
-            }
-
-            var identity = Matrix4.Identity;
-
-            uniformLocation = shader.GetUniformLocation("uProjectionViewMatrix");
-            if (uniformLocation > -1)
-            {
-                GL.UniformMatrix4(uniformLocation, false, ref identity);
-            }
-
-            uniformLocation = shader.GetUniformLocation("transform");
-            if (uniformLocation > -1)
-            {
-                GL.UniformMatrix4(uniformLocation, false, ref identity);
-            }
+            shader.SetUniform4("m_vTintColorSceneObject", Vector4.One);
+            shader.SetUniform3("m_vTintColorDrawCall", Vector3.One);
+            shader.SetUniform4x4("uProjectionViewMatrix", Matrix4x4.Identity);
+            shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
             material.Render(shader);
 

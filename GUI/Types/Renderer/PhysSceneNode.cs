@@ -332,11 +332,12 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var viewProjectionMatrix = (Transform * context.Camera.ViewProjectionMatrix).ToOpenTK();
 
             GL.UseProgram(shader.Program);
 
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
+            var viewProjectionMatrix = Transform * context.Camera.ViewProjectionMatrix;
+            shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
+
             GL.DepthMask(false);
 
             GL.BindVertexArray(vaoHandle);

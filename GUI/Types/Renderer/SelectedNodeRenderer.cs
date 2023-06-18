@@ -63,8 +63,7 @@ namespace GUI.Types.Renderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.UseProgram(shader.Program);
 
-            var projectionViewMatrix = camera.ViewProjectionMatrix.ToOpenTK();
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
+            shader.SetUniform4x4("uProjectionViewMatrix", camera.ViewProjectionMatrix);
 
             GL.BindVertexArray(vaoHandle);
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
