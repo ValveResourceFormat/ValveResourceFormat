@@ -46,8 +46,8 @@ namespace GUI.Types.Renderer
 
         public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
         {
-            //Start at 2, texture unit 0 is reserved for the animation texture, and 1 is reserved for the brdf lookup.
-            var textureUnit = 2;
+            // Start at 1, texture unit 0 is reserved for the animation texture
+            var textureUnit = 1;
 
             shader ??= this.shader;
 
@@ -58,9 +58,6 @@ namespace GUI.Types.Renderer
                 textures = Textures.Concat(lightingInfo.Lightmaps);
 
                 shader.SetUniform2("g_vLightmapUvScale", lightingInfo.LightmapUvScale);
-
-                var lut = new KeyValuePair<string, RenderTexture>("g_tBRDFLookup", lightingInfo.BRDFLookup);
-                textures = textures.Append(lut);
             }
 
             foreach (var (name, texture) in textures)
