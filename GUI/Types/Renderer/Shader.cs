@@ -63,6 +63,17 @@ namespace GUI.Types.Renderer
 
             return uniformLocation > -1;
         }
+        public bool SetUniform1(string name, uint value)
+        {
+            var uniformLocation = GetUniformLocation(name);
+
+            if (uniformLocation > -1)
+            {
+                GL.Uniform1(uniformLocation, value);
+            }
+
+            return uniformLocation > -1;
+        }
         public bool SetUniform2(string name, Vector2 value)
         {
             var uniformLocation = GetUniformLocation(name);
