@@ -34,6 +34,7 @@ namespace GUI.Types.Renderer
 
             quadVao = MaterialRenderer.SetupSquareQuadBuffer(shader);
             size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
+            size /= 2f; // correct the scale to actually be 16x16
 
             this.position = position;
             var size3 = new Vector3(size);
