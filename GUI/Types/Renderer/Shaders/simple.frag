@@ -234,7 +234,10 @@ void main()
     vec3 tintFactor = vVertexColorOut.rgb;
 #endif
 
-    vec3 albedo = color.rgb * tintFactor;
+    vec3 gamma = vec3(2.2);
+    vec3 invGamma = vec3(1.0 / gamma);
+
+    vec3 albedo = pow(color.rgb, gamma) * tintFactor;
     float opacity = color.a * vVertexColorOut.a;
     float metalness = 0.0;
     float roughness = normal.b;
@@ -270,9 +273,6 @@ void main()
 #endif
 
     roughness = clamp(roughness, 0.005, 1.0);
-
-    // Gamma correct
-    vec3 power = vec3(1.0 / 2.2);
 
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal);
@@ -353,14 +353,14 @@ void main()
     #endif
 
 
-    //outputColor.rgb = pow(outputColor.rgb, vec3(power));
+    outputColor.rgb = pow(outputColor.rgb, vec3(invGamma));
     //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
 #endif
 
 #if renderMode_FullBright == 1
     vec3 illumination = vec3(max(0.0, dot(V, N)));
     illumination = illumination * 0.7 + 0.3;
-    outputColor = vec4(illumination * albedo, opacity);
+    outputColor = vec4(illumination * pow(albedo, invGamma), opacity);
 #endif
 
 #if renderMode_Color == 1
@@ -391,15 +391,15 @@ void main()
     // No bumpmaps, full reflectivity
     float lod = 0.0;
     vec3 EnvMap = GetEnvironment(vNormalOut, V, roughness, vec3(1.0), vec3(0.0)).rgb;
-    outputColor.rgb = pow(EnvMap, vec3(power));
+    outputColor.rgb = pow(EnvMap, vec3(invGamma));
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(pow(Lo, vec3(power)), 1.0);
+    outputColor = vec4(pow(Lo, vec3(invGamma)), 1.0);
 #endif
 
 #if renderMode_Irradiance == 1 && F_GLASS == 0
-    outputColor = vec4(pow(irradiance, vec3(power)), 1.0);
+    outputColor = vec4(pow(irradiance, vec3(invGamma)), 1.0);
 #endif
 
 #if renderMode_VertexColor == 1
