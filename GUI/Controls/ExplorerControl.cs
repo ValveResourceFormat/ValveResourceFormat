@@ -52,7 +52,6 @@ namespace GUI.Controls
 
             var steam = Settings.GetSteamPath();
 
-            var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
 
             var libraryfolders = Path.Join(steam, "libraryfolders.vdf");
@@ -162,7 +161,7 @@ namespace GUI.Controls
 
                         foreach (var vpk in vpks)
                         {
-                            if (vpkRegex.IsMatch(vpk))
+                            if (Regexes.VpkNumberArchive.IsMatch(vpk))
                             {
                                 continue;
                             }

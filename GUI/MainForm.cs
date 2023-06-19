@@ -442,7 +442,7 @@ namespace GUI
         {
             Console.WriteLine($"Opening {fileName}");
 
-            if (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+            if (Regexes.VpkNumberArchive.IsMatch(fileName))
             {
                 var fixedPackage = $"{fileName[..^8]}_dir.vpk";
 

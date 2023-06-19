@@ -50,7 +50,7 @@ namespace GUI.Forms
 
             var fileName = dlg.FileName;
 
-            if (Regex.IsMatch(fileName, @"_[0-9]{3}\.vpk$"))
+            if (Regexes.VpkNumberArchive.IsMatch(fileName))
             {
                 fileName = $"{fileName[..^8]}_dir.vpk";
             }
