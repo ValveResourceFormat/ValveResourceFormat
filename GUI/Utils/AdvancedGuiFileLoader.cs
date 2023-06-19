@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Enumeration;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using SteamDatabase.ValvePak;
@@ -327,10 +328,10 @@ namespace GUI.Utils
             CurrentGamePackages.Add(package);
         }
 
-        private static void HandleGameInfo(List<string> folders, string gameRoot, string gameinfoPath)
+        private static void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
         {
             KVObject gameInfo;
-            using (var stream = new FileStream(gameinfoPath, FileMode.Open, FileAccess.Read))
+            using (var stream = File.OpenRead(gameinfoPath))
             {
                 try
                 {
@@ -360,32 +361,42 @@ namespace GUI.Utils
         {
             modIdentifierPath ??= GetModIdentifierFile();
 
-            if (modIdentifierPath == null)
-            {
-                return;
-            }
+            HashSet<string> folders;
 
-            var folders = new List<string>();
-            var rootFolder = Path.GetDirectoryName(modIdentifierPath);
-            var assumedGameRoot = Path.GetDirectoryName(rootFolder);
-
-            if (Path.GetFileName(modIdentifierPath) == "gameinfo.gi")
+            if (modIdentifierPath == "<VRF_WORKSHOP>")
             {
-                HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
+                folders = FindGameFoldersForWorkshopFile();
             }
             else
             {
-                var addonsSuffix = "_addons";
-                if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                if (modIdentifierPath == null)
                 {
-                    var mainGameDir = assumedGameRoot[..^addonsSuffix.Length];
-                    if (Directory.Exists(mainGameDir))
-                    {
-                        folders.Add(mainGameDir);
-                    }
+                    return;
                 }
 
-                folders.Add(rootFolder);
+                folders = new HashSet<string>();
+
+                var rootFolder = Path.GetDirectoryName(modIdentifierPath);
+                var assumedGameRoot = Path.GetDirectoryName(rootFolder);
+
+                if (Path.GetFileName(modIdentifierPath) == "gameinfo.gi")
+                {
+                    HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
+                }
+                else
+                {
+                    var addonsSuffix = "_addons";
+                    if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var mainGameDir = assumedGameRoot[..^addonsSuffix.Length];
+                        if (Directory.Exists(mainGameDir))
+                        {
+                            folders.Add(mainGameDir);
+                        }
+                    }
+
+                    folders.Add(rootFolder);
+                }
             }
 
             foreach (var folder in folders)
@@ -434,6 +445,7 @@ namespace GUI.Utils
         {
             var directory = GuiContext.FileName;
             var i = 10;
+            var isLastWorkshop = false;
 
             while (i-- > 0)
             {
@@ -443,10 +455,24 @@ namespace GUI.Utils
                 Console.WriteLine($"Scanning \"{directory}\"");
 #endif
 
-                if (directory == null || Path.GetFileName(directory) == "steamapps")
+                var currentDirectory = Path.GetFileName(directory);
+
+                if (directory == null)
                 {
                     return null;
                 }
+
+                if (currentDirectory == "steamapps")
+                {
+                    if (isLastWorkshop) // Found /steamapps/workshop/ folder
+                    {
+                        return "<VRF_WORKSHOP>";
+                    }
+
+                    return null;
+                }
+
+                isLastWorkshop = currentDirectory == "workshop";
 
                 foreach (var modIdentifier in modIdentifiers)
                 {
@@ -459,6 +485,86 @@ namespace GUI.Utils
             }
 
             return null;
+        }
+
+        private HashSet<string> FindGameFoldersForWorkshopFile()
+        {
+            var folders = new HashSet<string>();
+
+            // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
+            const string STEAMAPPS_WORKSHOP_CONTENT = "steamapps/workshop/content";
+            var filePath = GuiContext.FileName.Replace('\\', '/');
+            var contentIndex = filePath.IndexOf(STEAMAPPS_WORKSHOP_CONTENT, StringComparison.InvariantCultureIgnoreCase);
+
+            if (contentIndex == -1)
+            {
+                return folders;
+            }
+
+            // Extract the appid from path
+            var contentIndexEnd = contentIndex + STEAMAPPS_WORKSHOP_CONTENT.Length + 1;
+            var slashAfterAppId = filePath.IndexOf('/', contentIndexEnd);
+
+            if (slashAfterAppId == -1)
+            {
+                return folders;
+            }
+
+            var appIdString = filePath[contentIndexEnd..slashAfterAppId];
+
+            if (!uint.TryParse(appIdString, out var appId))
+            {
+                return folders;
+            }
+
+#if DEBUG_FILE_LOAD
+            Console.WriteLine($"Parsed appid {appId} for workshop file {filePath}");
+#endif
+
+            var steamPath = filePath[..(contentIndex + "steamapps/".Length)];
+            var appManifestPath = Path.Join(steamPath, $"appmanifest_{appId}.acf");
+
+            // Load appmanifest to get the install directory for this appid
+            KVObject appManifestKv;
+
+            try
+            {
+                using var appManifestStream = File.OpenRead(appManifestPath);
+                appManifestKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
+            }
+            catch (Exception)
+            {
+                return folders;
+            }
+
+            var installDir = appManifestKv["installdir"].ToString();
+            var gamePath = Path.Combine(steamPath, "common", installDir);
+
+            if (!Directory.Exists(gamePath))
+            {
+                return folders;
+            }
+
+            // Find all the gameinfo.gi files, open them to get game paths
+            var gameInfos = new FileSystemEnumerable<string>(
+                gamePath,
+                (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
+                new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    MaxRecursionDepth = 5,
+                })
+            {
+                ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Equals("gameinfo.gi", StringComparison.Ordinal)
+            };
+
+            foreach (var gameInfo in gameInfos)
+            {
+                var assumedGameRoot = Path.GetDirectoryName(Path.GetDirectoryName(gameInfo));
+                HandleGameInfo(folders, assumedGameRoot, gameInfo);
+            }
+
+            return folders;
         }
 
         private void FindAndLoadShaderPackages()
