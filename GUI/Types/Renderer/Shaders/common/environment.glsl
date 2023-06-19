@@ -23,7 +23,8 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
 
 #if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map
     // ...
-#elif (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
+#else
+#if (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
     uniform samplerCube g_tEnvironmentMap;
     uniform vec4 g_vEnvMapBoxMins;
     uniform vec4 g_vEnvMapBoxMaxs;
@@ -40,12 +41,13 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
 
 float GetEnvMapLOD(float roughness, vec3 R)
 {
-    #if (renderMode_Cubemaps == 0)
-        return sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
+    #if (renderMode_Cubemaps == 1)
+        return textureQueryLod(g_tEnvironmentMap, R).x;
     #else
-        return textureQueryLod(g_tEnvironmentMap, R).x;;
+        return sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
     #endif
 }
+#endif
 
 // Cubemap Normalization
 // Used in HLA, maybe later vr renderer games too.
