@@ -3,17 +3,31 @@ using Sledge.Formats.GameData;
 using Sledge.Formats.GameData.Objects;
 using VrfFgdParser;
 
-if (args?.Length < 1 || !Directory.Exists(args![0]))
+if (args?.Length < 1)
 {
     Console.Error.WriteLine("Usage: ./program <path to Steam to find .fgd files in>");
     return 1;
 }
 
-var allIcons = new SortedDictionary<string, string>();
+var allIcons = new SortedDictionary<string, List<string>>();
 var allProperties = new HashSet<string>();
-var baseIcons = new Dictionary<string, string>();
+var baseIcons = new Dictionary<string, List<string>>();
 
-foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.AllDirectories))
+foreach (var arg in args!)
+{
+    if (!Directory.Exists(arg))
+    {
+        Console.Error.WriteLine($"'{arg}' does not exist.");
+        continue;
+    }
+
+    foreach (var file in Directory.EnumerateFiles(arg, "*.fgd", SearchOption.AllDirectories))
+    {
+        ParseFile(file);
+    }
+}
+
+void ParseFile(string file)
 {
     var isSource2 = File.Exists(Path.Join(Path.GetDirectoryName(file), "gameinfo.gi"));
 
@@ -23,6 +37,12 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
     Console.Write(file);
     Console.WriteLine(isSource2 ? string.Empty : " (not Source 2)");
     Console.ResetColor();
+
+    if (!isSource2)
+    {
+        // We don't want icons from non-Source 2 games.
+        return;
+    }
 
     GameDefinition fgd;
 
@@ -37,7 +57,7 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
     catch (Exception e)
     {
         Console.WriteLine(e);
-        continue;
+        return;
     }
 
     foreach (var _class in fgd.Classes)
@@ -45,12 +65,6 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
         foreach (var property in _class.Properties)
         {
             allProperties.Add(property.Name.ToLowerInvariant());
-        }
-
-        if (!isSource2)
-        {
-            // We don't want icons from non-Source 2 games.
-            continue;
         }
 
         foreach (var behaviour in _class.Behaviours)
@@ -77,34 +91,49 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
                 }
             }
 
+            if (behaviour.Name == "iconsprite" && behaviour.Values.Count == 0) // TODO: Hack, needs library support
+            {
+                foreach (var dict in _class.Dictionaries)
+                {
+                    foreach (var dictValue in dict)
+                    {
+                        if (dictValue.Key == "image")
+                        {
+                            value = (string)dictValue.Value.Value;
+                        }
+                    }
+                }
+            }
+
             if ((behaviour.Name == "studio" || behaviour.Name == "editormodel") && behaviour.Values.Count > 0)
             {
                 // TODO: get model property
                 value = behaviour.Values[0];
 
-                if (!value.StartsWith("models/"))
+                if (!value.StartsWith("models/", StringComparison.Ordinal))
                 {
                     value = "models/" + value;
                 }
 
-                if (value.EndsWith(".mdl"))
+                if (value.EndsWith(".mdl", StringComparison.Ordinal))
                 {
                     value = value[..^4] + ".vmdl";
                 }
 
-                if (!value.EndsWith(".vmdl"))
+                if (!value.EndsWith(".vmdl", StringComparison.Ordinal))
                 {
                     value += ".vmdl";
                 }
             }
 
-            if (value == null && _class.ClassType == ClassType.BaseClass)
+            if (value == null && _class.ClassType != ClassType.BaseClass)
             {
                 foreach (var baseClass in _class.BaseClasses)
                 {
-                    if (baseIcons.TryGetValue(baseClass, out value))
+                    if (baseIcons.TryGetValue(baseClass, out var values))
                     {
-                        Console.WriteLine($"Found {_class.Name} found base icon from {baseClass}");
+                        value = values[0]; // TODO: more than one
+                        Console.WriteLine($"Found {_class.Name} base icon from {baseClass}");
                         break;
                     }
                 }
@@ -112,20 +141,19 @@ foreach (var file in Directory.EnumerateFiles(args[0], "*.fgd", SearchOption.All
 
             if (value != null)
             {
-                IDictionary<string, string> icons = _class.ClassType == ClassType.BaseClass ? baseIcons : allIcons;
+                IDictionary<string, List<string>> icons = _class.ClassType == ClassType.BaseClass ? baseIcons : allIcons;
 
-                if (icons.TryGetValue(_class.Name, out var existingValue))
+                if (icons.TryGetValue(_class.Name, out var existingIcons))
                 {
-                    if (existingValue != value)
+                    if (!existingIcons.Contains(value))
                     {
-                        Console.WriteLine($"Found {_class.Name} with different value: {value} => {existingValue}");
-                        continue;
+                        existingIcons.Add(value);
                     }
 
                     continue;
                 }
 
-                icons[_class.Name] = value;
+                icons[_class.Name] = new List<string> { value };
             }
         }
     }
@@ -138,14 +166,35 @@ var iconsString = new StringBuilder();
 
 foreach (var icon in allIcons)
 {
+    icon.Value.Sort((a, b) =>
+    {
+        var aContains = a.Contains(icon.Key, StringComparison.Ordinal) ? 1 : 0;
+        var bContains = b.Contains(icon.Key, StringComparison.Ordinal) ? 1 : 0;
+        var aMdl = a.EndsWith(".vmdl", StringComparison.Ordinal) ? 1 : 0;
+        var bMdl = b.EndsWith(".vmdl", StringComparison.Ordinal) ? 1 : 0;
+
+        Console.WriteLine($"{a} <=> {b}");
+
+        if (aContains != bContains)
+        {
+            return bContains - aContains;
+        }
+
+        if (aMdl != bMdl)
+        {
+            return bMdl - aMdl;
+        }
+
+        return string.CompareOrdinal(a, b);
+    });
+
     iconsString.Append('"');
     iconsString.Append(icon.Key);
     iconsString.Append('"');
-    iconsString.Append(" => ");
+    iconsString.Append(" => new[] { ");
     iconsString.Append('"');
-    iconsString.Append(icon.Value);
-    iconsString.Append('"');
-    iconsString.Append(',');
+    iconsString.Append(string.Join("\", \"", icon.Value));
+    iconsString.Append("\" },");
     iconsString.AppendLine();
 }
 

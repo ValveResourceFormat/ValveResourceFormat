@@ -181,6 +181,11 @@ namespace GUI.Types.Renderer
 
             foreach (var (entity, classname) in entitiesReordered)
             {
+                if (classname == "worldspawn")
+                {
+                    continue; // do not draw
+                }
+
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetProperty<uint>("spawnflags");
@@ -575,8 +580,20 @@ namespace GUI.Types.Renderer
 
         private SceneNode AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix, Vector3 position)
         {
-            var filename = HammerEntities.GetToolModel(classname);
-            var resource = guiContext.LoadFileByAnyMeansNecessary(filename + "_c");
+            var filenames = HammerEntities.GetToolModel(classname);
+            string filename = null;
+            Resource resource = null;
+
+            foreach (var file in filenames)
+            {
+                filename = file;
+                resource = guiContext.LoadFileByAnyMeansNecessary(file + "_c");
+
+                if (resource != null)
+                {
+                    break;
+                }
+            }
 
             if (resource == null)
             {
