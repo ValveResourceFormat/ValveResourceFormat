@@ -22,6 +22,16 @@ namespace GUI.Types.Renderer
             material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
             shader = material.Shader;
 
+            // Forcefully clamp sprites so they don't render extra pixels on edges
+            foreach (var texture in material.Textures.Values)
+            {
+                texture.Bind();
+                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Clamp);
+                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Clamp);
+                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapR, (int)TextureWrapMode.Clamp);
+                texture.Unbind();
+            }
+
             quadVao = MaterialRenderer.SetupSquareQuadBuffer(shader);
             size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
 
