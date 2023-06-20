@@ -177,8 +177,8 @@ namespace GUI.Types.Renderer
 
                 if (uniforms.NumBones != -1)
                 {
-                    var v = (float)Math.Max(1, request.Mesh.AnimationTextureSize - 1);
-                    GL.Uniform1(uniforms.NumBones, v);
+                    var numBones = MathF.Max(1, request.Mesh.AnimationTextureSize - 1);
+                    GL.Uniform1(uniforms.NumBones, numBones);
                 }
             }
 

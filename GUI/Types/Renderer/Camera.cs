@@ -62,25 +62,25 @@ namespace GUI.Types.Renderer
         // Calculate forward vector from pitch and yaw
         private Vector3 GetForwardVector()
         {
-            var yawSin = Math.Sin(Yaw);
-            var yawCos = Math.Cos(Yaw);
-            var pitchSin = Math.Sin(Pitch);
-            var pitchCos = Math.Cos(Pitch);
-            return new Vector3((float)(yawCos * pitchCos), (float)(yawSin * pitchCos), (float)pitchSin);
+            var yawSin = MathF.Sin(Yaw);
+            var yawCos = MathF.Cos(Yaw);
+            var pitchSin = MathF.Sin(Pitch);
+            var pitchCos = MathF.Cos(Pitch);
+            return new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
         }
 
         private Vector3 GetUpVector()
         {
-            var yawSin = Math.Sin(Yaw);
-            var yawCos = Math.Cos(Yaw);
-            var pitchSin = Math.Sin(Pitch);
-            var pitchCos = Math.Cos(Pitch);
-            return new Vector3((float)(yawCos * pitchSin), (float)(yawSin * pitchSin), (float)pitchCos);
+            var yawSin = MathF.Sin(Yaw);
+            var yawCos = MathF.Cos(Yaw);
+            var pitchSin = MathF.Sin(Pitch);
+            var pitchCos = MathF.Cos(Pitch);
+            return new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
         }
 
         private Vector3 GetRightVector()
         {
-            return new Vector3((float)Math.Cos(Yaw - OpenTK.MathHelper.PiOver2), (float)Math.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
+            return new Vector3(MathF.Cos(Yaw - OpenTK.MathHelper.PiOver2), MathF.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
         }
 
         public void SetPerViewUniforms(Shader shader)
@@ -145,8 +145,8 @@ namespace GUI.Types.Renderer
         public void LookAt(Vector3 target)
         {
             var dir = Vector3.Normalize(target - Location);
-            Yaw = (float)Math.Atan2(dir.Y, dir.X);
-            Pitch = (float)Math.Asin(dir.Z);
+            Yaw = MathF.Atan2(dir.Y, dir.X);
+            Pitch = MathF.Asin(dir.Z);
 
             ClampRotation();
             RecalculateMatrices();
@@ -158,8 +158,8 @@ namespace GUI.Types.Renderer
 
             // Extract view direction from view matrix and use it to calculate pitch and yaw
             var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
-            Yaw = (float)Math.Atan2(dir.Y, dir.X);
-            Pitch = (float)Math.Asin(dir.Z);
+            Yaw = MathF.Atan2(dir.Y, dir.X);
+            Pitch = MathF.Asin(dir.Z);
 
             RecalculateMatrices();
         }
@@ -193,8 +193,8 @@ namespace GUI.Types.Renderer
                 HandleKeyboardInput(deltaTime);
 
                 // Full width of the screen is a 1 PI (180deg)
-                Yaw -= (float)Math.PI * MouseDelta.X / WindowSize.X;
-                Pitch -= (float)Math.PI / AspectRatio * MouseDelta.Y / WindowSize.Y;
+                Yaw -= MathF.PI * MouseDelta.X / WindowSize.X;
+                Pitch -= MathF.PI / AspectRatio * MouseDelta.Y / WindowSize.Y;
             }
 
             ClampRotation();
@@ -291,7 +291,7 @@ namespace GUI.Types.Renderer
         // Prevent camera from going upside-down
         private void ClampRotation()
         {
-            const float PITCH_LIMIT = 89.5f * ((float)Math.PI / 180f);
+            const float PITCH_LIMIT = 89.5f * MathF.PI / 180f;
 
             if (Pitch >= PITCH_LIMIT)
             {

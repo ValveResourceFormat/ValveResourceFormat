@@ -375,7 +375,7 @@ namespace ValveResourceFormat.TextureDecoders
                                 var ny = (data[pixelIndex + 2] - data[pixelIndex + 1]) / 255.0f;
                                 var nz = 1 - Math.Abs(nx) - Math.Abs(ny);
 
-                                var l = (float)Math.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
+                                var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
                                 data[pixelIndex + 3] = data[pixelIndex + 0]; //b to alpha
                                 data[pixelIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
                                 data[pixelIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);

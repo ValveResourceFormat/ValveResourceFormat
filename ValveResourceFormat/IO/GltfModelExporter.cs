@@ -48,7 +48,7 @@ namespace ValveResourceFormat.IO
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
-        private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, (float)Math.PI / -2f, (float)Math.PI / -2f);
+        private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
 
         public IProgress<string> ProgressReporter { get; set; }
         public IFileLoader FileLoader { get; set; }
@@ -1589,7 +1589,7 @@ namespace ValveResourceFormat.IO
             y = ((y * ySign) - ySignBit) / 63.0f;
             z = 1.0f - x - y;
 
-            var oolen = 1.0f / (float)Math.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
+            var oolen = 1.0f / MathF.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
             x *= oolen * xSign;                 // Recover signs
             y *= oolen * ySign;
             z *= oolen * zSign;

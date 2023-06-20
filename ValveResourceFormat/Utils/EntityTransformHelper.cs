@@ -31,9 +31,9 @@ namespace ValveResourceFormat.Utils
                 _ => throw new NotImplementedException($"Unsupported angles type {anglesUntyped.Type}"),
             };
 
-            var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * ((float)Math.PI / 180f)); // Roll
-            var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X * ((float)Math.PI / 180f)); // Pitch
-            var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * ((float)Math.PI / 180f)); // Yaw
+            var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);
+            var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X * MathF.PI / 180f);
+            var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * MathF.PI / 180f);
 
             var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
             return scaleMatrix * rotationMatrix * positionMatrix;
