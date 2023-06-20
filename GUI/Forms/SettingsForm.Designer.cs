@@ -37,7 +37,10 @@ namespace GUI.Forms
             maxTextureSizeLabel = new System.Windows.Forms.Label();
             maxTextureSizeInput = new System.Windows.Forms.NumericUpDown();
             divider1 = new System.Windows.Forms.Label();
+            fovInput = new System.Windows.Forms.NumericUpDown();
+            fovLabel = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             SuspendLayout();
             // 
             // gamePaths
@@ -133,11 +136,33 @@ namespace GUI.Forms
             divider1.Size = new System.Drawing.Size(640, 2);
             divider1.TabIndex = 9;
             // 
+            // fovInput
+            // 
+            fovInput.Location = new System.Drawing.Point(116, 288);
+            fovInput.Maximum = new decimal(new int[] { 150, 0, 0, 0 });
+            fovInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            fovInput.Name = "fovInput";
+            fovInput.Size = new System.Drawing.Size(120, 23);
+            fovInput.TabIndex = 10;
+            fovInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            fovInput.ValueChanged += OnFovValueChanged;
+            // 
+            // fovLabel
+            // 
+            fovLabel.AutoSize = true;
+            fovLabel.Location = new System.Drawing.Point(15, 290);
+            fovLabel.Name = "fovLabel";
+            fovLabel.Size = new System.Drawing.Size(73, 15);
+            fovLabel.TabIndex = 11;
+            fovLabel.Text = "Vertical FOV:";
+            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(668, 301);
+            ClientSize = new System.Drawing.Size(668, 364);
+            Controls.Add(fovInput);
+            Controls.Add(fovLabel);
             Controls.Add(divider1);
             Controls.Add(maxTextureSizeInput);
             Controls.Add(maxTextureSizeLabel);
@@ -154,6 +179,7 @@ namespace GUI.Forms
             Text = "Settings";
             Load += SettingsForm_Load;
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).EndInit();
+            ((System.ComponentModel.ISupportInitialize)fovInput).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -169,5 +195,7 @@ namespace GUI.Forms
         private System.Windows.Forms.Label maxTextureSizeLabel;
         private System.Windows.Forms.NumericUpDown maxTextureSizeInput;
         private System.Windows.Forms.Label divider1;
+        private System.Windows.Forms.NumericUpDown fovInput;
+        private System.Windows.Forms.Label fovLabel;
     }
 }

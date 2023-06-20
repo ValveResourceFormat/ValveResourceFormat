@@ -10,7 +10,6 @@ namespace GUI.Types.Renderer
     {
         private const float MovementSpeed = 300f; // WASD movement, per second
         private const float AltMovementSpeed = 10f; // Holding shift or alt movement
-        private const float FOV = OpenTK.MathHelper.PiOver4;
 
         private readonly float[] SpeedModifiers = new float[]
         {
@@ -103,7 +102,7 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
             // Calculate projection matrix
-            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 1.0f, 20000.0f);
+            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(GetFOV(), AspectRatio, 1.0f, 20000.0f);
 
             RecalculateMatrices();
 
@@ -126,7 +125,7 @@ namespace GUI.Types.Renderer
 
         public void SetScaledProjectionMatrix()
         {
-            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FOV, AspectRatio, 10f * Scale, 20000.0f * Scale);
+            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(GetFOV(), AspectRatio, 10f * Scale, 20000.0f * Scale);
         }
 
         public void SetLocation(Vector3 location)
@@ -302,6 +301,11 @@ namespace GUI.Types.Renderer
             {
                 Pitch = -PITCH_LIMIT;
             }
+        }
+
+        private static float GetFOV()
+        {
+            return Settings.Config.FieldOfView * MathF.PI / 180f;
         }
     }
 }

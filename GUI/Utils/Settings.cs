@@ -23,6 +23,7 @@ namespace GUI.Utils
             public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
             public Dictionary<string, float[]> SavedCameras { get; set; } = new();
             public int MaxTextureSize { get; set; }
+            public int FieldOfView { get; set; }
             public int WindowTop { get; set; }
             public int WindowLeft { get; set; }
             public int WindowWidth { get; set; }
@@ -100,6 +101,15 @@ namespace GUI.Utils
             else if (Config.MaxTextureSize > 10240)
             {
                 Config.MaxTextureSize = 10240;
+            }
+
+            if (Config.FieldOfView <= 0)
+            {
+                Config.FieldOfView = 50;
+            }
+            else if (Config.FieldOfView >= 120)
+            {
+                Config.FieldOfView = 120;
             }
         }
 

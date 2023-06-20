@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using GUI.Utils;
 
@@ -21,6 +20,7 @@ namespace GUI.Forms
             }
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
+            fovInput.Value = Settings.Config.FieldOfView;
         }
 
         private void GamePathRemoveClick(object sender, EventArgs e)
@@ -120,6 +120,19 @@ namespace GUI.Forms
             }
 
             Settings.Config.MaxTextureSize = newValue;
+            Settings.Save();
+        }
+
+        private void OnFovValueChanged(object sender, EventArgs e)
+        {
+            var newValue = (int)fovInput.Value;
+
+            if (newValue == Settings.Config.FieldOfView)
+            {
+                return;
+            }
+
+            Settings.Config.FieldOfView = newValue;
             Settings.Save();
         }
     }
