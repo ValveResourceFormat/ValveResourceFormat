@@ -29,6 +29,7 @@ namespace GUI.Types.Renderer
         private bool showDynamicOctree;
         private Frustum lockedCullFrustum;
 
+        private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
         private readonly Camera skyboxCamera = new();
@@ -236,7 +237,16 @@ namespace GUI.Types.Renderer
             ViewerControl.AddControl(button);
 #endif
 
-            renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
+            renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) =>
+            {
+                if (skipRenderModeChange)
+                {
+                    skipRenderModeChange = false;
+                    return;
+                }
+
+                SetRenderMode(renderMode);
+            });
         }
 
         private void SetAvailableRenderModes(int index = 0)
@@ -248,13 +258,14 @@ namespace GUI.Types.Renderer
                     .Distinct()
                     .Concat(ViewerControl.Camera.Picker.Shader.RenderModes);
 
+                renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
                 renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.Add("Default Render Mode");
-                renderModeComboBox.Items.AddRange(supportedRenderModes.ToArray());
+                renderModeComboBox.Items.AddRange(supportedRenderModes.Prepend("Default Render Mode").ToArray());
+                skipRenderModeChange = true;
                 renderModeComboBox.SelectedIndex = index;
+                renderModeComboBox.EndUpdate();
             }
-
         }
 
         protected void SetEnabledLayers(HashSet<string> layers)
