@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using System.Text;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
 using ValveResourceFormat.Utils;
-using System.Globalization;
-using System.Numerics;
 
 namespace ValveResourceFormat.IO;
 

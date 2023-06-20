@@ -8,8 +8,6 @@ using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using SkiaSharp;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 

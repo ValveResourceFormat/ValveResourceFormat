@@ -100,8 +100,6 @@
  *
  *
  */
-using System;
-using System.Diagnostics;
 
 namespace ValveResourceFormat.CompiledShader
 {

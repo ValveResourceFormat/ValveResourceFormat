@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using OpenTK.Graphics.OpenGL4;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL4;
 
 namespace GUI.Types.Renderer;
 

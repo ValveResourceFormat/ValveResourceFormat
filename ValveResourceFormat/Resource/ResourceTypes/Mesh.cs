@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Numerics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;

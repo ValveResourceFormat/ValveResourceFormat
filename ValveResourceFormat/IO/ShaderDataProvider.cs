@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.CompiledShader;
-using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 using ValveResourceFormat.ResourceTypes;
+using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO.ShaderDataProvider
 {

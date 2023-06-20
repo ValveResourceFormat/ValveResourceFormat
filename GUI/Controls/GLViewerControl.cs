@@ -11,8 +11,8 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
-using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using static GUI.Types.Renderer.PickingTexture;
+using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
 namespace GUI.Controls
 {

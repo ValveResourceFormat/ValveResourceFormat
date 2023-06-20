@@ -1,7 +1,7 @@
 // Credit to https://github.com/mafaca/Etc
 
-using System.Runtime.CompilerServices;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.TextureDecoders
 {

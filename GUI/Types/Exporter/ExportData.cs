@@ -1,6 +1,5 @@
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat;
 
 namespace GUI.Types.Exporter
 {

@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Blocks;
-using System.Text;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace GUI.Types.Viewers
 {
