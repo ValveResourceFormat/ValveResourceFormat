@@ -7,9 +7,9 @@ const version = process.argv[ 2 ];
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-if (!/^[0-9]+\.[0-9]+\.[0-9]+$/.test(version))
+if (!/^[0-9]+\.[0-9]+$/.test(version))
 {
-	console.error('Provide version as first argument. Example: 1.2.3');
+	console.error('Provide version as first argument. Example: 2.0');
 	process.exit(1);
 }
 
