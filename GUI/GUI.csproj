@@ -20,10 +20,10 @@
     <PackageReference Include="NAudio" Version="2.1.0" />
     <PackageReference Include="NLayer" Version="1.14.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.3.0" />
-    <PackageReference Include="OpenTK" Version="3.3.2">
+    <PackageReference Include="OpenTK" Version="3.3.3">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <PackageReference Include="OpenTK.GLControl" Version="3.1.0">
+    <PackageReference Include="OpenTK.GLControl" Version="3.3.3">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="ValvePak" Version="1.4.0.53" />
