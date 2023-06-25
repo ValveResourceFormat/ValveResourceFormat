@@ -95,6 +95,11 @@ void ParseFile(string file)
             {
                 foreach (var dict in _class.Dictionaries)
                 {
+                    if (dict.Name != "iconsprite")
+                    {
+                        continue;
+                    }
+
                     foreach (var dictValue in dict)
                     {
                         if (dictValue.Key == "image")
