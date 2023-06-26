@@ -432,6 +432,12 @@ namespace GUI.Types.Viewers
                             var mapExtract = new MapExtract(resource, vrfGuiContext.FileLoader);
                             IViewer.AddContentTab(resTabs, $"{resource.FileName}.vmap", mapExtract.ToValveMap(), true);
                             break;
+
+                        case ResourceType.Model:
+                            var modelExtract = new ModelExtract((Model)block, vrfGuiContext.FileLoader);
+                            IViewer.AddContentTab(resTabs, $"{resource.FileName}", modelExtract.ToValveModel());
+                            IViewer.AddContentTab(resTabs, modelExtract.GetDmxFileName(), Encoding.UTF8.GetString(modelExtract.ToDMXMesh()), true);
+                            break;
                     }
                 }
                 catch (Exception ex)

@@ -23,7 +23,8 @@ public sealed class MapExtract
     private PhysAggregateData WorldPhysics { get; set; }
 
     private List<string> AssetReferences { get; } = new();
-    private List<string> FilesForExtract { get; } = new();
+    private List<string> ModelsToExtract { get; } = new();
+    private List<string> HandledResources { get; } = new();
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -115,6 +116,7 @@ public sealed class MapExtract
         }
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
+        HandledResources.Add(worldPath);
         using var worldResource = FileLoader.LoadFile(worldPath);
 
         if (worldResource == null)
@@ -163,7 +165,19 @@ public sealed class MapExtract
             Data = Encoding.UTF8.GetBytes(ToValveMap()),
         };
 
-        vmap.RequiredGameFiles.AddRange(FilesForExtract);
+        foreach (var modelName in ModelsToExtract)
+        {
+            var model = FileLoader.LoadFile(modelName + "_c");
+            if (model is not null)
+            {
+                var vmdl = new ModelExtract((Model)model.DataBlock, FileLoader).ToBakedMapModel();
+                vmdl.OriginalFileName = modelName + "_c";
+                vmap.AdditionalFiles.Add(vmdl);
+            }
+        }
+
+        // Add these files so they can be filtered out in folder extract
+        vmap.AdditionalFiles.AddRange(HandledResources.Select(r => new ContentFile { OriginalFileName = r }));
 
         return vmap;
     }
@@ -185,7 +199,10 @@ public sealed class MapExtract
 
         foreach (var worldNodeName in WorldNodeNames)
         {
-            using var worldNode = FileLoader.LoadFile(worldNodeName + ".vwnod_c");
+            var worldNodeCompiled = worldNodeName + ".vwnod_c";
+            HandledResources.Add(worldNodeCompiled);
+
+            using var worldNode = FileLoader.LoadFile(worldNodeCompiled);
             if (worldNode is not null)
             {
                 AddWorldNodesAsStaticProps((WorldNode)worldNode.DataBlock);
@@ -194,7 +211,10 @@ public sealed class MapExtract
 
         foreach (var entityLumpName in EntityLumpNames)
         {
-            using var entityLumpResource = FileLoader.LoadFile(entityLumpName + "_c");
+            var entityLumpCompiled = entityLumpName + "_c";
+            HandledResources.Add(entityLumpCompiled);
+
+            using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
             if (entityLumpResource is not null)
             {
                 GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
@@ -279,11 +299,6 @@ public sealed class MapExtract
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
-            if (isAggregate)
-            {
-                return;
-            }
-
             var objectFlags = ObjectTypeFlags.None;
             try
             {
@@ -299,6 +314,8 @@ public sealed class MapExtract
                 // TODO: Generate model for mesh
                 return;
             }
+
+            AssetReferences.Add(modelName);
 
             var propStatic = new CMapEntity();
             propStatic.EntityProperties["classname"] = "prop_static";
@@ -330,6 +347,7 @@ public sealed class MapExtract
             {
                 isEmbeddedModel = true;
                 propStatic.EntityProperties["baketoworld"] = "1";
+                ModelsToExtract.Add(modelName);
             }
 
             if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))

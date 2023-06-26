@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -29,6 +30,7 @@ namespace GUI.Forms
 
         private static readonly List<ResourceType> ExtractOrder = new()
         {
+            ResourceType.Map,
             ResourceType.World,
             ResourceType.WorldNode,
             ResourceType.Model,
@@ -240,27 +242,43 @@ namespace GUI.Forms
             }
 
             ContentFile contentFile = null;
+            if (outFilePath.EndsWith(".vmap", StringComparison.Ordinal))
+            {
+                flatSubfiles = false;
+            }
 
             try
             {
                 contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader);
 
-                if (contentFile.Data.Length > 0)
+                if (contentFile.Data != null)
                 {
                     SetProgress($"+ {outFilePath.Remove(0, path.Length + 1)}");
                     await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
 
                 string contentRelativeFolder;
-
-                foreach (var (refFileName, refContentFile) in contentFile.ExternalRefsHandled)
+                foreach (var additionalFile in contentFile.AdditionalFiles)
                 {
-                    SetProgress($"Extracting {refFileName}");
-                    extractedFiles.Add(refFileName);
+                    extractedFiles.Add(additionalFile.OriginalFileName);
+                    var fileNameOut = additionalFile.OriginalFileName[..^2]; // remove "_c"
 
-                    contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(refFileName);
+                    if (additionalFile.Data != null)
+                    {
+                        if (flatSubfiles)
+                        {
+                            fileNameOut = Path.GetFileName(fileNameOut);
+                        }
 
-                    await ExtractSubfiles(contentRelativeFolder, refContentFile).ConfigureAwait(false);
+                        var outPath = CombineAssetFolder(path, fileNameOut);
+                        Directory.CreateDirectory(Path.GetDirectoryName(outPath.Full));
+                        SetProgress($" + {outPath.Partial}");
+                        await File.WriteAllBytesAsync(outPath.Full, additionalFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
+                    }
+
+                    contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(fileNameOut);
+
+                    await ExtractSubfiles(contentRelativeFolder, additionalFile).ConfigureAwait(false);
                 }
 
                 extractedFiles.Add(inFilePath);
@@ -286,15 +304,15 @@ namespace GUI.Forms
             {
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
                 contentSubFile.FileName = Path.Combine(contentRelativeFolder, contentSubFile.FileName).Replace(Path.DirectorySeparatorChar, '/');
-                var fullPath = Path.Combine(path, contentSubFile.FileName);
+                var outPath = CombineAssetFolder(path, contentSubFile.FileName);
 
                 if (extractedFiles.Contains(contentSubFile.FileName))
                 {
-                    SetProgress($"\t- {contentSubFile.FileName}");
+                    SetProgress($"  - {outPath.Partial}");
                     continue;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+                Directory.CreateDirectory(Path.GetDirectoryName(outPath.Full));
 
                 byte[] subFileData;
                 try
@@ -310,11 +328,32 @@ namespace GUI.Forms
 
                 if (subFileData.Length > 0)
                 {
-                    SetProgress($"\t+ {contentSubFile.FileName}");
+                    SetProgress($"  + {outPath.Partial}");
                     extractedFiles.Add(contentSubFile.FileName);
-                    await File.WriteAllBytesAsync(fullPath, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(outPath.Full, subFileData, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
             }
+        }
+
+        private static (string Full, string Partial) CombineAssetFolder(string userFolder, string assetName)
+        {
+            var assetFolders = assetName.Split('/')[..^1];
+            var userFolders = userFolder.Split(Path.DirectorySeparatorChar);
+
+            var leftChop = 0;
+
+            foreach (var i in Enumerable.Range(0, assetFolders.Length))
+            {
+                if (Enumerable.SequenceEqual(
+                    assetFolders.Reverse().Skip(i),
+                    userFolders.Reverse().Take(assetFolders.Length - i)
+                ))
+                {
+                    leftChop = assetFolders.Reverse().Skip(i).Select(x => x.Length + 1).Sum();
+                }
+            }
+
+            return (Path.Combine(userFolder, assetName[leftChop..]), assetName[leftChop..]);
         }
 
         private void CancelButton_Click(object sender, EventArgs e)

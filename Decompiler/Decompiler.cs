@@ -937,7 +937,10 @@ namespace Decompiler
 
         private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
         {
-            DumpFile(path, contentFile.Data);
+            if (contentFile.Data != null)
+            {
+                DumpFile(path, contentFile.Data);
+            }
 
             if (dumpSubFiles)
             {
