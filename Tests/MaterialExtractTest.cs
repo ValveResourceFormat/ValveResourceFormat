@@ -86,7 +86,7 @@ namespace Tests
 
             yield return new TestCaseData(c1234, ChannelMapping.AG, new SKColor(4, 2, 0));
 
-            yield return new TestCaseData(c1234, ChannelMapping.RGBA, new SKColor(1, 2, 3, 4));
+            yield return new TestCaseData(c1234, ChannelMapping.RGBA, c1234);
 
             yield return new TestCaseData(c1234, ChannelMapping.NULL, SKColors.Black);
 
@@ -101,13 +101,25 @@ namespace Tests
                 ChannelMapping.FromChannels(1, 2, 0, 3), // GBRA
                 new SKColor(2, 3, 1, 4)
             );
+
+            var alpha0 = new SKColor(1, 2, 3, 0);
+            yield return new TestCaseData(alpha0, ChannelMapping.RGBA, alpha0);
+            yield return new TestCaseData(alpha0, ChannelMapping.R, new SKColor(1, 1, 1));
+            yield return new TestCaseData(alpha0, ChannelMapping.G, new SKColor(2, 2, 2));
+            yield return new TestCaseData(alpha0, ChannelMapping.B, new SKColor(3, 3, 3));
+            yield return new TestCaseData(alpha0, ChannelMapping.A, new SKColor(0, 0, 0, 255));
         }
 
         [Test, TestCaseSource(nameof(PngImageChannelsSource))]
         public void TestPngImageChannels(SKColor colorIn, ChannelMapping channels, SKColor colorOut)
         {
             using var img = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            img.SetPixel(0, 0, colorIn);
+
+            // Using img.SetPixel(0, 0, colorIn); does not work here because when alpha is 0, it sets all channels to 0
+            using var pixelmap = img.PeekPixels();
+            var pixels = pixelmap.GetPixelSpan<SKColor>();
+            pixels[0] = colorIn;
+
             Assert.That(img.GetPixel(0, 0), Is.EqualTo(colorIn), "Failed on setup");
 
             var png = TextureExtract.ToPngImageChannels(img, channels);
