@@ -86,9 +86,7 @@ namespace Tests
 
             yield return new TestCaseData(c1234, ChannelMapping.AG, new SKColor(4, 2, 0));
 
-            // Alpha is 4, so it multiplies the colors making them 0
-            // should be c1234
-            yield return new TestCaseData(c1234, ChannelMapping.RGBA, new SKColor(0, 0, 0, 4));
+            yield return new TestCaseData(c1234, ChannelMapping.RGBA, new SKColor(1, 2, 3, 4));
 
             yield return new TestCaseData(c1234, ChannelMapping.NULL, SKColors.Black);
 
@@ -101,10 +99,9 @@ namespace Tests
             yield return new TestCaseData(
                 new SKColor(1, 2, 3, 4),
                 ChannelMapping.FromChannels(1, 2, 0, 3), // GBRA
-                new SKColor(0, 0, 0, 4) // should be new SKColor(2, 3, 1, 4)
+                new SKColor(2, 3, 1, 4)
             );
         }
-
 
         [Test, TestCaseSource(nameof(PngImageChannelsSource))]
         public void TestPngImageChannels(SKColor colorIn, ChannelMapping channels, SKColor colorOut)
@@ -114,9 +111,11 @@ namespace Tests
             Assert.That(img.GetPixel(0, 0), Is.EqualTo(colorIn), "Failed on setup");
 
             var png = TextureExtract.ToPngImageChannels(img, channels);
-            using var result = SKBitmap.Decode(png);
+            using var result = SKBitmap.Decode(png, img.Info);
             Assert.That(result.Width, Is.EqualTo(1));
             Assert.That(result.Height, Is.EqualTo(1));
+            Assert.That(result.ColorType, Is.EqualTo(SKColorType.Bgra8888));
+            Assert.That(result.AlphaType, Is.EqualTo(SKAlphaType.Unpremul));
 
             Assert.That(result.GetPixel(0, 0), Is.EqualTo(colorOut));
         }
