@@ -8,7 +8,7 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap imageInfo, Span<byte> input)
         {
             using var pixels = imageInfo.PeekPixels();
-            var data = pixels.GetPixelSpan<byte>();
+            var data = pixels.GetPixelSpan<SKColor>();
             var log = 0d;
 
             for (int i = 0, j = 0; j < data.Length; i += 8, j += 4)
@@ -71,10 +71,12 @@ namespace ValveResourceFormat.TextureDecoders
                     hb = 1;
                 }
 
-                data[j + 0] = (byte)(hr * 255); // r
-                data[j + 1] = (byte)(hg * 255); // g
-                data[j + 2] = (byte)(hb * 255); // b
-                data[j + 3] = (byte)(ha * 255); // a
+                data[j] = new SKColor(
+                    (byte)(hr * 255),
+                    (byte)(hg * 255),
+                    (byte)(hb * 255),
+                    (byte)(ha * 255)
+                );
             }
         }
     }
