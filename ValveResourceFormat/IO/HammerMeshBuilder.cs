@@ -45,7 +45,7 @@ namespace ValveResourceFormat.IO
             var textureCoords = CreateStream<Datamodel.Vector2Array, Vector2>(1, "texcoord:0");
             var normals = CreateStream<Datamodel.Vector3Array, Vector3>(1, "normal:0");
             var tangent = CreateStream<Datamodel.Vector4Array, Vector4>(1, "tangent:0");
-            //mesh.FaceVertexData.Streams.Add(textureCoords);
+            mesh.FaceVertexData.Streams.Add(textureCoords);
             mesh.FaceVertexData.Streams.Add(normals);
             //mesh.FaceVertexData.Streams.Add(tangent);
 
@@ -116,8 +116,8 @@ namespace ValveResourceFormat.IO
 
                     // Inner EdgeVertexData
                     textureCoords.Data[v2] = VertexSoup[v1].TexCoord;
-                    normals.Data[v2] = face.Normal != Vector3.Zero ? face.Normal : Vector3.Zero;
-                    tangent.Data[v2] = new Vector4(0, 1, 0, -1);
+                    var vertexNormal = Vector3.Zero;
+                    normals.Data[v2] = vertexNormal != Vector3.Zero ? vertexNormal : face.Normal;
 
                     // Outer
                     mesh.EdgeVertexIndices.Add(v1);
@@ -266,9 +266,17 @@ namespace ValveResourceFormat.IO
             face.VertexIndices.Add(VertexSoup.Count + 1);
             face.VertexIndices.Add(VertexSoup.Count + 2);
 
-            VertexSoup.Add(new MeshVertex { Position = v1 });
-            VertexSoup.Add(new MeshVertex { Position = v2 });
-            VertexSoup.Add(new MeshVertex { Position = v3 });
+            static Vector2 GenGridAlignedUV(Vector3 pos, Vector3 normal, float scale = 64.0f)
+            {
+                // TODO: Incorporate normal
+                var u = pos.X * scale % 1.0f;
+                var v = pos.Y * scale % 1.0f;
+                return new Vector2(u, v);
+            }
+
+            VertexSoup.Add(new MeshVertex { Position = v1, TexCoord = GenGridAlignedUV(v1, face.Normal) });
+            VertexSoup.Add(new MeshVertex { Position = v2, TexCoord = GenGridAlignedUV(v2, face.Normal) });
+            VertexSoup.Add(new MeshVertex { Position = v3, TexCoord = GenGridAlignedUV(v3, face.Normal) });
 
             return face;
         }
