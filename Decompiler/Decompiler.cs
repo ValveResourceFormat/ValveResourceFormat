@@ -54,9 +54,6 @@ namespace Decompiler
         [Option("-b|--block", "Print the content of a specific block, example: DATA, RERL, REDI, NTRO.", CommandOptionType.SingleValue)]
         public string BlockToPrint { get; }
 
-        [Option("--stats", "Collect stats on all input files and then print them. (This is testing VRF over all files at once)", CommandOptionType.NoValue)]
-        public bool CollectStats { get; }
-
         [Option("--threads", "If more than 1, files will be processed concurrently.", CommandOptionType.SingleValue)]
         public int MaxParallelismThreads { get; } = 1;
 
@@ -90,10 +87,29 @@ namespace Decompiler
         [Option("--gltf_textures_adapt", "Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).", CommandOptionType.NoValue)]
         public bool GltfExportAdaptTextures { get; }
 
-        [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue)]
+#if DEBUG
+        private const bool IsDebugBuild = true;
+#else
+        private const bool IsDebugBuild = false;
+#endif
+
+        // The options below are for collecting stats and testing exporting, this is mostly intended for VRF developers, not end users.
+        [Option("--stats", "Collect stats on all input files and then print them.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        public bool CollectStats { get; }
+
+        [Option("--stats_print_files", "When using --stats, print example file names for each stat.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        public bool StatsPrintFilePaths { get; }
+
+        [Option("--stats_unique_deps", "When using --stats, print all unique dependencies that were found.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        public bool StatsPrintUniqueDependencies { get; }
+
+        [Option("--stats_particles", "When using --stats, collect particle operators, renderers, emitters, initiliazers.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        public bool StatsCollectParticles { get; }
+
+        [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool GltfTest { get; }
 
-        [Option("--dump_unknown_entity_keys", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = false)]
+        [Option("--dump_unknown_entity_keys", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool DumpUnknownEntityKeys { get; }
 
         private string[] ExtFilterList;
@@ -289,18 +305,24 @@ namespace Decompiler
 
                     Console.WriteLine($"{stat.Value.Count,5} resources of version {stat.Value.Version} and type {stat.Value.Type}{info}");
 
-                    foreach (var file in stat.Value.FilePaths)
+                    if (StatsPrintFilePaths)
                     {
-                        Console.WriteLine($"\t\t{file}");
+                        foreach (var file in stat.Value.FilePaths)
+                        {
+                            Console.WriteLine($"\t\t{file}");
+                        }
                     }
                 }
 
-                Console.WriteLine();
-                Console.WriteLine("Unique special dependancies:");
-
-                foreach (var stat in uniqueSpecialDependancies)
+                if (StatsPrintUniqueDependencies)
                 {
-                    Console.WriteLine("{0} in {1}", stat.Key, stat.Value);
+                    Console.WriteLine();
+                    Console.WriteLine("Unique special dependancies:");
+
+                    foreach (var stat in uniqueSpecialDependancies)
+                    {
+                        Console.WriteLine($"{stat.Key} in {stat.Value}");
+                    }
                 }
             }
 
@@ -984,9 +1006,34 @@ namespace Decompiler
         /// </summary>
         private void TestAndCollectStats(Resource resource, string path, string originalPath)
         {
+            if (originalPath != null)
+            {
+                path = $"{originalPath} -> {path}";
+            }
+
             // The rest of this code gathers various statistics
             var id = $"{resource.ResourceType}_{resource.Version}";
             var info = string.Empty;
+
+            void AddStat(string info)
+            {
+                var key = string.IsNullOrEmpty(info) ? id : string.Concat(id, "_", info);
+
+                lock (stats)
+                {
+                    if (stats.TryGetValue(key, out var existingStat))
+                    {
+                        if (existingStat.Count++ < 10)
+                        {
+                            existingStat.FilePaths.Add(path);
+                        }
+                    }
+                    else
+                    {
+                        stats.Add(key, new ResourceStat(resource, info, path));
+                    }
+                }
+            }
 
             switch (resource.ResourceType)
             {
@@ -1021,32 +1068,37 @@ namespace Decompiler
                         }
                     }
                     break;
-            }
 
-            if (!string.IsNullOrEmpty(info))
-            {
-                id = string.Concat(id, "_", info);
-            }
-
-            if (originalPath != null)
-            {
-                path = $"{originalPath} -> {path}";
-            }
-
-            lock (stats)
-            {
-                if (stats.TryGetValue(id, out var existingStat))
-                {
-                    if (existingStat.Count++ < 10)
+                case ResourceType.Particle:
+                    if (StatsCollectParticles)
                     {
-                        existingStat.FilePaths.Add(path);
+                        var particleSystem = (ParticleSystem)resource.DataBlock;
+
+                        foreach (var op in particleSystem.GetInitializers())
+                        {
+                            AddStat($"Initializer: {op.GetProperty<string>("_class")}");
+                        }
+
+                        foreach (var op in particleSystem.GetRenderers())
+                        {
+                            AddStat($"Renderer: {op.GetProperty<string>("_class")}");
+                        }
+
+                        foreach (var op in particleSystem.GetEmitters())
+                        {
+                            AddStat($"Emitter: {op.GetProperty<string>("_class")}");
+                        }
+
+                        foreach (var op in particleSystem.GetOperators())
+                        {
+                            AddStat($"Operator: {op.GetProperty<string>("_class")}");
+                        }
                     }
-                }
-                else
-                {
-                    stats.Add(id, new ResourceStat(resource, info, path));
-                }
+
+                    break;
             }
+
+            AddStat(info);
 
             if (resource.EditInfo != null && resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
             {
