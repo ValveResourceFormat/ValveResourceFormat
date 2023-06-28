@@ -8,8 +8,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private readonly bool evenDistribution;
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
-        private readonly INumberProvider thickness = new LiteralNumberProvider(1);
+        private readonly INumberProvider thickness = new LiteralNumberProvider(0);
         private readonly INumberProvider particlesPerOrbit = new LiteralNumberProvider(-1);
+
         private float orbitCount;
 
         public RingWave(IKeyValueCollection keyValues)
@@ -33,35 +34,38 @@ namespace GUI.Types.ParticleRenderer.Initializers
             {
                 thickness = keyValues.GetNumberProvider("m_flThickness");
             }
+
+            // other properties: m_vInitialSpeedMin/Max, m_flRoll
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var radius = initialRadius.NextNumber() + (Random.Shared.NextDouble() * thickness.NextNumber());
+            var thickness = this.thickness.NextNumber(particle, particleSystemState);
+            var particlesPerOrbit = this.particlesPerOrbit.NextInt(particle, particleSystemState);
 
-            var angle = GetNextAngle();
+            var radius = initialRadius.NextNumber(particle, particleSystemState) + (Random.Shared.NextSingle() * thickness);
 
-            particle.Position += (float)radius * new Vector3((float)Math.Cos(angle), (float)Math.Sin(angle), 0);
+            var angle = GetNextAngle(particlesPerOrbit);
+
+            particle.Position += radius * new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
 
             return particle;
         }
 
-        private double GetNextAngle()
+        private float GetNextAngle(int particlesPerOrbit)
         {
             if (evenDistribution)
             {
-                var particleCount = (int)particlesPerOrbit.NextNumber();
+                var offset = orbitCount / particlesPerOrbit;
 
-                var offset = orbitCount / particleCount;
+                orbitCount = (orbitCount + 1) % particlesPerOrbit;
 
-                orbitCount = (orbitCount + 1) % particleCount;
-
-                return offset * 2 * Math.PI;
+                return offset * 2 * MathF.PI;
             }
             else
             {
                 // Return a random angle between 0 and 2pi
-                return 2 * Math.PI * Random.Shared.NextDouble();
+                return 2 * MathF.PI * Random.Shared.NextSingle();
             }
         }
     }

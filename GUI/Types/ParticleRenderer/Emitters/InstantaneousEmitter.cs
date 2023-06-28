@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             if (!IsFinished && time >= startTime.NextNumber())
             {
-                var numToEmit = emitCount.NextInt(); // Get value from number provider
+                var numToEmit = (int)emitCount.NextNumber(); // Get value from number provider
                 for (var i = 0; i < numToEmit; i++)
                 {
                     particleEmitCallback();

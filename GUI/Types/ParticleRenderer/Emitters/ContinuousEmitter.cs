@@ -32,7 +32,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
             if (keyValues.ContainsKey("m_flEmitRate"))
             {
                 emitRate = keyValues.GetNumberProvider("m_flEmitRate");
-                emitInterval = 1.0f / (float)emitRate.NextNumber();
+                emitInterval = 1.0f / emitRate.NextNumber();
             }
         }
 
@@ -65,8 +65,8 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
             if (time >= nextStartTime && (nextEmissionDuration == 0f || time <= nextStartTime + nextEmissionDuration))
             {
-                var numToEmit = (int)Math.Floor((time - lastEmissionTime) / emitInterval);
-                var emitCount = Math.Min(5 * emitRate.NextNumber(), numToEmit); // Limit the amount of particles to emit at once in case of refocus
+                var numToEmit = (int)MathF.Floor((time - lastEmissionTime) / emitInterval);
+                var emitCount = Math.Min(5 * (int)emitRate.NextNumber(), numToEmit); // Limit the amount of particles to emit at once in case of refocus
                 for (var i = 0; i < emitCount; i++)
                 {
                     particleEmitCallback();

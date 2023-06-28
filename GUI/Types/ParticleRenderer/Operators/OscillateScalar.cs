@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
@@ -19,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             if (keyValues.ContainsKey("m_nField"))
             {
-                outputField = (ParticleField)keyValues.GetIntegerProperty("m_nField");
+                outputField = keyValues.GetParticleField("m_nField");
             }
 
             if (keyValues.ContainsKey("m_RateMin"))
@@ -69,29 +71,19 @@ namespace GUI.Types.ParticleRenderer.Operators
             }*/
 
             // Update remaining particles
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (var particle in particles)
             {
-                var rate = GetParticleRate(particles[i].ParticleCount);
-                var frequency = GetParticleFrequency(particles[i].ParticleCount);
+                var rate = GetParticleRate(particle.ParticleCount);
+                var frequency = GetParticleFrequency(particle.ParticleCount);
 
                 var t = proportional
-                    ? 1 - (particles[i].Lifetime / particles[i].ConstantLifetime)
-                    : particles[i].Lifetime;
+                    ? particle.NormalizedAge
+                    : particle.Age;
 
-                var delta = (float)Math.Sin(((t * frequency * oscillationMultiplier) + oscillationOffset) * Math.PI);
+                var delta = MathF.Sin(((t * frequency * oscillationMultiplier) + oscillationOffset) * MathF.PI);
 
-                if (outputField == ParticleField.Radius)
-                {
-                    particles[i].Radius += delta * rate * frameTime;
-                }
-                else if (outputField == ParticleField.Alpha)
-                {
-                    particles[i].Alpha += delta * rate * frameTime;
-                }
-                else if (outputField == ParticleField.AlphaAlternate)
-                {
-                    particles[i].AlphaAlternate += delta * rate * frameTime;
-                }
+                var finalScalar = delta * rate * frameTime;
+                particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
             }
         }
 
@@ -106,7 +98,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
             else
             {
-                var newRate = rateMin + ((float)Random.Shared.NextDouble() * (rateMax - rateMin));
+                var newRate = MathUtils.RandomBetween(rateMin, rateMax);
                 particleRates[particleId] = newRate;
                 return newRate;
             }
@@ -120,9 +112,59 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
             else
             {
-                var newFrequency = frequencyMin + ((float)Random.Shared.NextDouble() * (frequencyMax - frequencyMin));
+                var newFrequency = MathUtils.RandomBetween(frequencyMin, frequencyMax);
                 particleFrequencies[particleId] = newFrequency;
                 return newFrequency;
+            }
+        }
+    }
+
+    class OscillateScalarSimple : IParticleOperator
+    {
+        private readonly ParticleField outputField = ParticleField.Alpha;
+        private readonly float rate;
+        private readonly float frequency = 1f;
+        private readonly float oscillationMultiplier = 2f;
+        private readonly float oscillationOffset = 0.5f;
+
+        public OscillateScalarSimple(IKeyValueCollection keyValues)
+        {
+            if (keyValues.ContainsKey("m_nField"))
+            {
+                outputField = keyValues.GetParticleField("m_nField");
+            }
+
+            if (keyValues.ContainsKey("m_Rate"))
+            {
+                rate = keyValues.GetFloatProperty("m_Rate");
+            }
+
+            if (keyValues.ContainsKey("m_Frequency"))
+            {
+                frequency = keyValues.GetFloatProperty("m_Frequency");
+            }
+
+            if (keyValues.ContainsKey("m_flOscMult"))
+            {
+                oscillationMultiplier = keyValues.GetFloatProperty("m_flOscMult");
+            }
+
+            if (keyValues.ContainsKey("m_flOscAdd"))
+            {
+                oscillationOffset = keyValues.GetFloatProperty("m_flOscAdd");
+            }
+        }
+
+        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        {
+            // Update remaining particles
+            foreach (var particle in particles)
+            {
+                var delta = MathF.Sin(((particle.Age * frequency * oscillationMultiplier) + oscillationOffset) * MathF.PI);
+
+                var finalScalar = delta * rate * frameTime;
+
+                particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
             }
         }
     }

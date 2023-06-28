@@ -1,17 +1,17 @@
 using System;
-using System.Numerics;
+using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RandomRotation : IParticleInitializer
     {
-        private const float PiOver180 = (float)Math.PI / 180f;
-
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
         private readonly float degreesOffset;
-        private readonly long fieldOutput = 4;
+        private readonly float randomExponent = 1.0f;
+        private readonly ParticleField fieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection;
 
         public RandomRotation(IKeyValueCollection keyValues)
@@ -33,33 +33,29 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (keyValues.ContainsKey("m_nFieldOutput"))
             {
-                fieldOutput = keyValues.GetIntegerProperty("m_nFieldOutput");
+                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
             }
 
             if (keyValues.ContainsKey("m_bRandomlyFlipDirection"))
             {
                 randomlyFlipDirection = keyValues.GetProperty<bool>("m_bRandomlyFlipDirection");
             }
+
+            if (keyValues.ContainsKey("m_flRotationRandExponent"))
+            {
+                randomExponent = keyValues.GetFloatProperty("m_flRotationRandExponent");
+            }
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var degrees = degreesOffset + degreesMin + ((float)Random.Shared.NextDouble() * (degreesMax - degreesMin));
-            if (randomlyFlipDirection && Random.Shared.NextDouble() > 0.5)
+            var degrees = degreesOffset + MathUtils.RandomWithExponentBetween(randomExponent, degreesMin, degreesMax);
+            if (randomlyFlipDirection && Random.Shared.NextSingle() > 0.5f)
             {
                 degrees *= -1;
             }
 
-            if (fieldOutput == 4)
-            {
-                // Roll
-                particle.Rotation = new Vector3(particle.Rotation.X, particle.Rotation.Y, degrees * PiOver180);
-            }
-            else if (fieldOutput == 12)
-            {
-                // Yaw
-                particle.Rotation = new Vector3(particle.Rotation.X, degrees * PiOver180, particle.Rotation.Z);
-            }
+            particle.SetScalar(fieldOutput, MathUtils.ToRadians(degrees));
 
             return particle;
         }

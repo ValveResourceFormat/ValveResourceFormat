@@ -6,6 +6,7 @@ using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.Renderers;
+using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
@@ -15,6 +16,7 @@ namespace GUI.Types.ParticleRenderer
 {
     internal class ParticleRenderer : IRenderer
     {
+        public IEnumerable<IParticlePreEmissionOperator> PreEmissionOperators { get; private set; } = new List<IParticlePreEmissionOperator>();
         public IEnumerable<IParticleEmitter> Emitters { get; private set; } = new List<IParticleEmitter>();
 
         public IEnumerable<IParticleInitializer> Initializers { get; private set; } = new List<IParticleInitializer>();
@@ -27,10 +29,10 @@ namespace GUI.Types.ParticleRenderer
 
         public Vector3 Position
         {
-            get => systemRenderState.GetControlPoint(0);
+            get => systemRenderState.GetControlPoint(0).Position;
             set
             {
-                systemRenderState.SetControlPoint(0, value);
+                systemRenderState.SetControlPointValue(0, value);
                 foreach (var child in childParticleRenderers)
                 {
                     child.Position = value;
@@ -44,7 +46,7 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly ParticleBag particleBag;
         private int particlesEmitted;
-        private readonly ParticleSystemRenderState systemRenderState;
+        private ParticleSystemRenderState systemRenderState;
 
         // TODO: Passing in position here was for testing, do it properly
         public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext, Vector3 pos = default)
@@ -53,9 +55,12 @@ namespace GUI.Types.ParticleRenderer
             this.vrfGuiContext = vrfGuiContext;
 
             particleBag = new ParticleBag(100, true);
-            systemRenderState = new ParticleSystemRenderState();
+            systemRenderState = new ParticleSystemRenderState()
+            {
+                EndEarly = false
+            };
 
-            systemRenderState.SetControlPoint(0, pos);
+            systemRenderState.SetControlPointValue(0, pos);
 
             BoundingBox = new AABB(pos + new Vector3(-32, -32, -32), pos + new Vector3(32, 32, 32));
 
@@ -63,6 +68,7 @@ namespace GUI.Types.ParticleRenderer
             SetupInitializers(particleSystem.GetInitializers());
             SetupOperators(particleSystem.GetOperators());
             SetupRenderers(particleSystem.GetRenderers());
+            SetupPreEmissionOperators(particleSystem.GetPreEmissionOperators());
 
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
         }
@@ -90,12 +96,13 @@ namespace GUI.Types.ParticleRenderer
             }
 
             particleBag.LiveParticles[index].ParticleCount = particlesEmitted++;
+            systemRenderState.ParticleCount += 1;
             InitializeParticle(ref particleBag.LiveParticles[index]);
         }
 
         private void InitializeParticle(ref Particle p)
         {
-            p.Position = systemRenderState.GetControlPoint(0);
+            p.Position = systemRenderState.GetControlPoint(0).Position;
 
             foreach (var initializer in Initializers)
             {
@@ -119,7 +126,7 @@ namespace GUI.Types.ParticleRenderer
         public void Restart()
         {
             Stop();
-            systemRenderState.Lifetime = 0;
+            systemRenderState.Age = 0;
             particleBag.Clear();
             Start();
 
@@ -137,7 +144,12 @@ namespace GUI.Types.ParticleRenderer
                 hasStarted = true;
             }
 
-            systemRenderState.Lifetime += frameTime;
+            systemRenderState.Age += frameTime;
+
+            foreach (var preEmissionOperator in PreEmissionOperators)
+            {
+                preEmissionOperator.Operate(ref systemRenderState, frameTime);
+            }
 
             foreach (var emitter in Emitters)
             {
@@ -149,16 +161,16 @@ namespace GUI.Types.ParticleRenderer
                 particleOperator.Update(particleBag.LiveParticles, frameTime, systemRenderState);
             }
 
-            // Tick down lifetime of all particles
+            // Increase age of all particles
             for (var i = 0; i < particleBag.LiveParticles.Length; ++i)
             {
-                particleBag.LiveParticles[i].Lifetime -= frameTime;
+                particleBag.LiveParticles[i].Age += frameTime;
             }
 
             // Remove all dead particles
             particleBag.PruneExpired();
 
-            var center = systemRenderState.GetControlPoint(0);
+            var center = systemRenderState.GetControlPoint(0).Position;
             if (particleBag.Count == 0)
             {
                 BoundingBox = new AABB(center, center);
@@ -185,6 +197,26 @@ namespace GUI.Types.ParticleRenderer
                 childParticleRenderer.Update(frameTime);
                 BoundingBox = BoundingBox.Union(childParticleRenderer.BoundingBox);
             }
+
+            // Restart if all emitters are done and all particles expired
+            if (IsFinished())
+            {
+                // NOTE: This isn't accurate, right?
+                Restart();
+            }
+            else if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.Duration)
+            {
+                if (systemRenderState.DestroyInstantlyOnEnd)
+                {
+                    Restart();
+                }
+                else
+                {
+                    Stop();
+                }
+            }
+
+            systemRenderState.ParticleCount = particleBag.Count;
         }
 
         public bool IsFinished()
@@ -205,7 +237,7 @@ namespace GUI.Types.ParticleRenderer
                 {
                     foreach (var renderer in Renderers)
                     {
-                        renderer.Render(particleBag, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
+                        renderer.Render(particleBag, systemRenderState, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
                     }
                 }
             }
@@ -323,6 +355,30 @@ namespace GUI.Types.ParticleRenderer
 
             Renderers = renderers;
         }
+        private void SetupPreEmissionOperators(IEnumerable<IKeyValueCollection> preEmissionOperatorData)
+        {
+            var preEmissionOperators = new List<IParticlePreEmissionOperator>();
+
+            foreach (var preEmissionOperatorInfo in preEmissionOperatorData)
+            {
+                if (IsOperatorDisabled(preEmissionOperatorInfo))
+                {
+                    continue;
+                }
+
+                var preEmissionOperatorClass = preEmissionOperatorInfo.GetProperty<string>("_class");
+                if (ParticleControllerFactory.TryCreatePreEmissionOperator(preEmissionOperatorClass, preEmissionOperatorInfo, out var preEmissionOperator))
+                {
+                    preEmissionOperators.Add(preEmissionOperator);
+                }
+                else
+                {
+                    Console.WriteLine($"Unsupported pre-emission operator class '{preEmissionOperatorClass}'.");
+                }
+            }
+
+            PreEmissionOperators = preEmissionOperators;
+        }
 
         private void SetupChildParticles(IEnumerable<string> childNames)
         {
@@ -331,7 +387,7 @@ namespace GUI.Types.ParticleRenderer
                 var childResource = vrfGuiContext.LoadFileByAnyMeansNecessary(childName + "_c");
                 var childSystem = (ParticleSystem)childResource.DataBlock;
 
-                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0)));
+                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0).Position));
             }
         }
 
@@ -341,8 +397,24 @@ namespace GUI.Types.ParticleRenderer
             {
                 return op.GetProperty<bool>("m_bDisableOperator");
             }
-
+            // Skip ops that only run during endcap (currently unsupported)
+            else if (op.ContainsKey("m_nOpEndCapState"))
+            {
+                return op.GetInt32Property("m_nOpEndCapState") == 1;
+            }
             return false;
+        }
+
+        public void SetWireframe(bool isWireframe)
+        {
+            foreach (var renderer in Renderers)
+            {
+                renderer.SetWireframe(isWireframe);
+            }
+            foreach (var childRenderer in childParticleRenderers)
+            {
+                childRenderer.SetWireframe(isWireframe);
+            }
         }
     }
 }

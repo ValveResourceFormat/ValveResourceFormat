@@ -22,7 +22,6 @@ namespace GUI.Types.ParticleRenderer
         {
             if (Count < particles.Length)
             {
-                particles[Count] = new Particle();
                 return Count++;
             }
             else if (isGrowable)
@@ -43,7 +42,9 @@ namespace GUI.Types.ParticleRenderer
             // TODO: This alters the order of the particles so they are no longer in creation order after something expires. Fix that.
             for (var i = 0; i < Count;)
             {
-                if (particles[i].Lifetime <= 0)
+                // TODO: Do the age test only if we know that we have operators that can kill, and move the age incrementing outside of those operators.
+                // That way we won't double-increment
+                if (particles[i].MarkedAsKilled)
                 {
                     particles[i] = particles[Count - 1];
                     Count--;

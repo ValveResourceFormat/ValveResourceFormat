@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using GUI.Types.Renderer;
@@ -65,8 +66,7 @@ namespace GUI.Types.ParticleRenderer
 
             GL.UseProgram(shader.Program);
 
-            var projectionViewMatrix = camera.ViewProjectionMatrix.ToOpenTK();
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref projectionViewMatrix);
+            shader.SetUniform4x4("uProjectionViewMatrix", camera.ViewProjectionMatrix);
 
             GL.BindVertexArray(vao);
             GL.EnableVertexAttribArray(0);

@@ -1,4 +1,5 @@
 using System;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
@@ -6,6 +7,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     class FadeInSimple : IParticleOperator
     {
         private readonly float fadeInTime = 0.25f;
+        private readonly ParticleField fieldOutput = ParticleField.Alpha;
 
         public FadeInSimple(IKeyValueCollection keyValues)
         {
@@ -13,16 +15,22 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 fadeInTime = keyValues.GetFloatProperty("m_flFadeInTime");
             }
+
+            if (keyValues.ContainsKey("m_nFieldOutput"))
+            {
+                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
+            }
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             for (var i = 0; i < particles.Length; ++i)
             {
-                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
+                var time = particles[i].NormalizedAge;
                 if (time <= fadeInTime)
                 {
-                    particles[i].Alpha = time / fadeInTime * particles[i].ConstantAlpha;
+                    var newAlpha = (time / fadeInTime) * particles[i].InitialAlpha;
+                    particles[i].SetScalar(fieldOutput, newAlpha);
                 }
             }
         }

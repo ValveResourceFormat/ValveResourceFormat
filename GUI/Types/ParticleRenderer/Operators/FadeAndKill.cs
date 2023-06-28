@@ -1,4 +1,5 @@
 using System;
+using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
@@ -50,24 +51,29 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             for (var i = 0; i < particles.Length; ++i)
             {
-                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
+                var time = particles[i].NormalizedAge;
 
                 // If fading in
                 if (time >= startFadeInTime && time <= endFadeInTime)
                 {
-                    var t = (time - startFadeInTime) / (endFadeInTime - startFadeInTime);
+                    var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
                     // Interpolate from startAlpha to constantAlpha
-                    particles[i].Alpha = ((1 - t) * startAlpha) + (t * particles[i].ConstantAlpha);
+                    particles[i].Alpha = MathUtils.Lerp(blend, startAlpha, particles[i].InitialAlpha);
                 }
 
                 // If fading out
                 if (time >= startFadeOutTime && time <= endFadeOutTime)
                 {
-                    var t = (time - startFadeOutTime) / (endFadeOutTime - startFadeOutTime);
+                    var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
                     // Interpolate from constantAlpha to end alpha
-                    particles[i].Alpha = ((1 - t) * particles[i].ConstantAlpha) + (t * endAlpha);
+                    particles[i].Alpha = MathUtils.Lerp(blend, particles[i].InitialAlpha, endAlpha);
+                }
+
+                if (time >= endFadeOutTime)
+                {
+                    particles[i].Kill();
                 }
             }
         }

@@ -1,6 +1,6 @@
 namespace ValveResourceFormat
 {
-    public enum ParticleAttribute
+    public enum ParticleField
     {
         Position,
         LifeDuration,

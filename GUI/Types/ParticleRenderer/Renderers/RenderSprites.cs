@@ -22,6 +22,12 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly Texture.SpritesheetData spriteSheetData;
 
         private readonly float animationRate = 0.1f;
+        private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
+        private readonly float minSize;
+        private readonly float maxSize = 5000f;
+
+        private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
+        private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
 
         private readonly bool additive;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
@@ -30,6 +36,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private float[] rawVertices;
         private readonly QuadIndexBuffer quadIndices;
         private int vertexBufferHandle;
+
+        private static bool wireframe;
+
 
         public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
         {
@@ -75,6 +84,38 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 animationRate = keyValues.GetFloatProperty("m_flAnimationRate");
             }
+
+            if (keyValues.ContainsKey("m_flMinSize"))
+            {
+                minSize = keyValues.GetFloatProperty("m_flMinSize");
+            }
+
+            if (keyValues.ContainsKey("m_flMaxSize"))
+            {
+                maxSize = keyValues.GetFloatProperty("m_flMaxSize");
+            }
+
+            if (keyValues.ContainsKey("m_nAnimationType"))
+            {
+                animationType = keyValues.GetEnumValue<ParticleAnimationType>("m_nAnimationType");
+            }
+
+            if (keyValues.ContainsKey("m_flRadiusScale"))
+            {
+                radiusScale = keyValues.GetNumberProvider("m_flRadiusScale");
+            }
+
+            if (keyValues.ContainsKey("m_flAlphaScale"))
+            {
+                alphaScale = keyValues.GetNumberProvider("m_flAlphaScale");
+            }
+        }
+
+        public void SetWireframe(bool isWireframe)
+        {
+            wireframe = isWireframe;
+            // Solid color
+            shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
         }
 
         private int SetupQuadBuffer()
@@ -120,7 +161,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
         }
 
-        private void UpdateVertices(ParticleBag particleBag, Matrix4x4 modelViewMatrix)
+        private void UpdateVertices(ParticleBag particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
         {
             var particles = particleBag.LiveParticles;
 
@@ -133,10 +174,12 @@ namespace GUI.Types.ParticleRenderer.Renderers
             EnsureSpaceForVertices(particleBag.Count * 4);
             for (var i = 0; i < particleBag.Count; ++i)
             {
+                var radiusScale = this.radiusScale.NextNumber(particles[i], systemRenderState);
+
                 // Positions
                 var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                    ? particles[i].GetRotationMatrix() * billboardMatrix * particles[i].GetTransformationMatrix()
-                    : particles[i].GetRotationMatrix() * particles[i].GetTransformationMatrix();
+                    ? particles[i].GetRotationMatrix() * billboardMatrix * particles[i].GetTransformationMatrix(radiusScale)
+                    : particles[i].GetRotationMatrix() * particles[i].GetTransformationMatrix(radiusScale);
 
                 var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
                 var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
@@ -157,13 +200,14 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 rawVertices[quadStart + (VertexSize * 3) + 1] = tr.Y;
                 rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
 
+                var alphaScale = this.alphaScale.NextNumber(particles[i], systemRenderState);
                 // Colors
                 for (var j = 0; j < 4; ++j)
                 {
                     rawVertices[quadStart + (VertexSize * j) + 3] = particles[i].Color.X;
                     rawVertices[quadStart + (VertexSize * j) + 4] = particles[i].Color.Y;
                     rawVertices[quadStart + (VertexSize * j) + 5] = particles[i].Color.Z;
-                    rawVertices[quadStart + (VertexSize * j) + 6] = particles[i].Alpha;
+                    rawVertices[quadStart + (VertexSize * j) + 6] = particles[i].Alpha * alphaScale;
                 }
 
                 // UVs
@@ -171,9 +215,15 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 {
                     var sequence = spriteSheetData.Sequences[particles[i].Sequence % spriteSheetData.Sequences.Length];
 
-                    var particleTime = particles[i].ConstantLifetime - particles[i].Lifetime;
+                    var animationTime = animationType switch
+                    {
+                        ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particles[i].Age,
+                        ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particles[i].NormalizedAge,
+                        ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES => particles[i].Age, // literally dont know what to do with this one
+                        _ => particles[i].Age,
+                    };
 
-                    var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * animationRate * particleTime / particles[i].ConstantLifetime) % sequence.Frames.Length];
+                    var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * animationRate * animationTime) % sequence.Frames.Length];
                     var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
 
                     // Lerp frame coords and size
@@ -206,7 +256,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BufferData(BufferTarget.ArrayBuffer, particleBag.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
         }
 
-        public void Render(ParticleBag particleBag, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public void Render(ParticleBag particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
             if (particleBag.Count == 0)
             {
@@ -214,7 +264,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             // Update vertex buffer
-            UpdateVertices(particleBag, modelViewMatrix);
+            UpdateVertices(particleBag, systemRenderState, modelViewMatrix);
 
             // Draw it
             GL.Enable(EnableCap.Blend);
@@ -233,25 +283,30 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
 
-            GL.ActiveTexture(TextureUnit.Texture0);
-            texture.Bind();
-
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
 
-            GL.Uniform1(shader.GetUniformLocation("uTexture"), 0); // set texture unit 0 as uTexture uniform
+            // set texture unit 0 as uTexture uniform
+            shader.SetTexture(0, "uTexture", texture);
 
-            var otkProjection = viewProjectionMatrix.ToOpenTK();
-            GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref otkProjection);
+            shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), (float)overbrightFactor.NextNumber());
+            shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber());
 
             GL.Disable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
             GL.DepthMask(false);
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
+
+            if (wireframe)
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+            }
+
+            // DRAW
             GL.DrawElements(BeginMode.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
+
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
 
@@ -268,6 +323,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             GL.Disable(EnableCap.Blend);
+
+            if (wireframe)
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+            }
         }
 
         public IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

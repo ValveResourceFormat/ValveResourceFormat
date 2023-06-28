@@ -1,4 +1,4 @@
-using System;
+using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.TrailLength = minLength + ((float)Random.Shared.NextDouble() * (maxLength - minLength));
+            particle.TrailLength = MathUtils.RandomBetween(minLength, maxLength);
 
             return particle;
         }

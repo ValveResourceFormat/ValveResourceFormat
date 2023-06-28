@@ -8,18 +8,20 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int sequenceMin;
         private readonly int sequenceMax;
         private readonly bool shuffle;
+
         private int counter;
 
+        // In Behavior Ver 12+ there is a "weight list" that weights the randomness
         public RandomSequence(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_nSequenceMin"))
             {
-                sequenceMin = (int)keyValues.GetIntegerProperty("m_nSequenceMin");
+                sequenceMin = keyValues.GetInt32Property("m_nSequenceMin");
             }
 
             if (keyValues.ContainsKey("m_nSequenceMax"))
             {
-                sequenceMax = (int)keyValues.GetIntegerProperty("m_nSequenceMax");
+                sequenceMax = keyValues.GetInt32Property("m_nSequenceMax");
             }
 
             if (keyValues.ContainsKey("m_bShuffle"))

@@ -1,4 +1,5 @@
 using System;
+using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
@@ -10,6 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider startScale = new LiteralNumberProvider(1);
         private readonly INumberProvider endScale = new LiteralNumberProvider(1);
         private readonly INumberProvider bias = new LiteralNumberProvider(0);
+
 
         public InterpolateRadius(IKeyValueCollection keyValues)
         {
@@ -43,15 +45,18 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             for (var i = 0; i < particles.Length; ++i)
             {
-                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
+                var time = particles[i].NormalizedAge;
 
                 if (time >= startTime && time <= endTime)
                 {
-                    double t = (time - startTime) / (endTime - startTime);
-                    t = Math.Pow(t, 1.0 - bias.NextNumber()); // apply bias to timescale
-                    var radiusScale = (startScale.NextNumber() * (1 - t)) + (endScale.NextNumber() * t);
+                    var startScale = this.startScale.NextNumber(particles[i], particleSystemState);
+                    var endScale = this.endScale.NextNumber(particles[i], particleSystemState);
 
-                    particles[i].Radius = particles[i].ConstantRadius * (float)radiusScale;
+                    var timeScale = MathUtils.Remap(time, startTime, endTime);
+                    timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(particles[i], particleSystemState)); // apply bias to timescale
+                    var radiusScale = MathUtils.Lerp(timeScale, startScale, endScale);
+
+                    particles[i].Radius = particles[i].InitialRadius * radiusScale;
                 }
             }
         }

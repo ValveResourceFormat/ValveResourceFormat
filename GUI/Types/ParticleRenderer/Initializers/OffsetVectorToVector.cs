@@ -1,5 +1,6 @@
-using System;
 using System.Numerics;
+using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
@@ -15,49 +16,34 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             if (keyValues.ContainsKey("m_nFieldInput"))
             {
-                inputField = (ParticleField)keyValues.GetIntegerProperty("m_nFieldInput");
+                inputField = keyValues.GetParticleField("m_nFieldInput");
             }
 
             if (keyValues.ContainsKey("m_nFieldOutput"))
             {
-                outputField = (ParticleField)keyValues.GetIntegerProperty("m_nFieldOutput");
+                outputField = keyValues.GetParticleField("m_nFieldOutput");
             }
 
             if (keyValues.ContainsKey("m_vecOutputMin"))
             {
-                var vectorValues = keyValues.GetArray<double>("m_vecOutputMin");
-                offsetMin = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                offsetMin = keyValues.GetArray<double>("m_vecOutputMin").ToVector3();
             }
 
             if (keyValues.ContainsKey("m_vecOutputMax"))
             {
-                var vectorValues = keyValues.GetArray<double>("m_vecOutputMax");
-                offsetMax = new Vector3((float)vectorValues[0], (float)vectorValues[1], (float)vectorValues[2]);
+                offsetMax = keyValues.GetArray<double>("m_vecOutputMax").ToVector3();
             }
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var input = particle.GetVector(inputField);
+            var input = particle.GetInitialVector(inputField);
 
-            var offset = new Vector3(
-                Lerp(offsetMin.X, offsetMax.X, (float)Random.Shared.NextDouble()),
-                Lerp(offsetMin.Y, offsetMax.Y, (float)Random.Shared.NextDouble()),
-                Lerp(offsetMin.Z, offsetMax.Z, (float)Random.Shared.NextDouble()));
+            var offset = MathUtils.RandomBetweenPerComponent(offsetMin, offsetMax);
 
-            if (outputField == ParticleField.Position)
-            {
-                particle.Position += input + offset;
-            }
-            else if (outputField == ParticleField.PositionPrevious)
-            {
-                particle.PositionPrevious = input + offset;
-            }
+            particle.SetInitialVector(outputField, input + offset);
 
             return particle;
         }
-
-        private static float Lerp(float min, float max, float t)
-            => min + (t * (max - min));
     }
 }

@@ -1,5 +1,7 @@
 using System;
 using System.Numerics;
+using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
@@ -9,6 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly Vector3 colorFade = Vector3.One;
         private readonly float fadeStartTime;
         private readonly float fadeEndTime = 1f;
+        private readonly ParticleField field = ParticleField.Color;
 
         public ColorInterpolate(IKeyValueCollection keyValues)
         {
@@ -27,20 +30,25 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 fadeEndTime = keyValues.GetFloatProperty("m_flFadeEndTime");
             }
+
+            if (keyValues.ContainsKey("m_nFieldOutput"))
+            {
+                field = keyValues.GetParticleField("m_nFieldOutput");
+            }
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (var particle in particles)
             {
-                var time = 1 - (particles[i].Lifetime / particles[i].ConstantLifetime);
+                var time = particle.NormalizedAge;
 
                 if (time >= fadeStartTime && time <= fadeEndTime)
                 {
-                    var t = (time - fadeStartTime) / (fadeEndTime - fadeStartTime);
+                    var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particles[i].Color = ((1 - t) * particles[i].ConstantColor) + (t * colorFade);
+                    particle.SetVector(field, MathUtils.Lerp(t, particle.InitialColor, colorFade));
                 }
             }
         }

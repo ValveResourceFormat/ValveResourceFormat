@@ -12,12 +12,12 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             if (keyValue.ContainsKey("m_nAlphaMin"))
             {
-                alphaMin = (int)keyValue.GetIntegerProperty("m_nAlphaMin");
+                alphaMin = keyValue.GetInt32Property("m_nAlphaMin");
             }
 
             if (keyValue.ContainsKey("m_nAlphaMax"))
             {
-                alphaMax = (int)keyValue.GetIntegerProperty("m_nAlphaMax");
+                alphaMax = keyValue.GetInt32Property("m_nAlphaMax");
             }
 
             if (alphaMin > alphaMax)
@@ -32,7 +32,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var alpha = Random.Shared.Next(alphaMin, alphaMax) / 255f;
 
-            particle.ConstantAlpha = alpha;
+            particle.InitialAlpha = alpha;
             particle.Alpha = alpha;
 
             return particle;

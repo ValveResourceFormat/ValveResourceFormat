@@ -1,4 +1,5 @@
 using System;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -10,7 +11,13 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            // noop, we always tick down lifetime for all particles
+            foreach (var particle in particles)
+            {
+                if (particle.Age > particle.Lifetime)
+                {
+                    particle.Kill();
+                }
+            }
         }
     }
 }

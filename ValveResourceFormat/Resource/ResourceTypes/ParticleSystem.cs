@@ -18,6 +18,9 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<IKeyValueCollection> GetEmitters()
             => Data.GetArray("m_Emitters") ?? Enumerable.Empty<IKeyValueCollection>();
 
+        public IEnumerable<IKeyValueCollection> GetPreEmissionOperators()
+            => Data.GetArray("m_PreEmissionOperators") ?? Enumerable.Empty<IKeyValueCollection>();
+
         public IEnumerable<string> GetChildParticleNames(bool enabledOnly = false)
         {
             IEnumerable<IKeyValueCollection> children = Data.GetArray("m_Children");

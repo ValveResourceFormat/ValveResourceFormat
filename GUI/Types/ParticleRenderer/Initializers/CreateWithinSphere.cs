@@ -1,5 +1,5 @@
-using System;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
@@ -48,24 +48,26 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var randomVector = new Vector3(
-                ((float)Random.Shared.NextDouble() * 2) - 1,
-                ((float)Random.Shared.NextDouble() * 2) - 1,
-                ((float)Random.Shared.NextDouble() * 2) - 1);
+            var randomVector = MathUtils.RandomBetweenPerComponent(new Vector3(-1), new Vector3(1));
 
             // Normalize
-            var direction = randomVector / randomVector.Length();
+            var direction = Vector3.Normalize(randomVector);
 
-            var distance = (float)(radiusMin.NextNumber() + (Random.Shared.NextDouble() * (radiusMax.NextNumber() - radiusMin.NextNumber())));
-            var speed = (float)(speedMin.NextNumber() + (Random.Shared.NextDouble() * (speedMax.NextNumber() - speedMin.NextNumber())));
+            var distance = MathUtils.RandomBetween(
+                radiusMin.NextNumber(particle, particleSystemState),
+                radiusMax.NextNumber(particle, particleSystemState));
 
-            var localSystemSpeedMin = localCoordinateSystemSpeedMin.NextVector();
-            var localSystemSpeedMax = localCoordinateSystemSpeedMax.NextVector();
+            var speed = MathUtils.RandomBetween(
+                speedMin.NextNumber(particle, particleSystemState),
+                speedMax.NextNumber(particle, particleSystemState));
 
-            var localCoordinateSystemSpeed = localSystemSpeedMin
-                + ((float)Random.Shared.NextDouble() * (localSystemSpeedMax - localSystemSpeedMin));
+            var localCoordinateSystemSpeed = MathUtils.RandomBetweenPerComponent(
+                localCoordinateSystemSpeedMin.NextVector(particle, particleSystemState),
+                localCoordinateSystemSpeedMax.NextVector(particle, particleSystemState));
 
-            particle.Position += direction * distance;
+            particle.InitialPosition += direction * distance;
+            particle.Position = particle.InitialPosition;
+
             particle.Velocity = (direction * speed) + localCoordinateSystemSpeed;
 
             return particle;

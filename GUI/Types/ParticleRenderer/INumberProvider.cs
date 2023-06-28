@@ -1,52 +1,220 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using GUI.Types.ParticleRenderer.Initializers;
+using GUI.Types.ParticleRenderer.Utils;
+using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
     interface INumberProvider
     {
-        double NextNumber();
+        float NextNumber(Particle particle, ParticleSystemRenderState renderState);
     }
 
-    readonly struct LiteralNumberProvider : INumberProvider
+    // Literal Number
+    class LiteralNumberProvider : INumberProvider
     {
-        private readonly double value;
+        private readonly float value;
 
-        public LiteralNumberProvider(double value)
+        public LiteralNumberProvider(float value)
         {
             this.value = value;
         }
 
-        public double NextNumber() => value;
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => value;
     }
 
-    readonly struct RandomNumberProvider : INumberProvider
+    // Random Uniform/Random Biased
+    class RandomNumberProvider : INumberProvider
     {
-        private readonly double min;
-        private readonly double max;
+        private readonly float minRange;
+        private readonly float maxRange;
+        private readonly bool isVarying;
 
-        public RandomNumberProvider(double min, double max)
+        private readonly bool isBiased;
+        private readonly string biasType = "PF_BIAS_TYPE_STANDARD";
+        private readonly float biasParam;
+
+        private readonly Dictionary<int, float> ConstantRandom = new();
+
+        public RandomNumberProvider(IKeyValueCollection keyValues, bool isBiased = false)
         {
-            this.min = min;
-            this.max = max;
+            minRange = keyValues.GetFloatProperty("m_flRandomMin");
+            maxRange = keyValues.GetFloatProperty("m_flRandomMax");
+            isVarying = (keyValues.GetProperty<string>("m_nRandomMode") == "PF_RANDOM_MODE_VARYING");
+            this.isBiased = isBiased;
+
+            if (isBiased)
+            {
+                biasParam = keyValues.GetFloatProperty("m_flBiasParameter");
+                if (keyValues.ContainsKey("m_nBiasType"))
+                {
+                    biasType = keyValues.GetProperty<string>("m_nBiasType");
+                }
+            }
         }
 
-        public double NextNumber() => min + (Random.Shared.NextDouble() * (max - min));
+        private float GetRandomValue(Particle particle)
+        {
+            // Varying: random per-particle, per-frame
+            if (isVarying)
+            {
+                return Random.Shared.NextSingle();
+            }
+            else
+            {
+                // Constant: random per-particle but doesn't change per frame.
+                if (ConstantRandom.TryGetValue(particle.ParticleCount, out float value))
+                {
+                    return value;
+                }
+                var newRandom = Random.Shared.NextSingle();
+
+                ConstantRandom[particle.ParticleCount] = newRandom;
+                return newRandom;
+            }
+        }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        {
+            var random = GetRandomValue(particle);
+
+            // currently does nothing as it's unclear how it's done
+            if (isBiased)
+            {
+                random = NumericBias.ApplyBias(random, biasParam, biasType);
+            }
+
+            return MathUtils.Lerp(random, minRange, maxRange);
+        }
     }
 
-    readonly struct BiasedRandomNumberProvider : INumberProvider
+    // Collection Age
+    class CollectionAgeNumberProvider : INumberProvider
     {
-        private readonly RandomNumberProvider rng;
-        private readonly double exponent;
+        public CollectionAgeNumberProvider() { }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => renderState.Age;
+    }
 
-        public BiasedRandomNumberProvider(double min, double max, double exponent)
+    class DetailLevelNumberProvider : INumberProvider
+    {
+        private readonly float lod0;
+        private readonly float lod1;
+        private readonly float lod2;
+        private readonly float lod3;
+
+        public DetailLevelNumberProvider(IKeyValueCollection keyValues)
         {
-            this.exponent = exponent;
-            this.rng = new RandomNumberProvider(min, max);
+            lod0 = keyValues.GetFloatProperty("m_flLOD0");
+            lod1 = keyValues.GetFloatProperty("m_flLOD1");
+            lod2 = keyValues.GetFloatProperty("m_flLOD2");
+            lod3 = keyValues.GetFloatProperty("m_flLOD3");
         }
 
-        public double NextNumber() => Math.Pow(rng.NextNumber(), exponent);
+        // Just assume detail level is Ultra
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        {
+            return lod0;
+        }
+    }
+
+    // Particle Age
+    class ParticleAgeNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public ParticleAgeNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Age);
+    }
+
+    // Particle Age (0-1)
+    class ParticleAgeNormalizedNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public ParticleAgeNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.NormalizedAge);
+    }
+
+    // Particle Float
+    // Note that the per-particle parameters are not useable in intializers, so we don't need to account for that somehow
+    class PerParticleNumberProvider : INumberProvider
+    {
+        private readonly ParticleField field;
+
+        private readonly AttributeMapping mapping;
+
+        public PerParticleNumberProvider(IKeyValueCollection parameters)
+        {
+            field = parameters.GetParticleField("m_nScalarAttribute");
+            mapping = new AttributeMapping(parameters);
+        }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+    }
+
+    // Particle Vector Component
+    class PerParticleVectorComponentNumberProvider : INumberProvider
+    {
+        private readonly ParticleField field;
+        private readonly int component;
+
+        private readonly AttributeMapping mapping;
+
+        public PerParticleVectorComponentNumberProvider(IKeyValueCollection parameters)
+        {
+            field = parameters.GetParticleField("m_nVectorAttribute");
+            component = parameters.GetInt32Property("m_nVectorComponent");
+            mapping = new AttributeMapping(parameters);
+        }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        {
+            return mapping.ApplyMapping(particle.GetVectorComponent(field, component));
+        }
+    }
+
+    // Particle Speed
+    class PerParticleSpeedNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public PerParticleSpeedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Speed);
+    }
+
+    // Particle Count
+    class PerParticleCountNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public PerParticleCountNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleCount);
+    }
+
+    // Particle Count Percent of Total Count (0-1)
+    class PerParticleCountNormalizedNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public PerParticleCountNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        {
+            return attributeMapping.ApplyMapping(particle.ParticleCount) / Math.Max(renderState.ParticleCount, 1);
+        }
+    }
+
+    // Control Point Component
+    class ControlPointComponentNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+        private readonly int vectorComponent;
+        public ControlPointComponentNumberProvider(IKeyValueCollection keyValues)
+        {
+            attributeMapping = new AttributeMapping(keyValues);
+            cp = keyValues.GetInt32Property("m_nControlPoint");
+            vectorComponent = keyValues.GetInt32Property("m_nVectorComponent");
+        }
+        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        {
+            return renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent);
+        }
     }
 
     static class INumberProviderExtensions
@@ -61,39 +229,43 @@ namespace GUI.Types.ParticleRenderer
                 switch (type)
                 {
                     case "PF_TYPE_LITERAL":
-                        return new LiteralNumberProvider(numberProviderParameters.GetDoubleProperty("m_flLiteralValue"));
-
-                    case "PF_TYPE_RANDOM_BIASED":
-                        return new BiasedRandomNumberProvider(
-                            numberProviderParameters.GetDoubleProperty("m_flRandomMin"),
-                            numberProviderParameters.GetDoubleProperty("m_flRandomMax"),
-                            numberProviderParameters.GetDoubleProperty("m_flBiasParameter")
-                        );
-
+                        return new LiteralNumberProvider(numberProviderParameters.GetFloatProperty("m_flLiteralValue"));
                     case "PF_TYPE_RANDOM_UNIFORM":
-                        if (numberProviderParameters.GetStringProperty("m_nRandomMode") != "PF_RANDOM_MODE_CONSTANT")
-                        {
-                            Console.Error.WriteLine($"Unsupported random number provider with random mode {numberProviderParameters.GetStringProperty("m_nRandomMode")}");
-                        }
-
-                        return new RandomNumberProvider(
-                            numberProviderParameters.GetDoubleProperty("m_flRandomMin"),
-                            numberProviderParameters.GetDoubleProperty("m_flRandomMax")
-                        );
-
+                        return new RandomNumberProvider(numberProviderParameters, false);
+                    case "PF_TYPE_RANDOM_BIASED":
+                        return new RandomNumberProvider(numberProviderParameters, true);
+                    case "PF_TYPE_COLLECTION_AGE":
+                        return new CollectionAgeNumberProvider();
                     case "PF_TYPE_CONTROL_POINT_COMPONENT":
-                        // No control points in our renderer (yet?), falling back to 0
-                        return new LiteralNumberProvider(0);
-
+                        return new ControlPointComponentNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_DETAIL_LEVEL":
+                        return new DetailLevelNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_AGE":
+                        return new ParticleAgeNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_AGE_NORMALIZED":
+                        return new ParticleAgeNormalizedNumberProvider(numberProviderParameters);
                     case "PF_TYPE_PARTICLE_FLOAT":
-                        // idk what this is
-                        return new LiteralNumberProvider(0);
-
+                        return new PerParticleNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_VECTOR_COMPONENT":
+                        return new PerParticleVectorComponentNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_SPEED":
+                        return new PerParticleSpeedNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_NUMBER":
+                        return new PerParticleCountNumberProvider(numberProviderParameters);
+                    case "PF_TYPE_PARTICLE_NUMBER_NORMALIZED":
+                        return new PerParticleCountNormalizedNumberProvider(numberProviderParameters);
+                    // KNOWN TYPES WE DON'T SUPPORT:
+                    // PF_TYPE_ENDCAP_AGE - unsupported because we don't support endcaps
+                    // PF_TYPE_CONTROL_POINT_COMPONENT - todo?
+                    // PF_TYPE_CONTROL_POINT_CHANGE_AGE - no way.
+                    // PF_TYPE_CONTROL_POINT_SPEED - new in cs2? def not going to support this
+                    // PF_TYPE_PARTICLE_NOISE - exists only in deskjob and CS2. Likely added in behavior version 11 or 12.
+                    // PF_TYPE_NAMED_VALUE - seen in dota's particle.dll?? not in deskjob's, so in behavior version 13+?
                     default:
                         if (numberProviderParameters.ContainsKey("m_flLiteralValue"))
                         {
                             Console.Error.WriteLine($"Number provider of type {type} is not directly supported, but it has m_flLiteralValue.");
-                            return new LiteralNumberProvider(numberProviderParameters.GetDoubleProperty("m_flLiteralValue"));
+                            return new LiteralNumberProvider(numberProviderParameters.GetFloatProperty("m_flLiteralValue"));
                         }
 
                         throw new InvalidCastException($"Could not create number provider of type {type}.");
@@ -101,13 +273,31 @@ namespace GUI.Types.ParticleRenderer
             }
             else
             {
-                return new LiteralNumberProvider(Convert.ToDouble(property, CultureInfo.InvariantCulture));
+                return new LiteralNumberProvider((float)Convert.ToDouble(property, CultureInfo.InvariantCulture));
             }
         }
 
-        public static int NextInt(this INumberProvider numberProvider)
+        public static int NextInt(this INumberProvider numberProvider, Particle particle, ParticleSystemRenderState renderState)
         {
-            return (int)numberProvider.NextNumber();
+            return (int)numberProvider.NextNumber(particle, renderState);
         }
+
+        /// <summary>
+        /// ONLY use this in emitters and renderers, where per-particle values can't be accessed. Otherwise, use the other version.
+        /// </summary>
+        /// <param name="numberProvider"></param>
+        /// <returns></returns>
+        public static float NextNumber(this INumberProvider numberProvider)
+        {
+            return numberProvider.NextNumber(new Particle(), new ParticleSystemRenderState());
+        }
+
+        /* Unaccounted for params:
+         * m_NamedValue
+         * m_flRandomMin
+         * m_flRandomMax
+         * m_bHasRandomSignFlip
+         * m_nRandomMode
+         */
     }
 }

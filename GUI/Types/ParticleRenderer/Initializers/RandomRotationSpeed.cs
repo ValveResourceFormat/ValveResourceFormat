@@ -1,24 +1,23 @@
 using System;
 using System.Numerics;
+using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RandomRotationSpeed : IParticleInitializer
     {
-        private const float PiOver180 = (float)Math.PI / 180f;
-
         private readonly ParticleField fieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection = true;
         private readonly float degrees;
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
-
         public RandomRotationSpeed(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_nFieldOutput"))
             {
-                fieldOutput = (ParticleField)keyValues.GetIntegerProperty("m_nFieldOutput");
+                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
             }
 
             if (keyValues.ContainsKey("m_bRandomlyFlipDirection"))
@@ -44,9 +43,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var value = PiOver180 * (degrees + degreesMin + ((float)Random.Shared.NextDouble() * (degreesMax - degreesMin)));
+            var value = MathUtils.ToRadians(degrees + MathUtils.RandomBetween(degreesMin, degreesMax));
 
-            if (randomlyFlipDirection && Random.Shared.NextDouble() > 0.5)
+            if (randomlyFlipDirection && Random.Shared.NextSingle() > 0.5f)
             {
                 value *= -1;
             }

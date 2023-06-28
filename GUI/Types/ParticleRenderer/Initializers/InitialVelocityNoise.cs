@@ -1,5 +1,6 @@
-using System;
 using System.Numerics;
+using GUI.Utils;
+using GUI.Types.ParticleRenderer.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
@@ -30,40 +31,18 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var noiseScale = (float)this.noiseScale.NextNumber();
+            var noiseScale = this.noiseScale.NextNumber(particle, particleSystemState);
             var r = new Vector3(
-                Simplex1D(particleSystemState.Lifetime * noiseScale),
-                Simplex1D((particleSystemState.Lifetime * noiseScale) + 101723),
-                Simplex1D((particleSystemState.Lifetime * noiseScale) + 555557));
+                Noise.Simplex1D(particleSystemState.Age * noiseScale),
+                Noise.Simplex1D((particleSystemState.Age * noiseScale) + 101723),
+                Noise.Simplex1D((particleSystemState.Age * noiseScale) + 555557));
 
-            var min = outputMin.NextVector();
-            var max = outputMax.NextVector();
+            var min = outputMin.NextVector(particle, particleSystemState);
+            var max = outputMax.NextVector(particle, particleSystemState);
 
-            particle.Velocity = min + (r * (max - min));
+            particle.Velocity = MathUtils.Lerp(r, min, max);
 
             return particle;
-        }
-
-        // Simple perlin noise implementation
-
-        private static float Simplex1D(float t)
-        {
-            var previous = PseudoRandom((float)Math.Floor(t));
-            var next = PseudoRandom((float)Math.Ceiling(t));
-
-            return CosineInterpolate(previous, next, t % 1f);
-        }
-
-        /// <summary>
-        /// Yes I know it's not actually a proper LCG but I need it to work without knowing the last value.
-        /// </summary>
-        private static float PseudoRandom(float t)
-            => 1013904223517 * t % 1664525 / 1664525f;
-
-        private static float CosineInterpolate(float start, float end, float mu)
-        {
-            var mu2 = (1 - (float)Math.Cos(mu * Math.PI)) / 2f;
-            return (start * (1 - mu2)) + (end * mu2);
         }
     }
 }

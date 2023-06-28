@@ -1,9 +1,30 @@
+using System;
 using System.Numerics;
 
 namespace GUI.Utils
 {
     static class VectorExtensions
     {
+        // Utility functions to convert float arrays into vectors
+        public static Vector3 ToVector3(this float[] floatarr)
+        {
+            if (floatarr.Length < 3)
+            {
+                throw new IndexOutOfRangeException("ToVector3 needs float array of at least length 3.");
+            }
+            return new Vector3(floatarr[0], floatarr[1], floatarr[2]);
+        }
+
+        // The above, but for double arrays (usually used in particle arrays)
+        public static Vector3 ToVector3(this double[] floatarr)
+        {
+            if (floatarr.Length < 3)
+            {
+                throw new IndexOutOfRangeException("ToVector3 needs float array of at least length 3.");
+            }
+            return new Vector3((float)floatarr[0], (float)floatarr[1], (float)floatarr[2]);
+        }
+
         public static OpenTK.Vector2 ToOpenTK(this Vector2 vec)
         {
             return new OpenTK.Vector2(vec.X, vec.Y);
