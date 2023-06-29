@@ -103,16 +103,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var arguments = new Dictionary<string, byte>();
 
-            if (Data == null)
+            foreach (var (name, value) in IntParams)
             {
-                return arguments;
-            }
-
-            foreach (var intParam in Data.GetArray("m_intParams"))
-            {
-                var name = intParam.GetProperty<string>("m_name");
-                var value = intParam.GetIntegerProperty("m_nValue");
-
                 if (name.StartsWith("F_", StringComparison.OrdinalIgnoreCase))
                 {
                     arguments.Add(name, (byte)value);
