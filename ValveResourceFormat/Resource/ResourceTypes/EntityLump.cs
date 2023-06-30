@@ -95,56 +95,55 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unsupported entity data version", entityVersion, nameof(entityVersion));
             }
 
-            if (entityKv.GetSubCollection("attributes").Any())
-            {
-                throw new NotImplementedException("Entity has attributes, not yet supported");
-            }
-
             var entity = new Entity();
 
-            var values = ((KVObject)entityKv).Properties["values"];
-
-            if (values.Type != KVType.OBJECT)
+            void ReadValues(KVValue values)
             {
-                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
-            }
-
-            foreach (var value in ((KVObject)values.Value).Properties)
-            {
-                var hash = StringToken.Get(value.Key.ToLowerInvariant());
-                var data = value.Value.Value;
-                EntityFieldType type;
-
-                if (value.Value.Type == KVType.ARRAY)
+                if (values.Type != KVType.OBJECT)
                 {
-                    var arrayKv = (IKeyValueCollection)value.Value.Value;
-
-                    type = arrayKv.Count() switch
-                    {
-                        2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
-                        3 => EntityFieldType.Vector,
-                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
-                    };
-                    data = type switch
-                    {
-                        EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
-                        EntityFieldType.Vector => arrayKv.ToVector3(),
-                        _ => throw new NotImplementedException(),
-                    };
-                }
-                else
-                {
-                    type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
+                    throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
                 }
 
-                var entityProperty = new EntityProperty
+                foreach (var value in ((KVObject)values.Value).Properties)
                 {
-                    Type = type,
-                    Name = value.Key,
-                    Data = data,
-                };
-                entity.Properties.Add(hash, entityProperty);
+                    var hash = StringToken.Get(value.Key.ToLowerInvariant());
+                    var data = value.Value.Value;
+                    EntityFieldType type;
+
+                    if (value.Value.Type == KVType.ARRAY)
+                    {
+                        var arrayKv = (IKeyValueCollection)value.Value.Value;
+
+                        type = arrayKv.Count() switch
+                        {
+                            2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
+                            3 => EntityFieldType.Vector,
+                            _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
+                        };
+                        data = type switch
+                        {
+                            EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
+                            EntityFieldType.Vector => arrayKv.ToVector3(),
+                            _ => throw new NotImplementedException(),
+                        };
+                    }
+                    else
+                    {
+                        type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
+                    }
+
+                    var entityProperty = new EntityProperty
+                    {
+                        Type = type,
+                        Name = value.Key,
+                        Data = data,
+                    };
+                    entity.Properties.Add(hash, entityProperty);
+                }
             }
+
+            ReadValues(((KVObject)entityKv).Properties["values"]);
+            ReadValues(((KVObject)entityKv).Properties["attributes"]);
 
             return entity;
         }
@@ -197,6 +196,7 @@ namespace ValveResourceFormat.ResourceTypes
                 ReadTypedValue(keyHash, null);
             }
 
+            // TODO: Is this attributes like in KV3 version, should we put them into separate property?
             for (var i = 0; i < stringFieldsCount; i++)
             {
                 var keyHash = dataReader.ReadUInt32();
