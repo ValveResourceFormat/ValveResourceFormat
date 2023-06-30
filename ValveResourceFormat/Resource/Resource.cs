@@ -411,6 +411,10 @@ namespace ValveResourceFormat
                 case ResourceType.PanoramaLayout:
                     return new PanoramaLayout();
 
+                case ResourceType.PanoramaJavaScriptPlainText:
+                case ResourceType.PanoramaTypeScriptPlainText:
+                    return new Plaintext();
+
                 case ResourceType.Sound:
                     return new Sound();
 
@@ -554,6 +558,10 @@ namespace ValveResourceFormat
                         "Panorama Dynamic Images Compiler Version" => ResourceType.PanoramaDynamicImages,
                         _ => ResourceType.Panorama,
                     };
+                case "JavaScript":
+                    return ResourceType.PanoramaJavaScriptPlainText;
+                case "TypeScript":
+                    return ResourceType.PanoramaTypeScriptPlainText;
                 case "VectorGraphic":
                     return ResourceType.PanoramaVectorGraphic;
                 case "VCompMat":
