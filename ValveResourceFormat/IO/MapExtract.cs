@@ -300,13 +300,9 @@ public sealed class MapExtract
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
             var objectFlags = ObjectTypeFlags.None;
-            try
+            if (!isAggregate)
             {
-                objectFlags = (ObjectTypeFlags)sceneObject.GetProperty<int>("m_nObjectTypeFlags");
-            }
-            catch (InvalidCastException)
-            {
-                // TODO: Parse from string
+                objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
             }
 
             if (modelName is null)

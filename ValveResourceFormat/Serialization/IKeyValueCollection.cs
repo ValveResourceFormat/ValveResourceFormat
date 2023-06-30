@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Serialization
         public static IKeyValueCollection[] GetArray(this IKeyValueCollection collection, string name)
             => collection.GetArray<IKeyValueCollection>(name);
 
-        public static TEnum GetEnumValue<TEnum>(this IKeyValueCollection collection, string name) where TEnum : Enum
+        public static TEnum GetEnumValue<TEnum>(this IKeyValueCollection collection, string name, bool normalize = false) where TEnum : Enum
         {
             var rawValue = collection.GetProperty<object>(name);
 
@@ -105,6 +105,49 @@ namespace ValveResourceFormat.Serialization
             }
 
             var strValue = (string)rawValue;
+
+            // Normalize VALVE_ENUM_VALUE_1 to ValveEnum.Value1
+            if (normalize)
+            {
+                var enumTypeName = typeof(TEnum).Name;
+                if (enumTypeName.EndsWith("Flags", StringComparison.Ordinal))
+                {
+                    enumTypeName = enumTypeName[..^5];
+                }
+
+                var sb = new StringBuilder(strValue.Length);
+                var i = 0;
+                var nextUpper = true;
+                var startsWithEnumTypeName = true;
+
+                foreach (var c in strValue)
+                {
+                    if (c == '_' || char.IsDigit(c))
+                    {
+                        nextUpper = true;
+                        continue;
+                    }
+
+                    var cs = nextUpper ? char.ToUpperInvariant(c) : char.ToLowerInvariant(c);
+                    sb.Append(cs);
+
+                    if (i < enumTypeName.Length && cs != enumTypeName[i])
+                    {
+                        startsWithEnumTypeName = false;
+                    }
+
+                    nextUpper = false;
+                    i++;
+                }
+
+                if (startsWithEnumTypeName)
+                {
+                    sb.Remove(0, enumTypeName.Length);
+                }
+
+                strValue = sb.ToString();
+            }
+
             if (Enum.TryParse(typeof(TEnum), strValue, false, out var value))
             {
                 return (TEnum)value;
