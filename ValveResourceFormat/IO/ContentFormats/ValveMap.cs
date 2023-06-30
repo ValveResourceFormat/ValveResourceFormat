@@ -1,8 +1,6 @@
 using System.Numerics;
 using DMElement = Datamodel.Element;
-using DMAttributeName = Datamodel.Format.Attribute;
-using LowercaseProperties = Datamodel.Format.AttributeNameLowercaseAttribute;
-using CamelCaseProperties = Datamodel.Format.AttributeNameCamelCaseAttribute;
+using Datamodel.Format;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 
@@ -19,24 +17,24 @@ internal class CMapRootElement : DMElement
     public int SnapRotationAngle { get; set; } = 15;
     public float GridSpacing { get; set; } = 64;
     public bool Show3DGrid { get; set; } = true;
-    [DMAttributeName("itemFile")]
+    [DMProperty(name: "itemFile")]
     public string ItemFile { get; set; } = string.Empty;
     public CStoredCamera DefaultCamera { get; set; } = new CStoredCamera();
-    [DMAttributeName("3dcameras")]
+    [DMProperty(name: "3dcameras")]
     public CStoredCameras Cameras { get; set; } = new CStoredCameras();
     public CMapWorld World { get; set; } = new CMapWorld();
     public CVisibilityMgr Visibility { get; set; } = new CVisibilityMgr();
-    [DMAttributeName("mapVariables")]
+    [DMProperty(name: "mapVariables")]
     public CMapVariableSet MapVariables { get; set; } = new CMapVariableSet();
-    [DMAttributeName("rootSelectionSet")]
+    [DMProperty(name: "rootSelectionSet")]
     public CMapSelectionSet RootSelectionSet { get; set; } = new CMapSelectionSet();
-    [DMAttributeName("m_ReferencedMeshSnapshots")]
+    [DMProperty(name: "m_ReferencedMeshSnapshots")]
     public Datamodel.ElementArray ReferencedMeshSnapshots { get; } = new();
-    [DMAttributeName("m_bIsCordoning")]
+    [DMProperty(name: "m_bIsCordoning")]
     public bool IsCordoning { get; set; }
-    [DMAttributeName("m_bCordonsVisible")]
+    [DMProperty(name: "m_bCordonsVisible")]
     public bool CordonsVisible { get; set; }
-    [DMAttributeName("nodeInstanceData")]
+    [DMProperty(name: "nodeInstanceData")]
     public Datamodel.ElementArray NodeInstanceData { get; } = new();
 }
 
@@ -50,7 +48,7 @@ internal class CStoredCamera : DMElement
 [LowercaseProperties]
 internal class CStoredCameras : DMElement
 {
-    [DMAttributeName("activecamera")]
+    [DMProperty(name: "activecamera")]
     public int ActiveCameraIndex { get; set; } = -1;
     public Datamodel.ElementArray Cameras { get; } = new();
 }
@@ -68,7 +66,7 @@ internal abstract class MapNode : DMElement
     public Datamodel.ElementArray Children { get; } = new();
 
     public bool EditorOnly { get; set; }
-    [DMAttributeName("force_hidden")]
+    [DMProperty(name: "force_hidden")]
     public bool ForceHidden { get; set; }
     public bool TransformLocked { get; set; }
     public Datamodel.StringArray VariableTargetKeys { get; } = new();
@@ -80,7 +78,7 @@ internal abstract class BaseEntity : MapNode
 {
     public DmePlugList RelayPlugData { get; set; } = new DmePlugList();
     public Datamodel.ElementArray ConnectionsData { get; } = new();
-    [DMAttributeName("entity_properties")]
+    [DMProperty(name: "entity_properties")]
     public EditGameClassProps EntityProperties { get; set; } = new EditGameClassProps();
 }
 
@@ -142,7 +140,7 @@ internal class CMapVariableSet : DMElement
     public Datamodel.StringArray VariableValues { get; } = new();
     public Datamodel.StringArray VariableTypeNames { get; } = new();
     public Datamodel.StringArray VariableTypeParameters { get; } = new();
-    [DMAttributeName("m_ChoiceGroups")]
+    [DMProperty(name: "m_ChoiceGroups")]
     public Datamodel.ElementArray ChoiceGroups { get; } = new();
 }
 
@@ -176,24 +174,24 @@ internal class CMapMesh : MapNode
 {
     public string CubeMapName { get; set; } = string.Empty;
     public string LightGroup { get; set; } = string.Empty;
-    [DMAttributeName("visexclude")]
+    [DMProperty(name: "visexclude")]
     public bool VisExclude { get; set; }
-    [DMAttributeName("renderwithdynamic")]
+    [DMProperty(name: "renderwithdynamic")]
     public bool RenderWithDynamic { get; set; }
     public bool DisableHeightDisplacement { get; set; }
-    [DMAttributeName("fademindist")]
+    [DMProperty(name: "fademindist")]
     public float FadeMinDist { get; set; } = -1;
-    [DMAttributeName("fademaxdist")]
+    [DMProperty(name: "fademaxdist")]
     public float FadeMaxDist { get; set; }
-    [DMAttributeName("bakelighting")]
+    [DMProperty(name: "bakelighting")]
     public bool BakeLighting { get; set; } = true;
-    [DMAttributeName("precomputelightprobes")]
+    [DMProperty(name: "precomputelightprobes")]
     public bool PrecomputeLightProbes { get; set; } = true;
     public bool RenderToCubemaps { get; set; } = true;
     public bool DisableShadows { get; set; }
     public float SmoothingAngle { get; set; } = 40f;
     public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
-    [DMAttributeName("renderAmt")]
+    [DMProperty(name: "renderAmt")]
     public int RenderAmount { get; set; } = 255;
     public string PhysicsType { get; set; } = "default";
     public string PhysicsGroup { get; set; } = string.Empty;

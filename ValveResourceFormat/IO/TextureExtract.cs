@@ -6,6 +6,9 @@ using System.Text;
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
+using Datamodel;
+using ValveResourceFormat.IO.ContentFormats.ValveTexture;
+
 namespace ValveResourceFormat.IO;
 
 public class TextureContentFile : ContentFile
@@ -445,51 +448,12 @@ public sealed class TextureExtract
         var inputTextureFileName = GetInputFileNameForVtex();
         var outputFormat = texture.Format.ToString();
 
-        return string.Join(Environment.NewLine,
-        "<!-- dmx encoding keyvalues2_noids 1 format vtex 1 -->",
-        @"""CDmeVtex""",
-        @"{",
-        @"    ""m_inputTextureArray"" ""element_array""",
-        @"    [",
-        @"        ""CDmeInputTexture""",
-        @"        {",
-        @"            ""m_name"" ""string"" ""InputTexture0""",
-        $@"            ""m_fileName"" ""string"" ""{inputTextureFileName}""",
-        @"            ""m_colorSpace"" ""string"" ""srgb""",
-        @"            ""m_typeString"" ""string"" ""2D""",
-        @"            ""m_imageProcessorArray"" ""element_array""",
-        @"            [",
-        @"                ""CDmeImageProcessor""",
-        @"                {",
-        @"                    ""m_algorithm"" ""string"" ""None""",
-        @"                    ""m_stringArg"" ""string"" """"",
-        @"                    ""m_vFloat4Arg"" ""vector4"" ""0 0 0 0""",
-        @"                }",
-        @"            ]",
-        @"        }",
-        @"    ]",
-        @"    ""m_outputTypeString"" ""string"" ""2D""",
-        $@"    ""m_outputFormat"" ""string"" ""{outputFormat}""",
-        @"    ""m_outputClearColor"" ""vector4"" ""0 0 0 0""",
-        @"    ""m_nOutputMinDimension"" ""int"" ""0""",
-        @"    ""m_nOutputMaxDimension"" ""int"" ""0""",
-        @"    ""m_textureOutputChannelArray"" ""element_array"" ",
-        @"    [",
-        @"        ""CDmeTextureOutputChannel""",
-        @"        {",
-        @"            ""m_inputTextureArray"" ""string_array"" [ ""InputTexture0"" ]",
-        @"            ""m_srcChannels"" ""string"" ""rgba""",
-        @"            ""m_dstChannels"" ""string"" ""rgba""",
-        @"            ""m_mipAlgorithm"" ""CDmeImageProcessor""",
-        @"            {",
-        @"                ""m_algorithm"" ""string"" ""Box""",
-        @"                ""m_stringArg"" ""string"" """"",
-        @"                ""m_vFloat4Arg"" ""vector4"" ""0 0 0 0""",
-        @"            }",
-        @"            ""m_outputColorSpace"" ""string"" ""srgb""",
-        @"        }",
-        @"    ]",
-        @"}");
+        using var datamodel = new Datamodel.Datamodel("vtex", 1);
+        datamodel.Root = CDmeVtex.CreateTexture2D(new[] { (inputTextureFileName, "rgba", "Box") }, outputFormat);
+
+        using var stream = new MemoryStream();
+        datamodel.Save(stream, "keyvalues2_noids", 1);
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 }
 

@@ -1,7 +1,5 @@
 using DMElement = Datamodel.Element;
-using DMAttributeName = Datamodel.Format.Attribute;
-using LowercaseProperties = Datamodel.Format.AttributeNameLowercaseAttribute;
-using CamelCaseProperties = Datamodel.Format.AttributeNameCamelCaseAttribute;
+using Datamodel.Format;
 using System.Numerics;
 
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -77,7 +75,7 @@ public class DmeFaceSet : DMElement
 
     public class DmeMaterial : DMElement
     {
-        [DMAttributeName("mtlName")]
+        [DMProperty(name: "mtlName")]
         public string MaterialName { get; set; } = string.Empty;
     }
 }
