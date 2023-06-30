@@ -41,6 +41,7 @@ class PickingTexture : IDisposable
 #pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
         public uint ObjectId;
         public uint MeshId;
+        public uint Unused1;
         public uint Unused2;
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }

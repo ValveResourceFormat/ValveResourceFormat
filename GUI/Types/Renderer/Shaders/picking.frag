@@ -30,9 +30,9 @@ uniform uint meshId;
         #endif
     }
 #else
-    out uvec2 outputColor;
+    out uvec4 outputColor;
     void main()
     {
-        outputColor = uvec2(sceneObjectId, meshId);
+        outputColor = uvec4(sceneObjectId, meshId, 0, 0);
     }
 #endif
