@@ -568,6 +568,8 @@ namespace ValveResourceFormat
                     return ResourceType.CSGOItem;
                 case "CSGOEconItem":
                     return ResourceType.CSGOEconItem;
+                case "PulseGraphDef":
+                    return ResourceType.PulseGraphDef;
                 case "SBData":
                 case "ManagedResourceCompiler": // This is without the "Compile" prefix
                     return ResourceType.SboxManagedResource;

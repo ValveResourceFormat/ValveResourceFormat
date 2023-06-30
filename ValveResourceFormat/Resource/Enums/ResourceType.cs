@@ -136,6 +136,9 @@ namespace ValveResourceFormat
         [Extension("item")]
         ArtifactItem,
 
+        [Extension("pulse")]
+        PulseGraphDef,
+
         [Extension("sbox")] // TODO: Managed resources can have any extension
         SboxManagedResource,
 
