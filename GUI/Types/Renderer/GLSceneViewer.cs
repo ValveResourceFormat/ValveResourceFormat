@@ -28,6 +28,7 @@ namespace GUI.Types.Renderer
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private Frustum lockedCullFrustum;
+        private Frustum skyboxLockedCullFrustum;
 
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
@@ -80,10 +81,16 @@ namespace GUI.Types.Renderer
                 if (v)
                 {
                     lockedCullFrustum = Scene.MainCamera.ViewFrustum.Clone();
+
+                    if (SkyboxScene != null)
+                    {
+                        skyboxLockedCullFrustum = SkyboxScene.MainCamera.ViewFrustum.Clone();
+                    }
                 }
                 else
                 {
                     lockedCullFrustum = null;
+                    skyboxLockedCullFrustum = null;
                 }
             });
 
@@ -178,7 +185,7 @@ namespace GUI.Types.Renderer
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
-                SkyboxScene.RenderWithCamera(skyboxCamera, lockedCullFrustum);
+                SkyboxScene.RenderWithCamera(skyboxCamera, skyboxLockedCullFrustum);
 
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
