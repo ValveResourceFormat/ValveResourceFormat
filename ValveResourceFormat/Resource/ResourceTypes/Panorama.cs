@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -14,19 +15,27 @@ namespace ValveResourceFormat.ResourceTypes
             public uint Unknown2 { get; set; } // TODO: unconfirmed
         }
 
-        public List<NameEntry> Names { get; }
+        public List<NameEntry> Names { get; } = new();
 
         public byte[] Data { get; private set; }
         public uint CRC32 { get; private set; }
 
-        public Panorama()
-        {
-            Names = new List<NameEntry>();
-        }
-
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
+
+            if (resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
+            {
+                var specialDeps = (SpecialDependencies)specialBlock;
+                var isPlaintext = specialDeps.List[0]?.CompilerIdentifier is "CompileJavaScript" or "CompileTypeScript";
+
+                if (isPlaintext)
+                {
+                    Data = reader.ReadBytes((int)Size);
+
+                    return;
+                }
+            }
 
             CRC32 = reader.ReadUInt32();
 
