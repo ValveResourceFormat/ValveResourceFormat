@@ -145,7 +145,7 @@ namespace GUI.Types.Renderer
 
             SetAvailableRenderModes();
 
-            if (ShowSkybox && SkyboxScene != null)
+            if (SkyboxScene != null)
             {
                 skyboxCamera.Scale = SkyboxScale;
             }
@@ -178,7 +178,7 @@ namespace GUI.Types.Renderer
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
-                SkyboxScene.RenderWithCamera(skyboxCamera);
+                SkyboxScene.RenderWithCamera(skyboxCamera, lockedCullFrustum);
 
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
@@ -271,6 +271,8 @@ namespace GUI.Types.Renderer
         protected void SetEnabledLayers(HashSet<string> layers)
         {
             Scene.SetEnabledLayers(layers);
+            SkyboxScene?.SetEnabledLayers(layers);
+
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
         }
 
