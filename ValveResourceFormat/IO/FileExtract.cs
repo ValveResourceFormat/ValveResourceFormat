@@ -208,9 +208,7 @@ namespace ValveResourceFormat.IO
             switch (resource.ResourceType)
             {
                 case ResourceType.PanoramaLayout: return "xml";
-                case ResourceType.PanoramaJavaScriptPlainText:
-                case ResourceType.PanoramaTypeScriptPlainText:
-                case ResourceType.PanoramaScript:
+                case ResourceType.PanoramaScript: return "js";
                 case ResourceType.PanoramaTypescript: return "js";
                 case ResourceType.PanoramaStyle: return "css";
                 case ResourceType.PanoramaVectorGraphic: return "svg";

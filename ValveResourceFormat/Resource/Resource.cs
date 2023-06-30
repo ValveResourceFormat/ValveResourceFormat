@@ -268,18 +268,13 @@ namespace ValveResourceFormat
                         EditInfo = (ResourceEditInfo)block;
 
                         // Try to determine resource type by looking at first compiler indentifier
-                        if (EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
+                        if (ResourceType == ResourceType.Unknown && EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
                         {
                             var specialDeps = (SpecialDependencies)specialBlock;
 
                             if (specialDeps.List.Count > 0)
                             {
-                                var resourceTypeByCompilerIdentifier = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0]);
-
-                                if (resourceTypeByCompilerIdentifier != ResourceType.Unknown)
-                                {
-                                    ResourceType = resourceTypeByCompilerIdentifier;
-                                }
+                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0]);
                             }
                         }
 
@@ -415,10 +410,6 @@ namespace ValveResourceFormat
 
                 case ResourceType.PanoramaLayout:
                     return new PanoramaLayout();
-
-                case ResourceType.PanoramaJavaScriptPlainText:
-                case ResourceType.PanoramaTypeScriptPlainText:
-                    return new Plaintext();
 
                 case ResourceType.Sound:
                     return new Sound();
@@ -563,10 +554,6 @@ namespace ValveResourceFormat
                         "Panorama Dynamic Images Compiler Version" => ResourceType.PanoramaDynamicImages,
                         _ => ResourceType.Panorama,
                     };
-                case "JavaScript":
-                    return ResourceType.PanoramaJavaScriptPlainText;
-                case "TypeScript":
-                    return ResourceType.PanoramaTypeScriptPlainText;
                 case "VectorGraphic":
                     return ResourceType.PanoramaVectorGraphic;
                 case "VCompMat":
