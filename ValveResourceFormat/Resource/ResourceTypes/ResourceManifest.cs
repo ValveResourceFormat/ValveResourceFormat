@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class ResourceManifest : ResourceData
     {
-        public List<List<string>> Resources { get; private set; }
+        public List<List<string>> Resources { get; private set; } = new();
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -32,14 +32,22 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
+            if (Size < 8)
+            {
+                throw new UnexpectedMagicException("Unknown size", Size, nameof(Size));
+            }
+
             var version = reader.ReadInt32();
 
             if (version != 8)
             {
+                if (version == 0 && reader.ReadInt32() == 0)
+                {
+                    return;
+                }
+
                 throw new UnexpectedMagicException("Unknown version", version, nameof(version));
             }
-
-            Resources = new List<List<string>>();
 
             var blockCount = reader.ReadInt32();
 
