@@ -860,7 +860,10 @@ namespace GUI
                 }
             }
 
-            var explorerTab = new TabPage("Explorer");
+            var explorerTab = new TabPage("Explorer")
+            {
+                ToolTipText = "Explorer"
+            };
             explorerTab.Controls.Add(new LoadingFile());
             explorerTab.ImageIndex = ImageList.Images.IndexOfKey("_folder_star");
             mainTabs.TabPages.Insert(1, explorerTab);

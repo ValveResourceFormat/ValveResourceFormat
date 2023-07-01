@@ -263,6 +263,7 @@ namespace GUI.Controls
                 {
                     ImageIndex = recentImage,
                     SelectedImageIndex = recentImage,
+                    ContextMenuStrip = recentFilesContextMenuStrip,
                 };
                 recentFilesTreeNode.Nodes.AddRange(recentFiles);
                 recentFilesTreeNode.Expand();
@@ -291,6 +292,15 @@ namespace GUI.Controls
                     UseShellExecute = true,
                     Verb = "open"
                 });
+            }
+        }
+        private void OnTreeViewNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Node.Tag != null && e.Button == MouseButtons.Right)
+            {
+                e.Node.TreeView.SelectedNode = e.Node;
+
+                fileContextMenuStrip.Show(e.Node.TreeView, e.Location);
             }
         }
 
@@ -359,6 +369,45 @@ namespace GUI.Controls
 
                 return toAdd;
             }).Reverse().ToArray();
+        }
+
+        private void OnClearRecentFilesClick(object sender, EventArgs e)
+        {
+            Settings.ClearRecentFiles();
+
+            var recentFilesNode = TreeData.Find(node => node.AppID == -1);
+            recentFilesNode.ParentNode.Nodes.Clear();
+            recentFilesNode.Children = Array.Empty<TreeNode>();
+        }
+
+        private void OnRevealInFileExplorerClick(object sender, EventArgs e)
+        {
+            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+
+            if (control.SelectedNode.Tag == null)
+            {
+                return;
+            }
+
+            var path = (string)control.SelectedNode.Tag;
+
+            if (File.Exists(path))
+            {
+                Process.Start(new ProcessStartInfo()
+                {
+                    FileName = "explorer.exe",
+                    Arguments = @$"/select, ""{path}"""
+                });
+            }
+            else if (Directory.Exists(path))
+            {
+                Process.Start(new ProcessStartInfo()
+                {
+                    FileName = path + Path.DirectorySeparatorChar,
+                    UseShellExecute = true,
+                    Verb = "open"
+                });
+            }
         }
     }
 }

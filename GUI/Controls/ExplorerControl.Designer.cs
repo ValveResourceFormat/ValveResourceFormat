@@ -28,8 +28,16 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            treeView = new GUI.Utils.TreeViewDoubleBuffered();
+            components = new System.ComponentModel.Container();
+            var resources = new System.ComponentModel.ComponentResourceManager(typeof(ExplorerControl));
+            treeView = new Utils.TreeViewDoubleBuffered();
             filterTextBox = new System.Windows.Forms.TextBox();
+            fileContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            revealInFileExplorerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            recentFilesContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            clearRecentFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            fileContextMenuStrip.SuspendLayout();
+            recentFilesContextMenuStrip.SuspendLayout();
             SuspendLayout();
             // 
             // treeView
@@ -39,6 +47,7 @@ namespace GUI.Controls
             treeView.Name = "treeView";
             treeView.Size = new System.Drawing.Size(581, 331);
             treeView.TabIndex = 2;
+            treeView.NodeMouseClick += OnTreeViewNodeMouseClick;
             treeView.NodeMouseDoubleClick += OnTreeViewNodeMouseDoubleClick;
             // 
             // filterTextBox
@@ -51,6 +60,34 @@ namespace GUI.Controls
             filterTextBox.TabIndex = 0;
             filterTextBox.TextChanged += OnFilterTextBoxTextChanged;
             // 
+            // fileContextMenuStrip
+            // 
+            fileContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { revealInFileExplorerToolStripMenuItem });
+            fileContextMenuStrip.Name = "fileContextMenuStrip";
+            fileContextMenuStrip.Size = new System.Drawing.Size(189, 26);
+            // 
+            // revealInFileExplorerToolStripMenuItem
+            // 
+            revealInFileExplorerToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("revealInFileExplorerToolStripMenuItem.Image");
+            revealInFileExplorerToolStripMenuItem.Name = "revealInFileExplorerToolStripMenuItem";
+            revealInFileExplorerToolStripMenuItem.Size = new System.Drawing.Size(188, 22);
+            revealInFileExplorerToolStripMenuItem.Text = "Reveal in File Explorer";
+            revealInFileExplorerToolStripMenuItem.Click += OnRevealInFileExplorerClick;
+            // 
+            // recentFilesContextMenuStrip
+            // 
+            recentFilesContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { clearRecentFilesToolStripMenuItem });
+            recentFilesContextMenuStrip.Name = "recentFilesContextMenuStrip";
+            recentFilesContextMenuStrip.Size = new System.Drawing.Size(162, 26);
+            // 
+            // clearRecentFilesToolStripMenuItem
+            // 
+            clearRecentFilesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("clearRecentFilesToolStripMenuItem.Image");
+            clearRecentFilesToolStripMenuItem.Name = "clearRecentFilesToolStripMenuItem";
+            clearRecentFilesToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
+            clearRecentFilesToolStripMenuItem.Text = "Clear recent files";
+            clearRecentFilesToolStripMenuItem.Click += OnClearRecentFilesClick;
+            // 
             // ExplorerControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -60,12 +97,18 @@ namespace GUI.Controls
             Name = "ExplorerControl";
             Size = new System.Drawing.Size(581, 354);
             VisibleChanged += OnVisibleChanged;
+            fileContextMenuStrip.ResumeLayout(false);
+            recentFilesContextMenuStrip.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
-        #endregion
 
-        private System.Windows.Forms.TreeView treeView;
+        #endregion
         private System.Windows.Forms.TextBox filterTextBox;
+        private System.Windows.Forms.ContextMenuStrip fileContextMenuStrip;
+        private Utils.TreeViewDoubleBuffered treeView;
+        private System.Windows.Forms.ToolStripMenuItem revealInFileExplorerToolStripMenuItem;
+        private System.Windows.Forms.ContextMenuStrip recentFilesContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem clearRecentFilesToolStripMenuItem;
     }
 }

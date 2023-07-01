@@ -134,6 +134,12 @@ namespace GUI.Utils
             Save();
         }
 
+        public static void ClearRecentFiles()
+        {
+            Config.RecentFiles.Clear();
+            Save();
+        }
+
         public static string GetSteamPath()
         {
             try
