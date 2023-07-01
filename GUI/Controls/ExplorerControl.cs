@@ -340,8 +340,17 @@ namespace GUI.Controls
         {
             return Settings.Config.RecentFiles.Select(path =>
             {
-                var imageIndex = MainForm.GetImageIndexForExtension(Path.GetExtension(path));
-                var toAdd = new TreeNode(path)
+                var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
+                var extension = Path.GetExtension(path);
+
+                if (extension == ".vpk" && pathDisplay.Contains("/maps/", StringComparison.InvariantCulture))
+                {
+                    extension = ".map";
+                }
+
+                var imageIndex = MainForm.GetImageIndexForExtension(extension);
+
+                var toAdd = new TreeNode(pathDisplay)
                 {
                     Tag = path,
                     ImageIndex = imageIndex,
