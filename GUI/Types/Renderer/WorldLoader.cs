@@ -499,9 +499,10 @@ namespace GUI.Types.Renderer
                 };
 
                 // Animation
+                var isAnimated = false;
                 {
                     modelNode.LoadAnimations();
-                    modelNode.SetAnimationForWorldPreview(animation);
+                    isAnimated = modelNode.SetAnimationForWorldPreview(animation);
 
                     var holdAnimation = entity.GetProperty("holdanimation");
                     if (holdAnimation != default)
@@ -547,7 +548,7 @@ namespace GUI.Types.Renderer
                     modelNode.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));
                 }
 
-                scene.Add(modelNode, animation != default);
+                scene.Add(modelNode, isAnimated);
 
                 var phys = newModel.GetEmbeddedPhys();
                 if (phys == null)
@@ -617,9 +618,9 @@ namespace GUI.Types.Renderer
                 };
 
                 modelNode.LoadAnimations();
-                modelNode.SetAnimationForWorldPreview("tools_preview");
+                var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
-                scene.Add(modelNode, false);
+                scene.Add(modelNode, isAnimated);
 
                 return modelNode;
             }

@@ -219,7 +219,7 @@ namespace GUI.Types.Renderer
             SetAnimation(activeAnimation);
         }
 
-        public void SetAnimationForWorldPreview(string animationName)
+        public bool SetAnimationForWorldPreview(string animationName)
         {
             Animation activeAnimation = null;
 
@@ -234,7 +234,10 @@ namespace GUI.Types.Renderer
             if (activeAnimation != null)
             {
                 SetAnimation(activeAnimation);
+                return true;
             }
+
+            return false;
         }
 
         public void SetAnimation(Animation activeAnimation)
