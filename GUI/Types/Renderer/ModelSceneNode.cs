@@ -302,7 +302,7 @@ namespace GUI.Types.Renderer
             var first = true;
             foreach (var mesh in meshRenderers)
             {
-                LocalBoundingBox = first ? mesh.BoundingBox : BoundingBox.Union(mesh.BoundingBox);
+                LocalBoundingBox = first ? mesh.BoundingBox : LocalBoundingBox.Union(mesh.BoundingBox);
                 first = false;
             }
         }
