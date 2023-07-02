@@ -46,8 +46,9 @@ namespace GUI.Controls
             var vpkImage = MainForm.ImageList.Images.IndexOfKey("vpk");
             var vcsImage = MainForm.ImageList.Images.IndexOfKey("vcs");
             var mapImage = MainForm.ImageList.Images.IndexOfKey("map");
-            var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
             var pluginImage = MainForm.ImageList.Images.IndexOfKey("_plugin");
+            var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder_gray");
+            var folderS2Image = MainForm.ImageList.Images.IndexOfKey("_folder");
 
             // Recent files
             {
@@ -140,6 +141,7 @@ namespace GUI.Controls
                 foreach (var (appID, appName, steamPath, gamePath) in gamePathsToScan)
                 {
                     var foundFiles = new List<TreeNode>();
+                    var isSource2 = false;
 
                     // Find all the vpks in game folder
                     var vpks = new FileSystemEnumerable<string>(
@@ -159,14 +161,19 @@ namespace GUI.Controls
 
                         var image = vpkImage;
                         var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
+                        var fileName = Path.GetFileName(vpkName);
 
-                        if (Path.GetFileName(vpkName).StartsWith("shaders_", StringComparison.Ordinal))
+                        if (fileName.StartsWith("shaders_", StringComparison.Ordinal))
                         {
                             image = vcsImage;
                         }
                         else if (vpkName.Contains("/maps/", StringComparison.Ordinal))
                         {
                             image = mapImage;
+                        }
+                        else if (!isSource2 && fileName.Equals("pak01_dir.vpk", StringComparison.Ordinal))
+                        {
+                            isSource2 = File.Exists(Path.Join(Path.GetDirectoryName(vpk), "gameinfo.gi"));
                         }
 
                         foundFiles.Add(new TreeNode(vpkName)
@@ -229,11 +236,12 @@ namespace GUI.Controls
                     var foundFilesArray = foundFiles.ToArray();
 
                     var treeNodeName = $"[{appID}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
+                    var treeNodeImage = isSource2 ? folderS2Image : folderImage;
                     var treeNode = new TreeNode(treeNodeName)
                     {
                         Tag = gamePath,
-                        ImageIndex = folderImage,
-                        SelectedImageIndex = folderImage,
+                        ImageIndex = treeNodeImage,
+                        SelectedImageIndex = treeNodeImage,
                     };
                     treeNode.Nodes.AddRange(foundFilesArray);
                     TreeData.Add((treeNode, appID, foundFilesArray));
