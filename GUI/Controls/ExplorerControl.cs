@@ -49,6 +49,23 @@ namespace GUI.Controls
             var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
             var pluginImage = MainForm.ImageList.Images.IndexOfKey("_plugin");
 
+            // Recent files
+            {
+                var recentFiles = GetRecentFileNodes();
+                var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
+                var recentFilesTreeNode = new TreeNode("Recent files")
+                {
+                    ImageIndex = recentImage,
+                    SelectedImageIndex = recentImage,
+                    ContextMenuStrip = recentFilesContextMenuStrip,
+                };
+                recentFilesTreeNode.Nodes.AddRange(recentFiles);
+                recentFilesTreeNode.Expand();
+
+                TreeData.Add((recentFilesTreeNode, -1, recentFiles));
+                treeView.Nodes.Add(recentFilesTreeNode);
+            }
+
             var steam = Settings.GetSteamPath();
 
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
@@ -65,17 +82,12 @@ namespace GUI.Controls
 
             foreach (var child in libraryFoldersKv.Children)
             {
-                steamPaths.Add(Path.GetFullPath(Path.Join(child["path"].ToString(), "steamapps")));
+                steamPaths.Add(Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps")));
             }
 
-            var enumerationOptions = new EnumerationOptions
-            {
-                RecurseSubdirectories = true,
-                MaxRecursionDepth = 5,
-                BufferSize = 65536,
-            };
+            var gamePathsToScan = new List<(int AppID, string AppName, string SteamPath, string GamePath)>();
 
-            Parallel.ForEach(steamPaths, (steamPath) =>
+            foreach (var steamPath in steamPaths)
             {
                 var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
 
@@ -93,22 +105,40 @@ namespace GUI.Controls
                         continue;
                     }
 
-                    var appId = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
-                    var appName = appManifestKv["name"].ToString();
-                    var installDir = appManifestKv["installdir"].ToString();
+                    var appID = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
+                    var appName = appManifestKv["name"].ToString(CultureInfo.InvariantCulture);
+                    var installDir = appManifestKv["installdir"].ToString(CultureInfo.InvariantCulture);
                     var gamePath = Path.Combine(steamPath, "common", installDir);
+
+                    if (appID is 1237970 or 1454890 or 1172470)
+                    {
+                        // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                        continue;
+                    }
 
                     if (!Directory.Exists(gamePath))
                     {
                         continue;
                     }
 
-                    if (appId is 1237970 or 1454890 or 1172470)
-                    {
-                        // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
-                        continue;
-                    }
+                    gamePathsToScan.Add((appID, appName, steamPath, gamePath));
+                }
+            }
 
+            // Scan for vpks
+            Task.Factory.StartNew(() =>
+            {
+                var enumerationOptions = new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    MaxRecursionDepth = 5,
+                    BufferSize = 65536,
+                };
+
+                gamePathsToScan.Sort((a, b) => a.AppID - b.AppID);
+
+                foreach (var (appID, appName, steamPath, gamePath) in gamePathsToScan)
+                {
                     var foundFiles = new List<TreeNode>();
 
                     // Find all the vpks in game folder
@@ -155,9 +185,8 @@ namespace GUI.Controls
                     // Find workshop content
                     try
                     {
-
                         KVObject workshopInfo;
-                        var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appId}.acf");
+                        var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appID}.acf");
 
                         if (File.Exists(workshopManifest))
                         {
@@ -168,7 +197,7 @@ namespace GUI.Controls
 
                             foreach (var item in (IEnumerable<KVObject>)workshopInfo["WorkshopItemsInstalled"])
                             {
-                                var addonPath = Path.Join(steamPath, "workshop", "content", appId.ToString(), item.Name);
+                                var addonPath = Path.Join(steamPath, "workshop", "content", appID.ToString(CultureInfo.InvariantCulture), item.Name);
                                 var publishDataPath = Path.Join(addonPath, "publish_data.txt");
                                 var vpk = Path.Join(addonPath, $"{item.Name}.vpk");
 
@@ -199,7 +228,7 @@ namespace GUI.Controls
                     foundFiles.Sort((a, b) => string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase));
                     var foundFilesArray = foundFiles.ToArray();
 
-                    var treeNodeName = $"[{appId}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
+                    var treeNodeName = $"[{appID}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
                     var treeNode = new TreeNode(treeNodeName)
                     {
                         Tag = gamePath,
@@ -207,34 +236,34 @@ namespace GUI.Controls
                         SelectedImageIndex = folderImage,
                     };
                     treeNode.Nodes.AddRange(foundFilesArray);
-                    treeNode.Expand();
+                    TreeData.Add((treeNode, appID, foundFilesArray));
 
-                    lock (TreeData)
+                    InvokeWorkaround(() =>
                     {
-                        TreeData.Add((treeNode, appId, foundFilesArray));
-                    }
+                        treeView.BeginUpdate();
+                        treeView.Nodes.Add(treeNode);
+                        treeView.EndUpdate();
+                    });
                 }
-            });
-
-            // Recent files
+            }).ContinueWith(t =>
             {
-                var recentFiles = GetRecentFileNodes();
-                var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
-                var recentFilesTreeNode = new TreeNode("Recent files")
+                if (t.Exception != null)
                 {
-                    ImageIndex = recentImage,
-                    SelectedImageIndex = recentImage,
-                    ContextMenuStrip = recentFilesContextMenuStrip,
-                };
-                recentFilesTreeNode.Nodes.AddRange(recentFiles);
-                recentFilesTreeNode.Expand();
+                    Console.WriteLine(t.Exception.ToString());
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+        }
 
-                TreeData.Add((recentFilesTreeNode, -1, recentFiles));
+        private void InvokeWorkaround(Action action)
+        {
+            if (treeView.InvokeRequired)
+            {
+                treeView.Invoke(action);
             }
-
-            TreeData.Sort((a, b) => a.AppID - b.AppID);
-
-            treeView.Nodes.AddRange(TreeData.Select(node => node.ParentNode).ToArray());
+            else
+            {
+                action();
+            }
         }
 
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -255,6 +284,7 @@ namespace GUI.Controls
                 });
             }
         }
+
         private void OnTreeViewNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
         {
             if (e.Node.Tag != null && e.Button == MouseButtons.Right)
