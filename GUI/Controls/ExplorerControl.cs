@@ -98,93 +98,48 @@ namespace GUI.Controls
                     var installDir = appManifestKv["installdir"].ToString();
 
                     var gamePath = Path.Combine(steamPath, "common", installDir);
-                    var allFoundGamePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     if (!Directory.Exists(gamePath))
                     {
                         continue;
                     }
 
-                    // Find all the gameinfo.gi files, open them to get game paths
-                    var gameInfos = new FileSystemEnumerable<string>(
+                    var foundFiles = new List<TreeNode>();
+
+                    // Find all the vpks in game folder
+                    var vpks = new FileSystemEnumerable<string>(
                         gamePath,
                         (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
                         enumerationOptions)
                     {
-                        ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Equals("gameinfo.gi", StringComparison.Ordinal)
+                        ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && Path.GetExtension(entry.FileName).Equals(".vpk", StringComparison.Ordinal)
                     };
 
-                    foreach (var file in gameInfos)
+                    foreach (var vpk in vpks)
                     {
-                        KVObject gameInfo;
-
-                        try
-                        {
-                            using var stream = File.OpenRead(file);
-                            gameInfo = kvDeserializer.Deserialize(stream);
-                        }
-                        catch (Exception)
+                        if (Regexes.VpkNumberArchive.IsMatch(vpk))
                         {
                             continue;
                         }
 
-                        var gameRoot = Path.GetDirectoryName(Path.GetDirectoryName(file));
+                        var image = vpkImage;
+                        var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
 
-                        foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
+                        if (Path.GetFileName(vpkName).StartsWith("shaders_", StringComparison.Ordinal))
                         {
-                            if (searchPath.Name != "Game")
-                            {
-                                continue;
-                            }
-
-                            var path = Path.Combine(gameRoot, searchPath.Value.ToString());
-
-                            if (Directory.Exists(path))
-                            {
-                                allFoundGamePaths.Add(path);
-                            }
+                            image = vcsImage;
                         }
-                    }
-
-                    var foundFiles = new List<TreeNode>();
-
-                    // Find all the vpks in the game paths found above
-                    foreach (var path in allFoundGamePaths)
-                    {
-                        var vpks = new FileSystemEnumerable<string>(
-                            path,
-                            (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
-                            enumerationOptions)
+                        else if (vpkName.Contains("/maps/", StringComparison.Ordinal))
                         {
-                            ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && Path.GetExtension(entry.FileName).Equals(".vpk", StringComparison.Ordinal)
-                        };
-
-                        foreach (var vpk in vpks)
-                        {
-                            if (Regexes.VpkNumberArchive.IsMatch(vpk))
-                            {
-                                continue;
-                            }
-
-                            var image = vpkImage;
-
-                            if (Path.GetFileName(vpk).StartsWith("shaders_", StringComparison.Ordinal))
-                            {
-                                image = vcsImage;
-                            }
-                            else if (vpk[path.Length..].StartsWith($"{Path.DirectorySeparatorChar}maps{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-                            {
-                                image = mapImage;
-                            }
-
-                            var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
-                            foundFiles.Add(new TreeNode(vpkName)
-                            {
-                                Tag = vpk,
-                                ImageIndex = image,
-                                SelectedImageIndex = image,
-                            });
+                            image = mapImage;
                         }
+
+                        foundFiles.Add(new TreeNode(vpkName)
+                        {
+                            Tag = vpk,
+                            ImageIndex = image,
+                            SelectedImageIndex = image,
+                        });
                     }
 
                     if (foundFiles.Count == 0)
@@ -356,7 +311,7 @@ namespace GUI.Controls
                 var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
                 var extension = Path.GetExtension(path);
 
-                if (extension == ".vpk" && pathDisplay.Contains("/maps/", StringComparison.InvariantCulture))
+                if (extension == ".vpk" && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
                 {
                     extension = ".map";
                 }
