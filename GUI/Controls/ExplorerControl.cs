@@ -72,13 +72,14 @@ namespace GUI.Controls
             {
                 RecurseSubdirectories = true,
                 MaxRecursionDepth = 5,
+                BufferSize = 65536,
             };
 
-            foreach (var steamPath in steamPaths)
+            Parallel.ForEach(steamPaths, (steamPath) =>
             {
                 var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
 
-                Parallel.ForEach(manifests, (appManifestPath) =>
+                foreach (var appManifestPath in manifests)
                 {
                     KVObject appManifestKv;
 
@@ -89,7 +90,7 @@ namespace GUI.Controls
                     }
                     catch (Exception)
                     {
-                        return;
+                        continue;
                     }
 
                     var appId = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
@@ -101,7 +102,7 @@ namespace GUI.Controls
 
                     if (!Directory.Exists(gamePath))
                     {
-                        return;
+                        continue;
                     }
 
                     // Find all the gameinfo.gi files, open them to get game paths
@@ -188,7 +189,7 @@ namespace GUI.Controls
 
                     if (foundFiles.Count == 0)
                     {
-                        return;
+                        continue;
                     }
 
                     // Find workshop content
@@ -252,8 +253,8 @@ namespace GUI.Controls
                     {
                         TreeData.Add((treeNode, appId, foundFilesArray));
                     }
-                });
-            }
+                }
+            });
 
             // Recent files
             {
@@ -339,11 +340,13 @@ namespace GUI.Controls
                 return;
             }
 
+            treeView.BeginUpdate();
             var recentFiles = GetRecentFileNodes();
             var recentFilesNode = TreeData.Find(node => node.AppID == -1);
             recentFilesNode.ParentNode.Nodes.Clear();
             recentFilesNode.ParentNode.Nodes.AddRange(recentFiles);
             recentFilesNode.Children = recentFiles;
+            treeView.EndUpdate();
         }
 
         private static TreeNode[] GetRecentFileNodes()
