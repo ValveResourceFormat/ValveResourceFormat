@@ -96,11 +96,16 @@ namespace GUI.Controls
                     var appId = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
                     var appName = appManifestKv["name"].ToString();
                     var installDir = appManifestKv["installdir"].ToString();
-
                     var gamePath = Path.Combine(steamPath, "common", installDir);
 
                     if (!Directory.Exists(gamePath))
                     {
+                        continue;
+                    }
+
+                    if (appId is 1237970 or 1454890 or 1172470)
+                    {
+                        // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
                         continue;
                     }
 
