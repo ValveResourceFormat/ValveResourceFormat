@@ -788,9 +788,14 @@ namespace GUI
             // Clicking context menu item in right side of the package view
             else if (owner.SourceControl is BetterListView listView)
             {
-                foreach (ListViewItem selectedNode in listView.SelectedItems)
+                if (listView.SelectedItems.Count > 1)
                 {
-                    ExportFile.ExtractFilesFromTreeNode((BetterTreeNode)selectedNode.Tag, listView.VrfGuiContext, decompile);
+                    // We're selecting multiple files
+                    ExportFile.ExtractFilesFromListViewNodes(listView.SelectedItems, listView.VrfGuiContext, decompile);
+                }
+                else
+                {
+                    ExportFile.ExtractFilesFromTreeNode((BetterTreeNode)listView.SelectedItems[0].Tag, listView.VrfGuiContext, decompile);
                 }
             }
             // Clicking context menu item when right clicking a tab

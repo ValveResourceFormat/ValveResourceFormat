@@ -154,5 +154,37 @@ namespace GUI.Types.Exporter
                 extractDialog.ShowDialog();
             }
         }
+
+        public static void ExtractFilesFromListViewNodes(BetterListView.SelectedListViewItemCollection items, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            using var dialog = new FolderBrowserDialog
+            {
+                InitialDirectory = Settings.Config.SaveDirectory,
+            };
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+
+            Settings.Config.SaveDirectory = dialog.SelectedPath;
+            Settings.Save();
+
+            var exportData = new ExportData
+            {
+                VrfGuiContext = vrfGuiContext,
+            };
+
+            var extractDialog = new ExtractProgressForm(exportData, dialog.SelectedPath, decompile);
+
+            // When queuing files this way, it'll preserve the original tree
+            // which is probably unwanted behaviour? It works tho /shrug
+            foreach (ListViewItem item in items)
+            {
+                extractDialog.QueueFiles((BetterTreeNode)item.Tag);
+            }
+
+            extractDialog.ShowDialog();
+        }
     }
 }
