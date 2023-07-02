@@ -308,6 +308,8 @@ namespace GUI.Controls
             treeView.BeginUpdate();
             treeView.Nodes.Clear();
 
+            treeView.ShowPlusMinus = filterTextBox.Text.Length == 0;
+
             var foundNodes = new List<TreeNode>(TreeData.Count);
 
             foreach (var node in TreeData)
@@ -321,6 +323,11 @@ namespace GUI.Controls
 
                 if (foundChildren.Any())
                 {
+                    if (!node.ParentNode.IsExpanded)
+                    {
+                        node.ParentNode.Expand();
+                    }
+
                     node.ParentNode.Nodes.AddRange(foundChildren);
                     foundNodes.Add(node.ParentNode);
                 }
