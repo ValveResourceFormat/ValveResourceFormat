@@ -20,10 +20,6 @@ namespace GUI.Controls
         {
             InitializeComponent();
 
-#if DEBUG
-            var timer = Stopwatch.StartNew();
-#endif
-
             try
             {
                 treeView.BeginUpdate();
@@ -34,11 +30,6 @@ namespace GUI.Controls
             {
                 treeView.EndUpdate();
             }
-
-#if DEBUG
-            timer.Stop();
-            Console.WriteLine($"Explorer scan time: {timer.Elapsed}");
-#endif
         }
 
         private void Scan()
@@ -49,11 +40,11 @@ namespace GUI.Controls
             var pluginImage = MainForm.ImageList.Images.IndexOfKey("_plugin");
             var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder_gray");
             var folderS2Image = MainForm.ImageList.Images.IndexOfKey("_folder");
+            var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
 
             // Recent files
             {
                 var recentFiles = GetRecentFileNodes();
-                var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
                 var recentFilesTreeNode = new TreeNode("Recent files")
                 {
                     ImageIndex = recentImage,
@@ -67,64 +58,77 @@ namespace GUI.Controls
                 treeView.Nodes.Add(recentFilesTreeNode);
             }
 
-            var steam = Settings.GetSteamPath();
-
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-
-            var libraryfolders = Path.Join(steam, "libraryfolders.vdf");
-            KVObject libraryFoldersKv;
-
-            using (var libraryFoldersStream = File.OpenRead(libraryfolders))
-            {
-                libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
-            }
-
-            var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steam };
-
-            foreach (var child in libraryFoldersKv.Children)
-            {
-                steamPaths.Add(Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps")));
-            }
-
             var gamePathsToScan = new List<(int AppID, string AppName, string SteamPath, string GamePath)>();
 
-            foreach (var steamPath in steamPaths)
+            // Find game folders
             {
-                var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
+                var steam = Settings.GetSteamPath();
+                var libraryfolders = Path.Join(steam, "libraryfolders.vdf");
+                KVObject libraryFoldersKv;
 
-                foreach (var appManifestPath in manifests)
+                using (var libraryFoldersStream = File.OpenRead(libraryfolders))
                 {
-                    KVObject appManifestKv;
+                    libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
+                }
 
-                    try
+                var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steam };
+
+                foreach (var child in libraryFoldersKv.Children)
+                {
+                    steamPaths.Add(Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps")));
+                }
+
+                foreach (var steamPath in steamPaths)
+                {
+                    var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
+
+                    foreach (var appManifestPath in manifests)
                     {
-                        using var appManifestStream = File.OpenRead(appManifestPath);
-                        appManifestKv = kvDeserializer.Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
-                    }
-                    catch (Exception)
-                    {
-                        continue;
-                    }
+                        KVObject appManifestKv;
 
-                    var appID = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
-                    var appName = appManifestKv["name"].ToString(CultureInfo.InvariantCulture);
-                    var installDir = appManifestKv["installdir"].ToString(CultureInfo.InvariantCulture);
-                    var gamePath = Path.Combine(steamPath, "common", installDir);
+                        try
+                        {
+                            using var appManifestStream = File.OpenRead(appManifestPath);
+                            appManifestKv = kvDeserializer.Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
 
-                    if (appID is 1237970 or 1454890 or 1172470)
-                    {
-                        // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
-                        continue;
+                        var appID = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
+                        var appName = appManifestKv["name"].ToString(CultureInfo.InvariantCulture);
+                        var installDir = appManifestKv["installdir"].ToString(CultureInfo.InvariantCulture);
+                        var gamePath = Path.Combine(steamPath, "common", installDir);
+
+                        if (appID is 1237970 or 1454890 or 1172470)
+                        {
+                            // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                            continue;
+                        }
+
+                        if (!Directory.Exists(gamePath))
+                        {
+                            continue;
+                        }
+
+                        gamePathsToScan.Add((appID, appName, steamPath, gamePath));
                     }
-
-                    if (!Directory.Exists(gamePath))
-                    {
-                        continue;
-                    }
-
-                    gamePathsToScan.Add((appID, appName, steamPath, gamePath));
                 }
             }
+
+            if (!gamePathsToScan.Any())
+            {
+                return;
+            }
+
+            var scanningTreeNode = new TreeNode("Scanning game folders…")
+            {
+                ImageIndex = recentImage,
+                SelectedImageIndex = recentImage,
+            };
+            treeView.Nodes.Add(scanningTreeNode);
 
             // Scan for vpks
             Task.Factory.StartNew(() =>
@@ -249,17 +253,25 @@ namespace GUI.Controls
                     InvokeWorkaround(() =>
                     {
                         treeView.BeginUpdate();
-                        treeView.Nodes.Add(treeNode);
+                        treeView.Nodes.Insert(treeView.Nodes.Count - 1, treeNode);
                         treeView.EndUpdate();
                     });
                 }
             }).ContinueWith(t =>
             {
-                if (t.Exception != null)
+                InvokeWorkaround(() =>
                 {
-                    Console.WriteLine(t.Exception.ToString());
-                }
-            }, TaskContinuationOptions.OnlyOnFaulted);
+                    if (t.Exception != null)
+                    {
+                        scanningTreeNode.Text = t.Exception.Message;
+                        Console.WriteLine(t.Exception.ToString());
+                    }
+                    else
+                    {
+                        scanningTreeNode.Remove();
+                    }
+                });
+            });
         }
 
         private void InvokeWorkaround(Action action)
