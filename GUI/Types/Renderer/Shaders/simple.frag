@@ -31,13 +31,16 @@
 #define F_UNLIT 0
 #define F_TINT_MASK 0
 #define F_ALPHA_TEST 0
+#define F_TRANSLUCENT 0
 #define F_GLASS 0
 #define F_LAYERS 0
 #define F_FANCY_BLENDING 0
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
 #define F_METALNESS_TEXTURE 0
+#define F_RETRO_REFLECTIVE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
+#define F_ANISOTROPIC_GLOSS 0
 #define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
@@ -120,8 +123,15 @@ uniform float g_flOpacityScale = 1.0;
 
 #define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
+#define hasMetalnessTexture defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))
+#define hasAnisoGloss defined(complex) && (F_ANISOTROPIC_GLOSS == 1)
+
 #if hasUniformMetalness
     uniform float g_flMetalness = 0.0;
+#endif
+
+#if hasMetalnessTexture
+    uniform sampler2D g_tMetalness;
 #endif
 
 #if (F_FANCY_BLENDING > 0)
@@ -140,8 +150,12 @@ uniform float g_flOpacityScale = 1.0;
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
-#if defined(csgo_foliage) || (defined(vr_simple) && F_AMBIENT_OCCLUSION_TEXTURE == 1 && F_METALNESS_TEXTURE == 1)
+#if defined(csgo_foliage) || (defined(vr_simple) && F_AMBIENT_OCCLUSION_TEXTURE == 1 && F_METALNESS_TEXTURE == 1) || defined(vr_complex) // csgo_complex too?
     uniform sampler2D g_tAmbientOcclusion;
+#endif
+
+#if hasAnisoGloss
+    uniform sampler2D g_tAnisoGloss;
 #endif
 
 vec3 oct_to_float32x3(vec2 e)
@@ -229,7 +243,7 @@ void main()
 
 #if F_TINT_MASK == 1
     float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
-    vec3 tintFactor = tintStrength * vVertexColorOut.rgb + (1 - tintStrength) * vec3(1);
+    vec3 tintFactor = tintStrength * vVertexColorOut.rgb + (1 - tintStrength);
 #else
     vec3 tintFactor = vVertexColorOut.rgb;
 #endif
@@ -245,7 +259,9 @@ void main()
 
     vec3 irradiance = vec3(0.3);
     vec3 Lo = vec3(0.0);
-    
+
+
+    // Define PBR parameters
 #if defined(csgo_character)
     metalness = texture(g_tMetalness, texCoord).g;
     // b = cloth, a = rimmask
@@ -260,8 +276,16 @@ void main()
     metalness = g_flMetalness;
 #elif (hasColorAlphaMetalness)
     metalness = color.a;
+#elif (hasMetalnessTexture)
+    metalness = texture(g_tMetalness, texCoord).g;
 #elif (defined(simple_2way_blend))
     metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
+#endif
+
+#if hasAnisoGloss
+    vec2 anisoGloss = texture(g_tAnisoGloss, texCoord).rg;
+    // convert to iso roughness. temp solution
+    roughness = (anisoGloss.r + anisoGloss.g) / 2.0;
 #endif
 
 #if defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1)
@@ -272,7 +296,11 @@ void main()
     #endif
 #endif
 
-    roughness = clamp(roughness, 0.005, 1.0);
+#if defined(vr_complex)
+    occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+#endif
+
+    roughness = clamp(roughness, 0.005, 1.0); // <- inaccurate?
 
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal);
@@ -372,11 +400,11 @@ void main()
 #endif
 
 #if renderMode_Tangents == 1
-    outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
 #endif
 
 #if renderMode_Normals == 1
-    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vNormalOut), 1.0);
 #endif
 
 #if renderMode_BumpNormals == 1
