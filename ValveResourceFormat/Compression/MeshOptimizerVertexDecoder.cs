@@ -30,19 +30,23 @@ namespace ValveResourceFormat.Compression
 
         private static Span<byte> DecodeBytesGroup(Span<byte> data, Span<byte> destination, int bitslog2)
         {
-            var dataOffset = 0;
             int dataVar;
             byte b;
+            byte enc;
 
-            byte Next(int bits, byte encv)
+            byte Next(byte bits, byte encv)
             {
-                var enc = b >> (8 - bits);
+                enc = b;
+                enc >>= 8 - bits;
                 b <<= bits;
 
-                var isSame = enc == (1 << bits) - 1;
+                if (enc == (1 << bits) - 1)
+                {
+                    dataVar += 1;
+                    return encv;
+                }
 
-                dataVar += isSame ? 1 : 0;
-                return isSame ? encv : (byte)enc;
+                return enc;
             }
 
             switch (bitslog2)
@@ -57,25 +61,25 @@ namespace ValveResourceFormat.Compression
                 case 1:
                     dataVar = 4;
 
-                    b = data[dataOffset++];
+                    b = data[0];
                     destination[0] = Next(2, data[dataVar]);
                     destination[1] = Next(2, data[dataVar]);
                     destination[2] = Next(2, data[dataVar]);
                     destination[3] = Next(2, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[1];
                     destination[4] = Next(2, data[dataVar]);
                     destination[5] = Next(2, data[dataVar]);
                     destination[6] = Next(2, data[dataVar]);
                     destination[7] = Next(2, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[2];
                     destination[8] = Next(2, data[dataVar]);
                     destination[9] = Next(2, data[dataVar]);
                     destination[10] = Next(2, data[dataVar]);
                     destination[11] = Next(2, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[3];
                     destination[12] = Next(2, data[dataVar]);
                     destination[13] = Next(2, data[dataVar]);
                     destination[14] = Next(2, data[dataVar]);
@@ -85,35 +89,35 @@ namespace ValveResourceFormat.Compression
                 case 2:
                     dataVar = 8;
 
-                    b = data[dataOffset++];
+                    b = data[0];
                     destination[0] = Next(4, data[dataVar]);
                     destination[1] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[1];
                     destination[2] = Next(4, data[dataVar]);
                     destination[3] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[2];
                     destination[4] = Next(4, data[dataVar]);
                     destination[5] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[3];
                     destination[6] = Next(4, data[dataVar]);
                     destination[7] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[4];
                     destination[8] = Next(4, data[dataVar]);
                     destination[9] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[5];
                     destination[10] = Next(4, data[dataVar]);
                     destination[11] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[6];
                     destination[12] = Next(4, data[dataVar]);
                     destination[13] = Next(4, data[dataVar]);
 
-                    b = data[dataOffset++];
+                    b = data[7];
                     destination[14] = Next(4, data[dataVar]);
                     destination[15] = Next(4, data[dataVar]);
 
