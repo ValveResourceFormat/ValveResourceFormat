@@ -3,6 +3,7 @@
 //Includes - resolved by VRF
 #include "compression.incl"
 #include "animation.incl"
+#include "common/utils.glsl"
 //End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -109,6 +110,8 @@ void main()
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+    //vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
+    //vPerVertexLightingOut = pow2(Light);
     vPerVertexLightingOut = vPerVertexLighting;
 #endif
 
