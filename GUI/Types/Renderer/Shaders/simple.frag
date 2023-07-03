@@ -105,9 +105,6 @@ uniform sampler2D g_tTintMask;
 #include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
-uniform vec4 g_vTexCoordOffset;
-uniform vec4 g_vTexCoordScale;
-
 uniform float g_flAlphaTestReference = 0.5;
 
 // glass specific params
@@ -195,7 +192,8 @@ vec3 calculateWorldNormal(vec4 bumpNormal)
 
 void main()
 {
-    vec2 texCoord = vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
+    vec2 texCoord = vTexCoordOut;
+
     vec4 color = texture(g_tColor, texCoord);
     vec4 normal = texture(g_tNormal, texCoord);
 
@@ -242,7 +240,7 @@ void main()
 #endif
 
 #if F_TINT_MASK == 1
-    float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
+    float tintStrength = texture(g_tTintMask, texCoord).x;
     vec3 tintFactor = tintStrength * vVertexColorOut.rgb + (1 - tintStrength);
 #else
     vec3 tintFactor = vVertexColorOut.rgb;
