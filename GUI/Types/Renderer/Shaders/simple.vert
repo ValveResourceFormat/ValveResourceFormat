@@ -65,6 +65,11 @@ uniform vec4 g_vColorTint = vec4(1.0);
 uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
 
+uniform vec4 g_vTexCoordOffset;
+uniform vec4 g_vTexCoordScale;
+uniform vec4 g_vTexCoordScrollSpeed;
+uniform float g_flTime;
+
 void main()
 {
     mat4 skinTransform = transform * getSkinMatrix();
@@ -86,7 +91,7 @@ void main()
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
 
-    vTexCoordOut = vTEXCOORD;
+	vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale, 0);
