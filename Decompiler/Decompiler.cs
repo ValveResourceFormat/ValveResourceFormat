@@ -103,7 +103,7 @@ namespace Decompiler
         [Option("--stats_unique_deps", "When using --stats, print all unique dependencies that were found.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool StatsPrintUniqueDependencies { get; }
 
-        [Option("--stats_particles", "When using --stats, collect particle operators, renderers, emitters, initiliazers.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        [Option("--stats_particles", "When using --stats, collect particle operators, renderers, emitters, initializers.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool StatsCollectParticles { get; }
 
         [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
