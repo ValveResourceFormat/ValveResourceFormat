@@ -61,14 +61,27 @@ out vec2 vTexCoordOut;
 uniform vec4 m_vTintColorSceneObject;
 uniform vec3 m_vTintColorDrawCall;
 uniform vec4 g_vColorTint = vec4(1.0);
+uniform float g_flModelTintAmount = 1.0;
+uniform float g_flFadeExponent = 1.0;
 
 uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
 
 uniform vec4 g_vTexCoordOffset;
-uniform vec4 g_vTexCoordScale;
+uniform vec4 g_vTexCoordScale = vec4(1.0);
 uniform vec4 g_vTexCoordScrollSpeed;
 uniform float g_flTime;
+
+
+vec4 GetTintColor()
+{
+    vec4 TintFade = vec4(1.0);
+#if F_NOTINT == 0
+    TintFade.rgb = mix(vec3(1.0), m_vTintColorSceneObject.rgb * m_vTintColorDrawCall * g_vColorTint.rgb, g_flModelTintAmount);
+#endif
+    TintFade.a = pow(m_vTintColorSceneObject.a * g_vColorTint.a, g_flFadeExponent);
+    return TintFade;
+}
 
 void main()
 {
@@ -99,11 +112,7 @@ void main()
     vPerVertexLightingOut = vPerVertexLighting;
 #endif
 
-    vVertexColorOut = vec4(1.0);
-#if F_NOTINT == 0
-    vVertexColorOut.rgb *= m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
-    vVertexColorOut.rgb *= g_vColorTint.rgb;
-#endif
+    vVertexColorOut = GetTintColor();
 
 #if F_VERTEX_COLOR == 1
     //vVertexColorOut *= vCOLOR;
