@@ -3,6 +3,7 @@
 // Includes
 #include "common/utils.glsl"
 #include "common/rendermodes.glsl"
+#include "common/texturing.glsl"
 
 // Render modes -- Switched on/off by code
 #define renderMode_PBR 0
@@ -297,6 +298,8 @@ void main()
 #if defined(vr_complex)
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
 #endif
+
+    roughness = AdjustRoughnessByGeometricNormal(roughness, vNormalOut);
 
     roughness = clamp(roughness, 0.005, 1.0); // <- inaccurate?
 
