@@ -91,7 +91,7 @@ namespace GUI.Utils
 
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Config.OpenDirectory = Path.Join(GetSteamPath(), "common");
+                Config.OpenDirectory = Path.Join(GetSteamPath(), "steamapps", "common");
             }
 
             if (Config.MaxTextureSize <= 0)
@@ -150,7 +150,7 @@ namespace GUI.Utils
 
                 if (key?.GetValue("SteamPath") is string steamPath)
                 {
-                    return Path.GetFullPath(Path.Combine(steamPath, "steamapps"));
+                    return Path.GetFullPath(steamPath);
                 }
             }
             catch

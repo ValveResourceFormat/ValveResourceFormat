@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
@@ -20,16 +22,9 @@ namespace GUI.Controls
         {
             InitializeComponent();
 
-            try
-            {
-                treeView.BeginUpdate();
-                treeView.ImageList = MainForm.ImageList;
-                Scan();
-            }
-            finally
-            {
-                treeView.EndUpdate();
-            }
+            treeView.ImageList = MainForm.ImageList;
+
+            Scan();
         }
 
         private void Scan()
@@ -38,8 +33,7 @@ namespace GUI.Controls
             var vcsImage = MainForm.ImageList.Images.IndexOfKey("vcs");
             var mapImage = MainForm.ImageList.Images.IndexOfKey("map");
             var pluginImage = MainForm.ImageList.Images.IndexOfKey("_plugin");
-            var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder_gray");
-            var folderS2Image = MainForm.ImageList.Images.IndexOfKey("_folder");
+            var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
             var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
 
             // Recent files
@@ -58,13 +52,13 @@ namespace GUI.Controls
                 treeView.Nodes.Add(recentFilesTreeNode);
             }
 
+            var steam = Settings.GetSteamPath();
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
             var gamePathsToScan = new List<(int AppID, string AppName, string SteamPath, string GamePath)>();
 
             // Find game folders
             {
-                var steam = Settings.GetSteamPath();
-                var libraryfolders = Path.Join(steam, "libraryfolders.vdf");
+                var libraryfolders = Path.Join(steam, "steamapps", "libraryfolders.vdf");
                 KVObject libraryFoldersKv;
 
                 using (var libraryFoldersStream = File.OpenRead(libraryfolders))
@@ -145,7 +139,6 @@ namespace GUI.Controls
                 foreach (var (appID, appName, steamPath, gamePath) in gamePathsToScan)
                 {
                     var foundFiles = new List<TreeNode>();
-                    var isSource2 = false;
 
                     // Find all the vpks in game folder
                     var vpks = new FileSystemEnumerable<string>(
@@ -153,16 +146,19 @@ namespace GUI.Controls
                         (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
                         enumerationOptions)
                     {
-                        ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && Path.GetExtension(entry.FileName).Equals(".vpk", StringComparison.Ordinal)
+                        ShouldIncludePredicate = static (ref FileSystemEntry entry) =>
+                        {
+                            if (entry.IsDirectory)
+                            {
+                                return false;
+                            }
+
+                            return entry.FileName.EndsWith(".vpk", StringComparison.Ordinal) && !Regexes.VpkNumberArchive.IsMatch(entry.FileName);
+                        }
                     };
 
                     foreach (var vpk in vpks)
                     {
-                        if (Regexes.VpkNumberArchive.IsMatch(vpk))
-                        {
-                            continue;
-                        }
-
                         var image = vpkImage;
                         var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
                         var fileName = Path.GetFileName(vpkName);
@@ -174,10 +170,6 @@ namespace GUI.Controls
                         else if (vpkName.Contains("/maps/", StringComparison.Ordinal))
                         {
                             image = mapImage;
-                        }
-                        else if (!isSource2 && fileName.Equals("pak01_dir.vpk", StringComparison.Ordinal))
-                        {
-                            isSource2 = File.Exists(Path.Join(Path.GetDirectoryName(vpk), "gameinfo.gi"));
                         }
 
                         foundFiles.Add(new TreeNode(vpkName)
@@ -239,8 +231,32 @@ namespace GUI.Controls
                     foundFiles.Sort((a, b) => string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase));
                     var foundFilesArray = foundFiles.ToArray();
 
+                    var imageKey = $"@app{appID}";
+                    var treeNodeImage = treeView.ImageList.Images.IndexOfKey(imageKey);
+
+                    if (treeNodeImage < 0)
+                    {
+                        treeNodeImage = folderImage;
+
+                        try
+                        {
+                            var appIconPath = Path.Join(steam, "appcache", "librarycache", $"{appID}_icon.jpg");
+                            var appIcon = GetAppResizedImage(appIconPath);
+
+                            InvokeWorkaround(() =>
+                            {
+                                treeView.ImageList.Images.Add(imageKey, appIcon);
+                            });
+
+                            treeNodeImage = treeView.ImageList.Images.IndexOfKey(imageKey);
+                        }
+                        catch (Exception)
+                        {
+                            //
+                        }
+                    }
+
                     var treeNodeName = $"[{appID}] {appName} - {gamePath.Replace(Path.DirectorySeparatorChar, '/')}";
-                    var treeNodeImage = isSource2 ? folderS2Image : folderImage;
                     var treeNode = new TreeNode(treeNodeName)
                     {
                         Tag = gamePath,
@@ -428,6 +444,24 @@ namespace GUI.Controls
                     Verb = "open"
                 });
             }
+        }
+
+        private Image GetAppResizedImage(string path)
+        {
+            var originalImage = Image.FromFile(path);
+
+            var destRect = new Rectangle(0, 0, treeView.ImageList.ImageSize.Width, treeView.ImageList.ImageSize.Height);
+            var destImage = new Bitmap(treeView.ImageList.ImageSize.Width, treeView.ImageList.ImageSize.Height);
+
+            destImage.SetResolution(originalImage.HorizontalResolution, originalImage.VerticalResolution);
+
+            using var graphics = Graphics.FromImage(destImage);
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            graphics.SmoothingMode = SmoothingMode.HighQuality;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            graphics.DrawImage(originalImage, destRect, 0, 0, originalImage.Width, originalImage.Height, GraphicsUnit.Pixel);
+
+            return destImage;
         }
     }
 }
