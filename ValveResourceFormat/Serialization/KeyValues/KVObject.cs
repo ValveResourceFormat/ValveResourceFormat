@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -71,8 +72,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             foreach (var pair in Properties)
             {
-                writer.Write(pair.Key);
-                writer.Write(" = ");
+                WriteKey(writer, pair.Key);
 
                 pair.Value.PrintValue(writer);
 
@@ -98,6 +98,77 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             writer.Indent--;
             writer.Write("]");
+        }
+
+        // Copied from ValveKeyValue kv3 branch
+        void WriteKey(IndentedTextWriter writer, string key)
+        {
+            if (key == null)
+            {
+                return;
+            }
+
+            var escaped = key.Length == 0; // Quote empty strings
+            var sb = new StringBuilder(key.Length + 2);
+            sb.Append('"');
+
+            if (key.Length > 0 && key[0] >= '0' && key[0] <= '9') // TODO: Use char.IsAsciiDigit from .NET 7
+            {
+                // Quote when first character is a digit
+                escaped = true;
+            }
+
+            foreach (var @char in key)
+            {
+                switch (@char)
+                {
+                    case '\t':
+                        escaped = true;
+                        sb.Append('\\');
+                        sb.Append('t');
+                        break;
+
+                    case '\n':
+                        escaped = true;
+                        sb.Append('\\');
+                        sb.Append('n');
+                        break;
+
+                    case '"':
+                        escaped = true;
+                        sb.Append('\\');
+                        sb.Append('"');
+                        break;
+
+                    case '\'':
+                        escaped = true;
+                        sb.Append('\\');
+                        sb.Append('\'');
+                        break;
+
+                    default:
+                        // TODO: Use char.IsAsciiLetterOrDigit from .NET 7
+                        if (@char != '.' && @char != '_' && !((@char >= 'A' && @char <= 'Z') || (@char >= 'a' && @char <= 'z') || (@char >= '0' && @char <= '9')))
+                        {
+                            escaped = true;
+                        }
+
+                        sb.Append(@char);
+                        break;
+                }
+            }
+
+            if (escaped)
+            {
+                sb.Append('"');
+                writer.Write(sb.ToString());
+            }
+            else
+            {
+                writer.Write(key);
+            }
+
+            writer.Write(" = ");
         }
 
         public bool ContainsKey(string name) => Properties.ContainsKey(name);
