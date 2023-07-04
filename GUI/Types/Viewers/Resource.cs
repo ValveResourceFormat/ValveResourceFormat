@@ -448,7 +448,18 @@ namespace GUI.Types.Viewers
                         case ResourceType.Model:
                             var modelExtract = new ModelExtract((Model)block, vrfGuiContext.FileLoader);
                             IViewer.AddContentTab(resTabs, $"{resource.FileName}", modelExtract.ToValveModel());
-                            IViewer.AddContentTab(resTabs, modelExtract.GetDmxFileName(), Encoding.UTF8.GetString(modelExtract.ToDMXMesh()));
+                            foreach (var mesh in modelExtract.RenderMeshesToExtract)
+                            {
+                                IViewer.AddContentTab(resTabs, mesh.FileName, Encoding.UTF8.GetString(ModelExtract.ToDmxMesh(mesh.Mesh, "vrf")));
+                            }
+                            break;
+
+                        case ResourceType.PhysicsCollisionMesh:
+                            var physicsExtract = new ModelExtract((PhysAggregateData)block, resource.FileName);
+                            foreach (var mesh in physicsExtract.PhysMeshesToExtract)
+                            {
+                                IViewer.AddContentTab(resTabs, mesh.FileName, Encoding.UTF8.GetString(ModelExtract.ToDmxMesh(mesh.Mesh.Shape, "vrf")));
+                            }
                             break;
                     }
                 }

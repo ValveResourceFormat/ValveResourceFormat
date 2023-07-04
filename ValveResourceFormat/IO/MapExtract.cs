@@ -19,7 +19,7 @@ public sealed class MapExtract
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
-    private PhysAggregateData WorldPhysics { get; set; }
+    private string WorldPhysicsName { get; set; }
 
     private List<string> AssetReferences { get; } = new();
     private List<string> ModelsToExtract { get; } = new();
@@ -152,9 +152,37 @@ public sealed class MapExtract
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
 
-        var physicsPath = Path.Combine(LumpFolder, "world_physics.vphys_c");
-        using var physResource = FileLoader.LoadFile(physicsPath);
-        WorldPhysics = (PhysAggregateData)physResource?.DataBlock;
+        WorldPhysicsName = GetWorldPhysicsName();
+    }
+
+    private string GetWorldPhysicsName()
+    {
+        var manifestFileName = Path.Combine(LumpFolder, "world_physics.vrman_c");
+        var manifestResource = FileLoader.LoadFile(manifestFileName);
+
+        var manifest = (ResourceManifest)manifestResource?.DataBlock;
+        if (manifest == null || manifest.Resources.Count < 1)
+        {
+            return default;
+        }
+
+        return manifest.Resources.First().FirstOrDefault();
+    }
+
+    private PhysAggregateData LoadWorldPhysics()
+    {
+        using var physicsResource = FileLoader.LoadFile(WorldPhysicsName + "_c");
+        if (physicsResource == null)
+        {
+            return default;
+        }
+
+        return physicsResource.ResourceType switch
+        {
+            ResourceType.Model => ((Model)physicsResource.DataBlock).GetEmbeddedPhys(),
+            ResourceType.PhysicsCollisionMesh => (PhysAggregateData)physicsResource.DataBlock,
+            _ => throw new InvalidDataException($"Unexpected resource type {physicsResource.ResourceType} for world physics"),
+        };
     }
 
     public ContentFile ToContentFile()
@@ -164,12 +192,16 @@ public sealed class MapExtract
             Data = Encoding.UTF8.GetBytes(ToValveMap()),
         };
 
+        var phys = new ModelExtract(LoadWorldPhysics(), WorldPhysicsName).ToContentFile();
+        phys.OriginalFileName = WorldPhysicsName + "_c";
+        vmap.AdditionalFiles.Add(phys);
+
         foreach (var modelName in ModelsToExtract)
         {
             var model = FileLoader.LoadFile(modelName + "_c");
             if (model is not null)
             {
-                var vmdl = new ModelExtract((Model)model.DataBlock, FileLoader).ToBakedMapModel();
+                var vmdl = new ModelExtract((Model)model.DataBlock, FileLoader).ToContentFile();
                 vmdl.OriginalFileName = modelName + "_c";
                 vmap.AdditionalFiles.Add(vmdl);
             }
@@ -191,10 +223,11 @@ public sealed class MapExtract
         WorldLayers = new();
         UniqueNodeIds = new();
 
-        if (WorldPhysics is not null)
-        {
-            PhyiscsToMapMesh(WorldPhysics);
-        }
+        // Should it be a nodraw rendermesh?
+        var worldPhysicsEnt = new CMapEntity() { Name = "world_physics" };
+        worldPhysicsEnt.EntityProperties["classname"] = "prop_static";
+        worldPhysicsEnt.EntityProperties["model"] = Path.ChangeExtension(WorldPhysicsName, ".vmdl");
+        MapDocument.World.Children.Add(worldPhysicsEnt);
 
         foreach (var worldNodeName in WorldNodeNames)
         {
@@ -224,49 +257,6 @@ public sealed class MapExtract
         datamodel.Save(stream, "keyvalues2", 4);
 
         return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static void PhyiscsToMapMesh(PhysAggregateData physData)
-    {
-        if (physData.Parts.Length == 0)
-        {
-            return;
-        }
-
-        var physMeshes = physData.Parts[0].Shape.Meshes;
-        var collisionAttributes = physData.CollisionAttributes;
-
-        foreach (var mesh in physMeshes)
-        {
-            var attributes = collisionAttributes[mesh.CollisionAttributeIndex];
-            var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
-
-            if (!tags.Contains("sky"))
-            {
-                continue;
-            }
-
-            /*
-            foreach (var tri in mesh.Shape.Triangles)
-            {
-                // TODO: Add the vertex stream as is, when mesh builder supports edge joining
-                builder.AddTriangle("materials/tools/toolsskybox.vmat",
-                    mesh.Shape.Vertices[tri.Indices[0]],
-                    mesh.Shape.Vertices[tri.Indices[1]],
-                    mesh.Shape.Vertices[tri.Indices[2]]
-                );
-            }
-
-            var skyboxMesh = new CMapMesh
-            {
-                Name = "toolsskybox mesh",
-                Origin = (mesh.Shape.Min + mesh.Shape.Max) / 2,
-                MeshData = builder.GenerateMesh(),
-            };
-
-            MapDocument.World.Children.Add(skyboxMesh);
-            */
-        }
     }
 
     private void AddWorldNodesAsStaticProps(WorldNode node)
