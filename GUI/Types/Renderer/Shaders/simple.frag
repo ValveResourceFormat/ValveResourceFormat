@@ -3,7 +3,6 @@
 // Includes
 #include "common/utils.glsl"
 #include "common/rendermodes.glsl"
-#include "common/texturing.glsl"
 
 // Render modes -- Switched on/off by code
 #define renderMode_PBR 0
@@ -48,6 +47,7 @@
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
+in centroid vec3 vCentroidNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
@@ -156,51 +156,32 @@ uniform float g_flOpacityScale = 1.0;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-vec3 oct_to_float32x3(vec2 e)
-{
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    return normalize(v);
-}
 
-//Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal(vec4 bumpNormal)
-{
-    //Reconstruct the tangent vector from the map
-#if HemiOctIsoRoughness_RG_B == 1
-    vec2 temp = vec2(bumpNormal.x + bumpNormal.y -1.003922, bumpNormal.x - bumpNormal.y);
-    vec3 tangentNormal = oct_to_float32x3(temp);
-#else
-    //vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
-    //vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
-    vec2 temp = vec2(bumpNormal.w + bumpNormal.y -1.003922, bumpNormal.w - bumpNormal.y);
-    vec3 tangentNormal = oct_to_float32x3(temp);
-#endif
-
-    tangentNormal.y *= -1.0;
-
-    vec3 normal = vNormalOut;
-    vec3 tangent = vTangentOut.xyz;
-    vec3 bitangent = vBitangentOut;
-
-    //Make the tangent space matrix
-    mat3 tangentSpace = mat3(tangent, bitangent, normal);
-
-    //Calculate the tangent normal in world space and return it
-    return normalize(tangentSpace * tangentNormal);
-}
+#include "common/texturing.glsl"
 
 #include "common/pbr.glsl"
 
 void main()
 {
+    // Get vs inputs
     vec2 texCoord = vTexCoordOut;
+    vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
 
+
+    // Get material properties
     vec4 color = texture(g_tColor, texCoord);
-    vec4 normal = texture(g_tNormal, texCoord);
+    vec4 normalTexture = texture(g_tNormal, texCoord);
+
+    vec3 normal = unpackHemiOctNormal(normalTexture);
+    float roughness = normalTexture.b;
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
     vec4 color2 = texture(g_tLayer2Color, texCoord);
-    vec4 normal2 = texture(g_tLayer2NormalRoughness, texCoord);
+    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoord);
+
+    vec3 normal2 = unpackHemiOctNormal(normalTexture2);
+    float roughness2 = normalTexture2.b;
+
     float blendFactor = vColorBlendValues.r;
 
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
@@ -231,6 +212,7 @@ void main()
 
     color = mix(color, color2, blendFactor);
     normal = mix(normal, normal2, blendFactor);
+    roughness = mix(roughness, roughness2, blendFactor);
 #endif
 
 #if F_ALPHA_TEST == 1
@@ -253,7 +235,6 @@ void main()
     vec3 albedo = pow(color.rgb, gamma) * tintFactor;
     float opacity = color.a * vVertexColorOut.a;
     float metalness = 0.0;
-    float roughness = normal.b;
     float occlusion = 1.0;
 
     vec3 irradiance = vec3(0.3);
@@ -299,12 +280,15 @@ void main()
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
 #endif
 
-    roughness = AdjustRoughnessByGeometricNormal(roughness, vNormalOut);
+    roughness = AdjustRoughnessByGeometricNormal(roughness, vertexNormal);
 
     roughness = clamp(roughness, 0.005, 1.0); // <- inaccurate?
 
     // Get the world normal for this fragment
-    vec3 N = calculateWorldNormal(normal);
+    vec3 N = calculateWorldNormal(normal, vertexNormal, vTangentOut, vBitangentOut);
+
+
+    // Calculate shading
 
     // Get the view direction vector for this fragment
     vec3 V = normalize(vEyePosition - vFragPosition);
@@ -397,19 +381,19 @@ void main()
 #endif
 
 #if renderMode_BumpMap == 1
-    outputColor = normal;
+    outputColor = vec4(PackToColor(normal), 1.0);
 #endif
 
 #if renderMode_Tangents == 1
-    outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
+    outputColor = vec4(PackToColor(vTangentOut), 1.0);
 #endif
 
 #if renderMode_Normals == 1
-    outputColor = vec4(PackToColor(vNormalOut), 1.0);
+    outputColor = vec4(PackToColor(vertexNormal), 1.0);
 #endif
 
 #if renderMode_BumpNormals == 1
-    outputColor = vec4(N * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(N), 1.0);
 #endif
 
 #if renderMode_PBR == 1
@@ -419,7 +403,7 @@ void main()
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
     float lod = 0.0;
-    vec3 EnvMap = GetEnvironment(vNormalOut, V, roughness, vec3(1.0), vec3(0.0)).rgb;
+    vec3 EnvMap = GetEnvironment(vertexNormal, V, roughness, vec3(1.0), vec3(0.0)).rgb;
     outputColor.rgb = pow(EnvMap, vec3(invGamma));
 #endif
 
