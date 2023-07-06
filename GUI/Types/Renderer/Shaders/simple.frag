@@ -295,8 +295,8 @@ void main()
 #else
     #if (F_GLASS == 1) || defined(glass)
         float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
-        float fresnel = clamp(pow(viewDotNormalInv, g_flEdgeColorFalloff), 0.0, 1.0) * g_flEdgeColorMaxOpacity * (g_bFresnel ? 1.0 : 0.0);
-        vec4 fresnelColor = vec4(g_vEdgeColor.xyz, fresnel);
+        float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
+        vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 
         vec4 glassResult = mix(vec4(albedo, opacity), fresnelColor, g_flOpacityScale);
         albedo = glassResult.rgb;
@@ -371,7 +371,7 @@ void main()
 #endif
 
 #if renderMode_FullBright == 1
-    vec3 illumination = vec3(max(0.0, dot(V, N)));
+    vec3 illumination = vec3(ClampToPositive(dot(V, N)));
     illumination = illumination * 0.7 + 0.3;
     outputColor = vec4(illumination * pow(albedo, invGamma), opacity);
 #endif
