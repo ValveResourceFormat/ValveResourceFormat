@@ -380,6 +380,11 @@ namespace GUI.Controls
             recentFilesNode.ParentNode.Nodes.AddRange(recentFiles);
             recentFilesNode.Children = recentFiles;
             treeView.EndUpdate();
+
+            if (filterTextBox.Text.Length > 0)
+            {
+                OnFilterTextBoxTextChanged(null, null); // Hack: re-filter recent files
+            }
         }
 
         private static TreeNode[] GetRecentFileNodes()
