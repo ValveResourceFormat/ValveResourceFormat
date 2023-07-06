@@ -287,9 +287,6 @@ void main()
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal, vertexNormal, vTangentOut, vBitangentOut);
 
-
-    // Calculate shading
-
     // Get the view direction vector for this fragment
     vec3 V = normalize(vEyePosition - vFragPosition);
 
@@ -320,6 +317,7 @@ void main()
 
     float visibility = 1.0;
 
+    // Calculate shading
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     #if (LightmapGameVersionNumber == 1)
         vec4 vLightStrengths = texture(g_tDirectLightStrengths, vLightmapUVScaled);
@@ -340,8 +338,10 @@ void main()
 
     if (visibility > 0.0)
     {
-        Lo += specularContribution(L, V, N, F0, albedo, metalness, roughness) * visibility;
-        Lo += diffuseLobe(max(dot(N, L), 0.0) * getSunColor()) * visibility;
+        vec3 specularLight = specularContribution(L, V, N, F0, specularColor, roughness);
+        float diffuseLight = diffuseLobe(max(dot(N, L), 0.0), roughness);
+
+       Lo += (specularLight + diffuseColor * diffuseLight) * visibility * getSunColor();
     }
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
