@@ -310,14 +310,14 @@ void main()
     vec3 H = normalize(V + L);
 
     vec3 F0 = vec3(0.04); 
-	F0 = mix(F0, albedo, metalness);
 
     vec3 diffuseColor = albedo * (1.0 - metalness);
-    vec3 specularColor = F0;
+	vec3 specularColor = mix(F0, albedo, metalness);
 
+
+    // Direct Lighting
     float visibility = 1.0;
 
-    // Calculate shading
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     #if (LightmapGameVersionNumber == 1)
         vec4 vLightStrengths = texture(g_tDirectLightStrengths, vLightmapUVScaled);
@@ -344,19 +344,22 @@ void main()
        Lo += (specularLight + diffuseColor * diffuseLight) * visibility * getSunColor();
     }
 
+
+    // Indirect Lighting
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
         irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
         vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
-        const float DirectionalLightmapMinZ = 0.05;
-        irradiance *= mix(1.0, vAHDData.z, DirectionalLightmapMinZ);
-        occlusion *= vAHDData.w;
+        irradiance = ComputeLightmapShading(irradiance, vAHDData, normal);
+        //occlusion *= vAHDData.w; // vAHDData.w is actually unused
     #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
         irradiance = vPerVertexLightingOut.rgb;
     #endif
 
+
+    irradiance *= occlusion;
     Lo *= occlusion;
 
-    outputColor.rgb *= (irradiance);
+    outputColor.rgb = diffuseColor * irradiance;
     outputColor.rgb += Lo;
 
     // Environment Map
@@ -370,10 +373,13 @@ void main()
     //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
 #endif
 
+
+    // Rendermodes
+
 #if renderMode_FullBright == 1
     vec3 illumination = vec3(ClampToPositive(dot(V, N)));
     illumination = illumination * 0.7 + 0.3;
-    outputColor = vec4(illumination * pow(albedo, invGamma), opacity);
+    outputColor = vec4(illumination * pow(albedo, vec3(invGamma)), opacity);
 #endif
 
 #if renderMode_Color == 1
