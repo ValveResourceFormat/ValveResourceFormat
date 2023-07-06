@@ -113,6 +113,18 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(soundTab);
                     break;
 
+                case ResourceType.Map:
+                    {
+                        var mapResource = vrfGuiContext.LoadFileByAnyMeansNecessary(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
+                        if (mapResource != null)
+                        {
+                            var mapTab = new TabPage("MAP");
+                            mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock).ViewerControl);
+                            resTabs.TabPages.Add(mapTab);
+                        }
+                        break;
+                    }
+
                 case ResourceType.World:
                     var worldmeshTab = new TabPage("MAP");
                     worldmeshTab.Controls.Add(
