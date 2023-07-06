@@ -54,6 +54,7 @@ out vec4 vVertexColorOut;
 out vec3 vFragPosition;
 
 out vec3 vNormalOut;
+out centroid vec3 vCentroidNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
 
@@ -125,4 +126,5 @@ void main()
     vColorBlendValues = vBLEND_COLOR / 255.0f;
 #endif
 
+    vCentroidNormalOut = vNormalOut;
 }
