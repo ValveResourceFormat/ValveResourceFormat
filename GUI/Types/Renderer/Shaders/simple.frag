@@ -224,7 +224,7 @@ void main()
 
 #if F_TINT_MASK == 1
     float tintStrength = texture(g_tTintMask, texCoord).x;
-    vec3 tintFactor = tintStrength * vVertexColorOut.rgb + (1 - tintStrength);
+    vec3 tintFactor = mix(vec3(1.0), vVertexColorOut.rgb, tintStrength);
 #else
     vec3 tintFactor = vVertexColorOut.rgb;
 #endif
