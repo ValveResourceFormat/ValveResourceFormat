@@ -271,6 +271,11 @@ namespace GUI.Controls
                         treeView.BeginUpdate();
                         treeView.Nodes.Insert(treeView.Nodes.Count - 1, treeNode);
                         treeView.EndUpdate();
+
+                        if (filterTextBox.Text.Length > 0)
+                        {
+                            OnFilterTextBoxTextChanged(null, null); // Hack: re-filter
+                        }
                     });
                 }
             }).ContinueWith(t =>
