@@ -39,6 +39,8 @@ namespace GUI.Forms
             divider1 = new System.Windows.Forms.Label();
             fovInput = new System.Windows.Forms.NumericUpDown();
             fovLabel = new System.Windows.Forms.Label();
+            antiAliasingLabel = new System.Windows.Forms.Label();
+            antiAliasingComboBox = new System.Windows.Forms.ComboBox();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             SuspendLayout();
@@ -156,11 +158,32 @@ namespace GUI.Forms
             fovLabel.TabIndex = 11;
             fovLabel.Text = "Vertical FOV:";
             // 
+            // antiAliasingLabel
+            // 
+            antiAliasingLabel.AutoSize = true;
+            antiAliasingLabel.Location = new System.Drawing.Point(15, 322);
+            antiAliasingLabel.Name = "antiAliasingLabel";
+            antiAliasingLabel.Size = new System.Drawing.Size(77, 15);
+            antiAliasingLabel.TabIndex = 12;
+            antiAliasingLabel.Text = "Anti-aliasing:";
+            // 
+            // antiAliasingComboBox
+            // 
+            antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            antiAliasingComboBox.FormattingEnabled = true;
+            antiAliasingComboBox.Location = new System.Drawing.Point(116, 319);
+            antiAliasingComboBox.Name = "antiAliasingComboBox";
+            antiAliasingComboBox.Size = new System.Drawing.Size(120, 23);
+            antiAliasingComboBox.TabIndex = 13;
+            antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
+            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(668, 364);
+            Controls.Add(antiAliasingComboBox);
+            Controls.Add(antiAliasingLabel);
             Controls.Add(fovInput);
             Controls.Add(fovLabel);
             Controls.Add(divider1);
@@ -197,5 +220,7 @@ namespace GUI.Forms
         private System.Windows.Forms.Label divider1;
         private System.Windows.Forms.NumericUpDown fovInput;
         private System.Windows.Forms.Label fovLabel;
+        private System.Windows.Forms.Label antiAliasingLabel;
+        private System.Windows.Forms.ComboBox antiAliasingComboBox;
     }
 }

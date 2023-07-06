@@ -7,6 +7,8 @@ namespace GUI.Forms
 {
     partial class SettingsForm : Form
     {
+        private static readonly int[] AntiAliasingSampleOptions = new[] { 0, 2, 4, 8, 16 };
+
         public SettingsForm()
         {
             InitializeComponent();
@@ -21,6 +23,25 @@ namespace GUI.Forms
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
             fovInput.Value = Settings.Config.FieldOfView;
+
+            var strings = new string[AntiAliasingSampleOptions.Length];
+            var selectedSamples = -1;
+
+            for (var i = 0; i < AntiAliasingSampleOptions.Length; i++)
+            {
+                var samples = AntiAliasingSampleOptions[i];
+                strings[i] = $"{samples}x";
+
+                if (Settings.Config.AntiAliasingSamples >= samples)
+                {
+                    selectedSamples = i;
+                }
+            }
+
+            antiAliasingComboBox.BeginUpdate();
+            antiAliasingComboBox.Items.AddRange(strings);
+            antiAliasingComboBox.SelectedIndex = selectedSamples;
+            antiAliasingComboBox.EndUpdate();
         }
 
         private void GamePathRemoveClick(object sender, EventArgs e)
@@ -133,6 +154,19 @@ namespace GUI.Forms
             }
 
             Settings.Config.FieldOfView = newValue;
+            Settings.Save();
+        }
+
+        private void OnAntiAliasingValueChanged(object sender, EventArgs e)
+        {
+            var newValue = AntiAliasingSampleOptions[antiAliasingComboBox.SelectedIndex];
+
+            if (newValue == Settings.Config.AntiAliasingSamples)
+            {
+                return;
+            }
+
+            Settings.Config.AntiAliasingSamples = newValue;
             Settings.Save();
         }
     }

@@ -60,7 +60,7 @@ namespace GUI.Controls
             flags |= GraphicsContextFlags.Debug;
 #endif
 
-            GLControl = new GLControl(new GraphicsMode(32, 24, 0, 8), 3, 3, flags);
+            GLControl = new GLControl(new GraphicsMode(32, 24, 0, Settings.Config.AntiAliasingSamples), 3, 3, flags);
             GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;

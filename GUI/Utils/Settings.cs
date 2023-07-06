@@ -12,6 +12,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
+        private const int SettingsFileCurrentVersion = 2;
         private const int RecentFilesLimit = 20;
 
         public class AppConfig
@@ -24,11 +25,13 @@ namespace GUI.Utils
             public Dictionary<string, float[]> SavedCameras { get; set; } = new();
             public int MaxTextureSize { get; set; }
             public int FieldOfView { get; set; }
+            public int AntiAliasingSamples { get; set; }
             public int WindowTop { get; set; }
             public int WindowLeft { get; set; }
             public int WindowWidth { get; set; }
             public int WindowHeight { get; set; }
             public int WindowState { get; set; } = (int)FormWindowState.Normal;
+            public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 
         private static string SettingsFilePath;
@@ -111,6 +114,15 @@ namespace GUI.Utils
             {
                 Config.FieldOfView = 120;
             }
+
+            if (Config._VERSION_DO_NOT_MODIFY < 2) // version 2: added anti aliasing samples
+            {
+                Config.AntiAliasingSamples = 8;
+            }
+
+            Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
+
+            Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
         }
 
         public static void Save()
