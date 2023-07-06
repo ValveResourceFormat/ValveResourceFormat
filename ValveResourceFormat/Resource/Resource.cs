@@ -432,6 +432,9 @@ namespace ValveResourceFormat
                 case ResourceType.EntityLump:
                     return new EntityLump();
 
+                case ResourceType.Map:
+                    return new Map();
+
                 case ResourceType.Material:
                     return new Material();
 
