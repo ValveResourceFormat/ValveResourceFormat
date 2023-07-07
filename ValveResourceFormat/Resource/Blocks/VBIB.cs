@@ -250,6 +250,18 @@ namespace ValveResourceFormat.Blocks
                         break;
                     }
 
+                case DXGI_FORMAT.R16G16B16A16_FLOAT:
+                    {
+                        result = new[]
+                        {
+                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset),
+                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2),
+                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 4),
+                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 6),
+                        };
+                        break;
+                    }
+
                 case DXGI_FORMAT.R32_FLOAT:
                     {
                         result = new float[1];
