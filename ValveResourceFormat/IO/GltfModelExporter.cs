@@ -59,7 +59,7 @@ namespace ValveResourceFormat.IO
         private string DstDir;
         private CancellationToken CancellationToken;
         private List<Task> MaterialGenerationTasks = new();
-        private ConcurrentDictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = new();
+        private Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = new();
         private object TextureWriteSynchronizationLock = new(); // TODO: Use SemaphoreSlim?
         private TextureSampler TextureSampler;
         private int MaterialsGeneratedSoFar;
@@ -1260,19 +1260,11 @@ namespace ValveResourceFormat.IO
 
                     lock (TextureWriteSynchronizationLock)
                     {
-                        texTask = ExportedTextures.GetOrAdd(textureName, async (key) =>
+                        if (!ExportedTextures.TryGetValue(textureName, out texTask))
                         {
-                            await Task.Yield();
-
-#if DEBUG
-                            ProgressReporter?.Report($"Adding texture {key}");
-#endif
-
-                            var bitmap = GetBitmap(texturePath);
-                            var pngBytes = TextureExtract.ToPngImageChannels(bitmap, mainInstruction.ValveChannel);
-
-                            return await WriteTexture(key, pngBytes).ConfigureAwait(false);
-                        });
+                            texTask = AddTexture(textureName, texturePath, mainInstruction);
+                            ExportedTextures[textureName] = texTask;
+                        }
                     }
 
 #if DEBUG
@@ -1297,33 +1289,11 @@ namespace ValveResourceFormat.IO
 
                     lock (TextureWriteSynchronizationLock)
                     {
-                        texTask = ExportedTextures.GetOrAdd(ormFileName, async (key) =>
+                        if (!ExportedTextures.TryGetValue(ormFileName, out texTask))
                         {
-                            await Task.Yield();
-
-#if DEBUG
-                            ProgressReporter?.Report($"Adding ORM texture {key}");
-#endif
-
-                            // Collect channels for the ORM texture
-                            foreach (var (texturePath, instructions) in ormTextureInstructions)
-                            {
-                                var bitmap = GetBitmap(texturePath);
-                                using var pixels = bitmap.PeekPixels();
-
-                                foreach (var instruction in instructions)
-                                {
-                                    occlusionRoughnessMetal.Collect(pixels,
-                                        instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
-                                        instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
-                                        instruction.Invert,
-                                        texturePath // Used for logging
-                                    );
-                                }
-                            }
-
-                            return await WriteTexture(key, TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap)).ConfigureAwait(false);
-                        });
+                            texTask = AddTextureORM(ormFileName);
+                            ExportedTextures[ormFileName] = texTask;
+                        }
                     }
 
 #if DEBUG
@@ -1362,6 +1332,48 @@ namespace ValveResourceFormat.IO
                 openBitmaps[texturePath] = bitmap;
 
                 return bitmap;
+            }
+
+            async Task<SharpGLTF.Schema2.Texture> AddTexture(string key, string texturePath, RemapInstruction mainInstruction)
+            {
+                await Task.Yield();
+
+#if DEBUG
+                ProgressReporter?.Report($"Adding texture {key}");
+#endif
+
+                var bitmap = GetBitmap(texturePath);
+                var pngBytes = TextureExtract.ToPngImageChannels(bitmap, mainInstruction.ValveChannel);
+
+                return await WriteTexture(key, pngBytes).ConfigureAwait(false);
+            };
+
+            async Task<SharpGLTF.Schema2.Texture> AddTextureORM(string key)
+            {
+                await Task.Yield();
+
+#if DEBUG
+                ProgressReporter?.Report($"Adding ORM texture {key}");
+#endif
+
+                // Collect channels for the ORM texture
+                foreach (var (texturePath, instructions) in ormTextureInstructions)
+                {
+                    var bitmap = GetBitmap(texturePath);
+                    using var pixels = bitmap.PeekPixels();
+
+                    foreach (var instruction in instructions)
+                    {
+                        occlusionRoughnessMetal.Collect(pixels,
+                            instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
+                            instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
+                            instruction.Invert,
+                            texturePath // Used for logging
+                        );
+                    }
+                }
+
+                return await WriteTexture(key, TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap)).ConfigureAwait(false);
             }
 
             async Task<SharpGLTF.Schema2.Texture> WriteTexture(string textureName, byte[] pngBytes)
