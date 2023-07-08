@@ -44,6 +44,17 @@ public class ModelExtract
         LoadMeshes();
     }
 
+    /// <summary>
+    /// Extract a single mesh to vmdl+dmx.
+    /// </summary>
+    /// <param name="mesh">Mesh data</param>
+    /// <param name="fileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
+    public ModelExtract(Mesh mesh, string fileName)
+    {
+        RenderMeshesToExtract.Add((mesh, GetDmxFileName_ForReferenceMesh(fileName)));
+        this.fileName = Path.ChangeExtension(fileName, ".vmdl");
+    }
+
     public ModelExtract(PhysAggregateData physAggregateData, string fileName)
     {
         this.physAggregateData = physAggregateData;
@@ -61,7 +72,8 @@ public class ModelExtract
     {
         var vmdl = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(ToValveModel())
+            Data = Encoding.UTF8.GetBytes(ToValveModel()),
+            FileName = GetFileName(),
         };
 
         foreach (var renderMesh in RenderMeshesToExtract)
@@ -152,17 +164,21 @@ public class ModelExtract
         => model?.Data.GetProperty<string>("m_name")
             ?? fileName;
 
-    string GetDmxFileName(string subString, int number = 0)
+    string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
     {
         var fileName = GetFileName();
-        return Path.GetDirectoryName(fileName)
+        return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName)
             + "_"
             + subString
             + (number > 0 ? number : string.Empty)
-            + ".dmx";
+            + ".dmx")
+            .Replace('\\', '/');
     }
+
+    static string GetDmxFileName_ForReferenceMesh(string fileName)
+        => Path.ChangeExtension(fileName, ".dmx").Replace('\\', '/');
 
     private IEnumerable<(Mesh Mesh, string FileName)> GetExportableRenderMeshes()
     {
@@ -174,13 +190,13 @@ public class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
-            yield return (embedded.Mesh, GetDmxFileName(embedded.Name, i++).Replace('\\', '/'));
+            yield return (embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
         {
             using var resource = fileLoader.LoadFile(reference.MeshName + "_c");
-            yield return ((Mesh)resource.DataBlock, Path.ChangeExtension(reference.MeshName, ".dmx").Replace('\\', '/'));
+            yield return ((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName));
         }
     }
 
@@ -196,7 +212,7 @@ public class ModelExtract
         {
             foreach (var mesh in physicsPart.Shape.Meshes)
             {
-                yield return (mesh, GetDmxFileName("phys", i++).Replace('\\', '/'));
+                yield return (mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++));
             }
         }
     }

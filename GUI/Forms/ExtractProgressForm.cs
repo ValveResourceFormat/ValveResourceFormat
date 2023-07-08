@@ -273,8 +273,8 @@ namespace GUI.Forms
                 string contentRelativeFolder;
                 foreach (var additionalFile in contentFile.AdditionalFiles)
                 {
-                    extractedFiles.Add(additionalFile.OriginalFileName);
-                    var fileNameOut = additionalFile.OriginalFileName[..^2]; // remove "_c"
+                    extractedFiles.Add(additionalFile.FileName + "_c");
+                    var fileNameOut = additionalFile.FileName;
 
                     if (additionalFile.Data != null)
                     {

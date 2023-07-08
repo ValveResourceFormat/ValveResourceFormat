@@ -11,18 +11,38 @@ namespace ValveResourceFormat.IO
 {
     public class ContentFile : IDisposable
     {
+        /// <summary>
+        /// Data can be null if the file is not meant to be written out.
+        /// However it can still contain subfiles.
+        /// </summary>
         public byte[] Data { get; set; }
 
-        public string OriginalFileName { get; set; }
+        private string outFileName;
 
         /// <summary>
-        /// Additional files that make up this content file.
+        /// Suggested output file name. Based on the resource name.
+        /// </summary>
+        public string FileName
+        {
+            get => outFileName;
+            set
+            {
+                outFileName = value.EndsWith("_c", StringComparison.InvariantCultureIgnoreCase)
+                ? value[..^2]
+                : value;
+            }
+        }
+
+        /// <summary>
+        /// Additional files that make up this content file. E.g. for a vtex, this would be the PNG files.
         /// </summary>
         public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
 
         /// <summary>
-        /// Additional extracted resources.
-        /// You will want to extract the files if data is non null, and their respective subfiles.
+        /// Additional extracted resources. E.g. for a vmat, this would be the vtex files.
+        /// You will want to extract the files if data is non null, and also their respective subfiles.
+        /// You might want to ignore further extracts on these files—especially lone extracts,
+        /// since this is most likely their most optimal extract context.
         /// </summary>
         public List<ContentFile> AdditionalFiles { get; init; } = new();
 
