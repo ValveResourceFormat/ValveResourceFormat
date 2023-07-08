@@ -139,7 +139,6 @@ uniform float g_flEdgeColorMaxOpacity = 0.5;
 uniform float g_flEdgeColorThickness = 0.1;
 uniform vec4 g_vEdgeColor;
 uniform float g_flRefractScale = 0.1;
-uniform float g_flOpacityScale = 1.0;
 #endif
 
 #define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
@@ -395,6 +394,7 @@ void main()
         outputColor.rgb += specular * occlusion;
     #endif
 
+
 #if F_DISABLE_TONE_MAPPING == 0
     outputColor.rgb = pow(outputColor.rgb, vec3(invGamma));
     //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
@@ -404,9 +404,11 @@ void main()
     // Rendermodes
 
 #if renderMode_FullBright == 1
-    vec3 illumination = vec3(ClampToPositive(dot(V, N)));
-    illumination = illumination * 0.7 + 0.3;
-    outputColor = vec4(illumination * pow(albedo, vec3(invGamma)), opacity);
+    //vec3 illumination = vec3(ClampToPositive(dot(V, N)));
+    //illumination = illumination * 0.7 + 0.3;
+    //outputColor = vec4(illumination * pow(albedo, vec3(invGamma)), opacity);
+    vec3 fullbrightLighting = CalculateFullbrightLighting(albedo, N, V);
+    outputColor = vec4(pow(fullbrightLighting, vec3(invGamma)), opacity);
 #endif
 
 #if renderMode_Color == 1
