@@ -244,6 +244,7 @@ void main()
 #endif
 
 #if F_ALPHA_TEST == 1
+    color.a = AlphaTestAntiAliasing(color.a, texCoord);
     if (color.a - 0.001 < g_flAlphaTestReference)   discard;
 #endif
 

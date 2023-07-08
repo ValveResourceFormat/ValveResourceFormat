@@ -64,3 +64,25 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
     //Calculate the tangent normal in world space and return it
     return normalize(tangentSpace * normalMap);
 }
+
+
+
+
+//-------------------------------------------------------------------------
+//                              ALPHA TEST
+//-------------------------------------------------------------------------
+
+
+#if F_ALPHA_TEST == 1
+
+uniform float g_flAntiAliasedEdgeStrength = 1.0;
+
+float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
+{
+	float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
+	float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
+	float flAntiAliasAlphaBlend = mix(1.0, flAlphaTestAA_Amount, g_flAntiAliasedEdgeStrength);
+	return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
+}
+
+#endif
