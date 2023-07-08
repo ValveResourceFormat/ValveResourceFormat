@@ -189,6 +189,13 @@ void main()
     vec2 texCoord = vTexCoordOut;
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
 
+    // Get the view direction vector for this fragment
+    vec3 V = normalize(vEyePosition - vFragPosition);
+
+    #if F_RENDER_BACKFACES == 1
+        vertexNormal = faceforward(vertexNormal, V, vertexNormal);
+    #endif
+
 
     // Get material properties
     vec4 color = texture(g_tColor, texCoord);
@@ -309,8 +316,6 @@ void main()
     // Get the world normal for this fragment
     vec3 N = calculateWorldNormal(normal, vertexNormal, vTangentOut, vBitangentOut);
 
-    // Get the view direction vector for this fragment
-    vec3 V = normalize(vEyePosition - vFragPosition);
 
 #if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
     outputColor = vec4(albedo, color.a);
