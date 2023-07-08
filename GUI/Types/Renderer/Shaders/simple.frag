@@ -10,6 +10,7 @@
 #define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
+#define renderMode_ShaderID 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define LightmapGameVersionNumber 0
@@ -29,18 +30,40 @@
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
 #define F_UNLIT 0
-#define F_TINT_MASK 0
+#define F_ADDITIVE_BLEND 0
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0
 #define F_GLASS 0
+#define F_DISABLE_TONE_MAPPING 0
+#define F_RENDER_BACKFACES 0
+#define F_MORPH_SUPPORTED 0
+#define F_WRINKLE 0
+// TEXTURING
 #define F_LAYERS 0
+#define F_TINT_MASK 0
 #define F_FANCY_BLENDING 0
+#define F_METALNESS_TEXTURE 0
+#define F_AMBIENT_OCCLUSION_TEXTURE 0
+#define F_FANCY_BLENDING 0
+#define F_DETAIL_TEXTURE 0 // todo
+#define F_SELF_ILLUM 0 // todo
+#define F_SECONDARY_UV 0 // todo
+#define F_ENABLE_AMBIENT_OCCLUSION 0 // vr_simple_2way_blend only
+#define F_ENABLE_TINT_MASKS 0 // vr_simple_2way_blend_only
+// SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
-#define F_METALNESS_TEXTURE 0
-#define F_RETRO_REFLECTIVE 0
-#define F_AMBIENT_OCCLUSION_TEXTURE 0
-#define F_ANISOTROPIC_GLOSS 0
+#define F_RETRO_REFLECTIVE 0 // todo shading
+#define F_ANISOTROPIC_GLOSS 0 // todo shading
+#define F_CLOTH_SHADING 0 // todo
+#define F_USE_BENT_NORMALS 0 // todo
+#define F_DIFFUSE_WRAP 0 // todo
+#define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
+// SKIN
+#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo
+#define F_USE_PER_VERTEX_CURVATURE 0 // todo
+#define F_SSS_MASK 0 // todo
+
 #define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
@@ -126,9 +149,7 @@ uniform float g_flOpacityScale = 1.0;
 
 #if hasUniformMetalness
     uniform float g_flMetalness = 0.0;
-#endif
-
-#if hasMetalnessTexture
+#elif hasMetalnessTexture && !hasColorAlphaMetalness
     uniform sampler2D g_tMetalness;
 #endif
 
@@ -156,6 +177,7 @@ uniform float g_flOpacityScale = 1.0;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
+uniform float g_flOpacityScale = 1.0;
 
 #include "common/texturing.glsl"
 
@@ -216,15 +238,12 @@ void main()
 #endif
 
 #if F_ALPHA_TEST == 1
-    if (color.a < g_flAlphaTestReference)
-    {
-       discard;
-    }
+    if (color.a - 0.001 < g_flAlphaTestReference)   discard;
 #endif
 
 #if F_TINT_MASK == 1
     float tintStrength = texture(g_tTintMask, texCoord).x;
-    vec3 tintFactor = mix(vec3(1.0), vVertexColorOut.rgb, tintStrength);
+    vec3 tintFactor = 1.0 - tintStrength * (1.0 - vVertexColorOut.rgb);
 #else
     vec3 tintFactor = vVertexColorOut.rgb;
 #endif
@@ -234,6 +253,9 @@ void main()
 
     vec3 albedo = pow(color.rgb, gamma) * tintFactor;
     float opacity = color.a * vVertexColorOut.a;
+#if F_TRANSLUCENT == 1
+    opacity *= g_flOpacityScale;
+#endif
     float metalness = 0.0;
     float occlusion = 1.0;
 
@@ -294,7 +316,7 @@ void main()
     outputColor = vec4(albedo, color.a);
 #else
     #if (F_GLASS == 1) || defined(glass)
-        float viewDotNormalInv = clamp(1.0 - (dot(V, N) - g_flEdgeColorThickness), 0.0, 1.0);
+        float viewDotNormalInv = saturate(1.0 - (dot(V, N) - g_flEdgeColorThickness));
         float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
         vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 
@@ -311,7 +333,7 @@ void main()
 
     vec3 F0 = vec3(0.04); 
 
-    vec3 diffuseColor = albedo * (1.0 - metalness);
+    vec3 diffuseColor = albedo - albedo * metalness;
 	vec3 specularColor = mix(F0, albedo, metalness);
 
 
@@ -368,11 +390,11 @@ void main()
         outputColor.rgb += specular * occlusion;
     #endif
 
-
+#if F_DISABLE_TONE_MAPPING == 0
     outputColor.rgb = pow(outputColor.rgb, vec3(invGamma));
     //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
 #endif
-
+#endif
 
     // Rendermodes
 
@@ -427,5 +449,9 @@ void main()
 
 #if renderMode_Terrain_Blend == 1 && (F_LAYERS > 0 || defined(simple_2way_blend))
     outputColor.rgb = vColorBlendValues.rgb;
+#endif
+
+#if renderMode_ShaderID == 1
+    outputColor.rgb = SRGBtoLinear(shaderIdColor / 255.0);
 #endif
 }
