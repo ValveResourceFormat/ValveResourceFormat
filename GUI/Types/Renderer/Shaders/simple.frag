@@ -49,7 +49,7 @@
 #define F_SELF_ILLUM 0 // todo
 #define F_SECONDARY_UV 0 // todo
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // vr_simple_2way_blend only
-#define F_ENABLE_TINT_MASKS 0 // vr_simple_2way_blend_only
+#define F_ENABLE_TINT_MASKS 0 // todo, vr_simple_2way_blend only
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
@@ -289,6 +289,9 @@ void main()
     metalness = texture(g_tMetalness, texCoord).g;
 #elif (defined(simple_2way_blend))
     metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
+    #if F_ENABLE_AMBIENT_OCCLUSION == 1
+        occlusion = color.a;
+    #endif
 #endif
 
 #if hasAnisoGloss
