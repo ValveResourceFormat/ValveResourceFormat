@@ -140,6 +140,7 @@ namespace ValveResourceFormat.IO
             {
                 MaterialGenerationTasks.Clear();
                 ExportedTextures.Clear();
+                MaterialsGeneratedSoFar = 0;
                 IsExporting = false;
             }
         }
@@ -650,7 +651,7 @@ namespace ValveResourceFormat.IO
                 Task.WaitAll(MaterialGenerationTasks.ToArray(), CancellationToken);
             }
 
-            ProgressReporter?.Report("Writing model to file...");
+            ProgressReporter?.Report($"Writing model to file '{Path.GetFileName(filePath)}'...");
 
             var settings = new WriteSettings
             {
