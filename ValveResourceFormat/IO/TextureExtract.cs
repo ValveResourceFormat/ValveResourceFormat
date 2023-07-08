@@ -78,7 +78,7 @@ public sealed class TextureExtract
         {
             Data = Encoding.UTF8.GetBytes(ToValveTexture()),
             Bitmap = bitmap,
-            OriginalFileName = fileName,
+            FileName = fileName,
         };
 
         if (TryGetMksData(out var sprites, out var mks))
@@ -105,7 +105,7 @@ public sealed class TextureExtract
         var vtex = new TextureContentFile()
         {
             Bitmap = bitmap,
-            OriginalFileName = fileName,
+            FileName = fileName,
         };
 
         foreach (var unpackInfo in mapsToUnpack)

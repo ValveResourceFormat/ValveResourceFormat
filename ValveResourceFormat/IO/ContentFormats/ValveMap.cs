@@ -80,6 +80,25 @@ internal abstract class BaseEntity : MapNode
     public Datamodel.ElementArray ConnectionsData { get; } = new();
     [DMProperty(name: "entity_properties")]
     public EditGameClassProps EntityProperties { get; set; } = new EditGameClassProps();
+
+    public BaseEntity WithProperty(string name, string value)
+    {
+        EntityProperties[name] = value;
+        return this;
+    }
+
+    public BaseEntity WithProperties(params (string name, string value)[] properties)
+    {
+        foreach (var (name, value) in properties)
+        {
+            EntityProperties[name] = value;
+        }
+
+        return this;
+    }
+
+    public BaseEntity WithClassName(string className)
+        => WithProperty("classname", className);
 }
 
 [CamelCaseProperties]

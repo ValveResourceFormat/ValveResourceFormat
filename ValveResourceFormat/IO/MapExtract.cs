@@ -10,6 +10,7 @@ using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Blocks;
 using System.Globalization;
 using System.Linq;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.IO;
 
@@ -20,10 +21,21 @@ public sealed class MapExtract
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
     private string WorldPhysicsName { get; set; }
+    private (string Original, string Editable) WorldPhysicsNamesToExtract()
+    {
+        var original = Path.ChangeExtension(WorldPhysicsName, ".vmdl");
+        var editable = Path.GetDirectoryName(WorldPhysicsName).Replace('\\', '/')
+            + "/"
+            + Path.GetFileNameWithoutExtension(WorldPhysicsName)
+            + "_mesh.vmdl";
+
+        return (original, editable);
+    }
 
     private List<string> AssetReferences { get; } = new();
     private List<string> ModelsToExtract { get; } = new();
-    private List<string> HandledResources { get; } = new();
+    private List<string> MeshesToExtract { get; } = new();
+    private List<string> FolderExtractFilter { get; } = new();
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -109,13 +121,13 @@ public sealed class MapExtract
         {
             throw new InvalidDataException(
                 "vmap_c filename does not match or have the RERL-derived lump folder as a subpath. " +
-                "Make sure to load the resource from the correct location inside vpk.\n" +
+                "Make sure to load the resource from the correct location inside of the map vpk.\n" +
                 $"\tLump folder: {LumpFolder}\n\tResource filename: {vmapResource.FileName}"
             );
         }
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
-        HandledResources.Add(worldPath);
+        FolderExtractFilter.Add(worldPath);
         using var worldResource = FileLoader.LoadFile(worldPath);
 
         if (worldResource == null)
@@ -190,25 +202,47 @@ public sealed class MapExtract
         var vmap = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(ToValveMap()),
+            FileName = LumpFolder + ".vmap",
         };
 
-        var phys = new ModelExtract(LoadWorldPhysics(), WorldPhysicsName).ToContentFile();
-        phys.OriginalFileName = WorldPhysicsName + "_c";
-        vmap.AdditionalFiles.Add(phys);
+        FolderExtractFilter.Add(WorldPhysicsName + "_c"); // TODO: put vphys on vmdl.AdditionalFiles
+        var physModelNames = WorldPhysicsNamesToExtract();
+        var physData = LoadWorldPhysics();
+
+        if (physData != null)
+        {
+            FolderExtractFilter.Add(WorldPhysicsName + "_c");
+
+            var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
+            var editable = new ModelExtract(physData, physModelNames.Editable).ToContentFile();
+            vmap.AdditionalFiles.Add(original);
+            vmap.AdditionalFiles.Add(editable);
+        }
+
+        foreach (var meshName in MeshesToExtract)
+        {
+            var meshNameCompiled = meshName + "_c";
+            using var mesh = FileLoader.LoadFile(meshNameCompiled);
+            if (mesh is not null)
+            {
+                var vmdl = new ModelExtract((Mesh)mesh.DataBlock, meshName).ToContentFile();
+                FolderExtractFilter.Add(meshNameCompiled); // TODO: put vmesh on vmdl.AdditionalFiles
+                vmap.AdditionalFiles.Add(vmdl);
+            }
+        }
 
         foreach (var modelName in ModelsToExtract)
         {
-            var model = FileLoader.LoadFile(modelName + "_c");
+            using var model = FileLoader.LoadFile(modelName + "_c");
             if (model is not null)
             {
                 var vmdl = new ModelExtract((Model)model.DataBlock, FileLoader).ToContentFile();
-                vmdl.OriginalFileName = modelName + "_c";
                 vmap.AdditionalFiles.Add(vmdl);
             }
         }
 
         // Add these files so they can be filtered out in folder extract
-        vmap.AdditionalFiles.AddRange(HandledResources.Select(r => new ContentFile { OriginalFileName = r }));
+        vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
 
         return vmap;
     }
@@ -223,16 +257,22 @@ public sealed class MapExtract
         WorldLayers = new();
         UniqueNodeIds = new();
 
-        // Should it be a nodraw rendermesh?
-        var worldPhysicsEnt = new CMapEntity() { Name = "world_physics" };
-        worldPhysicsEnt.EntityProperties["classname"] = "prop_static";
-        worldPhysicsEnt.EntityProperties["model"] = Path.ChangeExtension(WorldPhysicsName, ".vmdl");
-        MapDocument.World.Children.Add(worldPhysicsEnt);
+        var physModelNames = WorldPhysicsNamesToExtract();
+
+        MapDocument.World.Children.Add(new CMapEntity() { Name = "Original World Physics", ForceHidden = true }
+            .WithClassName("prop_static")
+            .WithProperty("model", physModelNames.Original)
+        );
+
+        MapDocument.World.Children.Add(new CMapEntity() { Name = "Editable World Physics" }
+            .WithClassName("prop_static")
+            .WithProperty("model", physModelNames.Editable)
+        );
 
         foreach (var worldNodeName in WorldNodeNames)
         {
             var worldNodeCompiled = worldNodeName + ".vwnod_c";
-            HandledResources.Add(worldNodeCompiled);
+            FolderExtractFilter.Add(worldNodeCompiled);
 
             using var worldNode = FileLoader.LoadFile(worldNodeCompiled);
             if (worldNode is not null)
@@ -244,7 +284,7 @@ public sealed class MapExtract
         foreach (var entityLumpName in EntityLumpNames)
         {
             var entityLumpCompiled = entityLumpName + "_c";
-            HandledResources.Add(entityLumpCompiled);
+            FolderExtractFilter.Add(entityLumpCompiled);
 
             using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
             if (entityLumpResource is not null)
@@ -284,108 +324,133 @@ public sealed class MapExtract
             }
         }
 
-        void SceneObjectToStaticProp(IKeyValueCollection sceneObject, int layerIndex, List<MapNode> layerNodes, bool isAggregate)
+        static void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
         {
-            var modelName = sceneObject.GetProperty<string>("m_renderableModel");
-            var meshName = sceneObject.GetProperty<string>("m_renderable");
-
-            var objectFlags = ObjectTypeFlags.None;
-            if (!isAggregate)
+            // Only group if there is a group name
+            if (!string.IsNullOrEmpty(groupName))
             {
-                objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
-            }
-
-            if (modelName is null)
-            {
-                // TODO: Generate model for mesh
-                return;
-            }
-
-            AssetReferences.Add(modelName);
-
-            var propStatic = new CMapEntity();
-            propStatic.EntityProperties["classname"] = "prop_static";
-            propStatic.EntityProperties["model"] = modelName;
-
-            if (!isAggregate)
-            {
-                var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
-                var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
-                //propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
-                //propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
-
-                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-                //propStatic.EntityProperties["rendercolor"] = $"{tintColor.X} {tintColor.Y} {tintColor.Z}";
-                //propStatic.EntityProperties["renderamt"] = tintColor.W.ToString(CultureInfo.InvariantCulture);
-
-                var skin = sceneObject.GetProperty<string>("m_skin");
-                if (!string.IsNullOrEmpty(skin))
+                if (!node.TryGetValue(groupName, out var group))
                 {
-                    propStatic.EntityProperties["skin"] = skin;
+                    group = new CMapGroup { Name = groupName };
+                    node.Children.Add((CMapGroup)group);
+                    // An easy way to keep track of these groups is adding them to the kv
+                    // for later retrieval. Hammer ignores these properties.
+                    // Otherwise we would have to search the node each time.
+                    node[groupName] = group;
                 }
+                node = (CMapGroup)group;
             }
+            node.Children.Add(child);
+        }
 
-            propStatic.EntityProperties["rendertocubemaps"] = objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps) ? "1" : "0";
-            propStatic.EntityProperties["disableshadows"] = objectFlags.HasFlag(ObjectTypeFlags.NoShadows) ? "1" : "0";
-
-            var isEmbeddedModel = false;
-            if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
-            {
-                isEmbeddedModel = true;
-                propStatic.EntityProperties["baketoworld"] = "1";
-                ModelsToExtract.Add(modelName);
-            }
-
-            if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
-            {
-                propStatic.EntityProperties["disablemeshmerging"] = "1";
-            }
-
-            static void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
-            {
-                // Only group if there is a group name
-                if (!string.IsNullOrEmpty(groupName))
-                {
-                    if (!node.TryGetValue(groupName, out var group))
-                    {
-                        group = new CMapGroup { Name = groupName };
-                        node.Children.Add((CMapGroup)group);
-                        // An easy way to keep track of these groups is adding them to the kv
-                        // for later retrieval. Hammer ignores these properties.
-                        // Otherwise we would have to search the node each time.
-                        node[groupName] = group;
-                    }
-                    node = (CMapGroup)group;
-                }
-                node.Children.Add(child);
-            }
-
+        void StaticPropFinalize(BaseEntity propStatic, int layerIndex, List<MapNode> layerNodes, bool isBakedToWorld)
+        {
             MapNode destNode = MapDocument.World;
             if (layerIndex > -1)
             {
                 destNode = layerNodes[layerIndex];
             }
 
-            // Only create a group on the base layer (don't want non-unique names)
-            var bakedGroup = isEmbeddedModel && destNode == MapDocument.World
+            var bakedGroup = isBakedToWorld && destNode == MapDocument.World
                 ? "Baked World Models"
                 : null;
 
             AddChildMaybeGrouped(destNode, propStatic, bakedGroup);
         }
 
+        void SceneObjectToStaticProp(IKeyValueCollection sceneObject, int layerIndex, List<MapNode> layerNodes)
+        {
+            var modelName = sceneObject.GetProperty<string>("m_renderableModel");
+            var meshName = sceneObject.GetProperty<string>("m_renderable");
+
+            var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
+
+            if (modelName is null)
+            {
+                Debug.Assert(!objectFlags.HasFlag(ObjectTypeFlags.Model));
+                if (meshName is null)
+                {
+                    return;
+                }
+
+                MeshesToExtract.Add(meshName);
+            }
+
+            AssetReferences.Add(modelName);
+
+            var propStatic = new CMapEntity()
+                .WithClassName("prop_static")
+                .WithProperty("model", modelName);
+
+            var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
+            var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
+            //propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
+            //propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
+
+            var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+            //propStatic.EntityProperties["rendercolor"] = $"{tintColor.X} {tintColor.Y} {tintColor.Z}";
+            //propStatic.EntityProperties["renderamt"] = tintColor.W.ToString(CultureInfo.InvariantCulture);
+
+            var skin = sceneObject.GetProperty<string>("m_skin");
+            if (!string.IsNullOrEmpty(skin))
+            {
+                propStatic.EntityProperties["skin"] = skin;
+            }
+
+            propStatic.EntityProperties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
+            propStatic.EntityProperties["disableshadows"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.NoShadows));
+
+            var isEmbeddedModel = false;
+            if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
+            {
+                isEmbeddedModel = true;
+                propStatic.EntityProperties["baketoworld"] = StringBool(true);
+                ModelsToExtract.Add(modelName);
+            }
+
+            if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
+            {
+                propStatic.EntityProperties["disablemeshmerging"] = StringBool(true);
+            }
+
+            StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
+        }
+
+        void AggregateToStaticProps(IKeyValueCollection agg, int layerIndex, List<MapNode> layerNodes)
+        {
+            var modelName = agg.GetProperty<string>("m_renderableModel");
+            var anyFlags = agg.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true);
+            var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
+
+            var propStatic = new CMapEntity()
+                .WithClassName("prop_static")
+                .WithProperty("model", modelName)
+                .WithProperty("baketoworld", StringBool(true));
+
+            AssetReferences.Add(modelName);
+            ModelsToExtract.Add(modelName);
+
+            // TODO: Split aggregate into fragment models
+
+            StaticPropFinalize(propStatic, layerIndex, layerNodes, true);
+        }
+
         for (var i = 0; i < node.SceneObjects.Count; i++)
         {
             var sceneObject = node.SceneObjects[i];
             var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
-            SceneObjectToStaticProp(sceneObject, layerIndex, layerNodes, isAggregate: false);
+            SceneObjectToStaticProp(sceneObject, layerIndex, layerNodes);
         }
 
-        // TODO: Aggregates should be separated.
         foreach (var aggregateSceneObject in node.AggregateSceneObjects)
         {
             var layerIndex = (int)aggregateSceneObject.GetIntegerProperty("m_nLayer");
-            SceneObjectToStaticProp(aggregateSceneObject, layerIndex, layerNodes, isAggregate: true);
+            AggregateToStaticProps(aggregateSceneObject, layerIndex, layerNodes);
+        }
+
+        foreach (var clutterSceneObject in node.ClutterSceneObjects)
+        {
+            // TODO: Clutter
         }
     }
 
@@ -546,6 +611,9 @@ public sealed class MapExtract
         };
     }
 
+    static string StringBool(bool value)
+        => value ? "1" : "0";
+
     private static string PropertyToEditString(EntityLump.EntityProperty property)
     {
         var type = property.Type;
@@ -553,7 +621,7 @@ public sealed class MapExtract
         return data switch
         {
             string str => str,
-            bool boolean => boolean ? "1" : "0",
+            bool boolean => StringBool(boolean),
             Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
             byte[] color => $"{color[0]} {color[1]} {color[2]} {color[3]}",
             _ => data.ToString()
