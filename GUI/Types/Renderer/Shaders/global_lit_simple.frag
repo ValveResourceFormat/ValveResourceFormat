@@ -1,6 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
+#include "common/utils.glsl"
 #include "common/rendermodes.glsl"
 #define renderMode_VertexColor 0
 

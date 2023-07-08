@@ -1,6 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
+#include "common/utils.glsl"
 #include "common/rendermodes.glsl"
 #define renderMode_Terrain_Blend 0
 #define renderMode_Ambient_Occlusion 0

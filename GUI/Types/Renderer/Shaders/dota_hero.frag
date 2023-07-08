@@ -1,6 +1,7 @@
 #version 330
 
 // Render modes -- Switched on/off by code
+#include "common/utils.glsl"
 #include "common/rendermodes.glsl"
 #define renderMode_Mask1 0
 #define renderMode_Mask2 0

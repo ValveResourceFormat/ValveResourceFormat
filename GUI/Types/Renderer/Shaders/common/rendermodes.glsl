@@ -72,7 +72,7 @@
     const vec3 shaderIdColor = vec3(0, 255, 0);
 #endif
 
-
+#if renderMode_FullBright == 1
 vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
 {
     float flFakeDiffuseLighting = saturate(dot(normal, -viewVector)) * 0.7 + 0.3;
@@ -86,3 +86,4 @@ vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
     //return XtraLightDiffuse * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
     return xtraLight * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
 }
+#endif
