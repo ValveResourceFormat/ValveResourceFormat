@@ -449,6 +449,12 @@ namespace GUI.Types.Renderer
                 return ((BinaryKV3)resource.GetBlockByType(BlockType.INSG)).Data;
             }
 
+            // Material might not have REDI, or it might have RED2 without INSG
+            if (resource.EditInfo != null && resource.EditInfo.Type != BlockType.REDI)
+            {
+                return null;
+            }
+
             var extraStringData = (ValveResourceFormat.Blocks.ResourceEditInfoStructs.ExtraStringData)resource.EditInfo.Structs[ValveResourceFormat.Blocks.ResourceEditInfo.REDIStruct.ExtraStringData];
             var inputSignatureString = extraStringData.List.Where(x => x.Name == "VSInputSignature").FirstOrDefault()?.Value;
 
