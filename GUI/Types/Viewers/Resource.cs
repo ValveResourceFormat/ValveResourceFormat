@@ -458,7 +458,7 @@ namespace GUI.Types.Viewers
                             var physicsExtract = new ModelExtract((PhysAggregateData)block, resource.FileName);
                             foreach (var mesh in physicsExtract.PhysMeshesToExtract)
                             {
-                                IViewer.AddContentTab(resTabs, mesh.FileName, Encoding.UTF8.GetString(ModelExtract.ToDmxMesh(mesh.Mesh.Shape, "vrf")));
+                                IViewer.AddContentTab(resTabs, mesh.FileName, Encoding.UTF8.GetString(physicsExtract.ToDmxMesh(mesh.Mesh)));
                             }
                             break;
                     }
