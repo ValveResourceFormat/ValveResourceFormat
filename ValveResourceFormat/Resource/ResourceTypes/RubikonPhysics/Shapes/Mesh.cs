@@ -85,6 +85,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public Vector3 Min { get; set; }
         public Vector3 Max { get; set; }
 
+
+        /// <summary>
+        /// Per triangle index to surface properties. Can be empty if the whole mesh has the same material.
+        /// </summary>
+        public int[] Materials { get; set; }
+
         /// <summary>
         /// The nodes of the loose kd-tree to accelerate ray casts and volume queries against this mesh.
         /// </summary>
@@ -109,10 +115,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         {
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
+            Materials = data.GetArray<object>("m_Materials").Select(Convert.ToInt32).ToArray();
             Nodes = ParseNodes(data);
             Vertices = Hull.ParseVertices(data);
             Triangles = ParseTriangles(data);
-            // Material
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }
 
