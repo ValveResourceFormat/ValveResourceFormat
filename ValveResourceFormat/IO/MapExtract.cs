@@ -197,6 +197,28 @@ public sealed class MapExtract
         };
     }
 
+    // TODO: Scan materials/tools folder
+    public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
+    {
+        ["clip"] = new HashSet<string> { "npcclip", "playerclip" },
+        ["invisibleladder"] = new HashSet<string> { "ladder", "passbullets" },
+    };
+
+    public static string GetToolTextureNameFromCollisionTags(ModelExtract.SurfaceTagCombo combo)
+    {
+        var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(combo.InteractAsStrings)).Key;
+        var tag = combo.InteractAsStrings.FirstOrDefault();
+        texture ??= tag switch
+        {
+            "playerclip" or "npcclip" => tag,
+            "sky" => "skybox",
+            "csgo_grenadeclip" => "grenadeclip",
+            _ => "nodraw",
+        };
+
+        return $"materials/tools/tools{texture}.vmat";
+    }
+
     public ContentFile ToContentFile()
     {
         var vmap = new ContentFile
@@ -214,7 +236,12 @@ public sealed class MapExtract
             FolderExtractFilter.Add(WorldPhysicsName + "_c");
 
             var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
-            var editable = new ModelExtract(physData, physModelNames.Editable).ToContentFile();
+            var editable = new ModelExtract(physData, physModelNames.Editable)
+            {
+                Type = ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh,
+                PhysicsToRenderMaterialNameProvider = GetToolTextureNameFromCollisionTags,
+            }
+            .ToContentFile();
             vmap.AdditionalFiles.Add(original);
             vmap.AdditionalFiles.Add(editable);
         }
@@ -259,7 +286,7 @@ public sealed class MapExtract
 
         var physModelNames = WorldPhysicsNamesToExtract();
 
-        MapDocument.World.Children.Add(new CMapEntity() { Name = "Original World Physics", ForceHidden = true }
+        MapDocument.World.Children.Add(new CMapEntity() { Name = "World Physics", EditorOnly = true }
             .WithClassName("prop_static")
             .WithProperty("model", physModelNames.Original)
         );
