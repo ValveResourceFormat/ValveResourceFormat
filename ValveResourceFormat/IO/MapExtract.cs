@@ -21,12 +21,12 @@ public sealed class MapExtract
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
     private string WorldPhysicsName { get; set; }
-    private (string Original, string Editable) WorldPhysicsNamesToExtract()
+    private static (string Original, string Editable) WorldPhysicsNamesToExtract(string worldPhysicsName)
     {
-        var original = Path.ChangeExtension(WorldPhysicsName, ".vmdl");
-        var editable = Path.GetDirectoryName(WorldPhysicsName).Replace('\\', '/')
+        var original = Path.ChangeExtension(worldPhysicsName, ".vmdl");
+        var editable = Path.GetDirectoryName(worldPhysicsName).Replace('\\', '/')
             + "/"
-            + Path.GetFileNameWithoutExtension(WorldPhysicsName)
+            + Path.GetFileNameWithoutExtension(worldPhysicsName)
             + "_mesh.vmdl";
 
         return (original, editable);
@@ -54,6 +54,7 @@ public sealed class MapExtract
         public static readonly uint Angles = StringToken.Get("angles");
         public static readonly uint Scales = StringToken.Get("scales");
         public static readonly uint HammerUniqueId = StringToken.Get("hammeruniqueid");
+        public static readonly uint Model = StringToken.Get("model");
     }
 
     /// <summary>
@@ -101,30 +102,17 @@ public sealed class MapExtract
         InitMapExtract(vmapResource);
     }
 
-    private static bool PathIsEqualOrSubPath(string equalOrSubPath, string path)
+    private static bool PathIsSubPath(string equalOrSubPath, string path)
     {
         equalOrSubPath = equalOrSubPath.Replace('\\', '/').TrimEnd('/');
         path = path.Replace('\\', '/').TrimEnd('/');
 
-        return path.EndsWith(equalOrSubPath, StringComparison.OrdinalIgnoreCase);
+        return equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
     }
 
     private void InitMapExtract(Resource vmapResource)
     {
         LumpFolder = GetLumpFolderFromVmapRERL(vmapResource.ExternalReferences);
-
-        // TODO: make these progressreporter warnings
-        // Not required, but good sanity checks
-        var mapName = Path.GetFileNameWithoutExtension(vmapResource.FileName);
-        var rootDir = Path.GetDirectoryName(vmapResource.FileName);
-        if (!string.IsNullOrEmpty(rootDir) && !PathIsEqualOrSubPath(LumpFolder, rootDir + "/" + mapName))
-        {
-            throw new InvalidDataException(
-                "vmap_c filename does not match or have the RERL-derived lump folder as a subpath. " +
-                "Make sure to load the resource from the correct location inside of the map vpk.\n" +
-                $"\tLump folder: {LumpFolder}\n\tResource filename: {vmapResource.FileName}"
-            );
-        }
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
         FolderExtractFilter.Add(worldPath);
@@ -181,8 +169,13 @@ public sealed class MapExtract
         return manifest.Resources.First().FirstOrDefault();
     }
 
-    private PhysAggregateData LoadWorldPhysics()
+    public PhysAggregateData LoadWorldPhysics()
     {
+        if (WorldPhysicsName == null)
+        {
+            return default;
+        }
+
         using var physicsResource = FileLoader.LoadFile(WorldPhysicsName + "_c");
         if (physicsResource == null)
         {
@@ -227,13 +220,11 @@ public sealed class MapExtract
             FileName = LumpFolder + ".vmap",
         };
 
-        FolderExtractFilter.Add(WorldPhysicsName + "_c"); // TODO: put vphys on vmdl.AdditionalFiles
-        var physModelNames = WorldPhysicsNamesToExtract();
         var physData = LoadWorldPhysics();
-
         if (physData != null)
         {
-            FolderExtractFilter.Add(WorldPhysicsName + "_c");
+            FolderExtractFilter.Add(WorldPhysicsName + "_c"); // TODO: put vphys on vmdl.AdditionalFiles
+            var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
 
             var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
             var editable = new ModelExtract(physData, physModelNames.Editable)
@@ -263,7 +254,21 @@ public sealed class MapExtract
             using var model = FileLoader.LoadFile(modelName + "_c");
             if (model is not null)
             {
-                var vmdl = new ModelExtract((Model)model.DataBlock, FileLoader).ToContentFile();
+                var data = (Model)model.DataBlock;
+
+                var hasMeshes = data.GetEmbeddedMeshesAndLoD().Any() || data.GetReferenceMeshNamesAndLoD().Any();
+                var hasPhysics = data.GetEmbeddedPhys() is not null || data.GetReferencedPhysNames().Any();
+                var isJustPhysics = hasPhysics && !hasMeshes;
+
+                var modelExtract = new ModelExtract(data, FileLoader)
+                {
+                    Type = isJustPhysics
+                        ? ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh
+                        : ModelExtract.ModelExtractType.Default,
+                    PhysicsToRenderMaterialNameProvider = (_) => "materials/tools/toolstrigger.vmat",
+                };
+
+                var vmdl = modelExtract.ToContentFile();
                 vmap.AdditionalFiles.Add(vmdl);
             }
         }
@@ -284,17 +289,21 @@ public sealed class MapExtract
         WorldLayers = new();
         UniqueNodeIds = new();
 
-        var physModelNames = WorldPhysicsNamesToExtract();
+        if (!string.IsNullOrEmpty(WorldPhysicsName))
+        {
+            var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
 
-        MapDocument.World.Children.Add(new CMapEntity() { Name = "World Physics", EditorOnly = true }
-            .WithClassName("prop_static")
-            .WithProperty("model", physModelNames.Original)
-        );
+            MapDocument.World.Children.Add(new CMapEntity() { Name = "World Physics", EditorOnly = true }
+                .WithClassName("prop_static")
+                .WithProperty("model", physModelNames.Original)
+            );
 
-        MapDocument.World.Children.Add(new CMapEntity() { Name = "Editable World Physics" }
-            .WithClassName("prop_static")
-            .WithProperty("model", physModelNames.Editable)
-        );
+            MapDocument.World.Children.Add(new CMapEntity() { Name = "Editable World Physics" }
+                .WithClassName("prop_static")
+                .WithProperty("model", physModelNames.Editable)
+            );
+        }
+
 
         foreach (var worldNodeName in WorldNodeNames)
         {
@@ -549,7 +558,7 @@ public sealed class MapExtract
         }
     }
 
-    private static int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
+    private int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
         foreach (var (hash, property) in compiledEntity.Properties.Reverse())
@@ -564,7 +573,14 @@ public sealed class MapExtract
                 continue;
             }
 
-            mapEntity.EntityProperties.Add(property.Name, PropertyToEditString(property));
+            var value = PropertyToEditString(property);
+
+            if (hash == CommonHashes.Model && PathIsSubPath(value, LumpFolder))
+            {
+                ModelsToExtract.Add(value);
+            }
+
+            mapEntity.EntityProperties.Add(property.Name, value);
         }
 
         if (compiledEntity.Connections != null)

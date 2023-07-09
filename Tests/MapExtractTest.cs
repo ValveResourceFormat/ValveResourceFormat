@@ -22,9 +22,8 @@ namespace Tests
             using var vmapResource = new Resource();
             vmapResource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota.vmap_c"));
 
-            var exception = Assert.Throws<InvalidDataException>(() => new MapExtract(vmapResource, new NullFileLoader()));
-            Assert.That(exception.Message, Contains.Substring("filename does not match"));
-            Assert.That(exception.Message, Contains.Substring("RERL-derived lump folder"));
+            var exception = Assert.Throws<FileNotFoundException>(() => new MapExtract(vmapResource, new NullFileLoader()));
+            Assert.That(exception.Message, Contains.Substring("Failed to find world resource"));
 
             //var extract = new MapExtract(vmapResource, null);
             //Assert.AreEqual(extract.LumpFolder, Path.Combine("maps", "dota"));
