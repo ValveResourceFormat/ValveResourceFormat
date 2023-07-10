@@ -1,3 +1,23 @@
+struct LightingTerms
+{
+    vec3 DiffuseDirect;
+    vec3 DiffuseIndirect;
+    vec3 SpecularDirect;
+    vec3 SpecularIndirect;
+#if defined(hasTransmission) // temp
+    vec3 TransmissiveDirect;
+#endif
+};
+
+LightingTerms Init()
+{
+#if defined(hasTransmission) // temp
+    return LightingTerms(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0));
+#else
+    return LightingTerms(vec3(0), vec3(0), vec3(0), vec3(0));
+#endif
+}
+
 
 uniform mat4 vLightPosition;
 uniform vec4 vLightColor;

@@ -1,4 +1,5 @@
-#extension GL_ARB_derivative_control : enable
+// Geometric roughness. Essentially just Specular Anti-Aliasing
+#extension GL_ARB_derivative_control : enable // enable DFDX and DFDY
 
 float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
 {
