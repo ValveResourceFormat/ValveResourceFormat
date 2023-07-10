@@ -27,7 +27,7 @@ public sealed class MapExtract
         var editable = Path.GetDirectoryName(worldPhysicsName).Replace('\\', '/')
             + "/"
             + Path.GetFileNameWithoutExtension(worldPhysicsName)
-            + "_mesh.vmdl";
+            + "_edit.vmdl";
 
         return (original, editable);
     }

@@ -25,6 +25,8 @@ public class ModelExtract
     private readonly string fileName;
 
     public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = new();
+
+    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = new();
     public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = new();
 
     public string[] PhysicsSurfaceNames { get; private set; }
@@ -68,7 +70,7 @@ public class ModelExtract
             physAggregateData = model.GetEmbeddedPhys();
         }
 
-        LoadMeshes();
+        EnqueueMeshes();
     }
 
     /// <summary>
@@ -86,44 +88,13 @@ public class ModelExtract
     {
         this.physAggregateData = physAggregateData;
         this.fileName = fileName;
-        LoadMeshes();
+        EnqueueMeshes();
     }
 
-    private void LoadMeshes()
+    private void EnqueueMeshes()
     {
-        RenderMeshesToExtract.AddRange(GetExportableRenderMeshes());
-        PhysMeshesToExtract.AddRange(GetExportablePhysMeshes());
-
-        if (physAggregateData != null)
-        {
-            PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(hash =>
-            {
-                StringToken.InvertedTable.TryGetValue(hash, out var name);
-                return name ?? hash.ToString(CultureInfo.InvariantCulture);
-            }).ToArray();
-
-
-            PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
-                attributes.GetArray<string>("m_InteractAsStrings").ToHashSet()
-                ?? attributes.GetArray<string>("m_PhysicsTagStrings").ToHashSet()
-            ).ToArray();
-
-            foreach (var physMesh in PhysMeshesToExtract)
-            {
-                SurfaceTagCombos.Add(new SurfaceTagCombo(
-                    PhysicsSurfaceNames[physMesh.Mesh.SurfacePropertyIndex],
-                    PhysicsCollisionTags[physMesh.Mesh.CollisionAttributeIndex]
-                ));
-
-                foreach (var surfaceIndex in physMesh.Mesh.Shape.Materials)
-                {
-                    SurfaceTagCombos.Add(new SurfaceTagCombo(
-                        PhysicsSurfaceNames[surfaceIndex],
-                        PhysicsCollisionTags[physMesh.Mesh.CollisionAttributeIndex]
-                    ));
-                }
-            }
-        }
+        EnqueueRenderMeshes();
+        EnqueuePhysMeshes();
     }
 
     public ContentFile ToContentFile()
@@ -139,6 +110,14 @@ public class ModelExtract
             vmdl.AddSubFile(
                 Path.GetFileName(renderMesh.FileName),
                 () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName))
+            );
+        }
+
+        foreach (var physHull in PhysHullsToExtract)
+        {
+            vmdl.AddSubFile(
+                Path.GetFileName(physHull.FileName),
+                () => ToDmxMesh(physHull.Hull)
             );
         }
 
@@ -205,7 +184,7 @@ public class ModelExtract
             }
         }
 
-        if (PhysMeshesToExtract.Count != 0)
+        if (PhysHullsToExtract.Any() || PhysMeshesToExtract.Any())
         {
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {
@@ -219,37 +198,59 @@ public class ModelExtract
                 RemapMaterials(remapTable, globalReplace);
             }
 
+            foreach (var (physHull, fileName) in PhysHullsToExtract)
+            {
+                HandlePhysMeshNode(physHull, fileName);
+            }
+
             foreach (var (physMesh, fileName) in PhysMeshesToExtract)
             {
-                var surfacePropName = PhysicsSurfaceNames[physMesh.SurfacePropertyIndex];
-                var collisionTags = PhysicsCollisionTags[physMesh.CollisionAttributeIndex];
-
-                if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
-                {
-                    renderMeshList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
-                        MakeNode(
-                            "RenderMeshFile",
-                            ("filename", new KVValue(KVType.STRING, fileName))
-                        )
-                    ));
-
-                    continue;
-                }
-
-                // TODO: per faceSet surface_prop
-                physicsShapeList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
-                    MakeNode(
-                        "PhysicsMeshFile",
-                        ("filename", new KVValue(KVType.STRING, fileName)),
-                        ("surface_prop", new KVValue(KVType.STRING, surfacePropName)),
-                        ("collision_tags", new KVValue(KVType.STRING, string.Join(" ", collisionTags))),
-                        ("name", new KVValue(KVType.STRING, physMesh.UserFriendlyName))
-                    )
-                ));
+                HandlePhysMeshNode(physMesh, fileName);
             }
         }
 
         return new KV3File(kv, format: "modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e}").ToString();
+
+        //
+        // Local functions
+        //
+
+        void HandlePhysMeshNode<TShape>(ShapeDescriptor<TShape> shapeDesc, string fileName)
+            where TShape : struct
+        {
+            var surfacePropName = PhysicsSurfaceNames[shapeDesc.SurfacePropertyIndex];
+            var collisionTags = PhysicsCollisionTags[shapeDesc.CollisionAttributeIndex];
+
+            if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
+            {
+                renderMeshList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
+                    MakeNode(
+                        "RenderMeshFile",
+                        ("filename", new KVValue(KVType.STRING, fileName))
+                    )
+                ));
+
+                return;
+            }
+
+            var className = shapeDesc switch
+            {
+                HullDescriptor => "PhysicsHullFile",
+                MeshDescriptor => "PhysicsMeshFile",
+                _ => throw new NotImplementedException()
+            };
+
+            // TODO: per faceSet surface_prop
+            physicsShapeList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
+                MakeNode(
+                    className,
+                    ("filename", new KVValue(KVType.STRING, fileName)),
+                    ("surface_prop", new KVValue(KVType.STRING, surfacePropName)),
+                    ("collision_tags", new KVValue(KVType.STRING, string.Join(" ", collisionTags))),
+                    ("name", new KVValue(KVType.STRING, shapeDesc.UserFriendlyName))
+                )
+            ));
+        }
 
         void RemapMaterials(
             IReadOnlyDictionary<string, string> remapTable = null,
@@ -301,39 +302,74 @@ public class ModelExtract
     static string GetDmxFileName_ForReferenceMesh(string fileName)
         => Path.ChangeExtension(fileName, ".dmx").Replace('\\', '/');
 
-    private IEnumerable<(Mesh Mesh, string FileName)> GetExportableRenderMeshes()
+    private void EnqueueRenderMeshes()
     {
         if (model == null)
         {
-            yield break;
+            return;
         }
 
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
-            yield return (embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++));
+            RenderMeshesToExtract.Add((embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
         {
             using var resource = fileLoader.LoadFile(reference.MeshName + "_c");
-            yield return ((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName));
+            RenderMeshesToExtract.Add(((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
         }
     }
 
-    private IEnumerable<(MeshDescriptor Mesh, string FileName)> GetExportablePhysMeshes()
+    private void EnqueuePhysMeshes()
     {
         if (physAggregateData == null)
         {
-            yield break;
+            return;
         }
+
+        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(hash =>
+        {
+            StringToken.InvertedTable.TryGetValue(hash, out var name);
+            return name ?? hash.ToString(CultureInfo.InvariantCulture);
+        }).ToArray();
+
+
+        PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
+            attributes.GetArray<string>("m_InteractAsStrings").ToHashSet()
+            ?? attributes.GetArray<string>("m_PhysicsTagStrings").ToHashSet()
+        ).ToArray();
 
         var i = 0;
         foreach (var physicsPart in physAggregateData.Parts)
         {
+            foreach (var hull in physicsPart.Shape.Hulls)
+            {
+                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++)));
+
+                SurfaceTagCombos.Add(new SurfaceTagCombo(
+                    PhysicsSurfaceNames[hull.SurfacePropertyIndex],
+                    PhysicsCollisionTags[hull.CollisionAttributeIndex]
+                ));
+            }
+
             foreach (var mesh in physicsPart.Shape.Meshes)
             {
-                yield return (mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++));
+                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++)));
+
+                SurfaceTagCombos.Add(new SurfaceTagCombo(
+                    PhysicsSurfaceNames[mesh.SurfacePropertyIndex],
+                    PhysicsCollisionTags[mesh.CollisionAttributeIndex]
+                ));
+
+                foreach (var surfaceIndex in mesh.Shape.Materials)
+                {
+                    SurfaceTagCombos.Add(new SurfaceTagCombo(
+                        PhysicsSurfaceNames[surfaceIndex],
+                        PhysicsCollisionTags[mesh.CollisionAttributeIndex]
+                    ));
+                }
             }
         }
     }
@@ -344,19 +380,7 @@ public class ModelExtract
         var ib = mesh.VBIB.IndexBuffers.First();
 
         using var dmx = new Datamodel.Datamodel("model", 22);
-        var dmeModel = new DmeModel() { Name = name };
-
-        var dag = new DmeDag() { Name = name };
-        dmeModel.Children.Add(dag);
-        dmeModel.JointList.Add(dag);
-
-        var transformList = new DmeTransformsList();
-        transformList.Transforms.Add(new DmeTransform());
-        dmeModel.BaseStates.Add(transformList);
-
-        var vertexData = new DmeVertexData { Name = "bind" };
-        dag.Shape.CurrentState = vertexData;
-        dag.Shape.BaseStates.Add(vertexData);
+        DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
         foreach (var sceneObject in mesh.Data.GetArray("m_sceneObjects"))
         {
@@ -422,20 +446,18 @@ public class ModelExtract
             }
         }
 
-        dmx.Root = new Element(dmx, "root", null, "DmElement")
-        {
-            ["skeleton"] = dmeModel,
-            ["model"] = dmeModel,
-            ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
-            {
-                ["source"] = "Generated with VRF - https://vrf.steamdb.info/",
-            }
-        };
-
+        TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
         dmx.Save(stream, "keyvalues2", 4);
 
         return stream.ToArray();
+    }
+
+    public byte[] ToDmxMesh(HullDescriptor hull)
+    {
+        var uniformSurface = PhysicsSurfaceNames[hull.SurfacePropertyIndex];
+        var uniformCollisionTags = PhysicsCollisionTags[hull.CollisionAttributeIndex];
+        return ToDmxMesh(hull.Shape, hull.UserFriendlyName, uniformSurface, uniformCollisionTags);
     }
 
     public byte[] ToDmxMesh(MeshDescriptor mesh)
@@ -445,25 +467,52 @@ public class ModelExtract
         return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName, uniformSurface, uniformCollisionTags, PhysicsSurfaceNames);
     }
 
+    public static byte[] ToDmxMesh(RnShapes.Hull hull, string name,
+        string uniformSurface,
+        HashSet<string> uniformCollisionTags)
+    {
+        using var dmx = new Datamodel.Datamodel("model", 22);
+        DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
+
+        // n-gon face set
+        var faceSet = new DmeFaceSet() { Name = "hull faces" };
+        faceSet.Material.MaterialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
+        dag.Shape.FaceSets.Add(faceSet);
+
+        Debug.Assert(hull.Faces.Length + hull.Vertices.Length == (hull.Edges.Length / 2) + 2);
+
+        foreach (var face in hull.Faces)
+        {
+            var startEdge = face.Edge;
+            var currentEdge = startEdge;
+            do
+            {
+                var e = hull.Edges[currentEdge];
+                faceSet.Faces.Add(e.Origin);
+                currentEdge = e.Next;
+            }
+            while (currentEdge != startEdge);
+
+            faceSet.Faces.Add(-1);
+        }
+
+        var indices = Enumerable.Range(0, hull.Vertices.Length * 3).ToArray();
+        vertexData.AddStream<Vector3Array, Vector3>("position$0", hull.Vertices, indices);
+
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "keyvalues2", 4);
+
+        return stream.ToArray();
+    }
+
     public static byte[] ToDmxMesh(RnShapes.Mesh mesh, string name,
         string uniformSurface,
         HashSet<string> uniformCollisionTags,
         string[] surfaceList)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
-        var dmeModel = new DmeModel() { Name = name };
-
-        var dag = new DmeDag() { Name = name };
-        dmeModel.Children.Add(dag);
-        dmeModel.JointList.Add(dag);
-
-        var transformList = new DmeTransformsList();
-        transformList.Transforms.Add(new DmeTransform());
-        dmeModel.BaseStates.Add(transformList);
-
-        var vertexData = new DmeVertexData { Name = "bind" };
-        dag.Shape.CurrentState = vertexData;
-        dag.Shape.BaseStates.Add(vertexData);
+        DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
         if (mesh.Materials.Length == 0)
         {
@@ -510,6 +559,31 @@ public class ModelExtract
 
         vertexData.AddStream<Vector3Array, Vector3>("position$0", mesh.Vertices, indices);
 
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "keyvalues2", 4);
+
+        return stream.ToArray();
+    }
+
+    private static void DmxModelBaseLayout(string name, out DmeModel dmeModel, out DmeDag dag, out DmeVertexData vertexData)
+    {
+        dmeModel = new DmeModel() { Name = name };
+        dag = new DmeDag() { Name = name };
+        dmeModel.Children.Add(dag);
+        dmeModel.JointList.Add(dag);
+
+        var transformList = new DmeTransformsList();
+        transformList.Transforms.Add(new DmeTransform());
+        dmeModel.BaseStates.Add(transformList);
+
+        vertexData = new DmeVertexData { Name = "bind" };
+        dag.Shape.CurrentState = vertexData;
+        dag.Shape.BaseStates.Add(vertexData);
+    }
+
+    private static void TieElementRoot(Datamodel.Datamodel dmx, DmeModel dmeModel)
+    {
         dmx.Root = new Element(dmx, "root", null, "DmElement")
         {
             ["skeleton"] = dmeModel,
@@ -519,11 +593,6 @@ public class ModelExtract
                 ["source"] = "Generated with VRF - https://vrf.steamdb.info/",
             }
         };
-
-        using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
-
-        return stream.ToArray();
     }
 
     private static void GenerateTriangleFaceSet(DmeDag dag, int triangleStart, int triangleEnd, string material)
