@@ -442,24 +442,7 @@ namespace GUI.Types.Viewers
 
                         case ResourceType.Map:
                             var mapExtract = new MapExtract(resource, vrfGuiContext.FileLoader);
-                            IViewer.AddContentTab(resTabs, $"{resource.FileName}.vmap", mapExtract.ToValveMap(), true);
-                            break;
-
-                        case ResourceType.Model:
-                            var modelExtract = new ModelExtract((Model)block, vrfGuiContext.FileLoader);
-                            IViewer.AddContentTab(resTabs, $"{resource.FileName}", modelExtract.ToValveModel());
-                            foreach (var mesh in modelExtract.RenderMeshesToExtract)
-                            {
-                                IViewer.AddContentTab(resTabs, mesh.FileName, Encoding.UTF8.GetString(ModelExtract.ToDmxMesh(mesh.Mesh, "vrf")));
-                            }
-                            break;
-
-                        case ResourceType.PhysicsCollisionMesh:
-                            var physicsExtract = new ModelExtract((PhysAggregateData)block, resource.FileName);
-                            foreach (var mesh in physicsExtract.PhysMeshesToExtract)
-                            {
-                                IViewer.AddContentTab(resTabs, mesh.FileName, Encoding.UTF8.GetString(physicsExtract.ToDmxMesh(mesh.Mesh)));
-                            }
+                            IViewer.AddContentTab(resTabs, $"{resource.FileName}.vmap", mapExtract.ToValveMap(), false);
                             break;
                     }
                 }
