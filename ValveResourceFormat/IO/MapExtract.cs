@@ -1,16 +1,16 @@
-using System.IO;
-using System.Collections.Generic;
-using ValveResourceFormat.IO.ContentFormats.ValveMap;
-using ValveResourceFormat.Utils;
-using ValveResourceFormat.ResourceTypes;
-using System.Numerics;
 using System;
-using System.Text;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Blocks;
-using System.Globalization;
-using System.Linq;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Numerics;
+using System.Text;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO.ContentFormats.ValveMap;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -34,6 +34,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = new();
     private List<string> ModelsToExtract { get; } = new();
+    private Dictionary<string, string> ModelEntityAssociations { get; } = new();
     private List<string> MeshesToExtract { get; } = new();
     private List<string> FolderExtractFilter { get; } = new();
 
@@ -46,6 +47,7 @@ public sealed class MapExtract
     public IProgress<string> ProgressReporter { get; set; }
 
     private readonly Dictionary<uint, string> HashTable = StringToken.InvertedTable;
+    private static readonly string ProductVersionString = typeof(MapExtract).Assembly.GetName().Version.ToString();
 
     internal static class CommonHashes
     {
@@ -58,7 +60,7 @@ public sealed class MapExtract
     }
 
     /// <summary>
-    /// Extract a map from a resource. Accepted types include Map, World, WorldNode and EntityLump.
+    /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
     /// </summary>
     public MapExtract(Resource resource, IFileLoader fileLoader)
     {
@@ -73,7 +75,7 @@ public sealed class MapExtract
                 InitWorldExtract(resource);
                 break;
             default:
-                throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported for map extraction.");
+                throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported in {nameof(MapExtract)}.");
         }
     }
 
@@ -190,26 +192,36 @@ public sealed class MapExtract
         };
     }
 
-    // TODO: Scan materials/tools folder
     public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
     {
         ["clip"] = new HashSet<string> { "npcclip", "playerclip" },
         ["invisibleladder"] = new HashSet<string> { "ladder", "passbullets" },
     };
 
-    public static string GetToolTextureNameFromCollisionTags(ModelExtract.SurfaceTagCombo combo)
+    public static string GetToolTextureNameForCollisionTags(ModelExtract.SurfaceTagCombo combo)
     {
         var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(combo.InteractAsStrings)).Key;
         var tag = combo.InteractAsStrings.FirstOrDefault();
         texture ??= tag switch
         {
-            "playerclip" or "npcclip" => tag,
+            "playerclip" or "npcclip" or "blocksound" => tag,
             "sky" => "skybox",
             "csgo_grenadeclip" => "grenadeclip",
             _ => "nodraw",
         };
 
         return $"materials/tools/tools{texture}.vmat";
+    }
+
+    // These appear in FGD as "auto_apply_material"
+    private static string GetToolTextureForEntity(string entityClassName)
+    {
+        return entityClassName switch
+        {
+            "env_cs_place" => "materials/tools/tools_cs_place.vmat",
+            "post_processing_volume" => "materials/tools_postprocess_volume.vmat",
+            _ => "materials/tools/toolstrigger.vmat",
+        };
     }
 
     public ContentFile ToContentFile()
@@ -226,14 +238,14 @@ public sealed class MapExtract
             FolderExtractFilter.Add(WorldPhysicsName + "_c"); // TODO: put vphys on vmdl.AdditionalFiles
             var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
 
-            var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
+            //var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
             var editable = new ModelExtract(physData, physModelNames.Editable)
             {
                 Type = ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh,
-                PhysicsToRenderMaterialNameProvider = GetToolTextureNameFromCollisionTags,
+                PhysicsToRenderMaterialNameProvider = GetToolTextureNameForCollisionTags,
             }
             .ToContentFile();
-            vmap.AdditionalFiles.Add(original);
+            //vmap.AdditionalFiles.Add(original);
             vmap.AdditionalFiles.Add(editable);
         }
 
@@ -260,12 +272,15 @@ public sealed class MapExtract
                 var hasPhysics = data.GetEmbeddedPhys() is not null || data.GetReferencedPhysNames().Any();
                 var isJustPhysics = hasPhysics && !hasMeshes;
 
+                ModelEntityAssociations.TryGetValue(modelName, out var associatedEntityClass);
+                var toolTexture = GetToolTextureForEntity(associatedEntityClass);
+
                 var modelExtract = new ModelExtract(data, FileLoader)
                 {
                     Type = isJustPhysics
                         ? ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh
                         : ModelExtract.ModelExtractType.Default,
-                    PhysicsToRenderMaterialNameProvider = (_) => "materials/tools/toolstrigger.vmat",
+                    PhysicsToRenderMaterialNameProvider = (_) => toolTexture,
                 };
 
                 var vmdl = modelExtract.ToContentFile();
@@ -293,10 +308,10 @@ public sealed class MapExtract
         {
             var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
 
-            MapDocument.World.Children.Add(new CMapEntity() { Name = "World Physics", EditorOnly = true }
+            /*MapDocument.World.Children.Add(new CMapEntity() { Name = "World Physics", EditorOnly = true }
                 .WithClassName("prop_static")
                 .WithProperty("model", physModelNames.Original)
-            );
+            );*/
 
             MapDocument.World.Children.Add(new CMapEntity() { Name = "Editable World Physics" }
                 .WithClassName("prop_static")
@@ -520,10 +535,12 @@ public sealed class MapExtract
         {
             FixUpEntityKeyValues(compiledEntity);
 
-            if (compiledEntity.GetProperty<string>(CommonHashes.ClassName) == "worldspawn")
+            var className = compiledEntity.GetProperty<string>(CommonHashes.ClassName);
+
+            if (className == "worldspawn")
             {
                 AddProperties(compiledEntity, MapDocument.World);
-                MapDocument.World.EntityProperties["description"] = $"Decompiled with VRF 0.3.2 - https://vrf.steamdb.info/";
+                MapDocument.World.EntityProperties["description"] = $"Decompiled with VRF {ProductVersionString} - https://vrf.steamdb.info/";
                 continue;
             }
 
@@ -546,6 +563,61 @@ public sealed class MapExtract
                 }
             }
 
+            var modelName = compiledEntity.GetProperty<string>(CommonHashes.Model);
+            if (modelName != null && PathIsSubPath(modelName, LumpFolder))
+            {
+                modelName = modelName.Replace('\\', '/');
+                ModelsToExtract.Add(modelName);
+                Debug.Assert(ModelEntityAssociations.TryAdd(modelName, className), "Model referenced by more than one entity!");
+
+                ReadOnlySpan<char> entityIdFull = Path.GetFileNameWithoutExtension(modelName);
+                var nameCutoff = entityIdFull.Length;
+                foreach (var entityId in entityLineage.Reverse())
+                {
+                    ReadOnlySpan<char> entityIdString = '_' + entityId.ToString(CultureInfo.InvariantCulture);
+                    if (entityIdFull[..nameCutoff].EndsWith(entityIdString, StringComparison.Ordinal))
+                    {
+                        nameCutoff -= entityIdString.Length;
+                    }
+                }
+
+                var entityName = new string(entityIdFull[..nameCutoff]);
+                if (entityName != "unnamed")
+                {
+                    mapEntity.Name = entityName;
+                }
+
+                // Check if it is some type of brush entity
+                if (!className.StartsWith("prop_", StringComparison.Ordinal))
+                {
+                    // We add a static prop for it, but it can't be tied to the entity until it's made editable.
+                    // So we group the static prop and entity together.
+
+                    var brushGroup = new CMapGroup()
+                    {
+                        Name = $"{entityName} {className}",
+                        Origin = mapEntity.Origin,
+                    };
+
+                    var propStatic = new CMapEntity()
+                    {
+                        Origin = mapEntity.Origin,
+                        Angles = mapEntity.Angles,
+                        Scales = mapEntity.Scales,
+                    };
+
+                    propStatic
+                        .WithClassName("prop_static")
+                        .WithProperty("model", modelName);
+
+                    brushGroup.Children.Add(mapEntity);
+                    brushGroup.Children.Add(propStatic);
+
+                    destNode.Children.Add(brushGroup);
+                    continue;
+                }
+            }
+
             destNode.Children.Add(mapEntity);
         }
     }
@@ -558,7 +630,7 @@ public sealed class MapExtract
         }
     }
 
-    private int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
+    private static int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
         foreach (var (hash, property) in compiledEntity.Properties.Reverse())
@@ -574,12 +646,6 @@ public sealed class MapExtract
             }
 
             var value = PropertyToEditString(property);
-
-            if (hash == CommonHashes.Model && PathIsSubPath(value, LumpFolder))
-            {
-                ModelsToExtract.Add(value);
-            }
-
             mapEntity.EntityProperties.Add(property.Name, value);
         }
 

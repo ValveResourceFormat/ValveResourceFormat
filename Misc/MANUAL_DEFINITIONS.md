@@ -32,9 +32,11 @@ Unfortunately different games may have different paths for these icons, so they 
 
 Use [VrfFgdParser](../Misc/VrfFgdParser) to extract them.
 
+## Collision tags to tool texture mappings
+[MapExtract.cs](../ValveResourceFormat/IO/MapExtract.cs) contains various mappings of entity/collision tags to hammer tool textures. These are used in map decompiler and to display an adequate texture in map physics viewer.
+
 ## Material texture mappings for correct extraction
 
-[MaterialExtract.cs](../ValveResourceFormat/IO/MaterialExtract.cs) contains a list of shader names and which texture files are used,
-along with which channels they use.
+[ShaderDataProvider.cs](../ValveResourceFormat/IO/ShaderDataProvider.cs) contains a list of shader names and which texture files are used, along with which channels they use.
 
-This is required for correct material extraction. In future it should be possible to automatically extract this information from shader files.
+This is required for correct material extraction. These mappings are used as a fall-back when querying VCS files fails in some way. 

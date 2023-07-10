@@ -1,19 +1,20 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Text;
+using Datamodel;
+using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using Datamodel;
-using ValveResourceFormat.IO.ContentFormats.DmxModel;
-using System.IO;
-using System.Text;
-using System.Numerics;
-using System.Collections.Generic;
 using ValveResourceFormat.Utils;
-using System.Diagnostics;
-using System.Globalization;
+
 
 namespace ValveResourceFormat.IO;
 
@@ -32,7 +33,7 @@ public class ModelExtract
     public string[] PhysicsSurfaceNames { get; private set; }
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
 
-    public record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
+    public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
     {
         public SurfaceTagCombo(string surfacePropName, string[] collisionTags)
             : this(surfacePropName, new HashSet<string>(collisionTags))
@@ -40,6 +41,7 @@ public class ModelExtract
 
         public string StringMaterial => string.Join('+', InteractAsStrings) + '$' + SurfacePropName;
         public override int GetHashCode() => StringMaterial.GetHashCode(StringComparison.OrdinalIgnoreCase);
+        public bool Equals(SurfaceTagCombo other) => GetHashCode() == other.GetHashCode();
     }
 
     public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = new();
@@ -337,8 +339,7 @@ public class ModelExtract
 
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
-            attributes.GetArray<string>("m_InteractAsStrings").ToHashSet()
-            ?? attributes.GetArray<string>("m_PhysicsTagStrings").ToHashSet()
+            (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings")).ToHashSet()
         ).ToArray();
 
         var i = 0;
