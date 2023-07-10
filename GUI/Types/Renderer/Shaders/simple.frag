@@ -5,6 +5,8 @@
 #include "common/rendermodes.glsl"
 
 // Render modes -- Switched on/off by code
+#define renderMode_Diffuse 0
+#define renderMode_Specular 0
 #define renderMode_PBR 0
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
@@ -130,6 +132,10 @@ uniform sampler2D g_tTintMask;
 uniform vec3 vEyePosition;
 
 uniform float g_flAlphaTestReference = 0.5;
+uniform float g_flOpacityScale = 1.0;
+
+uniform float g_flAmbientOcclusionDirectDiffuse = 1.0;
+uniform float g_flAmbientOcclusionDirectSpecular = 1.0;
 
 // glass specific params
 #if (F_GLASS == 1) || defined(glass)
@@ -145,6 +151,7 @@ uniform float g_flRefractScale = 0.1;
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
 #define hasMetalnessTexture defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))
 #define hasAnisoGloss defined(complex) && (F_ANISOTROPIC_GLOSS == 1)
+#define unlit defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
 
 #if hasUniformMetalness
     uniform float g_flMetalness = 0.0;
@@ -176,11 +183,13 @@ uniform float g_flRefractScale = 0.1;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-uniform float g_flOpacityScale = 1.0;
 
 #include "common/texturing.glsl"
 
 #include "common/pbr.glsl"
+
+const vec3 gamma = vec3(2.2);
+const vec3 invGamma = vec3(1.0 / gamma);
 
 void main()
 {
@@ -255,9 +264,6 @@ void main()
     vec3 tintFactor = vVertexColorOut.rgb;
 #endif
 
-    vec3 gamma = vec3(2.2);
-    vec3 invGamma = vec3(1.0 / gamma);
-
     vec3 albedo = pow(color.rgb, gamma) * tintFactor;
     float opacity = color.a * vVertexColorOut.a;
 #if F_TRANSLUCENT == 1
@@ -267,8 +273,7 @@ void main()
     float occlusion = 1.0;
 
     vec3 irradiance = vec3(0.3);
-    vec3 Lo = vec3(0.0);
-
+    LightingTerms lighting = Init();
 
     // Define PBR parameters
 #if defined(csgo_character)
@@ -320,7 +325,7 @@ void main()
     vec3 N = calculateWorldNormal(normal, vertexNormal, vTangentOut, vBitangentOut);
 
 
-#if defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
+#if unlit == 1
     outputColor = vec4(albedo, color.a);
 #else
     #if (F_GLASS == 1) || defined(glass)
@@ -371,7 +376,8 @@ void main()
         vec3 specularLight = specularContribution(L, V, N, F0, specularColor, roughness);
         float diffuseLight = diffuseLobe(max(dot(N, L), 0.0), roughness);
 
-       Lo += (specularLight + diffuseColor * diffuseLight) * visibility * getSunColor();
+       lighting.SpecularDirect += specularLight * visibility * getSunColor();
+       lighting.DiffuseDirect += diffuseLight * visibility * getSunColor();
     }
 
 
@@ -386,23 +392,27 @@ void main()
     #endif
 
 
-    irradiance *= occlusion;
-    Lo *= occlusion;
-
-    outputColor.rgb = diffuseColor * irradiance;
-    outputColor.rgb += Lo;
+    lighting.DiffuseIndirect = irradiance;
 
     // Environment Map
     #if (S_SPECULAR == 1)
         vec3 specular = GetEnvironment(N, V, roughness, specularColor, irradiance);
-        outputColor.rgb += specular * occlusion;
+        lighting.SpecularIndirect += specular * occlusion;
     #endif
 
+    lighting.DiffuseDirect *= mix(1.0, occlusion, g_flAmbientOcclusionDirectDiffuse);
+    lighting.SpecularDirect *= mix(1.0, occlusion, g_flAmbientOcclusionDirectSpecular);
 
+    vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect * occlusion;
+    vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect * occlusion;
+    vec3 combinedLighting = diffuseColor * diffuseLighting + specularLighting;
+
+    outputColor.rgb = combinedLighting;
+
+#endif
 #if F_DISABLE_TONE_MAPPING == 0
     outputColor.rgb = pow(outputColor.rgb, vec3(invGamma));
     //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
-#endif
 #endif
 
     // Rendermodes
@@ -435,6 +445,15 @@ void main()
     outputColor = vec4(PackToColor(N), 1.0);
 #endif
 
+// I have literally no clue why, but if unlit != 1 is AFTER renderMode_Diffuse (or specular) the #if will always be enabled, regardless of the value of renderMode_Diffuse
+#if unlit != 1 && renderMode_Diffuse == 1
+    outputColor.rgb = pow(diffuseLighting, vec3(invGamma));
+#endif
+
+#if unlit != 1 && renderMode_Specular == 1
+    outputColor.rgb = pow(specularLighting, vec3(invGamma));
+#endif
+
 #if renderMode_PBR == 1
     outputColor = vec4(occlusion, roughness, metalness, 1.0);
 #endif
@@ -447,7 +466,7 @@ void main()
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(pow(Lo, vec3(invGamma)), 1.0);
+    outputColor = vec4(pow(lighting.DiffuseDirect + lighting.SpecularDirect, vec3(invGamma)), 1.0);
 #endif
 
 #if renderMode_Irradiance == 1 && F_GLASS == 0
