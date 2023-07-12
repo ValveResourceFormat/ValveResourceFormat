@@ -232,6 +232,8 @@ public sealed class MapExtract
             FileName = LumpFolder + ".vmap",
         };
 
+        FillSurfacePropertyHashes();
+
         var physData = LoadWorldPhysics();
         if (physData != null)
         {
@@ -292,6 +294,21 @@ public sealed class MapExtract
         vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
 
         return vmap;
+    }
+
+    private void FillSurfacePropertyHashes()
+    {
+        using var vsurf = FileLoader.LoadFile("surfaceproperties/surfaceproperties.vsurf_c");
+        if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
+        {
+            var surfacePropertiesList = kv3.Data.GetArray("SurfacePropertiesList");
+            foreach (var surface in surfacePropertiesList)
+            {
+                var name = surface.GetProperty<string>("surfacePropertyName");
+                var hash = StringToken.Get(name.ToLowerInvariant());
+                Debug.Assert(hash == surface.GetProperty<uint>("m_nameHash"));
+            }
+        }
     }
 
     public string ToValveMap()
