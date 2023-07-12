@@ -385,6 +385,8 @@ public class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
+        ReadOnlySpan<int> indexBuffer = GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0);
+
         foreach (var sceneObject in mesh.Data.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -404,11 +406,15 @@ public class ModelExtract
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
-                GenerateTriangleFaceSet(dag, startIndex / 3, (startIndex + indexCount) / 3, material);
+                GenerateTriangleFaceSetFromIndexBuffer(
+                    dag,
+                    indexBuffer[startIndex..(startIndex + indexCount)],
+                    material,
+                    $"{startIndex}..{startIndex + indexCount}");
             }
         }
 
-        var indices = GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0);
+        var indices = Enumerable.Range(0, (int)ib.ElementCount).ToArray();
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -608,6 +614,22 @@ public class ModelExtract
             faceSet.Faces.Add(i * 3);
             faceSet.Faces.Add(i * 3 + 1);
             faceSet.Faces.Add(i * 3 + 2);
+            faceSet.Faces.Add(-1);
+        }
+
+        faceSet.Material.MaterialName = material;
+    }
+
+    private static void GenerateTriangleFaceSetFromIndexBuffer(DmeDag dag, ReadOnlySpan<int> indices, string material, string name)
+    {
+        var faceSet = new DmeFaceSet() { Name = name };
+        dag.Shape.FaceSets.Add(faceSet);
+
+        for (var i = 0; i < indices.Length; i += 3)
+        {
+            faceSet.Faces.Add(indices[i]);
+            faceSet.Faces.Add(indices[i + 1]);
+            faceSet.Faces.Add(indices[i + 2]);
             faceSet.Faces.Add(-1);
         }
 
