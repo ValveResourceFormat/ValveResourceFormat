@@ -466,9 +466,10 @@ namespace ValveResourceFormat.IO
                             var lastScale = lastScales[boneID];
                             var boneFrameScale = boneFrame.Scale;
 
-                            if (float.IsNaN(boneFrameScale))
+                            if (float.IsNaN(boneFrameScale) || float.IsInfinity(boneFrameScale))
                             {
-                                // See https://github.com/SteamDatabase/ValveResourceFormat/issues/527
+                                // See https://github.com/SteamDatabase/ValveResourceFormat/issues/527 (NaN)
+                                // and https://github.com/SteamDatabase/ValveResourceFormat/issues/570 (inf)
                                 boneFrameScale = 0.0f;
                             }
 
