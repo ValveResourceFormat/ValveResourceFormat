@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -299,6 +300,13 @@ public sealed class MaterialExtract
     internal sealed class LayeredTextureNameComparer : IEqualityComparer<string>
     {
         public readonly HashSet<string> _unlayeredTextures;
+        public static readonly string[] layerNameConventions = new[]
+        {
+            "Texture{0}A", // hlvr
+            "Texture{0}1", // cs2
+            "Texture{0}0",
+            "TextureLayer1{0}", // steamvr
+        };
 
         public LayeredTextureNameComparer(HashSet<string> unlayeredTextures)
         {
@@ -328,8 +336,7 @@ public sealed class MaterialExtract
                 unlayered = unlayered[7..];
             }
 
-            var layerNameConventions = new[] { $"Texture{unlayered}A", $"Texture{unlayered}0", $"TextureLayer1{unlayered}" };
-            return layerNameConventions.Contains(layered, StringComparer.Ordinal);
+            return layerNameConventions.Any(template => string.Equals(string.Format(CultureInfo.InvariantCulture, template, unlayered), layered, StringComparison.Ordinal));
         }
 
         public int GetHashCode(string str) => str.GetHashCode(StringComparison.Ordinal);
