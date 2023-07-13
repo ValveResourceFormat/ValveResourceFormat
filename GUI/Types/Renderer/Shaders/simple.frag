@@ -41,6 +41,7 @@
 #define F_RENDER_BACKFACES 0
 #define F_MORPH_SUPPORTED 0
 #define F_WRINKLE 0
+#define F_DONT_FLIP_BACKFACE_NORMALS 0
 // TEXTURING
 #define F_LAYERS 0
 #define F_TINT_MASK 0
@@ -50,7 +51,7 @@
 #define F_FANCY_BLENDING 0
 #define F_DETAIL_TEXTURE 0 // todo
 #define F_SELF_ILLUM 0 // todo
-#define F_SECONDARY_UV 0 // todo
+#define F_SECONDARY_UV 0
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // vr_simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // todo, vr_simple_2way_blend
 // SHADING
@@ -61,6 +62,7 @@
 #define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0 // todo
 #define F_DIFFUSE_WRAP 0 // todo
+#define F_DIFFSUE_WRAP 0 // typo version that existed for part of HLA's development
 #define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
@@ -100,6 +102,13 @@ in vec4 vVertexColorOut;
         uniform sampler2D g_tLPV_Scalars;
     #elif (LightmapGameVersionNumber == 2)
         uniform sampler2D g_tLPV_Shadows;
+    #endif
+#endif
+#if F_SECONDARY_UV == 1
+    in vec2 vTexcoord2;
+    uniform bool g_bUseSecondaryUvForAmbientOcclusion = true;
+    #if F_TINT_MASK
+        uniform bool g_bUseSecondaryUvForTintMask = true;
     #endif
 #endif
 
@@ -179,7 +188,7 @@ uniform float g_flRefractScale = 0.1;
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
-#if defined(csgo_foliage) || (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(vr_complex) // csgo_complex too?
+#if defined(csgo_foliage) || (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex)
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
@@ -206,7 +215,7 @@ void main()
     // Get the view direction vector for this fragment
     vec3 V = normalize(vEyePosition - vFragPosition);
 
-    #if F_RENDER_BACKFACES == 1
+    #if F_RENDER_BACKFACES == 1 && (F_DONT_FLIP_BACKFACE_NORMALS == 0)
         vertexNormal = faceforward(vertexNormal, V, vertexNormal);
     #endif
 
@@ -271,7 +280,12 @@ void main()
 #endif
 
 #if F_TINT_MASK == 1
-    float tintStrength = texture(g_tTintMask, texCoord).x;
+    #if F_SECONDARY_UV == 1
+        vec2 tintMaskTexcoord = g_bUseSecondaryUvForTintMask ? vTexcoord2 : texCoord;
+    #else
+        vec2 tintMaskTexcoord = texCoord;
+    #endif
+    float tintStrength = texture(g_tTintMask, tintMaskTexcoord).x;
     vec3 tintFactor = 1.0 - tintStrength * (1.0 - vVertexColorOut.rgb);
 #elif F_ENABLE_TINT_MASKS == 1
     vec3 tintFactor = vec3(1.0); // Skip this as we already did tint mul
@@ -340,8 +354,12 @@ void main()
     #endif
 #endif
 
-#if defined(vr_complex)
-    occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+#if defined(complex)
+    #if (F_SECONDARY_UV == 1)
+        occlusion = texture(g_tAmbientOcclusion, g_bUseSecondaryUvForAmbientOcclusion ? vTexcoord2 : texCoord).r;
+    #else
+        occlusion = texture(g_tAmbientOcclusion, texCoord).r;
+    #endif
 #endif
 
     roughness = AdjustRoughnessByGeometricNormal(roughness, vertexNormal);

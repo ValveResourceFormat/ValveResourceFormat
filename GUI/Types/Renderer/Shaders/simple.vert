@@ -14,6 +14,7 @@
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
 #define F_LAYERS 0
+#define F_SECONDARY_UV 0
 //End of parameter defines
 
 #if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
@@ -48,6 +49,10 @@ in vec2 vTEXCOORD;
 #endif
 #if F_VERTEX_COLOR == 1
     in vec4 vCOLOR;
+#endif
+#if F_SECONDARY_UV
+    in vec2 vTEXCOORD2;
+    out vec2 vTexcoord2;
 #endif
 
 out vec4 vVertexColorOut;
@@ -120,6 +125,10 @@ void main()
 
 #if F_VERTEX_COLOR == 1
     //vVertexColorOut *= vCOLOR;
+#endif
+
+#if F_SECONDARY_UV == 1
+    vTexcoord2 = vTEXCOORD2;
 #endif
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
