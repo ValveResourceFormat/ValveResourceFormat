@@ -529,7 +529,7 @@ void main()
 #endif
 
 #if renderMode_ShaderID == 1
-    outputColor.rgb = SRGBtoLinear(shaderIdColor / 255.0);
+    //outputColor.rgb = SRGBtoLinear(shaderIdColor / 255.0);
 #endif
 
 #if renderMode_ExtraParams == 1
