@@ -39,15 +39,16 @@ vec3 CubeMapBoxProjection(vec3 pos, vec3 R, vec3 mins, vec3 maxs, vec3 center)
     uniform int g_iEnvironmentMapArrayIndex;
 #endif
 
-float GetEnvMapLOD(float roughness, vec3 R)
+float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
 {
-    #if (renderMode_Cubemaps == 1)
-        return textureQueryLod(g_tEnvironmentMap, R).x;
+    #if F_CLOTH_SHADING == 1
+        float lod = mix(roughness, pow(roughness, 0.125), extraParams.b);
+        return lod * MAX_ENVMAP_LOD;
     #else
-        return sqrt(roughness * roughness) * MAX_ENVMAP_LOD;
+        return roughness * MAX_ENVMAP_LOD;
     #endif
 }
-#endif
+
 
 // Cubemap Normalization
 // Used in HLA, maybe later vr renderer games too.
@@ -75,20 +76,27 @@ uniform sampler2D g_tBRDFLookup;
 
 vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
 {
-    #if (renderMode_Cubemaps == 0)
-        // done here because of bent normals
-        float NdotV = ClampToPositive(dot(N, V));
-        vec2 lutCoords = vec2(NdotV, sqrt(rough));
+    // done here because of bent normals
+    float NdotV = ClampToPositive(dot(N, V));
+    vec2 lutCoords = vec2(NdotV, sqrt(rough));
 
-        vec2 GGXLut = pow2(textureLod(g_tBRDFLookup, lutCoords, 0.0).xy);
-        return specColor * GGXLut.x + GGXLut.y;
-    #else
-        return vec3(1.0);
-    #endif
+    vec2 GGXLut = pow2(textureLod(g_tBRDFLookup, lutCoords, 0.0).xy);
+    return specColor * GGXLut.x + GGXLut.y;
 }
 
+// may be different past HLA? looks kinda wrong in cs2. they had a cloth brdf lut iirc
+// We could check for the lut and then use this path if it doesn't exist
+#if F_CLOTH_SHADING == 1
+float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
+{
+    float NoH = dot(normalize(N + V), N);
+    return D_Cloth(roughness, NoH) / 8.0;
+}
+#endif
 
-vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance)
+#endif
+
+vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance, vec4 extraParams)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
         return vec3(0.0, 0.0, 0.0);
@@ -107,22 +115,39 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
         vec3 mins = g_vEnvMapBoxMins[g_iEnvironmentMapArrayIndex].xyz;
         vec3 maxs = g_vEnvMapBoxMaxs[g_iEnvironmentMapArrayIndex].xyz;
         vec3 center = g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].xyz;
+
         if (g_vEnvMapPositionWs[g_iEnvironmentMapArrayIndex].w > 0.0)
         {
             coords.xyz = CubeMapBoxProjection(vFragPosition, R, mins, maxs, center);
         }
     #endif
 
-    // blend 
-    coords.xyz = normalize(mix(coords.xyz, N, rough));
+#if renderMode_Cubemaps == 1
+    return textureLod(g_tEnvironmentMap, coords, 0.0).rgb;
+#else
+    // blend
+    #if (F_CLOTH_SHADING == 1)
+        coords.xyz = normalize(mix(coords.xyz, N, sqrt(rough)));
+    #else
+        coords.xyz = normalize(mix(coords.xyz, N, rough));
+    #endif
 
     vec3 brdf = EnvBRDF(specColor, rough, N, V);
+
+    #if (F_CLOTH_SHADING == 1)
+        vec3 clothBrdf = vec3(EnvBRDFCloth(rough, N, V));
+
+        float clothMask = extraParams.z;
+
+        brdf = mix(brdf, clothBrdf, clothMask);
+    #endif
+
+    float lod = GetEnvMapLOD(rough, R, extraParams);
     float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
-    // todo: brdf (setup lut).
-    float lod = GetEnvMapLOD(rough, R);
 
     vec3 envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
 
     return brdf * envMap * normalizationTerm;
+#endif
     #endif
 }
