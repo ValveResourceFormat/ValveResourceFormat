@@ -21,6 +21,14 @@ float AdjustRoughnessByGeometricNormal( float roughness, vec3 geometricNormal )
 
 
 
+
+float applyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
+{
+    float minb = max(0.0, blendMask - blendSoftness);
+    float maxb = min(1.0, blendMask + blendSoftness);
+
+    return smoothstep(minb, maxb, blendFactor);
+}
 //-------------------------------------------------------------------------
 //                              NORMALS
 //-------------------------------------------------------------------------

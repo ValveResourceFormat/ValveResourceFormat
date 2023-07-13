@@ -170,8 +170,8 @@ uniform float g_flRefractScale = 0.1;
 
 #if defined(simple_2way_blend)
     uniform sampler2D g_tMask;
-    uniform float g_flMetalnessA;
-    uniform float g_flMetalnessB;
+    uniform float g_flMetalnessA = 0.0;
+    uniform float g_flMetalnessB = 0.0;
 #endif
 
 #if defined(csgo_character) || defined(csgo_weapon)
@@ -179,7 +179,7 @@ uniform float g_flRefractScale = 0.1;
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
-#if defined(csgo_foliage) || (defined(vr_simple) && F_AMBIENT_OCCLUSION_TEXTURE == 1 && F_METALNESS_TEXTURE == 1) || defined(vr_complex) // csgo_complex too?
+#if defined(csgo_foliage) || (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(vr_complex) // csgo_complex too?
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
@@ -210,7 +210,6 @@ void main()
         vertexNormal = faceforward(vertexNormal, V, vertexNormal);
     #endif
 
-
     // Get material properties
     vec4 color = texture(g_tColor, texCoord);
     vec4 normalTexture = texture(g_tNormal, texCoord);
@@ -230,42 +229,52 @@ void main()
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (F_FANCY_BLENDING > 0)
         vec4 blendModTexel = texture(g_tBlendModulation, texCoord);
-
-        #if (F_FANCY_BLENDING == 1 || F_FANCY_BLENDING == 2)
-            float blendModFactor = blendModTexel.g;
-        #else
-            float blendModFactor = blendModTexel.a;
-        #endif
-
+        
         #if (F_FANCY_BLENDING == 1)
-            float minb = max(0, blendModFactor - blendModTexel.r);
-            float maxb = min(1, blendModFactor + blendModTexel.r);
-        #elif (F_FANCY_BLENDING == 2 || F_FANCY_BLENDING == 3)
-            float minb = max(0, blendModFactor - g_flBlendSoftness);
-            float maxb = min(1, blendModFactor + g_flBlendSoftness);
+            blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r);
+        #elif (F_FANCY_BLENDING == 2)
+            blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, g_flBlendSoftness);
+        #elif (F_FANCY_BLENDING == 3)
+            blendFactor = applyBlendModulation(blendFactor, blendModTexel.a, g_flBlendSoftness);
         #endif
-
-        blendFactor = smoothstep(minb, maxb, blendFactor);
     #endif
 
     #if (defined(simple_2way_blend))
         vec4 blendModTexel = texture(g_tMask, texCoord);
-        blendFactor *= blendModTexel.r;
+
+        float softnessPaint = vColorBlendValues.g;
+
+        blendFactor = applyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
     #endif
 
+    #if F_ENABLE_TINT_MASKS == 1)
+        vec2 tintMasks = texture(g_tTintMask, texCoord).xy;
+
+        vec3 tintFactorA = 1.0 - tintMasks.x * (1.0 - vVertexColorOut.rgb);
+        vec3 tintFactorB = 1.0 - tintMasks.y * (1.0 - vVertexColorOut.rgb);
+
+        color.rgb *= tintFactorA;
+        color2.rgb *= tintFactorB;
+    #endif
+
+
+    // It's more correct to blend normals after hemioct unpacking (like we are doing), but it's not actually how S2 does it
     color = mix(color, color2, blendFactor);
-    normal = mix(normal, normal2, blendFactor);
+    normal = normalize(mix(normal, normal2, blendFactor));
     roughness = mix(roughness, roughness2, blendFactor);
 #endif
 
 #if F_ALPHA_TEST == 1
     color.a = AlphaTestAntiAliasing(color.a, texCoord);
+
     if (color.a - 0.001 < g_flAlphaTestReference)   discard;
 #endif
 
 #if F_TINT_MASK == 1
     float tintStrength = texture(g_tTintMask, texCoord).x;
     vec3 tintFactor = 1.0 - tintStrength * (1.0 - vVertexColorOut.rgb);
+#elif F_ENABLE_TINT_MASKS == 1
+    vec3 tintFactor = vec3(1.0); // Skip this as we already did tint mul
 #else
     vec3 tintFactor = vVertexColorOut.rgb;
 #endif
@@ -403,6 +412,7 @@ void main()
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
         irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
         vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
+
         irradiance = ComputeLightmapShading(irradiance, vAHDData, normal);
         //occlusion *= vAHDData.w; // vAHDData.w is actually unused
     #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
