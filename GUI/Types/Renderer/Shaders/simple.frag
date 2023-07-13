@@ -13,6 +13,7 @@
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
 #define renderMode_ShaderID 0
+#define renderMode_ExtraParams 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define LightmapGameVersionNumber 0
@@ -55,12 +56,14 @@
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
-#define F_RETRO_REFLECTIVE 0 // todo shading
+#define F_RETRO_REFLECTIVE 0
 #define F_ANISOTROPIC_GLOSS 0 // todo shading
-#define F_CLOTH_SHADING 0 // todo
+#define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0 // todo
 #define F_DIFFUSE_WRAP 0 // todo
+#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
+#define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
 // SKIN
 #define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo
 #define F_USE_PER_VERTEX_CURVATURE 0 // todo
@@ -112,9 +115,6 @@ in vec4 vVertexColorOut;
     #define S_SPECULAR 1 // Indirect
 #endif
 
-#if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
-#include "common/environment.glsl"
-#endif
 
 #if (defined(simple_2way_blend) || F_LAYERS > 0)
     in vec4 vColorBlendValues;
@@ -151,7 +151,7 @@ uniform float g_flRefractScale = 0.1;
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
 #define hasMetalnessTexture defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))
 #define hasAnisoGloss defined(complex) && (F_ANISOTROPIC_GLOSS == 1)
-#define unlit defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1)
+#define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1))
 
 #if hasUniformMetalness
     uniform float g_flMetalness = 0.0;
@@ -162,6 +162,10 @@ uniform float g_flRefractScale = 0.1;
 #if (F_FANCY_BLENDING > 0)
     uniform sampler2D g_tBlendModulation;
     uniform float g_flBlendSoftness;
+#endif
+
+#if (F_RETRO_REFLECTIVE == 1)
+    uniform float g_flRetroReflectivity = 1.0;
 #endif
 
 #if defined(simple_2way_blend)
@@ -183,11 +187,13 @@ uniform float g_flRefractScale = 0.1;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-
 #include "common/texturing.glsl"
 
 #include "common/pbr.glsl"
 
+#if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
+#include "common/environment.glsl"
+#endif
 const vec3 gamma = vec3(2.2);
 const vec3 invGamma = vec3(1.0 / gamma);
 
@@ -271,14 +277,16 @@ void main()
 #endif
     float metalness = 0.0;
     float occlusion = 1.0;
+    vec4 extraParams = vec4(0); // r = retro reflectivity, g = sss mask, b = cloth, a = ???
 
     vec3 irradiance = vec3(0.3);
     LightingTerms lighting = Init();
 
     // Define PBR parameters
 #if defined(csgo_character)
+    extraParams.xz = texture(g_tMetalness, texCoord).rb;
     metalness = texture(g_tMetalness, texCoord).g;
-    // b = cloth, a = rimmask
+    // a = rimmask
     occlusion = texture(g_tAmbientOcclusion, texCoord).r;
 #elif defined(csgo_weapon)
     roughness = texture(g_tMetalness, texCoord).r;
@@ -292,11 +300,21 @@ void main()
     metalness = color.a;
 #elif (hasMetalnessTexture)
     metalness = texture(g_tMetalness, texCoord).g;
+    #if (F_RETRO_REFLECTIVE == 1)
+        extraParams.x = texture(g_tMetalness, texCoord).r;
+    #endif
 #elif (defined(simple_2way_blend))
     metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
     #if F_ENABLE_AMBIENT_OCCLUSION == 1
         occlusion = color.a;
     #endif
+#endif
+
+#if defined(vr_complex) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
+    extraParams.x = g_flRetroReflectivity;
+#endif
+#if defined(vr_complex) && (F_CLOTH_SHADING == 1)
+    extraParams.z = 1.0;
 #endif
 
 #if hasAnisoGloss
@@ -373,7 +391,7 @@ void main()
 
     if (visibility > 0.0)
     {
-        vec3 specularLight = specularContribution(L, V, N, F0, specularColor, roughness);
+        vec3 specularLight = specularLighting(L, V, N, F0, specularColor, roughness, extraParams);
         float diffuseLight = diffuseLobe(max(dot(N, L), 0.0), roughness);
 
        lighting.SpecularDirect += specularLight * visibility * getSunColor();
@@ -396,7 +414,7 @@ void main()
 
     // Environment Map
     #if (S_SPECULAR == 1)
-        vec3 specular = GetEnvironment(N, V, roughness, specularColor, irradiance);
+        vec3 specular = GetEnvironment(N, V, roughness, specularColor, irradiance, extraParams);
         lighting.SpecularIndirect += specular * occlusion;
     #endif
 
@@ -405,6 +423,11 @@ void main()
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect * occlusion;
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect * occlusion;
+
+    #if F_NO_SPECULAR_AT_FULL_ROUGHNESS == 1
+        specularLighting = (roughness == 1.0) ? vec3(0) : specularLighting;
+    #endif
+
     vec3 combinedLighting = diffuseColor * diffuseLighting + specularLighting;
 
     outputColor.rgb = combinedLighting;
@@ -418,9 +441,6 @@ void main()
     // Rendermodes
 
 #if renderMode_FullBright == 1
-    //vec3 illumination = vec3(ClampToPositive(dot(V, N)));
-    //illumination = illumination * 0.7 + 0.3;
-    //outputColor = vec4(illumination * pow(albedo, vec3(invGamma)), opacity);
     vec3 fullbrightLighting = CalculateFullbrightLighting(albedo, N, V);
     outputColor = vec4(pow(fullbrightLighting, vec3(invGamma)), opacity);
 #endif
@@ -445,12 +465,11 @@ void main()
     outputColor = vec4(PackToColor(N), 1.0);
 #endif
 
-// I have literally no clue why, but if unlit != 1 is AFTER renderMode_Diffuse (or specular) the #if will always be enabled, regardless of the value of renderMode_Diffuse
-#if unlit != 1 && renderMode_Diffuse == 1
-    outputColor.rgb = pow(diffuseLighting, vec3(invGamma));
+#if (renderMode_Diffuse == 1) && (unlit != 1)
+    outputColor.rgb = pow(diffuseLighting * 0.5, vec3(invGamma));
 #endif
 
-#if unlit != 1 && renderMode_Specular == 1
+#if (renderMode_Specular == 1) && (unlit != 1)
     outputColor.rgb = pow(specularLighting, vec3(invGamma));
 #endif
 
@@ -461,15 +480,15 @@ void main()
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
     float lod = 0.0;
-    vec3 EnvMap = GetEnvironment(vertexNormal, V, roughness, vec3(1.0), vec3(0.0)).rgb;
+    vec3 EnvMap = GetEnvironment(vertexNormal, V, roughness, vec3(1.0), vec3(0.0), vec4(0)).rgb;
     outputColor.rgb = pow(EnvMap, vec3(invGamma));
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(pow(lighting.DiffuseDirect + lighting.SpecularDirect, vec3(invGamma)), 1.0);
+    outputColor = vec4(pow(0.5 * lighting.DiffuseDirect + lighting.SpecularDirect, vec3(invGamma)), 1.0);
 #endif
 
-#if renderMode_Irradiance == 1 && F_GLASS == 0
+#if renderMode_Irradiance == 1 && (F_GLASS == 0)
     outputColor = vec4(pow(irradiance, vec3(invGamma)), 1.0);
 #endif
 
@@ -483,5 +502,9 @@ void main()
 
 #if renderMode_ShaderID == 1
     outputColor.rgb = SRGBtoLinear(shaderIdColor / 255.0);
+#endif
+
+#if renderMode_ExtraParams == 1
+    outputColor.rgb = extraParams.rgb;
 #endif
 }
