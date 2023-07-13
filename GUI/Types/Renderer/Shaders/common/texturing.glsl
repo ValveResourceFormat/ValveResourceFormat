@@ -29,6 +29,12 @@ float applyBlendModulation(float blendFactor, float blendMask, float blendSoftne
 
     return smoothstep(minb, maxb, blendFactor);
 }
+
+
+
+
+
+
 //-------------------------------------------------------------------------
 //                              NORMALS
 //-------------------------------------------------------------------------
