@@ -228,6 +228,7 @@ namespace GUI.Types.Renderer
                             if (File.Exists(skyboxVpk))
                             {
                                 var skyboxNewPackage = new SteamDatabase.ValvePak.Package();
+                                skyboxNewPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                                 skyboxNewPackage.Read(skyboxVpk);
 
                                 guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(skyboxNewPackage);

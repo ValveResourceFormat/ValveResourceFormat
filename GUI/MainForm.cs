@@ -126,6 +126,7 @@ namespace GUI
                 Console.WriteLine($"Opening {file}");
 
                 var package = new Package();
+                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                 package.Read(file);
 
                 var packageFile = package.FindEntry(innerFile);

@@ -30,6 +30,7 @@ namespace GUI.Types.Viewers
 
             var tab = new TabPage();
             var package = new SteamDatabase.ValvePak.Package();
+            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
 
             if (input != null)
             {

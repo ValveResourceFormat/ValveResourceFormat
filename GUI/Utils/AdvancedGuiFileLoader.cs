@@ -135,6 +135,7 @@ namespace GUI.Utils
                     Console.WriteLine($"Preloading vpk \"{searchPath}\"");
 
                     package = new Package();
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                     package.Read(searchPath);
                     CachedPackages[searchPath] = package;
                 }
@@ -164,6 +165,7 @@ namespace GUI.Utils
 
                         var stream = GetPackageEntryStream(GuiContext.CurrentPackage, searchPath);
                         package = new Package();
+                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                         package.SetFileName(searchPath.GetFileName());
                         package.Read(stream);
                         CachedPackages[searchPath.GetFileName()] = package;
@@ -430,6 +432,7 @@ namespace GUI.Utils
                     Console.WriteLine($"Preloading vpk \"{vpk}\"");
 
                     var package = new Package();
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                     package.Read(vpk);
                     CurrentGamePackages.Add(package);
                 }
@@ -581,6 +584,7 @@ namespace GUI.Utils
                         Console.WriteLine($"Preloading vpk \"{vpk}\"");
 
                         var package = new Package();
+                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                         package.Read(vpk);
                         CurrentGamePackages.Add(package);
 
