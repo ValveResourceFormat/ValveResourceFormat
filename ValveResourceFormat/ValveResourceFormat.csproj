@@ -19,8 +19,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.3" />
     <PackageReference Include="ValveKeyValue" Version="0.9.0.267" />
     <PackageReference Include="ZstdSharp.Port" Version="0.7.2" />
-    <ProjectReference Include="..\..\Datamodel.NET\Datamodel.NET.csproj" />
-    <PackageReference Include="KeyValues2" Version="0.3.0" Condition="!Exists('..\..\Datamodel.NET\Datamodel.NET.csproj')"/>
+    <PackageReference Include="KeyValues2" Version="0.3.0" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md" />
