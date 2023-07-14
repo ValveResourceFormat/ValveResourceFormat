@@ -53,6 +53,8 @@ namespace GUI.Types.Renderer
             public int Time;
             public int ObjectId;
             public int MeshId;
+            public int ShaderId;
+            public int ShaderProgramId;
             public int CubeMapArrayIndex;
         }
 
@@ -84,9 +86,11 @@ namespace GUI.Types.Renderer
                     Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
                     TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
                     Time = shader.GetUniformLocation("g_flTime"),
-                    ObjectId = shader.GetUniformLocation("sceneObjectId"),
                     CubeMapArrayIndex = shader.GetUniformLocation("g_iEnvironmentMapArrayIndex"),
+                    ObjectId = shader.GetUniformLocation("sceneObjectId"),
                     MeshId = shader.GetUniformLocation("meshId"),
+                    ShaderId = shader.GetUniformLocation("shaderId"),
+                    ShaderProgramId = shader.GetUniformLocation("shaderProgramId")
                 };
 
                 GL.UseProgram(shader.Program);
@@ -133,10 +137,27 @@ namespace GUI.Types.Renderer
             var transformTk = request.Transform.ToOpenTK();
             GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
 
+            #region Picking
             if (uniforms.ObjectId != -1)
             {
                 GL.Uniform1(uniforms.ObjectId, request.Node.Id);
             }
+
+            if (uniforms.MeshId != -1)
+            {
+                GL.Uniform1(uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+            }
+
+            if (uniforms.ShaderId != -1)
+            {
+                GL.Uniform1(uniforms.ShaderId, (uint)request.Call.Shader.NameHash);
+            }
+
+            if (uniforms.ShaderProgramId != -1)
+            {
+                GL.Uniform1(uniforms.ShaderProgramId, (uint)request.Call.Shader.Program);
+            }
+            #endregion
 
             if (uniforms.CubeMapArrayIndex != -1)
             {
@@ -148,11 +169,6 @@ namespace GUI.Types.Renderer
                 }
 
                 GL.Uniform1(uniforms.CubeMapArrayIndex, arrayIndex);
-            }
-
-            if (uniforms.MeshId != -1)
-            {
-                GL.Uniform1(uniforms.MeshId, (uint)request.Mesh.MeshIndex);
             }
 
             if (uniforms.Time != 1)

@@ -74,6 +74,8 @@ namespace GUI.Types.Renderer
 
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
+            renderShader.SetUniform1("shaderId", (uint)shader.NameHash);
+            renderShader.SetUniform1("shaderProgramId", (uint)shader.Program);
 
             material.Render(renderShader);
 

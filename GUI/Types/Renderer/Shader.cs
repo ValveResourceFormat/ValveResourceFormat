@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using GUI.Utils;
@@ -13,6 +14,8 @@ namespace GUI.Types.Renderer
         public HashSet<string> RenderModes { get; init; }
 
         private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
+
+        public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 
         public int GetUniformLocation(string name)
         {

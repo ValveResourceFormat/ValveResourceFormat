@@ -12,7 +12,6 @@
 #define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
 #define renderMode_Terrain_Blend 0
-#define renderMode_ShaderID 0
 #define renderMode_ExtraParams 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
@@ -556,10 +555,6 @@ void main()
 
 #if renderMode_Terrain_Blend == 1 && (F_LAYERS > 0 || defined(simple_2way_blend))
     outputColor.rgb = vColorBlendValues.rgb;
-#endif
-
-#if renderMode_ShaderID == 1
-    //outputColor.rgb = SRGBtoLinear(shaderIdColor / 255.0);
 #endif
 
 #if renderMode_ExtraParams == 1
