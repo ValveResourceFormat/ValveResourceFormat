@@ -49,11 +49,11 @@
 #define F_METALNESS_TEXTURE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
 #define F_FANCY_BLENDING 0
-#define F_DETAIL_TEXTURE 0 // todo
+#define F_DETAIL_TEXTURE 0
 #define F_SELF_ILLUM 0 // todo
 #define F_SECONDARY_UV 0
-#define F_ENABLE_AMBIENT_OCCLUSION 0 // vr_simple_2way_blend
-#define F_ENABLE_TINT_MASKS 0 // todo, vr_simple_2way_blend
+#define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
+#define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
@@ -105,10 +105,13 @@ in vec4 vVertexColorOut;
     #endif
 #endif
 #if F_SECONDARY_UV == 1
-    in vec2 vTexcoord2;
+    in vec2 vTexCoord2;
     uniform bool g_bUseSecondaryUvForAmbientOcclusion = true;
     #if F_TINT_MASK
         uniform bool g_bUseSecondaryUvForTintMask = true;
+    #endif
+    #if F_DETAIL_TEXTURE > 0
+        uniform bool g_bUseSecondaryUvForDetailMask = true;
     #endif
 #endif
 
@@ -196,6 +199,10 @@ uniform float g_flRefractScale = 0.1;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
+
+const vec3 gamma = vec3(2.2);
+const vec3 invGamma = vec3(1.0 / gamma);
+
 #include "common/texturing.glsl"
 
 #include "common/pbr.glsl"
@@ -203,8 +210,6 @@ uniform float g_flRefractScale = 0.1;
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 #include "common/environment.glsl"
 #endif
-const vec3 gamma = vec3(2.2);
-const vec3 invGamma = vec3(1.0 / gamma);
 
 void main()
 {
@@ -279,9 +284,17 @@ void main()
     if (color.a - 0.001 < g_flAlphaTestReference)   discard;
 #endif
 
+#if (F_DETAIL_TEXTURE > 0)
+    #if F_SECONDARY_UV == 1
+        applyDetailTexture(color.rgb, normal, g_bUseSecondaryUvForDetailMask ? vTexCoord2 : texCoord);
+    #else
+        applyDetailTexture(color.rgb, normal, texCoord);
+    #endif
+#endif
+
 #if F_TINT_MASK == 1
     #if F_SECONDARY_UV == 1
-        vec2 tintMaskTexcoord = g_bUseSecondaryUvForTintMask ? vTexcoord2 : texCoord;
+        vec2 tintMaskTexcoord = g_bUseSecondaryUvForTintMask ? vTexCoord2 : texCoord;
     #else
         vec2 tintMaskTexcoord = texCoord;
     #endif
@@ -304,6 +317,7 @@ void main()
 
     vec3 irradiance = vec3(0.3);
     LightingTerms lighting = Init();
+
 
     // Define PBR parameters
 #if defined(csgo_character)
@@ -356,7 +370,7 @@ void main()
 
 #if defined(complex)
     #if (F_SECONDARY_UV == 1)
-        occlusion = texture(g_tAmbientOcclusion, g_bUseSecondaryUvForAmbientOcclusion ? vTexcoord2 : texCoord).r;
+        occlusion = texture(g_tAmbientOcclusion, g_bUseSecondaryUvForAmbientOcclusion ? vTexCoord2 : texCoord).r;
     #else
         occlusion = texture(g_tAmbientOcclusion, texCoord).r;
     #endif
