@@ -433,10 +433,7 @@ void main()
 
         irradiance = ComputeLightmapShading(irradiance, vAHDData, normal);
 
-        // Lightmap AO is only used in Lightmap Version 2
-        #if (LightmapGameVersionNumber == 2)
-            occlusion = min(occlusion, vAHDData.w);
-        #endif
+        occlusion = min(occlusion, vAHDData.a);
     #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
         irradiance = vPerVertexLightingOut.rgb;
     #endif
