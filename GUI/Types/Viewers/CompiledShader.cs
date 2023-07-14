@@ -64,7 +64,7 @@ namespace GUI.Types.Viewers
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
 
             var spvToHlsl = (VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
-                => ZFrameRichTextBox.AttemptSpirvReflection(v, c, s, z, d, Backend.HLSL);
+                => ZFrameRichTextBox.AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
 
             var extract = new ShaderExtract(shaderCollection)
             {
@@ -409,7 +409,7 @@ namespace GUI.Types.Viewers
 
                             // text
                             var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
-                                zframeFile.ZframeId, 0, Backend.GLSL);
+                                zframeFile.ZframeId, 0, spvc_backend.SPVC_BACKEND_GLSL);
 
                             var textTab = new TabPage("SPIR-V");
                             var textBox = new MonospaceTextBox()
@@ -441,30 +441,32 @@ namespace GUI.Types.Viewers
             }
 
             public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
-                long zFrameId, long dynamicId, Backend backend)
+                long zFrameId, long dynamicId, spvc_backend backend)
             {
-                using var context = new Context();
+                SpirvCrossApi.spvc_context_create(out var context).CheckResult();
+
                 using var buffer = new StringWriter(CultureInfo.InvariantCulture);
 
                 try
                 {
-                    context.ParseSpirv(vulkanSource.GetSpirvBytes(), out var parsedIr).CheckResult();
+                    SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.GetSpirvBytes(), out var parsedIr).CheckResult();
+                    SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, spvc_capture_mode.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, out var compiler).CheckResult();
 
-                    var compiler = context.CreateCompiler(backend, parsedIr, CaptureMode.TakeOwnership);
+                    SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
 
-                    if (backend == Backend.GLSL)
+                    if (backend == spvc_backend.SPVC_BACKEND_GLSL)
                     {
-                        compiler.Options.SetBool(CompilerOption.GLSL_VulkanSemantics, true);
-                        compiler.Options.SetBool(CompilerOption.GLSL_EMIT_UNIFORMBuffer_AS_PLAIN_UNIFORMS, true);
+                        SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VULKAN_SEMANTICS, SpirvCrossApi.SPVC_TRUE);
+                        SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_EMIT_UNIFORM_BUFFER_AS_PLAIN_UNIFORMS, SpirvCrossApi.SPVC_TRUE);
                     }
-                    else if (backend == Backend.HLSL)
+                    else if (backend == spvc_backend.SPVC_BACKEND_HLSL)
                     {
-                        compiler.Options.SetUInt(CompilerOption.HLSL_ShaderModel, 61);
+                        SpirvCrossApi.spvc_compiler_options_set_uint(options, spvc_compiler_option.SPVC_COMPILER_OPTION_HLSL_SHADER_MODEL, 61);
                     }
 
-                    compiler.Apply();
+                    SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
-                    var code = compiler.Compile();
+                    SpirvCrossApi.spvc_compiler_compile(compiler, out var code);
 
                     buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
                     buffer.WriteLine("// VRF - https://vrf.steamdb.info/");
@@ -476,7 +478,7 @@ namespace GUI.Types.Viewers
                     buffer.WriteLine("/*");
                     buffer.WriteLine($"SPIR-V reflection failed: {e.Message}");
 
-                    var lastError = context.GetLastErrorString();
+                    var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
 
                     if (!string.IsNullOrEmpty(lastError))
                     {
@@ -485,6 +487,11 @@ namespace GUI.Types.Viewers
                     }
 
                     buffer.WriteLine("*/");
+                }
+                finally
+                {
+                    SpirvCrossApi.spvc_context_release_allocations(context);
+                    SpirvCrossApi.spvc_context_destroy(context);
                 }
 
                 return buffer.ToString();
