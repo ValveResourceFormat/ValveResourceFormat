@@ -15,6 +15,7 @@
 #define F_VERTEX_COLOR 0
 #define F_LAYERS 0
 #define F_SECONDARY_UV 0
+#define F_DETAIL_TEXTURE 0
 //End of parameter defines
 
 #if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
@@ -37,6 +38,10 @@ in vec2 vTEXCOORD;
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
     #if defined(simple_2way_blend)
         #define vBLEND_COLOR vTEXCOORD2
+        #if defined(vr_simple_2way_blend)
+            #define vBLEND_ALPHA vTEXCOORD3
+            in vec4 vBLEND_ALPHA;
+        #endif
     #else
         // ligthtmappedgeneric - real semantic index is 4
         #define vBLEND_COLOR vTEXCOORD3
@@ -52,7 +57,7 @@ in vec2 vTEXCOORD;
 #endif
 #if F_SECONDARY_UV
     in vec2 vTEXCOORD2;
-    out vec2 vTexcoord2;
+    out vec2 vTexCoord2;
 #endif
 
 out vec4 vVertexColorOut;
@@ -89,6 +94,30 @@ vec4 GetTintColor()
     TintFade.a = pow(m_vTintColorSceneObject.a * g_vColorTint.a, g_flFadeExponent);
     return TintFade;
 }
+
+#if (F_DETAIL_TEXTURE > 0)
+    uniform float g_flDetailTexCoordRotation = 0.0;
+    uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
+    uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
+    out vec2 vDetailTexCoords;
+
+    #if (F_SECONDARY_UV == 1)
+        uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
+    #endif
+
+    vec2 getDetailCoords(vec2 texCoords)
+    {
+        // in S2 most of these values are precomputed into the globals buffer
+        float rotation = radians(g_flDetailTexCoordRotation);
+        float sinRot = sin(rotation);
+        float cosRot = cos(rotation);
+        vec2 offset = (g_vDetailTexCoordScale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + g_vDetailTexCoordOffset.xy + 0.5;
+        vec4 xform = g_vDetailTexCoordScale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
+
+        return vec2(dot(xform.xy, texCoords.xy), dot(xform.zw, texCoords.xy)) + offset;
+    }
+#endif
+
 
 void main()
 {
@@ -127,12 +156,25 @@ void main()
     //vVertexColorOut *= vCOLOR;
 #endif
 
+
 #if F_SECONDARY_UV == 1
-    vTexcoord2 = vTEXCOORD2;
+    vTexCoord2 = vTEXCOORD2;
+#endif
+
+#if F_DETAIL_TEXTURE > 0
+    #if F_SECONDARY_UV == 1
+        vDetailTexCoords = getDetailCoords(g_bUseSecondaryUvForDetailTexture ? vTexCoord2 : vTexCoordOut);
+    #else
+        vDetailTexCoords = getDetailCoords(vTexCoordOut);
+    #endif
 #endif
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
     vColorBlendValues = vBLEND_COLOR / 255.0f;
+    // After HLA they presumably realized this was dumb as hell
+    #if defined(vr_simple_2way_blend)
+        vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
+    #endif
 #endif
 
     vCentroidNormalOut = vNormalOut;
