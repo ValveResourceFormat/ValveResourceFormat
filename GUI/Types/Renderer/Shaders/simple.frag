@@ -249,7 +249,7 @@ void main()
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (F_FANCY_BLENDING > 0)
         vec4 blendModTexel = texture(g_tBlendModulation, texCoord);
-        
+
         #if (F_FANCY_BLENDING == 1)
             blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r);
         #elif (F_FANCY_BLENDING == 2)
@@ -267,7 +267,7 @@ void main()
         blendFactor = applyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
     #endif
 
-    #if F_ENABLE_TINT_MASKS == 1)
+    #if (F_ENABLE_TINT_MASKS == 1)
         vec2 tintMasks = texture(g_tTintMask, texCoord).xy;
 
         vec3 tintFactorA = 1.0 - tintMasks.x * (1.0 - vVertexColorOut.rgb);
@@ -415,7 +415,7 @@ void main()
     vec3 L = normalize(-getSunDir());
     vec3 H = normalize(V + L);
 
-    vec3 F0 = vec3(0.04); 
+    vec3 F0 = vec3(0.04);
 
     vec3 diffuseColor = albedo - albedo * metalness;
 	vec3 specularColor = mix(F0, albedo, metalness);
