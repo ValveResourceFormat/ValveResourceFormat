@@ -131,6 +131,10 @@ namespace ValveResourceFormat.IO
                     contentFile = new MapExtract(resource, fileLoader).ToContentFile();
                     break;
 
+                case ResourceType.Model:
+                    contentFile = new ModelExtract((Model)resource.DataBlock, fileLoader).ToContentFile();
+                    break;
+
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaTypescript:
