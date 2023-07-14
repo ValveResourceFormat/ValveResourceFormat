@@ -319,7 +319,10 @@ void main()
 #endif
 
     vec3 albedo = pow(color.rgb, gamma) * tintFactor;
-    float opacity = color.a * vVertexColorOut.a;
+    float opacity = color.a;
+#if defined(__vertex_alpha_opacity_opt_in)
+    opacity *= vVertexColorOut.a;
+#endif
 #if F_TRANSLUCENT == 1
     opacity *= g_flOpacityScale;
 #endif
