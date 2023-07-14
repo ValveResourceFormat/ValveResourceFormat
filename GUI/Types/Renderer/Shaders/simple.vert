@@ -67,7 +67,7 @@ out vec4 vVertexColorOut;
 out vec3 vFragPosition;
 
 out vec3 vNormalOut;
-out centroid vec3 vCentroidNormalOut;
+centroid out vec3 vCentroidNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
 

@@ -78,7 +78,7 @@
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
-in centroid vec3 vCentroidNormalOut;
+centroid in vec3 vCentroidNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
