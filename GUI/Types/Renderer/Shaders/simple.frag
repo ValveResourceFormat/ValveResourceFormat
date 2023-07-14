@@ -42,6 +42,7 @@
 #define F_MORPH_SUPPORTED 0
 #define F_WRINKLE 0
 #define F_DONT_FLIP_BACKFACE_NORMALS 0
+#define F_SCALE_NORMAL_MAP 0
 // TEXTURING
 #define F_LAYERS 0
 #define F_TINT_MASK 0
@@ -180,6 +181,11 @@ uniform float g_flRefractScale = 0.1;
     uniform float g_flRetroReflectivity = 1.0;
 #endif
 
+#if (F_SCALE_NORMAL_MAP == 1)
+    uniform float g_flNormalMapScaleFactor = 1.0;
+#endif
+uniform float g_flBumpStrength = 1.0;
+
 #if defined(simple_2way_blend)
     uniform sampler2D g_tMask;
     uniform float g_flMetalnessA = 0.0;
@@ -290,6 +296,12 @@ void main()
     #else
         applyDetailTexture(color.rgb, normal, texCoord);
     #endif
+#endif
+
+#if (F_SCALE_NORMAL_MAP == 1)
+    normal = mix(vec3(0, 0, 1), normal, g_flNormalMapScaleFactor);
+#else
+    normal = mix(vec3(0, 0, 1), normal, g_flBumpStrength);
 #endif
 
 #if F_TINT_MASK == 1

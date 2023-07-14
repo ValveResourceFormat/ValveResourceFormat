@@ -21,6 +21,9 @@
 #if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
     #define simple_2way_blend
 #endif
+#if defined(vr_simple_2way_blend) || defined(vr_simple_2way_parallax) || defined(vr_simple_3way_parallax) || defined(vr_simple_blend_to_triplanar) || defined(vr_simple_blend_to_xen_membrane)
+    #define vr_blend
+#endif
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
@@ -38,7 +41,7 @@ in vec2 vTEXCOORD;
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
     #if defined(simple_2way_blend)
         #define vBLEND_COLOR vTEXCOORD2
-        #if defined(vr_simple_2way_blend)
+        #if defined(vr_blend)
             #define vBLEND_ALPHA vTEXCOORD3
             in vec4 vBLEND_ALPHA;
         #endif
@@ -172,7 +175,7 @@ void main()
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
     vColorBlendValues = vBLEND_COLOR / 255.0f;
     // After HLA they presumably realized this was dumb as hell
-    #if defined(vr_simple_2way_blend)
+    #if defined(vr_blend)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
     #endif
 #endif
