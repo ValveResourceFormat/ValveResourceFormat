@@ -21,11 +21,10 @@ namespace GUI.Types.Renderer
         [GeneratedRegex("^#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)", RegexOptions.Multiline)]
         private static partial Regex RegexDefine();
 
-        // Is it character index?
-        [GeneratedRegex("0\\((?<Line>\\d+)\\) : error C(?<ErrorNumber>\\d+):")]
+        [GeneratedRegex("[0-9]+\\((?<Line>\\d+)\\) : error C(?<ErrorNumber>\\d+):")]
         private static partial Regex NvidiaGlslError();
 
-        [GeneratedRegex("ERROR: 0:(?<Line>\\d+):")]
+        [GeneratedRegex("ERROR: [0-9]+:(?<Line>\\d+):")]
         private static partial Regex AmdGlslError();
 
         private readonly Dictionary<uint, Shader> CachedShaders = new();
@@ -68,17 +67,15 @@ namespace GUI.Types.Renderer
 
                 // Find defines supported from source
                 defines.AddRange(FindDefines(preprocessedShaderSource));
-            }
 
-            GL.CompileShader(vertexShader);
+                GL.CompileShader(vertexShader);
 
-            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out var shaderStatus);
+                GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out var shaderStatus);
 
-            if (shaderStatus != 1)
-            {
-                GL.GetShaderInfoLog(vertexShader, out var vsInfo);
-
-                throw new InvalidProgramException($"Error setting up Vertex Shader {shaderFileName} ({shaderName}):\n{vsInfo}");
+                if (shaderStatus != 1)
+                {
+                    ThrowError(vertexShader, preprocessedShaderSource, $"{shaderFileName}.vert (original={shaderName})");
+                }
             }
 
             /* Fragment shader */
@@ -100,38 +97,11 @@ namespace GUI.Types.Renderer
 
                 GL.CompileShader(fragmentShader);
 
-                GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out shaderStatus);
+                GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out var shaderStatus);
 
                 if (shaderStatus != 1)
                 {
-                    GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
-
-                    var errorLine = 0;
-                    var nvidiaErr = NvidiaGlslError().Match(fsInfo);
-                    if (nvidiaErr.Success)
-                    {
-                        errorLine = int.Parse(nvidiaErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
-                    }
-                    else
-                    {
-                        var amdErr = AmdGlslError().Match(fsInfo);
-                        if (amdErr.Success)
-                        {
-                            errorLine = int.Parse(amdErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
-                        }
-                    }
-
-                    if (errorLine > 0)
-                    {
-                        var lines = preprocessedShaderSource.Split('\n');
-                        if (errorLine <= lines.Length)
-                        {
-                            var error = lines[errorLine - 1];
-                            fsInfo += $"\n{error}";
-                        }
-                    }
-
-                    throw new InvalidProgramException($"Error setting up Fragment Shader {shaderFileName} ({shaderName}):\n{fsInfo}");
+                    ThrowError(fragmentShader, preprocessedShaderSource, $"{shaderFileName}.vert (original={shaderName})");
                 }
             }
 
@@ -173,6 +143,38 @@ namespace GUI.Types.Renderer
 
             Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
             return shader;
+        }
+
+        private static void ThrowError(int shader, string preprocessedShaderSource, string shaderName)
+        {
+            GL.GetShaderInfoLog(shader, out var info);
+
+            var errorLine = 0;
+            var nvidiaErr = NvidiaGlslError().Match(info);
+            if (nvidiaErr.Success)
+            {
+                errorLine = int.Parse(nvidiaErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                var amdErr = AmdGlslError().Match(info);
+                if (amdErr.Success)
+                {
+                    errorLine = int.Parse(amdErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
+                }
+            }
+
+            if (errorLine > 0)
+            {
+                var lines = preprocessedShaderSource.Split('\n');
+                if (errorLine <= lines.Length)
+                {
+                    var error = lines[errorLine - 1];
+                    info += $"\n{error}";
+                }
+            }
+
+            throw new InvalidProgramException($"Error setting up shader {shaderName}:\n{info}");
         }
 
         private static string PreprocessShader(string source, IReadOnlyDictionary<string, byte> arguments,
