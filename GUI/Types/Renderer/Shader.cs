@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
         public string Name { get; set; }
         public int Program { get; set; }
         public IReadOnlyDictionary<string, byte> Parameters { get; init; }
-        public List<string> RenderModes { get; init; }
+        public HashSet<string> RenderModes { get; init; }
 
         private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
 

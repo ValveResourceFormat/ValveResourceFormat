@@ -15,10 +15,11 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
+        private const string RenderModeDefinePrefix = "renderMode_";
 
-        [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"\\r?$", RegexOptions.Multiline)]
+        [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
-        [GeneratedRegex("^#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)", RegexOptions.Multiline)]
+        [GeneratedRegex("^#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)")]
         private static partial Regex RegexDefine();
 
         [GeneratedRegex("[0-9]+\\((?<Line>\\d+)\\) : error C(?<ErrorNumber>\\d+):")]
@@ -28,7 +29,7 @@ namespace GUI.Types.Renderer
         private static partial Regex AmdGlslError();
 
         private readonly Dictionary<uint, Shader> CachedShaders = new();
-        private readonly Dictionary<string, List<string>> ShaderDefines = new();
+        private readonly Dictionary<string, HashSet<string>> ShaderDefines = new();
 
         private static IReadOnlyDictionary<string, byte> EmptyArgs { get; } = new Dictionary<string, byte>(0);
 
@@ -47,69 +48,20 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var defines = new List<string>();
+            var defines = new HashSet<string>();
 
-            /* Vertex shader */
+            // Vertex shader
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
+            LoadShader(vertexShader, $"{shaderFileName}.vert", shaderName, arguments, defines);
 
-            var assembly = Assembly.GetExecutingAssembly();
-
-#if DEBUG
-            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.vert"), FileMode.Open, FileAccess.Read, FileShare.Read))
-#else
-            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
-#endif
-            using (var reader = new StreamReader(stream))
-            {
-                var shaderSource = reader.ReadToEnd();
-                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments, shaderName);
-                GL.ShaderSource(vertexShader, preprocessedShaderSource);
-
-                // Find defines supported from source
-                defines.AddRange(FindDefines(preprocessedShaderSource));
-
-                GL.CompileShader(vertexShader);
-
-                GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out var shaderStatus);
-
-                if (shaderStatus != 1)
-                {
-                    ThrowError(vertexShader, preprocessedShaderSource, $"{shaderFileName}.vert (original={shaderName})");
-                }
-            }
-
-            /* Fragment shader */
+            // Fragment shader
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+            LoadShader(fragmentShader, $"{shaderFileName}.frag", shaderName, arguments, defines);
 
-#if DEBUG
-            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.frag"), FileMode.Open, FileAccess.Read, FileShare.Read))
-#else
-            using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
-#endif
-            using (var reader = new StreamReader(stream))
-            {
-                var shaderSource = reader.ReadToEnd();
-                var preprocessedShaderSource = PreprocessShader(shaderSource, arguments, shaderName);
-                GL.ShaderSource(fragmentShader, preprocessedShaderSource);
-
-                // Find render modes supported from source, take union to avoid duplicates
-                defines = defines.Union(FindDefines(preprocessedShaderSource)).ToList();
-
-                GL.CompileShader(fragmentShader);
-
-                GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out var shaderStatus);
-
-                if (shaderStatus != 1)
-                {
-                    ThrowError(fragmentShader, preprocessedShaderSource, $"{shaderFileName}.vert (original={shaderName})");
-                }
-            }
-
-            const string renderMode = "renderMode_";
             var renderModes = defines
-                .Where(k => k.StartsWith(renderMode, StringComparison.InvariantCulture))
-                .Select(k => k[renderMode.Length..])
-                .ToList();
+                .Where(k => k.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
+                .Select(k => k[RenderModeDefinePrefix.Length..])
+                .ToHashSet();
 
             var shader = new Shader
             {
@@ -145,10 +97,93 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        private static void ThrowError(int shader, string preprocessedShaderSource, string shaderName)
+        private static void LoadShader(int shader, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, HashSet<string> defines)
         {
+            var isFirstLine = true;
+            var builder = new StringBuilder();
+
+            void LoadShaderString(string shaderFileToLoad)
+            {
+                using var stream = GetShaderStream(shaderFileToLoad);
+                using var reader = new StreamReader(stream);
+                string line;
+
+                while ((line = reader.ReadLine()) != null)
+                {
+                    // TODO: Support leading whitespace?
+                    if (line.Length > 7 && line[0] == '#')
+                    {
+                        // Includes
+                        var match = RegexInclude().Match(line);
+
+                        if (match.Success)
+                        {
+                            // Recursively append included shaders
+                            // TODO: Add #line?
+                            LoadShaderString(match.Groups["IncludeName"].Value);
+                            continue;
+                        }
+
+                        // Defines
+                        match = RegexDefine().Match(line);
+
+                        if (match.Success)
+                        {
+                            var defineName = match.Groups["ParamName"].Value;
+
+                            defines.Add(defineName);
+
+                            // Check if this parameter is in the arguments
+                            if (!arguments.TryGetValue(defineName, out var value))
+                            {
+                                builder.Append(line);
+                                builder.Append('\n');
+                                continue;
+                            }
+
+                            // Overwrite default value
+                            var newValue = value.ToString(CultureInfo.InvariantCulture);
+
+                            builder.Append("#define ");
+                            builder.Append(defineName);
+                            builder.Append(' ');
+                            builder.Append(newValue);
+                            builder.Append(" // :VrfPreprocessed\n");
+
+                            continue;
+                        }
+                    }
+
+                    builder.Append(line);
+                    builder.Append('\n');
+
+                    // Append original shader name as a define
+                    if (isFirstLine)
+                    {
+                        isFirstLine = false;
+                        builder.Append("#define ");
+                        builder.Append(Path.GetFileNameWithoutExtension(originalShaderName));
+                        builder.Append(" 1 // :VrfPreprocessed\n");
+                    }
+                }
+            }
+
+            LoadShaderString(shaderFile);
+
+            var preprocessedShaderSource = builder.ToString();
+
+            GL.ShaderSource(shader, preprocessedShaderSource);
+            GL.CompileShader(shader);
+            GL.GetShader(shader, ShaderParameter.CompileStatus, out var shaderStatus);
+
+            if (shaderStatus == 1)
+            {
+                return;
+            }
+
             GL.GetShaderInfoLog(shader, out var info);
 
+            // Attempt to parse error message to get the line number so we can print the actual line
             var errorLine = 0;
             var nvidiaErr = NvidiaGlslError().Match(info);
             if (nvidiaErr.Success)
@@ -174,88 +209,17 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            throw new InvalidProgramException($"Error setting up shader {shaderName}:\n{info}");
+            throw new InvalidProgramException($"Error setting up shader {shaderFile} (original={originalShaderName}):\n{info}");
         }
 
-        private static string PreprocessShader(string source, IReadOnlyDictionary<string, byte> arguments,
-            string shaderName)
+        private static Stream GetShaderStream(string name)
         {
-            //Inject code into shader based on #includes
-            var withCollapsedIncludes = ResolveIncludes(source);
-
-            //Update parameter defines
-            var withReplacedDefines = UpdateDefines(withCollapsedIncludes, arguments);
-
-            // Define the original shader name
-            var withShaderName = DefineName(withReplacedDefines, Path.GetFileNameWithoutExtension(shaderName));
-            return withShaderName;
-        }
-
-        //Update default defines with possible overrides from the model
-        private static string UpdateDefines(string source, IReadOnlyDictionary<string, byte> arguments)
-        {
-            //Find all #define param_(paramName) (paramValue) using regex
-            var defines = RegexDefine().Matches(source);
-
-            foreach (var define in defines.Cast<Match>())
-            {
-                //Check if this parameter is in the arguments
-                if (!arguments.TryGetValue(define.Groups["ParamName"].Value, out var value))
-                {
-                    continue;
-                }
-
-                //Overwrite default value
-                var defaultValue = define.Groups["DefaultValue"];
-                var index = defaultValue.Index;
-                var length = defaultValue.Length;
-                var newValue = value.ToString(CultureInfo.InvariantCulture);
-
-                source = source.Remove(index, Math.Min(length, source.Length - index)).Insert(index, newValue);
-            }
-
-            return source;
-        }
-
-        //Remove any #includes from the shader and replace with the included code
-        private static string ResolveIncludes(string source)
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-
-            var includes = RegexInclude().Matches(source);
-
-            foreach (var define in includes.Cast<Match>())
-            {
 #if DEBUG
-                using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open, FileAccess.Read, FileShare.Read);
+            return File.OpenRead(GetShaderDiskPath(name));
 #else
-                var includeResource = define.Groups["IncludeName"].Value.Replace('/', '.');
-                using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{includeResource}");
+            var assembly = Assembly.GetExecutingAssembly();
+            return assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
 #endif
-                using var reader = new StreamReader(stream);
-                var includedCode = reader.ReadToEnd();
-
-                //Recursively resolve includes in the included code. (Watch out for cyclic dependencies!)
-                includedCode = ResolveIncludes(includedCode);
-
-                //Replace the include with the code
-                source = source.Replace(define.Value, includedCode, StringComparison.InvariantCulture);
-            }
-
-            return source;
-        }
-
-        private static List<string> FindDefines(string source)
-        {
-            var defines = RegexDefine().Matches(source);
-            return defines.Select(match => match.Groups["ParamName"].Value).ToList();
-        }
-
-        private static string DefineName(string source, string name)
-        {
-            var sb = new StringBuilder(source);
-            sb.Insert(source.IndexOf('\n', StringComparison.Ordinal) + 1, $"#define {name}\n");
-            return sb.ToString();
         }
 
         // Map Valve's shader names to shader files VRF has
