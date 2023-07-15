@@ -12,6 +12,7 @@ namespace GUI.Types.Renderer
         private readonly int vboHandle;
         private int vertexCount;
         private bool enableDepth;
+        private readonly List<SceneNode> selectedNodes = new(1);
 
         public SelectedNodeRenderer(VrfGuiContext guiContext)
         {
@@ -36,45 +37,74 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
+        public void ToggleNode(SceneNode node)
+        {
+            var selectedNode = selectedNodes.IndexOf(node);
+
+            if (selectedNode >= 0)
+            {
+                selectedNodes.RemoveAt(selectedNode);
+            }
+            else
+            {
+                selectedNodes.Add(node);
+            }
+
+            UpdateBuffer();
+        }
+
         public void SelectNode(SceneNode node)
         {
+            selectedNodes.Clear();
+
             if (node == null)
             {
                 vertexCount = 0;
                 return;
             }
 
-            enableDepth = true;
+            selectedNodes.Add(node);
+
+            UpdateBuffer();
+        }
+
+        private void UpdateBuffer()
+        {
+            enableDepth = selectedNodes.Count == 1;
 
             var vertices = new List<float>();
-            OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.BoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
 
-            if (node.EntityData != null)
+            foreach (var node in selectedNodes)
             {
-                var classname = node.EntityData.GetProperty<string>("classname");
+                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.BoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
 
-                if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
+                if (node.EntityData != null)
                 {
-                    AABB bounds = default;
+                    var classname = node.EntityData.GetProperty<string>("classname");
 
-                    if (classname == "env_cubemap")
+                    if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
                     {
-                        var radius = node.EntityData.GetProperty<float>("influenceradius");
-                        bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                        AABB bounds = default;
+
+                        if (classname == "env_cubemap")
+                        {
+                            var radius = node.EntityData.GetProperty<float>("influenceradius");
+                            bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                        }
+                        else
+                        {
+                            bounds = new AABB(
+                                node.EntityData.GetProperty<Vector3>("box_mins"),
+                                node.EntityData.GetProperty<Vector3>("box_maxs")
+                            );
+                        }
+
+                        bounds = bounds.Transform(node.Transform);
+
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
+
+                        enableDepth = false;
                     }
-                    else
-                    {
-                        bounds = new AABB(
-                            node.EntityData.GetProperty<Vector3>("box_mins"),
-                            node.EntityData.GetProperty<Vector3>("box_maxs")
-                        );
-                    }
-
-                    bounds = bounds.Transform(node.Transform);
-
-                    OctreeDebugRenderer<SceneNode>.AddBox(vertices, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
-
-                    enableDepth = false;
                 }
             }
 
