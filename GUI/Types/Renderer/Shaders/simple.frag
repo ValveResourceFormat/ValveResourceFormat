@@ -161,8 +161,8 @@ uniform float g_flRefractScale = 0.1;
 
 #define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
-#define hasMetalnessTexture defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))
-#define hasAnisoGloss defined(complex) && (F_ANISOTROPIC_GLOSS == 1)
+#define hasMetalnessTexture (defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1)))
+#define hasAnisoGloss (defined(complex) && (F_ANISOTROPIC_GLOSS == 1))
 #define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1))
 
 #if hasUniformMetalness
