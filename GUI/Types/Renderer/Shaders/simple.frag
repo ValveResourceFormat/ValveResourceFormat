@@ -35,6 +35,7 @@
 #define F_FULLBRIGHT 0
 #define F_LIT 0
 #define F_UNLIT 0
+#define F_PAINT_VERTEX_COLORS 0
 #define F_ADDITIVE_BLEND 0
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0
@@ -322,7 +323,7 @@ void main()
 
     vec3 albedo = pow(color.rgb, gamma) * tintFactor;
     float opacity = color.a;
-#if defined(__vertex_alpha_opacity_opt_in)
+#if defined(static_overlay) && F_PAINT_VERTEX_COLORS == 1
     opacity *= vVertexColorOut.a;
 #endif
 #if F_TRANSLUCENT == 1

@@ -13,9 +13,12 @@
 
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
+#define F_PAINT_VERTEX_COLORS 0 // csgo_static_overlay
 #define F_LAYERS 0
 #define F_SECONDARY_UV 0
 #define F_DETAIL_TEXTURE 0
+#define F_TEXTURE_ANIMATION 0
+#define F_TEXTURE_ANIMATION_MODE 0
 //End of parameter defines
 
 #if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
@@ -55,7 +58,7 @@ in vec2 vTEXCOORD;
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     in vec3 vTANGENT;
 #endif
-#if F_VERTEX_COLOR == 1
+#if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vCOLOR;
 #endif
 #if F_SECONDARY_UV
@@ -87,6 +90,43 @@ uniform vec4 g_vTexCoordScale = vec4(1.0);
 uniform vec4 g_vTexCoordScrollSpeed;
 uniform float g_flTime;
 
+#if F_TEXTURE_ANIMATION == 1
+    uniform vec4 g_vAnimationGrid = vec4(1, 1, 0, 0);
+    uniform float g_nNumAnimationCells = 4;
+    uniform float g_flAnimationTimePerFrame;
+    uniform float g_flAnimationTimeOffset;
+    #if F_TEXTURE_ANIMATION_MODE == 2 // Scripted
+        uniform float g_flAnimationFrame;
+    #else
+        float g_flAnimationFrame;
+    #endif
+#endif
+
+vec2 GetAnimatedUVs(vec2 texCoords)
+{
+    #if F_TEXTURE_ANIMATION == 1
+        #if F_TEXTURE_ANIMATION_MODE != 2 // Sequential
+            g_flAnimationFrame = floor((g_flAnimationTimeOffset + g_flTime) / g_flAnimationTimePerFrame);
+        #endif
+
+        float animationFrame = mod(g_flAnimationFrame, g_nNumAnimationCells);
+
+        #if F_TEXTURE_ANIMATION_MODE == 1 // Random
+            animationFrame = floor(Random2D(vec2(animationFrame)) * g_nNumAnimationCells);
+        #endif
+
+        vec2 atlasGridInv = vec2(1.0) / g_vAnimationGrid.xy;
+        vec2 atlasOffset = vec2(
+            mod(animationFrame, g_vAnimationGrid.x) * atlasGridInv.x,
+            floor(animationFrame / g_vAnimationGrid.x) * atlasGridInv.y
+        );
+
+        texCoords = texCoords * atlasGridInv + atlasOffset;
+    #endif
+
+    return texCoords * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
+    
+}
 
 vec4 GetTintColor()
 {
@@ -143,7 +183,7 @@ void main()
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
 
-	vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
+	vTexCoordOut = GetAnimatedUVs(vTEXCOORD);
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale, 0);
@@ -155,8 +195,8 @@ void main()
 
     vVertexColorOut = GetTintColor();
 
-#if F_VERTEX_COLOR == 1
-    //vVertexColorOut *= vCOLOR;
+#if F_PAINT_VERTEX_COLORS == 1
+    vVertexColorOut *= vCOLOR;
 #endif
 
 
