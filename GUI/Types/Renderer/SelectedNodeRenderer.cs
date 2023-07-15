@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Numerics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -10,6 +11,7 @@ namespace GUI.Types.Renderer
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private int vertexCount;
+        private bool enableDepth;
 
         public SelectedNodeRenderer(VrfGuiContext guiContext)
         {
@@ -42,8 +44,40 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            enableDepth = true;
+
             var vertices = new List<float>();
             OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.BoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
+
+            if (node.EntityData != null)
+            {
+                var classname = node.EntityData.GetProperty<string>("classname");
+
+                if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
+                {
+                    AABB bounds = default;
+
+                    if (classname == "env_cubemap")
+                    {
+                        var radius = node.EntityData.GetProperty<float>("influenceradius");
+                        bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                    }
+                    else
+                    {
+                        bounds = new AABB(
+                            node.EntityData.GetProperty<Vector3>("box_mins"),
+                            node.EntityData.GetProperty<Vector3>("box_maxs")
+                        );
+                    }
+
+                    bounds = bounds.Transform(node.Transform);
+
+                    OctreeDebugRenderer<SceneNode>.AddBox(vertices, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
+
+                    enableDepth = false;
+                }
+            }
+
             vertexCount = vertices.Count / 7;
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
@@ -58,7 +92,12 @@ namespace GUI.Types.Renderer
             }
 
             GL.Enable(EnableCap.Blend);
-            GL.Enable(EnableCap.DepthTest);
+
+            if (enableDepth)
+            {
+                GL.Enable(EnableCap.DepthTest);
+            }
+
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.UseProgram(shader.Program);
