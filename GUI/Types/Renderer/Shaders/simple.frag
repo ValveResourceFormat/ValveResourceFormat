@@ -27,10 +27,13 @@
     #define complex
 #elif defined(vr_glass) || defined(csgo_glass)
     #define glass
+#elif defined(vr_static_overlay) || defined(csgo_static_overlay)
+    #define static_overlay
 #endif
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_FULLBRIGHT 0
+#define F_LIT 0
 #define F_UNLIT 0
 #define F_ADDITIVE_BLEND 0
 #define F_ALPHA_TEST 0
@@ -119,7 +122,7 @@ in vec4 vVertexColorOut;
     #define S_SPECULAR 0 // No cubemaps unless viewing map
 #elif defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
     #define S_SPECULAR F_SPECULAR_INDIRECT
-#elif defined(complex)
+#elif defined(vr_complex)
     #define S_SPECULAR F_SPECULAR
 #elif defined(generic)
     #define S_SPECULAR 0
@@ -163,7 +166,7 @@ uniform float g_flRefractScale = 0.1;
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
 #define hasMetalnessTexture (defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1)))
 #define hasAnisoGloss (defined(complex) && (F_ANISOTROPIC_GLOSS == 1))
-#define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1))
+#define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay) && F_LIT == 0))
 
 #if hasUniformMetalness
     uniform float g_flMetalness = 0.0;
@@ -283,7 +286,7 @@ void main()
     roughness = mix(roughness, roughness2, blendFactor);
 #endif
 
-#if F_ALPHA_TEST == 1
+#if (F_ALPHA_TEST == 1) || (defined(static_overlay) && F_BLEND_MODE == 2)
     color.a = AlphaTestAntiAliasing(color.a, texCoord);
 
     if (color.a - 0.001 < g_flAlphaTestReference)   discard;

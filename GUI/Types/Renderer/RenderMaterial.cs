@@ -17,6 +17,7 @@ namespace GUI.Types.Renderer
 
         private readonly Shader shader;
         private readonly bool isAdditiveBlend;
+        private readonly bool isMod2x;
         private readonly bool isRenderBackfaces;
         private readonly bool isOverlay;
 
@@ -29,18 +30,24 @@ namespace GUI.Types.Renderer
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
-                || material.IntParams.ContainsKey("F_BLEND_MODE") && material.IntParams["F_BLEND_MODE"] > 0
                 || material.ShaderName == "vr_glass.vfx"
                 || material.ShaderName == "vr_glass_markable.vfx"
                 || material.ShaderName == "csgo_glass.vfx"
                 || material.ShaderName == "csgo_effects.vfx"
                 || material.ShaderName == "tools_sprite.vfx";
-            isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1
-                || material.IntParams.ContainsKey("F_BLEND_MODE") && material.IntParams["F_BLEND_MODE"] == 4;
+            isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
             isOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
-                || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1
-                || material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal);
+                || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1;
+
+            if (material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal))
+            {
+                isOverlay = true;
+                var blendMode = material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+                IsBlended = blendMode > 0;
+                isMod2x = blendMode == 3;
+                isAdditiveBlend = blendMode == 4;
+            }
         }
 
         public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
@@ -82,6 +89,10 @@ namespace GUI.Types.Renderer
                 GL.DepthMask(false);
                 GL.Enable(EnableCap.Blend);
                 GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
+                if (isMod2x)
+                {
+                    GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+                }
             }
 
             if (isOverlay)
