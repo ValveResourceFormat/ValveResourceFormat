@@ -11,12 +11,22 @@ using ValveResourceFormat.ThirdParty;
 
 namespace GUI.Types.Renderer
 {
-    class ShaderLoader : IDisposable
+    partial class ShaderLoader : IDisposable
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const int ShaderSeed = 0x13141516;
-        private static readonly Regex RegexInclude = new(@"^#include ""(?<IncludeName>[^""]+)""\r?$", RegexOptions.Multiline);
-        private static readonly Regex RegexDefine = new(@"^#define (?<ParamName>\S+) (?<DefaultValue>\S+)", RegexOptions.Multiline);
+
+        [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"\\r?$", RegexOptions.Multiline)]
+        private static partial Regex RegexInclude();
+        [GeneratedRegex("^#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)", RegexOptions.Multiline)]
+        private static partial Regex RegexDefine();
+
+        // Is it character index?
+        [GeneratedRegex("0\\((?<Line>\\d+)\\) : error C(?<ErrorNumber>\\d+):")]
+        private static partial Regex NvidiaGlslError();
+
+        [GeneratedRegex("ERROR: 0:(?<Line>\\d+):")]
+        private static partial Regex AmdGlslError();
 
         private readonly Dictionary<uint, Shader> CachedShaders = new();
         private readonly Dictionary<string, List<string>> ShaderDefines = new();
@@ -46,7 +56,7 @@ namespace GUI.Types.Renderer
             var assembly = Assembly.GetExecutingAssembly();
 
 #if DEBUG
-            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.vert"), FileMode.Open))
+            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.vert"), FileMode.Open, FileAccess.Read, FileShare.Read))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.vert"))
 #endif
@@ -75,7 +85,7 @@ namespace GUI.Types.Renderer
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
 
 #if DEBUG
-            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.frag"), FileMode.Open))
+            using (var stream = File.Open(GetShaderDiskPath($"{shaderFileName}.frag"), FileMode.Open, FileAccess.Read, FileShare.Read))
 #else
             using (var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{shaderFileName}.frag"))
 #endif
@@ -87,17 +97,42 @@ namespace GUI.Types.Renderer
 
                 // Find render modes supported from source, take union to avoid duplicates
                 defines = defines.Union(FindDefines(preprocessedShaderSource)).ToList();
-            }
 
-            GL.CompileShader(fragmentShader);
+                GL.CompileShader(fragmentShader);
 
-            GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out shaderStatus);
+                GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out shaderStatus);
 
-            if (shaderStatus != 1)
-            {
-                GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
+                if (shaderStatus != 1)
+                {
+                    GL.GetShaderInfoLog(fragmentShader, out var fsInfo);
 
-                throw new InvalidProgramException($"Error setting up Fragment Shader {shaderFileName} ({shaderName}):\n{fsInfo}");
+                    var errorLine = 0;
+                    var nvidiaErr = NvidiaGlslError().Match(fsInfo);
+                    if (nvidiaErr.Success)
+                    {
+                        errorLine = int.Parse(nvidiaErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        var amdErr = AmdGlslError().Match(fsInfo);
+                        if (amdErr.Success)
+                        {
+                            errorLine = int.Parse(amdErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
+                        }
+                    }
+
+                    if (errorLine > 0)
+                    {
+                        var lines = preprocessedShaderSource.Split('\n');
+                        if (errorLine <= lines.Length)
+                        {
+                            var error = lines[errorLine - 1];
+                            fsInfo += $"\n{error}";
+                        }
+                    }
+
+                    throw new InvalidProgramException($"Error setting up Fragment Shader {shaderFileName} ({shaderName}):\n{fsInfo}");
+                }
             }
 
             const string renderMode = "renderMode_";
@@ -158,7 +193,7 @@ namespace GUI.Types.Renderer
         private static string UpdateDefines(string source, IReadOnlyDictionary<string, byte> arguments)
         {
             //Find all #define param_(paramName) (paramValue) using regex
-            var defines = RegexDefine.Matches(source);
+            var defines = RegexDefine().Matches(source);
 
             foreach (var define in defines.Cast<Match>())
             {
@@ -185,12 +220,12 @@ namespace GUI.Types.Renderer
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            var includes = RegexInclude.Matches(source);
+            var includes = RegexInclude().Matches(source);
 
             foreach (var define in includes.Cast<Match>())
             {
 #if DEBUG
-                using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open);
+                using var stream = File.Open(GetShaderDiskPath(define.Groups["IncludeName"].Value), FileMode.Open, FileAccess.Read, FileShare.Read);
 #else
                 var includeResource = define.Groups["IncludeName"].Value.Replace('/', '.');
                 using var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{includeResource}");
@@ -210,7 +245,7 @@ namespace GUI.Types.Renderer
 
         private static List<string> FindDefines(string source)
         {
-            var defines = RegexDefine.Matches(source);
+            var defines = RegexDefine().Matches(source);
             return defines.Select(match => match.Groups["ParamName"].Value).ToList();
         }
 
