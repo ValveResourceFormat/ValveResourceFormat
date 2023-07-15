@@ -22,10 +22,10 @@ namespace GUI.Types.Renderer
         [GeneratedRegex("^#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)")]
         private static partial Regex RegexDefine();
 
-        [GeneratedRegex("[0-9]+\\((?<Line>\\d+)\\) : error C(?<ErrorNumber>\\d+):")]
+        [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) : error C(?<ErrorNumber>[0-9]+):")]
         private static partial Regex NvidiaGlslError();
 
-        [GeneratedRegex("ERROR: [0-9]+:(?<Line>\\d+):")]
+        [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>\\d+):")]
         private static partial Regex AmdGlslError();
 
         private readonly Dictionary<uint, Shader> CachedShaders = new();
@@ -101,15 +101,44 @@ namespace GUI.Types.Renderer
         {
             var isFirstLine = true;
             var builder = new StringBuilder();
+            var sourceFileNumber = 0;
+            var sourceFiles = new List<string>();
+
+#if DEBUG
+            var sourceFileLines = new List<List<string>>();
+#endif
+
+            void AppendLineNumber(int a, int b)
+            {
+                builder.Append("#line ");
+                builder.Append(a.ToString(CultureInfo.InvariantCulture));
+                builder.Append(' ');
+                builder.Append(b.ToString(CultureInfo.InvariantCulture));
+                builder.Append('\n');
+            }
 
             void LoadShaderString(string shaderFileToLoad)
             {
                 using var stream = GetShaderStream(shaderFileToLoad);
                 using var reader = new StreamReader(stream);
                 string line;
+                var lineNum = 1;
+                var currentSourceFileNumber = sourceFileNumber++;
+                sourceFiles.Add(shaderFileToLoad);
+
+#if DEBUG
+                var currentSourceLines = new List<string>();
+                sourceFileLines.Add(currentSourceLines);
+#endif
 
                 while ((line = reader.ReadLine()) != null)
                 {
+                    lineNum++;
+
+#if DEBUG
+                    currentSourceLines.Add(line);
+#endif
+
                     // TODO: Support leading whitespace?
                     if (line.Length > 7 && line[0] == '#')
                     {
@@ -120,7 +149,13 @@ namespace GUI.Types.Renderer
                         {
                             // Recursively append included shaders
                             // TODO: Add #line?
-                            LoadShaderString(match.Groups["IncludeName"].Value);
+
+                            var includeName = match.Groups["IncludeName"].Value;
+
+                            AppendLineNumber(1, sourceFileNumber);
+                            LoadShaderString(includeName);
+                            AppendLineNumber(lineNum, currentSourceFileNumber);
+
                             continue;
                         }
 
@@ -157,6 +192,12 @@ namespace GUI.Types.Renderer
                     builder.Append(line);
                     builder.Append('\n');
 
+                    if (line.Contains("#endif", StringComparison.Ordinal))
+                    {
+                        // Fix an issue where #include is inside of an #if, which messes up line numbers
+                        AppendLineNumber(lineNum, currentSourceFileNumber);
+                    }
+
                     // Append original shader name as a define
                     if (isFirstLine)
                     {
@@ -164,6 +205,7 @@ namespace GUI.Types.Renderer
                         builder.Append("#define ");
                         builder.Append(Path.GetFileNameWithoutExtension(originalShaderName));
                         builder.Append(" 1 // :VrfPreprocessed\n");
+                        AppendLineNumber(lineNum, currentSourceFileNumber);
                     }
                 }
             }
@@ -184,29 +226,23 @@ namespace GUI.Types.Renderer
             GL.GetShaderInfoLog(shader, out var info);
 
             // Attempt to parse error message to get the line number so we can print the actual line
-            var errorLine = 0;
-            var nvidiaErr = NvidiaGlslError().Match(info);
-            if (nvidiaErr.Success)
+            var errorMatch = NvidiaGlslError().Match(info);
+
+            if (!errorMatch.Success)
             {
-                errorLine = int.Parse(nvidiaErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                var amdErr = AmdGlslError().Match(info);
-                if (amdErr.Success)
-                {
-                    errorLine = int.Parse(amdErr.Groups["Line"].Value, CultureInfo.InvariantCulture);
-                }
+                errorMatch = AmdGlslError().Match(info);
             }
 
-            if (errorLine > 0)
+            if (errorMatch.Success)
             {
-                var lines = preprocessedShaderSource.Split('\n');
-                if (errorLine <= lines.Length)
-                {
-                    var error = lines[errorLine - 1];
-                    info += $"\n{error}";
-                }
+                var errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
+                var errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
+
+                info += $"\nError in {sourceFiles[errorSourceFile]} on line {errorLine}";
+
+#if DEBUG
+                info += $":\n{sourceFileLines[errorSourceFile][errorLine - 1]}\n";
+#endif
             }
 
             throw new InvalidProgramException($"Error setting up shader {shaderFile} (original={originalShaderName}):\n{info}");
