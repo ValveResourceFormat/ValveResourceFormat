@@ -78,6 +78,14 @@ namespace GUI.Types.Renderer
             {
                 OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
 
+#if DEBUG
+                foreach (var envMap in node.EnvMaps)
+                {
+                    OctreeDebugRenderer<SceneNode>.AddBox(vertices, envMap.Transform, envMap.LocalBoundingBox, 0.7f, 0.0f, 1.0f, 1.0f);
+                    OctreeDebugRenderer<SceneNode>.AddLine(vertices, envMap.Transform.Translation, node.BoundingBox.Center, 1.0f, 0.0f, 0.0f, 1.0f);
+                }
+#endif
+
                 if (node.EntityData != null)
                 {
                     var classname = node.EntityData.GetProperty<string>("classname");

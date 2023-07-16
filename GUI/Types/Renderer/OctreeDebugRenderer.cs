@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        private static void AddLine(List<float> vertices, Vector3 from, Vector3 to, float r, float g, float b, float a)
+        public static void AddLine(List<float> vertices, Vector3 from, Vector3 to, float r, float g, float b, float a)
         {
             vertices.Add(from.X);
             vertices.Add(from.Y);
