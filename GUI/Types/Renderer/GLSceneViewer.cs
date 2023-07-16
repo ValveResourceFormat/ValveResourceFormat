@@ -233,12 +233,16 @@ namespace GUI.Types.Renderer
                 {
                     Console.Error.WriteLine(ex.Message);
 
+                    // Hide GLControl to fix message box not showing up correctly
+                    // Ref: https://stackoverflow.com/a/5080752
+                    ViewerControl.GLControl.Visible = false;
                     MessageBox.Show(
                         $"{ex.Message}",
                         "Failed to reload shaders",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error
                     );
+                    ViewerControl.GLControl.Visible = true;
                 }
             };
             ViewerControl.AddControl(button);
