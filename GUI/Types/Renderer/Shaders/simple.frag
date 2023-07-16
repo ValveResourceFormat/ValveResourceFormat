@@ -552,8 +552,7 @@ void main()
 
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
-    float lod = 0.0;
-    vec3 EnvMap = GetEnvironment(vertexNormal, V, roughness, vec3(1.0), vec3(0.0), vec4(0)).rgb;
+    vec3 EnvMap = GetEnvironment(vertexNormal, V, 0.0, vec3(1.0), vec3(0.0), vec4(0)).rgb;
     outputColor.rgb = pow(EnvMap, vec3(invGamma));
 #endif
 

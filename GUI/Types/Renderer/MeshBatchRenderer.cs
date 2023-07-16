@@ -56,6 +56,7 @@ namespace GUI.Types.Renderer
             public int ShaderId;
             public int ShaderProgramId;
             public int CubeMapArrayIndex;
+            public int EnvMapCount;
         }
 
         /// <summary>
@@ -87,6 +88,7 @@ namespace GUI.Types.Renderer
                     TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
                     Time = shader.GetUniformLocation("g_flTime"),
                     CubeMapArrayIndex = shader.GetUniformLocation("g_iEnvironmentMapArrayIndex"),
+                    EnvMapCount = shader.GetUniformLocation("g_iEnvironmentMapCount"),
                     ObjectId = shader.GetUniformLocation("sceneObjectId"),
                     MeshId = shader.GetUniformLocation("meshId"),
                     ShaderId = shader.GetUniformLocation("shaderId"),
@@ -100,12 +102,13 @@ namespace GUI.Types.Renderer
                 shader.SetUniform3("vEyePosition", cameraPosition);
                 shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
 
-                if (context.LightingInfo?.EnvMapPositionsUniform is not null)
+                if (context.LightingInfo?.EnvMapWorldToLocalUniform is not null)
                 {
                     var count = context.LightingInfo.EnvMaps.Count;
-                    shader.SetUniform4Array("g_vEnvMapPositionWs", count, context.LightingInfo.EnvMapPositionsUniform);
+                    shader.SetUniformMatrix4x3Array("g_matEnvMapWorldToLocal", count, context.LightingInfo.EnvMapWorldToLocalUniform);
                     shader.SetUniform4Array("g_vEnvMapBoxMins", count, context.LightingInfo.EnvMapMinsUniform);
                     shader.SetUniform4Array("g_vEnvMapBoxMaxs", count, context.LightingInfo.EnvMapMaxsUniform);
+                    shader.SetUniform4Array("g_vEnvMapEdgeFadeDists", count, context.LightingInfo.EnvMapEdgeFadeDists);
                 }
 
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
@@ -161,6 +164,7 @@ namespace GUI.Types.Renderer
 
             if (uniforms.CubeMapArrayIndex != -1)
             {
+                /*
                 var arrayIndex = 0;
 
                 if (request.Node.CubeMapPrecomputedHandshake > 0 && context.LightingInfo.EnvMaps.TryGetValue(request.Node.CubeMapPrecomputedHandshake, out var envMap))
@@ -169,6 +173,12 @@ namespace GUI.Types.Renderer
                 }
 
                 GL.Uniform1(uniforms.CubeMapArrayIndex, arrayIndex);
+                */
+
+                var array = request.Node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
+
+                GL.Uniform1(uniforms.CubeMapArrayIndex, array.Length, array);
+                GL.Uniform1(uniforms.EnvMapCount, array.Length);
             }
 
             if (uniforms.Time != 1)

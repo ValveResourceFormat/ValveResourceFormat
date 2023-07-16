@@ -94,6 +94,15 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetUniformMatrix4x3Array(string name, int count, float[] value)
+        {
+            var uniformLocation = GetUniformLocation(name);
+            if (uniformLocation > -1)
+            {
+                GL.UniformMatrix4x3(uniformLocation, count, false, value);
+            }
+        }
+
         public void SetUniform4x4(string name, Matrix4x4 value, bool transpose = false)
         {
             var uniformLocation = GetUniformLocation(name);

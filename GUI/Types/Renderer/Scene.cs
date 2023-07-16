@@ -270,7 +270,7 @@ namespace GUI.Types.Renderer
 
             var maxEnvMapArrayIndex = 1 + LightingInfo.EnvMaps.Max(x => x.Value.ArrayIndex);
 
-            LightingInfo.EnvMapPositionsUniform = new float[maxEnvMapArrayIndex * 4];
+            LightingInfo.EnvMapWorldToLocalUniform = new float[maxEnvMapArrayIndex * 12];
             LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
             LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
             LightingInfo.EnvMapEdgeFadeDists = new float[maxEnvMapArrayIndex * 4];
@@ -282,23 +282,40 @@ namespace GUI.Types.Renderer
                 foreach (var node in nodes)
                 {
                     node.EnvMaps.Add(envMap);
-                    //node.CubeMapPrecomputedHandshake = envMap.HandShake;
                 }
 
-                var offsetFl = envMap.ArrayIndex * 4;
+                nodes = DynamicOctree.Query(envMap.BoundingBox); // TODO: This should actually be done dynamically
 
-                LightingInfo.EnvMapPositionsUniform[offsetFl] = envMap.Transform.M41;
-                LightingInfo.EnvMapPositionsUniform[offsetFl + 1] = envMap.Transform.M42;
-                LightingInfo.EnvMapPositionsUniform[offsetFl + 2] = envMap.Transform.M43;
-                LightingInfo.EnvMapPositionsUniform[offsetFl + 3] = envMap.ProjectionMode;
+                foreach (var node in nodes)
+                {
+                    node.EnvMaps.Add(envMap);
+                }
 
-                LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.BoundingBox.Min.X;
-                LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.BoundingBox.Min.Y;
-                LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.BoundingBox.Min.Z;
+                Matrix4x4.Invert(envMap.Transform, out var invertedTransform);
 
-                LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.BoundingBox.Max.X;
-                LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.BoundingBox.Max.Y;
-                LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.BoundingBox.Max.Z;
+                var owl = envMap.ArrayIndex * 12;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 0] = invertedTransform.M11;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 1] = invertedTransform.M12;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 2] = invertedTransform.M13;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 3] = invertedTransform.M21;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 4] = invertedTransform.M22;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 5] = invertedTransform.M23;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 6] = invertedTransform.M31;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 7] = invertedTransform.M32;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 8] = invertedTransform.M33;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 9] = invertedTransform.M41;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 10] = invertedTransform.M42;
+                LightingInfo.EnvMapWorldToLocalUniform[owl + 11] = invertedTransform.M43;
+
+                var offsetFl = envMap.ArrayIndex * 4; // TODO vec3
+
+                LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.LocalBoundingBox.Min.X;
+                LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.LocalBoundingBox.Min.Y;
+                LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.LocalBoundingBox.Min.Z;
+
+                LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.LocalBoundingBox.Max.X;
+                LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.LocalBoundingBox.Max.Y;
+                LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.LocalBoundingBox.Max.Z;
 
                 LightingInfo.EnvMapEdgeFadeDists[offsetFl] = envMap.EdgeFadeDists.X;
                 LightingInfo.EnvMapEdgeFadeDists[offsetFl + 1] = envMap.EdgeFadeDists.Y;
@@ -307,17 +324,10 @@ namespace GUI.Types.Renderer
 
             foreach (var node in AllNodes)
             {
-                if (!node.EnvMaps.Any())
-                {
-                    continue;
-                }
-
-                var envMaps = node.EnvMaps.OrderBy((envMap) =>
-                {
-                    return Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center);
-                }).ToList();
-
-                node.CubeMapPrecomputedHandshake = envMaps.First().HandShake;
+                node.EnvMaps = node.EnvMaps
+                    .OrderByDescending((envMap) => envMap.IndoorOutdoorLevel)
+                    .ThenBy((envMap) => Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center))
+                    .ToList();
             }
         }
     }
