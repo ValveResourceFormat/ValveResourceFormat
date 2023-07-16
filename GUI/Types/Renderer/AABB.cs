@@ -25,18 +25,17 @@ namespace GUI.Types.Renderer
         public bool Contains(Vector3 point)
         {
             return
-                point.X >= Min.X && point.X < Max.X &&
-                point.Y >= Min.Y && point.Y < Max.Y &&
-                point.Z >= Min.Z && point.Z < Max.Z;
+                point.X >= Min.X && point.X <= Max.X &&
+                point.Y >= Min.Y && point.Y <= Max.Y &&
+                point.Z >= Min.Z && point.Z <= Max.Z;
         }
 
         public bool Intersects(AABB other)
         {
             return
-                other.Max.X >= Min.X && other.Min.X < Max.X &&
-                other.Max.Y >= Min.Y && other.Min.Y < Max.Y &&
-                other.Max.Z >= Min.Z && other.Min.Z < Max.Z
-                ;
+                other.Max.X >= Min.X && other.Min.X <= Max.X &&
+                other.Max.Y >= Min.Y && other.Min.Y <= Max.Y &&
+                other.Max.Z >= Min.Z && other.Min.Z <= Max.Z;
         }
 
         public bool Contains(AABB other)
