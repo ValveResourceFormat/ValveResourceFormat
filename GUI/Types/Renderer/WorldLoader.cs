@@ -309,12 +309,24 @@ namespace GUI.Types.Renderer
                             _ => 0,
                         };
 
+                        var indoorOutdoorLevelData = entity.GetProperty("indoor_outdoor_level")?.Data;
+                        var indoorOutdoorLevel = indoorOutdoorLevelData switch
+                        {
+                            int i => i,
+                            string s => int.Parse(s, CultureInfo.InvariantCulture),
+                            _ => 0,
+                        };
+
+                        var edgeFadeDists = entity.GetProperty<Vector3>("edge_fade_dists"); // TODO: Not available on all entities
+
                         var envMap = new SceneEnvMap(scene, bounds)
                         {
                             LayerName = layerName,
                             Transform = transform,
                             HandShake = handShake,
                             ArrayIndex = arrayIndex,
+                            IndoorOutdoorLevel = indoorOutdoorLevel,
+                            EdgeFadeDists = edgeFadeDists,
                             ProjectionMode = classname == "env_cubemap" ? 0 : 1,
                             EnvMapTexture = envMapTexture,
                         };

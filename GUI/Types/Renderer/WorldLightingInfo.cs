@@ -15,4 +15,5 @@ class WorldLightingInfo
     public float[] EnvMapPositionsUniform { get; set; }
     public float[] EnvMapMinsUniform { get; set; }
     public float[] EnvMapMaxsUniform { get; set; }
+    public float[] EnvMapEdgeFadeDists { get; set; }
 }

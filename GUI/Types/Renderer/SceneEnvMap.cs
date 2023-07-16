@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace GUI.Types.Renderer;
 
 class SceneEnvMap : SceneNode
@@ -9,6 +11,13 @@ class SceneEnvMap : SceneNode
     /// If <see cref="EnvMapTexture"/> is an array, this is the depth index.
     /// </summary>
     public int ArrayIndex { get; init; }
+
+    /// <summary>
+    /// If multiple volumes contain an object, the highest priority volume takes precedence.
+    /// </summary>
+    public int IndoorOutdoorLevel { get; init; }
+
+    public Vector3 EdgeFadeDists { get; init; }
 
     /// <summary>
     /// 0 = Sphere, 1 = Box

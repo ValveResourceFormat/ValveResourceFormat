@@ -273,6 +273,7 @@ namespace GUI.Types.Renderer
             LightingInfo.EnvMapPositionsUniform = new float[maxEnvMapArrayIndex * 4];
             LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
             LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
+            LightingInfo.EnvMapEdgeFadeDists = new float[maxEnvMapArrayIndex * 4];
 
             foreach (var envMap in LightingInfo.EnvMaps.Values)
             {
@@ -298,6 +299,10 @@ namespace GUI.Types.Renderer
                 LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.BoundingBox.Max.X;
                 LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.BoundingBox.Max.Y;
                 LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.BoundingBox.Max.Z;
+
+                LightingInfo.EnvMapEdgeFadeDists[offsetFl] = envMap.EdgeFadeDists.X;
+                LightingInfo.EnvMapEdgeFadeDists[offsetFl + 1] = envMap.EdgeFadeDists.Y;
+                LightingInfo.EnvMapEdgeFadeDists[offsetFl + 2] = envMap.EdgeFadeDists.Z;
             }
 
             foreach (var node in AllNodes)
