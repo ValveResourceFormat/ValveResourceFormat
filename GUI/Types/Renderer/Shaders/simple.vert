@@ -92,34 +92,28 @@ uniform float g_flTime;
 
 #if F_TEXTURE_ANIMATION == 1
     uniform vec4 g_vAnimationGrid = vec4(1, 1, 0, 0);
-    uniform float g_nNumAnimationCells = 4;
+    uniform int g_nNumAnimationCells = 1;
     uniform float g_flAnimationTimePerFrame;
     uniform float g_flAnimationTimeOffset;
-    #if F_TEXTURE_ANIMATION_MODE == 2 // Scripted
-        uniform float g_flAnimationFrame;
-    #else
-        float g_flAnimationFrame;
-    #endif
+    uniform float g_flAnimationFrame;
 #endif
 
 vec2 GetAnimatedUVs(vec2 texCoords)
 {
     #if F_TEXTURE_ANIMATION == 1
-        #if F_TEXTURE_ANIMATION_MODE != 2 // Sequential
-            g_flAnimationFrame = floor((g_flAnimationTimeOffset + g_flTime) / g_flAnimationTimePerFrame);
-        #endif
-
-        float animationFrame = mod(g_flAnimationFrame, g_nNumAnimationCells);
-
-        #if F_TEXTURE_ANIMATION_MODE == 1 // Random
-            animationFrame = floor(Random2D(vec2(animationFrame)) * g_nNumAnimationCells);
+        uint frame = uint(g_flAnimationFrame);
+        uint cells = uint(g_nNumAnimationCells);
+        #if F_TEXTURE_ANIMATION_MODE == 0 // Sequential
+            frame = uint((g_flAnimationTimeOffset + g_flTime) / g_flAnimationTimePerFrame) % cells;
+        #elif F_TEXTURE_ANIMATION_MODE == 1 // Random
+            frame = uint(Random2D(vec2(g_flAnimationFrame)) * float(g_nNumAnimationCells));
         #endif
 
         vec2 atlasGridInv = vec2(1.0) / g_vAnimationGrid.xy;
-        vec2 atlasOffset = vec2(
-            mod(animationFrame, g_vAnimationGrid.x) * atlasGridInv.x,
-            floor(animationFrame / g_vAnimationGrid.x) * atlasGridInv.y
-        );
+        vec2 atlasOffset = vec2(uvec2(
+            frame % uint(g_vAnimationGrid.x),
+            uint(float(frame) * atlasGridInv.x)
+        )) * atlasGridInv;
 
         texCoords = texCoords * atlasGridInv + atlasOffset;
     #endif
@@ -196,7 +190,7 @@ void main()
     vVertexColorOut = GetTintColor();
 
 #if F_PAINT_VERTEX_COLORS == 1
-    vVertexColorOut *= vCOLOR;
+    vVertexColorOut *= vCOLOR / 255.0f;
 #endif
 
 

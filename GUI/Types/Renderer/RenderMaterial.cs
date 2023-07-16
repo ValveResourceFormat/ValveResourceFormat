@@ -74,6 +74,16 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            foreach (var param in Material.IntParams)
+            {
+                if (param.Key.Length < 1 || param.Key[0] == 'F')
+                {
+                    continue;
+                }
+
+                shader.SetUniform1(param.Key, (int)param.Value);
+            }
+
             foreach (var param in Material.FloatParams)
             {
                 shader.SetUniform1(param.Key, param.Value);
