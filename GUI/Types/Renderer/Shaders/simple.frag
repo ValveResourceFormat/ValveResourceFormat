@@ -54,7 +54,7 @@
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
 #define F_FANCY_BLENDING 0
 #define F_DETAIL_TEXTURE 0
-#define F_SELF_ILLUM 0 // todo
+#define F_SELF_ILLUM 0
 #define F_SECONDARY_UV 0
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
@@ -136,6 +136,13 @@ in vec4 vVertexColorOut;
     in vec4 vColorBlendValues;
     uniform sampler2D g_tLayer2Color;
     uniform sampler2D g_tLayer2NormalRoughness;
+#endif
+
+#if F_SELF_ILLUM == 1
+    uniform sampler2D g_tSelfIllumMask;
+    uniform float g_flSelfIllumBrightness;
+    uniform vec4 g_vSelfIllumTint = vec4(1.0);
+    uniform float g_flSelfIllumScale = 1.0;
 #endif
 
 out vec4 outputColor;
@@ -492,6 +499,11 @@ void main()
     vec3 combinedLighting = diffuseColor * diffuseLighting + specularLighting;
 
     outputColor.rgb = combinedLighting;
+
+    #if F_SELF_ILLUM == 1
+        vec3 SelfIllumScaled = pow2(g_flSelfIllumBrightness) * g_flSelfIllumScale * SRGBtoLinear(g_vSelfIllumTint.rgb);
+        outputColor.rgb *= max(vec3(1.0), texture(g_tSelfIllumMask, texCoord).r * SelfIllumScaled);
+    #endif
 
 #endif
 #if F_DISABLE_TONE_MAPPING == 0
