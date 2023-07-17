@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Utils
                     }
             }
 
-            using (FileExtract.Extract(resource, null))
+            using (FileExtract.Extract(resource, new NullFileLoader()))
             {
                 // Test extraction code flow
             }

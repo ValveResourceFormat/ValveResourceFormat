@@ -58,6 +58,8 @@ public class ModelExtract
 
     public ModelExtract(Model model, IFileLoader fileLoader)
     {
+        ArgumentNullException.ThrowIfNull(fileLoader);
+
         this.model = model;
         this.fileLoader = fileLoader;
 
@@ -320,6 +322,12 @@ public class ModelExtract
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
         {
             using var resource = fileLoader.LoadFile(reference.MeshName + "_c");
+
+            if (resource is null)
+            {
+                continue;
+            }
+
             RenderMeshesToExtract.Add(((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
         }
     }

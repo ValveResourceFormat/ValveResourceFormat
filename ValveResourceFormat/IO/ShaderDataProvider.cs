@@ -91,7 +91,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             GetInputsForTexture_Internal(string textureType, Material material, string forcedStaticName = null)
         {
             var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
-            if (shader.Features == null)
+            if (shader?.Features == null)
             {
                 return null;
             }
@@ -229,7 +229,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
         private string GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
             var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
-            if (shader.Features != null)
+            if (shader?.Features != null)
             {
                 foreach (var param in shader.Features.ParamBlocks)
                 {
