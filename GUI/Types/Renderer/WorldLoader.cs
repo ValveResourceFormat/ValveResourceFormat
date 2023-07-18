@@ -387,9 +387,16 @@ namespace GUI.Types.Renderer
                 }
 
                 var model = entity.GetProperty<string>("model");
-                var skin = entity.GetProperty<string>("skin");
                 var particle = entity.GetProperty<string>("effect_name");
                 var animation = entity.GetProperty<string>("defaultanim");
+
+                string skin = default;
+                var skinRaw = entity.GetProperty("skin");
+
+                if (skinRaw?.Type == EntityFieldType.CString)
+                {
+                    skin = (string)skinRaw.Data;
+                }
 
                 var isGlobalLight = classname == "env_global_light" || classname == "light_environment";
                 var isCamera =
