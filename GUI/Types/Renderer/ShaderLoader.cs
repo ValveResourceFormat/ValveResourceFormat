@@ -33,6 +33,13 @@ namespace GUI.Types.Renderer
 
         private static IReadOnlyDictionary<string, byte> EmptyArgs { get; } = new Dictionary<string, byte>(0);
 
+        private int sourceFileNumber;
+        private List<string> sourceFiles = new();
+
+#if DEBUG
+        private List<List<string>> sourceFileLines = new();
+#endif
+
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
         {
             var shaderFileName = GetShaderFileByName(shaderName);
@@ -48,65 +55,83 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var defines = new HashSet<string>();
+            int shaderProgram = -1;
 
-            // Vertex shader
-            var vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            LoadShader(vertexShader, $"{shaderFileName}.vert", shaderName, arguments, defines);
-
-            // Fragment shader
-            var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-            LoadShader(fragmentShader, $"{shaderFileName}.frag", shaderName, arguments, defines);
-
-            var renderModes = defines
-                .Where(k => k.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
-                .Select(k => k[RenderModeDefinePrefix.Length..])
-                .ToHashSet();
-
-            var shader = new Shader
+            try
             {
-                Name = shaderName,
-                Parameters = arguments,
-                Program = GL.CreateProgram(),
-                RenderModes = renderModes,
-            };
-            GL.AttachShader(shader.Program, vertexShader);
-            GL.AttachShader(shader.Program, fragmentShader);
+                var defines = new HashSet<string>();
 
-            GL.LinkProgram(shader.Program);
-            GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
+                // Vertex shader
+                var vertexShader = GL.CreateShader(ShaderType.VertexShader);
+                LoadShader(vertexShader, $"{shaderFileName}.vert", shaderName, arguments, defines);
 
-            GL.DetachShader(shader.Program, vertexShader);
-            GL.DeleteShader(vertexShader);
+                // Fragment shader
+                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+                LoadShader(fragmentShader, $"{shaderFileName}.frag", shaderName, arguments, defines);
 
-            GL.DetachShader(shader.Program, fragmentShader);
-            GL.DeleteShader(fragmentShader);
+                var renderModes = defines
+                    .Where(k => k.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
+                    .Select(k => k[RenderModeDefinePrefix.Length..])
+                    .ToHashSet();
 
-            if (linkStatus != 1)
-            {
-                GL.GetProgramInfoLog(shader.Program, out var programLog);
-                throw new InvalidProgramException($"Error linking shader \"{shaderName}\": {programLog}");
+                shaderProgram = GL.CreateProgram();
+                var shader = new Shader
+                {
+                    Name = shaderName,
+                    Parameters = arguments,
+                    Program = shaderProgram,
+                    RenderModes = renderModes,
+                };
+                GL.AttachShader(shader.Program, vertexShader);
+                GL.AttachShader(shader.Program, fragmentShader);
+
+                GL.LinkProgram(shader.Program);
+                GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
+
+                GL.DetachShader(shader.Program, vertexShader);
+                GL.DeleteShader(vertexShader);
+
+                GL.DetachShader(shader.Program, fragmentShader);
+                GL.DeleteShader(fragmentShader);
+
+                if (linkStatus != 1)
+                {
+                    GL.GetProgramInfoLog(shader.Program, out var log);
+                    ThrowShaderError(log, shaderFileName, shaderName, "Failed to link shader");
+                }
+
+                ShaderDefines[shaderName] = defines;
+                var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
+
+                CachedShaders[newShaderCacheHash] = shader;
+
+                Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
+                return shader;
             }
+            catch (InvalidProgramException)
+            {
+                if (shaderProgram > -1)
+                {
+                    GL.DeleteProgram(shaderProgram);
+                }
 
-            ShaderDefines[shaderName] = defines;
-            var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
+                throw;
+            }
+            finally
+            {
+                sourceFileNumber = 0;
+                sourceFiles.Clear();
 
-            CachedShaders[newShaderCacheHash] = shader;
-
-            Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
-            return shader;
+#if DEBUG
+                sourceFileLines.Clear();
+#endif
+            }
         }
 
-        private static void LoadShader(int shader, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, HashSet<string> defines)
+        private void LoadShader(int shader, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, HashSet<string> defines)
         {
             var isFirstLine = true;
             var builder = new StringBuilder();
-            var sourceFileNumber = 0;
-            var sourceFiles = new List<string>();
-
-#if DEBUG
-            var sourceFileLines = new List<List<string>>();
-#endif
 
             void AppendLineNumber(int a, int b)
             {
@@ -218,13 +243,15 @@ namespace GUI.Types.Renderer
             GL.CompileShader(shader);
             GL.GetShader(shader, ShaderParameter.CompileStatus, out var shaderStatus);
 
-            if (shaderStatus == 1)
+            if (shaderStatus != 1)
             {
-                return;
+                GL.GetShaderInfoLog(shader, out var log);
+                ThrowShaderError(log, shaderFile, originalShaderName, "Failed to set up shader");
             }
+        }
 
-            GL.GetShaderInfoLog(shader, out var info);
-
+        private void ThrowShaderError(string info, string shaderFile, string originalShaderName, string errorType)
+        {
             // Attempt to parse error message to get the line number so we can print the actual line
             var errorMatch = NvidiaGlslError().Match(info);
 
@@ -245,7 +272,7 @@ namespace GUI.Types.Renderer
 #endif
             }
 
-            throw new InvalidProgramException($"Error setting up shader {shaderFile} (original={originalShaderName}):\n{info}");
+            throw new InvalidProgramException($"{errorType} {shaderFile} (original={originalShaderName}):\n{info}");
         }
 
         private static Stream GetShaderStream(string name)
