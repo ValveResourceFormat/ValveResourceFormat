@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
 
             foreach (var node in selectedNodes)
             {
-                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.BoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
+                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
 
                 if (node.EntityData != null)
                 {
@@ -99,9 +99,7 @@ namespace GUI.Types.Renderer
                             );
                         }
 
-                        bounds = bounds.Transform(node.Transform);
-
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
 
                         enableDepth = false;
                     }

@@ -82,6 +82,36 @@ namespace GUI.Types.Renderer
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), r, g, b, a);
         }
 
+        public static void AddBox(List<float> vertices, Matrix4x4 transform, AABB box, float r, float g, float b, float a)
+        {
+            // Adding a box will add many vertices, so ensure the required capacity for it up front
+            vertices.EnsureCapacity(vertices.Count + 14 * 12);
+
+            var c1 = Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform);
+            var c2 = Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Min.Z), transform);
+            var c3 = Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Min.Z), transform);
+            var c4 = Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Min.Z), transform);
+            var c5 = Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Max.Z), transform);
+            var c6 = Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Max.Z), transform);
+            var c7 = Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Max.Z), transform);
+            var c8 = Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Max.Z), transform);
+
+            AddLine(vertices, c1, c2, r, g, b, a);
+            AddLine(vertices, c2, c3, r, g, b, a);
+            AddLine(vertices, c3, c4, r, g, b, a);
+            AddLine(vertices, c4, c1, r, g, b, a);
+
+            AddLine(vertices, c5, c6, r, g, b, a);
+            AddLine(vertices, c6, c7, r, g, b, a);
+            AddLine(vertices, c7, c8, r, g, b, a);
+            AddLine(vertices, c8, c5, r, g, b, a);
+
+            AddLine(vertices, c1, c5, r, g, b, a);
+            AddLine(vertices, c2, c6, r, g, b, a);
+            AddLine(vertices, c3, c7, r, g, b, a);
+            AddLine(vertices, c4, c8, r, g, b, a);
+        }
+
         private void AddOctreeNode(List<float> vertices, Octree<T>.Node node, int depth)
         {
             AddBox(vertices, node.Region, 1.0f, 1.0f, 1.0f, node.HasElements ? 1.0f : 0.1f);
