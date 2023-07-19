@@ -29,6 +29,7 @@ namespace GUI.Types.Renderer
         private static partial Regex AmdGlslError();
 
         private readonly Dictionary<uint, Shader> CachedShaders = new();
+        public int ShaderCount => CachedShaders.Count;
         private readonly Dictionary<string, HashSet<string>> ShaderDefines = new();
 
         private static IReadOnlyDictionary<string, byte> EmptyArgs { get; } = new Dictionary<string, byte>(0);
@@ -289,7 +290,7 @@ namespace GUI.Types.Renderer
         private static Stream GetShaderStream(string name)
         {
 #if DEBUG
-            return File.OpenRead(GetShaderDiskPath(name));
+            return File.Open(GetShaderDiskPath(name), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 #else
             var assembly = Assembly.GetExecutingAssembly();
             return assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
@@ -340,6 +341,13 @@ namespace GUI.Types.Renderer
 
         public void ClearCache()
         {
+            /* Do not destroy all shaders for now because not all scene nodes reload their own shaders yet
+            foreach (var shader in CachedShaders.Values)
+            {
+                GL.DeleteProgram(shader.Program);
+            }
+            */
+
             ShaderDefines.Clear();
             CachedShaders.Clear();
         }
@@ -349,11 +357,9 @@ namespace GUI.Types.Renderer
             if (disposing)
             {
                 ClearCache();
-
-                foreach (var shader in CachedShaders.Values)
-                {
-                    GL.DeleteProgram(shader.Program);
-                }
+#if DEBUG
+                ShaderWatcher.Dispose();
+#endif
             }
         }
 
@@ -380,6 +386,21 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG
+        public FileSystemWatcher ShaderWatcher { get; } = new()
+        {
+            Path = GetShaderDiskPath(""),
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true,
+        };
+
+        public ShaderLoader()
+        {
+            ShaderWatcher.Filters.Add("*.glsl");
+            ShaderWatcher.Filters.Add("*.vert");
+            ShaderWatcher.Filters.Add("*.frag");
+        }
+
         // Reload shaders at runtime
         private static string GetShaderDiskPath(string name)
         {

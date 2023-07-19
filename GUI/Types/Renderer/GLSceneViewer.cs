@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.ParticleRenderer;
@@ -219,38 +221,120 @@ namespace GUI.Types.Renderer
                 Text = "Reload shaders",
                 AutoSize = true,
             };
-            button.Click += (s, e) =>
+
+            var errorReloadingPage = new TaskDialogPage()
             {
-                if (ViewerControl.Camera.Picker is not null)
+                SizeToContent = true,
+                AllowCancel = true,
+                Caption = "Failed to reload shaders",
+                Buttons = { TaskDialogButton.OK },
+                Icon = TaskDialogIcon.Error,
+            };
+
+            var reloadSemaphore = new SemaphoreSlim(1, 1);
+            var reloadStopWatch = new Stopwatch();
+
+            var lastChanged = DateTime.MinValue;
+            var lastReload = DateTime.MinValue;
+            var changeCoolDown = TimeSpan.FromSeconds(1);
+            var reloadCoolDown = TimeSpan.FromSeconds(0.5); // There is a change that happens right after reload
+
+            void ReloadShaders()
+            {
+                if (!reloadSemaphore.Wait(0))
                 {
-                    ViewerControl.Camera.Picker.Dispose();
-                    ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
-                    ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
+                    return;
                 }
 
+                var title = Program.MainForm.Text;
+                Program.MainForm.Text = "VRF - Reloading shaders…";
+
+                reloadStopWatch.Restart();
+                errorReloadingPage.BoundDialog?.Close();
                 GuiContext.ShaderLoader.ClearCache();
 
+                string error = null;
                 try
                 {
+                    if (ViewerControl.Camera.Picker is not null)
+                    {
+                        ViewerControl.Camera.Picker.Dispose();
+                        ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+                        ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
+                    }
+
                     SetRenderMode(renderModeComboBox?.SelectedItem as string);
                     SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex.Message);
+                    error = ex.Message;
+                    Console.Error.WriteLine(error);
+                }
+                finally
+                {
+                    lastReload = DateTime.Now;
+                    reloadSemaphore.Release();
+                    reloadStopWatch.Stop();
+                    Program.MainForm.Text = title;
+                    Console.WriteLine($"Shader reload time: {reloadStopWatch.Elapsed}, number of variants: {GuiContext.ShaderLoader.ShaderCount}");
+                }
 
+                if (error != null && errorReloadingPage.BoundDialog == null)
+                {
                     // Hide GLControl to fix message box not showing up correctly
                     // Ref: https://stackoverflow.com/a/5080752
                     ViewerControl.GLControl.Visible = false;
-                    MessageBox.Show(
-                        $"{ex.Message}",
-                        "Failed to reload shaders",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error
-                    );
+
+                    errorReloadingPage.Text = error;
+                    TaskDialog.ShowDialog(ViewerControl, errorReloadingPage);
+
                     ViewerControl.GLControl.Visible = true;
                 }
+            }
+
+            button.Click += (s, e) => ReloadShaders();
+
+            void Hotload(object s, FileSystemEventArgs e)
+            {
+                if (e.FullPath.EndsWith(".TMP", StringComparison.Ordinal))
+                {
+                    return; // Visual Studio writes to temporary file
+                }
+
+                Console.WriteLine($"[Hotload] {e.ChangeType} detected at {e.FullPath}");
+
+                var now = DateTime.Now;
+                var timeSinceLastChange = now - lastChanged;
+                var timeSinceLastReload = now - lastReload;
+
+                if (!ViewerControl.Visible || reloadSemaphore.CurrentCount == 0
+                    || timeSinceLastReload < reloadCoolDown
+                    || timeSinceLastChange < changeCoolDown)
+                {
+                    return;
+                }
+
+                lastChanged = now;
+
+                ReloadShaders();
             };
+
+            void Disposed(object e, EventArgs a)
+            {
+                ViewerControl.Disposed -= Disposed;
+                GuiContext.ShaderLoader.ShaderWatcher.Changed -= Hotload;
+                GuiContext.ShaderLoader.ShaderWatcher.Created -= Hotload;
+                GuiContext.ShaderLoader.ShaderWatcher.Renamed -= Hotload;
+                reloadSemaphore.Dispose();
+            }
+
+            GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = ViewerControl;
+            GuiContext.ShaderLoader.ShaderWatcher.Changed += Hotload;
+            GuiContext.ShaderLoader.ShaderWatcher.Created += Hotload;
+            GuiContext.ShaderLoader.ShaderWatcher.Renamed += Hotload;
+            ViewerControl.Disposed += Disposed;
+
             ViewerControl.AddControl(button);
 #endif
 
