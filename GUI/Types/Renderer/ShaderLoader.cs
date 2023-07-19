@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
         [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) : error C(?<ErrorNumber>[0-9]+):")]
         private static partial Regex NvidiaGlslError();
 
-        [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>\\d+):")]
+        [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):")]
         private static partial Regex AmdGlslError();
 
         private readonly Dictionary<uint, Shader> CachedShaders = new();
