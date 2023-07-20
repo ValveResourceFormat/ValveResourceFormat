@@ -59,6 +59,7 @@ namespace GUI.Types.Renderer
             var inds = new List<int>[groupCount];
             var boundingBoxes = new AABB[groupCount];
             var isFirstBbox = new bool[groupCount];
+            var hasUntriangulatedVertices = new bool[groupCount];
 
             for (var i = 0; i < groupCount; i++)
             {
@@ -66,7 +67,6 @@ namespace GUI.Types.Renderer
                 inds[i] = new();
             }
 
-            var hasUntriangulatedVertices = false;
             var bindPose = phys.BindPose;
             //m_boneParents
 
@@ -75,11 +75,6 @@ namespace GUI.Types.Renderer
                 var shape = phys.Parts[p].Shape;
                 //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
 
-                if (shape.Spheres.Length > 0 || shape.Capsules.Length > 0)
-                {
-                    hasUntriangulatedVertices = true; // TODO: Fix this
-                }
-
                 // Spheres
                 foreach (var sphere in shape.Spheres)
                 {
@@ -87,6 +82,8 @@ namespace GUI.Types.Renderer
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
                     var center = sphere.Shape.Center;
                     var radius = sphere.Shape.Radius;
+
+                    hasUntriangulatedVertices[collisionAttributeIndex] = true; // TODO: Remove this
 
                     if (bindPose.Any())
                     {
@@ -116,6 +113,8 @@ namespace GUI.Types.Renderer
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
                     var center = capsule.Shape.Center;
                     var radius = capsule.Shape.Radius;
+
+                    hasUntriangulatedVertices[collisionAttributeIndex] = true; // TODO: Remove this
 
                     if (bindPose.Any())
                     {
@@ -268,7 +267,7 @@ namespace GUI.Types.Renderer
                     name = $"{name} {group}";
                 }
 
-                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i], hasUntriangulatedVertices)
+                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i], hasUntriangulatedVertices[i])
                 {
                     PhysGroupName = name,
                     LocalBoundingBox = boundingBoxes[i],
