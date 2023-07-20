@@ -100,7 +100,8 @@ vec2 Resize2D(vec2 Base, vec4 StartPos_Size)
 }
 
 
-
+const vec3 gamma = vec3(2.2);
+const vec3 invGamma = vec3(1.0 / gamma);
 
 
 

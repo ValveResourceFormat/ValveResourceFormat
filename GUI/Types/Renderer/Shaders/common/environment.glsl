@@ -70,16 +70,16 @@ float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
 
 #endif
 
-vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance, vec4 extraParams)
+vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
         return g_vClearColor.rgb;
     #else
 
     // Reflection Vector
-    vec3 R = normalize(reflect(-V, N));
+    vec3 R = normalize(reflect(-mat.ViewDir, mat.AmbientNormal));
 
-    float lod = GetEnvMapLOD(rough, R, extraParams);
+    float lod = GetEnvMapLOD(mat.Roughness, R, mat.ExtraParams);
 
     #if (SCENE_ENVIRONMENT_TYPE == 1)
         vec3 coords = R;
@@ -131,9 +131,9 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
 
             // blend reflection vector from roughness
             #if (F_CLOTH_SHADING == 1)
-                coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(rough));
+                coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(mat.Roughness));
             #else
-                coords.xyz = mix(coords.xyz, localReflectionVector, rough);
+                coords.xyz = mix(coords.xyz, localReflectionVector, mat.Roughness);
             #endif
 
             envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
@@ -148,17 +148,17 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
 #if (renderMode_Cubemaps == 1)
     return envMap;
 #else
-    vec3 brdf = EnvBRDF(specColor, rough, N, V);
+    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.Roughness, mat.AmbientNormal, mat.ViewDir);
 
     #if (F_CLOTH_SHADING == 1)
-        vec3 clothBrdf = vec3(EnvBRDFCloth(rough, N, V));
+        vec3 clothBrdf = vec3(EnvBRDFCloth(mat.Roughness, mat.AmbientNormal, mat.ViewDir));
 
-        float clothMask = extraParams.z;
+        float clothMask = mat.ExtraParams.z;
 
         brdf = mix(brdf, clothBrdf, clothMask);
     #endif
 
-    float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
+    float normalizationTerm = GetEnvMapNormalization(mat.Roughness, mat.AmbientNormal, lighting.DiffuseIndirect);
 
     return brdf * envMap * normalizationTerm;
 #endif
