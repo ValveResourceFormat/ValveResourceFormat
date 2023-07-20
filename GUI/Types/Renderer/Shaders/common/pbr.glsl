@@ -10,6 +10,29 @@ float diffuseLobe(float NoL, float roughness)
 }
 
 
+#if (F_DIFFUSE_WRAP == 1) || (F_DIFFSUE_WRAP == 1) || defined(vr_xen_foliage) || defined(vr_eyeball)
+#define useDiffuseWrap
+#endif
+
+#if defined(useDiffuseWrap)
+// Used in vr_xen_foliage, vr_eyeball (not supported yet bc alt param names), and optionally in vr_complex
+uniform float g_flDiffuseExponent = 1.0;
+uniform float g_flDiffuseWrap = 1.0;
+uniform vec4 g_vDiffuseWrapColor = vec4(1.0, 0.5, 0.3, 0.0); // 1.0, 0.5, 0.3 -> srgbtolinear
+
+vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
+{
+
+    float NoL = dot(vNormal, vLightVector); //r9.w
+    float thing = ClampToPositive((NoL + g_flDiffuseWrap) / (1.0 + g_flDiffuseWrap));
+    float DiffuseWrapLighting = pow(thing, g_flDiffuseExponent) * (1.0 + g_flDiffuseExponent) / (2.0 + 2.0 * g_flDiffuseWrap);
+    return mix(vec3(saturate(NoL)), vec3(DiffuseWrapLighting), g_vDiffuseWrapColor.rgb);
+}
+#endif
+
+
+
+
 
 // Normal Distribution function --------------------------------------
 float D_GGX(float NoH, float roughness)

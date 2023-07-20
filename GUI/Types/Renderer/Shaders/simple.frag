@@ -141,8 +141,16 @@ in vec4 vVertexColorOut;
     uniform sampler2D g_tLayer2NormalRoughness;
 #endif
 
-#if F_SELF_ILLUM == 1
-    uniform sampler2D g_tSelfIllumMask;
+#if defined(vr_skin)
+    uniform sampler2D g_tCombinedMasks;
+    uniform vec4 g_vTransmissionColor = vec4(0.74902, 0.231373, 0.011765, 0.0);
+    uniform float g_flMouthInteriorBrightnessScale = 1.0;
+#endif
+
+#if (F_SELF_ILLUM == 1)
+    #if !defined(vr_skin)
+        uniform sampler2D g_tSelfIllumMask;
+    #endif
     uniform float g_flSelfIllumAlbedoFactor = 0.0;
     uniform float g_flSelfIllumBrightness = 0.0;
     uniform float g_flSelfIllumScale = 1.0;
@@ -299,6 +307,29 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
 #endif
 
 
+    // Vr_skin unique stuff
+#if defined(vr_skin)
+    // r=MouthMask, g=AO, b=selfillum/tint, a=SSS/opacity
+    vec4 combinedMasks = texture(g_tCombinedMasks, vTexCoordOut);
+	mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
+	mat.AmbientOcclusion = combinedMasks.y;
+
+    #if (F_SELF_ILLUM)
+	    float flSelfIllumMask = combinedMasks.z;
+	#elif (F_TINT_MASK)
+	    float flTintMask = combinedMasks.z;
+	#endif
+
+	#if (F_SSS_MASK == 1)
+		mat.ExtraParams.y = combinedMasks.a;
+	#endif
+
+    #if (F_TRANSLUCENT > 0) || (F_ALPHA_TEST == 1)
+	    mat.Opacity = combinedMasks.a;
+    #endif
+#endif
+
+
     mat.Albedo = color.rgb;
     mat.Opacity = color.a;
     // this should be on regardless, right?
@@ -440,11 +471,23 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
 
         selfIllumCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
 
-        float selfIllumTexture = texture(g_tSelfIllumMask, selfIllumCoords).r; // is this float or rgb?
-
+        #if !defined(vr_skin)
+            float selfIllumMask = texture(g_tSelfIllumMask, selfIllumCoords).r; // is this float or rgb?
+        #else
+            float selfIllumMask = combinedMasks.b;
+        #endif
         vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SRGBtoLinear(g_vSelfIllumTint.rgb);
-        mat.IllumColor = selfIllumScale * selfIllumTexture * mix(vec3(1.0), mat.Albedo, g_flSelfIllumAlbedoFactor);
+        mat.IllumColor = selfIllumScale * selfIllumMask * mix(vec3(1.0), mat.Albedo, g_flSelfIllumAlbedoFactor);
     #endif
+
+    #if defined(vr_skin)
+        mat.TransmissiveColor = SRGBtoLinear(g_vTransmissionColor.rgb) * color.a;
+
+        float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.ExtraParams.a);
+        mat.TransmissiveColor *= mouthOcclusion;
+        mat.AmbientOcclusion *= mouthOcclusion;
+    #endif
+
 
     mat.DiffuseAO = vec3(mat.AmbientOcclusion);
     mat.SpecularAO = mat.AmbientOcclusion;
@@ -515,10 +558,13 @@ void main()
     if (visibility > 0.0)
     {
         vec3 specularLight = specularLighting(L, mat.ViewDir, mat.Normal, mat.SpecularColor, mat.Roughness, mat.ExtraParams);
+        #if defined(useDiffuseWrap)
+        vec3 diffuseLight = diffuseWrapped(mat.Normal, L);
+        #else
         float diffuseLight = diffuseLobe(max(dot(mat.Normal, L), 0.0), mat.Roughness);
-
-       lighting.SpecularDirect += specularLight * visibility * getSunColor();
-       lighting.DiffuseDirect += diffuseLight * visibility * getSunColor();
+        #endif
+        lighting.SpecularDirect += specularLight * visibility * getSunColor();
+        lighting.DiffuseDirect += diffuseLight * visibility * getSunColor();
     }
 
 

@@ -107,7 +107,7 @@ void InitProperties(out MaterialProperties mat, vec3 GeometricNormal)
     mat.AmbientOcclusion = 1.0;
     mat.DiffuseAO = vec3(1.0);
     mat.SpecularAO = 1.0;
-    // r = retro reflectivity, g = sss mask, b = cloth, a = ???
+    // r = retro reflectivity, g = sss mask, b = cloth, a = misc/rimmask?
     mat.ExtraParams = vec4(0.0);
 
 
@@ -136,12 +136,40 @@ void InitProperties(out MaterialProperties mat, vec3 GeometricNormal)
 
 
 
-// AO Proxies would be merged with these
+
+
+#if defined(vr_skin) || defined(vr_xen_foliage)
+#define DIFFUSE_AO_COLOR_BLEED
+#endif
+
+#if defined(DIFFUSE_AO_COLOR_BLEED)
+
+uniform vec4 g_vAmbientOcclusionColorBleed = vec4(0.4, 0.14902, 0.129412, 0.0);
+
+void SetDiffuseColorBleed(inout MaterialProperties mat)
+{
+    vec3 vAmbientOcclusionExponent = vec3(1.0) - SRGBtoLinear(g_vAmbientOcclusionColorBleed.rgb);
+#if (F_SSS_MASK == 1)
+    vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.ExtraParams.y);
+#endif
+    mat.DiffuseAO = pow(mat.DiffuseAO, vAmbientOcclusionExponent);
+}
+
+#endif
+
+
+
+
 uniform float g_flAmbientOcclusionDirectDiffuse = 1.0;
 uniform float g_flAmbientOcclusionDirectSpecular = 1.0;
 
+// AO Proxies would be merged here
 void ApplyAmbientOcclusion(inout LightingTerms o, MaterialProperties mat)
 {
+#if defined(DIFFUSE_AO_COLOR_BLEED)
+    SetDiffuseColorBleed(mat);
+#endif
+
     vec3 DirectAODiffuse  = mix(vec3(1.0), mat.DiffuseAO, g_flAmbientOcclusionDirectDiffuse);
 	float DirectAOSpecular = mix(1.0, mat.SpecularAO, g_flAmbientOcclusionDirectSpecular);
 
