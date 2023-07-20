@@ -4,17 +4,18 @@ struct LightingTerms
     vec3 DiffuseIndirect;
     vec3 SpecularDirect;
     vec3 SpecularIndirect;
-#if defined(hasTransmission) // temp
+#if defined(hasTransmission)
     vec3 TransmissiveDirect;
 #endif
+    float SpecularOcclusion; // Lightmap AO
 };
 
-LightingTerms Init()
+LightingTerms InitLighting()
 {
 #if defined(hasTransmission) // temp
-    return LightingTerms(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0));
+    return LightingTerms(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0), 1.0);
 #else
-    return LightingTerms(vec3(0), vec3(0), vec3(0), vec3(0));
+    return LightingTerms(vec3(0), vec3(0), vec3(0), vec3(0), 1.0);
 #endif
 }
 
@@ -43,7 +44,7 @@ uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 uniform vec4 g_vLightmapParams = vec4(0.0); // ???? directional non-intensity?? it's set to 0.0 in all places ive looked
 
-// I don't actually understand most of this, but it's what the code does- in HLA at least
+// I don't actually understand much of this, but it's Valve's code.
 vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3 normalMap)
 {
 
@@ -51,16 +52,25 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
     vec3 vTangentSpaceLightVector;
 
     vTangentSpaceLightVector.xy = UnpackFromColor(irradianceDirection.xy);
-    vTangentSpaceLightVector.z = 1.0 - length(vTangentSpaceLightVector.xy); // wtf?? this is done incorrectly. sqrt should be applied after the one minus.
+
+    float sinTheta = dot(vTangentSpaceLightVector.xy, vTangentSpaceLightVector.xy);
+
+#if LightmapGameVersionNumber == 1
+    // Error in HLA code, fixed in DeskJob
+    float cosTheta = 1.0 - sqrt(sinTheta);
+#else
+    float cosTheta = sqrt(1.0 - sinTheta);
+#endif
+    vTangentSpaceLightVector.z = cosTheta;
 
     float flDirectionality = mix(irradianceDirection.z, 1.0, g_flDirectionalLightmapStrength);
     vec3 vNonDirectionalLightmap = irradianceColor * saturate(flDirectionality + g_vLightmapParams.x);
 
     float NoL = ClampToPositive(dot(vTangentSpaceLightVector, normalMap));
 
-    float LightMapZ = max(vTangentSpaceLightVector.z, g_flDirectionalLightmapMinZ);
+    float LightmapZ = max(vTangentSpaceLightVector.z, g_flDirectionalLightmapMinZ);
 
-    irradianceColor = mix(vNonDirectionalLightmap, irradianceColor, NoL / LightMapZ);
+    irradianceColor = (NoL * (irradianceColor - vNonDirectionalLightmap) / LightmapZ) + vNonDirectionalLightmap;
 #endif
 
     return irradianceColor;

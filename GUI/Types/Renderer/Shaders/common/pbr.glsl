@@ -83,7 +83,7 @@ vec3 SpecularCloth(float roughness, float NoL, float NoH, float NoV, float VoH, 
 #endif
 
 
-vec3 specularLighting(vec3 L, vec3 V, vec3 N, vec3 F0, vec3 specularColor, float roughness, vec4 extraParams)
+vec3 specularLighting(vec3 L, vec3 V, vec3 N, vec3 specularColor, float roughness, vec4 extraParams)
 {
 	float NoL = saturate( dot(N, L) );
 
@@ -105,7 +105,7 @@ vec3 specularLighting(vec3 L, vec3 V, vec3 N, vec3 F0, vec3 specularColor, float
 	// G = Geometric shadowing term (Microfacets shadowing)
 	float Vis = G_SchlickSmithGGX(NoL, NoV, roughness);
 	// F = Fresnel factor (Reflectance depending on angle of incidence)
-	vec3 F = F_Schlick(VoH, F0);
+	vec3 F = F_Schlick(VoH, specularColor);
 
 #if (F_CLOTH_SHADING == 1)
     // I'm not sure how they blend to the cloth shading, but I'm assuming it's just blending shading
