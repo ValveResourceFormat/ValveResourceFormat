@@ -48,7 +48,7 @@ float applyBlendModulation(float blendFactor, float blendMask, float blendSoftne
 
 // Struct full of everything needed for lighting, for easy access around the shader.
 
-struct MaterialProperties
+struct MaterialProperties_t
 {
     vec3 PositionWS;
     vec3 GeometricNormal;
@@ -75,6 +75,8 @@ struct MaterialProperties
     vec3 TransmissiveColor;
     vec3 IllumColor;
 
+    vec3 AmbientGeometricNormal; // Indirect geometric normal
+    vec3 AmbientNormal; // Indirect normal
 
 
 #if defined(NEED_CURVATURE)
@@ -83,7 +85,7 @@ struct MaterialProperties
     //int NumDynamicLights;
 };
 
-void InitProperties(out MaterialProperties mat, vec3 GeometricNormal)
+void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
 {
     mat.PositionWS = vFragPosition;
     mat.ViewDir = normalize(vEyePosition - vFragPosition);
@@ -116,8 +118,8 @@ void InitProperties(out MaterialProperties mat, vec3 GeometricNormal)
     mat.TransmissiveColor = vec3(0.0);
     mat.IllumColor = vec3(0.0);
 
-    mat.BentGeometricNormal = vec3(0.0); // Indirect geometric normal
-    mat.BentNormal = vec3(0.0); // Indirect normal
+    mat.AmbientGeometricNormal = vec3(0.0); // Indirect geometric normal
+    mat.AmbientNormal = vec3(0.0); // Indirect normal
 #if defined(NEED_CURVATURE)// || renderMode_Curvature
     #if F_USE_PER_VERTEX_CURVATURE == 1
         mat.Curvature = flPerVertexCurvature;
@@ -146,7 +148,7 @@ void InitProperties(out MaterialProperties mat, vec3 GeometricNormal)
 
 uniform vec4 g_vAmbientOcclusionColorBleed = vec4(0.4, 0.14902, 0.129412, 0.0);
 
-void SetDiffuseColorBleed(inout MaterialProperties mat)
+void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
     vec3 vAmbientOcclusionExponent = vec3(1.0) - SRGBtoLinear(g_vAmbientOcclusionColorBleed.rgb);
 #if (F_SSS_MASK == 1)
@@ -160,24 +162,7 @@ void SetDiffuseColorBleed(inout MaterialProperties mat)
 
 
 
-uniform float g_flAmbientOcclusionDirectDiffuse = 1.0;
-uniform float g_flAmbientOcclusionDirectSpecular = 1.0;
 
-// AO Proxies would be merged here
-void ApplyAmbientOcclusion(inout LightingTerms o, MaterialProperties mat)
-{
-#if defined(DIFFUSE_AO_COLOR_BLEED)
-    SetDiffuseColorBleed(mat);
-#endif
-
-    vec3 DirectAODiffuse  = mix(vec3(1.0), mat.DiffuseAO, g_flAmbientOcclusionDirectDiffuse);
-	float DirectAOSpecular = mix(1.0, mat.SpecularAO, g_flAmbientOcclusionDirectSpecular);
-
-    o.DiffuseDirect    *= DirectAODiffuse;
-    o.DiffuseIndirect  *= mat.DiffuseAO;
-    o.SpecularDirect   *= DirectAOSpecular;
-    o.SpecularIndirect *= mat.SpecularAO;
-}
 
 float GetIsoRoughness(float Roughness)
 {
@@ -212,7 +197,8 @@ vec3 oct_to_float32x3(vec2 e)
     return normalize(v);
 }
 
-vec3 unpackHemiOctNormal(vec4 bumpNormal)
+// Unpack HemiOct normal map
+vec3 DecodeNormal(vec4 bumpNormal)
 {
     //Reconstruct the tangent vector from the map
 #if (HemiOctIsoRoughness_RG_B == 1)
@@ -241,14 +227,17 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
     return normalize(tangentSpace * normalMap);
 }
 
-#if 0 && (F_USE_BENT_NORMALS == 1)
-void GetBentNormal(inout MaterialProperties mat, vec2 texCoords)
+#if (F_USE_BENT_NORMALS == 1)
+
+uniform sampler2D g_tBentNormal;
+
+void GetBentNormal(inout MaterialProperties_t mat, vec2 texCoords)
 {
-    vec3 bentNormalTexel = unpackHemiOctNormal( texture(g_tBentNormal, texCoords) );
-    prop.BentGeometricNormal = calculateWorldNormal(bentNormalTexel, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+    vec3 bentNormalTexel = DecodeNormal( texture(g_tBentNormal, texCoords) );
+    mat.AmbientGeometricNormal = calculateWorldNormal(bentNormalTexel, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
     // this is how they blend in the bent normal; by re-converting the normal map to tangent space using the bent geo normal
-    prop.BentNormal = calculateWorldNormal(mat.NormalMap, mat.BentGeometricNormal, mat.Tangent, mat.Bitangent);
+    mat.AmbientNormal = calculateWorldNormal(mat.NormalMap, mat.AmbientGeometricNormal, mat.Tangent, mat.Bitangent);
 }
 #endif
 
@@ -341,7 +330,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 
 // NORMALS
 #if (DETAIL_NORMALS)
-    vec3 DetailNormal = unpackHemiOctNormal(texture(g_tNormalDetail, vDetailTexCoords));
+    vec3 DetailNormal = DecodeNormal(texture(g_tNormalDetail, vDetailTexCoords));
     DetailNormal = mix(vec3(0, 0, 1), DetailNormal, detailMask * g_flDetailNormalStrength);
     // literally i dont even know
     NormalMap = NormalMap * DetailNormal.z + vec3(NormalMap.z * DetailNormal.z * DetailNormal.xy, 0.0);
@@ -349,4 +338,30 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 }
 
+#endif
+
+
+
+
+// GLASS
+
+
+#if (F_GLASS == 1) || defined(glass)
+uniform bool g_bFresnel = true;
+uniform float g_flEdgeColorFalloff = 3.0;
+uniform float g_flEdgeColorMaxOpacity = 0.5;
+uniform float g_flEdgeColorThickness = 0.1;
+uniform vec4 g_vEdgeColor;
+uniform float g_flRefractScale = 0.1;
+
+// todo: is this right?
+// todo2: inout mat properties
+vec4 GetGlassMaterial(MaterialProperties_t mat)
+{
+    float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
+    float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
+    vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
+
+    return mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);
+}
 #endif

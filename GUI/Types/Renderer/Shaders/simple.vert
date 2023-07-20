@@ -208,7 +208,7 @@ void main()
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
     vColorBlendValues = vBLEND_COLOR / 255.0f;
-    // After HLA they presumably realized this was dumb as hell
+    // todo: check csgo
     #if defined(vr_blend)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
     #endif

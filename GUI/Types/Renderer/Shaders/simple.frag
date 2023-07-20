@@ -15,9 +15,9 @@
 #define renderMode_ExtraParams 0
 
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
-#define LightmapGameVersionNumber 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
+#define LightmapGameVersionNumber 0
 
 #if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
     #define simple_2way_blend
@@ -64,9 +64,9 @@
 #define F_RETRO_REFLECTIVE 0
 #define F_ANISOTROPIC_GLOSS 0 // todo shading
 #define F_CLOTH_SHADING 0
-#define F_USE_BENT_NORMALS 0 // todo
-#define F_DIFFUSE_WRAP 0 // todo
-#define F_DIFFSUE_WRAP 0 // typo version that existed for part of HLA's development
+#define F_USE_BENT_NORMALS 0
+#define F_DIFFUSE_WRAP 0
+#define F_DIFFSUE_WRAP 0 // typo that existed for part of HLA's development
 #define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
@@ -76,7 +76,7 @@
 #define F_SSS_MASK 0 // todo
 
 #define HemiOctIsoRoughness_RG_B 0
-//End of parameter defines
+//End of feature defines
 
 in vec3 vFragPosition;
 
@@ -87,27 +87,7 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 in vec4 vVertexColorOut;
 
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    in vec3 vLightmapUVScaled;
-    uniform sampler2DArray g_tIrradiance;
-    uniform sampler2DArray g_tDirectionalIrradiance;
-    #if (LightmapGameVersionNumber == 1)
-        uniform sampler2DArray g_tDirectLightIndices;
-        uniform sampler2DArray g_tDirectLightStrengths;
-    #elif (LightmapGameVersionNumber == 2)
-        uniform sampler2DArray g_tDirectLightShadows;
-    #endif
-#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    in vec4 vPerVertexLightingOut;
-#else
-    uniform sampler2D g_tLPV_Irradiance;
-    #if (LightmapGameVersionNumber == 1)
-        uniform sampler2D g_tLPV_Indices;
-        uniform sampler2D g_tLPV_Scalars;
-    #elif (LightmapGameVersionNumber == 2)
-        uniform sampler2D g_tLPV_Shadows;
-    #endif
-#endif
+
 #if F_SECONDARY_UV == 1
     in vec2 vTexCoord2;
     uniform bool g_bUseSecondaryUvForAmbientOcclusion = true;
@@ -164,24 +144,12 @@ uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
-#include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
 uniform float g_flTime;
 
 uniform float g_flAlphaTestReference = 0.5;
 uniform float g_flOpacityScale = 1.0;
-
-
-// glass specific params
-#if (F_GLASS == 1) || defined(glass)
-uniform bool g_bFresnel = true;
-uniform float g_flEdgeColorFalloff = 3.0;
-uniform float g_flEdgeColorMaxOpacity = 0.5;
-uniform float g_flEdgeColorThickness = 0.1;
-uniform vec4 g_vEdgeColor;
-uniform float g_flRefractScale = 0.1;
-#endif
 
 #define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
@@ -232,10 +200,8 @@ uniform float g_flBumpStrength = 1.0;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-
-const vec3 gamma = vec3(2.2);
-const vec3 invGamma = vec3(1.0 / gamma);
-
+// These two must be first
+#include "common/lighting_common.glsl"
 #include "common/texturing.glsl"
 
 #include "common/pbr.glsl"
@@ -246,12 +212,15 @@ const vec3 invGamma = vec3(1.0 / gamma);
 #include "common/environment.glsl"
 #endif
 
+// Must be last
+#include "common/lighting.glsl"
+
 
 
 // Get material properties
-MaterialProperties GetMaterial(vec3 vertexNormals)
+MaterialProperties_t GetMaterial(vec3 vertexNormals)
 {
-    MaterialProperties mat;
+    MaterialProperties_t mat;
     InitProperties(mat, vertexNormals);
 
     vec4 color = texture(g_tColor, vTexCoordOut);
@@ -302,7 +271,7 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
 
 
     color = mix(color, color2, blendFactor);
-    // It's more correct to blend normals after hemioct unpacking, but it's not actually how S2 does it
+    // It's more correct to blend normals after decoding, but it's not actually how S2 does it
     normalTexture = mix(normalTexture, normalTexture2, blendFactor);
 #endif
 
@@ -311,6 +280,7 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
 #if defined(vr_skin)
     // r=MouthMask, g=AO, b=selfillum/tint, a=SSS/opacity
     vec4 combinedMasks = texture(g_tCombinedMasks, vTexCoordOut);
+
 	mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
 	mat.AmbientOcclusion = combinedMasks.y;
 
@@ -333,10 +303,10 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
     mat.Albedo = color.rgb;
     mat.Opacity = color.a;
     // this should be on regardless, right?
-#if defined(static_overlay) && F_PAINT_VERTEX_COLORS == 1
+#if defined(static_overlay) && (F_PAINT_VERTEX_COLORS == 1)
     mat.Opacity *= vVertexColorOut.a;
 #endif
-#if F_TRANSLUCENT == 1
+#if (F_TRANSLUCENT > 0)
     mat.Opacity *= g_flOpacityScale;
 #endif
 
@@ -369,7 +339,7 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
 
 
     // Normals and Roughness
-    mat.NormalMap = unpackHemiOctNormal(normalTexture);
+    mat.NormalMap = DecodeNormal(normalTexture);
 
 #if hasAnisoGloss
     vec2 anisoGloss = texture(g_tAnisoGloss, vTexCoordOut).rg;
@@ -458,6 +428,14 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
     #endif
 
 
+    #if (F_USE_BENT_NORMALS == 1)
+        GetBentNormal(mat, vTexCoordOut);
+    #else
+        mat.AmbientNormal = mat.Normal;
+        mat.AmbientGeometricNormal = mat.GeometricNormal;
+    #endif
+
+
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
 	mat.SpecularColor = mix(vec3(0.04), mat.Albedo, mat.Metalness);
 
@@ -476,6 +454,7 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
         #else
             float selfIllumMask = combinedMasks.b;
         #endif
+
         vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SRGBtoLinear(g_vSelfIllumTint.rgb);
         mat.IllumColor = selfIllumScale * selfIllumMask * mix(vec3(1.0), mat.Albedo, g_flSelfIllumAlbedoFactor);
     #endif
@@ -486,6 +465,12 @@ MaterialProperties GetMaterial(vec3 vertexNormals)
         float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.ExtraParams.a);
         mat.TransmissiveColor *= mouthOcclusion;
         mat.AmbientOcclusion *= mouthOcclusion;
+    #endif
+
+    #if (F_GLASS == 1) || defined(glass)
+        vec4 glassResult = GetGlassMaterial(mat);
+        mat.Albedo = glassResult.rgb; 
+        mat.Opacity = glassResult.a;
     #endif
 
 
@@ -505,90 +490,23 @@ void main()
 {
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
 
-    // Get the view direction vector for this fragment
-    vec3 V = normalize(vEyePosition - vFragPosition);
+    // Get material
+    MaterialProperties_t mat = GetMaterial(vertexNormal);
 
-    MaterialProperties mat = GetMaterial(vertexNormal);
+    LightingTerms_t lighting = InitLighting();
 
-    LightingTerms lighting = InitLighting();
-
-
-    #if (F_GLASS == 1) || defined(glass)
-        float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
-        float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
-        vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
-
-        vec4 glassResult = mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);
-        mat.Albedo = glassResult.rgb; // todo: is this right?
-        mat.Opacity = glassResult.a;
-    #endif
 
     outputColor = vec4(mat.Albedo, mat.Opacity);
 
 
 #if (unlit == 0)
 
-    vec3 L = normalize(-getSunDir());
-    vec3 H = normalize(mat.ViewDir + L);
+    CalculateDirectLighting(lighting, mat);
+    CalculateIndirectLighting(lighting, mat);
 
 
+    // Combining pass
 
-    // Lighting
-    float visibility = 1.0;
-    lighting.DiffuseIndirect = vec3(0.3);
-
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    #if (LightmapGameVersionNumber == 1)
-        vec4 vLightStrengths = texture(g_tDirectLightStrengths, vLightmapUVScaled);
-        vec4 strengthSquared = pow2(vLightStrengths);
-        vec4 vLightIndices = texture(g_tDirectLightIndices, vLightmapUVScaled) * 255;
-        // TODO: figure this out, it's barely working
-        float index = 0.0;
-        if (vLightIndices.r == index) visibility = strengthSquared.r;
-        else if (vLightIndices.g == index) visibility = strengthSquared.g;
-        else if (vLightIndices.b == index) visibility = strengthSquared.b;
-        else if (vLightIndices.a == index) visibility = strengthSquared.a;
-        else visibility = 0.0;
-
-    #elif (LightmapGameVersionNumber == 2)
-        visibility = 1 - texture(g_tDirectLightShadows, vLightmapUVScaled).r;
-    #endif
-#endif
-
-    if (visibility > 0.0)
-    {
-        vec3 specularLight = specularLighting(L, mat.ViewDir, mat.Normal, mat.SpecularColor, mat.Roughness, mat.ExtraParams);
-        #if defined(useDiffuseWrap)
-        vec3 diffuseLight = diffuseWrapped(mat.Normal, L);
-        #else
-        float diffuseLight = diffuseLobe(max(dot(mat.Normal, L), 0.0), mat.Roughness);
-        #endif
-        lighting.SpecularDirect += specularLight * visibility * getSunColor();
-        lighting.DiffuseDirect += diffuseLight * visibility * getSunColor();
-    }
-
-
-    // Indirect Lighting
-    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
-        vec3 irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
-        vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
-
-        lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
-
-        // In non-lightmap shaders, SpecularAO always does a min(1.0, specularAO) in the same place where lightmap
-        // shaders does min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
-        mat.SpecularAO = min(mat.SpecularAO, vAHDData.a);
-    #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-        lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
-    #endif
-
-    // Environment Maps
-    #if (S_SPECULAR == 1)
-        vec3 envMap = GetEnvironment(mat.Normal, mat.ViewDir, mat.Roughness, mat.SpecularColor, lighting.DiffuseIndirect, mat.ExtraParams);
-        lighting.SpecularIndirect += envMap;
-    #endif
-
-    // Apply AO
     ApplyAmbientOcclusion(lighting, mat);
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
@@ -605,7 +523,7 @@ void main()
         vec3 transmissiveLighting = vec3(0.0);
     #endif
 
-    // Unique HLA blend mode: specular unaffected by opacity
+    // Unique HLA Membrane blend mode: specular unaffected by opacity
     #if blendMembrane
         vec3 combinedLighting = specularLighting + (mat.DiffuseColor * diffuseLighting + transmissiveLighting + mat.IllumColor) * mat.Opacity;
         outputColor.a = 1.0;
@@ -616,7 +534,7 @@ void main()
     outputColor.rgb = combinedLighting;
 #endif
 
-#if F_DISABLE_TONE_MAPPING == 0
+#if (F_DISABLE_TONE_MAPPING == 0)
     outputColor.rgb = pow(outputColor.rgb, invGamma);
     //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
 #endif
@@ -662,7 +580,7 @@ void main()
 
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
-    vec3 viewmodeEnvMap = GetEnvironment(mat.GeometricNormal, mat.ViewDir, 0.0, vec3(1.0), vec3(0.0), vec4(0)).rgb;
+    vec3 viewmodeEnvMap = GetEnvironment(mat, lighting).rgb;
     outputColor.rgb = pow(viewmodeEnvMap, invGamma);
 #endif
 
