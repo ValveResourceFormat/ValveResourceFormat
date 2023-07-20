@@ -27,8 +27,6 @@ float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
 }
 
 // Cubemap Normalization
-// Used in HLA, maybe later vr renderer games too.
-// Further explanation here: https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc2019/presentations/Hobson_Josh_The_Indirect_Lighting.pdf
 #define bUseCubemapNormalization 0
 const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
 
@@ -131,7 +129,7 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
             float weight = ((distanceFromEdge * distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
             totalWeight += weight;
 
-            // blend
+            // blend reflection vector from roughness
             #if (F_CLOTH_SHADING == 1)
                 coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(rough));
             #else
@@ -147,7 +145,7 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
         }
     #endif
 
-#if renderMode_Cubemaps == 1
+#if (renderMode_Cubemaps == 1)
     return envMap;
 #else
     vec3 brdf = EnvBRDF(specColor, rough, N, V);
