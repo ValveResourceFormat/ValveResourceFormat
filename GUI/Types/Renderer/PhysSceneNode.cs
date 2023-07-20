@@ -158,11 +158,28 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(1);
                     }
 
-                    foreach (var e in hull.Shape.Edges)
+                    foreach (var face in hull.Shape.Faces)
                     {
-                        inds[collisionAttributeIndex].Add(vertOffset + e.Origin);
-                        var next = hull.Shape.Edges[e.Next];
-                        inds[collisionAttributeIndex].Add(vertOffset + next.Origin);
+                        var startEdge = face.Edge;
+
+                        for (var edge = hull.Shape.Edges[startEdge].Next; edge != startEdge;)
+                        {
+                            var nextEdge = hull.Shape.Edges[edge].Next;
+
+                            if (nextEdge == startEdge)
+                            {
+                                break;
+                            }
+
+                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[startEdge].Origin);
+                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[edge].Origin);
+                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[edge].Origin);
+                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[nextEdge].Origin);
+                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[nextEdge].Origin);
+                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[startEdge].Origin);
+
+                            edge = nextEdge;
+                        }
                     }
 
                     var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
