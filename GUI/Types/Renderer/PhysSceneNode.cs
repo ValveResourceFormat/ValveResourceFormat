@@ -18,11 +18,13 @@ namespace GUI.Types.Renderer
         readonly int vboHandle;
         readonly int iboHandle;
         readonly int vaoHandle;
+        bool hasUntriangulatedVertices;
 
-
-        public PhysSceneNode(Scene scene, List<float> verts, List<int> inds)
+        public PhysSceneNode(Scene scene, List<float> verts, List<int> inds, bool hasUntriangulatedVertices)
             : base(scene)
         {
+            this.hasUntriangulatedVertices = hasUntriangulatedVertices;
+
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
             GL.UseProgram(shader.Program);
 
@@ -64,6 +66,7 @@ namespace GUI.Types.Renderer
                 inds[i] = new();
             }
 
+            var hasUntriangulatedVertices = false;
             var bindPose = phys.BindPose;
             //m_boneParents
 
@@ -71,6 +74,11 @@ namespace GUI.Types.Renderer
             {
                 var shape = phys.Parts[p].Shape;
                 //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
+
+                if (shape.Spheres.Length > 0 || shape.Capsules.Length > 0)
+                {
+                    hasUntriangulatedVertices = true; // TODO: Fix this
+                }
 
                 // Spheres
                 foreach (var sphere in shape.Spheres)
@@ -155,7 +163,7 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(1);
                         verts[collisionAttributeIndex].Add(0);
                         verts[collisionAttributeIndex].Add(0);
-                        verts[collisionAttributeIndex].Add(1);
+                        verts[collisionAttributeIndex].Add(0.3f);
                     }
 
                     foreach (var face in hull.Shape.Faces)
@@ -213,11 +221,11 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(v.X);
                         verts[collisionAttributeIndex].Add(v.Y);
                         verts[collisionAttributeIndex].Add(v.Z);
-                        //color green
+                        //color blue
+                        verts[collisionAttributeIndex].Add(0);
                         verts[collisionAttributeIndex].Add(0);
                         verts[collisionAttributeIndex].Add(1);
-                        verts[collisionAttributeIndex].Add(0);
-                        verts[collisionAttributeIndex].Add(1);
+                        verts[collisionAttributeIndex].Add(0.3f);
                     }
 
                     foreach (var tri in mesh.Shape.Triangles)
@@ -246,6 +254,11 @@ namespace GUI.Types.Renderer
 
             var scenes = phys.CollisionAttributes.Select((attributes, i) =>
             {
+                if (verts.Length == 0) // TODO: Remove this
+                {
+                    return null;
+                }
+
                 var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
@@ -255,7 +268,7 @@ namespace GUI.Types.Renderer
                     name = $"{name} {group}";
                 }
 
-                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
+                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i], hasUntriangulatedVertices)
                 {
                     PhysGroupName = name,
                     LocalBoundingBox = boundingBoxes[i],
@@ -333,7 +346,7 @@ namespace GUI.Types.Renderer
                 //color red
                 verts.Add(1);
                 verts.Add(0);
-                verts.Add(0);
+                verts.Add(1);
                 verts.Add(1);
 
                 inds.Add(vertOffset + i);
@@ -348,19 +361,41 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            if (context.ReplacementShader != null)
+            {
+                return;
+            }
 
             GL.UseProgram(shader.Program);
 
             var viewProjectionMatrix = Transform * context.Camera.ViewProjectionMatrix;
             shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
+            shader.SetUniform4x4("transform", Matrix4x4.Identity);
+            shader.SetUniform1("bAnimated", 0.0f);
 
-            GL.DepthMask(false);
+            GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.SrcAlphaSaturate);
 
             GL.BindVertexArray(vaoHandle);
+
+            if (!hasUntriangulatedVertices)
+            {
+                // triangles
+                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+            }
+
+            GL.Disable(EnableCap.Blend);
+
+            // lines
+            GL.UseProgram(shader.Program);
+            shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
+
             GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
+
             GL.BindVertexArray(0);
 
-            GL.DepthMask(true);
+            GL.Disable(EnableCap.DepthTest);
         }
 
         public override void Update(Scene.UpdateContext context)
