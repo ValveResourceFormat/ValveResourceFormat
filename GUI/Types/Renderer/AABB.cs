@@ -63,25 +63,25 @@ namespace GUI.Types.Renderer
         {
             var points = new[]
             {
-                Vector4.Transform(new Vector4(Min.X, Min.Y, Min.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Max.X, Min.Y, Min.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Max.X, Max.Y, Min.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Min.X, Max.Y, Min.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Min.X, Max.Y, Max.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Min.X, Min.Y, Max.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Max.X, Min.Y, Max.Z, 1.0f), transform),
-                Vector4.Transform(new Vector4(Max.X, Max.Y, Max.Z, 1.0f), transform),
+                Vector3.Transform(new Vector3(Min.X, Min.Y, Min.Z), transform),
+                Vector3.Transform(new Vector3(Max.X, Min.Y, Min.Z), transform),
+                Vector3.Transform(new Vector3(Max.X, Max.Y, Min.Z), transform),
+                Vector3.Transform(new Vector3(Min.X, Max.Y, Min.Z), transform),
+                Vector3.Transform(new Vector3(Min.X, Max.Y, Max.Z), transform),
+                Vector3.Transform(new Vector3(Min.X, Min.Y, Max.Z), transform),
+                Vector3.Transform(new Vector3(Max.X, Min.Y, Max.Z), transform),
+                Vector3.Transform(new Vector3(Max.X, Max.Y, Max.Z), transform),
             };
 
             var min = points[0];
             var max = points[0];
             for (var i = 1; i < points.Length; ++i)
             {
-                min = Vector4.Min(min, points[i]);
-                max = Vector4.Max(max, points[i]);
+                min = Vector3.Min(min, points[i]);
+                max = Vector3.Max(max, points[i]);
             }
 
-            return new AABB(new Vector3(min.X, min.Y, min.Z), new Vector3(max.X, max.Y, max.Z));
+            return new AABB(min, max);
         }
 
         public override string ToString()
