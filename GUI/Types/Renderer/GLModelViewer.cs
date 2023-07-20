@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
         private IEnumerable<PhysSceneNode> physSceneNodes;
-        private bool physicsVisible;
+        private CheckedListBox physicsGroupsComboBox;
 
         public GLModelViewer(VrfGuiContext guiContext, Model model)
             : base(guiContext, Frustum.CreateEmpty())
@@ -190,23 +190,47 @@ namespace GUI.Types.Renderer
                 }
 
                 // Physics are not shown by default unless the model has no meshes
-                if (modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any())
-                {
-                    physicsVisible = true;
+                var enabledAllPhysByDefault = modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any();
 
-                    foreach (var physSceneNode in physSceneNodes)
+                var physicsGroups = Scene.AllNodes
+                    .OfType<PhysSceneNode>()
+                    .Select(r => r.PhysGroupName)
+                    .Distinct()
+                    .ToArray();
+
+                if (physicsGroups.Length > 0)
+                {
+                    physicsGroupsComboBox = ViewerControl.AddMultiSelection("Physics Groups", (listBox) =>
                     {
-                        physSceneNode.Enabled = true;
-                    }
+                        if (!enabledAllPhysByDefault)
+                        {
+                            listBox.Items.AddRange(physicsGroups);
+                            return;
+                        }
+
+                        listBox.BeginUpdate();
+
+                        foreach (var physGroup in physicsGroups)
+                        {
+                            listBox.Items.Add(physGroup, true);
+                        }
+
+                        listBox.EndUpdate();
+
+                        SetEnabledPhysicsGroups(physicsGroups.ToHashSet());
+                    }, (enabledPhysicsGroups) =>
+                    {
+                        SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());
+                    });
                 }
+            }
+        }
 
-                ViewerControl.AddCheckBox("Show Physics", physicsVisible, (v) =>
-                {
-                    foreach (var physSceneNode in physSceneNodes)
-                    {
-                        physSceneNode.Enabled = v;
-                    }
-                });
+        private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
+        {
+            foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
+            {
+                physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
             }
         }
 
