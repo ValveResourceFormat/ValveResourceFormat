@@ -153,7 +153,7 @@ namespace GUI.Types.Renderer
                     target = TextureTarget.TextureCubeMapArray;
                 }
             }
-            else if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY))
+            else if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) || data.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE))
             {
                 target = TextureTarget.Texture2DArray;
                 clampModeS = TextureWrapMode.ClampToEdge;
