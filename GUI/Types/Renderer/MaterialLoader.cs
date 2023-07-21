@@ -171,6 +171,11 @@ namespace GUI.Types.Renderer
 
             tex.Bind();
 
+#if DEBUG
+            var textureName = Path.GetFileName(textureResource.FileName);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
+#endif
+
             if (!format.HasValue && !internalFormat.HasValue)
             {
                 Console.Error.WriteLine($"Don't support {data.Format} but don't want to crash either. Using error texture!");

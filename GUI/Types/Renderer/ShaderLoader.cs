@@ -62,12 +62,14 @@ namespace GUI.Types.Renderer
                 var defines = new HashSet<string>();
 
                 // Vertex shader
+                var vertexName = $"{shaderFileName}.vert";
                 var vertexShader = GL.CreateShader(ShaderType.VertexShader);
-                LoadShader(vertexShader, $"{shaderFileName}.vert", shaderName, arguments, defines);
+                LoadShader(vertexShader, vertexName, shaderName, arguments, defines);
 
                 // Fragment shader
+                var fragmentName = $"{shaderFileName}.frag";
                 var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                LoadShader(fragmentShader, $"{shaderFileName}.frag", shaderName, arguments, defines);
+                LoadShader(fragmentShader, fragmentName, shaderName, arguments, defines);
 
                 var renderModes = defines
                     .Where(k => k.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
@@ -75,6 +77,15 @@ namespace GUI.Types.Renderer
                     .ToHashSet();
 
                 shaderProgram = GL.CreateProgram();
+
+
+#if DEBUG
+                GL.ObjectLabel(ObjectLabelIdentifier.Program, shaderProgram, shaderFileName.Length, shaderFileName);
+                GL.ObjectLabel(ObjectLabelIdentifier.Shader, vertexShader, vertexName.Length, vertexName);
+                GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, fragmentName.Length, fragmentName);
+#endif
+
+
                 var shader = new Shader
                 {
                     Name = shaderName,
