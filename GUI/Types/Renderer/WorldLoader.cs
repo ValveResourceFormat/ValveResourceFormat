@@ -454,8 +454,6 @@ namespace GUI.Types.Renderer
                             Console.Error.WriteLine($"Failed to setup particle '{particle}': {e}");
                         }
                     }
-
-                    continue;
                 }
 
                 if (isCamera)
