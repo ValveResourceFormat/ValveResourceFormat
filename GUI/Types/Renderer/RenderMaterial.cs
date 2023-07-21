@@ -8,6 +8,8 @@ namespace GUI.Types.Renderer
 {
     class RenderMaterial
     {
+        private const int TextureUnitStart = 1; // Start at 1, texture unit 0 is reserved for the animation texture
+
         public Shader Shader => shader;
         public Material Material { get; }
         public IKeyValueCollection VsInputSignature { get; }
@@ -20,6 +22,7 @@ namespace GUI.Types.Renderer
         private readonly bool isMod2x;
         private readonly bool isRenderBackfaces;
         private readonly bool isOverlay;
+        private int textureUnit;
 
         public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader)
         {
@@ -52,8 +55,7 @@ namespace GUI.Types.Renderer
 
         public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
         {
-            //Start at 1, texture unit 0 is reserved for the animation texture
-            var textureUnit = 1;
+            textureUnit = TextureUnitStart;
 
             shader ??= this.shader;
 
@@ -68,7 +70,7 @@ namespace GUI.Types.Renderer
 
             foreach (var (name, texture) in textures)
             {
-                if (shader.SetTexture(textureUnit, name, texture.Handle, texture.Target))
+                if (shader.SetTexture(textureUnit, name, texture))
                 {
                     textureUnit++;
                 }
@@ -134,6 +136,11 @@ namespace GUI.Types.Renderer
             if (isRenderBackfaces)
             {
                 GL.Enable(EnableCap.CullFace);
+            }
+
+            for (var i = TextureUnitStart; i <= textureUnit; i++)
+            {
+                GL.BindTextureUnit(i, 0);
             }
         }
     }

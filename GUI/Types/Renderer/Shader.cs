@@ -113,7 +113,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public bool SetTexture(int slot, string name, int texture, TextureTarget target = TextureTarget.Texture2D)
+        public bool SetTexture(int slot, string name, RenderTexture texture)
         {
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation < 0)
@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
             }
 
             GL.ActiveTexture(TextureUnit.Texture0 + slot);
-            GL.BindTexture(target, texture);
+            texture.Bind();
             GL.Uniform1(uniformLocation, slot);
 
             return true;
