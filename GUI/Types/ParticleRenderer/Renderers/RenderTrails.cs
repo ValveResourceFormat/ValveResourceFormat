@@ -152,7 +152,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.UniformMatrix4(shader.GetUniformLocation("uProjectionViewMatrix"), false, ref otkProjection);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            GL.Uniform1(shader.GetUniformLocation("uOverbrightFactor"), overbrightFactor.NextNumber());
+            shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber());
 
             var modelMatrixLocation = shader.GetUniformLocation("uModelMatrix");
             var colorLocation = shader.GetUniformLocation("uColor");
