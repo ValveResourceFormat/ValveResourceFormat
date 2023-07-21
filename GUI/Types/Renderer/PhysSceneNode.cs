@@ -365,16 +365,16 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.SrcAlphaSaturate);
+
             GL.UseProgram(shader.Program);
 
             var viewProjectionMatrix = Transform * context.Camera.ViewProjectionMatrix;
             shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
             shader.SetUniform1("bAnimated", 0.0f);
-
-            GL.Enable(EnableCap.DepthTest);
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.SrcAlphaSaturate);
 
             GL.BindVertexArray(vaoHandle);
 
@@ -387,11 +387,9 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.Blend);
 
             // lines
-            GL.UseProgram(shader.Program);
-            shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
-
             GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
 
+            GL.UseProgram(0);
             GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.DepthTest);

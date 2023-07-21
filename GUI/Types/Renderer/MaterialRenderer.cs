@@ -95,8 +95,8 @@ namespace GUI.Types.Renderer
 
             material.PostRender();
 
-            GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
         }
 
         public void Update(float frameTime)

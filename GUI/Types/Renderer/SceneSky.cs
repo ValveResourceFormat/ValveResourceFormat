@@ -85,8 +85,8 @@ namespace GUI.Types.Renderer
             GL.DrawArrays(PrimitiveType.Triangles, 0, boxTriangles.Length / 3);
             Material.PostRender();
 
-            GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
 
             GL.DepthFunc(DepthFunction.Less);
             GL.CullFace(CullFaceMode.Back);

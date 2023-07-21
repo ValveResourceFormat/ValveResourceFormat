@@ -216,7 +216,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             // Draw it
             GL.Enable(EnableCap.Blend);
-            GL.UseProgram(shader.Program);
 
             if (additive)
             {
@@ -226,6 +225,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
+
+            GL.UseProgram(shader.Program);
 
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
@@ -256,8 +257,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.Disable(EnableCap.DepthTest);
             GL.DepthMask(true);
 
-            GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
 
             if (additive)
             {

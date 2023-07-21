@@ -142,8 +142,8 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
-            GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.DepthTest);

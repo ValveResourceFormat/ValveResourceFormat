@@ -49,8 +49,8 @@ namespace GUI.Types.ParticleRenderer
             GL.EnableVertexAttribArray(colorAttributeLocation);
             GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
 
-            GL.BindVertexArray(0); // Unbind VAO
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
         }
 
         public void Update(float frameTime)
@@ -73,8 +73,8 @@ namespace GUI.Types.ParticleRenderer
 
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
 
-            GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
             GL.Disable(EnableCap.Blend);
         }
 
