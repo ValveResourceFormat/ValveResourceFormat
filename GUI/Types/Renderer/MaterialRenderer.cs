@@ -65,8 +65,11 @@ namespace GUI.Types.Renderer
             foreach (var (Name, Size) in attributes)
             {
                 var attributeLocation = GL.GetAttribLocation(shader.Program, Name);
-                GL.EnableVertexAttribArray(attributeLocation);
-                GL.VertexAttribPointer(attributeLocation, Size, VertexAttribPointerType.Float, false, stride, offset);
+                if (attributeLocation > -1)
+                {
+                    GL.EnableVertexAttribArray(attributeLocation);
+                    GL.VertexAttribPointer(attributeLocation, Size, VertexAttribPointerType.Float, false, stride, offset);
+                }
                 offset += sizeof(float) * Size;
             }
 

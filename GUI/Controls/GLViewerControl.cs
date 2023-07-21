@@ -244,11 +244,34 @@ namespace GUI.Controls
             moveSpeed.Text = $"Move speed: {modifier:0.0}x (scroll to change)";
         }
 
+#if DEBUG
+        private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
+        {
+            var message = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(pMessage, length);
+
+            Console.WriteLine($"[OpenGL {severity} {source} {type}] {message}");
+
+            if (type == DebugType.DebugTypeError || severity == DebugSeverity.DebugSeverityHigh || severity == DebugSeverity.DebugSeverityMedium)
+            {
+                //Debugger.Break();
+            }
+        }
+
+        private static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
+#endif
+
         private void OnLoad(object sender, EventArgs e)
         {
             GLControl.MakeCurrent();
 
             CheckOpenGL();
+
+#if DEBUG
+            GL.Enable(EnableCap.DebugOutput);
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+            GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
+#endif
 
             try
             {
