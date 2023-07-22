@@ -148,7 +148,10 @@ namespace GUI.Types.Renderer
             if (scene.LightingInfo.LightmapVersionNumber == 8)
             {
                 result.LightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
-                result.LightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
+                result.LightingData = result.LightingData with
+                {
+                    LightmapUvScale = new Vector4(worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2(), 0f, 0f),
+                };
             }
 
             foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -55,8 +56,7 @@ namespace GUI.Types.Renderer
             public int MeshId;
             public int ShaderId;
             public int ShaderProgramId;
-            public int CubeMapArrayIndex;
-            public int EnvMapCount;
+            public int CubeMapArrayIndices;
         }
 
         /// <summary>
@@ -87,8 +87,7 @@ namespace GUI.Types.Renderer
                     Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
                     TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
                     Time = shader.GetUniformLocation("g_flTime"),
-                    CubeMapArrayIndex = shader.GetUniformLocation("g_iEnvironmentMapArrayIndex"),
-                    EnvMapCount = shader.GetUniformLocation("g_iEnvironmentMapCount"),
+                    CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
                     ObjectId = shader.GetUniformLocation("sceneObjectId"),
                     MeshId = shader.GetUniformLocation("meshId"),
                     ShaderId = shader.GetUniformLocation("shaderId"),
@@ -102,13 +101,9 @@ namespace GUI.Types.Renderer
                 shader.SetUniform3("vEyePosition", cameraPosition);
                 shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
 
-                if (context.LightingInfo?.EnvMapWorldToLocalUniform is not null)
+                foreach (var buffer in context.Buffers)
                 {
-                    var count = context.LightingInfo.EnvMaps.Count;
-                    shader.SetUniformMatrix4x3Array("g_matEnvMapWorldToLocal", count, context.LightingInfo.EnvMapWorldToLocalUniform);
-                    shader.SetUniform4Array("g_vEnvMapBoxMins", count, context.LightingInfo.EnvMapMinsUniform);
-                    shader.SetUniform4Array("g_vEnvMapBoxMaxs", count, context.LightingInfo.EnvMapMaxsUniform);
-                    shader.SetUniform4Array("g_vEnvMapEdgeFadeDists", count, context.LightingInfo.EnvMapEdgeFadeDists);
+                    buffer.SetBlockBinding(shader);
                 }
 
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
@@ -162,7 +157,7 @@ namespace GUI.Types.Renderer
             }
             #endregion
 
-            if (uniforms.CubeMapArrayIndex != -1)
+            if (uniforms.CubeMapArrayIndices != -1)
             {
                 /*
                 var arrayIndex = 0;
@@ -175,10 +170,8 @@ namespace GUI.Types.Renderer
                 GL.Uniform1(uniforms.CubeMapArrayIndex, arrayIndex);
                 */
 
-                var array = request.Node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
-
-                GL.Uniform1(uniforms.CubeMapArrayIndex, array.Length, array);
-                GL.Uniform1(uniforms.EnvMapCount, array.Length);
+                var indices = request.Node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
+                GL.Uniform1(uniforms.CubeMapArrayIndices, indices.Length, indices);
             }
 
             if (uniforms.Time != 1)

@@ -223,6 +223,8 @@ const vec3 invGamma = vec3(1.0 / gamma);
 
 #include "common/pbr.glsl"
 
+#include "common/LightingConstants.glsl"
+
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 #include "common/environment.glsl"
 #endif

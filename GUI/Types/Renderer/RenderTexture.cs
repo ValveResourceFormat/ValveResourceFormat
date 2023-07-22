@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer
         public TextureTarget Target { get; }
         public int Handle { get; }
 
-        public Texture.SpritesheetData SpritesheetData { get; set; }
+        public Texture Desc { get; set; }
 
         public RenderTexture(TextureTarget target, int handle)
         {

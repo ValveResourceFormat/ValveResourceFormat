@@ -186,6 +186,8 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 reader.BaseStream.Position += extraDataOffset - 8; // 8 is 2 uint32s we just read
 
+                ExtraData.EnsureCapacity((int)extraDataCount);
+
                 for (var i = 0; i < extraDataCount; i++)
                 {
                     var type = (VTexExtraData)reader.ReadUInt32();

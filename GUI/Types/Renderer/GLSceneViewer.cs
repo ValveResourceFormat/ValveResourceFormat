@@ -7,6 +7,7 @@ using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Renderer.UniformBuffers;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -14,7 +15,7 @@ using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
-    internal abstract class GLSceneViewer : IGLViewer
+    internal abstract class GLSceneViewer : IGLViewer, IDisposable
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
@@ -32,6 +33,9 @@ namespace GUI.Types.Renderer
         private Frustum lockedCullFrustum;
         private Frustum skyboxLockedCullFrustum;
 
+        private UniformBuffer<Vector4> viewBuffer;
+        private UniformBuffer<LightingConstants> lightingBuffer;
+        private List<IBlockBindableBuffer> bufferSet;
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private ParticleGrid baseGrid;
@@ -101,6 +105,14 @@ namespace GUI.Types.Renderer
 
         protected abstract void InitializeControl();
 
+        private void CreateBuffers()
+        {
+            viewBuffer = new(0);
+            lightingBuffer = new(1);
+
+            bufferSet = new List<IBlockBindableBuffer>(2) { viewBuffer, lightingBuffer };
+        }
+
         protected abstract void LoadScene();
 
         protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
@@ -113,6 +125,8 @@ namespace GUI.Types.Renderer
             ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
 
             ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+
+            CreateBuffers();
 
             var timer = new Stopwatch();
             timer.Start();
@@ -187,18 +201,22 @@ namespace GUI.Types.Renderer
 
             if (ShowSkybox && SkyboxScene != null)
             {
+                lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
+
                 skyboxCamera.CopyFrom(e.Camera);
                 skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
-                SkyboxScene.RenderWithCamera(skyboxCamera, skyboxLockedCullFrustum);
+                SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
 
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
+            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+
+            Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 
             selectedNodeRenderer.Render(genericRenderContext);
 
@@ -395,6 +413,12 @@ namespace GUI.Types.Renderer
                     node.SetRenderMode(renderMode);
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            viewBuffer.Dispose();
+            lightingBuffer.Dispose();
         }
     }
 }

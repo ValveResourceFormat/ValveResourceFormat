@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using System.Numerics;
+using GUI.Types.Renderer.UniformBuffers;
 
 namespace GUI.Types.Renderer;
 
@@ -11,9 +11,5 @@ class WorldLightingInfo
     public bool HasValidLightmaps { get; set; }
     public int LightmapVersionNumber { get; set; }
     public int LightmapGameVersionNumber { get; set; }
-    public Vector2 LightmapUvScale { get; set; } = Vector2.One;
-    public float[] EnvMapWorldToLocalUniform { get; set; }
-    public float[] EnvMapMinsUniform { get; set; }
-    public float[] EnvMapMaxsUniform { get; set; }
-    public float[] EnvMapEdgeFadeDists { get; set; }
+    public LightingConstants LightingData { get; set; } = new();
 }

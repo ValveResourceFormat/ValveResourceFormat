@@ -31,6 +31,20 @@ namespace GUI.Types.Renderer
             return value;
         }
 
+        public int GetUniformBlockIndex(string name)
+        {
+            if (Uniforms.TryGetValue(name, out var value))
+            {
+                return value;
+            }
+
+            value = GL.GetUniformBlockIndex(Program, name);
+
+            Uniforms[name] = value;
+
+            return value;
+        }
+
         public void SetUniform1(string name, float value)
         {
             var uniformLocation = GetUniformLocation(name);

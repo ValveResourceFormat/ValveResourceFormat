@@ -32,10 +32,11 @@ layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 
+#include "common/LightingConstants.glsl"
+
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
-    uniform vec2 g_vLightmapUvScale;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     in vec4 vPerVertexLighting;
     out vec4 vPerVertexLightingOut;
@@ -180,7 +181,7 @@ void main()
 	vTexCoordOut = GetAnimatedUVs(vTEXCOORD);
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
-    vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale, 0);
+    vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     //vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
     //vPerVertexLightingOut = pow2(Light);
@@ -192,7 +193,6 @@ void main()
 #if F_PAINT_VERTEX_COLORS == 1
     vVertexColorOut *= vCOLOR / 255.0f;
 #endif
-
 
 #if F_SECONDARY_UV == 1
     vTexCoord2 = vTEXCOORD2;

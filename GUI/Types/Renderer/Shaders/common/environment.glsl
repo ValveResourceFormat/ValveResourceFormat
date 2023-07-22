@@ -1,4 +1,3 @@
-#define MAX_ENVMAP_LOD 7
 #define SCENE_ENVIRONMENT_TYPE 0
 
 #if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map
@@ -10,23 +9,20 @@
     uniform vec4 g_vEnvMapBoxMaxs;
     uniform mat4x3 g_matEnvMapWorldToLocal;
 #elif (SCENE_ENVIRONMENT_TYPE == 2) // Per scene cube map array
-    #define MAX_ENVMAPS 100 // TODO too many uniforms
     uniform samplerCubeArray g_tEnvironmentMap;
-    uniform mat4x3 g_matEnvMapWorldToLocal[MAX_ENVMAPS];
-    uniform vec4 g_vEnvMapBoxMins[MAX_ENVMAPS];
-    uniform vec4 g_vEnvMapBoxMaxs[MAX_ENVMAPS];
-    uniform vec4 g_vEnvMapEdgeFadeDists[MAX_ENVMAPS];
-    uniform int g_iEnvironmentMapArrayIndex[MAX_ENVMAPS];
+    uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
     uniform int g_iEnvironmentMapCount;
 #endif
 
 float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
 {
+    float EnvMapMipCount = g_vEnvMapSizeConstants.x;
+
     #if F_CLOTH_SHADING == 1
         float lod = mix(roughness, pow(roughness, 0.125), extraParams.b);
-        return lod * MAX_ENVMAP_LOD;
+        return lod * EnvMapMipCount;
     #else
-        return roughness * MAX_ENVMAP_LOD;
+        return roughness * EnvMapMipCount;
     #endif
 }
 
@@ -79,7 +75,7 @@ float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
 vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance, vec4 extraParams)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
-        return vec3(0.0, 0.0, 0.0);
+        return g_vClearColor.rgb;
     #else
 
     // Reflection Vector
@@ -97,12 +93,12 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
         vec3 envMap = vec3(0.0);
         float totalWeight = 0.01;
 
-        for (int i = 0; i < g_iEnvironmentMapCount; i++) {
-            int envMapArrayIndex = g_iEnvironmentMapArrayIndex[i];
+        for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
+            int envMapArrayIndex = g_iEnvMapArrayIndices[i];
             vec3 envMapBoxMin = g_vEnvMapBoxMins[envMapArrayIndex].xyz - vec3(0.001);
             vec3 envMapBoxMax = g_vEnvMapBoxMaxs[envMapArrayIndex].xyz + vec3(0.001);
             vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
-            mat4x3 envMapWorldToLocal = g_matEnvMapWorldToLocal[envMapArrayIndex];
+            mat4x3 envMapWorldToLocal = mat4x3(g_matEnvMapWorldToLocal[envMapArrayIndex]);
             vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
             vec3 envInvEdgeWidth = 1.0 / dists;
@@ -117,7 +113,7 @@ vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance
 
             vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
 
-            // // https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
+            // https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
             // Following is the parallax-correction code
             // Find the ray intersection with box plane
             vec3 FirstPlaneIntersect = (envMapBoxMin - envMapLocalPos) / localReflectionVector;

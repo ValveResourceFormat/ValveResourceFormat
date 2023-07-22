@@ -7,6 +7,8 @@ class SceneEnvMap : SceneNode
     public int HandShake { get; init; }
     public RenderTexture EnvMapTexture { get; init; }
 
+    public Vector3 Tint { get; init; } = Vector3.One;
+
     /// <summary>
     /// If <see cref="EnvMapTexture"/> is an array, this is the depth index.
     /// </summary>

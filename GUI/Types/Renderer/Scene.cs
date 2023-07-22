@@ -21,6 +21,7 @@ namespace GUI.Types.Renderer
         {
             public Camera Camera { get; init; }
             public float Time { get; init; }
+            public IEnumerable<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
             public Matrix4x4? GlobalLightTransform { get; init; }
             public Vector4 GlobalLightColor { get; init; }
             public WorldLightingInfo LightingInfo { get; set; }
@@ -119,7 +120,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void RenderWithCamera(Camera camera, Frustum cullFrustum = null)
+        public void RenderWithCamera(Camera camera, IEnumerable<UniformBuffers.IBlockBindableBuffer> buffers, Frustum cullFrustum = null)
         {
             var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
             allNodes.AddRange(DynamicOctree.Query(cullFrustum ?? camera.ViewFrustum));
@@ -192,6 +193,7 @@ namespace GUI.Types.Renderer
             {
                 Camera = camera,
                 Time = Time,
+                Buffers = buffers,
                 GlobalLightTransform = GlobalLightTransform,
                 GlobalLightColor = GlobalLightColor,
                 LightingInfo = LightingInfo,
@@ -230,7 +232,7 @@ namespace GUI.Types.Renderer
             if (camera.Picker is not null && camera.Picker.IsActive)
             {
                 camera.Picker.Finish();
-                RenderWithCamera(camera, cullFrustum);
+                RenderWithCamera(camera, buffers, cullFrustum);
             }
         }
 
@@ -268,12 +270,12 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var maxEnvMapArrayIndex = 1 + LightingInfo.EnvMaps.Max(x => x.Value.ArrayIndex);
+            var firstTexture = LightingInfo.EnvMaps.Values.First().EnvMapTexture;
 
-            LightingInfo.EnvMapWorldToLocalUniform = new float[maxEnvMapArrayIndex * 12];
-            LightingInfo.EnvMapMinsUniform = new float[maxEnvMapArrayIndex * 4];
-            LightingInfo.EnvMapMaxsUniform = new float[maxEnvMapArrayIndex * 4];
-            LightingInfo.EnvMapEdgeFadeDists = new float[maxEnvMapArrayIndex * 4];
+            LightingInfo.LightingData = LightingInfo.LightingData with
+            {
+                EnvMapSizeConstants = new Vector4(firstTexture.Desc.NumMipLevels - 1, firstTexture.Desc.Depth, 0, 0),
+            };
 
             foreach (var envMap in LightingInfo.EnvMaps.Values)
             {
@@ -293,33 +295,15 @@ namespace GUI.Types.Renderer
 
                 Matrix4x4.Invert(envMap.Transform, out var invertedTransform);
 
-                var owl = envMap.ArrayIndex * 12;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 0] = invertedTransform.M11;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 1] = invertedTransform.M12;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 2] = invertedTransform.M13;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 3] = invertedTransform.M21;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 4] = invertedTransform.M22;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 5] = invertedTransform.M23;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 6] = invertedTransform.M31;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 7] = invertedTransform.M32;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 8] = invertedTransform.M33;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 9] = invertedTransform.M41;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 10] = invertedTransform.M42;
-                LightingInfo.EnvMapWorldToLocalUniform[owl + 11] = invertedTransform.M43;
+                LightingInfo.LightingData.EnvMapWorldToLocal[envMap.ArrayIndex] = invertedTransform;
+                LightingInfo.LightingData.EnvMapBoxMins[envMap.ArrayIndex] = new Vector4(envMap.LocalBoundingBox.Min, 0);
+                LightingInfo.LightingData.EnvMapBoxMaxs[envMap.ArrayIndex] = new Vector4(envMap.LocalBoundingBox.Max, 0);
+                LightingInfo.LightingData.EnvMapEdgeInvEdgeWidth[envMap.ArrayIndex] = new Vector4(envMap.EdgeFadeDists, 0);
+                LightingInfo.LightingData.EnvMapProxySphere[envMap.ArrayIndex] = new Vector4(envMap.Transform.Translation, envMap.ProjectionMode);
+                LightingInfo.LightingData.EnvMapColorRotated[envMap.ArrayIndex] = new Vector4(envMap.Tint, 0);
 
-                var offsetFl = envMap.ArrayIndex * 4; // TODO vec3
-
-                LightingInfo.EnvMapMinsUniform[offsetFl] = envMap.LocalBoundingBox.Min.X;
-                LightingInfo.EnvMapMinsUniform[offsetFl + 1] = envMap.LocalBoundingBox.Min.Y;
-                LightingInfo.EnvMapMinsUniform[offsetFl + 2] = envMap.LocalBoundingBox.Min.Z;
-
-                LightingInfo.EnvMapMaxsUniform[offsetFl] = envMap.LocalBoundingBox.Max.X;
-                LightingInfo.EnvMapMaxsUniform[offsetFl + 1] = envMap.LocalBoundingBox.Max.Y;
-                LightingInfo.EnvMapMaxsUniform[offsetFl + 2] = envMap.LocalBoundingBox.Max.Z;
-
-                LightingInfo.EnvMapEdgeFadeDists[offsetFl] = envMap.EdgeFadeDists.X;
-                LightingInfo.EnvMapEdgeFadeDists[offsetFl + 1] = envMap.EdgeFadeDists.Y;
-                LightingInfo.EnvMapEdgeFadeDists[offsetFl + 2] = envMap.EdgeFadeDists.Z;
+                // TODO
+                LightingInfo.LightingData.EnvMapNormalizationSH[envMap.ArrayIndex] = new Vector4(1, 1, 1, 1);
             }
 
             foreach (var node in AllNodes)

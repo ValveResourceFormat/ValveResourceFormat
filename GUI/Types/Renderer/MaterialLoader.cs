@@ -163,7 +163,7 @@ namespace GUI.Types.Renderer
 
             var tex = new RenderTexture(target, GL.GenTexture())
             {
-                SpritesheetData = data.GetSpriteSheetData(),
+                Desc = data,
             };
 
             var internalFormat = GetPixelInternalFormat(data.Format);

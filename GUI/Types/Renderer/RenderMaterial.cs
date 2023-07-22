@@ -64,8 +64,6 @@ namespace GUI.Types.Renderer
             if (lightingInfo != default)
             {
                 textures = Textures.Concat(lightingInfo.Lightmaps);
-
-                shader.SetUniform2("g_vLightmapUvScale", lightingInfo.LightmapUvScale);
             }
 
             foreach (var (name, texture) in textures)
