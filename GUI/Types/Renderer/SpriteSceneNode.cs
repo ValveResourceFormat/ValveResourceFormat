@@ -12,7 +12,6 @@ namespace GUI.Types.Renderer
         private readonly int quadVao;
 
         private readonly RenderMaterial material;
-        private readonly Shader shader;
         private readonly Vector3 position;
         private readonly float size;
 
@@ -20,7 +19,6 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
-            shader = material.Shader;
 
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)
@@ -32,7 +30,7 @@ namespace GUI.Types.Renderer
                 texture.Unbind();
             }
 
-            quadVao = MaterialRenderer.SetupSquareQuadBuffer(shader);
+            quadVao = MaterialRenderer.SetupSquareQuadBuffer(material.Shader);
             size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
             size /= 2f; // correct the scale to actually be 16x16
 
@@ -48,7 +46,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? shader;
+            var renderShader = context.ReplacementShader ?? material.Shader;
 
             GL.UseProgram(renderShader.Program);
             GL.BindVertexArray(quadVao);
@@ -74,8 +72,8 @@ namespace GUI.Types.Renderer
 
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
-            renderShader.SetUniform1("shaderId", (uint)shader.NameHash);
-            renderShader.SetUniform1("shaderProgramId", (uint)shader.Program);
+            renderShader.SetUniform1("shaderId", (uint)material.Shader.NameHash);
+            renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
 
             material.Render(renderShader);
 

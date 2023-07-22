@@ -106,7 +106,7 @@ namespace GUI.Types.Renderer
         private void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new ParticleGrid(20, 5, GuiContext);
-            selectedNodeRenderer = new(GuiContext);
+            selectedNodeRenderer = new(Scene);
 
             ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
 
@@ -170,7 +170,13 @@ namespace GUI.Types.Renderer
 
             GL.Enable(EnableCap.CullFace);
 
-            Scene.Sky?.Render(new Scene.RenderContext { Camera = e.Camera });
+            var genericRenderContext = new Scene.RenderContext
+            {
+                Camera = e.Camera,
+                RenderPass = RenderPass.Both
+            };
+
+            Scene.Sky?.Render(genericRenderContext);
 
             if (ShowBaseGrid)
             {
@@ -192,7 +198,7 @@ namespace GUI.Types.Renderer
 
             Scene.RenderWithCamera(e.Camera, lockedCullFrustum);
 
-            selectedNodeRenderer.Render(e.Camera, RenderPass.Both);
+            selectedNodeRenderer.Render(genericRenderContext);
 
             if (showStaticOctree)
             {
@@ -291,6 +297,7 @@ namespace GUI.Types.Renderer
         {
             ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
             Scene.Sky?.SetRenderMode(renderMode);
+            selectedNodeRenderer.SetRenderMode(renderMode);
 
             foreach (var node in Scene.AllNodes)
             {

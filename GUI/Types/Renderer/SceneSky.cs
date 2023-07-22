@@ -72,6 +72,11 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
+            if (context.RenderPass != RenderPass.Both)
+            {
+                return;
+            }
+
             GL.Disable(EnableCap.CullFace);
             GL.CullFace(CullFaceMode.Front);
             GL.DepthFunc(DepthFunction.Lequal);

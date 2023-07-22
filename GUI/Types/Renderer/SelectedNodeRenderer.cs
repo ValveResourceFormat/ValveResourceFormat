@@ -1,22 +1,22 @@
 using System.Collections.Generic;
 using System.Numerics;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class SelectedNodeRenderer
+    class SelectedNodeRenderer : SceneNode
     {
-        private readonly Shader shader;
+        private Shader shader;
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private int vertexCount;
         private bool enableDepth;
+        private bool debugCubeMaps;
         private readonly List<SceneNode> selectedNodes = new(1);
 
-        public SelectedNodeRenderer(VrfGuiContext guiContext)
+        public SelectedNodeRenderer(Scene scene) : base(scene)
         {
-            shader = shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
             GL.UseProgram(shader.Program);
 
             vboHandle = GL.GenBuffer();
@@ -78,13 +78,14 @@ namespace GUI.Types.Renderer
             {
                 OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
 
-#if DEBUG
-                foreach (var envMap in node.EnvMaps)
+                if (debugCubeMaps)
                 {
-                    OctreeDebugRenderer<SceneNode>.AddBox(vertices, envMap.Transform, envMap.LocalBoundingBox, 0.7f, 0.0f, 1.0f, 1.0f);
-                    OctreeDebugRenderer<SceneNode>.AddLine(vertices, envMap.Transform.Translation, node.BoundingBox.Center, 1.0f, 0.0f, 0.0f, 1.0f);
+                    foreach (var envMap in node.EnvMaps)
+                    {
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, envMap.Transform, envMap.LocalBoundingBox, 0.7f, 0.0f, 1.0f, 1.0f);
+                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, envMap.Transform.Translation, node.BoundingBox.Center, 1.0f, 0.0f, 0.0f, 1.0f);
+                    }
                 }
-#endif
 
                 if (node.EntityData != null)
                 {
@@ -120,9 +121,14 @@ namespace GUI.Types.Renderer
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), BufferUsageHint.StaticDraw);
         }
 
-        public void Render(Camera camera, RenderPass renderPass)
+        public override void Update(Scene.UpdateContext context)
         {
-            if (vertexCount == 0 || renderPass != RenderPass.Both)
+
+        }
+
+        public override void Render(Scene.RenderContext context)
+        {
+            if (vertexCount == 0 || context.RenderPass != RenderPass.Both)
             {
                 return;
             }
@@ -138,7 +144,7 @@ namespace GUI.Types.Renderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.UseProgram(shader.Program);
 
-            shader.SetUniform4x4("uProjectionViewMatrix", camera.ViewProjectionMatrix);
+            shader.SetUniform4x4("uProjectionViewMatrix", context.Camera.ViewProjectionMatrix);
 
             GL.BindVertexArray(vaoHandle);
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
@@ -147,6 +153,13 @@ namespace GUI.Types.Renderer
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.DepthTest);
+        }
+
+        public override void SetRenderMode(string mode)
+        {
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
+
+            debugCubeMaps = mode == "Cubemaps";
         }
     }
 }
