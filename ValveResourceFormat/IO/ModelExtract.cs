@@ -67,7 +67,11 @@ public class ModelExtract
         if (refPhysics != null)
         {
             using var physResource = fileLoader.LoadFile(refPhysics + "_c");
-            physAggregateData = (PhysAggregateData)physResource.DataBlock;
+
+            if (physResource != null)
+            {
+                physAggregateData = (PhysAggregateData)physResource.DataBlock;
+            }
         }
         else
         {
