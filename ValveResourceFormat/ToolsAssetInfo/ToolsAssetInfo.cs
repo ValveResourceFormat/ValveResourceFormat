@@ -1,24 +1,65 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ToolsAssetInfo
 {
     public class ToolsAssetInfo
     {
+        public class File
+        {
+            public struct InputDependency
+            {
+                public string Filename { get; init; }
+                public uint FileCRC { get; init; }
+                public bool Optional { get; init; }
+                public bool FileExists { get; init; }
+            }
+
+            public struct SearchPath
+            {
+                public string Filename { get; init; }
+                public byte[] UnknownBits { get; init; }
+            }
+
+            public struct SpecialDependency
+            {
+                public string String { get; set; }
+                public string CompilerIdentifier { get; set; }
+                public uint Fingerprint { get; set; }
+                public uint UserData { get; set; }
+            }
+
+            public bool NeedsRefresh { get; set; }
+            public bool Invalid { get; set; }
+            public bool UpToDate { get; set; }
+            public bool CompileFailed { get; set; }
+
+            public List<SearchPath> SearchPathsGameRoot { get; } = new();
+            public List<SearchPath> SearchPathsContentRoot { get; } = new();
+            public List<InputDependency> InputDependencies { get; } = new();
+            public List<InputDependency> AdditionalInputDependencies { get; } = new();
+            public List<string> ExternalReferences { get; } = new();
+            public List<string> ChildResources { get; } = new();
+            public List<string> AdditionalRelatedFiles { get; } = new();
+            public List<string> WeakReferences { get; } = new();
+            public List<SpecialDependency> SpecialDependencies { get; } = new();
+            public Dictionary<string, object> SearchableUserData { get; } = new();
+            public Dictionary<string, List<string>> SubassetDefinitions { get; } = new();
+            public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; } = new();
+        }
+
         public const uint MAGIC = 0xC4CCACE8;
-        public const uint MAGIC2 = 0xC4CCACE9; // TODO: Versioning
+        public const uint MAGIC2 = 0xC4CCACE9;
         public const uint GUARD = 0x049A48B2;
 
-        public List<string> Mods { get; } = new List<string>();
-        public List<string> Directories { get; } = new List<string>();
-        public List<string> Filenames { get; } = new List<string>();
-        public List<string> Extensions { get; } = new List<string>();
-        public List<string> EditInfoKeys { get; } = new List<string>();
-        public List<string> MiscStrings { get; } = new List<string>();
-        public List<string> ConstructedFilepaths { get; } = new List<string>();
-        public List<string> UnknownSoundField1 { get; } = new List<string>();
-        public List<string> UnknownSoundField2 { get; } = new List<string>();
+        /// <summary>
+        /// All the assets.
+        /// </summary>
+        public Dictionary<string, File> Files { get; } = new();
 
         /// <summary>
         /// Opens and reads the given filename.
@@ -40,102 +81,384 @@ namespace ValveResourceFormat.ToolsAssetInfo
         {
             using var reader = new BinaryReader(input, Encoding.UTF8, true);
             var magic = reader.ReadUInt32();
-
-            // TODO: Versioning
-            if (magic != MAGIC && magic != MAGIC2)
-            {
-                throw new InvalidDataException("Given file is not tools_asset_info.");
-            }
-
             var version = reader.ReadUInt32();
 
-            if (version != 9 && version != 10 && version != 11 && version != 12 && version != 13)
+            if (magic == MAGIC2)
             {
-                throw new InvalidDataException($"Unsupported version: {version}");
+                if (version < 11 || version > 13)
+                {
+                    throw new UnexpectedMagicException("Unexpected version", version, nameof(version));
+                }
+            }
+            else if (magic == MAGIC)
+            {
+                if (version != 9 && version != 10)
+                {
+                    throw new UnexpectedMagicException("Unexpected version (old magic)", version, nameof(version));
+                }
+            }
+            else
+            {
+                throw new UnexpectedMagicException("Given file is not tools_asset_info", magic, nameof(magic));
             }
 
-            var fileCount = reader.ReadUInt32();
-            var b = reader.ReadUInt32(); // block id?
+            var fileCount = reader.ReadInt32();
+            var unknownConst = reader.ReadUInt32(); // block id?
 
-            if (b != 1)
+            if (unknownConst != 1)
             {
-                throw new InvalidDataException($"b is {b}");
+                throw new UnexpectedMagicException("Unexpected", unknownConst, nameof(unknownConst));
             }
 
-            ReadStringsBlock(reader, Mods);
-            ReadStringsBlock(reader, Directories);
-            ReadStringsBlock(reader, Filenames);
-            ReadStringsBlock(reader, Extensions);
-            ReadStringsBlock(reader, EditInfoKeys);
-            ReadStringsBlock(reader, MiscStrings);
+            var mods = ReadStringsBlock(reader);
+            var directories = ReadStringsBlock(reader);
+            var flenames = ReadStringsBlock(reader);
+            var extensions = ReadStringsBlock(reader);
+            var editInfoKeys = ReadStringsBlock(reader);
+            var miscStrings = ReadStringsBlock(reader);
+            List<string> subassetDefinitions;
+            List<string> subassetValues;
 
             if (version >= 12)
             {
-                ReadStringsBlock(reader, UnknownSoundField1);
-                ReadStringsBlock(reader, UnknownSoundField2);
+                subassetDefinitions = ReadStringsBlock(reader);
+                subassetValues = ReadStringsBlock(reader);
+            }
+            else
+            {
+                subassetDefinitions = new();
+                subassetValues = new();
             }
 
-            for (var i = 0; i < fileCount; i++)
+            string ConstructFilePath(ulong hash)
             {
-                var hash = reader.ReadUInt64();
-
                 var unk1 = (int)(hash >> 61) & 7;
                 var addonIndex = (int)(hash >> 52) & 0x1FF;
                 var directoryIndex = (int)(hash >> 33) & 0x7FFFF;
                 var filenameIndex = (int)(hash >> 10) & 0x7FFFFF;
                 var extensionIndex = (int)(hash & 0x3FF);
 
-                //Console.WriteLine($"{unk1} {addonIndex} {directoryIndex} {filenameIndex} {extensionIndex}");
-
                 var path = new StringBuilder();
 
                 if (addonIndex != 0x1FF)
                 {
-                    path.Append(Mods[addonIndex]);
+                    path.Append(mods[addonIndex]);
                     path.Append('/');
                 }
 
                 if (directoryIndex != 0x7FFFF)
                 {
-                    path.Append(Directories[directoryIndex]);
+                    path.Append(directories[directoryIndex]);
                     path.Append('/');
                 }
 
                 if (filenameIndex != 0x7FFFFF)
                 {
-                    path.Append(Filenames[filenameIndex]);
+                    path.Append(flenames[filenameIndex]);
                 }
 
                 if (extensionIndex != 0x3FF)
                 {
                     path.Append('.');
-                    path.Append(Extensions[extensionIndex]);
+                    path.Append(extensions[extensionIndex]);
                 }
 
-                ConstructedFilepaths.Add(path.ToString());
+                return path.ToString();
+            }
+
+            Files.EnsureCapacity(fileCount);
+
+            var lookup = new File[fileCount];
+
+            for (var fileId = 0; fileId < fileCount; fileId++)
+            {
+                var hash = reader.ReadUInt64();
+                var file = new File();
+
+                lookup[fileId] = file;
+                Files[ConstructFilePath(hash)] = file;
+            }
+
+            // These blocks quite closely match RERL and REDI blocks in the individual files
+            for (var fileId = 0; fileId < fileCount; fileId++)
+            {
+                var file = lookup[fileId];
+
+                file.NeedsRefresh = reader.ReadBoolean();
+                int count;
+
+                for (var searchPathType = 0; searchPathType < 2; searchPathType++)
+                {
+                    count = reader.ReadInt32();
+
+                    // Game search paths
+                    while (count-- > 0)
+                    {
+                        var hash = reader.ReadUInt64();
+                        var unk = reader.ReadBytes(16); // packed bytes of multiple bits of info, what are they?
+
+                        var searchPath = new File.SearchPath
+                        {
+                            Filename = ConstructFilePath(hash),
+                            UnknownBits = unk,
+                        };
+
+                        switch (searchPathType)
+                        {
+                            case 0: file.SearchPathsGameRoot.Add(searchPath); break;
+                            case 1: file.SearchPathsContentRoot.Add(searchPath); break;
+                            default: throw new InvalidOperationException();
+                        }
+                    }
+                }
+
+                if (!reader.ReadBoolean())
+                {
+                    continue;
+                }
+
+                file.Invalid = reader.ReadBoolean();
+                file.UpToDate = reader.ReadBoolean();
+                file.CompileFailed = reader.ReadBoolean();
+
+                // m_InputDependencies
+                count = reader.ReadInt32();
+                file.InputDependencies.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    var hash = reader.ReadUInt64();
+                    var fileCRC = reader.ReadUInt32();
+                    var isOptional = reader.ReadBoolean();
+                    var fileExists = reader.ReadBoolean();
+
+                    file.InputDependencies.Add(new File.InputDependency
+                    {
+                        Filename = ConstructFilePath(hash),
+                        FileCRC = fileCRC,
+                        Optional = isOptional,
+                        FileExists = fileExists,
+                    });
+                }
+
+                // RERL
+                count = reader.ReadInt32();
+                file.ExternalReferences.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    var hash = reader.ReadUInt64();
+
+                    file.ExternalReferences.Add(ConstructFilePath(hash));
+                }
+
+                // m_ChildResourceList
+                count = reader.ReadInt32();
+                file.ChildResources.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    var hash = reader.ReadUInt64();
+
+                    file.ChildResources.Add(ConstructFilePath(hash));
+                }
+
+                // m_AdditionalRelatedFiles
+                count = reader.ReadInt32();
+                file.AdditionalRelatedFiles.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    var hash = reader.ReadUInt64();
+
+                    file.AdditionalRelatedFiles.Add(ConstructFilePath(hash));
+                }
+
+                // m_SpecialDependencies
+                count = reader.ReadInt32();
+                file.SpecialDependencies.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    int compilerIdentifierId;
+                    int stringId;
+
+                    if (version >= 11)
+                    {
+                        compilerIdentifierId = reader.ReadInt32();
+                        stringId = reader.ReadInt32();
+                    }
+                    else
+                    {
+                        compilerIdentifierId = reader.ReadInt16();
+                        stringId = reader.ReadInt16();
+                    }
+
+                    var userData = reader.ReadUInt32();
+                    var fingerprint = reader.ReadUInt32();
+
+                    file.SpecialDependencies.Add(new File.SpecialDependency
+                    {
+                        String = miscStrings[stringId],
+                        CompilerIdentifier = miscStrings[compilerIdentifierId],
+                        UserData = userData,
+                        Fingerprint = fingerprint,
+                    });
+                }
+
+                // m_SearchableUserData
+                count = reader.ReadInt32();
+                file.SearchableUserData.EnsureCapacity(count);
+
+                while (count-- > 0)
+                {
+                    var keyId = reader.ReadUInt16();
+                    var type = reader.ReadByte();
+                    object value = null;
+
+                    if (type == 2)
+                    {
+                        int assetInfoValue;
+
+                        if (version >= 11)
+                        {
+                            assetInfoValue = reader.ReadInt32();
+                        }
+                        else
+                        {
+                            assetInfoValue = reader.ReadInt16();
+                        }
+
+                        if (assetInfoValue > -1)
+                        {
+                            value = miscStrings[assetInfoValue];
+                        }
+                        else
+                        {
+                            value = string.Empty;
+                        }
+                    }
+                    else if (type == 1)
+                    {
+                        var floatValue = reader.ReadSingle();
+                        value = floatValue;
+                    }
+                    else
+                    {
+                        var intValue = reader.ReadInt32();
+                        value = intValue;
+                    }
+
+                    // Possible to have duplicates here!
+                    file.SearchableUserData[editInfoKeys[keyId]] = value;
+                }
+
+                // m_AdditionalInputDependencies
+                count = reader.ReadInt32();
+                file.AdditionalInputDependencies.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    var hash = reader.ReadUInt64();
+                    var fileCRC = reader.ReadUInt32();
+                    var isOptional = reader.ReadBoolean();
+                    var fileExists = reader.ReadBoolean();
+
+                    file.AdditionalInputDependencies.Add(new File.InputDependency
+                    {
+                        Filename = ConstructFilePath(hash),
+                        FileCRC = fileCRC,
+                        Optional = isOptional,
+                        FileExists = fileExists,
+                    });
+                }
+
+                if (version >= 12)
+                {
+                    // m_SubassetDefinitions
+                    count = reader.ReadInt32();
+                    file.SubassetDefinitions.EnsureCapacity(count);
+
+                    while (count-- > 0)
+                    {
+                        var hash = reader.ReadInt32();
+                        var definition = hash >> 24;
+                        var value = hash & 0xFFFFFF;
+
+                        var definitionKey = subassetDefinitions[definition];
+
+                        if (!file.SubassetDefinitions.TryGetValue(definitionKey, out var list))
+                        {
+                            list = new();
+                            file.SubassetDefinitions[definitionKey] = list;
+                        }
+
+                        list.Add(subassetValues[value]);
+                    }
+
+                    // m_SubassetReferences
+                    count = reader.ReadInt32();
+                    file.SubassetReferences.EnsureCapacity(count);
+
+                    while (count-- > 0)
+                    {
+                        var hash = reader.ReadInt32();
+                        var definition = hash >> 24;
+                        var value = hash & 0xFFFFFF;
+                        var references = reader.ReadUInt16();
+
+                        var definitionKey = subassetDefinitions[definition];
+
+                        if (!file.SubassetReferences.TryGetValue(definitionKey, out var list))
+                        {
+                            list = new();
+                            file.SubassetReferences[definitionKey] = list;
+                        }
+
+                        list[subassetValues[value]] = references;
+                    }
+                }
+
+                if (version >= 13)
+                {
+                    // m_WeakReferenceList
+                    count = reader.ReadInt32();
+                    file.WeakReferences.Capacity = count;
+
+                    while (count-- > 0)
+                    {
+                        var hash = reader.ReadUInt64();
+
+                        file.WeakReferences.Add(ConstructFilePath(hash));
+                    }
+                }
+            }
+
+            if (version >= 10)
+            {
+                var guard = reader.ReadUInt32();
+                UnexpectedMagicException.Assert(guard == GUARD, guard);
             }
         }
 
-        private static void ReadStringsBlock(BinaryReader reader, ICollection<string> output)
+        private static List<string> ReadStringsBlock(BinaryReader reader)
         {
-            var count = reader.ReadUInt32();
+            var count = reader.ReadInt32();
+            var output = new List<string>(count);
 
             for (uint i = 0; i < count; i++)
             {
                 output.Add(reader.ReadNullTermString(Encoding.UTF8));
             }
+
+            return output;
         }
 
         public override string ToString()
         {
-            var sb = new StringBuilder();
-
-            foreach (var str in ConstructedFilepaths)
-            {
-                sb.AppendLine(str);
-            }
-
-            return sb.ToString();
+            using var ms = new MemoryStream();
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, Files, nameof(ToolsAssetInfo));
+            return Encoding.UTF8.GetString(ms.ToArray());
         }
     }
 }
