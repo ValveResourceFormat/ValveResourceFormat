@@ -1,7 +1,6 @@
 //#define DEBUG_VALIDATE_GLTF
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -62,7 +61,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = new();
         private object TextureWriteSynchronizationLock = new(); // TODO: Use SemaphoreSlim?
         private TextureSampler TextureSampler;
-        private int MaterialsGeneratedSoFar;
+        private int TexturesExportedSoFar;
         private bool IsExporting;
 
         // In SatelliteImages mode, SharpGLTF will still load and validate images.
@@ -140,7 +139,7 @@ namespace ValveResourceFormat.IO
             {
                 MaterialGenerationTasks.Clear();
                 ExportedTextures.Clear();
-                MaterialsGeneratedSoFar = 0;
+                TexturesExportedSoFar = 0;
                 IsExporting = false;
             }
         }
@@ -1018,7 +1017,6 @@ namespace ValveResourceFormat.IO
 
                     var renderMaterial = (VMaterial)materialResource.DataBlock;
 
-                    MaterialsGeneratedSoFar++;
                     var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
                     MaterialGenerationTasks.Add(task);
                 }
@@ -1314,13 +1312,20 @@ namespace ValveResourceFormat.IO
                     return bitmap;
                 }
 
-                using var textureResource = FileLoader.LoadFile(texturePath + "_c");
+                Resource textureResource; // Not being disposed because ORM may use same texture multiple times
+
+                lock (TextureWriteSynchronizationLock)
+                {
+                    textureResource = FileLoader.LoadFile(texturePath + "_c");
+                }
+
                 if (textureResource == null)
                 {
                     return new SKBitmap(); // TODO: Test that this doesn't cause issues
                 }
 
-                bitmap = ((ResourceTypes.Texture)textureResource.DataBlock).GenerateBitmap();
+                var textureBlock = (ResourceTypes.Texture)textureResource.DataBlock;
+                bitmap = textureBlock.GenerateBitmap();
                 bitmap.SetImmutable();
 
                 openBitmaps[texturePath] = bitmap;
@@ -1474,8 +1479,8 @@ namespace ValveResourceFormat.IO
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            // TODO: MaterialsGeneratedSoFar is not entirely correct because LinkAndStoreImage can be called multiple times per material
-            ProgressReporter?.Report($"[{MaterialsGeneratedSoFar}/{MaterialGenerationTasks.Count}] Exporting texture: {image.Name}");
+            TexturesExportedSoFar++;
+            ProgressReporter?.Report($"[{TexturesExportedSoFar}/{ExportedTextures.Count}] Exporting texture: {image.Name}");
 
             if (!SatelliteImages)
             {
