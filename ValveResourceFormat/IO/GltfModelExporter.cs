@@ -1312,20 +1312,20 @@ namespace ValveResourceFormat.IO
                     return bitmap;
                 }
 
-                Resource textureResource; // Not being disposed because ORM may use same texture multiple times
-
-                lock (TextureWriteSynchronizationLock)
-                {
-                    textureResource = FileLoader.LoadFile(texturePath + "_c");
-                }
+                // Not being disposed because ORM may use same texture multiple times and there's issues with concurrency
+                var textureResource = FileLoader.LoadFile(texturePath + "_c");
 
                 if (textureResource == null)
                 {
                     return new SKBitmap(); // TODO: Test that this doesn't cause issues
                 }
 
-                var textureBlock = (ResourceTypes.Texture)textureResource.DataBlock;
-                bitmap = textureBlock.GenerateBitmap();
+                lock (textureResource)
+                {
+                    var textureBlock = (ResourceTypes.Texture)textureResource.DataBlock;
+                    bitmap = textureBlock.GenerateBitmap();
+                }
+
                 bitmap.SetImmutable();
 
                 openBitmaps[texturePath] = bitmap;
