@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 #define renderMode_Color 0
 #define renderMode_SpriteEffects 0

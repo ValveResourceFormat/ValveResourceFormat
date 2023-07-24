@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 in vec4 vtxColor;
 out vec4 outputColor;

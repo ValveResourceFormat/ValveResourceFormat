@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 // Render modes -- Switched on/off by code
 #include "common/utils.glsl"
@@ -10,7 +10,7 @@
 #define F_SOLID_COLOR 0
 #define F_NORMAL_MAP 0
 #define F_SPECULAR 0
-#define F_MODULATE_SPECULAR_BY_ALPHA 0 
+#define F_MODULATE_SPECULAR_BY_ALPHA 0
 #define F_TINT_MASK 0
 #define F_TINT_MASK2 0 // what does this do?
 #define F_PAINT_VERTEX_COLORS 0

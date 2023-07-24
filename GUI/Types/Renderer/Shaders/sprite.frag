@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 //Parameter defines - These are default values and can be overwritten based on material parameters
 #define F_ALPHA_TEST 0
@@ -23,4 +23,4 @@ void main()
 #endif
 
     outputColor = color;
-}  
+}

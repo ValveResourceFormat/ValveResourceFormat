@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 //Includes - resolved by VRF
 #include "compression.incl"
@@ -119,7 +119,7 @@ vec2 GetAnimatedUVs(vec2 texCoords)
     #endif
 
     return texCoords * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
-    
+
 }
 
 vec4 GetTintColor()

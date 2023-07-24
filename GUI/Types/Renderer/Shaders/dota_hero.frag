@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 // Render modes -- Switched on/off by code
 #include "common/utils.glsl"

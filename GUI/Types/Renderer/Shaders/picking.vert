@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 //Includes - resolved by VRF
 #include "animation.incl"

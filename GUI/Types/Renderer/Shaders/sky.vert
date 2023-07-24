@@ -1,4 +1,4 @@
-#version 330
+#version 460
 
 layout (location = 0) in vec3 aVertexPosition;
 out vec3 vSkyLookupInterpolant;

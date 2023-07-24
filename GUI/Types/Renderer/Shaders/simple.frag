@@ -1,4 +1,4 @@
-#version 400
+#version 460
 
 // Includes
 #include "common/utils.glsl"
