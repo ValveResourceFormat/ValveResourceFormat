@@ -168,7 +168,9 @@ public sealed class TextureExtract
             using var pixelmap = bitmap.PeekPixels();
             pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
 
-            return EncodePng(newPixelmap.WithAlphaType(SKAlphaType.Opaque));
+            using var alphaPixelmap = newPixelmap.WithAlphaType(SKAlphaType.Opaque);
+
+            return EncodePng(alphaPixelmap);
         }
         else if (channel == ChannelMapping.RGBA)
         {
