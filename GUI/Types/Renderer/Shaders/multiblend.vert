@@ -2,6 +2,7 @@
 
 //Includes - resolved by VRF
 #include "compression.incl"
+#include "animation.incl"
 //End of includes
 
 layout (location = 0) in vec3 vPOSITION;
@@ -13,8 +14,6 @@ in vec4 vTEXCOORD3;
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
     in vec4 vTANGENT;
 #endif
-in ivec4 vBLENDINDICES;
-in vec4 vBLENDWEIGHT;
 
 out vec3 vFragPosition;
 
@@ -33,16 +32,23 @@ uniform mat4 transform;
 
 void main()
 {
-    vec4 fragPosition = transform * vec4(vPOSITION, 1.0);
+    mat4 skinTransform = transform * getSkinMatrix();
+    vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = uProjectionViewMatrix * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
+    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+
     //Unpack normals
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    vNormalOut = vNORMAL.xyz;
-    vBitangentOut = vTANGENT.xyz;
+    vNormalOut = normalize(normalTransform * vNORMAL.xyz);
+    vTangentOut = normalize(normalTransform * vTANGENT.xyz);
+    vBitangentOut = cross(vNormalOut, vTangentOut);
 #else
-    vNormalOut = DecompressNormal(vNORMAL);
+    vec4 tangent = DecompressTangent(vNORMAL);
+    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    vTangentOut = normalize(normalTransform * tangent.xyz);
+    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
 
     vTexCoordOut = vTEXCOORD;

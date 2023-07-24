@@ -7,6 +7,7 @@
 in vec3 vFragPosition;
 
 in vec2 vTexCoordOut;
+in vec4 vTintColorFadeOut;
 
 out vec4 outputColor;
 
@@ -14,17 +15,12 @@ uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor2;
 uniform sampler2D g_tTintMask;
 
-uniform vec4 m_vTintColorSceneObject;
-uniform vec3 m_vTintColorDrawCall;
-
-uniform vec4 g_vTexCoordOffset;
-uniform vec4 g_vTexCoordScale;
 
 //Main entry point
 void main()
 {
     //Get the ambient color from the color texture
-    vec4 color = texture(g_tColor2, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy) * vec4(m_vTintColorDrawCall.xyz, 1);
+    vec4 color = texture(g_tColor2, vTexCoordOut);
 
 #if F_ALPHA_TEST == 1
     if (color.a < g_flAlphaTestReference)
@@ -34,12 +30,10 @@ void main()
 #endif
 
     //Calculate tint color
-    float tintStrength = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).y;
-    vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
-    vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
+    float tintStrength = texture(g_tTintMask, vTexCoordOut).y;
+    vec3 tintFactor = mix(vec3(1.0), vTintColorFadeOut.rgb, tintStrength);
 
     //Simply multiply the color from the color texture with the illumination
-    //outputColor = vec4(color.rgb * tintFactor, color.a);
-    vec2 tc = vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
-    outputColor = vec4( texture(g_tColor2, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordOffset.xy).xyz, 1);
+    //outputColor = vec4(color.rgb * tintFactor, color.a * vTintColorFadeOut.a);
+    outputColor = vec4(color.rgb, 1.0);
 }

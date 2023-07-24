@@ -31,6 +31,7 @@ in vec2 vTexCoordOut;
 #if (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vVertexColorOut;
 #endif
+in vec4 vTintColorFadeOut;
 
 out vec4 outputColor;
 
@@ -61,9 +62,6 @@ out vec4 outputColor;
 
 uniform vec3 vEyePosition;
 uniform float g_flTime;
-
-uniform vec4 m_vTintColorSceneObject;
-uniform vec3 m_vTintColorDrawCall;
 
 uniform vec4 g_vColorTint;
 uniform float g_flOpacityScale;
@@ -151,18 +149,16 @@ void main()
     illumination = illumination * 0.7 + 0.4; //add ambient
 #endif
 
-    //Calculate tint color
-    vec3 tintColor = m_vTintColorSceneObject.xyz * m_vTintColorDrawCall;
-
+    //Apply tint
 #if (F_TINT_MASK == 1 || F_TINT_MASK == 2)
     float tintStrength = texture(g_tTintMask, coordsAll).y;
-    vec3 tintFactor = tintStrength * tintColor + (1 - tintStrength) * vec3(1);
+    vec3 tintFactor = mix(vec3(1.0), vTintColorFadeOut.rgb, tintStrength);
 #else
-    vec3 tintFactor = tintColor;
+    vec3 tintFactor = vTintColorFadeOut.rgb;
 #endif
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb * g_vColorTint.xyz * tintFactor, color.a);
+    outputColor = vec4(illumination * color.rgb * g_vColorTint.rgb * tintFactor, color.a);
 
     #if (F_PAINT_VERTEX_COLORS == 1)
         outputColor.rgb *= vVertexColorOut.rgb;
@@ -170,9 +166,10 @@ void main()
 
     #if (F_SPECULAR == 1)
         vec3 specularTexel = texture(g_tSpecular, coordsAll).xyz;
-        float specular = pow(max(0,dot(lightDirection, worldNormal)), 6);
+        float NoL = max(dot(lightDirection, worldNormal), 0.0);
+        float specular = pow(NoL, 6.0);
         #if (F_MODULATE_SPECULAR_BY_ALPHA == 1)
-            specular *= m_vTintColorSceneObject.w;
+            specular *= vTintColorFadeOut.a;
         #endif
         outputColor.rgb *=  vec3(1.0) + specularTexel.x * specular * g_flSpecularIntensity * g_vColorTint2.xyz;
         outputColor.rgb += specularTexel.y;
@@ -187,19 +184,19 @@ void main()
 #endif
 
 #if renderMode_Tangents == 1
-    outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
 #endif
 
 #if renderMode_Normals == 1
-    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vNormalOut), 1.0);
 #endif
 
 #if renderMode_BumpNormals == 1
-    outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(worldNormal), 1.0);
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(illumination, illumination, illumination, 1.0);
+    outputColor = vec4(vec3(illumination), 1.0);
 #endif
 
 #if renderMode_VertexColor == 1 && F_PAINT_VERTEX_COLORS == 1

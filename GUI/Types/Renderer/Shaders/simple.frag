@@ -81,12 +81,12 @@
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
-centroid in vec3 vCentroidNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 in vec4 vVertexColorOut;
 
+centroid in vec3 vCentroidNormalOut;
 
 #if F_SECONDARY_UV == 1
     in vec2 vTexCoord2;
@@ -455,12 +455,12 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             float selfIllumMask = combinedMasks.b;
         #endif
 
-        vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SRGBtoLinear(g_vSelfIllumTint.rgb);
+        vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SrgbGammaToLinear(g_vSelfIllumTint.rgb);
         mat.IllumColor = selfIllumScale * selfIllumMask * mix(vec3(1.0), mat.Albedo, g_flSelfIllumAlbedoFactor);
     #endif
 
     #if defined(vr_skin)
-        mat.TransmissiveColor = SRGBtoLinear(g_vTransmissionColor.rgb) * color.a;
+        mat.TransmissiveColor = SrgbGammaToLinear(g_vTransmissionColor.rgb) * color.a;
 
         float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.ExtraParams.a);
         mat.TransmissiveColor *= mouthOcclusion;
@@ -536,7 +536,7 @@ void main()
 
 #if (F_DISABLE_TONE_MAPPING == 0)
     outputColor.rgb = pow(outputColor.rgb, invGamma);
-    //outputColor.rgb = SRGBtoLinear(outputColor.rgb);
+    //outputColor.rgb = SrgbGammaToLinear(outputColor.rgb);
 #endif
 
     // Rendermodes

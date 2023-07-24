@@ -33,7 +33,6 @@ uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
 //uniform sampler2D g_tDiffuseWarp;
 
-#include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
 // Material properties
@@ -49,9 +48,9 @@ vec3 calculateWorldNormal()
     vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
     vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
 
-    vec3 normal = vNormalOut;
-    vec3 tangent = vTangentOut.xyz;
-    vec3 bitangent = vBitangentOut;
+    vec3 normal = normalize(vNormalOut);
+    vec3 tangent = normalize(vTangentOut.xyz);
+    vec3 bitangent = normalize(vBitangentOut);
 
     //Make the tangent space matrix
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
@@ -99,7 +98,7 @@ void main()
     //Calculate half-lambert lighting
     float illumination = dot(worldNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
-    illumination = illumination * illumination;
+    illumination = pow2(illumination);
 
     #if F_MASKS_1
         //Self illumination - mask 1 channel A
@@ -128,7 +127,7 @@ void main()
     specular = illumination * specular * mask2.r;
 
     //Calculate specular light color based on the specular tint map - mask 2 channel B
-    vec3 specularColor = mix(vec3(1.0, 1.0, 1.0), color.rgb, mask2.b);
+    vec3 specularColor = mix(vec3(1.0), color.rgb, mask2.b);
 #else
     vec3 specularColor = vec3(0);
     float specular = 0.0;
@@ -136,7 +135,7 @@ void main()
 
     //Calculate rim light
     float rimLight = 1.0 - abs(dot(worldNormal, viewDirection));
-    rimLight = pow(rimLight, 2);
+    rimLight = pow2(rimLight);
 
 #if F_MASKS_2
     //Multiply the rim light by the rim light intensity - mask 2 channel G
@@ -157,7 +156,7 @@ void main()
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(illumination, illumination, illumination, 1.0);
+    outputColor = vec4(vec3(illumination), 1.0);
 #endif
 
 #if renderMode_Mask1 == 1 && F_MASKS_1
@@ -173,19 +172,19 @@ void main()
 #endif
 
 #if renderMode_Tangents == 1
-    outputColor = vec4(vTangentOut.xyz * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
 #endif
 
 #if renderMode_Normals == 1
-    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vNormalOut), 1.0);
 #endif
 
 #if renderMode_BumpNormals == 1
-    outputColor = vec4(worldNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(worldNormal), 1.0);
 #endif
 
 #if renderMode_Metalness == 1
-    outputColor = vec4(metalness, metalness, metalness, 1.0);
+    outputColor = vec4(vec3(metalness), 1.0);
 #endif
 
 #if renderMode_Specular == 1

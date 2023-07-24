@@ -22,7 +22,6 @@ uniform vec4 g_vDiffuseWrapColor = vec4(1.0, 0.5, 0.3, 0.0); // 1.0, 0.5, 0.3 ->
 
 vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
 {
-
     float NoL = dot(vNormal, vLightVector);
     float diffuseWrapDenom = ClampToPositive((NoL + g_flDiffuseWrap) / (1.0 + g_flDiffuseWrap));
     float DiffuseWrapLighting = pow(diffuseWrapDenom, g_flDiffuseExponent) * (1.0 + g_flDiffuseExponent) / (2.0 + 2.0 * g_flDiffuseWrap);
@@ -35,6 +34,7 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
 
 
 // Normal Distribution function --------------------------------------
+// D = Normal distribution (Distribution of the microfacets)
 float D_GGX(float NoH, float roughness)
 {
 	float alpha = pow2(roughness);
@@ -44,6 +44,7 @@ float D_GGX(float NoH, float roughness)
 
 
 // Geometric Shadowing visibility function --------------------------------------
+	// G = Geometric shadowing term (Microfacets shadowing)
 float G_SchlickSmithGGX(float NoL, float NoV, float roughness)
 {
     float VisRough = pow2(roughness + 1.0) / 8.0;
@@ -54,6 +55,7 @@ float G_SchlickSmithGGX(float NoL, float NoV, float roughness)
 }
 
 // Fresnel function ----------------------------------------------------
+// F = Fresnel factor (Reflectance depending on angle of incidence)
 float F_Schlick(float F0, float F90, float VoH)
 {
     return mix(F0, F90, pow(1.0 - VoH, 5.0));
@@ -123,11 +125,8 @@ vec3 specularLighting(vec3 L, vec3 V, vec3 N, vec3 specularColor, float roughnes
 #if defined(vr_complex) && (F_CLOTH_SHADING == 1)
     return SpecularCloth(roughness, NoL, NoH, NoV, VoH, specularColor);
 #endif
-    // D = Normal distribution (Distribution of the microfacets)
 	float NDF = D_GGX(NoH, roughness); 
-	// G = Geometric shadowing term (Microfacets shadowing)
 	float Vis = G_SchlickSmithGGX(NoL, NoV, roughness);
-	// F = Fresnel factor (Reflectance depending on angle of incidence)
 	vec3 F = F_Schlick(VoH, specularColor);
 
 #if (F_CLOTH_SHADING == 1)

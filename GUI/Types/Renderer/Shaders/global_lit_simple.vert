@@ -25,6 +25,7 @@ out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
+out vec4 vTintColorFadeOut;
 
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
@@ -32,6 +33,11 @@ uniform vec4 g_vTexCoordScale;
 uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
 uniform float g_flTime;
+
+uniform vec4 m_vTintColorSceneObject;
+uniform vec3 m_vTintColorDrawCall;
+
+uniform vec4 g_vColorTint;
 
 void main()
 {
@@ -53,6 +59,9 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
+
+    vTintColorFadeOut.rgb = m_vTintColorSceneObject.rgb * m_vTintColorDrawCall * g_vColorTint.rgb;
+    vTintColorFadeOut.a = m_vTintColorSceneObject.a * g_vColorTint.a;
 
     vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
 

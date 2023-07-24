@@ -53,7 +53,6 @@ float max3( vec3 Vector )
 
 
 
-
 float length_squared(vec2 vector)
 {
 	return dot(vector, vector);
@@ -76,17 +75,39 @@ float GetLuma(vec3 Color) {
 	return dot( Color, vec3(0.2126, 0.7152, 0.0722) );
 }
 
-
-float SRGBtoLinear(float SRGB)
+float SrgbGammaToLinear(float color)
 {
-	return SRGB <= 0.0404 ? SRGB * 0.0774 : pow( SRGB * 0.9479 + 0.0521, 2.4 );
+    float vLinearSegment = color / 12.92;
+    float vExpSegment = pow((color / 1.055) + 0.0521327, 2.4);
+
+    const float cap = 0.04045;
+    float select = color > cap ? vExpSegment : vLinearSegment;
+
+    return select;
 }
+vec2 SrgbGammaToLinear(vec2 color)
+{
+    vec2 vLinearSegment = color / vec2(12.92);
+    vec2 vExpSegment = pow((color / vec2(1.055)) + vec2(0.0521327), vec2(2.4));
 
-vec2 SRGBtoLinear(vec2 SRGB) {  return vec2( SRGBtoLinear(SRGB.r), SRGBtoLinear(SRGB.g) );      }
+    const float cap = 0.04045;
+    float select = color.r > cap ? vExpSegment.r : vLinearSegment.r;
+    float select1 = color.g > cap ? vExpSegment.g : vLinearSegment.g;
 
-vec3 SRGBtoLinear(vec3 SRGB) {  return vec3( SRGBtoLinear(SRGB.rg), SRGBtoLinear(SRGB.b) );     }
+    return vec2(select, select1);
+}
+vec3 SrgbGammaToLinear(vec3 color)
+{
+    vec3 vLinearSegment = color / vec3(12.92);
+    vec3 vExpSegment = pow((color / vec3(1.055)) + vec3(0.0521327), vec3(2.4));
 
-vec4 SRGBtoLinear(vec4 SRGB) {  return vec4( SRGBtoLinear(SRGB.rgb), SRGBtoLinear(SRGB.a) );    }
+    const float cap = 0.04045;
+    float select = color.r > cap ? vExpSegment.r : vLinearSegment.r;
+    float select1 = color.g > cap ? vExpSegment.g : vLinearSegment.g;
+    float select2 = color.b > cap ? vExpSegment.b : vLinearSegment.b;
+
+    return vec3(select, select1, select2);
+}
 
 
 vec2 Resize2D(float Base, vec4 StartPos_Size)
@@ -136,12 +157,6 @@ vec4 ClampToPositive( vec4 vValue )
 float LinearRamp( float flMin, float flMax, float flInput )
 {
 	return saturate( ( flInput - flMin ) / ( flMax - flMin ) );
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-float fsel( float flComparand, float flValGE, float flLT )
-{
-	return ( flComparand >= 0.0 ) ? flValGE : flLT;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
