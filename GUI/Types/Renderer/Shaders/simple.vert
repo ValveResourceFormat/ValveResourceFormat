@@ -134,26 +134,28 @@ vec4 GetTintColor()
 }
 
 #if (F_DETAIL_TEXTURE > 0)
-    uniform float g_flDetailTexCoordRotation = 0.0;
-    uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
-    uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
-    out vec2 vDetailTexCoords;
 
-    #if (F_SECONDARY_UV == 1)
-        uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
-    #endif
+uniform float g_flDetailTexCoordRotation = 0.0;
+uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
+uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
+out vec2 vDetailTexCoords;
 
-    vec2 getDetailCoords(vec2 texCoords)
-    {
-        // in S2 most of these values are precomputed into the globals buffer
-        float rotation = radians(g_flDetailTexCoordRotation);
-        float sinRot = sin(rotation);
-        float cosRot = cos(rotation);
-        vec2 offset = (g_vDetailTexCoordScale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + g_vDetailTexCoordOffset.xy + 0.5;
-        vec4 xform = g_vDetailTexCoordScale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
+#if (F_SECONDARY_UV == 1)
+    uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
+#endif
 
-        return vec2(dot(xform.xy, texCoords.xy), dot(xform.zw, texCoords.xy)) + offset;
-    }
+vec2 getDetailCoords(vec2 texCoords)
+{
+    // in S2 most of these values are precomputed into the globals buffer
+    float rotation = radians(g_flDetailTexCoordRotation);
+    float sinRot = sin(rotation);
+    float cosRot = cos(rotation);
+    vec2 offset = (g_vDetailTexCoordScale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + g_vDetailTexCoordOffset.xy + 0.5;
+    vec4 xform = g_vDetailTexCoordScale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
+
+    return vec2(dot(xform.xy, texCoords.xy), dot(xform.zw, texCoords.xy)) + offset;
+}
+
 #endif
 
 

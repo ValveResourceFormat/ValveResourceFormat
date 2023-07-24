@@ -27,6 +27,8 @@ float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
 }
 
 // Cubemap Normalization
+// Used in HLA, maybe later vr renderer games too.
+// Further explanation here: https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc2019/presentations/Hobson_Josh_The_Indirect_Lighting.pdf
 #define bUseCubemapNormalization 0
 const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
 
@@ -70,16 +72,16 @@ float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
 
 #endif
 
-vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
+vec3 GetEnvironment(vec3 N, vec3 V, float rough, vec3 specColor, vec3 irradiance, vec4 extraParams)
 {
     #if (SCENE_ENVIRONMENT_TYPE == 0)
         return g_vClearColor.rgb;
     #else
 
     // Reflection Vector
-    vec3 R = normalize(reflect(-mat.ViewDir, mat.AmbientNormal));
+    vec3 R = normalize(reflect(-V, N));
 
-    float lod = GetEnvMapLOD(mat.Roughness, R, mat.ExtraParams);
+    float lod = GetEnvMapLOD(rough, R, extraParams);
 
     #if (SCENE_ENVIRONMENT_TYPE == 1)
         vec3 coords = R;
@@ -129,11 +131,13 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
             float weight = ((distanceFromEdge * distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
             totalWeight += weight;
 
-            // blend reflection vector from roughness
-            #if (F_CLOTH_SHADING == 1)
-                coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(mat.Roughness));
-            #else
-                coords.xyz = mix(coords.xyz, localReflectionVector, mat.Roughness);
+            #if rendermode_Cubemaps == 0
+                // blend
+                #if (F_CLOTH_SHADING == 1)
+                    coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(rough));
+                #else
+                    coords.xyz = mix(coords.xyz, localReflectionVector, rough);
+                #endif
             #endif
 
             envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
@@ -145,20 +149,20 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
         }
     #endif
 
-#if (renderMode_Cubemaps == 1)
+#if renderMode_Cubemaps == 1
     return envMap;
 #else
-    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.Roughness, mat.AmbientNormal, mat.ViewDir);
+    vec3 brdf = EnvBRDF(specColor, rough, N, V);
 
     #if (F_CLOTH_SHADING == 1)
-        vec3 clothBrdf = vec3(EnvBRDFCloth(mat.Roughness, mat.AmbientNormal, mat.ViewDir));
+        vec3 clothBrdf = vec3(EnvBRDFCloth(rough, N, V));
 
-        float clothMask = mat.ExtraParams.z;
+        float clothMask = extraParams.z;
 
         brdf = mix(brdf, clothBrdf, clothMask);
     #endif
 
-    float normalizationTerm = GetEnvMapNormalization(mat.Roughness, mat.AmbientNormal, lighting.DiffuseIndirect);
+    float normalizationTerm = GetEnvMapNormalization(rough, N, irradiance);
 
     return brdf * envMap * normalizationTerm;
 #endif

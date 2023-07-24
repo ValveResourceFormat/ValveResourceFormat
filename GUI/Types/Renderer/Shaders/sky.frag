@@ -1,5 +1,7 @@
 #version 460
 
+#include "common/utils.glsl"
+
 in vec3 vSkyLookupInterpolant;
 out vec4 vColor;
 
@@ -37,15 +39,7 @@ vec3 DecodeYCoCg(vec4 YCoCg)
 
     vec3 color = vec3(R, G, B);
 
-    vec3 vLinearSegment =  color / vec3(12.92);
-    vec3 vExpSegment = pow((color / vec3(1.055)) + vec3(0.0521327), vec3(2.4));
-
-    const float cap = 0.04045;
-	float select = R > cap ? vExpSegment.x : vLinearSegment.x;
-	float select1 = G > cap ? vExpSegment.y : vLinearSegment.y;
-	float select2 = B > cap ? vExpSegment.z : vLinearSegment.z;
-
-    return vec3(select, select1, select2);
+    return SrgbGammaToLinear(color);
 }
 
 void main()
@@ -66,10 +60,11 @@ void main()
     //vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
     //vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);
     vColor.rgb *= g_vTint;
-    vColor.rgb = max(vColor.rgb, vec3(0.0));
+    vColor.rgb = ClampToPositive(vColor.rgb);
     vColor.rgb *= g_flToneMapScalarLinear;
 
-    vColor.a = dot(vColor.rgb, vec3(0.3, 0.59, 0.11));
+    // Why do we do this?
+    vColor.a = GetLuma(vColor.rgb);
 
     //vColor.rgb += (vSkyLookupInterpolant*0.5);
 }

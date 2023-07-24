@@ -1,5 +1,6 @@
 #version 460
 
+#include "common/utils.glsl"
 #define renderMode_Color 0
 #define renderMode_SpriteEffects 0
 #define renderMode_VertexColor 0
@@ -63,25 +64,31 @@ void main()
     vec3 tintColor = m_vTintColorDrawCall.rgb;
 
     #if F_TINT_MASK == 1
+        // does texcoord scale really only apply to the tint mask?
         float tintFactor = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
-        tintColor = tintFactor * tintColor + (1 - tintFactor) * vec3(1);
+        tintColor = tintFactor * tintColor + (1 - tintFactor);
     #endif
 
     float opacity = color.a * mask1 * mask2 * mask3 * g_flOpacityScale;
 
     // Calculate fresnel
     vec3 viewDirection = normalize(vEyePosition - vFragPosition);
+
     float fresnel = abs(dot(viewDirection, vNormalOut));
     fresnel = pow(fresnel, g_flFresnelExponent);
-    fresnel = fresnel * g_flFresnelFalloff + (1 - g_flFresnelFalloff);
-    fresnel = fresnel * (g_flFresnelMax - g_flFresnelMin) + g_flFresnelMin;
+    //fresnel = fresnel * g_flFresnelFalloff + (1 - g_flFresnelFalloff);
+    //fresnel = fresnel * (g_flFresnelMax - g_flFresnelMin) + g_flFresnelMin;
+    fresnel = mix(1 - g_flFresnelFalloff, 1.0, fresnel);
+    fresnel = mix(g_flFresnelMin, g_flFresnelMax, fresnel);
 
     // Calculate fade
     float fade = distance(vFragPosition, vEyePosition) * 0.05;
     fade = fade - g_flFadeDistance;
-    fade = fade * (g_flFadeFalloff*0.05) + (1 - (g_flFadeFalloff*0.05));
-    fade = (1-fade) * (g_flFadeMax - g_flFadeMin) + g_flFadeMin;
-    fade = clamp(fade, 0, 1);
+    //fade = fade * (g_flFadeFalloff * 0.05) + (1 - (g_flFadeFalloff * 0.05));
+    //fade = (1-fade) * (g_flFadeMax - g_flFadeMin) + g_flFadeMin;
+    fade = mix(1 - (g_flFadeFalloff * 0.05), 1.0, fade);
+    fade = mix(g_flFadeMin, g_flFadeMax, 1.0 - fade);
+    fade = saturate(fade);
 
     opacity = opacity * fresnel * fade * (vColorOut.a / 255.0);
 

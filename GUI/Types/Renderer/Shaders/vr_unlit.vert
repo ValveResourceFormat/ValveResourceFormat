@@ -8,9 +8,16 @@ in vec2 vTEXCOORD;
 out vec3 vFragPosition;
 
 out vec2 vTexCoordOut;
+out vec4 vTintColorFadeOut;
 
 uniform mat4 uProjectionViewMatrix;
 uniform mat4 transform;
+
+uniform vec4 g_vTexCoordOffset;
+uniform vec4 g_vTexCoordScale;
+
+uniform vec4 m_vTintColorSceneObject;
+uniform vec3 m_vTintColorDrawCall;
 
 void main()
 {
@@ -18,5 +25,8 @@ void main()
     gl_Position = uProjectionViewMatrix * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    vTexCoordOut = vTEXCOORD;
+    vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
+
+    vTintColorFadeOut.rgb = m_vTintColorSceneObject.rgb * m_vTintColorDrawCall;
+    vTintColorFadeOut.a = m_vTintColorSceneObject.a;
 }

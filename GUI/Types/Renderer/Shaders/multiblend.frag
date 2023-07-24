@@ -62,25 +62,29 @@ uniform float g_flTexCoordRotate1;
 uniform float g_flTexCoordRotate2;
 uniform float g_flTexCoordRotate3;
 
-#include "common/lighting.glsl"
 uniform vec3 vEyePosition;
 
 vec2 getTexCoord(float scale, float rotation) {
+
     //Transform degrees to radians
-    float r = rotation * 3.141593/180.0;
+    float r = radians(rotation);
 
     //Scale texture
-    vec2 coord = vTexCoordOut/scale;
+    vec2 coord = vTexCoordOut / scale;
+
+    float SinR = sin(r);
+    float CosR = cos(r);
 
     //Rotate vector
-    return vec2(cos(r) * coord.x - sin(r) * coord.y, sin(r) * coord.x + cos(r) * coord.y);
+    return vec2(CosR * coord.x - SinR * coord.y,
+        SinR * coord.x + CosR * coord.y);
 }
 
 //Interpolate between two tint colors based on the tint mask and coordinate scale.
 vec4 interpolateTint(int id, vec4 tint1, vec4 tint2, float coordScale, float coordRotation)
 {
     float maskValue = texture(g_tTintMasks, getTexCoord(coordScale, coordRotation))[id];
-    return tint1 * (maskValue) + tint2 * (1-maskValue);
+    return mix(tint1, tint2, maskValue);
 }
 
 //Main entry point
@@ -163,8 +167,11 @@ void main()
     vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
     vec3 finalBumpNormal = vec3(temp, 1 - dot(temp,temp));
 
-    vec3 tangent = vec3(vNormalOut.z, vNormalOut.y, -vNormalOut.x);
-    vec3 bitangent = cross(vNormalOut, tangent);
+    // isn't this super incorrect?
+    //vec3 tangent = vec3(vNormalOut.z, vNormalOut.y, -vNormalOut.x);
+    //vec3 bitangent = cross(vNormalOut, tangent);
+    vec3 tangent = normalize(vTangentOut.xyz);
+    vec3 bitangent = normalize(vBitangentOut.xyz);
 
     //Make the tangent space matrix
     mat3 tangentSpace = mat3(tangent, bitangent, vNormalOut);
@@ -172,7 +179,7 @@ void main()
     //Calculate the tangent normal in world space and return it
     vec3 finalNormal = normalize(tangentSpace * finalBumpNormal);
 #else
-    vec3 finalNormal = vNormalOut.xyz;
+    vec3 finalNormal = normalize(vNormalOut.xyz);
 #endif
 
     //Don't need lighting yet
@@ -185,7 +192,7 @@ void main()
     //Calculate half-lambert lighting
     float illumination = dot(finalNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
-    illumination = illumination * illumination;
+    illumination = pow2(illumination);
     illumination = min(illumination + 0.3, 1.0);
 #endif
 
@@ -197,12 +204,13 @@ void main()
     vec4 blendSpecular = blend.x * specular0 + blend.y * specular1;
 #endif
 
-    float specular = blendSpecular.x * pow(max(0,dot(lightDirection, finalNormal)), 6);
+    float NoL = ClampToPositive(dot(lightDirection, finalNormal));
+    float specular = blendSpecular.x * pow(NoL, 6);
 
     //Apply ambient occlusion
     vec4 occludedColor = finalColor * vec4(vWeightsOut2.xyz, 1.0);
 
-    outputColor = vec4(illumination * occludedColor.xyz + vec3(0.7) * specular, 1);
+    outputColor = vec4(illumination * occludedColor.rgb + vec3(0.7) * specular, 1);
 
 #if renderMode_Color == 1
     outputColor = vec4(finalColor.rgb, 1.0);
@@ -217,11 +225,11 @@ void main()
 #endif
 
 #if renderMode_Normals == 1
-    outputColor = vec4(vNormalOut * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(vNormalOut), 1.0);
 #endif
 
 #if renderMode_Tangents == 1 && F_NORMAL_MAP == 1
-    outputColor = vec4(tangent * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(tangent), 1.0);
 #endif
 
 #if renderMode_BumpMap == 1 && F_NORMAL_MAP == 1
@@ -229,10 +237,10 @@ void main()
 #endif
 
 #if renderMode_BumpNormals == 1
-    outputColor = vec4(finalNormal * vec3(0.5) + vec3(0.5), 1.0);
+    outputColor = vec4(PackToColor(finalNormal), 1.0);
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(illumination, illumination, illumination, 1.0);
+    outputColor = vec4(vec3(illumination), 1.0);
 #endif
 }
