@@ -109,7 +109,7 @@ namespace Decompiler
         [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool GltfTest { get; }
 
-        [Option("--dump_unknown_entity_keys", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        [Option("--dump_unknown_entity_keys", "When using --stats, save all unknown entity key hashes to unknown_keys.txt.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool DumpUnknownEntityKeys { get; }
 
         private string[] ExtFilterList;
