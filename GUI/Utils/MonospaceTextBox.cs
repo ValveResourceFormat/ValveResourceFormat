@@ -30,6 +30,13 @@ namespace GUI.Utils
             Multiline = true;
             WordWrap = false;
             KeyDown += OnKeyDown;
+            Disposed += OnDisposed;
+        }
+
+        private void OnDisposed(object sender, System.EventArgs e)
+        {
+            KeyDown -= OnKeyDown;
+            Disposed -= OnDisposed;
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)

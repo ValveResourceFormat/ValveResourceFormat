@@ -68,7 +68,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
-            var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             Read(fs);
         }

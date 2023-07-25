@@ -481,7 +481,8 @@ namespace GUI
                 parentContext = parentContext.ParentGuiContext;
             }
 
-            tab.Controls.Add(new LoadingFile());
+            var loadingFile = new LoadingFile();
+            tab.Controls.Add(loadingFile);
             tab.ImageIndex = GetImageIndexForExtension(Path.GetExtension(tab.Text));
 
             mainTabs.TabPages.Add(tab);
@@ -494,12 +495,13 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
+                        loadingFile.Dispose();
+
                         var control = new MonospaceTextBox
                         {
                             Text = ex.ToString(),
                         };
 
-                        tab.Controls.Clear();
                         tab.Controls.Add(control);
 
                         return false;
@@ -518,7 +520,7 @@ namespace GUI
 
                     try
                     {
-                        tab.Controls.Clear();
+                        loadingFile.Dispose();
 
                         foreach (Control c in t.Result.Controls)
                         {
@@ -866,11 +868,12 @@ namespace GUI
                 }
             }
 
+            var loadingFile = new LoadingFile();
             var explorerTab = new TabPage("Explorer")
             {
                 ToolTipText = "Explorer"
             };
-            explorerTab.Controls.Add(new LoadingFile());
+            explorerTab.Controls.Add(loadingFile);
             explorerTab.ImageIndex = ImageList.Images.IndexOfKey("_folder_star");
             mainTabs.TabPages.Insert(1, explorerTab);
             mainTabs.SelectTab(explorerTab);
@@ -885,7 +888,7 @@ namespace GUI
 
                 Invoke(() =>
                 {
-                    explorerTab.Controls.Clear();
+                    loadingFile.Dispose();
                     explorerTab.Controls.Add(explorer);
                 });
             });

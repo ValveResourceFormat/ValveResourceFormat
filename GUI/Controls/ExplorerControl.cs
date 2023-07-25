@@ -134,7 +134,7 @@ namespace GUI.Controls
                     BufferSize = 65536,
                 };
 
-                gamePathsToScan.Sort((a, b) => a.AppID - b.AppID);
+                gamePathsToScan.Sort(static (a, b) => a.AppID - b.AppID);
 
                 foreach (var (appID, appName, steamPath, gamePath) in gamePathsToScan)
                 {
@@ -228,7 +228,7 @@ namespace GUI.Controls
                     }
 
                     // Sort the files and create the nodes
-                    foundFiles.Sort((a, b) => string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase));
+                    foundFiles.Sort(static (a, b) => string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase));
                     var foundFilesArray = foundFiles.ToArray();
 
                     var imageKey = $"@app{appID}";
