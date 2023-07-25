@@ -66,7 +66,7 @@ void main()
     #if F_TINT_MASK == 1
         // does texcoord scale really only apply to the tint mask?
         float tintFactor = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
-        tintColor = tintFactor * tintColor + (1 - tintFactor);
+        tintColor = mix(vec3(1.0), tintColor, tintFactor);
     #endif
 
     float opacity = color.a * mask1 * mask2 * mask3 * g_flOpacityScale;
