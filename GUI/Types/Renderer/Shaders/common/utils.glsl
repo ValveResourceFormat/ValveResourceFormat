@@ -108,6 +108,19 @@ vec3 SrgbGammaToLinear(vec3 color)
 
     return vec3(select, select1, select2);
 }
+vec4 SrgbGammaToLinear(vec4 color)
+{
+    vec4 vLinearSegment = color / vec4(12.92);
+    vec4 vExpSegment = pow((color / vec4(1.055)) + vec4(0.0521327), vec4(2.4));
+
+    const float cap = 0.04045;
+    float select = color.r > cap ? vExpSegment.r : vLinearSegment.r;
+    float select1 = color.g > cap ? vExpSegment.g : vLinearSegment.g;
+    float select2 = color.b > cap ? vExpSegment.b : vLinearSegment.b;
+    float select3 = color.a > cap ? vExpSegment.a : vLinearSegment.a;
+
+    return vec4(select, select1, select2, select3);
+}
 
 
 vec2 Resize2D(float Base, vec4 StartPos_Size)
