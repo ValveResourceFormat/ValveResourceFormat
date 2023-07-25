@@ -18,7 +18,7 @@ namespace ValveResourceFormat
         RenderWithDynamic = 0x200,
         RenderToCubemaps = 0x400,
         ModelHasLods = 0x800,
-        PrecomputedVisMembers = 0x4000,
+        PrecomputedVismembers = 0x4000,
         StaticCubeMap = 0x8000,
     }
 }

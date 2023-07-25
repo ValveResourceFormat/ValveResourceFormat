@@ -52,7 +52,10 @@ namespace Tests
 
                 Assert.AreEqual(extension, attribute, file);
 
-                InternalTestExtraction.Test(resource);
+                if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
+                {
+                    InternalTestExtraction.Test(resource);
+                }
             }
 
             Assert.Multiple(() => VerifyResources(resources));
