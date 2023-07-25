@@ -150,7 +150,7 @@ uniform vec4 g_vAmbientOcclusionColorBleed = vec4(0.4, 0.14902, 0.129412, 0.0);
 
 void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
-    vec3 vAmbientOcclusionExponent = vec3(1.0) - SRGBtoLinear(g_vAmbientOcclusionColorBleed.rgb);
+    vec3 vAmbientOcclusionExponent = vec3(1.0) - SrgbGammaToLinear(g_vAmbientOcclusionColorBleed.rgb);
 #if (F_SSS_MASK == 1)
     vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.ExtraParams.y);
 #endif
