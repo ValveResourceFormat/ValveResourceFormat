@@ -439,11 +439,6 @@ namespace GUI.Types.Viewers
                             VcsShaderResourceBridge(resTabs, shaderFileContainer);
                             IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
                             break;
-
-                        case ResourceType.Map:
-                            var mapExtract = new MapExtract(resource, vrfGuiContext.FileLoader);
-                            IViewer.AddContentTab(resTabs, $"{resource.FileName}.vmap", mapExtract.ToValveMap(), false);
-                            break;
                     }
                 }
                 catch (Exception ex)

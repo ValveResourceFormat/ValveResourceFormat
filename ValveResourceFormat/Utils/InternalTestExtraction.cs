@@ -18,10 +18,6 @@ namespace ValveResourceFormat.Utils
         {
             switch (resource.ResourceType)
             {
-                case ResourceType.Map:
-                    // Extract on Map will simply throw saying there's no useful data
-                    return;
-
                 case ResourceType.Model:
                     {
                         var model = (Model)resource.DataBlock;
