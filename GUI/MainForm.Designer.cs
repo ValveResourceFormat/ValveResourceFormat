@@ -60,6 +60,7 @@ namespace GUI
             toolStripSeparator1 = new ToolStripSeparator();
             copyFileNameToolStripMenuItem = new ToolStripMenuItem();
             openWithDefaultAppToolStripMenuItem = new ToolStripMenuItem();
+            viewAssetInfoToolStripMenuItem = new ToolStripMenuItem();
             versionToolStripLabel = new ToolStripLabel();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
@@ -219,9 +220,9 @@ namespace GUI
             // 
             // vpkContextMenu
             // 
-            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, openWithDefaultAppToolStripMenuItem });
+            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
-            vpkContextMenu.Size = new System.Drawing.Size(193, 98);
+            vpkContextMenu.Size = new System.Drawing.Size(193, 142);
             // 
             // extractToolStripMenuItem
             // 
@@ -259,6 +260,14 @@ namespace GUI
             openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
             openWithDefaultAppToolStripMenuItem.Text = "Open with default app";
             openWithDefaultAppToolStripMenuItem.Click += OpenWithDefaultAppToolStripMenuItem_Click;
+            // 
+            // viewAssetInfoToolStripMenuItem
+            // 
+            viewAssetInfoToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("viewAssetInfoToolStripMenuItem.Image");
+            viewAssetInfoToolStripMenuItem.Name = "viewAssetInfoToolStripMenuItem";
+            viewAssetInfoToolStripMenuItem.Size = new System.Drawing.Size(192, 22);
+            viewAssetInfoToolStripMenuItem.Text = "View asset info";
+            viewAssetInfoToolStripMenuItem.Click += OnViewAssetInfoToolStripMenuItemClick;
             // 
             // MainForm
             // 
@@ -310,6 +319,7 @@ namespace GUI
         private ToolStripMenuItem decompileExportToolStripMenuItem;
         private ToolStripMenuItem explorerToolStripMenuItem;
         private ToolStripLabel versionToolStripLabel;
+        private ToolStripMenuItem viewAssetInfoToolStripMenuItem;
     }
 }
 

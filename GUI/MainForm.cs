@@ -769,6 +769,41 @@ namespace GUI
             }
         }
 
+        private void OnViewAssetInfoToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+            BetterTreeNode selectedNode;
+            VrfGuiContext guiContext;
+
+            if (control is BetterTreeView treeView)
+            {
+                guiContext = treeView.VrfGuiContext;
+                selectedNode = (BetterTreeNode)treeView.SelectedNode;
+            }
+            else if (control is BetterListView listView)
+            {
+                guiContext = listView.VrfGuiContext;
+                selectedNode = (BetterTreeNode)listView.SelectedItems[0].Tag;
+            }
+            else
+            {
+                throw new InvalidDataException("Unknown state");
+            }
+
+            if (selectedNode.IsFolder)
+            {
+                return;
+            }
+
+            var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry.GetFullPath());
+
+            if (tab != null)
+            {
+                mainTabs.TabPages.Add(tab);
+                mainTabs.SelectTab(tab);
+            }
+        }
+
         private void DecompileToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ExtractFiles(sender, true);

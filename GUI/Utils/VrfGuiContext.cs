@@ -3,6 +3,7 @@ using System.Diagnostics;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.ToolsAssetInfo;
 
 namespace GUI.Utils
 {
@@ -18,6 +19,7 @@ namespace GUI.Utils
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; }
         public VrfGuiContext ParentGuiContext { get; private set; }
+        public ToolsAssetInfo ToolsAssetInfo { get; set; }
 
         // TODO: This buffer should not be here
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
