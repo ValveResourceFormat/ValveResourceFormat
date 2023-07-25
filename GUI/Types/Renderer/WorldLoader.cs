@@ -354,8 +354,6 @@ namespace GUI.Types.Renderer
                         {
                             scene.LightingInfo.EnvMaps.Add(handShake, envMap);
                         }
-
-                        scene.Add(envMap, true);
                     }
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
