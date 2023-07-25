@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -47,22 +46,37 @@ namespace GUI.Types.Renderer
             this.phys = phys;
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                animationComboBox?.Dispose();
+                animationPlayPause?.Dispose();
+                animationTrackBar?.Dispose();
+                meshGroupListBox?.Dispose();
+                materialGroupListBox?.Dispose();
+                physicsGroupsComboBox?.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();
 
-            animationComboBox = ViewerControl.AddSelection("Animation", (animation, _) =>
+            animationComboBox = AddSelection("Animation", (animation, _) =>
             {
                 modelSceneNode?.SetAnimation(animation);
             });
-            animationPlayPause = ViewerControl.AddCheckBox("Autoplay", true, isChecked =>
+            animationPlayPause = AddCheckBox("Autoplay", true, isChecked =>
             {
                 if (modelSceneNode != null)
                 {
                     modelSceneNode.AnimationController.IsPaused = !isChecked;
                 }
             });
-            animationTrackBar = ViewerControl.AddTrackBar(frame =>
+            animationTrackBar = AddTrackBar(frame =>
             {
                 if (modelSceneNode != null)
                 {
@@ -117,7 +131,7 @@ namespace GUI.Types.Renderer
 
                 if (meshGroups.Length > 1)
                 {
-                    meshGroupListBox = ViewerControl.AddMultiSelection("Mesh Group", listBox =>
+                    meshGroupListBox = AddMultiSelection("Mesh Group", listBox =>
                     {
                         listBox.Items.AddRange(meshGroups);
 
@@ -135,7 +149,7 @@ namespace GUI.Types.Renderer
 
                 if (materialGroups.Length > 1)
                 {
-                    materialGroupListBox = ViewerControl.AddSelection("Material Group", (selectedGroup, _) =>
+                    materialGroupListBox = AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         modelSceneNode?.SetSkin(selectedGroup);
                     });
@@ -172,7 +186,7 @@ namespace GUI.Types.Renderer
             else
             {
                 SetAvailableAnimations(Enumerable.Empty<string>());
-                ViewerControl.Camera.Picker.OnPicked -= OnPicked;
+                Camera.Picker.OnPicked -= OnPicked;
             }
 
             if (mesh != null)
@@ -201,7 +215,7 @@ namespace GUI.Types.Renderer
 
                 if (physicsGroups.Length > 0)
                 {
-                    physicsGroupsComboBox = ViewerControl.AddMultiSelection("Physics Groups", (listBox) =>
+                    physicsGroupsComboBox = AddMultiSelection("Physics Groups", (listBox) =>
                     {
                         if (!enabledAllPhysByDefault)
                         {

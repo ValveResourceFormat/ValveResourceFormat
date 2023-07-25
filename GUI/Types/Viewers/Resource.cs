@@ -94,7 +94,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Particle:
                     var viewerControl = new GLParticleViewer(vrfGuiContext);
-                    viewerControl.Load += (_, __) =>
+                    viewerControl.GLLoad += (_, __) =>
                     {
                         var particleSystem = (ParticleSystem)resource.DataBlock;
                         var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext);
@@ -103,7 +103,7 @@ namespace GUI.Types.Viewers
                     };
 
                     var particleRendererTab = new TabPage("PARTICLE");
-                    particleRendererTab.Controls.Add(viewerControl.Control);
+                    particleRendererTab.Controls.Add(viewerControl);
                     resTabs.TabPages.Add(particleRendererTab);
                     break;
 
@@ -119,7 +119,7 @@ namespace GUI.Types.Viewers
                         if (mapResource != null)
                         {
                             var mapTab = new TabPage("MAP");
-                            mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock).ViewerControl);
+                            mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
                             resTabs.TabPages.Add(mapTab);
                         }
                         break;
@@ -127,28 +127,25 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.World:
                     var worldmeshTab = new TabPage("MAP");
-                    worldmeshTab.Controls.Add(
-                        new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock).ViewerControl);
+                    worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
                     resTabs.TabPages.Add(worldmeshTab);
                     break;
 
                 case ResourceType.WorldNode:
                     var nodemeshTab = new TabPage("WORLD NODE");
-                    nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock)
-                        .ViewerControl);
+                    nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
                     resTabs.TabPages.Add(nodemeshTab);
                     break;
 
                 case ResourceType.Model:
                     var modelRendererTab = new TabPage("MODEL");
-                    modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock)
-                        .ViewerControl);
+                    modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
                     resTabs.TabPages.Add(modelRendererTab);
                     break;
 
                 case ResourceType.Mesh:
                     var meshRendererTab = new TabPage("MESH");
-                    meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Mesh)resource.DataBlock).ViewerControl);
+                    meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Mesh)resource.DataBlock));
                     resTabs.TabPages.Add(meshRendererTab);
                     break;
 
@@ -157,29 +154,28 @@ namespace GUI.Types.Viewers
                     {
                         var skyboxTab = new TabPage("SKYBOX");
                         var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
-                        skyboxTab.Controls.Add(skybox.ViewerControl);
+                        skyboxTab.Controls.Add(skybox);
                         resTabs.TabPages.Add(skyboxTab);
                         break;
                     }
 
                     var materialViewerControl = new GLMaterialViewer();
 
-                    materialViewerControl.Load += (_, __) =>
+                    materialViewerControl.GLLoad += (_, __) =>
                     {
                         var materialRenderer = new MaterialRenderer(vrfGuiContext, resource);
 
                         materialViewerControl.AddRenderer(materialRenderer);
-
                     };
 
                     var materialRendererTab = new TabPage("MATERIAL");
-                    materialRendererTab.Controls.Add(materialViewerControl.Control);
+                    materialRendererTab.Controls.Add(materialViewerControl);
                     resTabs.TabPages.Add(materialRendererTab);
 
                     break;
                 case ResourceType.PhysicsCollisionMesh:
                     var physRendererTab = new TabPage("PHYSICS");
-                    physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock).ViewerControl);
+                    physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
                     resTabs.TabPages.Add(physRendererTab);
                     break;
 

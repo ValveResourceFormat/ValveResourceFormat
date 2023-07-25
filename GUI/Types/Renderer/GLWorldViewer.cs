@@ -20,9 +20,7 @@ namespace GUI.Types.Renderer
     /// <summary>
     /// GL Render control with world controls (render mode, camera selection).
     /// </summary>
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     class GLWorldViewer : GLSceneViewer
-#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private readonly World world;
         private readonly WorldNode worldNode;
@@ -43,15 +41,28 @@ namespace GUI.Types.Renderer
             this.worldNode = worldNode;
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                worldLayersComboBox?.Dispose();
+                physicsGroupsComboBox?.Dispose();
+                cameraComboBox?.Dispose();
+                savedCameraPositionsControl?.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();
 
-            worldLayersComboBox = ViewerControl.AddMultiSelection("World Layers", null, (worldLayers) =>
+            worldLayersComboBox = AddMultiSelection("World Layers", null, (worldLayers) =>
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
-            physicsGroupsComboBox = ViewerControl.AddMultiSelection("Physics Groups", null, (physicsGroups) =>
+            physicsGroupsComboBox = AddMultiSelection("Physics Groups", null, (physicsGroups) =>
             {
                 SetEnabledPhysicsGroups(new HashSet<string>(physicsGroups));
             });
@@ -59,7 +70,7 @@ namespace GUI.Types.Renderer
             savedCameraPositionsControl = new SavedCameraPositionsControl();
             savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
             savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
-            ViewerControl.AddControl(savedCameraPositionsControl);
+            AddControl(savedCameraPositionsControl);
         }
 
         private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
@@ -113,7 +124,7 @@ namespace GUI.Types.Renderer
                     SkyboxScale = skyboxResult.SkyboxScale;
                     SkyboxOrigin = skyboxResult.SkyboxOrigin;
 
-                    ViewerControl.AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
+                    AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
 
                 var worldLayers = Scene.AllNodes
@@ -138,7 +149,7 @@ namespace GUI.Types.Renderer
                 {
                     if (cameraComboBox == default)
                     {
-                        cameraComboBox = ViewerControl.AddSelection("Camera", (cameraName, index) =>
+                        cameraComboBox = AddSelection("Camera", (cameraName, index) =>
                         {
                             if (index > 0)
                             {
@@ -183,7 +194,7 @@ namespace GUI.Types.Renderer
                 SetAvailablPhysicsGroups(physGroups);
             }
 
-            ViewerControl.Invoke(savedCameraPositionsControl.RefreshSavedPositions);
+            Invoke(savedCameraPositionsControl.RefreshSavedPositions);
         }
 
         protected override void OnPicked(object sender, PickingResponse pickingResponse)
@@ -297,7 +308,7 @@ namespace GUI.Types.Renderer
                                 return;
                             }
 
-                            if (glViewer.GLViewer is GLModelViewer glModelViewer)
+                            if (glViewer is GLModelViewer glModelViewer)
                             {
                                 // Set same mesh groups
                                 if (glModelViewer.meshGroupListBox != null)

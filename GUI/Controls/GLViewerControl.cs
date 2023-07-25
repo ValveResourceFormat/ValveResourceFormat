@@ -22,7 +22,6 @@ namespace GUI.Controls
         private static readonly float TickFrequency = TicksPerSecond / Stopwatch.Frequency;
 
         public GLControl GLControl { get; }
-        public IGLViewer GLViewer { get; }
 
         private int currentControlsHeight = 35;
 
@@ -45,12 +44,11 @@ namespace GUI.Controls
 
         Vector2 initialMousePosition;
 
-        public GLViewerControl(IGLViewer glViewer)
+        public GLViewerControl()
         {
             InitializeComponent();
             Dock = DockStyle.Fill;
 
-            GLViewer = glViewer;
             Camera = new Camera();
 
             // Initialize GL control
@@ -71,7 +69,7 @@ namespace GUI.Controls
             GLControl.MouseWheel += OnMouseWheel;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
-            GLControl.Disposed += OnDisposed;
+            Disposed += OnDisposed;
 
             GLControl.Dock = DockStyle.Fill;
             glControlContainer.Controls.Add(GLControl);
@@ -185,7 +183,7 @@ namespace GUI.Controls
             GLControl.MouseWheel -= OnMouseWheel;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
-            GLControl.Disposed -= OnDisposed;
+            Disposed -= OnDisposed;
         }
 
         private void OnVisibleChanged(object sender, EventArgs e)

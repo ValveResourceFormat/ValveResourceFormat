@@ -6,7 +6,6 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
-using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
@@ -14,49 +13,48 @@ namespace GUI.Types.Renderer
     /// GL Render control with particle controls (control points? particle counts?).
     /// Renders a list of ParticleRenderers.
     /// </summary>
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
-    class GLParticleViewer : IGLViewer
-#pragma warning restore CA1001 // Types that own disposable fields should be disposable
+    class GLParticleViewer : GLViewerControl, IGLViewer
     {
         private ICollection<ParticleRenderer.ParticleRenderer> Renderers { get; } = new HashSet<ParticleRenderer.ParticleRenderer>();
 
-        public event EventHandler Load;
-
-        public Control Control => viewerControl;
-
         private ComboBox renderModeComboBox;
-        private readonly GLViewerControl viewerControl;
         private readonly VrfGuiContext vrfGuiContext;
 
         private ParticleGrid particleGrid;
 
-        public GLParticleViewer(VrfGuiContext guiContext)
+        public GLParticleViewer(VrfGuiContext guiContext) : base()
         {
             vrfGuiContext = guiContext;
 
-            viewerControl = new GLViewerControl(this);
+            renderModeComboBox = AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
 
-            renderModeComboBox = viewerControl.AddSelection("Render Mode", (renderMode, _) => SetRenderMode(renderMode));
+            GLLoad += OnLoad;
+        }
 
-            viewerControl.GLLoad += OnLoad;
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                renderModeComboBox?.Dispose();
+            }
+
+            base.Dispose(disposing);
         }
 
         private void OnLoad(object sender, EventArgs e)
         {
             particleGrid = new ParticleGrid(20, 5, vrfGuiContext);
 
-            viewerControl.Camera.SetViewportSize(viewerControl.GLControl.Width, viewerControl.GLControl.Height);
-            viewerControl.Camera.SetLocation(new Vector3(200));
-            viewerControl.Camera.LookAt(new Vector3(0));
-
-            Load?.Invoke(this, e);
+            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
+            Camera.SetLocation(new Vector3(200));
+            Camera.LookAt(new Vector3(0));
 
             var supportedRenderModes = Renderers
                     .SelectMany(r => r.GetSupportedRenderModes())
                     .Distinct();
             SetAvailableRenderModes(supportedRenderModes);
 
-            viewerControl.GLPaint += OnPaint;
+            GLPaint += OnPaint;
         }
 
         private void OnPaint(object sender, RenderEventArgs e)

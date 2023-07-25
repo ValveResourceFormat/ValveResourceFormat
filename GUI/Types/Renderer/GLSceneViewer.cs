@@ -11,15 +11,13 @@ using GUI.Types.Renderer.UniformBuffers;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using static GUI.Controls.GLViewerControl;
 
 namespace GUI.Types.Renderer
 {
-    internal abstract class GLSceneViewer : IGLViewer, IDisposable
+    internal abstract class GLSceneViewer : GLViewerControl, IGLViewer, IDisposable
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
-        public GLViewerControl ViewerControl { get; }
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
         public bool ShowBaseGrid { get; set; } = true;
@@ -44,26 +42,24 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
 
-        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum)
+        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base()
         {
             Scene = new Scene(guiContext);
-            ViewerControl = new GLViewerControl(this);
             lockedCullFrustum = cullFrustum;
 
             InitializeControl();
 
-            ViewerControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
 
-            ViewerControl.GLLoad += OnLoad;
+            GLLoad += OnLoad;
         }
 
-        protected GLSceneViewer(VrfGuiContext guiContext)
+        protected GLSceneViewer(VrfGuiContext guiContext) : base()
         {
             Scene = new Scene(guiContext);
-            ViewerControl = new GLViewerControl(this);
 
             InitializeControl();
-            ViewerControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
+            AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
                 showStaticOctree = v;
 
@@ -72,8 +68,8 @@ namespace GUI.Types.Renderer
                     staticOctreeRenderer.StaticBuild();
                 }
             });
-            ViewerControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-            ViewerControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
+            AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
+            AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
             {
                 Scene.ShowToolsMaterials = v;
 
@@ -82,7 +78,7 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
-            ViewerControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
+            AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 if (v)
                 {
@@ -100,7 +96,20 @@ namespace GUI.Types.Renderer
                 }
             });
 
-            ViewerControl.GLLoad += OnLoad;
+            GLLoad += OnLoad;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                viewBuffer?.Dispose();
+                lightingBuffer?.Dispose();
+
+                GLPaint -= OnPaint;
+            }
+
+            base.Dispose(disposing);
         }
 
         protected abstract void InitializeControl();
@@ -122,9 +131,9 @@ namespace GUI.Types.Renderer
             baseGrid = new ParticleGrid(20, 5, GuiContext);
             selectedNodeRenderer = new(Scene);
 
-            ViewerControl.Camera.SetViewportSize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
+            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
 
-            ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+            Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
             CreateBuffers();
 
@@ -154,13 +163,13 @@ namespace GUI.Types.Renderer
                 // If there is no bbox, LookAt will break camera, so +1 to location.x
                 var location = new Vector3(bbox.Max.Z + 1, 0, bbox.Max.Z) * 1.5f;
 
-                ViewerControl.Camera.SetLocation(location);
-                ViewerControl.Camera.LookAt(bbox.Center);
+                Camera.SetLocation(location);
+                Camera.LookAt(bbox.Center);
             }
             else
             {
-                ViewerControl.Camera.SetLocation(new Vector3(256));
-                ViewerControl.Camera.LookAt(new Vector3(0));
+                Camera.SetLocation(new Vector3(256));
+                Camera.LookAt(new Vector3(0));
             }
 
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
@@ -173,8 +182,8 @@ namespace GUI.Types.Renderer
                 skyboxCamera.Scale = SkyboxScale;
             }
 
-            ViewerControl.GLLoad -= OnLoad;
-            ViewerControl.GLPaint += OnPaint;
+            GLLoad -= OnLoad;
+            GLPaint += OnPaint;
 
             GuiContext.ClearCache();
         }
@@ -274,11 +283,11 @@ namespace GUI.Types.Renderer
                 string error = null;
                 try
                 {
-                    if (ViewerControl.Camera.Picker is not null)
+                    if (Camera.Picker is not null)
                     {
-                        ViewerControl.Camera.Picker.Dispose();
-                        ViewerControl.Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
-                        ViewerControl.Camera.Picker.Resize(ViewerControl.GLControl.Width, ViewerControl.GLControl.Height);
+                        Camera.Picker.Dispose();
+                        Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+                        Camera.Picker.Resize(GLControl.Width, GLControl.Height);
                     }
 
                     SetRenderMode(renderModeComboBox?.SelectedItem as string);
@@ -302,16 +311,21 @@ namespace GUI.Types.Renderer
                 {
                     // Hide GLControl to fix message box not showing up correctly
                     // Ref: https://stackoverflow.com/a/5080752
-                    ViewerControl.GLControl.Visible = false;
+                    GLControl.Visible = false;
 
                     errorReloadingPage.Text = error;
-                    TaskDialog.ShowDialog(ViewerControl, errorReloadingPage);
+                    TaskDialog.ShowDialog(this, errorReloadingPage);
 
-                    ViewerControl.GLControl.Visible = true;
+                    GLControl.Visible = true;
                 }
             }
 
-            button.Click += (s, e) => ReloadShaders();
+            button.Click += OnButtonClick;
+
+            void OnButtonClick(object s, EventArgs e)
+            {
+                ReloadShaders();
+            }
 
             void Hotload(object s, FileSystemEventArgs e)
             {
@@ -326,7 +340,7 @@ namespace GUI.Types.Renderer
                 var timeSinceLastChange = now - lastChanged;
                 var timeSinceLastReload = now - lastReload;
 
-                if (!ViewerControl.Visible || reloadSemaphore.CurrentCount == 0
+                if (!Visible || reloadSemaphore.CurrentCount == 0
                     || timeSinceLastReload < reloadCoolDown
                     || timeSinceLastChange < changeCoolDown)
                 {
@@ -338,25 +352,27 @@ namespace GUI.Types.Renderer
                 ReloadShaders();
             };
 
-            void Disposed(object e, EventArgs a)
+            void OnDisposedLocal(object e, EventArgs a)
             {
-                ViewerControl.Disposed -= Disposed;
+                Disposed -= OnDisposedLocal;
+                button.Click -= OnButtonClick;
+                GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = null;
                 GuiContext.ShaderLoader.ShaderWatcher.Changed -= Hotload;
                 GuiContext.ShaderLoader.ShaderWatcher.Created -= Hotload;
                 GuiContext.ShaderLoader.ShaderWatcher.Renamed -= Hotload;
                 reloadSemaphore.Dispose();
             }
 
-            GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = ViewerControl;
+            GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = this;
             GuiContext.ShaderLoader.ShaderWatcher.Changed += Hotload;
             GuiContext.ShaderLoader.ShaderWatcher.Created += Hotload;
             GuiContext.ShaderLoader.ShaderWatcher.Renamed += Hotload;
-            ViewerControl.Disposed += Disposed;
+            Disposed += OnDisposedLocal;
 
-            ViewerControl.AddControl(button);
+            AddControl(button);
 #endif
 
-            renderModeComboBox ??= ViewerControl.AddSelection("Render Mode", (renderMode, _) =>
+            renderModeComboBox ??= AddSelection("Render Mode", (renderMode, _) =>
             {
                 if (skipRenderModeChange)
                 {
@@ -375,7 +391,7 @@ namespace GUI.Types.Renderer
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
                     .Distinct()
-                    .Concat(ViewerControl.Camera.Picker.Shader.RenderModes);
+                    .Concat(Camera.Picker.Shader.RenderModes);
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
@@ -397,7 +413,7 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            ViewerControl.Camera?.Picker.SetRenderMode(renderMode);
+            Camera?.Picker.SetRenderMode(renderMode);
             Scene.Sky?.SetRenderMode(renderMode);
             selectedNodeRenderer.SetRenderMode(renderMode);
 
@@ -413,12 +429,6 @@ namespace GUI.Types.Renderer
                     node.SetRenderMode(renderMode);
                 }
             }
-        }
-
-        public void Dispose()
-        {
-            viewBuffer.Dispose();
-            lightingBuffer.Dispose();
         }
     }
 }
