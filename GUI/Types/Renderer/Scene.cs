@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -274,7 +275,7 @@ namespace GUI.Types.Renderer
 
             LightingInfo.LightingData = LightingInfo.LightingData with
             {
-                EnvMapSizeConstants = new Vector4(firstTexture.Desc.NumMipLevels - 1, firstTexture.Desc.Depth, 0, 0),
+                EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, 0, 0),
             };
 
             foreach (var envMap in LightingInfo.EnvMaps.Values)
@@ -291,6 +292,11 @@ namespace GUI.Types.Renderer
                 foreach (var node in nodes)
                 {
                     node.EnvMaps.Add(envMap);
+                }
+
+                if (envMap.ArrayIndex < 0)
+                {
+                    continue;
                 }
 
                 Matrix4x4.Invert(envMap.Transform, out var invertedTransform);

@@ -323,6 +323,11 @@ namespace GUI.Types.Renderer
                             _ => 0,
                         };
 
+                        if (arrayIndex >= UniformBuffers.LightingConstants.MAX_ENVMAPS)
+                        {
+                            throw new InvalidDataException($"Envmap array index {arrayIndex} is too large! Max: {UniformBuffers.LightingConstants.MAX_ENVMAPS - 1}");
+                        }
+
                         var indoorOutdoorLevelData = entity.GetProperty("indoor_outdoor_level")?.Data;
                         var indoorOutdoorLevel = indoorOutdoorLevelData switch
                         {

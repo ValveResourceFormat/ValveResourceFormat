@@ -81,6 +81,11 @@ namespace GUI.Types.Renderer
 
                 foreach (var (possibleAlias, aliases) in TextureAliases)
                 {
+                    if (mat.Textures.ContainsKey(possibleAlias))
+                    {
+                        continue;
+                    }
+
                     if (aliases.Contains(textureName))
                     {
                         if (TryBindTexture(mat, possibleAlias, texturePath))
@@ -161,15 +166,12 @@ namespace GUI.Types.Renderer
                 clampModeU = TextureWrapMode.ClampToEdge;
             }
 
-            var tex = new RenderTexture(target, GL.GenTexture())
-            {
-                Desc = data,
-            };
+            var tex = new RenderTexture(target, data);
 
             var internalFormat = GetPixelInternalFormat(data.Format);
             var format = GetInternalFormat(data.Format);
 
-            tex.Bind();
+            using var _ = tex.BindingContext();
 
 #if DEBUG
             var textureName = Path.GetFileName(textureResource.FileName);
@@ -249,7 +251,6 @@ namespace GUI.Types.Renderer
             GL.TexParameter(target, TextureParameterName.TextureWrapT, (int)clampModeT);
             GL.TexParameter(target, TextureParameterName.TextureWrapR, (int)clampModeU);
 
-            tex.Unbind();
             return tex;
         }
 
@@ -433,16 +434,15 @@ namespace GUI.Types.Renderer
 
         private static RenderTexture GenerateColorTexture(int width, int height, float[] color)
         {
-            var texture = new RenderTexture(TextureTarget.Texture2D, GL.GenTexture());
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, 1);
+            using var _ = texture.BindingContext();
 
-            texture.Bind();
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, width, height, 0, PixelFormat.Rgba, PixelType.Float, color);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, 0);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            texture.Unbind();
 
             return texture;
         }

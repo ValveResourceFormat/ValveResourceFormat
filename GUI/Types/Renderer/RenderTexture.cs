@@ -8,20 +8,39 @@ namespace GUI.Types.Renderer
         public TextureTarget Target { get; }
         public int Handle { get; }
 
-        public Texture Desc { get; set; }
+        public Texture Data { get; }
 
-        public RenderTexture(TextureTarget target, int handle)
+        public int Width { get; }
+        public int Height { get; }
+        public int Depth { get; }
+        public int NumMipLevels { get; }
+
+        RenderTexture(TextureTarget target)
         {
             Target = target;
-            Handle = handle;
+            Handle = GL.GenTexture();
+        }
+
+        public RenderTexture(TextureTarget target, Texture data) : this(target)
+        {
+            Data = data;
+            Width = data.Width;
+            Height = data.Height;
+            Depth = data.Depth;
+            NumMipLevels = data.NumMipLevels;
+        }
+
+        public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount)
+            : this(target)
+        {
+            Width = width;
+            Height = height;
+            Depth = depth;
+            NumMipLevels = mipcount;
         }
 
         public void Bind() => GL.BindTexture(Target, Handle);
         public void Unbind() => GL.BindTexture(Target, 0);
-
-        public static implicit operator RenderTexture(int handle)
-            => FromInt32(handle);
-        public static RenderTexture FromInt32(int handle)
-            => new(TextureTarget.Texture2D, handle);
+        public BindingContext BindingContext() => new(Bind, Unbind);
     }
 }

@@ -57,7 +57,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
-            spriteSheetData = texture.Desc.GetSpriteSheetData();
+            spriteSheetData = texture.Data?.GetSpriteSheetData();
 
             additive = keyValues.GetProperty<bool>("m_bAdditive");
             if (keyValues.ContainsKey("m_flOverbrightFactor"))
