@@ -30,11 +30,13 @@ namespace GUI.Types.Renderer
         public void Load(Scene scene)
         {
             var i = 0;
+            var defaultLightingOrigin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
             foreach (var sceneObject in node.SceneObjects)
             {
                 var layerIndex = (int)(node.SceneObjectLayerIndices?[i++] ?? -1);
 
+                var lightingOrigin = sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3();
                 var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
                 var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
 
@@ -64,6 +66,7 @@ namespace GUI.Types.Renderer
                         Tint = tintColor,
                         LayerName = layerIndex > -1 ? node.LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
+                        LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : lightingOrigin,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     };

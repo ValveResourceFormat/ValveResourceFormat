@@ -314,10 +314,31 @@ namespace GUI.Types.Renderer
 
             foreach (var node in AllNodes)
             {
-                node.EnvMaps = node.EnvMaps
-                    .OrderByDescending((envMap) => envMap.IndoorOutdoorLevel)
-                    .ThenBy((envMap) => Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center))
-                    .ToList();
+                var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
+                if (node.LightingOrigin.HasValue)
+                {
+                    node.EnvMaps = node.EnvMaps
+                        .OrderBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))
+                        .ToList();
+                }
+                else
+                {
+                    node.EnvMaps = node.EnvMaps
+                        .OrderByDescending((envMap) => envMap.IndoorOutdoorLevel)
+                        .ThenBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))
+                        .ToList();
+                }
+
+#if DEBUG
+                if (node.CubeMapPrecomputedHandshake != 0 && node.EnvMaps.First().HandShake != node.CubeMapPrecomputedHandshake)
+                {
+                    var vrfDistance = Vector3.Distance(lightingOrigin, node.EnvMaps.First().BoundingBox.Center);
+                    var precalculatedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake].BoundingBox.Center);
+
+                    Console.WriteLine($"Vrf calculated envmap doesn't match with the precalculated one" +
+                        $" (dists: vrf={vrfDistance} s2={precalculatedDistance}) for node at {node.BoundingBox.Center}");
+                }
+#endif
             }
         }
     }
