@@ -253,7 +253,6 @@ namespace GUI.Types.Renderer
             {
                 SizeToContent = true,
                 AllowCancel = true,
-                Caption = "Failed to reload shaders",
                 Buttons = { TaskDialogButton.OK },
                 Icon = TaskDialogIcon.Error,
             };
@@ -277,7 +276,12 @@ namespace GUI.Types.Renderer
                 Program.MainForm.Text = "VRF - Reloading shaders…";
 
                 reloadStopWatch.Restart();
-                errorReloadingPage.BoundDialog?.Close();
+
+                if (errorReloadingPage.BoundDialog != null)
+                {
+                    errorReloadingPage.Caption = "Reloading shaders…";
+                }
+
                 GuiContext.ShaderLoader.ClearCache();
 
                 string error = null;
@@ -307,16 +311,25 @@ namespace GUI.Types.Renderer
                     Console.WriteLine($"Shader reload time: {reloadStopWatch.Elapsed}, number of variants: {GuiContext.ShaderLoader.ShaderCount}");
                 }
 
-                if (error != null && errorReloadingPage.BoundDialog == null)
+                if (error != null)
                 {
                     // Hide GLControl to fix message box not showing up correctly
                     // Ref: https://stackoverflow.com/a/5080752
                     GLControl.Visible = false;
 
+                    errorReloadingPage.Caption = "Failed to reload shaders";
                     errorReloadingPage.Text = error;
-                    TaskDialog.ShowDialog(this, errorReloadingPage);
+
+                    if (errorReloadingPage.BoundDialog == null)
+                    {
+                        TaskDialog.ShowDialog(this, errorReloadingPage);
+                    }
 
                     GLControl.Visible = true;
+                }
+                else
+                {
+                    errorReloadingPage.BoundDialog?.Close();
                 }
             }
 

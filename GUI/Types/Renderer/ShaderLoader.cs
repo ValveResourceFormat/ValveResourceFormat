@@ -185,7 +185,6 @@ namespace GUI.Types.Renderer
                         if (match.Success)
                         {
                             // Recursively append included shaders
-                            // TODO: Add #line?
 
                             var includeName = match.Groups["IncludeName"].Value;
 
@@ -280,7 +279,10 @@ namespace GUI.Types.Renderer
                 info += $"\nError in {sourceFiles[errorSourceFile]} on line {errorLine}";
 
 #if DEBUG
-                info += $":\n{sourceFileLines[errorSourceFile][errorLine - 1]}\n";
+                if (errorLine > 0 && sourceFileLines[errorSourceFile].Count < errorLine)
+                {
+                    info += $":\n{sourceFileLines[errorSourceFile][errorLine - 1]}\n";
+                }
 #endif
             }
 
