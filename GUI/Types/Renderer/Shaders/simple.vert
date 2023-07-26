@@ -17,6 +17,7 @@
 #define F_LAYERS 0
 #define F_SECONDARY_UV 0
 #define F_DETAIL_TEXTURE 0
+#define F_FOLIAGE_ANIMATION 0
 #define F_TEXTURE_ANIMATION 0
 #define F_TEXTURE_ANIMATION_MODE 0
 //End of parameter defines
@@ -63,8 +64,12 @@ in vec2 vTEXCOORD;
     in vec4 vCOLOR;
 #endif
 #if F_SECONDARY_UV
-    in vec2 vTEXCOORD2;
+    in vec4 vTEXCOORD2;
     out vec2 vTexCoord2;
+#endif
+#if (F_FOLIAGE_ANIMATION > 0)
+    in vec4 vTEXCOORD1;
+    in vec4 vTEXCOORD2;
 #endif
 
 out vec4 vVertexColorOut;
@@ -180,7 +185,12 @@ void main()
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
 
-	vTexCoordOut = GetAnimatedUVs(vTEXCOORD);
+#if (F_FOLIAGE_ANIMATION > 0)
+    // TODO: this should always be texcoord semanticindex 0
+	vTexCoordOut = GetAnimatedUVs(vTEXCOORD2.xy);
+#else
+	vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
+#endif
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
@@ -197,7 +207,7 @@ void main()
 #endif
 
 #if F_SECONDARY_UV == 1
-    vTexCoord2 = vTEXCOORD2;
+    vTexCoord2 = vTEXCOORD2.xy;
 #endif
 
 #if F_DETAIL_TEXTURE > 0
