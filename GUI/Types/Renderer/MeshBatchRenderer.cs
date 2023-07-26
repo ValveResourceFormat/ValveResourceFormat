@@ -159,17 +159,6 @@ namespace GUI.Types.Renderer
 
             if (uniforms.CubeMapArrayIndices != -1)
             {
-                /*
-                var arrayIndex = 0;
-
-                if (request.Node.CubeMapPrecomputedHandshake > 0 && context.LightingInfo.EnvMaps.TryGetValue(request.Node.CubeMapPrecomputedHandshake, out var envMap))
-                {
-                    arrayIndex = envMap.ArrayIndex;
-                }
-
-                GL.Uniform1(uniforms.CubeMapArrayIndex, arrayIndex);
-                */
-
                 var indices = request.Node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
                 GL.Uniform1(uniforms.CubeMapArrayIndices, indices.Length, indices);
             }
