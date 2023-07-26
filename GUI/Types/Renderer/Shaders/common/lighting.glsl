@@ -39,16 +39,10 @@ vec3 getSunColor()
 
 
 
-
-
-
-
-
+// This should contain our direct lighting loop
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
-    vec3 L = normalize(-getSunDir());
-    vec3 H = normalize(mat.ViewDir + L);
-
+    vec3 lightVector = normalize(-getSunDir());
 
 
     // Lighting
@@ -72,19 +66,14 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
     #endif
 #endif
 
+    vec3 lightColor = visibility * getSunColor();
     if (visibility > 0.0)
     {
-        vec3 specularLight = specularLighting(L, mat.ViewDir, mat.Normal, mat.SpecularColor, mat.Roughness, mat.ExtraParams);
-#if defined(useDiffuseWrap)
-        vec3 diffuseLight = diffuseWrapped(mat.Normal, L);
-#else
-        float diffuseLight = diffuseLobe(max(dot(mat.Normal, L), 0.0), mat.Roughness);
-#endif
-        lighting.SpecularDirect += specularLight * visibility * getSunColor();
-        lighting.DiffuseDirect += diffuseLight * visibility * getSunColor();
+        CalculateShading(lighting, lightVector, vec3(visibility), mat);
     }
-
 }
+
+
 
 
 

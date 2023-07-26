@@ -16,6 +16,9 @@
 
 float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
 {
+#if (renderMode_Cubemaps == 1)
+    return 0.0;
+#else
     float EnvMapMipCount = g_vEnvMapSizeConstants.x;
 
     #if F_CLOTH_SHADING == 1
@@ -24,6 +27,7 @@ float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
     #else
         return roughness * EnvMapMipCount;
     #endif
+#endif
 }
 
 // Cubemap Normalization
@@ -76,8 +80,14 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
         return g_vClearColor.rgb;
     #else
 
+#if (renderMode_Cubemaps == 1)
+    vec3 normal = mat.GeometricNormal;
+#else
+    vec3 normal = mat.AmbientNormal;
+#endif
+
     // Reflection Vector
-    vec3 R = normalize(reflect(-mat.ViewDir, mat.AmbientNormal));
+    vec3 R = normalize(reflect(-mat.ViewDir, normal));
 
     float lod = GetEnvMapLOD(mat.Roughness, R, mat.ExtraParams);
 
@@ -129,7 +139,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
             float weight = ((distanceFromEdge * distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
             totalWeight += weight;
 
-            #if rendermode_Cubemaps == 0
+            #if renderMode_Cubemaps == 0
                 // blend
                 #if (F_CLOTH_SHADING == 1)
                     coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(mat.Roughness));
