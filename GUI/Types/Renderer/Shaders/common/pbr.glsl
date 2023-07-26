@@ -1,6 +1,10 @@
 #define PI 3.1415926535897932384626433832795
 
 
+
+
+// DIFFUSE LIGHTING
+
 float diffuseLobe(float NoL, float roughness)
 {
     // Pi is never factored into any lighting calculations in Source 2, for some reason (as of HLA)
@@ -11,10 +15,9 @@ float diffuseLobe(float NoL, float roughness)
 
 
 #if (F_DIFFUSE_WRAP == 1) || (F_DIFFSUE_WRAP == 1) || defined(vr_xen_foliage) || defined(vr_eyeball)
-#define useDiffuseWrap
-#endif
 
-#if defined(useDiffuseWrap)
+#define useDiffuseWrap
+
 // Used in vr_xen_foliage, vr_eyeball (not supported yet bc alt param names), and optionally in vr_complex
 uniform float g_flDiffuseExponent = 1.0;
 uniform float g_flDiffuseWrap = 1.0;
@@ -28,8 +31,6 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
     return mix(vec3(saturate(NoL)), vec3(DiffuseWrapLighting), g_vDiffuseWrapColor.rgb);
 }
 #endif
-
-
 
 
 
@@ -107,34 +108,34 @@ vec3 SpecularCloth(float roughness, float NoL, float NoH, float NoV, float VoH, 
 }
 #endif
 
-
-vec3 specularLighting(vec3 L, vec3 V, vec3 N, vec3 specularColor, float roughness, vec4 extraParams)
+// Still pass normal due to some effects modifying normal
+vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 {
-	float NoL = saturate( dot(N, L) );
+	float NoL = saturate( dot(normal, lightVector) );
 
-	vec3 H = normalize(V + L);
+	vec3 halfVector = normalize(mat.ViewDir + lightVector);
 
-#if F_RETRO_REFLECTIVE == 1
-    H = GetRetroReflectiveNormal(extraParams.r, L, V, N, H);
+#if (F_RETRO_REFLECTIVE == 1)
+    normal = GetRetroReflectiveNormal(mat.ExtraParams.r, lightVector, mat.ViewDir, normal, halfVector);
 #endif
 
-	float NoH = saturate( dot(N, H) );
-	float NoV = saturate( dot(N, V) );
-	float VoH = ClampToPositive(dot(L, H));
+	float NoH = saturate( dot(normal, halfVector) );
+	float NoV = saturate( dot(normal, mat.ViewDir) );
+	float VoH = ClampToPositive(dot(lightVector, halfVector));
 
 #if defined(vr_complex) && (F_CLOTH_SHADING == 1)
-    return SpecularCloth(roughness, NoL, NoH, NoV, VoH, specularColor);
+    return SpecularCloth(mat.Roughness, NoL, NoH, NoV, VoH, mat.SpecularColor);
 #endif
-	float NDF = D_GGX(NoH, roughness); 
-	float Vis = G_SchlickSmithGGX(NoL, NoV, roughness);
-	vec3 F = F_Schlick(VoH, specularColor);
+	float NDF = D_GGX(NoH, mat.Roughness); 
+	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.Roughness);
+	vec3 F = F_Schlick(VoH, mat.SpecularColor);
 
 #if (F_CLOTH_SHADING == 1)
     // I'm not sure how they blend to the cloth shading, but I'm assuming it's just blending shading
-    float ClothNDF = D_Cloth(roughness, NoH);
+    float ClothNDF = D_Cloth(mat.Roughness, NoH);
     float ClothVis = Vis_Cloth(NoL, NoV);
 
-    float clothMask = extraParams.z;
+    float clothMask = mat.ExtraParams.z;
 
     float blendedClothShading = mix(NDF * Vis, ClothNDF * ClothVis, clothMask);
 
@@ -142,4 +143,21 @@ vec3 specularLighting(vec3 L, vec3 V, vec3 N, vec3 specularColor, float roughnes
 #else
     return vec3(NDF * Vis * NoL) * F;
 #endif
+}
+
+
+
+
+
+void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat)
+{
+#if defined(useDiffuseWrap)
+    vec3 diffuseLight = diffuseWrapped(mat.Normal, lightVector);
+#else
+    float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), mat.Roughness);
+#endif
+    vec3 specularLight = specularLighting(lightVector, mat.Normal, mat);
+
+    lighting.SpecularDirect += specularLight * lightColor;
+    lighting.DiffuseDirect += diffuseLight * lightColor;
 }
