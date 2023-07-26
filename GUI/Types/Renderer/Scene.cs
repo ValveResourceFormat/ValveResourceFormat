@@ -330,13 +330,21 @@ namespace GUI.Types.Renderer
                 }
 
 #if DEBUG
-                if (node.CubeMapPrecomputedHandshake != 0 && node.EnvMaps.First().HandShake != node.CubeMapPrecomputedHandshake)
+                if (node.CubeMapPrecomputedHandshake != 0)
                 {
-                    var vrfDistance = Vector3.Distance(lightingOrigin, node.EnvMaps.First().BoundingBox.Center);
+                    var vrfCalculated = node.EnvMaps.FirstOrDefault();
+                    var preCalculated = LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake];
+                    if (vrfCalculated is null)
+                    {
+                        Console.WriteLine($"Vrf couldn't find any envmaps for node at {node.BoundingBox.Center}. Valve precalculated envmap is at {preCalculated.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
+                        continue;
+                    }
+
+                    var vrfDistance = Vector3.Distance(lightingOrigin, vrfCalculated.BoundingBox.Center);
                     var precalculatedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake].BoundingBox.Center);
 
                     Console.WriteLine($"Vrf calculated envmap doesn't match with the precalculated one" +
-                        $" (dists: vrf={vrfDistance} s2={precalculatedDistance}) for node at {node.BoundingBox.Center}");
+                        $" (dists: vrf={vrfDistance} s2={precalculatedDistance}) for node at {node.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
                 }
 #endif
             }
