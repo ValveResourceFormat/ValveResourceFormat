@@ -1,5 +1,4 @@
 using System.Windows.Forms;
-using OpenTK;
 
 namespace GUI.Controls
 {
@@ -19,6 +18,8 @@ namespace GUI.Controls
             if (disposing && (components != null))
             {
                 components.Dispose();
+
+                FullScreenForm?.Dispose();
             }
             base.Dispose(disposing);
         }
