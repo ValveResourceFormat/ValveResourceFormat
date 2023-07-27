@@ -74,6 +74,11 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             basicProvider = fallBackToBasic ? new BasicShaderDataProvider() : null;
         }
 
+        private ShaderCollection LoadShaderCollectionCached(string shaderName)
+        {
+            return cache.GetOrAddShader(shaderName, (s) => fileLoader.LoadShader(s));
+        }
+
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
             return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material);
@@ -84,102 +89,83 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
 
-        public (ShaderCollection Collection, ShaderFile Shader, ZFrameFile ZFrame) GetZFrame_TEST_DO_NOT_MERGE(string textureType, Material material, string forcedStaticName = null)
+        public static IDictionary<string, byte> GetMaterialFeatureState(Material material)
+            => material.IntParams
+                .Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal))
+                .ToDictionary(p => p.Key, p => (byte)p.Value);
+
+        /// <summary>
+        /// Produce a static configuration that fits the material's feature state.
+        /// This configuration can be used to select one of the static variants contained in the shader file.
+        /// </summary>
+        /// <param name="features">Features vcs file that contains the feature definitions.</param>
+        /// <param name="shaderFile">Stage for which the configuration will be generated.</param>
+        /// <param name="featureParams">Feature parameters have the 'F_' prefix.</param>
+        /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
+        /// <returns>Static configuration and a generator that can be used to retreive the zframe id.</returns>
+        public static (int[] StaticConfig, long ZFrameId) GetStaticConfiguration_ForFeatureState(
+            ShaderFile features,
+            ShaderFile shaderFile,
+            IDictionary<string, byte> featureParams,
+            IDictionary<string, byte> staticParams = null)
         {
-            var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
-            if (shader?.Features == null)
+            ArgumentNullException.ThrowIfNull(features, nameof(features));
+            ArgumentNullException.ThrowIfNull(shaderFile, nameof(shaderFile));
+
+            if (features.VcsProgramType != VcsProgramType.Features)
             {
-                return (null, null, null);
+                throw new ArgumentOutOfRangeException(nameof(features), $"Argument needs to be a shader file of type: {VcsProgramType.Features}");
             }
 
-            var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
-            if (@params.Length == 0)
+            if (shaderFile.VcsProgramType == VcsProgramType.Features)
             {
-                throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
+                throw new ArgumentOutOfRangeException(nameof(shaderFile), $"Static config cannot be built for shader files of type: {VcsProgramType.Features}");
             }
-            else
+
+            var staticConfiguration = new int[shaderFile.SfBlocks.Count];
+            var configGen = new ConfigMappingSParams(shaderFile);
+
+            foreach (var condition in shaderFile.SfBlocks)
             {
-                var featureState = material.IntParams.Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal));
-
-                // Pixel shader first
-                var collectionOrdered = shader
-                    .Where(sh => sh.VcsProgramType != VcsProgramType.Features && sh.ZframesLookup.Count > 0)
-                    .OrderByDescending(sh => sh.VcsProgramType == VcsProgramType.PixelShader);
-
-                foreach (var shaderFile in collectionOrdered)
+                if (condition.FeatureIndex == -1)
                 {
-                    var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
-                    if (fileParams.Length == 0)
+                    if (staticParams != null && staticParams.TryGetValue(condition.Name, out var value))
                     {
-                        continue;
+                        staticConfiguration[condition.BlockIndex] = value;
                     }
 
-                    var staticConfiguration = new int[shaderFile.SfBlocks.Count];
-                    var configGen = new ConfigMappingSParams(shaderFile);
-
-                    foreach (var condition in shaderFile.SfBlocks)
-                    {
-                        // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled
-                        // for textures to be referenced in the writeseq blocks.
-                        if ((condition.Name == "S_MODE_FORWARD" && condition.FeatureIndex == -1)
-                            || (forcedStaticName is not null && condition.Name == forcedStaticName))
-                        {
-                            staticConfiguration[condition.BlockIndex] = 1;
-                            continue;
-                        }
-
-                        if (condition.FeatureIndex == -1)
-                        {
-                            continue;
-                        }
-
-                        var feature = shader.Features.SfBlocks[condition.FeatureIndex];
-
-                        foreach (var (Name, Value) in featureState)
-                        {
-                            if (feature.Name == Name)
-                            {
-                                if (Value > feature.RangeMax || Value < feature.RangeMin)
-                                {
-                                    throw new InvalidDataException($"Material feature '{Name}' is out of range for '{shader.Features.ShaderName}'");
-                                }
-
-                                staticConfiguration[condition.BlockIndex] = (int)Value;
-                                break;
-                            }
-                        }
-                    }
-
-                    var zframeId = configGen.GetZframeId(staticConfiguration);
-
-                    // It can happen that the shader feature rules don't match static rules, producing
-                    // materials with bad feature configuration. That or the material data is just bad/incompatible.
-                    if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
-                    {
-                        // Game code probably goes through the sfRules and switches off only some of the parameters.
-                        // But here we just fall back to first zframe (effectively switches all off).
-                        zframeId = 0;
-                    }
-
-                    lock (shaderFile)
-                    {
-                        return (shader, shaderFile, shaderFile.GetZFrameFile(zframeId));
-                    }
+                    continue;
                 }
 
-                throw new InvalidDataException(
-                    $"Varying parameter '{textureType}' in '{shader.Features.ShaderName}' could not be resolved. "
-                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
+                var feature = features.SfBlocks[condition.FeatureIndex];
+
+                foreach (var (Name, Value) in featureParams)
+                {
+                    if (feature.Name == Name)
+                    {
+                        // Check that data coming from the material is within the allowed range
+                        if (Value > feature.RangeMax || Value < feature.RangeMin)
+                        {
+                            // TODO: what does source2 fall back to in this case? 0?
+                            throw new InvalidDataException($"Material feature '{Name}' is out of range for '{features.ShaderName}'");
+                        }
+
+                        staticConfiguration[condition.BlockIndex] = Value;
+                        break;
+                    }
+                }
             }
+
+            return (staticConfiguration, configGen.GetZframeId(staticConfiguration));
         }
 
         /// <summary>
         /// Get precise texture inputs by querying the shader files. 
         /// </summary>
         private IEnumerable<(Channel Channel, string Name)>
-            GetInputsForTexture_Internal(string textureType, Material material, string forcedStaticName = null)
+            GetInputsForTexture_Internal(string textureType, Material material, KeyValuePair<string, byte> forcedStatic = default)
         {
-            var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
+            var shader = LoadShaderCollectionCached(material.ShaderName);
             if (shader?.Features == null)
             {
                 return null;
@@ -197,7 +183,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             }
             else
             {
-                var featureState = material.IntParams.Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal));
+                var featureState = GetMaterialFeatureState(material);
 
                 // Pixel shader first
                 var collectionOrdered = shader
@@ -212,43 +198,17 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
                         continue;
                     }
 
-                    var staticConfiguration = new int[shaderFile.SfBlocks.Count];
-                    var configGen = new ConfigMappingSParams(shaderFile);
+                    // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled for textures
+                    // to be referenced in the writeseq blocks.
+                    var staticState = new Dictionary<string, byte>() { { "S_MODE_FORWARD", 1 } };
 
-                    foreach (var condition in shaderFile.SfBlocks)
+                    if (forcedStatic.Key is not null)
                     {
-                        // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled
-                        // for textures to be referenced in the writeseq blocks.
-                        if ((condition.Name == "S_MODE_FORWARD" && condition.FeatureIndex == -1)
-                            || (forcedStaticName is not null && condition.Name == forcedStaticName))
-                        {
-                            staticConfiguration[condition.BlockIndex] = 1;
-                            continue;
-                        }
-
-                        if (condition.FeatureIndex == -1)
-                        {
-                            continue;
-                        }
-
-                        var feature = shader.Features.SfBlocks[condition.FeatureIndex];
-
-                        foreach (var (Name, Value) in featureState)
-                        {
-                            if (feature.Name == Name)
-                            {
-                                if (Value > feature.RangeMax || Value < feature.RangeMin)
-                                {
-                                    throw new InvalidDataException($"Material feature '{Name}' is out of range for '{shader.Features.ShaderName}'");
-                                }
-
-                                staticConfiguration[condition.BlockIndex] = (int)Value;
-                                break;
-                            }
-                        }
+                        staticState.Add(forcedStatic.Key, forcedStatic.Value);
                     }
 
-                    var zframeId = configGen.GetZframeId(staticConfiguration);
+                    var configured = GetStaticConfiguration_ForFeatureState(shader.Features, shaderFile, featureState, staticState);
+                    var zframeId = configured.ZFrameId;
 
                     // It can happen that the shader feature rules don't match static rules, producing
                     // materials with bad feature configuration. That or the material data is just bad/incompatible.
@@ -275,12 +235,12 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
                         }
                     }
 
-                    if (forcedStaticName is null)
+                    if (forcedStatic.Key is null)
                     {
                         // Try again with S_MODE_TOOLS_VIS
                         // Fixes hlvr/pak01/materials/skybox/sky_stars_01.vmat
                         // Jumps from zframe 0x230a to 0x280230a, ends up matching the 2nd g_tNormal, with Box mips.
-                        return GetInputsForTexture_Internal(textureType, material, forcedStaticName: "S_MODE_TOOLS_VIS");
+                        return GetInputsForTexture_Internal(textureType, material, forcedStatic: new KeyValuePair<string, byte>("S_MODE_TOOLS_VIS", 1));
                     }
                 }
 
@@ -317,7 +277,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
 
         private string GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
-            var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
+            var shader = LoadShaderCollectionCached(material.ShaderName);
             if (shader?.Features != null)
             {
                 foreach (var param in shader.Features.ParamBlocks)

@@ -65,23 +65,30 @@ namespace GUI.Types.Renderer
 
         private void OnShadersButtonClick(object s, EventArgs e)
         {
-            var shaderData = new FullShaderDataProvider(GuiContext.FileLoader, false);
-
             var material = (Material)Resource.DataBlock;
 
-            var textureKey = material.TextureParams.First().Key; // TODO: Why are we looking up a specific texture?
+            var shaders = GuiContext.FileLoader.LoadShader(material.ShaderName);
 
-            var test = shaderData.GetZFrame_TEST_DO_NOT_MERGE(textureKey, material);
+            var featureState = FullShaderDataProvider.GetMaterialFeatureState(material);
 
-            var zframeTab = new TabPage("ZFrame");
-            var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, test.Shader, test.Collection, test.ZFrame.ZframeId);
-            zframeTab.Controls.Add(zframeRichTextBox);
+            AddZframeTab(shaders.Vertex);
+            AddZframeTab(shaders.Pixel);
 
-            var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(test.Collection, test.Shader, test.ZFrame, 0, "Shader");
+            void AddZframeTab(ValveResourceFormat.CompiledShader.ShaderFile stage)
+            {
+                var result = FullShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, stage, featureState);
 
-            Tabs.TabPages.Add(gpuSourceTab);
-            Tabs.Controls.Add(zframeTab);
-            Tabs.SelectTab(gpuSourceTab);
+                var zframeTab = new TabPage($"{stage.VcsProgramType} Static[{result.ZFrameId}]");
+                var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, stage, shaders, result.ZFrameId);
+                zframeTab.Controls.Add(zframeRichTextBox);
+
+                using var zFrame = stage.GetZFrameFile(result.ZFrameId);
+                var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(shaders, stage, zFrame, 0, $"{stage.VcsProgramType} Source[0]");
+
+                Tabs.Controls.Add(zframeTab);
+                Tabs.TabPages.Add(gpuSourceTab);
+                Tabs.SelectTab(gpuSourceTab);
+            }
         }
 
         private void AddShaderButton()
