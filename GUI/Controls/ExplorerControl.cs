@@ -153,7 +153,7 @@ namespace GUI.Controls
                                 return false;
                             }
 
-                            return entry.FileName.EndsWith(".vpk", StringComparison.Ordinal) && !Regexes.VpkNumberArchive.IsMatch(entry.FileName);
+                            return entry.FileName.EndsWith(".vpk", StringComparison.Ordinal) && !Regexes.VpkNumberArchive().IsMatch(entry.FileName);
                         }
                     };
 
