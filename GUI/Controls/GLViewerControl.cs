@@ -91,8 +91,7 @@ namespace GUI.Controls
                 FullScreenForm = new Form
                 {
                     Text = "VRF Fullscreen",
-                    ShowIcon = false,
-                    ShowInTaskbar = false,
+                    Icon = Program.MainForm.Icon,
                     ControlBox = false,
                     FormBorderStyle = FormBorderStyle.None,
                     WindowState = FormWindowState.Maximized
@@ -100,17 +99,17 @@ namespace GUI.Controls
                 FullScreenForm.Controls.Add(GLControl);
                 FullScreenForm.Show();
                 FullScreenForm.Focus();
-                FullScreenForm.Deactivate += OnFullScreenFormLostFocus;
+                FullScreenForm.FormClosed += OnFullScreenFormClosed;
             }
         }
 
-        private void OnFullScreenFormLostFocus(object sender, EventArgs e)
+        private void OnFullScreenFormClosed(object sender, EventArgs e)
         {
             glControlContainer.Controls.Add(GLControl);
+            GLControl.Focus();
 
             var form = (Form)sender;
-            form.Deactivate -= OnFullScreenFormLostFocus;
-            form.Close();
+            form.FormClosed -= OnFullScreenFormClosed;
 
             FullScreenForm = null;
         }
