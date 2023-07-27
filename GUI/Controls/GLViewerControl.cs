@@ -342,7 +342,7 @@ namespace GUI.Controls
 
         private void Draw()
         {
-            if (!GLControl.Visible || GLControl.IsDisposed)
+            if (!GLControl.Visible || GLControl.IsDisposed || !GLControl.Context.IsCurrent)
             {
                 return;
             }
