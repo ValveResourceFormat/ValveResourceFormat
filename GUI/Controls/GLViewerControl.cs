@@ -38,7 +38,7 @@ namespace GUI.Controls
         public Action<GLViewerControl> GLPostLoad { get; set; }
         private static bool hasCheckedOpenGL;
 
-        Form FullScreenForm;
+        protected Form FullScreenForm { get; private set; }
         long lastFpsUpdate;
         long lastUpdate;
         int frames;

@@ -69,7 +69,6 @@ namespace GUI.Forms
             ClientSize = new System.Drawing.Size(800, 450);
             Controls.Add(dataGrid);
             Name = "EntityInfoForm";
-            ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent;
             Text = "EntityInfoForm";
             ((System.ComponentModel.ISupportInitialize)dataGrid).EndInit();
