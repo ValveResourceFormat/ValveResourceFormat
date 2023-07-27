@@ -73,9 +73,14 @@ namespace GUI.Types.Renderer
 
             var test = shaderData.GetZFrame_TEST_DO_NOT_MERGE(textureKey, material);
 
+            var zframeTab = new TabPage("ZFrame");
+            var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, test.Shader, test.Collection, test.ZFrame.ZframeId);
+            zframeTab.Controls.Add(zframeRichTextBox);
+
             var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(test.Collection, test.Shader, test.ZFrame, 0, "Shader");
 
             Tabs.TabPages.Add(gpuSourceTab);
+            Tabs.Controls.Add(zframeTab);
             Tabs.SelectTab(gpuSourceTab);
         }
 

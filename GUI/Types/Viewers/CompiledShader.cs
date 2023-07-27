@@ -260,7 +260,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        private class ZFrameRichTextBox : RichTextBox, IDisposable
+        public class ZFrameRichTextBox : RichTextBox, IDisposable
         {
             private readonly TabControl tabControl;
             private readonly ShaderCollection shaderCollection;
