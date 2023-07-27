@@ -263,7 +263,7 @@ namespace GUI.Utils
             var selectedPlatformType = VcsPlatformType.Undetermined;
             var selectedModelType = VcsShaderModelType.Undetermined;
 
-            for (var platformType = VcsPlatformType.PC; platformType < VcsPlatformType.Undetermined && selectedPlatformType == VcsPlatformType.Undetermined; platformType++)
+            for (var platformType = (VcsPlatformType)0; platformType < VcsPlatformType.Undetermined && selectedPlatformType == VcsPlatformType.Undetermined; platformType++)
             {
                 for (var modelType = VcsShaderModelType._60; modelType > VcsShaderModelType._20; modelType--)
                 {
@@ -574,7 +574,7 @@ namespace GUI.Utils
         {
             foreach (var folder in CurrentGameSearchPaths)
             {
-                for (var platformType = VcsPlatformType.PC; platformType < VcsPlatformType.Undetermined; platformType++)
+                for (var platformType = (VcsPlatformType)0; platformType < VcsPlatformType.Undetermined; platformType++)
                 {
                     var shaderName = $"shaders_{platformType.ToString().ToLowerInvariant()}_dir.vpk";
                     var vpk = Path.Combine(folder, shaderName);
