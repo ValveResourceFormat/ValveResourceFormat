@@ -326,6 +326,8 @@ namespace GUI.Types.Renderer
 
             Matrix4x4.Invert(sceneNode.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
 
+            FullScreenForm?.Close();
+
             Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry).ContinueWith(
                 t =>
                 {

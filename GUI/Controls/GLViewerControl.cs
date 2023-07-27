@@ -38,6 +38,7 @@ namespace GUI.Controls
         public Action<GLViewerControl> GLPostLoad { get; set; }
         private static bool hasCheckedOpenGL;
 
+        protected Form FullScreenForm { get; private set; }
         long lastFpsUpdate;
         long lastUpdate;
         int frames;
@@ -67,12 +68,50 @@ namespace GUI.Controls
             GLControl.MouseUp += OnMouseUp;
             GLControl.MouseDown += OnMouseDown;
             GLControl.MouseWheel += OnMouseWheel;
+            GLControl.KeyUp += OnKeyUp;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             Disposed += OnDisposed;
 
             GLControl.Dock = DockStyle.Fill;
             glControlContainer.Controls.Add(GLControl);
+        }
+
+        private void OnKeyUp(object sender, KeyEventArgs e)
+        {
+            if ((e.KeyCode == Keys.Escape || e.KeyCode == Keys.F11) && FullScreenForm != null)
+            {
+                FullScreenForm.Close();
+
+                return;
+            }
+
+            if (e.KeyCode == Keys.F11)
+            {
+                FullScreenForm = new Form
+                {
+                    Text = "VRF Fullscreen",
+                    Icon = Program.MainForm.Icon,
+                    ControlBox = false,
+                    FormBorderStyle = FormBorderStyle.None,
+                    WindowState = FormWindowState.Maximized
+                };
+                FullScreenForm.Controls.Add(GLControl);
+                FullScreenForm.Show();
+                FullScreenForm.Focus();
+                FullScreenForm.FormClosed += OnFullScreenFormClosed;
+            }
+        }
+
+        private void OnFullScreenFormClosed(object sender, EventArgs e)
+        {
+            glControlContainer.Controls.Add(GLControl);
+            GLControl.Focus();
+
+            var form = (Form)sender;
+            form.FormClosed -= OnFullScreenFormClosed;
+
+            FullScreenForm = null;
         }
 
         private void SetFps(int fps)
@@ -181,6 +220,7 @@ namespace GUI.Controls
             GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
             GLControl.MouseWheel -= OnMouseWheel;
+            GLControl.KeyUp -= OnKeyUp;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Disposed -= OnDisposed;
@@ -292,7 +332,6 @@ namespace GUI.Controls
             HandleResize();
             GLPostLoad?.Invoke(this);
             GLPostLoad = null;
-            Draw();
         }
 
         private void OnPaint(object sender, EventArgs e)
@@ -303,7 +342,7 @@ namespace GUI.Controls
 
         private void Draw()
         {
-            if (!GLControl.Visible || GLControl.IsDisposed)
+            if (!GLControl.Visible || GLControl.IsDisposed || !GLControl.Context.IsCurrent)
             {
                 return;
             }

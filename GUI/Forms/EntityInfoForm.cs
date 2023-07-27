@@ -7,6 +7,8 @@ namespace GUI.Forms
         public EntityInfoForm()
         {
             InitializeComponent();
+
+            Icon = Program.MainForm.Icon;
         }
 
         public void AddColumn(string name, string value)
