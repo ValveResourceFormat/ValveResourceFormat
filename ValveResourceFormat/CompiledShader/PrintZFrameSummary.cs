@@ -270,7 +270,7 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSource = blockIdToSource[blockId];
                 var sourceLink = showRichTextBoxLinks ?
                     @$"\\source\{blockSource.SourceId}" :
-                    $"{gpuSourceName}[{blockSource.GetEditorRefIdAsString()}]";
+                    $"{gpuSourceName}[{blockSource.GetHashAsString()}]";
                 var vsInputs = isVertexShader ?
                     zframeFile.VShaderInputs[blockId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
