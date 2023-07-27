@@ -58,14 +58,14 @@ namespace ValveResourceFormat.CompiledShader
         public int SourceId { get; }
         public int Offset { get; protected set; }
         public byte[] Sourcebytes { get; protected set; } = Array.Empty<byte>();
-        public byte[] EditorRefId { get; protected set; }
+        public byte[] HashMD5 { get; protected set; }
         protected GpuSource(ShaderDataReader datareader, int sourceId) : base(datareader)
         {
             SourceId = sourceId;
         }
-        public string GetEditorRefIdAsString()
+        public string GetHashAsString()
         {
-            var stringId = ShaderUtilHelpers.BytesToString(EditorRefId);
+            var stringId = ShaderUtilHelpers.BytesToString(HashMD5);
             stringId = stringId.Replace(" ", "", StringComparison.InvariantCulture).ToLowerInvariant();
             return stringId;
         }
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         public string GetSourceDetails()
         {
-            return $"// {GetBlockName()}[{SourceId}] source bytes ({Sourcebytes.Length}) ref={GetEditorRefIdAsString()}";
+            return $"// {GetBlockName()}[{SourceId}] source bytes ({Sourcebytes.Length}) hash={GetHashAsString()}";
         }
         public abstract string GetBlockName();
     }
@@ -96,7 +96,7 @@ namespace ValveResourceFormat.CompiledShader
                 Sourcebytes = datareader.ReadBytes(Offset2 - 1); // -1 because the sourcebytes are null-term
                 datareader.BaseStream.Position += 1;
             }
-            EditorRefId = datareader.ReadBytes(16);
+            HashMD5 = datareader.ReadBytes(16);
         }
         public override string GetBlockName()
         {
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.CompiledShader
                 HeaderBytes = (int)datareader.ReadUInt16() * 4; // size is given as a 4-byte count
                 Sourcebytes = datareader.ReadBytes(Offset - 8); // size of source equals offset-8
             }
-            EditorRefId = datareader.ReadBytes(16);
+            HashMD5 = datareader.ReadBytes(16);
         }
         public override string GetBlockName()
         {
@@ -145,7 +145,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 Sourcebytes = datareader.ReadBytes(Offset);
             }
-            EditorRefId = datareader.ReadBytes(16);
+            HashMD5 = datareader.ReadBytes(16);
         }
         public override string GetBlockName()
         {
@@ -168,7 +168,7 @@ namespace ValveResourceFormat.CompiledShader
                 Sourcebytes = datareader.ReadBytes(Offset - 8);
                 MetaDataLength = Sourcebytes.Length - MetaDataOffset;
             }
-            EditorRefId = datareader.ReadBytes(16);
+            HashMD5 = datareader.ReadBytes(16);
         }
         public override string GetBlockName()
         {
