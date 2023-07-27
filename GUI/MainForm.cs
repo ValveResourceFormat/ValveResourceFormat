@@ -443,7 +443,7 @@ namespace GUI
         {
             Console.WriteLine($"Opening {fileName}");
 
-            if (Regexes.VpkNumberArchive.IsMatch(fileName))
+            if (Regexes.VpkNumberArchive().IsMatch(fileName))
             {
                 var fixedPackage = $"{fileName[..^8]}_dir.vpk";
 

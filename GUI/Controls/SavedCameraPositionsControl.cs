@@ -13,6 +13,7 @@ namespace GUI.Controls
 
         public event EventHandler SaveCameraRequest;
         public event EventHandler<RestoreCameraRequestEvent> RestoreCameraRequest;
+        public event EventHandler<bool> GetOrSetPositionFromClipboardRequest;
 
         public SavedCameraPositionsControl()
         {
@@ -81,6 +82,16 @@ namespace GUI.Controls
             }
 
             cmbPositions.EndUpdate();
+        }
+
+        private void BtnSetPos_Click(object sender, EventArgs e)
+        {
+            GetOrSetPositionFromClipboardRequest?.Invoke(sender, true);
+        }
+
+        private void BtnGetPos_Click(object sender, EventArgs e)
+        {
+            GetOrSetPositionFromClipboardRequest?.Invoke(sender, false);
         }
     }
 }

@@ -70,7 +70,47 @@ namespace GUI.Types.Renderer
             savedCameraPositionsControl = new SavedCameraPositionsControl();
             savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
             savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
+            savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
             AddControl(savedCameraPositionsControl);
+        }
+
+        private void OnGetOrSetPositionFromClipboardRequest(object sender, bool isSetRequest)
+        {
+            var pitch = 0.0f;
+            var yaw = 0.0f;
+
+            if (!isSetRequest)
+            {
+                var loc = Scene.MainCamera.Location;
+                pitch = -1.0f * Scene.MainCamera.Pitch * 180.0f / MathF.PI;
+                yaw = Scene.MainCamera.Yaw * 180.0f / MathF.PI;
+
+                Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
+
+                return;
+            }
+
+            var text = Clipboard.GetText();
+            var pos = Regexes.SetPos().Match(text);
+            var ang = Regexes.SetAng().Match(text);
+
+            if (!pos.Success)
+            {
+                Console.WriteLine("Failed to find setpos in clipboard text.");
+                return;
+            }
+
+            var x = float.Parse(pos.Groups["x"].Value, CultureInfo.InvariantCulture);
+            var y = float.Parse(pos.Groups["y"].Value, CultureInfo.InvariantCulture);
+            var z = float.Parse(pos.Groups["z"].Value, CultureInfo.InvariantCulture);
+
+            if (ang.Success)
+            {
+                pitch = -1f * float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture) * MathF.PI / 180f;
+                yaw = float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture) * MathF.PI / 180f;
+            }
+
+            Scene.MainCamera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
         private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
