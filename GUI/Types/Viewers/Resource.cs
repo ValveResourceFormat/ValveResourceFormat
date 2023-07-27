@@ -159,7 +159,7 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                    var materialViewerControl = new GLMaterialViewer();
+                    var materialViewerControl = new GLMaterialViewer(vrfGuiContext, resource, resTabs);
 
                     materialViewerControl.GLLoad += (_, __) =>
                     {

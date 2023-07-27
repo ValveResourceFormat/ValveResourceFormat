@@ -64,7 +64,7 @@ namespace GUI.Types.Viewers
             shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
 
             var spvToHlsl = (VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
-                => ZFrameRichTextBox.AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
+                => AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
 
             var extract = new ShaderExtract(shaderCollection)
             {
@@ -338,100 +338,8 @@ namespace GUI.Types.Viewers
                 // they are enumerated in each zframe file starting from 0)
                 var gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
                 var gpuSourceTabTitle = $"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeFile.ZframeId:x}]({gpuSourceId})";
-                var gpuSource = zframeFile.GpuSources[gpuSourceId];
 
-                TabPage gpuSourceTab = null;
-
-                switch (gpuSource)
-                {
-                    case GlslSource:
-                        {
-                            gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                            var gpuSourceGlslText = new MonospaceTextBox
-                            {
-                                Text = Encoding.UTF8.GetString(gpuSource.Sourcebytes).ReplaceLineEndings(),
-                            };
-                            gpuSourceTab.Controls.Add(gpuSourceGlslText);
-                            break;
-                        }
-
-                    case DxbcSource:
-                    case DxilSource:
-                        {
-                            gpuSourceTab = new TabPage
-                            {
-                                Text = gpuSourceTabTitle
-                            };
-
-                            var sourceBv = new System.ComponentModel.Design.ByteViewer
-                            {
-                                Dock = DockStyle.Fill,
-                            };
-                            gpuSourceTab.Controls.Add(sourceBv);
-
-                            Program.MainForm.Invoke((MethodInvoker)(() =>
-                            {
-                                sourceBv.SetBytes(gpuSource.Sourcebytes);
-                            }));
-
-                            break;
-                        }
-
-                    case VulkanSource vulkanSource:
-                        {
-                            gpuSourceTab = new TabPage
-                            {
-                                Text = gpuSourceTabTitle
-                            };
-                            var resTabs = new TabControl
-                            {
-                                Dock = DockStyle.Fill,
-                            };
-                            gpuSourceTab.Controls.Add(resTabs);
-
-                            // source
-                            var sourceBvTab = new TabPage("Source");
-                            var sourceBv = new System.ComponentModel.Design.ByteViewer
-                            {
-                                Dock = DockStyle.Fill,
-                            };
-                            sourceBvTab.Controls.Add(sourceBv);
-                            resTabs.TabPages.Add(sourceBvTab);
-
-                            // metadata
-                            var metadataBvTab = new TabPage("Metadata");
-                            var metadataBv = new System.ComponentModel.Design.ByteViewer
-                            {
-                                Dock = DockStyle.Fill,
-                            };
-                            metadataBvTab.Controls.Add(metadataBv);
-                            resTabs.TabPages.Add(metadataBvTab);
-
-                            // text
-                            var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
-                                zframeFile.ZframeId, 0, spvc_backend.SPVC_BACKEND_GLSL);
-
-                            var textTab = new TabPage("SPIR-V");
-                            var textBox = new MonospaceTextBox()
-                            {
-                                Text = reflectedSource.ReplaceLineEndings(),
-                            };
-                            textTab.Controls.Add(textBox);
-                            resTabs.TabPages.Add(textTab);
-                            resTabs.SelectedTab = textTab;
-
-                            Program.MainForm.Invoke((MethodInvoker)(() =>
-                            {
-                                sourceBv.SetBytes(vulkanSource.GetSpirvBytes());
-                                metadataBv.SetBytes(vulkanSource.GetMetaDataBytes());
-                            }));
-
-                            break;
-                        }
-
-                    default:
-                        throw new InvalidDataException($"Unimplemented GPU source type {gpuSource.GetType()}");
-                }
+                var gpuSourceTab = CreateDecompiledTabPage(shaderCollection, shaderFile, zframeFile, gpuSourceId, gpuSourceTabTitle);
 
                 tabControl.Controls.Add(gpuSourceTab);
                 if ((ModifierKeys & Keys.Control) == Keys.Control)
@@ -439,63 +347,162 @@ namespace GUI.Types.Viewers
                     tabControl.SelectedTab = gpuSourceTab;
                 }
             }
+        }
 
-            public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
-                long zFrameId, long dynamicId, spvc_backend backend)
+        public static TabPage CreateDecompiledTabPage(ShaderCollection shaderCollection, ShaderFile shaderFile, ZFrameFile zframeFile, int gpuSourceId, string gpuSourceTabTitle)
+        {
+            TabPage gpuSourceTab = null;
+            var gpuSource = zframeFile.GpuSources[gpuSourceId];
+
+            switch (gpuSource)
             {
-                SpirvCrossApi.spvc_context_create(out var context).CheckResult();
-
-                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-
-                try
-                {
-                    SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.GetSpirvBytes(), out var parsedIr).CheckResult();
-                    SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, spvc_capture_mode.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, out var compiler).CheckResult();
-
-                    SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
-
-                    if (backend == spvc_backend.SPVC_BACKEND_GLSL)
+                case GlslSource:
                     {
-                        SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VULKAN_SEMANTICS, SpirvCrossApi.SPVC_TRUE);
-                        SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_EMIT_UNIFORM_BUFFER_AS_PLAIN_UNIFORMS, SpirvCrossApi.SPVC_TRUE);
-                    }
-                    else if (backend == spvc_backend.SPVC_BACKEND_HLSL)
-                    {
-                        SpirvCrossApi.spvc_compiler_options_set_uint(options, spvc_compiler_option.SPVC_COMPILER_OPTION_HLSL_SHADER_MODEL, 61);
+                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
+                        var gpuSourceGlslText = new MonospaceTextBox
+                        {
+                            Text = Encoding.UTF8.GetString(gpuSource.Sourcebytes).ReplaceLineEndings(),
+                        };
+                        gpuSourceTab.Controls.Add(gpuSourceGlslText);
+                        break;
                     }
 
-                    SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
-
-                    SpirvCrossApi.spvc_compiler_compile(compiler, out var code);
-
-                    buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
-                    buffer.WriteLine("// VRF - https://vrf.steamdb.info/");
-                    buffer.WriteLine();
-                    buffer.WriteLine(code.ReplaceLineEndings());
-                }
-                catch (Exception e)
-                {
-                    buffer.WriteLine("/*");
-                    buffer.WriteLine($"SPIR-V reflection failed: {e.Message}");
-
-                    var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
-
-                    if (!string.IsNullOrEmpty(lastError))
+                case DxbcSource:
+                case DxilSource:
                     {
-                        buffer.WriteLine();
-                        buffer.WriteLine(lastError);
+                        gpuSourceTab = new TabPage
+                        {
+                            Text = gpuSourceTabTitle
+                        };
+
+                        var sourceBv = new System.ComponentModel.Design.ByteViewer
+                        {
+                            Dock = DockStyle.Fill,
+                        };
+                        gpuSourceTab.Controls.Add(sourceBv);
+
+                        Program.MainForm.Invoke((MethodInvoker)(() =>
+                        {
+                            sourceBv.SetBytes(gpuSource.Sourcebytes);
+                        }));
+
+                        break;
                     }
 
-                    buffer.WriteLine("*/");
-                }
-                finally
-                {
-                    SpirvCrossApi.spvc_context_release_allocations(context);
-                    SpirvCrossApi.spvc_context_destroy(context);
-                }
+                case VulkanSource vulkanSource:
+                    {
+                        gpuSourceTab = new TabPage
+                        {
+                            Text = gpuSourceTabTitle
+                        };
+                        var resTabs = new TabControl
+                        {
+                            Dock = DockStyle.Fill,
+                        };
+                        gpuSourceTab.Controls.Add(resTabs);
 
-                return buffer.ToString();
+                        // source
+                        var sourceBvTab = new TabPage("Source");
+                        var sourceBv = new System.ComponentModel.Design.ByteViewer
+                        {
+                            Dock = DockStyle.Fill,
+                        };
+                        sourceBvTab.Controls.Add(sourceBv);
+                        resTabs.TabPages.Add(sourceBvTab);
+
+                        // metadata
+                        var metadataBvTab = new TabPage("Metadata");
+                        var metadataBv = new System.ComponentModel.Design.ByteViewer
+                        {
+                            Dock = DockStyle.Fill,
+                        };
+                        metadataBvTab.Controls.Add(metadataBv);
+                        resTabs.TabPages.Add(metadataBvTab);
+
+                        // text
+                        var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
+                            zframeFile.ZframeId, 0, spvc_backend.SPVC_BACKEND_GLSL);
+
+                        var textTab = new TabPage("SPIR-V");
+                        var textBox = new MonospaceTextBox()
+                        {
+                            Text = reflectedSource.ReplaceLineEndings(),
+                        };
+                        textTab.Controls.Add(textBox);
+                        resTabs.TabPages.Add(textTab);
+                        resTabs.SelectedTab = textTab;
+
+                        Program.MainForm.Invoke((MethodInvoker)(() =>
+                        {
+                            sourceBv.SetBytes(vulkanSource.GetSpirvBytes());
+                            metadataBv.SetBytes(vulkanSource.GetMetaDataBytes());
+                        }));
+
+                        break;
+                    }
+
+                default:
+                    throw new InvalidDataException($"Unimplemented GPU source type {gpuSource.GetType()}");
             }
+
+            return gpuSourceTab;
+        }
+
+        public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
+            long zFrameId, long dynamicId, spvc_backend backend)
+        {
+            SpirvCrossApi.spvc_context_create(out var context).CheckResult();
+
+            using var buffer = new StringWriter(CultureInfo.InvariantCulture);
+
+            try
+            {
+                SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.GetSpirvBytes(), out var parsedIr).CheckResult();
+                SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, spvc_capture_mode.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, out var compiler).CheckResult();
+
+                SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
+
+                if (backend == spvc_backend.SPVC_BACKEND_GLSL)
+                {
+                    SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VULKAN_SEMANTICS, SpirvCrossApi.SPVC_TRUE);
+                    SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_EMIT_UNIFORM_BUFFER_AS_PLAIN_UNIFORMS, SpirvCrossApi.SPVC_TRUE);
+                }
+                else if (backend == spvc_backend.SPVC_BACKEND_HLSL)
+                {
+                    SpirvCrossApi.spvc_compiler_options_set_uint(options, spvc_compiler_option.SPVC_COMPILER_OPTION_HLSL_SHADER_MODEL, 61);
+                }
+
+                SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
+
+                SpirvCrossApi.spvc_compiler_compile(compiler, out var code);
+
+                buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
+                buffer.WriteLine("// VRF - https://vrf.steamdb.info/");
+                buffer.WriteLine();
+                buffer.WriteLine(code.ReplaceLineEndings());
+            }
+            catch (Exception e)
+            {
+                buffer.WriteLine("/*");
+                buffer.WriteLine($"SPIR-V reflection failed: {e.Message}");
+
+                var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
+
+                if (!string.IsNullOrEmpty(lastError))
+                {
+                    buffer.WriteLine();
+                    buffer.WriteLine(lastError);
+                }
+
+                buffer.WriteLine("*/");
+            }
+            finally
+            {
+                SpirvCrossApi.spvc_context_release_allocations(context);
+                SpirvCrossApi.spvc_context_destroy(context);
+            }
+
+            return buffer.ToString();
         }
     }
 }

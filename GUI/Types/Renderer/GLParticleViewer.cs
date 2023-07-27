@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
         {
             if (disposing)
             {
+                GLPaint -= OnPaint;
                 renderModeComboBox?.Dispose();
             }
 
@@ -54,6 +55,7 @@ namespace GUI.Types.Renderer
                     .Distinct();
             SetAvailableRenderModes(supportedRenderModes);
 
+            GLLoad -= OnLoad;
             GLPaint += OnPaint;
         }
 

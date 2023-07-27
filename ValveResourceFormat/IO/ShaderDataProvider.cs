@@ -84,6 +84,95 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
 
+        public (ShaderCollection Collection, ShaderFile Shader, ZFrameFile ZFrame) GetZFrame_TEST_DO_NOT_MERGE(string textureType, Material material, string forcedStaticName = null)
+        {
+            var shader = cache.GetOrAddShader(material.ShaderName, (s) => fileLoader.LoadShader(s));
+            if (shader?.Features == null)
+            {
+                return (null, null, null);
+            }
+
+            var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
+            if (@params.Length == 0)
+            {
+                throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
+            }
+            else
+            {
+                var featureState = material.IntParams.Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal));
+
+                // Pixel shader first
+                var collectionOrdered = shader
+                    .Where(sh => sh.VcsProgramType != VcsProgramType.Features && sh.ZframesLookup.Count > 0)
+                    .OrderByDescending(sh => sh.VcsProgramType == VcsProgramType.PixelShader);
+
+                foreach (var shaderFile in collectionOrdered)
+                {
+                    var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
+                    if (fileParams.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var staticConfiguration = new int[shaderFile.SfBlocks.Count];
+                    var configGen = new ConfigMappingSParams(shaderFile);
+
+                    foreach (var condition in shaderFile.SfBlocks)
+                    {
+                        // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled
+                        // for textures to be referenced in the writeseq blocks.
+                        if ((condition.Name == "S_MODE_FORWARD" && condition.FeatureIndex == -1)
+                            || (forcedStaticName is not null && condition.Name == forcedStaticName))
+                        {
+                            staticConfiguration[condition.BlockIndex] = 1;
+                            continue;
+                        }
+
+                        if (condition.FeatureIndex == -1)
+                        {
+                            continue;
+                        }
+
+                        var feature = shader.Features.SfBlocks[condition.FeatureIndex];
+
+                        foreach (var (Name, Value) in featureState)
+                        {
+                            if (feature.Name == Name)
+                            {
+                                if (Value > feature.RangeMax || Value < feature.RangeMin)
+                                {
+                                    throw new InvalidDataException($"Material feature '{Name}' is out of range for '{shader.Features.ShaderName}'");
+                                }
+
+                                staticConfiguration[condition.BlockIndex] = (int)Value;
+                                break;
+                            }
+                        }
+                    }
+
+                    var zframeId = configGen.GetZframeId(staticConfiguration);
+
+                    // It can happen that the shader feature rules don't match static rules, producing
+                    // materials with bad feature configuration. That or the material data is just bad/incompatible.
+                    if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
+                    {
+                        // Game code probably goes through the sfRules and switches off only some of the parameters.
+                        // But here we just fall back to first zframe (effectively switches all off).
+                        zframeId = 0;
+                    }
+
+                    lock (shaderFile)
+                    {
+                        return (shader, shaderFile, shaderFile.GetZFrameFile(zframeId));
+                    }
+                }
+
+                throw new InvalidDataException(
+                    $"Varying parameter '{textureType}' in '{shader.Features.ShaderName}' could not be resolved. "
+                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
+            }
+        }
+
         /// <summary>
         /// Get precise texture inputs by querying the shader files. 
         /// </summary>
