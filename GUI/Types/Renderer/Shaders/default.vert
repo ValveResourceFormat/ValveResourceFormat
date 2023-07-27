@@ -4,9 +4,9 @@ in vec3 aVertexPosition;
 in vec4 aVertexColor;
 out vec4 vtxColor;
 
-uniform mat4 uProjectionViewMatrix;
+#include "common/ViewConstants.glsl"
 
 void main(void) {
     vtxColor = aVertexColor;
-    gl_Position = uProjectionViewMatrix * vec4(aVertexPosition, 1.0);
+    gl_Position = g_matViewToProjection * vec4(aVertexPosition, 1.0);
 }

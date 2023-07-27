@@ -107,7 +107,7 @@ struct MaterialProperties_t
 void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
 {
     mat.PositionWS = vFragPosition;
-    mat.ViewDir = normalize(vEyePosition - vFragPosition);
+    mat.ViewDir = normalize(g_vCameraPositionWs - vFragPosition);
     mat.GeometricNormal = normalize(GeometricNormal);
     mat.Tangent = normalize(vTangentOut);
     mat.Bitangent = normalize(vBitangentOut);

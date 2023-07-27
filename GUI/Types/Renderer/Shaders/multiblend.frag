@@ -59,7 +59,7 @@ uniform vec4 g_vColorTintB1;
 uniform vec4 g_vColorTintB2;
 uniform vec4 g_vColorTintB3;
 
-uniform vec3 vEyePosition;
+#include "common/ViewConstants.glsl"
 uniform float g_flBumpStrength = 1.0;
 
 //Interpolate between two tint colors based on the tint mask.
@@ -209,7 +209,7 @@ void main()
 
     //Don't need lighting yet
     //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vEyePosition - vFragPosition);
+    vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
 #if renderMode_FullBright == 1
     float illumination = 1.0;

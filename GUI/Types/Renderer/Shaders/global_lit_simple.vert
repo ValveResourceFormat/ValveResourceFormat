@@ -30,9 +30,8 @@ out vec4 vTintColorFadeOut;
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
 
-uniform mat4 uProjectionViewMatrix;
+#include "common/ViewConstants.glsl"
 uniform mat4 transform;
-uniform float g_flTime;
 
 uniform vec4 m_vTintColorSceneObject;
 uniform vec3 m_vTintColorDrawCall;
@@ -43,7 +42,7 @@ void main()
 {
     mat4 skinTransform = transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
-    gl_Position = uProjectionViewMatrix * fragPosition;
+    gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));

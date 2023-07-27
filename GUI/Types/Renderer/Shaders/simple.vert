@@ -97,13 +97,12 @@ uniform vec4 g_vColorTint = vec4(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
-uniform mat4 uProjectionViewMatrix;
+#include "common/ViewConstants.glsl"
 uniform mat4 transform;
 
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale = vec4(1.0);
 uniform vec4 g_vTexCoordScrollSpeed;
-uniform float g_flTime;
 uniform vec4 g_vTexCoordCenter = vec4(0.5);
 uniform float g_flTexCoordRotation = 0.0;
 
@@ -191,7 +190,7 @@ void main()
 {
     mat4 skinTransform = transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
-    gl_Position = uProjectionViewMatrix * fragPosition;
+    gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));

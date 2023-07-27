@@ -86,7 +86,6 @@ namespace GUI.Types.Renderer
 
             shader.SetUniform4("m_vTintColorSceneObject", Vector4.One);
             shader.SetUniform3("m_vTintColorDrawCall", Vector3.One);
-            shader.SetUniform4x4("uProjectionViewMatrix", Matrix4x4.Identity);
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
             material.Render(shader);

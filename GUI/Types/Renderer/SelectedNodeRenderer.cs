@@ -149,7 +149,7 @@ namespace GUI.Types.Renderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.UseProgram(shader.Program);
 
-            shader.SetUniform4x4("uProjectionViewMatrix", context.Camera.ViewProjectionMatrix);
+            shader.SetUniform4x4("g_matViewToProjection", context.Camera.ViewProjectionMatrix);
 
             GL.BindVertexArray(vaoHandle);
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);

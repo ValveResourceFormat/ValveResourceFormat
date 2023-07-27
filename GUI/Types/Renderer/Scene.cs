@@ -21,10 +21,7 @@ namespace GUI.Types.Renderer
         public struct RenderContext
         {
             public Camera Camera { get; init; }
-            public float Time { get; init; }
             public IEnumerable<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
-            public Matrix4x4? GlobalLightTransform { get; init; }
-            public Vector4 GlobalLightColor { get; init; }
             public WorldLightingInfo LightingInfo { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
@@ -32,9 +29,8 @@ namespace GUI.Types.Renderer
         }
 
         public Camera MainCamera { get; set; }
-        public float Time { get; set; }
         public SceneSky Sky { get; set; }
-        public Matrix4x4? GlobalLightTransform { get; set; }
+        public Matrix4x4 GlobalLightTransform { get; set; }
         public Vector4 GlobalLightColor { get; set; }
         public WorldLightingInfo LightingInfo { get; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = new();
@@ -106,7 +102,6 @@ namespace GUI.Types.Renderer
         public void Update(float timestep)
         {
             var updateContext = new UpdateContext(timestep);
-            Time += timestep;
 
             foreach (var node in staticNodes)
             {
@@ -193,10 +188,7 @@ namespace GUI.Types.Renderer
             var renderContext = new RenderContext
             {
                 Camera = camera,
-                Time = Time,
                 Buffers = buffers,
-                GlobalLightTransform = GlobalLightTransform,
-                GlobalLightColor = GlobalLightColor,
                 LightingInfo = LightingInfo,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,

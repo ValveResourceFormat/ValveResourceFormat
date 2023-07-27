@@ -85,8 +85,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 
-uniform vec3 vEyePosition;
-uniform float g_flTime;
+#incude "common/ViewConstants.glsl"
 
 // These two must be first
 #include "common/lighting_common.glsl"

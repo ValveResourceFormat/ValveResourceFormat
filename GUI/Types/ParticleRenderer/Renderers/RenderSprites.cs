@@ -281,7 +281,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             // set texture unit 0 as uTexture uniform
             shader.SetTexture(0, "uTexture", texture);
 
-            shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
+            shader.SetUniform4x4("g_matViewToProjection", viewProjectionMatrix);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber());

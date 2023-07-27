@@ -51,7 +51,6 @@ namespace GUI.Types.Renderer
             public int Transform;
             public int Tint;
             public int TintDrawCall;
-            public int Time;
             public int ObjectId;
             public int MeshId;
             public int ShaderId;
@@ -65,11 +64,6 @@ namespace GUI.Types.Renderer
         private static void DrawBatch(IEnumerable<Request> drawCalls, Scene.RenderContext context)
         {
             GL.Enable(EnableCap.DepthTest);
-
-            var viewProjectionMatrix = context.Camera.ViewProjectionMatrix;
-            var cameraPosition = context.Camera.Location;
-            var dirLight = (context.GlobalLightTransform ?? context.Camera.CameraViewMatrix);
-            var dirLightColor = context.GlobalLightColor;
 
             var groupedDrawCalls = context.ReplacementShader == null
                 ? drawCalls.GroupBy(a => a.Call.Shader)
@@ -86,7 +80,6 @@ namespace GUI.Types.Renderer
                     Transform = shader.GetUniformLocation("transform"),
                     Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
                     TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
-                    Time = shader.GetUniformLocation("g_flTime"),
                     CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
                     ObjectId = shader.GetUniformLocation("sceneObjectId"),
                     MeshId = shader.GetUniformLocation("meshId"),
@@ -95,11 +88,6 @@ namespace GUI.Types.Renderer
                 };
 
                 GL.UseProgram(shader.Program);
-
-                shader.SetUniform4x4("vLightPosition", dirLight);
-                shader.SetUniform4("vLightColor", dirLightColor);
-                shader.SetUniform3("vEyePosition", cameraPosition);
-                shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
 
                 foreach (var buffer in context.Buffers)
                 {
@@ -119,7 +107,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var request in materialGroup)
                     {
-                        Draw(uniforms, request, context);
+                        Draw(uniforms, request);
                     }
 
                     material.PostRender();
@@ -130,7 +118,7 @@ namespace GUI.Types.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(Uniforms uniforms, Request request, Scene.RenderContext context)
+        private static void Draw(Uniforms uniforms, Request request)
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
@@ -161,11 +149,6 @@ namespace GUI.Types.Renderer
             {
                 var indices = request.Node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
                 GL.Uniform1(uniforms.CubeMapArrayIndices, indices.Length, indices);
-            }
-
-            if (uniforms.Time != 1)
-            {
-                GL.Uniform1(uniforms.Time, context.Time);
             }
 
             if (uniforms.Animated != -1)

@@ -35,10 +35,8 @@ out vec2 vTexCoord2Out;
 out vec2 vTexCoord3Out;
 #endif
 
-uniform mat4 uProjectionViewMatrix;
+#include "common/ViewConstants.glsl"
 uniform mat4 transform;
-
-uniform float g_flTime;
 
 uniform float g_flTexCoordScale0;
 uniform float g_flTexCoordScale1;
@@ -89,7 +87,7 @@ void main()
 {
     mat4 skinTransform = transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
-    gl_Position = uProjectionViewMatrix * fragPosition;
+    gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));

@@ -154,9 +154,7 @@ uniform sampler2D g_tColor;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
-uniform vec3 vEyePosition;
-
-uniform float g_flTime;
+#include "common/ViewConstants.glsl"
 
 uniform float g_flAlphaTestReference = 0.5;
 uniform float g_flOpacityScale = 1.0;

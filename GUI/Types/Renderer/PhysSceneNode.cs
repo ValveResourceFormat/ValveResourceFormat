@@ -372,7 +372,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(shader.Program);
 
             var viewProjectionMatrix = Transform * context.Camera.ViewProjectionMatrix;
-            shader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
+            shader.SetUniform4x4("g_matViewToProjection", viewProjectionMatrix);
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
             shader.SetUniform1("bAnimated", 0.0f);
 

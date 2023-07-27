@@ -33,7 +33,7 @@ uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
 //uniform sampler2D g_tDiffuseWarp;
 
-uniform vec3 vEyePosition;
+#include "common/ViewConstants.glsl"
 
 // Material properties
 uniform float g_flSpecularExponent = 100.0;
@@ -63,10 +63,10 @@ vec3 calculateWorldNormal()
 void main()
 {
     //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vEyePosition - vFragPosition);
+    vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
     //Get the view direction
-    vec3 viewDirection = normalize(vEyePosition - vFragPosition);
+    vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
     //Read textures
     vec4 color = texture(g_tColor, vTexCoordOut);

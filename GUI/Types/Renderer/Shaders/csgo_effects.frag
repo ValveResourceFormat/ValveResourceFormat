@@ -47,9 +47,7 @@ uniform float g_flOpacityScale = 1.0;
 
 uniform vec3 m_vTintColorDrawCall;
 
-uniform float g_flTime;
-
-uniform vec3 vEyePosition;
+#include "common/ViewConstants.glsl"
 
 //Main entry point
 void main()
@@ -72,8 +70,7 @@ void main()
     float opacity = color.a * mask1 * mask2 * mask3 * g_flOpacityScale;
 
     // Calculate fresnel
-    vec3 viewDirection = normalize(vEyePosition - vFragPosition);
-
+    vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
     float fresnel = abs(dot(viewDirection, vNormalOut));
     fresnel = pow(fresnel, g_flFresnelExponent);
     //fresnel = fresnel * g_flFresnelFalloff + (1 - g_flFresnelFalloff);
@@ -82,7 +79,7 @@ void main()
     fresnel = mix(g_flFresnelMin, g_flFresnelMax, fresnel);
 
     // Calculate fade
-    float fade = distance(vFragPosition, vEyePosition) * 0.05;
+    float fade = distance(vFragPosition, g_vCameraPositionWs) * 0.05;
     fade = fade - g_flFadeDistance;
     //fade = fade * (g_flFadeFalloff * 0.05) + (1 - (g_flFadeFalloff * 0.05));
     //fade = (1-fade) * (g_flFadeMax - g_flFadeMin) + g_flFadeMin;

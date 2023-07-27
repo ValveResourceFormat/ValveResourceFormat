@@ -16,13 +16,13 @@ out vec3 vBitangentOut;
 
 out vec2 vTexCoordOut;
 
-uniform mat4 uProjectionViewMatrix;
+#include "common/ViewConstants.glsl"
 uniform mat4 transform;
 
 void main()
 {
     vec4 fragPosition = transform * vec4(vPOSITION, 1.0);
-    gl_Position = uProjectionViewMatrix * fragPosition;
+    gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     //Unpack normals

@@ -60,8 +60,7 @@ out vec4 outputColor;
     uniform vec4 g_vScrollUvDirection;
 #endif
 
-uniform vec3 vEyePosition;
-uniform float g_flTime;
+#include "common/ViewConstants.glsl"
 
 uniform vec4 g_vColorTint;
 uniform float g_flOpacityScale;
@@ -138,8 +137,8 @@ void main()
 #endif
 
     //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(vEyePosition - vFragPosition);
-    vec3 viewDirection = normalize(vEyePosition - vFragPosition);
+    vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
+    vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
 #if renderMode_FullBright == 1 || F_FULLBRIGHT == 1 || (F_TRANSLUCENT == 1 && F_ALLOW_LIGHTING_ON_TRANSLUCENT == 0)
     float illumination = 1.0;

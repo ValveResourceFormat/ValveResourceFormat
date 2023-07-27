@@ -63,9 +63,8 @@ uniform vec4 g_vColorTint = vec4(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
+#include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
-uniform mat4 uProjectionViewMatrix;
-uniform float g_flTime;
 uniform mat4 transform;
 
 // Material 1

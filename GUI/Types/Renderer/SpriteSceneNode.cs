@@ -65,7 +65,7 @@ namespace GUI.Types.Renderer
             var test = billboardMatrix * scaleMatrix * translationMatrix;
             var test2 = test.ToOpenTK();
 
-            GL.UniformMatrix4(renderShader.GetUniformLocation("uProjectionViewMatrix"), false, ref viewProjectionMatrix);
+            GL.UniformMatrix4(renderShader.GetUniformLocation("g_matViewToProjection"), false, ref viewProjectionMatrix);
 
             var transformTk = Transform.ToOpenTK();
             GL.UniformMatrix4(renderShader.GetUniformLocation("transform"), false, ref test2);

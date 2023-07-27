@@ -26,12 +26,14 @@ namespace GUI.Types.Renderer
         protected float SkyboxScale { get; set; } = 1.0f;
         protected Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
 
+        public float Uptime { get; private set; }
+
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private Frustum lockedCullFrustum;
         private Frustum skyboxLockedCullFrustum;
 
-        private UniformBuffer<Vector4> viewBuffer;
+        private UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
         private List<IBlockBindableBuffer> bufferSet;
         private bool skipRenderModeChange;
@@ -190,11 +192,20 @@ namespace GUI.Types.Renderer
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
+            Uptime += e.FrameTime;
+
             Scene.MainCamera = e.Camera;
             Scene.Update(e.FrameTime);
+
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
+            // Todo: this should be set once on init, and toggled when there's F_RENDER_BACKFACES
             GL.Enable(EnableCap.CullFace);
+
+            viewBuffer.Data = viewBuffer.Data with
+            {
+                Time = Uptime,
+            };
 
             var genericRenderContext = new Scene.RenderContext
             {
@@ -206,11 +217,20 @@ namespace GUI.Types.Renderer
 
             if (ShowSkybox && SkyboxScene != null)
             {
-                lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
-
                 skyboxCamera.CopyFrom(e.Camera);
                 skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
+
+
+                viewBuffer.Data = viewBuffer.Data with
+                {
+                    ViewToProjection = skyboxCamera.ViewProjectionMatrix,
+                    CameraPosition = skyboxCamera.Location,
+                    LightColor = SkyboxScene.GlobalLightColor,
+                    LightPosition = SkyboxScene.GlobalLightTransform,
+                };
+
+                lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
@@ -220,6 +240,14 @@ namespace GUI.Types.Renderer
             }
 
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
+
+            viewBuffer.Data = viewBuffer.Data with
+            {
+                ViewToProjection = e.Camera.ViewProjectionMatrix,
+                CameraPosition = e.Camera.Location,
+                LightColor = Scene.GlobalLightColor,
+                LightPosition = Scene.GlobalLightTransform,
+            };
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 

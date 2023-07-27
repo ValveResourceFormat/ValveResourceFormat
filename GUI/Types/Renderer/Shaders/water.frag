@@ -16,13 +16,12 @@ uniform sampler2D g_tFlow;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tNoise;
 
-uniform vec3 vEyePosition;
+#include "common/ViewConstants.glsl"
 
 uniform vec4 g_vWaterFogColor;
 uniform vec4 g_vLowEndSurfaceColor;
 uniform vec4 g_vLowEndReflectionColor;
 
-uniform float g_flTime;
 uniform float g_flFlowTimeScale;
 
 uniform vec4 TextureFlow;
@@ -51,9 +50,9 @@ void main()
 {
     vec3 normal = calculateWorldNormal();
 
-    vec3 viewDirection = normalize(vEyePosition - vFragPosition);
+    vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
-    vec3 lightDirection = normalize(vEyePosition - vFragPosition);
+    vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
     //Calculate Blinn specular based on reflected light
     vec3 halfDir = normalize(lightDirection + viewDirection);
