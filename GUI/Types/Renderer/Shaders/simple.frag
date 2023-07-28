@@ -19,7 +19,7 @@
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 #define LightmapGameVersionNumber 0
 
-#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
+#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend) || defined(steampal_2way_blend_mask)
     #define simple_2way_blend
 #elif defined(vr_simple) || defined(csgo_simple)
     #define simple
@@ -121,7 +121,10 @@ centroid in vec3 vCentroidNormalOut;
 #endif
 
 
-#if (defined(simple_2way_blend) || (F_LAYERS > 0))
+#if defined(steampal_2way_blend_mask)
+    uniform sampler2D g_tLayer2Color;
+    uniform sampler2D g_tLayer2NormalRoughness;
+#elif (defined(simple_2way_blend) || (F_LAYERS > 0))
     in vec4 vColorBlendValues;
     uniform sampler2D g_tLayer2Color;
     uniform sampler2D g_tLayer2NormalRoughness;
@@ -159,7 +162,7 @@ uniform float g_flOpacityScale = 1.0;
 
 #define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
-#define hasColorAlphaAO (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_2way_blend) && (F_ENABLE_AMBIENT_OCCLUSION == 1)) // only vr_simple
+#define hasColorAlphaAO (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (F_ENABLE_AMBIENT_OCCLUSION == 1) // only vr_simple
 #define hasMetalnessTexture (defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon) || defined(csgo_character)
 // lightmapped generic (and the 4way blend) has an ao texture for other layers. cables.vfx also has one but that shader changes between games
 #define hasAmbientOcclusionTexture ( (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex) || defined(csgo_foliage) || defined(csgo_weapon) || defined(csgo_character) || defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric))
@@ -192,6 +195,11 @@ uniform float g_flBumpStrength = 1.0;
     uniform sampler2D g_tMask;
     uniform float g_flMetalnessA = 0.0;
     uniform float g_flMetalnessB = 0.0;
+    uniform vec4 g_vTexCoordScale2 = vec4(1.0);
+#if defined(steampal_2way_blend_mask)
+    uniform float g_BlendFalloff = 0.0;
+    uniform float g_BlendHeight = 0.0;
+#endif
 #endif
 
 #if (hasAmbientOcclusionTexture)
@@ -234,17 +242,18 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 
     // Blending
-#if (F_LAYERS > 0) || defined(simple_2way_blend)
-    vec4 color2 = texture(g_tLayer2Color, texCoord);
-    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoord);
+#if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(steampal_2way_blend_mask)
+    vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
+
+    vec4 color2 = texture(g_tLayer2Color, texCoordB);
+    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoordB);
 
     color2.rgb = pow(color2.rgb, gamma);
 
-    float blendFactor = vColorBlendValues.r;
-
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (F_FANCY_BLENDING > 0)
-        vec4 blendModTexel = texture(g_tBlendModulation, texCoord);
+        float blendFactor = vColorBlendValues.r;
+        vec4 blendModTexel = texture(g_tBlendModulation, texCoordB);
 
         #if (F_FANCY_BLENDING == 1)
             blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r);
@@ -253,10 +262,14 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #elif (F_FANCY_BLENDING == 3)
             blendFactor = applyBlendModulation(blendFactor, blendModTexel.a, g_flBlendSoftness);
         #endif
-    #endif
+    #elif defined(steampal_2way_blend_mask)
+        float blendFactor = texture(g_tMask, texCoordB).x;
 
-    #if (defined(simple_2way_blend))
-        vec4 blendModTexel = texture(g_tMask, texCoord);
+        blendFactor = applyBlendModulation(blendFactor, g_BlendFalloff, g_BlendHeight);
+
+    #elif (defined(simple_2way_blend))
+        float blendFactor = vColorBlendValues.r;
+        vec4 blendModTexel = texture(g_tMask, texCoordB);
 
         float softnessPaint = vColorBlendValues.g;
 
