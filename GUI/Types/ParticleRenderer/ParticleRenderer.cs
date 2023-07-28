@@ -109,6 +109,8 @@ namespace GUI.Types.ParticleRenderer
 
         private void InitializeParticle(ref Particle p)
         {
+            p.Age = 0f;
+            p.MarkedAsKilled = false;
             p.Position = systemRenderState.GetControlPoint(0).Position;
 
             foreach (var initializer in Initializers)

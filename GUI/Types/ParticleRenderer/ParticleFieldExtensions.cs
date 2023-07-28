@@ -77,7 +77,7 @@ namespace GUI.Types.ParticleRenderer
 
 
         // Scalar fields
-        public static float GetScalar(this Particle particle, ParticleField field)
+        public static float GetScalar(this ref Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -97,7 +97,7 @@ namespace GUI.Types.ParticleRenderer
                 _ => 0f,
             };
         }
-        public static void SetScalar(this Particle particle, ParticleField field, float value)
+        public static void SetScalar(this ref Particle particle, ParticleField field, float value)
         {
             switch (field)
             {
@@ -142,7 +142,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public static int GetScalarInt(this Particle particle, ParticleField field)
+        public static int GetScalarInt(this ref Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -154,7 +154,7 @@ namespace GUI.Types.ParticleRenderer
         }
 
         // Vector field
-        public static Vector3 GetVector(this Particle particle, ParticleField field)
+        public static Vector3 GetVector(this ref Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -167,13 +167,13 @@ namespace GUI.Types.ParticleRenderer
             };
         }
 
-        public static float GetVectorComponent(this Particle particle, ParticleField field, int component)
+        public static float GetVectorComponent(this ref Particle particle, ParticleField field, int component)
         {
             var vector = particle.GetVector(field);
             return vector.GetComponent(component);
         }
 
-        public static void SetVectorComponent(this Particle particle, ParticleField field, float value, int component)
+        public static void SetVectorComponent(this ref Particle particle, ParticleField field, float value, int component)
         {
 
             var joinedVector = particle.GetVector(field);
@@ -197,7 +197,7 @@ namespace GUI.Types.ParticleRenderer
         }
 
 
-        public static void SetVector(this Particle particle, ParticleField field, Vector3 value)
+        public static void SetVector(this ref Particle particle, ParticleField field, Vector3 value)
         {
             switch (field)
             {
@@ -222,7 +222,7 @@ namespace GUI.Types.ParticleRenderer
         }
 
         // Initial Scalars
-        public static float GetInitialScalar(this Particle particle, ParticleField field)
+        public static float GetInitialScalar(this ref Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -235,7 +235,7 @@ namespace GUI.Types.ParticleRenderer
                 _ => particle.GetScalar(field),
             };
         }
-        public static void SetInitialScalar(this Particle particle, ParticleField field, float value)
+        public static void SetInitialScalar(this ref Particle particle, ParticleField field, float value)
         {
             switch (field)
             {
@@ -274,7 +274,7 @@ namespace GUI.Types.ParticleRenderer
         }
 
         // Initial vector
-        public static Vector3 GetInitialVector(this Particle particle, ParticleField field)
+        public static Vector3 GetInitialVector(this ref Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -284,7 +284,7 @@ namespace GUI.Types.ParticleRenderer
                 _ => particle.GetVector(field),
             };
         }
-        public static void SetInitialVector(this Particle particle, ParticleField field, Vector3 value)
+        public static void SetInitialVector(this ref Particle particle, ParticleField field, Vector3 value)
         {
             switch (field)
             {
@@ -304,7 +304,7 @@ namespace GUI.Types.ParticleRenderer
 
 
         // Set methods, shared by a bunch of different operators and initializers
-        public static float ModifyScalarBySetMethod(this Particle particle, ParticleField field, float value, ParticleSetMethod setMethod)
+        public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleField field, float value, ParticleSetMethod setMethod)
         {
             switch (setMethod)
             {
@@ -331,7 +331,7 @@ namespace GUI.Types.ParticleRenderer
             }
             return value;
         }
-        public static Vector3 ModifyVectorBySetMethod(this Particle particle, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
+        public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
         {
             switch (setMethod)
             {

@@ -15,9 +15,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 field = keyValues.GetParticleField("m_nOutputField");
             }
 
-            if (keyValues.ContainsKey("m_nInputValue"))
+            if (keyValues.ContainsKey("m_InputValue"))
             {
-                value = keyValues.GetNumberProvider("m_nInputValue");
+                value = keyValues.GetNumberProvider("m_InputValue");
             }
         }
 
