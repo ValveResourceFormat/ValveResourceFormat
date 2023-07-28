@@ -179,27 +179,32 @@ namespace ValveResourceFormat.CompiledShader
         {
             PrintParamWriteSequenceSegment(dataBlock.Segment0, 0, tabulatedData);
             PrintParamWriteSequenceSegment(dataBlock.Segment1, 1, tabulatedData);
-            PrintParamWriteSequenceSegment(dataBlock.Segment2, 2, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.Globals, 2, tabulatedData);
         }
 
         private void PrintParamWriteSequenceSegment(IReadOnlyList<WriteSeqField> segment, int segId, OutputFormatterTabulatedData tabulatedData)
         {
+            var segmentDesc = segId switch
+            {
+                2 => "_Globals_",
+                _ => "seg_" + segId
+            };
+
             if (segment.Count > 0)
             {
                 for (var i = 0; i < segment.Count; i++)
                 {
                     var field = segment[i];
-                    var segmentDesc = i == 0 ? $"seg_{segId}" : "";
                     var paramDesc = $"[{field.ParamId}] {shaderFile.ParamBlocks[field.ParamId].Name}";
                     var buffDesc = field.UnknBuff == 0x00 ? $"{"_",7}" : $"{field.UnknBuff,7}";
                     var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
                     var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
-                    tabulatedData.AddTabulatedRow(new string[] { segmentDesc, paramDesc, arg1Desc, arg2Desc, buffDesc });
+                    tabulatedData.AddTabulatedRow(new string[] { i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, arg2Desc, buffDesc });
                 }
             }
             else
             {
-                tabulatedData.AddTabulatedRow(new string[] { $"seg_{segId}", "[empty]", "", "", "" });
+                tabulatedData.AddTabulatedRow(new string[] { segmentDesc, "[empty]", "", "", "" });
             }
         }
 
