@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class ClampScalar : IParticleOperator
     {
-        private readonly INumberProvider outputMin;
+        private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
         private readonly ParticleField field = ParticleField.Radius;
 
@@ -33,10 +33,14 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (ref var particle in particles)
             {
-                var clampedValue = Math.Clamp(particle.GetScalar(field),
-                    outputMin.NextNumber(ref particle, particleSystemState),
-                    outputMax.NextNumber(ref particle, particleSystemState)
-                );
+                var min = outputMin.NextNumber(ref particle, particleSystemState);
+                var max = outputMax.NextNumber(ref particle, particleSystemState);
+                if (min > max)
+                {
+                    (min, max) = (max, min);
+                }
+
+                var clampedValue = Math.Clamp(particle.GetScalar(field), min, max);
                 particle.SetScalar(field, clampedValue);
             }
         }

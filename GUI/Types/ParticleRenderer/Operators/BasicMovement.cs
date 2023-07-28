@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     class BasicMovement : IParticleOperator
     {
         private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);
-        private readonly INumberProvider drag;
+        private readonly INumberProvider drag = new LiteralNumberProvider(0);
 
         public BasicMovement(IKeyValueCollection keyValues)
         {
