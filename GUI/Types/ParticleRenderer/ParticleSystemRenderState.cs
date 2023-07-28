@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -11,8 +12,10 @@ namespace GUI.Types.ParticleRenderer
     {
         public static readonly ParticleSystemRenderState Default = new();
 
+        public int BehaviorVersion { get; init; }
+        public int MaxParticles { get; init; } = 1000;
+
         // Properties
-        public int BehaviorVersion { get; set; }
         public long ParticleCount { get; set; }
         public float Age { get; set; }
 
@@ -25,6 +28,23 @@ namespace GUI.Types.ParticleRenderer
         // This can be set by PlayEndCapWhenFinished and StopAfterDuration
         public bool PlayEndCap { get; private set; }
 
+        private ParticleSystemRenderState()
+        {
+        }
+
+        public ParticleSystemRenderState(IKeyValueCollection particleSystemDefinition)
+        {
+            // What should be the default otherwise?
+            if (particleSystemDefinition.ContainsKey("m_nBehaviorVersion"))
+            {
+                BehaviorVersion = particleSystemDefinition.GetInt32Property("m_nBehaviorVersion");
+            }
+
+            if (particleSystemDefinition.ContainsKey("m_nMaxParticles"))
+            {
+                MaxParticles = particleSystemDefinition.GetInt32Property("m_nMaxParticles");
+            }
+        }
 
         public void SetStopTime(float duration, bool destroyInstantly)
         {
@@ -32,7 +52,6 @@ namespace GUI.Types.ParticleRenderer
             Duration = duration;
             DestroyInstantlyOnEnd = destroyInstantly;
         }
-
 
         // Control Points
 

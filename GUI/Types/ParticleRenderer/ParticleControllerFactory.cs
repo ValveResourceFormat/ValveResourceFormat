@@ -15,11 +15,11 @@ namespace GUI.Types.ParticleRenderer
         // These can all be found in particle.dll
 
         // Register particle emitters
-        private static readonly IDictionary<string, Func<IKeyValueCollection, IKeyValueCollection, IParticleEmitter>> EmitterDictionary
-            = new Dictionary<string, Func<IKeyValueCollection, IKeyValueCollection, IParticleEmitter>>
+        private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleEmitter>> EmitterDictionary
+            = new Dictionary<string, Func<IKeyValueCollection, IParticleEmitter>>
             {
-                ["C_OP_InstantaneousEmitter"] = (baseProperties, emitterInfo) => new InstantaneousEmitter(emitterInfo),
-                ["C_OP_ContinuousEmitter"] = (baseProperties, emitterInfo) => new ContinuousEmitter(emitterInfo),
+                ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
+                ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
             };
 
         // Register particle initializers
@@ -128,11 +128,11 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
             };
 
-        public static bool TryCreateEmitter(string name, IKeyValueCollection baseProperties, IKeyValueCollection emitterInfo, out IParticleEmitter emitter)
+        public static bool TryCreateEmitter(string name, IKeyValueCollection emitterInfo, out IParticleEmitter emitter)
         {
             if (EmitterDictionary.TryGetValue(name, out var factory))
             {
-                emitter = factory(baseProperties, emitterInfo);
+                emitter = factory(emitterInfo);
                 return true;
             }
 

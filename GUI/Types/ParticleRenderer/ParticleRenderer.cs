@@ -55,22 +55,18 @@ namespace GUI.Types.ParticleRenderer
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
-            particleBag = new ParticleBag(100, true);
-            systemRenderState = new ParticleSystemRenderState()
+            systemRenderState = new ParticleSystemRenderState(particleSystem.Data)
             {
                 EndEarly = false
             };
 
-            if (particleSystem.Data.ContainsKey("m_nBehaviorVersion"))
-            {
-                systemRenderState.BehaviorVersion = particleSystem.Data.GetInt32Property("m_nBehaviorVersion");
-            }
-
             systemRenderState.SetControlPointValue(0, pos);
+
+            particleBag = new ParticleBag(systemRenderState.MaxParticles, true);
 
             BoundingBox = new AABB(pos + new Vector3(-32, -32, -32), pos + new Vector3(32, 32, 32));
 
-            SetupEmitters(particleSystem.Data, particleSystem.GetEmitters());
+            SetupEmitters(particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
             SetupOperators(particleSystem.GetOperators());
             SetupRenderers(particleSystem.GetRenderers());
@@ -98,6 +94,11 @@ namespace GUI.Types.ParticleRenderer
             if (index < 0)
             {
                 Console.WriteLine("Out of space in particle bag");
+                return;
+            }
+
+            if (systemRenderState.ParticleCount >= systemRenderState.MaxParticles)
+            {
                 return;
             }
 
@@ -271,7 +272,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        private void SetupEmitters(IKeyValueCollection baseProperties, IEnumerable<IKeyValueCollection> emitterData)
+        private void SetupEmitters(IEnumerable<IKeyValueCollection> emitterData)
         {
             var emitters = new List<IParticleEmitter>();
 
@@ -283,7 +284,7 @@ namespace GUI.Types.ParticleRenderer
                 }
 
                 var emitterClass = emitterInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateEmitter(emitterClass, baseProperties, emitterInfo, out var emitter))
+                if (ParticleControllerFactory.TryCreateEmitter(emitterClass, emitterInfo, out var emitter))
                 {
                     emitters.Add(emitter);
                 }
