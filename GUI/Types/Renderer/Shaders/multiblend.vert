@@ -73,7 +73,7 @@ vec2 getTexCoord(float scale, float rotation) {//, vec4 offset, vec4 scroll) {
     vec2 totalOffset = vec2(0.0);//(scroll.xy * g_flTime) + offset.xy;
 
     //Scale texture
-    vec2 coord = vTEXCOORD;
+    vec2 coord = vTEXCOORD - vec2(0.5);
 
     float SinR = sin(r);
     float CosR = cos(r);

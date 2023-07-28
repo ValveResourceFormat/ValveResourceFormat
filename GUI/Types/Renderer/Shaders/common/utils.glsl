@@ -134,6 +134,38 @@ vec2 Resize2D(vec2 Base, vec4 StartPos_Size)
 }
 
 
+vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset)
+{
+    rotation = radians(rotation);
+    float sinRot = sin(rotation);
+    float cosRot = cos(rotation);
+
+    vec2 finalOffset = (scale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + offset + vec2(0.5);
+    vec4 xform = scale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
+
+    return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
+}
+
+vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset, vec2 center)
+{
+
+    rotation = radians(rotation);
+    float sinRot = sin(rotation);
+    float cosRot = cos(rotation);
+
+    vec4 xform = vec4(cosRot * scale.x, -sinRot * scale.y, sinRot * scale.x, cosRot* scale.y);
+
+    vec2 finalOffset;
+    finalOffset.x = (center.x + offset.x) + (sinRot * center.y) - (cosRot * center.x);
+    finalOffset.y = (center.y + offset.y) - (sinRot * center.x) + (cosRot * center.y);
+    // ^ all of this should be precalculated
+
+    return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
+}
+
+
+
+
 const vec3 gamma = vec3(2.2);
 const vec3 invGamma = vec3(1.0 / gamma);
 
