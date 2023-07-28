@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     class BasicMovement : IParticleOperator
     {
         private readonly Vector3 gravity = Vector3.Zero;
-        private readonly float drag;
+        private readonly INumberProvider drag;
 
         public BasicMovement(IKeyValueCollection keyValues)
         {
@@ -19,7 +19,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             if (keyValues.ContainsKey("m_fDrag"))
             {
-                drag = keyValues.GetFloatProperty("m_fDrag");
+                drag = keyValues.GetNumberProvider("m_fDrag");
             }
         }
 
@@ -46,7 +46,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 // Apply drag
                 // Is this right? this is a super important operator so it might be bad if this is wrong
-                particles[i].Velocity *= 1 - (drag * 30f * frameTime);
+                particles[i].Velocity *= 1 - (drag.NextNumber() * 30f * frameTime);
 
                 // Velocity is only applied in MovementBasic. If you layer two MovementBasic's on top of one another it'll indeed apply velocity twice.
                 particles[i].Position += particles[i].Velocity * frameTime;

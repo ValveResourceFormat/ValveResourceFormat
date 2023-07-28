@@ -121,8 +121,8 @@ namespace GUI.Types.ParticleRenderer.Utils
         {
             IsLooped = isLooped;
 
-            var domainMin = curveInfo.GetArray<float>("m_vDomainMins");
-            var domainMax = curveInfo.GetArray<float>("m_vDomainMaxs");
+            var domainMin = curveInfo.GetFloatArray("m_vDomainMins");
+            var domainMax = curveInfo.GetFloatArray("m_vDomainMaxs");
 
             CurveDomainMin = new Vector2(domainMin[0], domainMin[1]);
             CurveDomainMax = new Vector2(domainMax[0], domainMin[1]);
