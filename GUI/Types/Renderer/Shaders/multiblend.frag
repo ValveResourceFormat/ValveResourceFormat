@@ -4,7 +4,7 @@
 #include "common/utils.glsl"
 #include "common/rendermodes.glsl"
 #define renderMode_Terrain_Blend 0
-#define renderMode_TerrainTint 0
+#define renderMode_VertexColor 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_TINT_MASK 0
@@ -242,7 +242,7 @@ void main()
     outputColor = vec4(vBlendWeights.xyz, 1.0);
 #endif
 
-#if renderMode_TerrainTint == 1
+#if renderMode_VertexColor == 1
     outputColor = vec4(vVertexColor.rgb, 1.0);
 #endif
 

@@ -14,7 +14,25 @@
     uniform int g_iEnvironmentMapCount;
 #endif
 
-float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
+vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
+{
+    // https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
+    // Following is the parallax-correction code
+    // Find the ray intersection with box plane
+    vec3 FirstPlaneIntersect = (envMapBoxMin - envMapLocalPos) / localReflectionVector;
+    vec3 SecondPlaneIntersect = (envMapBoxMax - envMapLocalPos) / localReflectionVector;
+    // Get the furthest of these intersections along the ray
+    // (Ok because x/0 give +inf and -x/0 give -inf )
+    vec3 FurthestPlane = max(FirstPlaneIntersect, SecondPlaneIntersect);
+    // Find the closest far intersection
+    float Distance = abs(min3(FurthestPlane));
+
+    // Get the intersection position
+    return normalize(envMapLocalPos + localReflectionVector * Distance);
+}
+
+
+float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
 {
 #if (renderMode_Cubemaps == 1)
     return 0.0;
@@ -22,13 +40,14 @@ float GetEnvMapLOD(float roughness, vec3 R, vec4 extraParams)
     float EnvMapMipCount = g_vEnvMapSizeConstants.x;
 
     #if F_CLOTH_SHADING == 1
-        float lod = mix(roughness, pow(roughness, 0.125), extraParams.b);
+        float lod = mix(roughness, pow(roughness, 0.125), clothMask);
         return lod * EnvMapMipCount;
     #else
         return roughness * EnvMapMipCount;
     #endif
 #endif
 }
+
 
 // Cubemap Normalization
 #define bUseCubemapNormalization 0
@@ -49,21 +68,21 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
     #endif
 }
 
+
 // BRDF
 uniform sampler2D g_tBRDFLookup;
 
 vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
 {
-    // done here because of bent normals
     float NdotV = ClampToPositive(dot(N, V));
-    vec2 lutCoords = vec2(NdotV, sqrt(rough));
+    vec2 lookupCoords = vec2(NdotV, sqrt(rough));
 
-    vec2 GGXLut = pow2(textureLod(g_tBRDFLookup, lutCoords, 0.0).xy);
+    vec2 GGXLut = textureLod(g_tBRDFLookup, lookupCoords, 0.0).xy;
+    GGXLut = pow2(GGXLut);
+
     return specColor * GGXLut.x + GGXLut.y;
 }
 
-// may be different past HLA? looks kinda wrong in cs2. they had a cloth brdf lut iirc
-// We could check for the lut and then use this path if it doesn't exist
 #if F_CLOTH_SHADING == 1
 float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
 {
@@ -72,7 +91,25 @@ float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
 }
 #endif
 
+
+// In CS2, anisotropic cubemaps are default enabled with aniso gloss
+#if ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex)))
+vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
+{
+    // is this like part of the material struct in the og code? it's calculated at the start
+    vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
+    vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
+
+    float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
+    vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
+
+    return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
+}
 #endif
+
+#endif
+
+
 
 vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
 {
@@ -81,15 +118,23 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
     #else
 
 #if (renderMode_Cubemaps == 1)
-    vec3 normal = mat.GeometricNormal;
+    vec3 reflectionNormal = mat.GeometricNormal;
+#elif ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex)))
+    vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
 #else
-    vec3 normal = mat.AmbientNormal;
+    vec3 reflectionNormal = mat.AmbientNormal;
 #endif
 
     // Reflection Vector
-    vec3 R = normalize(reflect(-mat.ViewDir, normal));
+    vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
-    float lod = GetEnvMapLOD(mat.Roughness, R, mat.ExtraParams);
+#if (F_ANISOTROPIC_GLOSS == 1)
+    float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
+#else
+    float roughness = mat.Roughness;
+#endif
+
+    float lod = GetEnvMapLOD(roughness, R, mat.ClothMask);
 
     #if (SCENE_ENVIRONMENT_TYPE == 1)
         vec3 coords = R;
@@ -121,30 +166,18 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
 
             vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
 
-            // https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
-            // Following is the parallax-correction code
-            // Find the ray intersection with box plane
-            vec3 FirstPlaneIntersect = (envMapBoxMin - envMapLocalPos) / localReflectionVector;
-            vec3 SecondPlaneIntersect = (envMapBoxMax - envMapLocalPos) / localReflectionVector;
-            // Get the furthest of these intersections along the ray
-            // (Ok because x/0 give +inf and -x/0 give -inf )
-            vec3 FurthestPlane = max(FirstPlaneIntersect, SecondPlaneIntersect);
-            // Find the closest far intersection
-            float Distance = abs(min3(FurthestPlane));
+            vec3 coords = CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax);
 
-            // Get the intersection position
-            vec3 coords = normalize(envMapLocalPos + localReflectionVector * Distance);
-
-            // blend
-            float weight = ((distanceFromEdge * distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
+            // blend using a smooth curve
+            float weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
             totalWeight += weight;
 
             #if renderMode_Cubemaps == 0
-                // blend
+                // blend to fully corrected
                 #if (F_CLOTH_SHADING == 1)
-                    coords.xyz = mix(coords.xyz, localReflectionVector, sqrt(mat.Roughness));
+                    coords = mix(coords, mat.AmbientNormal, sqrt(roughness));
                 #else
-                    coords.xyz = mix(coords.xyz, localReflectionVector, mat.Roughness);
+                    coords = mix(coords, mat.AmbientNormal, roughness);
                 #endif
             #endif
 
@@ -160,17 +193,15 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
 #if (renderMode_Cubemaps == 1)
     return envMap;
 #else
-    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.Roughness, mat.AmbientNormal, mat.ViewDir);
+    vec3 brdf = EnvBRDF(mat.SpecularColor, GetIsoRoughness(mat.Roughness), mat.AmbientNormal, mat.ViewDir);
 
     #if (F_CLOTH_SHADING == 1)
-        vec3 clothBrdf = vec3(EnvBRDFCloth(mat.Roughness, mat.AmbientNormal, mat.ViewDir));
+        vec3 clothBrdf = vec3(EnvBRDFCloth(GetIsoRoughness(mat.Roughness), mat.AmbientNormal, mat.ViewDir));
 
-        float clothMask = mat.ExtraParams.z;
-
-        brdf = mix(brdf, clothBrdf, clothMask);
+        brdf = mix(brdf, clothBrdf, mat.ClothMask);
     #endif
 
-    float normalizationTerm = GetEnvMapNormalization(mat.Roughness, mat.AmbientNormal, lighting.DiffuseIndirect);
+    float normalizationTerm = GetEnvMapNormalization(GetIsoRoughness(mat.Roughness), mat.AmbientNormal, lighting.DiffuseIndirect);
 
     return brdf * envMap * normalizationTerm;
 #endif

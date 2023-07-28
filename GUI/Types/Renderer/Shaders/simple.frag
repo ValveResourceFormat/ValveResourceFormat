@@ -39,6 +39,7 @@
 #define F_ADDITIVE_BLEND 0
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0
+#define F_BLEND_MODE 0
 #define F_GLASS 0
 #define F_DISABLE_TONE_MAPPING 0
 #define F_RENDER_BACKFACES 0
@@ -58,20 +59,25 @@
 #define F_SECONDARY_UV 0
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
+#define F_DECAL_TEXTURE 0
+#define F_DECAL_BLEND_MODE 0
+#define F_FORCE_UV2 0
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
 #define F_RETRO_REFLECTIVE 0
-#define F_ANISOTROPIC_GLOSS 0 // todo shading
+#define F_ANISOTROPIC_GLOSS 0
+#define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA
+#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
 #define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
 #define F_DIFFSUE_WRAP 0 // typo that existed for part of HLA's development
-#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
 // SKIN
-#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo
+#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
+#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo, weird
 #define F_USE_PER_VERTEX_CURVATURE 0 // todo
 #define F_SSS_MASK 0 // todo
 
@@ -88,7 +94,7 @@ in vec4 vVertexColorOut;
 
 centroid in vec3 vCentroidNormalOut;
 
-#if F_SECONDARY_UV == 1
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec2 vTexCoord2;
     uniform bool g_bUseSecondaryUvForAmbientOcclusion = true;
     #if F_TINT_MASK
@@ -154,15 +160,17 @@ uniform float g_flOpacityScale = 1.0;
 #define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
 #define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
 #define hasColorAlphaAO (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_2way_blend) && (F_ENABLE_AMBIENT_OCCLUSION == 1)) // only vr_simple
-#define hasMetalnessTexture (defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1)))
-#define hasAnisoGloss (defined(complex) && (F_ANISOTROPIC_GLOSS == 1))
+#define hasMetalnessTexture (defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon) || defined(csgo_character)
+// lightmapped generic (and the 4way blend) has an ao texture for other layers. cables.vfx also has one but that shader changes between games
+#define hasAmbientOcclusionTexture ( (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex) || defined(csgo_foliage) || defined(csgo_weapon) || defined(csgo_character) || defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric))
 #define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay) && F_LIT == 0))
-
+#define alphaTest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric) || defined(static_overlay)) && (F_BLEND_MODE == 2))
+#define blendTranslucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric) || defined(static_overlay)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
 #define blendMembrane defined(vr_complex) && (F_TRANSLUCENT == 2)
 
-#if hasUniformMetalness
+#if (hasUniformMetalness)
     uniform float g_flMetalness = 0.0;
-#elif hasMetalnessTexture
+#elif (hasMetalnessTexture)
     uniform sampler2D g_tMetalness;
 #endif
 
@@ -186,17 +194,13 @@ uniform float g_flBumpStrength = 1.0;
     uniform float g_flMetalnessB = 0.0;
 #endif
 
-#if defined(csgo_character) || defined(csgo_weapon)
-    uniform sampler2D g_tMetalness;
+#if (hasAmbientOcclusionTexture)
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
-#if defined(csgo_foliage) || (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex)
-    uniform sampler2D g_tAmbientOcclusion;
-#endif
-
-#if hasAnisoGloss
-//#define VEC2_ROUGHNESS
+#if (F_ANISOTROPIC_GLOSS == 1)
+#define VEC2_ROUGHNESS
+#define renderMode_AnisoGloss 0
     uniform sampler2D g_tAnisoGloss;
 #endif
 
@@ -218,21 +222,21 @@ uniform float g_flBumpStrength = 1.0;
 
 
 // Get material properties
-MaterialProperties_t GetMaterial(vec3 vertexNormals)
+MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;
     InitProperties(mat, vertexNormals);
 
-    vec4 color = texture(g_tColor, vTexCoordOut);
-    vec4 normalTexture = texture(g_tNormal, vTexCoordOut);
+    vec4 color = texture(g_tColor, texCoord);
+    vec4 normalTexture = texture(g_tNormal, texCoord);
 
     color.rgb = pow(color.rgb, gamma);
 
 
     // Blending
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
-    vec4 color2 = texture(g_tLayer2Color, vTexCoordOut);
-    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, vTexCoordOut);
+    vec4 color2 = texture(g_tLayer2Color, texCoord);
+    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoord);
 
     color2.rgb = pow(color2.rgb, gamma);
 
@@ -240,7 +244,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (F_FANCY_BLENDING > 0)
-        vec4 blendModTexel = texture(g_tBlendModulation, vTexCoordOut);
+        vec4 blendModTexel = texture(g_tBlendModulation, texCoord);
 
         #if (F_FANCY_BLENDING == 1)
             blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r);
@@ -252,7 +256,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #endif
 
     #if (defined(simple_2way_blend))
-        vec4 blendModTexel = texture(g_tMask, vTexCoordOut);
+        vec4 blendModTexel = texture(g_tMask, texCoord);
 
         float softnessPaint = vColorBlendValues.g;
 
@@ -260,7 +264,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #endif
 
     #if (F_ENABLE_TINT_MASKS == 1)
-        vec2 tintMasks = texture(g_tTintMask, vTexCoordOut).xy;
+        vec2 tintMasks = texture(g_tTintMask, texCoord).xy;
 
         vec3 tintFactorA = 1.0 - tintMasks.x * (1.0 - vVertexColorOut.rgb);
         vec3 tintFactorB = 1.0 - tintMasks.y * (1.0 - vVertexColorOut.rgb);
@@ -278,23 +282,23 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     // Vr_skin unique stuff
 #if defined(vr_skin)
-    // r=MouthMask, g=AO, b=selfillum/tint, a=SSS/opacity
-    vec4 combinedMasks = texture(g_tCombinedMasks, vTexCoordOut);
+    // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
+    vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
 
 	mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
 	mat.AmbientOcclusion = combinedMasks.y;
 
     #if (F_SELF_ILLUM)
-	    float flSelfIllumMask = combinedMasks.z;
+	    float selfIllumMask = combinedMasks.z;
 	#elif (F_TINT_MASK)
 	    float flTintMask = combinedMasks.z;
 	#endif
 
 	#if (F_SSS_MASK == 1)
-		mat.ExtraParams.y = combinedMasks.a;
+		mat.SSSMask = combinedMasks.a;
 	#endif
 
-    #if (F_TRANSLUCENT > 0) || (F_ALPHA_TEST == 1)
+    #if (F_TRANSLUCENT > 0) || (alphaTest == 1)
 	    mat.Opacity = combinedMasks.a;
     #endif
 #endif
@@ -311,8 +315,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 #endif
 
     // Alpha test
-#if (F_ALPHA_TEST == 1) || (defined(static_overlay) && (F_BLEND_MODE == 2))
-    mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, vTexCoordOut);
+#if (alphaTest == 1)
+    mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, texCoord);
 
     if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
 #endif
@@ -320,31 +324,27 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     // Tinting
 #if (F_ENABLE_TINT_MASKS == 0)
-    vec3 tintFactor = vVertexColorOut.rgb;
+    vec3 tintColor = vVertexColorOut.rgb;
 
     #if (F_TINT_MASK == 1)
-        #if (F_SECONDARY_UV == 1)
-            vec2 tintMaskTexcoord = g_bUseSecondaryUvForTintMask ? vTexCoord2 : vTexCoordOut;
+        #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+            vec2 tintMaskTexcoord = (g_bUseSecondaryUvForTintMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
         #else
-            vec2 tintMaskTexcoord = vTexCoordOut;
+            vec2 tintMaskTexcoord = texCoord;
         #endif
         float tintStrength = texture(g_tTintMask, tintMaskTexcoord).x;
-        tintFactor = 1.0 - tintStrength * (1.0 - tintFactor.rgb);
+        tintColor = 1.0 - tintStrength * (1.0 - tintColor.rgb);
     #endif
 
-    mat.Albedo = color.rgb * tintFactor;
-#else
-    mat.Albedo = color.rgb;
+    mat.Albedo *= tintColor;
 #endif
 
 
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normalTexture);
 
-#if hasAnisoGloss
-    vec2 anisoGloss = texture(g_tAnisoGloss, vTexCoordOut).rg;
-    // convert to iso roughness. temp solution
-    mat.RoughnessTex = (anisoGloss.r + anisoGloss.g) * 0.5;
+#if (F_ANISOTROPIC_GLOSS == 1)
+    mat.RoughnessTex = texture(g_tAnisoGloss, texCoord).rg;
 #else
     mat.RoughnessTex = normalTexture.b;
 #endif
@@ -356,42 +356,35 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     mat.NormalMap = normalize(mix(vec3(0, 0, 1), mat.NormalMap, g_flBumpStrength));
 #endif
 
+
     // Detail texture
 #if (F_DETAIL_TEXTURE > 0)
-    #if F_SECONDARY_UV == 1
-        applyDetailTexture(mat.Albedo, mat.NormalMap, g_bUseSecondaryUvForDetailMask ? vTexCoord2 : vTexCoordOut);
+    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+        vec2 detailMaskCoords = (g_bUseSecondaryUvForDetailMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
     #else
-        applyDetailTexture(mat.Albedo, mat.NormalMap, vTexCoordOut);
+        vec2 detailMaskCoords = texCoord;
     #endif
+    applyDetailTexture(mat.Albedo, mat.NormalMap, detailMaskCoords);
 #endif
 
-    // Apply normal map
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
 
-
-    // Various PBR parameters
-#if defined(csgo_character)
+    // Metalness
+#if (hasMetalnessTexture)
     // a = rimmask
-    vec4 metalnessTexture = texture(g_tMetalness, vTexCoordOut);
+    vec4 metalnessTexture = texture(g_tMetalness, texCoord);
 
-    mat.ExtraParams.xz = metalnessTexture.rb;
     mat.Metalness = metalnessTexture.g;
-    mat.AmbientOcclusion = texture(g_tAmbientOcclusion, vTexCoordOut).r;
 
-#elif defined(csgo_weapon)
-    vec4 metalnessTexture = texture(g_tMetalness, vTexCoordOut);
-
-    mat.Roughness = metalnessTexture.r;
-    mat.Metalness = metalnessTexture.g;
-    mat.AmbientOcclusion = texture(g_tAmbientOcclusion, vTexCoordOut).r;
-
-#elif defined(csgo_foliage)
-    mat.AmbientOcclusion = texture(g_tAmbientOcclusion, vTexCoordOut).r;
-#elif (hasMetalnessTexture)
-    mat.Metalness = texture(g_tMetalness, vTexCoordOut).g;
     #if (F_RETRO_REFLECTIVE == 1)
-        mat.ExtraParams.x = texture(g_tMetalness, vTexCoordOut).r;
+        // not exclusive to csgo_character
+        mat.ExtraParams.x = metalnessTexture.r;
+    #endif
+    #if defined(csgo_character)
+        mat.ClothMask = metalnessTexture.b * (1.0 - metalnessTexture.g);
+    #elif defined(csgo_weapon)
+        mat.RoughnessTex = metalnessTexture.r;
     #endif
 #elif (hasUniformMetalness)
     mat.Metalness = g_flMetalness;
@@ -401,58 +394,61 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     mat.Metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
 #endif
 
+    // Ambient Occlusion
 #if (hasColorAlphaAO)
     mat.AmbientOcclusion = color.a;
-#elif defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)
-    mat.AmbientOcclusion = texture(g_tAmbientOcclusion, vTexCoordOut).r;
-#elif defined(complex)
-    #if (F_SECONDARY_UV == 1)
-        mat.AmbientOcclusion = texture(g_tAmbientOcclusion, g_bUseSecondaryUvForAmbientOcclusion ? vTexCoord2 : vTexCoordOut).r;
+#elif (hasAmbientOcclusionTexture)
+    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+        mat.AmbientOcclusion = texture(g_tAmbientOcclusion, (g_bUseSecondaryUvForAmbientOcclusion || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord).r;
     #else
-        mat.AmbientOcclusion = texture(g_tAmbientOcclusion, vTexCoordOut).r;
+        mat.AmbientOcclusion = texture(g_tAmbientOcclusion, texCoord).r;
     #endif
+#endif
+
+#if defined(vr_complex) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
+    mat.ExtraParams.x = g_flRetroReflectivity;
+#endif
+#if defined(vr_complex) && (F_CLOTH_SHADING == 1)
+    mat.ClothMask = 1.0;
+#endif
+
+    mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
+
+#if (F_USE_BENT_NORMALS == 1)
+    GetBentNormal(mat, texCoord);
+#else
+    mat.AmbientNormal = mat.Normal;
+    mat.AmbientGeometricNormal = mat.GeometricNormal;
 #endif
 
 
 
-    mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
-
-    mat.Roughness = clamp(mat.Roughness, 0.005, 1.0); // <- inaccurate?
-
-
-    #if defined(vr_complex) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
-        mat.ExtraParams.x = g_flRetroReflectivity;
-    #endif
-    #if defined(vr_complex) && (F_CLOTH_SHADING == 1)
-        mat.ExtraParams.z = 1.0;
-    #endif
-
-
-    #if (F_USE_BENT_NORMALS == 1)
-        GetBentNormal(mat, vTexCoordOut);
-    #else
-        mat.AmbientNormal = mat.Normal;
-        mat.AmbientGeometricNormal = mat.GeometricNormal;
-    #endif
+#if (F_DECAL_TEXTURE == 1)
+    mat.Albedo = ApplyDecalTexture(mat.Albedo);
+#endif
 
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
-	mat.SpecularColor = mix(vec3(0.04), mat.Albedo, mat.Metalness);
+
+#if (F_CLOTH_SHADING == 1) && defined(csgo_character)
+    vec3 F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
+#else
+    const vec3 F0 = vec3(0.04);
+#endif
+	mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
     // Self illum
     #if (F_SELF_ILLUM == 1) && !defined(vr_xen_foliage) // xen foliage has really complicated selfillum and is wrong with this code
-        #if (F_SECONDARY_UV == 1)
-            vec2 selfIllumCoords = g_bUseSecondaryUvForSelfIllum ? vTexCoord2 : vTexCoordOut;
+        #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+            vec2 selfIllumCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
         #else
-            vec2 selfIllumCoords = vTexCoordOut;
+            vec2 selfIllumCoords = texCoord;
         #endif
 
         selfIllumCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
 
         #if !defined(vr_skin)
             float selfIllumMask = texture(g_tSelfIllumMask, selfIllumCoords).r; // is this float or rgb?
-        #else
-            float selfIllumMask = combinedMasks.b;
         #endif
 
         vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SrgbGammaToLinear(g_vSelfIllumTint.rgb);
@@ -477,6 +473,10 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     mat.DiffuseAO = vec3(mat.AmbientOcclusion);
     mat.SpecularAO = mat.AmbientOcclusion;
 
+#if (F_ANISOTROPIC_GLOSS == 1)
+    CalculateAnisotropicTangents(mat);
+#endif
+
     return mat;
 }
 
@@ -489,9 +489,10 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 void main()
 {
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
+    vec2 texCoord = vTexCoordOut;
 
     // Get material
-    MaterialProperties_t mat = GetMaterial(vertexNormal);
+    MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
 
     LightingTerms_t lighting = InitLighting();
 
@@ -503,6 +504,7 @@ void main()
 
     CalculateDirectLighting(lighting, mat);
     CalculateIndirectLighting(lighting, mat);
+
 
 
     // Combining pass
@@ -520,7 +522,7 @@ void main()
     #if defined(hasTransmission)
         vec3 transmissiveLighting = o.TransmissiveDirect * mat.TransmissiveColor;
     #else
-        vec3 transmissiveLighting = vec3(0.0);
+        const vec3 transmissiveLighting = vec3(0.0);
     #endif
 
     // Unique HLA Membrane blend mode: specular unaffected by opacity
@@ -602,5 +604,8 @@ void main()
 
 #if renderMode_ExtraParams == 1
     outputColor.rgb = mat.ExtraParams.rgb;
+#endif
+#if renderMode_AnisoGloss == 1
+    outputColor.rgb = vec3(mat.RoughnessTex.xy, 0.0);
 #endif
 }

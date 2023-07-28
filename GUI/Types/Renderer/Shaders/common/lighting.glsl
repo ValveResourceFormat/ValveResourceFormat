@@ -136,9 +136,8 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
 
-    // In non-lightmap shaders, SpecularAO always does a min(1.0, specularAO) in the same place where lightmap
-    // shaders does min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
-    mat.SpecularAO = min(mat.SpecularAO, vAHDData.a);
+    lighting.SpecularOcclusion = vAHDData.a;
+
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
 #endif
@@ -162,6 +161,10 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
 #if defined(DIFFUSE_AO_COLOR_BLEED)
     SetDiffuseColorBleed(mat);
 #endif
+
+    // In non-lightmap shaders, SpecularAO always does a min(1.0, specularAO) in the same place where lightmap
+    // shaders does min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
+    mat.SpecularAO = min(o.SpecularOcclusion, mat.SpecularAO);
 
     vec3 DirectAODiffuse = mix(vec3(1.0), mat.DiffuseAO, g_flAmbientOcclusionDirectDiffuse);
     float DirectAOSpecular = mix(1.0, mat.SpecularAO, g_flAmbientOcclusionDirectSpecular);

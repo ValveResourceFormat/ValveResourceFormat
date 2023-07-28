@@ -31,6 +31,7 @@ namespace GUI.Types.Renderer
             ["g_tColor"] = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust" },
             ["g_tNormal"] = new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" },
             ["g_tLayer2NormalRoughness"] = new[] { "g_tNormalB" },
+            ["g_tAmbientOcclusion"] = new[] { "g_tLayer1AmbientOcclusion" },
         };
 
         public MaterialLoader(VrfGuiContext guiContext)

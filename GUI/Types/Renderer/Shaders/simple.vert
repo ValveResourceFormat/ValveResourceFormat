@@ -16,10 +16,12 @@
 #define F_PAINT_VERTEX_COLORS 0 // csgo_static_overlay
 #define F_LAYERS 0
 #define F_SECONDARY_UV 0
+#define F_FORCE_UV2 0
 #define F_DETAIL_TEXTURE 0
 #define F_FOLIAGE_ANIMATION 0
 #define F_TEXTURE_ANIMATION 0
 #define F_TEXTURE_ANIMATION_MODE 0
+#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
 //End of parameter defines
 
 #if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
@@ -63,13 +65,15 @@ in vec2 vTEXCOORD;
 #if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vCOLOR;
 #endif
-#if F_SECONDARY_UV
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec4 vTEXCOORD2;
     out vec2 vTexCoord2;
 #endif
 #if (F_FOLIAGE_ANIMATION > 0)
     in vec4 vTEXCOORD1;
+    #if !((F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1))
     in vec4 vTEXCOORD2;
+    #endif
 #endif
 
 out vec4 vVertexColorOut;
@@ -102,6 +106,29 @@ uniform float g_flTime;
     uniform float g_flAnimationTimePerFrame;
     uniform float g_flAnimationTimeOffset;
     uniform float g_flAnimationFrame;
+#endif
+
+#if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
+uniform float g_vSphericalAnisotropyAngle = 180.0;
+uniform vec4 g_vSphericalAnisotropyPole = vec4(0, 0, 1, 0);
+
+out vec3 vAnisoBitangentOut;
+
+vec3 GetAnisoAngle(vec3 normal, vec3 tangent)
+{
+    float angle = (g_vSphericalAnisotropyAngle / 90.0) - 1.0;
+
+    vec3 vAnisoTangent = cross(g_vSphericalAnisotropyPole.xyz, normal);
+    // Prevent length of 0
+    vAnisoTangent = mix(vAnisoTangent, tangent.xyz, bvec3(length(vec3(equal(vAnisoTangent, vec3(0.0)))) != 0.0));
+
+    if (g_vSphericalAnisotropyAngle != 0.0)
+    {
+        vec3 rotated1 = mix(cross(normal, vAnisoTangent), vAnisoTangent, ClampToPositive(g_vSphericalAnisotropyAngle));
+        vAnisoTangent = mix(rotated1, -vAnisoTangent, ClampToPositive(-g_vSphericalAnisotropyAngle));
+    }
+    return vAnisoTangent;
+}
 #endif
 
 vec2 GetAnimatedUVs(vec2 texCoords)
@@ -145,7 +172,7 @@ uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
 uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
 out vec2 vDetailTexCoords;
 
-#if (F_SECONDARY_UV == 1)
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
 #endif
 
@@ -175,17 +202,24 @@ void main()
 
     //Unpack normals
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    vNormalOut = normalize(normalTransform * vNORMAL.xyz);
-    vTangentOut = normalize(normalTransform * vTANGENT.xyz);
+    vec3 normal = vNORMAL.xyz;
+    vec3 tangent = vTANGENT.xyz;
+    vNormalOut = normalize(normalTransform * normal);
+    vTangentOut = normalize(normalTransform * tangent);
     vBitangentOut = cross(vNormalOut, vTangentOut);
 #else
+    vec3 normal = DecompressNormal(vNORMAL);
     vec4 tangent = DecompressTangent(vNORMAL);
-    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #endif
 
-#if (F_FOLIAGE_ANIMATION > 0)
+#if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
+    vAnisoBitangentOut = normalTransform * GetAnisoAngle(normal, tangent.xyz);
+#endif
+
+#if (F_FOLIAGE_ANIMATION > 0) && !((F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1))
     // TODO: this should always be texcoord semanticindex 0
 	vTexCoordOut = GetAnimatedUVs(vTEXCOORD2.xy);
 #else
@@ -206,12 +240,12 @@ void main()
     vVertexColorOut *= vCOLOR / 255.0f;
 #endif
 
-#if F_SECONDARY_UV == 1
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     vTexCoord2 = vTEXCOORD2.xy;
 #endif
 
 #if F_DETAIL_TEXTURE > 0
-    #if F_SECONDARY_UV == 1
+    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
         vDetailTexCoords = getDetailCoords(g_bUseSecondaryUvForDetailTexture ? vTexCoord2 : vTexCoordOut);
     #else
         vDetailTexCoords = getDetailCoords(vTexCoordOut);

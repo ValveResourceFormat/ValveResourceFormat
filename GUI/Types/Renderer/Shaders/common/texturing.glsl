@@ -24,6 +24,13 @@ float AdjustRoughnessByGeometricNormal( float roughness, vec3 geometricNormal )
 	return max(roughness, geometricRoughnessFactor);
 }
 
+vec2 AdjustRoughnessByGeometricNormal( vec2 roughness, vec3 geometricNormal )
+{
+	float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
+
+	return max(roughness, vec2(geometricRoughnessFactor));
+}
+
 
 
 
@@ -62,13 +69,20 @@ struct MaterialProperties_t
     vec3 Normal;
     vec3 NormalMap;
 
+#if defined(VEC2_ROUGHNESS)
+    vec2 Roughness;
+    vec2 RoughnessTex;
+#else
     float Roughness;
     float RoughnessTex;
+#endif
 
     float AmbientOcclusion;
-    vec3 DiffuseAO; // vec3 because  Diffuse AO can be tinted
+    vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
     float SpecularAO;
     vec4 ExtraParams;
+    float ClothMask;
+    float SSSMask;
 
     vec3 DiffuseColor;
     vec3 SpecularColor;
@@ -81,6 +95,11 @@ struct MaterialProperties_t
 
 #if defined(NEED_CURVATURE)
     float Curvature;
+#endif
+
+#if (F_ANISOTROPIC_GLOSS == 1)
+    vec3 AnisotropicTangent;
+    vec3 AnisotropicBitangent;
 #endif
     //int NumDynamicLights;
 };
@@ -99,7 +118,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.Normal = vec3(0.0);
     mat.NormalMap = vec3(0, 0, 1);
 
-#if 0 && defined(VEC2_ROUGHNESS)
+#if defined(VEC2_ROUGHNESS)
     mat.Roughness = vec2(0.0);
     mat.RoughnessTex = vec2(0.0);
 #else
@@ -109,9 +128,10 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.AmbientOcclusion = 1.0;
     mat.DiffuseAO = vec3(1.0);
     mat.SpecularAO = 1.0;
-    // r = retro reflectivity, g = sss mask, b = cloth, a = misc/rimmask?
+    // r = retro reflectivity, g = misc, b = misc, a = misc/rimmask?
     mat.ExtraParams = vec4(0.0);
-
+    mat.ClothMask = 0.0;
+    mat.SSSMask = 0.0;
 
     mat.DiffuseColor = vec3(0.0);
     mat.SpecularColor = vec3(0.04);
@@ -126,6 +146,11 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     #else
         mat.Curvature = pow( GetCurvature(mat.GeometricNormal, mat.PositionWS), 0.333 );
     #endif
+#endif
+
+#if (F_ANISOTROPIC_GLOSS == 1)
+    mat.AnisotropicTangent = vec3(0.0);
+    mat.AnisotropicBitangent = vec3(0.0);
 #endif
     //prop.NumDynamicLights = 0;
 
@@ -152,7 +177,7 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
     vec3 vAmbientOcclusionExponent = vec3(1.0) - SrgbGammaToLinear(g_vAmbientOcclusionColorBleed.rgb);
 #if (F_SSS_MASK == 1)
-    vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.ExtraParams.y);
+    vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.SSSMask);
 #endif
     mat.DiffuseAO = pow(mat.DiffuseAO, vAmbientOcclusionExponent);
 }
@@ -250,7 +275,7 @@ void GetBentNormal(inout MaterialProperties_t mat, vec2 texCoords)
 //-------------------------------------------------------------------------
 
 
-#if (F_ALPHA_TEST == 1)
+#if (F_ALPHA_TEST == 1) || (alphaTest)
 
 uniform float g_flAntiAliasedEdgeStrength = 1.0;
 
@@ -363,5 +388,58 @@ vec4 GetGlassMaterial(MaterialProperties_t mat)
     vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 
     return mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);
+}
+#endif
+
+
+
+
+
+
+
+// Cloth Sheen
+
+#if (F_CLOTH_SHADING == 1) && defined(csgo_character)
+uniform float g_flSheenScale = 0.667;
+uniform vec4 g_flSheenTintColor = vec4(1.0);
+
+vec3 ApplySheen(float reflectance, vec3 albedo, float clothMask)
+{
+    return mix(vec3(reflectance), saturate((SrgbGammaToLinear(g_flSheenTintColor.rgb) * sqrt(albedo)) * g_flSheenScale), clothMask);
+}
+
+#endif
+
+
+
+
+
+// CS2 Decals
+
+#if (F_DECAL_TEXTURE == 1)
+
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+uniform bool g_bUseSecondaryUvForDecal;
+#endif
+uniform sampler2D g_tDecal;
+
+vec3 ApplyDecalTexture(vec3 albedo)
+{
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    vec2 coords = (g_bUseSecondaryUvForDecal || (F_FORCE_UV2 == 1)) ? vTexCoord2.xy : vTexCoordOut.xy;
+#else
+    vec2 coords = vTexCoordOut.xy;
+#endif
+    vec4 decalTex = texture(g_tDecal, coords);
+
+    // this is just a uniform in actual code
+    if (F_DECAL_BLEND_MODE == 0)
+    {
+        return mix(albedo, decalTex.rgb, decalTex.a);
+    }
+    else
+    {
+        return albedo * decalTex.rgb;
+    }
 }
 #endif
