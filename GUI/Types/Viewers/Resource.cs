@@ -93,17 +93,8 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Particle:
-                    var viewerControl = new GLParticleViewer(vrfGuiContext);
-                    viewerControl.GLLoad += (_, __) =>
-                    {
-                        var particleSystem = (ParticleSystem)resource.DataBlock;
-                        var particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, vrfGuiContext);
-
-                        viewerControl.AddRenderer(particleRenderer);
-                    };
-
                     var particleRendererTab = new TabPage("PARTICLE");
-                    particleRendererTab.Controls.Add(viewerControl);
+                    particleRendererTab.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
                     resTabs.TabPages.Add(particleRendererTab);
                     break;
 
