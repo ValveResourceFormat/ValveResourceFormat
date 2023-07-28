@@ -395,6 +395,12 @@ namespace GUI.Types.ParticleRenderer
             foreach (var childName in childNames)
             {
                 var childResource = vrfGuiContext.LoadFileByAnyMeansNecessary(childName + "_c");
+
+                if (childResource == null)
+                {
+                    continue;
+                }
+
                 var childSystem = (ParticleSystem)childResource.DataBlock;
 
                 childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0).Position));
