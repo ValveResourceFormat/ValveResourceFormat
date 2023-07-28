@@ -8,7 +8,10 @@ namespace GUI.Types.ParticleRenderer
 {
     interface IVectorProvider
     {
-        Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState);
+        Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState);
+
+        Vector3 NextVector(ParticleSystemRenderState renderState)
+            => NextVector(ref Particle.Default, renderState);
     }
 
     readonly struct LiteralVectorProvider : IVectorProvider
@@ -20,12 +23,12 @@ namespace GUI.Types.ParticleRenderer
             this.value = value;
         }
 
-        public LiteralVectorProvider(double[] value)
+        public LiteralVectorProvider(float[] value)
         {
             this.value = value.ToVector3();
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState) => value;
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => value;
     }
 
     // Literal Color
@@ -44,7 +47,7 @@ namespace GUI.Types.ParticleRenderer
             // also, do linear to srgb
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState) => value;
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => value;
     }
 
     // Per-Particle Vector
@@ -61,7 +64,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState) => scale * particle.GetVector(field);
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => scale * particle.GetVector(field);
     }
 
     // Particle Velocity
@@ -72,7 +75,7 @@ namespace GUI.Types.ParticleRenderer
         {
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState) => particle.Velocity;
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => particle.Velocity;
     }
 
     // CP Value
@@ -89,7 +92,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState)
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return renderState.GetControlPoint(cp).Position * scale;
         }
@@ -109,7 +112,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState)
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return renderState.GetControlPoint(cp).Position + relativePosition; // this is weird as hell but its actually how it works
         }
@@ -129,7 +132,7 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState)
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
             var cpDirection = renderState.GetControlPoint(cp).Orientation;
             if (renderState.GetControlPoint(cp).Orientation == Vector3.Zero || relativeDirection == Vector3.Zero)
@@ -154,10 +157,10 @@ namespace GUI.Types.ParticleRenderer
             Z = keyValues.GetNumberProvider("m_FloatComponentZ");
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState) => new(
-            X.NextNumber(particle, renderState),
-            Y.NextNumber(particle, renderState),
-            Z.NextNumber(particle, renderState));
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => new(
+            X.NextNumber(ref particle, renderState),
+            Y.NextNumber(ref particle, renderState),
+            Z.NextNumber(ref particle, renderState));
     }
 
     // Float Interp (Clamped) & Float Interp (Open)
@@ -182,9 +185,9 @@ namespace GUI.Types.ParticleRenderer
             output1 = keyValues.GetArray<double>("m_vInterpOutput1").ToVector3();
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState)
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var remappedInput = MathUtils.Remap(floatInterp.NextNumber(particle, renderState), input0, input1);
+            var remappedInput = MathUtils.Remap(floatInterp.NextNumber(ref particle, renderState), input0, input1);
 
             if (clamp)
             {
@@ -232,9 +235,9 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        public Vector3 NextVector(Particle particle, ParticleSystemRenderState renderState)
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var gradientInput = MathUtils.Remap(floatInterp.NextNumber(particle, renderState), input0, input1);
+            var gradientInput = MathUtils.Remap(floatInterp.NextNumber(ref particle, renderState), input0, input1);
 
             if (gradientInput <= gradientStops[0].Position)
             {
@@ -295,7 +298,7 @@ namespace GUI.Types.ParticleRenderer
                 switch (type)
                 {
                     case "PVEC_TYPE_LITERAL":
-                        return new LiteralVectorProvider(numberProviderParameters.GetArray<double>("m_vLiteralValue"));
+                        return new LiteralVectorProvider(numberProviderParameters.GetFloatArray("m_vLiteralValue"));
                     case "PVEC_TYPE_LITERAL_COLOR":
                         return new LiteralColorVectorProvider(numberProviderParameters.GetArray<int>("m_LiteralColor"));
                     case "PVEC_TYPE_PARTICLE_VECTOR":
@@ -327,14 +330,14 @@ namespace GUI.Types.ParticleRenderer
                         if (numberProviderParameters.ContainsKey("m_vLiteralValue"))
                         {
                             Console.Error.WriteLine($"Vector provider of type {type} is not directly supported, but it has m_vLiteralValue.");
-                            return new LiteralVectorProvider(numberProviderParameters.GetArray<double>("m_vLiteralValue"));
+                            return new LiteralVectorProvider(numberProviderParameters.GetFloatArray("m_vLiteralValue"));
                         }
 
                         throw new InvalidCastException($"Could not create vector provider of type {type}.");
                 }
             }
 
-            return new LiteralVectorProvider(keyValues.GetArray<double>(propertyName));
+            return new LiteralVectorProvider(keyValues.GetFloatArray(propertyName));
         }
     }
     // Used for named value:

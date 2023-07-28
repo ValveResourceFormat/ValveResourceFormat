@@ -44,7 +44,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
                 // The set method affects the value the vector is interpolating to, instead of the current interpolated value.
                 var lerpTarget = particle.ModifyVectorBySetMethod(field, output, setMethod);

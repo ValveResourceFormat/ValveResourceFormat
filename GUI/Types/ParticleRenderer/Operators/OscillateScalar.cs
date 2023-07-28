@@ -63,7 +63,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Remove expired particles
-            /*var particlesToRemove = particleRates.Keys.Except(particles[i]).ToList();
+            /*var particlesToRemove = particleRates.Keys.Except(particle).ToList();
             foreach (var p in particlesToRemove)
             {
                 particleRates.Remove(p);
@@ -71,7 +71,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }*/
 
             // Update remaining particles
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
                 var rate = GetParticleRate(particle.ParticleCount);
                 var frequency = GetParticleFrequency(particle.ParticleCount);
@@ -158,7 +158,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Update remaining particles
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
                 var delta = MathF.Sin(((particle.Age * frequency * oscillationMultiplier) + oscillationOffset) * MathF.PI);
 

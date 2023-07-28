@@ -69,7 +69,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
                 if (!perParticleAxis.ContainsKey(particle.ParticleCount))
                 {
@@ -80,7 +80,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var axis = perParticleAxis[particle.ParticleCount];
                 var rotationRate = perParticleRate[particle.ParticleCount];
 
-                var scale = perParticleScale.NextNumber(particle, particleSystemState);
+                var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 
                 // probably slow but who knows???
                 var rotatedVector = MatrixMul(particle.GetVector(field), Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));

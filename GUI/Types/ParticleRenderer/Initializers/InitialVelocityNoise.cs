@@ -31,14 +31,14 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var noiseScale = this.noiseScale.NextNumber(particle, particleSystemState);
+            var noiseScale = this.noiseScale.NextNumber(ref particle, particleSystemState);
             var r = new Vector3(
                 Noise.Simplex1D(particleSystemState.Age * noiseScale),
                 Noise.Simplex1D((particleSystemState.Age * noiseScale) + 101723),
                 Noise.Simplex1D((particleSystemState.Age * noiseScale) + 555557));
 
-            var min = outputMin.NextVector(particle, particleSystemState);
-            var max = outputMax.NextVector(particle, particleSystemState);
+            var min = outputMin.NextVector(ref particle, particleSystemState);
+            var max = outputMax.NextVector(ref particle, particleSystemState);
 
             particle.Velocity = MathUtils.Lerp(r, min, max);
 

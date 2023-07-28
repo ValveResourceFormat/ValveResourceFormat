@@ -84,12 +84,12 @@ namespace GUI.Types.ParticleRenderer.Initializers
         // We're simulating a lot of weird and incorrect behavior here, but it's accurate to source 2
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var rawDimenX = this.dimenX.NextNumber(particle, particleSystemState);
-            var rawDimenY = this.dimenY.NextNumber(particle, particleSystemState);
-            var rawDimenZ = this.dimenZ.NextNumber(particle, particleSystemState);
-            var spacingX = this.spacingX.NextNumber(particle, particleSystemState);
-            var spacingY = this.spacingY.NextNumber(particle, particleSystemState);
-            var spacingZ = this.spacingZ.NextNumber(particle, particleSystemState);
+            var rawDimenX = this.dimenX.NextNumber(ref particle, particleSystemState);
+            var rawDimenY = this.dimenY.NextNumber(ref particle, particleSystemState);
+            var rawDimenZ = this.dimenZ.NextNumber(ref particle, particleSystemState);
+            var spacingX = this.spacingX.NextNumber(ref particle, particleSystemState);
+            var spacingY = this.spacingY.NextNumber(ref particle, particleSystemState);
+            var spacingZ = this.spacingZ.NextNumber(ref particle, particleSystemState);
 
             // things wrap around differently when between two whole numbers. the hollow grid is larger
             rawDimenX = Math.Max(rawDimenX, 1.0f);

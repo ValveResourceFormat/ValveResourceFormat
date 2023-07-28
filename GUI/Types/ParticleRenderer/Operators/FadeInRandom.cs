@@ -39,26 +39,26 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
                 float fadeInTime;
 
-                if (!FadeInTimes.ContainsKey(particles[i].ParticleCount))
+                if (!FadeInTimes.ContainsKey(particle.ParticleCount))
                 {
-                    FadeInTimes[particles[i].ParticleCount] = MathUtils.RandomWithExponentBetween(randomExponent, fadeInTimeMin, fadeInTimeMax);
+                    FadeInTimes[particle.ParticleCount] = MathUtils.RandomWithExponentBetween(randomExponent, fadeInTimeMin, fadeInTimeMax);
                 }
 
-                fadeInTime = FadeInTimes[particles[i].ParticleCount];
+                fadeInTime = FadeInTimes[particle.ParticleCount];
 
 
                 var time = proportional
-                    ? particles[i].NormalizedAge
-                    : particles[i].Age;
+                    ? particle.NormalizedAge
+                    : particle.Age;
 
                 if (time <= fadeInTime)
                 {
-                    var newAlpha = (time / fadeInTime) * particles[i].InitialAlpha;
-                    particles[i].Alpha = newAlpha;
+                    var newAlpha = (time / fadeInTime) * particle.InitialAlpha;
+                    particle.Alpha = newAlpha;
                 }
             }
         }

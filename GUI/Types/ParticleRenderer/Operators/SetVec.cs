@@ -39,10 +39,10 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
-                var value = this.value.NextVector(particle, particleSystemState);
-                var lerp = this.lerp.NextNumber(particle, particleSystemState);
+                var value = this.value.NextVector(ref particle, particleSystemState);
+                var lerp = this.lerp.NextNumber(ref particle, particleSystemState);
 
                 var currentValue = particle.ModifyVectorBySetMethod(field, value, setMethod);
                 var initialValue = particle.GetVector(field);

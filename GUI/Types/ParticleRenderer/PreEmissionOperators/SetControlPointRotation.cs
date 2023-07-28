@@ -41,8 +41,8 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            var axis = this.axis.NextVector(new Particle(), particleSystemState);
-            var rotationRate = this.rotationRate.NextNumber(new Particle(), particleSystemState);
+            var axis = this.axis.NextVector(particleSystemState);
+            var rotationRate = this.rotationRate.NextNumber(particleSystemState);
             // probably slow but who knows???
             var rotatedVector = MatrixMul(new Vector3(1, 0, 0), Matrix4x4.CreateFromAxisAngle(axis, rotationRate * frameTime));
 

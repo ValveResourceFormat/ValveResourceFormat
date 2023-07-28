@@ -40,18 +40,18 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 if (fieldInput.FieldType() == "vector")
                 {
-                    foreach (var particle in particles)
+                    foreach (ref var particle in particles)
                     {
-                        var interp = interpolation.NextNumber(particle, particleSystemState);
+                        var interp = interpolation.NextNumber(ref particle, particleSystemState);
                         var blend = MathUtils.Lerp(interp, particle.GetVector(fieldOutput), particle.GetVector(fieldInput));
                         particle.SetVector(fieldOutput, blend);
                     }
                 }
                 else if (fieldInput.FieldType() == "float")
                 {
-                    foreach (var particle in particles)
+                    foreach (ref var particle in particles)
                     {
-                        var interp = interpolation.NextNumber(particle, particleSystemState);
+                        var interp = interpolation.NextNumber(ref particle, particleSystemState);
                         var blend = MathUtils.Lerp(interp, particle.GetScalar(fieldOutput), particle.GetScalar(fieldInput));
                         particle.SetScalar(fieldOutput, blend);
                     }

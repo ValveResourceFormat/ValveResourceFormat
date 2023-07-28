@@ -37,10 +37,10 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
-                var vec1 = inputVec1.NextVector(particle, particleSystemState);
-                var vec2 = inputVec2.NextVector(particle, particleSystemState);
+                var vec1 = inputVec1.NextVector(ref particle, particleSystemState);
+                var vec2 = inputVec2.NextVector(ref particle, particleSystemState);
 
                 var cross = Vector3.Cross(vec1, vec2);
 

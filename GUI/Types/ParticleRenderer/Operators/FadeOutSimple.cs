@@ -24,14 +24,14 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                var timeLeft = 1 - particles[i].NormalizedAge;
+                var timeLeft = 1 - particle.NormalizedAge;
                 if (timeLeft <= fadeOutTime)
                 {
                     var t = timeLeft / fadeOutTime;
-                    var newAlpha = t * particles[i].InitialAlpha;
-                    particles[i].SetScalar(fieldOutput, newAlpha);
+                    var newAlpha = t * particle.InitialAlpha;
+                    particle.SetScalar(fieldOutput, newAlpha);
                 }
             }
         }

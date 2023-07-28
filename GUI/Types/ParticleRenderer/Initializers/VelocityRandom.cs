@@ -38,13 +38,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             // A bit unclear what the speed is here, but I do know that going under 1.0 does nothing different than 1.0
-            var speedmin = speedMin.NextNumber(particle, particleSystemState);
-            var speedmax = speedMax.NextNumber(particle, particleSystemState);
+            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
+            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
             var speed = Math.Max(1.0f, MathUtils.RandomBetween(speedmin, speedmax));
 
-            var vecMin = vectorMin.NextVector(particle, particleSystemState);
-            var vecMax = vectorMax.NextVector(particle, particleSystemState);
+            var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
+            var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
 
             var velocity = MathUtils.RandomBetweenPerComponent(vecMin, vecMax);
 

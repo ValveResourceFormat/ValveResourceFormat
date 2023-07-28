@@ -45,8 +45,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var speedmin = speedMin.NextNumber(particle, particleSystemState);
-            var speedmax = speedMax.NextNumber(particle, particleSystemState);
+            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
+            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
             var speed = Math.Max(1.0f, MathUtils.RandomBetween(speedmin, speedmax));
 
@@ -57,7 +57,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 speed /= deltaTimeFake;
             }
 
-            var scale = vectorScale.NextVector(particle, particleSystemState);
+            var scale = vectorScale.NextVector(ref particle, particleSystemState);
 
             var direction = Vector3.Normalize(particle.Position - particleSystemState.GetControlPoint(controlPoint).Position);
 

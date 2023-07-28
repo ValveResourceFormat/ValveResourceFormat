@@ -22,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            particleSystemState.SetStopTime(duration.NextNumber(new Particle(), particleSystemState), destroy);
+            particleSystemState.SetStopTime(duration.NextNumber(particleSystemState), destroy);
         }
     }
 }

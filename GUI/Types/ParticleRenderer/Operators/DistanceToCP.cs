@@ -74,7 +74,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             var cpPos = particleSystemState.GetControlPoint(controlPoint).Position;
 
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
                 var distance = Vector3.Distance(cpPos, particle.Position);
 

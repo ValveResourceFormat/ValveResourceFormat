@@ -40,10 +40,10 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var thickness = this.thickness.NextNumber(particle, particleSystemState);
-            var particlesPerOrbit = this.particlesPerOrbit.NextInt(particle, particleSystemState);
+            var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
+            var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);
 
-            var radius = initialRadius.NextNumber(particle, particleSystemState) + (Random.Shared.NextSingle() * thickness);
+            var radius = initialRadius.NextNumber(ref particle, particleSystemState) + (Random.Shared.NextSingle() * thickness);
 
             var angle = GetNextAngle(particlesPerOrbit);
 

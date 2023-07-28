@@ -57,10 +57,10 @@ namespace GUI.Types.ParticleRenderer.Operators
         // is this particle id or total particle count?
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
-                var inputMin = this.inputMin.NextNumber(particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(particle, particleSystemState);
+                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
+                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
 
                 if (activeRange && (particle.ParticleCount < inputMin || particle.ParticleCount > inputMax))
                 {
@@ -71,8 +71,8 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 remappedDistance = MathUtils.Saturate(remappedDistance);
 
-                var outputMin = this.outputMin.NextNumber(particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(particle, particleSystemState);
+                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
+                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
                 var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
 

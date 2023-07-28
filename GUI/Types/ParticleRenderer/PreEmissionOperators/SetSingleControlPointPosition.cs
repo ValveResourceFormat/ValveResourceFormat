@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
     class SetSingleControlPointPosition : IParticlePreEmissionOperator
     {
         private readonly int CP1 = 1;
-        private readonly Vector3 CP1Pos = new(128, 0, 0);
+        private readonly IVectorProvider CP1Pos = new LiteralVectorProvider(new Vector3(128, 0, 0));
 
         private readonly bool SetOnce;
         private readonly bool UseWorldLocation;
@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
             if (keyValues.ContainsKey("m_vecCP1Pos"))
             {
-                CP1Pos = keyValues.GetArray<double>("m_vecCP1Pos").ToVector3();
+                CP1Pos = keyValues.GetVectorProvider("m_vecCP1Pos");
             }
 
             if (keyValues.ContainsKey("m_bSetOnce"))
@@ -53,7 +53,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
                     ? Vector3.Zero
                     : particleSystemState.GetControlPoint(CPOffset).Position;
 
-                particleSystemState.SetControlPointValue(CP1, CP1Pos + controlPointOffset);
+                particleSystemState.SetControlPointValue(CP1, CP1Pos.NextVector(particleSystemState) + controlPointOffset);
 
                 HasRunBefore = true;
             }

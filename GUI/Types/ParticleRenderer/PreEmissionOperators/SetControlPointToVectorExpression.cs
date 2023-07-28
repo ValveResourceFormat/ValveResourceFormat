@@ -36,8 +36,8 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            var vec1 = input1.NextVector(new Particle(), particleSystemState);
-            var vec2 = input2.NextVector(new Particle(), particleSystemState);
+            var vec1 = input1.NextVector(particleSystemState);
+            var vec2 = input2.NextVector(particleSystemState);
 
             var output = expression switch
             {

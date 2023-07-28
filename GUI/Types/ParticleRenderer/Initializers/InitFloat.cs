@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.SetInitialScalar(field, value.NextNumber(particle, particleSystemState));
+            particle.SetInitialScalar(field, value.NextNumber(ref particle, particleSystemState));
 
             return particle;
         }

@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         // todo: these (operators and initializers) can reference either the current value and the initial value. do we need to store the initial value of all attributes?
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.SetVector(field, value.NextVector(particle, particleSystemState));
+            particle.SetVector(field, value.NextVector(ref particle, particleSystemState));
 
             return particle;
         }

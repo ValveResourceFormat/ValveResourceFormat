@@ -46,11 +46,11 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                if (CulledBySphere(particles[i].Position, particleSystemState))
+                if (CulledBySphere(particle.Position, particleSystemState))
                 {
-                    particles[i].Kill();
+                    particle.Kill();
                 }
             }
         }

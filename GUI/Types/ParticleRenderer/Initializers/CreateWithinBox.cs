@@ -37,8 +37,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var posMin = min.NextVector(particle, particleSystemState);
-            var posMax = max.NextVector(particle, particleSystemState);
+            var posMin = min.NextVector(ref particle, particleSystemState);
+            var posMax = max.NextVector(ref particle, particleSystemState);
 
             var position = MathUtils.RandomBetweenPerComponent(posMin, posMax);
 

@@ -30,11 +30,11 @@ namespace GUI.Types.ParticleRenderer.Operators
         // Does not require SpinUpdate 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                if (particles[i].Age < spinStopTime)
+                if (particle.Age < spinStopTime)
                 {
-                    particles[i].SetScalar(ParticleField.Roll, particles[i].Rotation.Z + spinRate * frameTime);
+                    particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + spinRate * frameTime);
                 }
             }
         }
@@ -66,11 +66,11 @@ namespace GUI.Types.ParticleRenderer.Operators
         // Does not require SpinUpdate
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (int i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                if (particles[i].Age < spinStopTime)
+                if (particle.Age < spinStopTime)
                 {
-                    particles[i].SetScalar(ParticleField.Yaw, particles[i].Rotation.X + spinRate * frameTime);
+                    particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + spinRate * frameTime);
                 }
             }
         }

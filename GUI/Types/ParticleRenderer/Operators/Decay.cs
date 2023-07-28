@@ -11,11 +11,11 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                if (particles[i].Age > particles[i].Lifetime)
+                if (particle.Age > particle.Lifetime)
                 {
-                    particles[i].Kill();
+                    particle.Kill();
                 }
             }
         }

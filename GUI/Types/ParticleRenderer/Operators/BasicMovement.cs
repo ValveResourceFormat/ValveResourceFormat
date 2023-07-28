@@ -7,14 +7,14 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class BasicMovement : IParticleOperator
     {
-        private readonly Vector3 gravity = Vector3.Zero;
+        private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider drag;
 
         public BasicMovement(IKeyValueCollection keyValues)
         {
             if (keyValues.ContainsKey("m_Gravity"))
             {
-                gravity = keyValues.GetArray<double>("m_Gravity").ToVector3();
+                gravity = keyValues.GetVectorProvider("m_Gravity");
             }
 
             if (keyValues.ContainsKey("m_fDrag"))
@@ -31,25 +31,25 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            var gravityMovement = gravity * frameTime;
+            var gravityMovement = gravity.NextVector(particleSystemState) * frameTime;
 
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
                 // SO. Velocity is partially computed using the previous frame's position.
                 // Which means that anything with basicmovement will have additional effects that we
                 // aren't accounting for if we don't apply whatever this is.
 
                 // Apply acceleration
-                particles[i].Velocity += gravityMovement;
+                particle.Velocity += gravityMovement;
 
-                particles[i].Velocity += GetVelocityFromPreviousPosition(particles[i].Position, particles[i].PositionPrevious);
+                particle.Velocity += GetVelocityFromPreviousPosition(particle.Position, particle.PositionPrevious);
 
                 // Apply drag
                 // Is this right? this is a super important operator so it might be bad if this is wrong
-                particles[i].Velocity *= 1 - (drag.NextNumber() * 30f * frameTime);
+                particle.Velocity *= 1 - (drag.NextNumber() * 30f * frameTime);
 
                 // Velocity is only applied in MovementBasic. If you layer two MovementBasic's on top of one another it'll indeed apply velocity twice.
-                particles[i].Position += particles[i].Velocity * frameTime;
+                particle.Position += particle.Velocity * frameTime;
             }
         }
     }

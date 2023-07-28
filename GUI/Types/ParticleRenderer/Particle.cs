@@ -6,6 +6,9 @@ namespace GUI.Types.ParticleRenderer
 {
     struct Particle
     {
+        public static Particle @default;
+        public static ref Particle Default => ref @default;
+
         public int BehaviorVersion { get; set; }
         public int ParticleCount { get; set; } // starts at 0
 

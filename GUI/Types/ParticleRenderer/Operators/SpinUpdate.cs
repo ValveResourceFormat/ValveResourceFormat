@@ -11,9 +11,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         // This is the only place that will update Rotation based on RotationSpeed
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                particles[i].Rotation += particles[i].RotationSpeed * frameTime;
+                particle.Rotation += particle.RotationSpeed * frameTime;
             }
         }
     }

@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (var particle in particles)
+            foreach (ref var particle in particles)
             {
                 var vector = particle.GetVector(field);
                 vector = Vector3.Normalize(vector) * scale;

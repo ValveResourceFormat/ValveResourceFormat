@@ -35,8 +35,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
 
             var offset = MathUtils.RandomBetweenPerComponent(
-                offsetMin.NextVector(particle, particleSystemState),
-                offsetMax.NextVector(particle, particleSystemState));
+                offsetMin.NextVector(ref particle, particleSystemState),
+                offsetMax.NextVector(ref particle, particleSystemState));
 
             if (proportional)
             {

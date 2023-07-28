@@ -43,20 +43,20 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                var time = particles[i].NormalizedAge;
+                var time = particle.NormalizedAge;
 
                 if (time >= startTime && time <= endTime)
                 {
-                    var startScale = this.startScale.NextNumber(particles[i], particleSystemState);
-                    var endScale = this.endScale.NextNumber(particles[i], particleSystemState);
+                    var startScale = this.startScale.NextNumber(ref particle, particleSystemState);
+                    var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
 
                     var timeScale = MathUtils.Remap(time, startTime, endTime);
-                    timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(particles[i], particleSystemState)); // apply bias to timescale
+                    timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(ref particle, particleSystemState)); // apply bias to timescale
                     var radiusScale = MathUtils.Lerp(timeScale, startScale, endScale);
 
-                    particles[i].Radius = particles[i].InitialRadius * radiusScale;
+                    particle.Radius = particle.InitialRadius * radiusScale;
                 }
             }
         }

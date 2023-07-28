@@ -54,16 +54,16 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var direction = Vector3.Normalize(randomVector);
 
             var distance = MathUtils.RandomBetween(
-                radiusMin.NextNumber(particle, particleSystemState),
-                radiusMax.NextNumber(particle, particleSystemState));
+                radiusMin.NextNumber(ref particle, particleSystemState),
+                radiusMax.NextNumber(ref particle, particleSystemState));
 
             var speed = MathUtils.RandomBetween(
-                speedMin.NextNumber(particle, particleSystemState),
-                speedMax.NextNumber(particle, particleSystemState));
+                speedMin.NextNumber(ref particle, particleSystemState),
+                speedMax.NextNumber(ref particle, particleSystemState));
 
             var localCoordinateSystemSpeed = MathUtils.RandomBetweenPerComponent(
-                localCoordinateSystemSpeedMin.NextVector(particle, particleSystemState),
-                localCoordinateSystemSpeedMax.NextVector(particle, particleSystemState));
+                localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
+                localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
             particle.InitialPosition += direction * distance;
             particle.Position = particle.InitialPosition;

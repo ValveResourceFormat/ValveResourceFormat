@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private readonly bool additive;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
-        private readonly long orientationType;
+        private readonly ParticleOrientation orientationType;
         private readonly ParticleField prevPositionSource = ParticleField.PositionPrevious; // this is a real thing
 
         private readonly float finalTextureScaleU = 1f;
@@ -72,7 +72,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
-                orientationType = keyValues.GetIntegerProperty("m_nOrientationType");
+                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType");
             }
 
             if (keyValues.ContainsKey("m_flAnimationRate"))
@@ -189,10 +189,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             // Todo: this could be adapted into renderropes without much difficulty
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                var position = particles[i].Position;
-                var previousPosition = particles[i].GetVector(prevPositionSource);
+                var position = particle.Position;
+                var previousPosition = particle.GetVector(prevPositionSource);
                 var difference = previousPosition - position;
                 var direction = Vector3.Normalize(difference);
 
@@ -200,12 +200,12 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                 // Trail width = radius
                 // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
-                var length = Math.Min(maxLength, particles[i].TrailLength * difference.Length() / 2f);
-                var t = particles[i].NormalizedAge;
+                var length = Math.Min(maxLength, particle.TrailLength * difference.Length() / 2f);
+                var t = particle.NormalizedAge;
                 var animatedLength = t >= lengthFadeInTime
                     ? length
                     : t * length / lengthFadeInTime;
-                var scaleMatrix = Matrix4x4.CreateScale(particles[i].Radius, animatedLength, 1);
+                var scaleMatrix = Matrix4x4.CreateScale(particle.Radius, animatedLength, 1);
 
                 // Center the particle at the midpoint between the two points
                 var translationMatrix = Matrix4x4.CreateTranslation(Vector3.UnitY * animatedLength);
@@ -216,9 +216,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var angle = MathF.Acos(direction.Y);
                 var rotationMatrix = Matrix4x4.CreateFromAxisAngle(axis, angle);
 
-                var modelMatrix =
-                    orientationType == 0 ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
-                    : particles[i].GetTransformationMatrix();
+                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
+                    ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
+                    : particle.GetTransformationMatrix();
 
                 // Position/Radius uniform
                 shader.SetUniform4x4("uModelMatrix", modelMatrix);
@@ -229,9 +229,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                     var animationTime = animationType switch
                     {
-                        ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particles[i].Age,
-                        ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particles[i].NormalizedAge,
-                        _ => particles[i].Age,
+                        ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
+                        ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
+                        _ => particle.Age,
                     };
                     var frame = animationTime * sequence.FramesPerSecond * animationRate;
 
@@ -254,8 +254,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 }
 
                 // Color uniform
-                shader.SetUniform3("uColor", particles[i].Color);
-                shader.SetUniform1("uAlpha", particles[i].Alpha * particles[i].AlphaAlternate);
+                shader.SetUniform3("uColor", particle.Color);
+                shader.SetUniform1("uAlpha", particle.Alpha * particle.AlphaAlternate);
 
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }

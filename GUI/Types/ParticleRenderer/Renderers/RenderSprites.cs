@@ -171,15 +171,18 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             // Update vertex buffer
-            EnsureSpaceForVertices(particleBag.Count * 4);
-            for (var i = 0; i < particleBag.Count; ++i)
+            EnsureSpaceForVertices(particles.Length * 4);
+
+            for (var i = 0; i < particles.Length; ++i)
             {
-                var radiusScale = this.radiusScale.NextNumber(particles[i], systemRenderState);
+                var particle = particles[i];
+
+                var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
                 // Positions
                 var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                    ? particles[i].GetRotationMatrix() * billboardMatrix * particles[i].GetTransformationMatrix(radiusScale)
-                    : particles[i].GetRotationMatrix() * particles[i].GetTransformationMatrix(radiusScale);
+                    ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale)
+                    : particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale);
 
                 var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
                 var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
@@ -200,27 +203,27 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 rawVertices[quadStart + (VertexSize * 3) + 1] = tr.Y;
                 rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
 
-                var alphaScale = this.alphaScale.NextNumber(particles[i], systemRenderState);
+                var alphaScale = this.alphaScale.NextNumber(ref particle, systemRenderState);
                 // Colors
                 for (var j = 0; j < 4; ++j)
                 {
-                    rawVertices[quadStart + (VertexSize * j) + 3] = particles[i].Color.X;
-                    rawVertices[quadStart + (VertexSize * j) + 4] = particles[i].Color.Y;
-                    rawVertices[quadStart + (VertexSize * j) + 5] = particles[i].Color.Z;
-                    rawVertices[quadStart + (VertexSize * j) + 6] = particles[i].Alpha * alphaScale;
+                    rawVertices[quadStart + (VertexSize * j) + 3] = particle.Color.X;
+                    rawVertices[quadStart + (VertexSize * j) + 4] = particle.Color.Y;
+                    rawVertices[quadStart + (VertexSize * j) + 5] = particle.Color.Z;
+                    rawVertices[quadStart + (VertexSize * j) + 6] = particle.Alpha * alphaScale;
                 }
 
                 // UVs
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {
-                    var sequence = spriteSheetData.Sequences[particles[i].Sequence % spriteSheetData.Sequences.Length];
+                    var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
 
                     var animationTime = animationType switch
                     {
-                        ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particles[i].Age,
-                        ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particles[i].NormalizedAge,
-                        ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES => particles[i].Age, // literally dont know what to do with this one
-                        _ => particles[i].Age,
+                        ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
+                        ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
+                        ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES => particle.Age, // literally dont know what to do with this one
+                        _ => particle.Age,
                     };
 
                     var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * animationRate * animationTime) % sequence.Frames.Length];

@@ -9,6 +9,8 @@ namespace GUI.Types.ParticleRenderer
     /// </summary>
     class ParticleSystemRenderState
     {
+        public static readonly ParticleSystemRenderState Default = new();
+
         // Properties
         public long ParticleCount { get; set; }
         public float Age { get; set; }

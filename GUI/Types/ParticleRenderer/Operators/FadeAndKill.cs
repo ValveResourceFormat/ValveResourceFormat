@@ -49,9 +49,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; ++i)
+            foreach (ref var particle in particles)
             {
-                var time = particles[i].NormalizedAge;
+                var time = particle.NormalizedAge;
 
                 // If fading in
                 if (time >= startFadeInTime && time <= endFadeInTime)
@@ -59,7 +59,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
                     // Interpolate from startAlpha to constantAlpha
-                    particles[i].Alpha = MathUtils.Lerp(blend, startAlpha, particles[i].InitialAlpha);
+                    particle.Alpha = MathUtils.Lerp(blend, startAlpha, particle.InitialAlpha);
                 }
 
                 // If fading out
@@ -68,12 +68,12 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
                     // Interpolate from constantAlpha to end alpha
-                    particles[i].Alpha = MathUtils.Lerp(blend, particles[i].InitialAlpha, endAlpha);
+                    particle.Alpha = MathUtils.Lerp(blend, particle.InitialAlpha, endAlpha);
                 }
 
                 if (time >= endFadeOutTime)
                 {
-                    particles[i].Kill();
+                    particle.Kill();
                 }
             }
         }

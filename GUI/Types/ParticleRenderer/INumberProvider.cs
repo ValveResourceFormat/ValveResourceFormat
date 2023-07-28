@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Utils;
 using GUI.Utils;
 using ValveResourceFormat;
@@ -11,7 +10,21 @@ namespace GUI.Types.ParticleRenderer
 {
     interface INumberProvider
     {
-        float NextNumber(Particle particle, ParticleSystemRenderState renderState);
+        float NextNumber(ref Particle particle, ParticleSystemRenderState renderState);
+
+        /// <summary>
+        /// ONLY use this in emitters and renderers, where per-particle values can't be accessed. Otherwise, use the other version.
+        /// </summary>
+        /// <param name="numberProvider"></param>
+        /// <returns></returns>
+        public float NextNumber()
+            => NextNumber(ref Particle.Default, ParticleSystemRenderState.Default);
+
+        public float NextNumber(ParticleSystemRenderState renderState)
+            => NextNumber(ref Particle.Default, renderState);
+
+        public int NextInt(ref Particle particle, ParticleSystemRenderState renderState)
+            => (int)NextNumber(ref particle, renderState);
     }
 
     // Literal Number
@@ -24,7 +37,7 @@ namespace GUI.Types.ParticleRenderer
             this.value = value;
         }
 
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => value;
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => value;
     }
 
     // Random Uniform/Random Biased
@@ -77,7 +90,7 @@ namespace GUI.Types.ParticleRenderer
                 return newRandom;
             }
         }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             var random = GetRandomValue(particle);
 
@@ -95,7 +108,7 @@ namespace GUI.Types.ParticleRenderer
     class CollectionAgeNumberProvider : INumberProvider
     {
         public CollectionAgeNumberProvider() { }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => renderState.Age;
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => renderState.Age;
     }
 
     class DetailLevelNumberProvider : INumberProvider
@@ -114,7 +127,7 @@ namespace GUI.Types.ParticleRenderer
         }
 
         // Just assume detail level is Ultra
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return lod0;
         }
@@ -125,7 +138,7 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Age);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Age);
     }
 
     // Particle Age (0-1)
@@ -133,7 +146,7 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.NormalizedAge);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.NormalizedAge);
     }
 
     // Particle Float
@@ -149,7 +162,7 @@ namespace GUI.Types.ParticleRenderer
             field = parameters.GetParticleField("m_nScalarAttribute");
             mapping = new AttributeMapping(parameters);
         }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
     }
 
     // Particle Vector Component
@@ -166,7 +179,7 @@ namespace GUI.Types.ParticleRenderer
             component = parameters.GetInt32Property("m_nVectorComponent");
             mapping = new AttributeMapping(parameters);
         }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return mapping.ApplyMapping(particle.GetVectorComponent(field, component));
         }
@@ -177,7 +190,7 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleSpeedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Speed);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Speed);
     }
 
     // Particle Count
@@ -185,7 +198,7 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleCount);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleCount);
     }
 
     // Particle Count Percent of Total Count (0-1)
@@ -193,7 +206,7 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return attributeMapping.ApplyMapping(particle.ParticleCount) / Math.Max(renderState.ParticleCount, 1);
         }
@@ -211,7 +224,7 @@ namespace GUI.Types.ParticleRenderer
             cp = keyValues.GetInt32Property("m_nControlPoint");
             vectorComponent = keyValues.GetInt32Property("m_nVectorComponent");
         }
-        public float NextNumber(Particle particle, ParticleSystemRenderState renderState)
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent);
         }
@@ -275,21 +288,6 @@ namespace GUI.Types.ParticleRenderer
             {
                 return new LiteralNumberProvider((float)Convert.ToDouble(property, CultureInfo.InvariantCulture));
             }
-        }
-
-        public static int NextInt(this INumberProvider numberProvider, Particle particle, ParticleSystemRenderState renderState)
-        {
-            return (int)numberProvider.NextNumber(particle, renderState);
-        }
-
-        /// <summary>
-        /// ONLY use this in emitters and renderers, where per-particle values can't be accessed. Otherwise, use the other version.
-        /// </summary>
-        /// <param name="numberProvider"></param>
-        /// <returns></returns>
-        public static float NextNumber(this INumberProvider numberProvider)
-        {
-            return numberProvider.NextNumber(new Particle(), new ParticleSystemRenderState());
         }
 
         /* Unaccounted for params:

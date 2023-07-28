@@ -42,10 +42,10 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            for (var i = 0; i < particles.Length; i++)
+            foreach (ref var particle in particles)
             {
-                var value1 = input1.NextNumber(particles[i], particleSystemState);
-                var value2 = input2.NextNumber(particles[i], particleSystemState);
+                var value1 = input1.NextNumber(ref particle, particleSystemState);
+                var value2 = input2.NextNumber(ref particle, particleSystemState);
 
                 var output = expression switch
                 {
@@ -70,7 +70,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
 
-                particles[i].SetScalar(outputField, particles[i].ModifyScalarBySetMethod(outputField, output, setMethod));
+                particle.SetScalar(outputField, particle.ModifyScalarBySetMethod(outputField, output, setMethod));
             }
         }
     }
