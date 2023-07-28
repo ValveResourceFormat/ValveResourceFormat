@@ -99,6 +99,8 @@ uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale = vec4(1.0);
 uniform vec4 g_vTexCoordScrollSpeed;
 uniform float g_flTime;
+uniform vec4 g_vTexCoordCenter = vec4(0.0);
+uniform float g_flTexCoordRotation = 0.0;
 
 #if F_TEXTURE_ANIMATION == 1
     uniform vec4 g_vAnimationGrid = vec4(1, 1, 0, 0);
@@ -114,7 +116,7 @@ uniform vec4 g_vSphericalAnisotropyPole = vec4(0, 0, 1, 0);
 
 out vec3 vAnisoBitangentOut;
 
-vec3 GetAnisoAngle(vec3 normal, vec3 tangent)
+vec3 GetSphericalProjectedAnisoBitangent(vec3 normal, vec3 tangent)
 {
     float angle = (g_vSphericalAnisotropyAngle / 90.0) - 1.0;
 
@@ -151,8 +153,9 @@ vec2 GetAnimatedUVs(vec2 texCoords)
         texCoords = texCoords * atlasGridInv + atlasOffset;
     #endif
 
-    return texCoords * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
-
+    texCoords = RotateVector2D(texCoords, g_flTexCoordRotation, g_vTexCoordScale.xy, g_vTexCoordOffset.xy, g_vTexCoordCenter.xy);
+    return texCoords + g_vTexCoordScrollSpeed.xy * g_flTime;
+    //return texCoords * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
 }
 
 vec4 GetTintColor()
@@ -175,18 +178,6 @@ out vec2 vDetailTexCoords;
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
 #endif
-
-vec2 getDetailCoords(vec2 texCoords)
-{
-    // in S2 most of these values are precomputed into the globals buffer
-    float rotation = radians(g_flDetailTexCoordRotation);
-    float sinRot = sin(rotation);
-    float cosRot = cos(rotation);
-    vec2 offset = (g_vDetailTexCoordScale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + g_vDetailTexCoordOffset.xy + 0.5;
-    vec4 xform = g_vDetailTexCoordScale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
-
-    return vec2(dot(xform.xy, texCoords.xy), dot(xform.zw, texCoords.xy)) + offset;
-}
 
 #endif
 
@@ -216,7 +207,7 @@ void main()
 #endif
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
-    vAnisoBitangentOut = normalTransform * GetAnisoAngle(normal, tangent.xyz);
+    vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
 #endif
 
 #if (F_FOLIAGE_ANIMATION > 0) && !((F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1))
@@ -229,9 +220,8 @@ void main()
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    //vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
-    //vPerVertexLightingOut = pow2(Light);
-    vPerVertexLightingOut = vPerVertexLighting;
+    vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
+    vPerVertexLightingOut = pow2(Light);
 #endif
 
     vVertexColorOut = GetTintColor();
@@ -246,10 +236,11 @@ void main()
 
 #if F_DETAIL_TEXTURE > 0
     #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-        vDetailTexCoords = getDetailCoords(g_bUseSecondaryUvForDetailTexture ? vTexCoord2 : vTexCoordOut);
+        vec2 detailCoords = (g_bUseSecondaryUvForDetailTexture || (F_FORCE_UV2 == 1)) ? vTexCoord2 : vTexCoordOut;
     #else
-        vDetailTexCoords = getDetailCoords(vTexCoordOut);
+        #define detailCoords vTexCoordOut
     #endif
+    vDetailTexCoords = RotateVector2D(detailCoords, g_flDetailTexCoordRotation, g_vDetailTexCoordScale.xy, g_vDetailTexCoordOffset.xy);
 #endif
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend)
