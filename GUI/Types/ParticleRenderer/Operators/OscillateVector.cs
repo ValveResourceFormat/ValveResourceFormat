@@ -112,7 +112,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                if (particle.BehaviorVersion == 10)
+                if (particleSystemState.BehaviorVersion == 10)
                 {
                     var startTime = GetParticleStartTime(particle.ParticleCount);
                     var endTime = GetParticleEndTime(particle.ParticleCount);

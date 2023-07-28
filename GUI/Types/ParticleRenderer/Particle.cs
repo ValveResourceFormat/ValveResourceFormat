@@ -9,7 +9,6 @@ namespace GUI.Types.ParticleRenderer
         public static Particle @default;
         public static ref Particle Default => ref @default;
 
-        public int BehaviorVersion { get; set; }
         public int ParticleCount { get; set; } // starts at 0
 
         // Initial properties (set by initializers, and read whenever we want the "initial value" instead of the current one)
@@ -133,12 +132,6 @@ namespace GUI.Types.ParticleRenderer
             RotationSpeed = InitialRotationSpeed;
             Sequence = InitialSequence;
             Sequence2 = InitialSequence2;
-
-            BehaviorVersion = 0;
-            if (baseProperties.ContainsKey("m_nBehaviorVersion"))
-            {
-                BehaviorVersion = baseProperties.GetInt32Property("m_nBehaviorVersion");
-            }
         }
 
         public Matrix4x4 GetTransformationMatrix(float radiusScale = 1f)

@@ -61,6 +61,11 @@ namespace GUI.Types.ParticleRenderer
                 EndEarly = false
             };
 
+            if (particleSystem.Data.ContainsKey("m_nBehaviorVersion"))
+            {
+                systemRenderState.BehaviorVersion = particleSystem.Data.GetInt32Property("m_nBehaviorVersion");
+            }
+
             systemRenderState.SetControlPointValue(0, pos);
 
             BoundingBox = new AABB(pos + new Vector3(-32, -32, -32), pos + new Vector3(32, 32, 32));
