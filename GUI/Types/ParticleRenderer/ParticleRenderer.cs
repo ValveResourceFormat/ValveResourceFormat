@@ -170,6 +170,15 @@ namespace GUI.Types.ParticleRenderer
             // Remove all dead particles
             particleBag.PruneExpired();
 
+#if DEBUG
+            // Some particles may not be being killed correctly,
+            // break in debugger here to verify whether some operator is not marking particles as killed
+            if (particleBag.Count > 5000)
+            {
+                System.Diagnostics.Debugger.Break();
+            }
+#endif
+
             var center = systemRenderState.GetControlPoint(0).Position;
             if (particleBag.Count == 0)
             {
