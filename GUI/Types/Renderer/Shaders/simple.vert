@@ -99,7 +99,7 @@ uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale = vec4(1.0);
 uniform vec4 g_vTexCoordScrollSpeed;
 uniform float g_flTime;
-uniform vec4 g_vTexCoordCenter = vec4(0.0);
+uniform vec4 g_vTexCoordCenter = vec4(0.5);
 uniform float g_flTexCoordRotation = 0.0;
 
 #if F_TEXTURE_ANIMATION == 1

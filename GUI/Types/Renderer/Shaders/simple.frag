@@ -177,9 +177,21 @@ uniform float g_flOpacityScale = 1.0;
     uniform sampler2D g_tMetalness;
 #endif
 
+uniform vec4 g_vTexCoordScale2 = vec4(1.0);
+
 #if (F_FANCY_BLENDING > 0)
     uniform sampler2D g_tBlendModulation;
     uniform float g_flBlendSoftness;
+#endif
+
+#if defined(simple_2way_blend)
+    uniform sampler2D g_tMask;
+    uniform float g_flMetalnessA = 0.0;
+    uniform float g_flMetalnessB = 0.0;
+#if defined(steampal_2way_blend_mask)
+    uniform float g_BlendFalloff = 0.0;
+    uniform float g_BlendHeight = 0.0;
+#endif
 #endif
 
 #if (F_RETRO_REFLECTIVE == 1)
@@ -191,16 +203,6 @@ uniform float g_flOpacityScale = 1.0;
 #endif
 uniform float g_flBumpStrength = 1.0;
 
-#if defined(simple_2way_blend)
-    uniform sampler2D g_tMask;
-    uniform float g_flMetalnessA = 0.0;
-    uniform float g_flMetalnessB = 0.0;
-    uniform vec4 g_vTexCoordScale2 = vec4(1.0);
-#if defined(steampal_2way_blend_mask)
-    uniform float g_BlendFalloff = 0.0;
-    uniform float g_BlendHeight = 0.0;
-#endif
-#endif
 
 #if (hasAmbientOcclusionTexture)
     uniform sampler2D g_tAmbientOcclusion;
@@ -274,6 +276,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         float softnessPaint = vColorBlendValues.g;
 
         blendFactor = applyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
+    #else
+        float blendFactor = vColorBlendValues.r;
     #endif
 
     #if (F_ENABLE_TINT_MASKS == 1)
