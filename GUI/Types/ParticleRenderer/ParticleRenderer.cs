@@ -11,6 +11,7 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -409,7 +410,8 @@ namespace GUI.Types.ParticleRenderer
             // Skip ops that only run during endcap (currently unsupported)
             else if (op.ContainsKey("m_nOpEndCapState"))
             {
-                return op.GetInt32Property("m_nOpEndCapState") == 1;
+                var mode = op.GetEnumValue<ParticleEndCapMode>("m_nOpEndCapState");
+                return mode == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
             }
             return false;
         }
