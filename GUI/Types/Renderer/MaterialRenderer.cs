@@ -13,7 +13,9 @@ namespace GUI.Types.Renderer
         private Resource resource;
         private readonly int quadVao;
 
-        public MaterialRenderer(Scene scene, Resource resource) : base(scene)
+        public AABB LocalBoundingBox => new(-1, -1, -1, 1, 1, 1);
+
+        public MaterialRenderer(VrfGuiContext vrfGuiContext, Resource resource)
         {
             this.resource = resource;
             material = scene.GuiContext.MaterialLoader.LoadMaterial(resource);

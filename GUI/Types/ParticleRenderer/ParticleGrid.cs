@@ -14,11 +14,11 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly int vertexCount;
 
-        public AABB BoundingBox { get; }
+        public AABB LocalBoundingBox { get; }
 
         public ParticleGrid(float cellWidth, int gridWidthInCells, VrfGuiContext guiContext)
         {
-            BoundingBox = new AABB(
+            LocalBoundingBox = new AABB(
                 new Vector3(-cellWidth * 0.5f * gridWidthInCells, -cellWidth * 0.5f * gridWidthInCells, 0),
                 new Vector3(cellWidth * 0.5f * gridWidthInCells, cellWidth * 0.5f * gridWidthInCells, 0));
 

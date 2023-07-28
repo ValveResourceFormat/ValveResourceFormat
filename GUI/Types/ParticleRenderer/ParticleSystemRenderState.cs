@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer
         public static readonly ParticleSystemRenderState Default = new();
 
         public int BehaviorVersion { get; init; }
-        public int MaxParticles { get; init; } = 1000;
+        public int MaxParticles { get; init; }
 
         // Properties
         public long ParticleCount { get; set; }
@@ -32,18 +32,10 @@ namespace GUI.Types.ParticleRenderer
         {
         }
 
-        public ParticleSystemRenderState(IKeyValueCollection particleSystemDefinition)
+        public ParticleSystemRenderState(ParticleSystemDefinitionParser parse)
         {
-            // What should be the default otherwise?
-            if (particleSystemDefinition.ContainsKey("m_nBehaviorVersion"))
-            {
-                BehaviorVersion = particleSystemDefinition.GetInt32Property("m_nBehaviorVersion");
-            }
-
-            if (particleSystemDefinition.ContainsKey("m_nMaxParticles"))
-            {
-                MaxParticles = particleSystemDefinition.GetInt32Property("m_nMaxParticles");
-            }
+            BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
+            MaxParticles = parse.Int32("m_nMaxParticles", 1000);
         }
 
         public void SetStopTime(float duration, bool destroyInstantly)

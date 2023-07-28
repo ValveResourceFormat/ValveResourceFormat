@@ -2,7 +2,7 @@ namespace GUI.Types.Renderer
 {
     internal interface IRenderer
     {
-        AABB BoundingBox { get; }
+        AABB LocalBoundingBox { get; }
 
         void Render(Camera camera, RenderPass renderPass);
 

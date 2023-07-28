@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer
 
         public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
 
-        public AABB BoundingBox { get; private set; }
+        public AABB LocalBoundingBox { get; private set; }
 
         public Vector3 Position
         {
@@ -49,22 +49,20 @@ namespace GUI.Types.ParticleRenderer
         private int particlesEmitted;
         private ParticleSystemRenderState systemRenderState;
 
-        // TODO: Passing in position here was for testing, do it properly
-        public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext, Vector3 pos = default)
+        public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
         {
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
-            systemRenderState = new ParticleSystemRenderState(particleSystem.Data)
+            var parser = new ParticleSystemDefinitionParser(particleSystem.Data);
+            ParseDefinition(parser);
+
+            systemRenderState = new ParticleSystemRenderState(parser)
             {
                 EndEarly = false
             };
 
-            systemRenderState.SetControlPointValue(0, pos);
-
             particleBag = new ParticleBag(systemRenderState.MaxParticles, true);
-
-            BoundingBox = new AABB(pos + new Vector3(-32, -32, -32), pos + new Vector3(32, 32, 32));
 
             SetupEmitters(particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -73,6 +71,14 @@ namespace GUI.Types.ParticleRenderer
             SetupPreEmissionOperators(particleSystem.GetPreEmissionOperators());
 
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
+        }
+
+        private void ParseDefinition(ParticleSystemDefinitionParser parser)
+        {
+            LocalBoundingBox = new AABB(
+                parser.Vector3("m_BoundingBoxMin", new Vector3(-10)),
+                parser.Vector3("m_BoundingBoxMin", new Vector3(10))
+            );
         }
 
         public void Start()
@@ -188,32 +194,10 @@ namespace GUI.Types.ParticleRenderer
             }
 #endif
 
-            var center = systemRenderState.GetControlPoint(0).Position;
-            if (particleBag.Count == 0)
-            {
-                BoundingBox = new AABB(center, center);
-            }
-            else
-            {
-                var minParticlePos = center;
-                var maxParticlePos = center;
-
-                var liveParticles = particleBag.LiveParticles;
-                for (var i = 0; i < liveParticles.Length; ++i)
-                {
-                    var pos = liveParticles[i].Position;
-                    var radius = liveParticles[i].Radius;
-                    minParticlePos = Vector3.Min(minParticlePos, pos - new Vector3(radius));
-                    maxParticlePos = Vector3.Max(maxParticlePos, pos + new Vector3(radius));
-                }
-
-                BoundingBox = new AABB(minParticlePos, maxParticlePos);
-            }
-
             foreach (var childParticleRenderer in childParticleRenderers)
             {
                 childParticleRenderer.Update(frameTime);
-                BoundingBox = BoundingBox.Union(childParticleRenderer.BoundingBox);
+                LocalBoundingBox = LocalBoundingBox.Union(childParticleRenderer.LocalBoundingBox);
             }
 
             // Restart if all emitters are done and all particles expired
@@ -411,7 +395,7 @@ namespace GUI.Types.ParticleRenderer
 
                 var childSystem = (ParticleSystem)childResource.DataBlock;
 
-                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext, systemRenderState.GetControlPoint(0).Position));
+                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext));
             }
         }
 

@@ -11,15 +11,13 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, Scene.GuiContext);
-            LocalBoundingBox = particleRenderer.BoundingBox;
+            LocalBoundingBox = particleRenderer.LocalBoundingBox;
         }
 
         public override void Update(Scene.UpdateContext context)
         {
             particleRenderer.Position = Transform.Translation;
             particleRenderer.Update(context.Timestep);
-
-            LocalBoundingBox = particleRenderer.BoundingBox.Translate(-particleRenderer.Position);
         }
 
         public override void Render(Scene.RenderContext context)
