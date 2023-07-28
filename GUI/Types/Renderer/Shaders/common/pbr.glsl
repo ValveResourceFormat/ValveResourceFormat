@@ -15,7 +15,7 @@ float diffuseLobe(float NoL, float roughness)
 
 
 #if (F_DIFFUSE_WRAP == 1) || (F_DIFFSUE_WRAP == 1) || defined(vr_xen_foliage) || defined(vr_eyeball)
-
+// idea: what if we included individual features in tiny files per feature. they would all be used in #includes
 #define useDiffuseWrap
 
 // Used in vr_xen_foliage, vr_eyeball (not supported yet bc alt param names), and optionally in vr_complex
@@ -43,6 +43,38 @@ float D_GGX(float NoH, float roughness)
 	return pow2(alpha / denom);
 }
 
+#if (F_ANISOTROPIC_GLOSS == 1)
+
+#if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
+in vec3 vAnisoBitangentOut;
+#endif
+
+void CalculateAnisotropicTangents(inout MaterialProperties_t mat)
+{
+#if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
+    mat.AnisotropicTangent = normalize(cross(vAnisoBitangentOut, mat.Normal));
+    mat.AnisotropicBitangent = normalize(cross(mat.Normal, mat.AnisotropicTangent));
+#else
+    // Recalculate Tangent/Bitangent based on normal map
+    mat.AnisotropicTangent = normalize(cross(mat.Bitangent, mat.Normal));
+    mat.AnisotropicBitangent = normalize(cross(mat.Normal, mat.Tangent));
+#endif
+}
+
+float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec3 bitangent)
+{
+    vec2 alpha = pow2(roughness);
+
+    vec3 Dots;
+    Dots.x = dot(halfVector, tangent);
+    Dots.y = dot(halfVector, bitangent);
+    Dots.z = dot(halfVector, normal); // this uses the actual optional normal though???
+
+    Dots /= vec3(alpha, 1.0);
+    float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y; // this is really weird
+    return 1.0 / ndf;
+}
+#endif
 
 // Geometric Shadowing visibility function --------------------------------------
 	// G = Geometric shadowing term (Microfacets shadowing)
@@ -88,6 +120,7 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 // This isn't even based on GGX, lol
 float D_Cloth(float roughness, float NoH)
 {
+    roughness = max(roughness, 1e-6);
     float invRough = 1.0 / roughness;
     return (invRough + 2.0) * pow(1.0 - pow2(NoH), invRough * 0.5);
 }
@@ -108,7 +141,7 @@ vec3 SpecularCloth(float roughness, float NoL, float NoH, float NoV, float VoH, 
 }
 #endif
 
-// Still pass normal due to some effects modifying normal
+// Still pass normal due to some effects modifying normal per light
 vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 {
 	float NoL = saturate( dot(normal, lightVector) );
@@ -125,23 +158,29 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 
 #if defined(vr_complex) && (F_CLOTH_SHADING == 1)
     return SpecularCloth(mat.Roughness, NoL, NoH, NoV, VoH, mat.SpecularColor);
-#endif
-	float NDF = D_GGX(NoH, mat.Roughness); 
+#else
+
+#if (F_ANISOTROPIC_GLOSS == 1)
+    // Anisotropic shading
+    float NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
+	float Vis = G_SchlickSmithGGX(NoL, NoV, max(mat.Roughness.x, mat.Roughness.y));
+#else
+    float NDF = D_GGX(NoH, mat.Roughness);
 	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.Roughness);
+#endif
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
 
 #if (F_CLOTH_SHADING == 1)
-    // I'm not sure how they blend to the cloth shading, but I'm assuming it's just blending shading
-    float ClothNDF = D_Cloth(mat.Roughness, NoH);
+
+    float ClothNDF = D_Cloth(GetIsoRoughness(mat.Roughness), NoH);
     float ClothVis = Vis_Cloth(NoL, NoV);
 
-    float clothMask = mat.ExtraParams.z;
-
-    float blendedClothShading = mix(NDF * Vis, ClothNDF * ClothVis, clothMask);
+    float blendedClothShading = mix(NDF * Vis, ClothNDF * ClothVis, mat.ClothMask);
 
     return vec3(blendedClothShading * NoL) * F;
 #else
     return vec3(NDF * Vis * NoL) * F;
+#endif
 #endif
 }
 
@@ -154,7 +193,7 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 #if defined(useDiffuseWrap)
     vec3 diffuseLight = diffuseWrapped(mat.Normal, lightVector);
 #else
-    float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), mat.Roughness);
+    float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), GetIsoRoughness(mat.Roughness));
 #endif
     vec3 specularLight = specularLighting(lightVector, mat.Normal, mat);
 
