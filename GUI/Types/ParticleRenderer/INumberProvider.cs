@@ -45,19 +45,17 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly float minRange;
         private readonly float maxRange;
-        private readonly bool isVarying;
+        private readonly PfRandomMode randomMode;
 
         private readonly bool isBiased;
-        private readonly string biasType = "PF_BIAS_TYPE_STANDARD";
+        private readonly PfBiasType biasType = PfBiasType.Standard;
         private readonly float biasParam;
-
-        private readonly Dictionary<int, float> ConstantRandom = new();
 
         public RandomNumberProvider(IKeyValueCollection keyValues, bool isBiased = false)
         {
             minRange = keyValues.GetFloatProperty("m_flRandomMin");
             maxRange = keyValues.GetFloatProperty("m_flRandomMax");
-            isVarying = (keyValues.GetProperty<string>("m_nRandomMode") == "PF_RANDOM_MODE_VARYING");
+            randomMode = keyValues.GetEnumValue<PfRandomMode>("m_nRandomMode");
             this.isBiased = isBiased;
 
             if (isBiased)
@@ -65,34 +63,14 @@ namespace GUI.Types.ParticleRenderer
                 biasParam = keyValues.GetFloatProperty("m_flBiasParameter");
                 if (keyValues.ContainsKey("m_nBiasType"))
                 {
-                    biasType = keyValues.GetProperty<string>("m_nBiasType");
+                    biasType = keyValues.GetEnumValue<PfBiasType>("m_nBiasType");
                 }
             }
         }
 
-        private float GetRandomValue(Particle particle)
-        {
-            // Varying: random per-particle, per-frame
-            if (isVarying)
-            {
-                return Random.Shared.NextSingle();
-            }
-            else
-            {
-                // Constant: random per-particle but doesn't change per frame.
-                if (ConstantRandom.TryGetValue(particle.ParticleCount, out float value))
-                {
-                    return value;
-                }
-                var newRandom = Random.Shared.NextSingle();
-
-                ConstantRandom[particle.ParticleCount] = newRandom;
-                return newRandom;
-            }
-        }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var random = GetRandomValue(particle);
+            var random = Random.Shared.NextSingle();
 
             // currently does nothing as it's unclear how it's done
             if (isBiased)

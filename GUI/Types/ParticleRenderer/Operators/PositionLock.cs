@@ -76,10 +76,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        private readonly Dictionary<int, float> startTimes = new();
-        private readonly Dictionary<int, float> endTimes = new();
 
-        private Vector3 prevFramePos = new Vector3(float.MaxValue);
+        private Vector3 prevFramePos = new(float.MaxValue);
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
@@ -96,13 +94,6 @@ namespace GUI.Types.ParticleRenderer.Operators
                     ? 1
                     : 1 - MathUtils.Saturate(Vector3.Distance(cpPos, particle.Position) / fadeDist);
 
-                // Generate new random if one doesn't exist yet
-                if (!startTimes.ContainsKey(particle.ParticleCount))
-                {
-                    startTimes[particle.ParticleCount] = MathUtils.RandomWithExponentBetween(startTimeExp, startTimeMin, startTimeMax);
-                    endTimes[particle.ParticleCount] = MathUtils.RandomWithExponentBetween(endTimeExp, endTimeMin, endTimeMax);
-                }
-
                 var delta = cpPos - prevFramePos * prevPosScale;
                 var newPos = MathUtils.Lerp(weight, cpPos, cpPos + delta);
 
@@ -112,8 +103,9 @@ namespace GUI.Types.ParticleRenderer.Operators
                     particle.Position = newPos;
                 }
 
-                var startTime = startTimes[particle.ParticleCount];
-                var endTime = endTimes[particle.ParticleCount];
+                // TODO: Consistent rng
+                var startTime = MathUtils.RandomWithExponentBetween(startTimeExp, startTimeMin, startTimeMax);
+                var endTime = MathUtils.RandomWithExponentBetween(endTimeExp, endTimeMin, endTimeMax);
 
                 if (particle.Age < startTime || particle.Age > endTime)
                 {

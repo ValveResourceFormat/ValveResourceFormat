@@ -73,8 +73,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Update remaining particles
             foreach (ref var particle in particles)
             {
-                var rate = GetParticleRate(particle.ParticleCount);
-                var frequency = GetParticleFrequency(particle.ParticleCount);
+                // TODO: Consistent rng
+                var rate = MathUtils.RandomBetween(rateMin, rateMax);
+                var frequency = MathUtils.RandomBetween(frequencyMin, frequencyMax);
 
                 var t = proportional
                     ? particle.NormalizedAge
@@ -84,37 +85,6 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var finalScalar = delta * rate * frameTime;
                 particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
-            }
-        }
-
-        private readonly Dictionary<int, float> particleRates = new();
-        private readonly Dictionary<int, float> particleFrequencies = new();
-
-        private float GetParticleRate(int particleId)
-        {
-            if (particleRates.TryGetValue(particleId, out var rate))
-            {
-                return rate;
-            }
-            else
-            {
-                var newRate = MathUtils.RandomBetween(rateMin, rateMax);
-                particleRates[particleId] = newRate;
-                return newRate;
-            }
-        }
-
-        private float GetParticleFrequency(int particleId)
-        {
-            if (particleFrequencies.TryGetValue(particleId, out var frequency))
-            {
-                return frequency;
-            }
-            else
-            {
-                var newFrequency = MathUtils.RandomBetween(frequencyMin, frequencyMax);
-                particleFrequencies[particleId] = newFrequency;
-                return newFrequency;
             }
         }
     }

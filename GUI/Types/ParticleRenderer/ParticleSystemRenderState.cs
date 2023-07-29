@@ -47,7 +47,7 @@ namespace GUI.Types.ParticleRenderer
 
         // Control Points
 
-        private readonly Dictionary<int, ControlPoint> controlPoints = new();
+        private readonly Dictionary<int, ControlPoint> controlPoints = new(32);
 
         public ControlPoint GetControlPoint(int cp)
             => controlPoints.TryGetValue(cp, out var value)

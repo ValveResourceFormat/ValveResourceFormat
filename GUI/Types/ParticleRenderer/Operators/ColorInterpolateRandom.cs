@@ -51,20 +51,14 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        private readonly Dictionary<int, Vector3> particleColors = new();
-
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles)
             {
-                if (!particleColors.ContainsKey(particle.ParticleCount))
-                {
-                    var newColor = easeInOut
-                        ? MathUtils.RandomBetweenPerComponent(colorFadeMin, colorFadeMax)
-                        : MathUtils.RandomBetween(colorFadeMin, colorFadeMax);
-
-                    particleColors[particle.ParticleCount] = newColor;
-                }
+                // TODO: Consistent rng
+                var newColor = easeInOut
+                    ? MathUtils.RandomBetweenPerComponent(colorFadeMin, colorFadeMax)
+                    : MathUtils.RandomBetween(colorFadeMin, colorFadeMax);
 
                 var time = particle.NormalizedAge;
 
@@ -73,7 +67,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(field, MathUtils.Lerp(t, particle.InitialColor, particleColors[particle.ParticleCount]));
+                    particle.SetVector(field, MathUtils.Lerp(t, particle.InitialColor, newColor));
                 }
             }
         }

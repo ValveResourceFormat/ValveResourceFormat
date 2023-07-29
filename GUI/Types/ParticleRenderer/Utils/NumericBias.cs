@@ -1,16 +1,32 @@
 namespace GUI.Types.ParticleRenderer.Utils
 {
+    public enum PfBiasType
+    {
+        Invalid = -1,
+        Standard = 0,
+        Gain = 1,
+        Exponential = 2
+    }
+
+    public enum PfRandomMode
+    {
+        Invalid = -1,
+
+        /// <summary>
+        /// Random per-particle but doesn't change per frame.
+        /// </summary>
+        Constant = 0,
+
+        /// <summary>
+        /// Random per-particle, per-frame.
+        /// </summary>
+        Varying = 1,
+    }
+
     // template for shared remapping functionality
     static class NumericBias
     {
-        /*
-         * ParticleFloatBiasType_t:
-         * PF_BIAS_TYPE_INVALID
-         * PF_BIAS_TYPE_STANDARD
-         * PF_BIAS_TYPE_GAIN
-         * PF_BIAS_TYPE_EXPONENTIAL
-         */
-        public static float ApplyBias(float number, float bias, string biasType = "PF_BIAS_TYPE_STANDARD")
+        public static float ApplyBias(float number, float bias, PfBiasType biasType = PfBiasType.Standard)
         {
             // !!!!REPLACE LATER!!!!
 

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
@@ -35,21 +34,12 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        private readonly Dictionary<int, float> FadeInTimes = new();
-
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles)
             {
-                float fadeInTime;
-
-                if (!FadeInTimes.ContainsKey(particle.ParticleCount))
-                {
-                    FadeInTimes[particle.ParticleCount] = MathUtils.RandomWithExponentBetween(randomExponent, fadeInTimeMin, fadeInTimeMax);
-                }
-
-                fadeInTime = FadeInTimes[particle.ParticleCount];
-
+                // TODO: Consistent rng
+                var fadeInTime = MathUtils.RandomWithExponentBetween(randomExponent, fadeInTimeMin, fadeInTimeMax);
 
                 var time = proportional
                     ? particle.NormalizedAge

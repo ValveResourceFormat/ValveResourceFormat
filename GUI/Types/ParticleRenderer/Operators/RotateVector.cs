@@ -57,9 +57,6 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
         }
 
-        private readonly Dictionary<int, Vector3> perParticleAxis = new();
-        private readonly Dictionary<int, float> perParticleRate = new();
-
         private static Vector3 MatrixMul(Vector3 vector, Matrix4x4 rotatedMatrix)
         {
             return vector.X * new Vector3(rotatedMatrix.M11, rotatedMatrix.M12, rotatedMatrix.M13) +
@@ -71,14 +68,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (ref var particle in particles)
             {
-                if (!perParticleAxis.ContainsKey(particle.ParticleCount))
-                {
-                    perParticleAxis.Add(particle.ParticleCount, Vector3.Normalize(MathUtils.RandomBetween(axisMin, axisMax)));
-                    perParticleRate.Add(particle.ParticleCount, MathUtils.ToRadians(MathUtils.RandomBetween(rotRateMin, rotRateMax)));
-                }
-
-                var axis = perParticleAxis[particle.ParticleCount];
-                var rotationRate = perParticleRate[particle.ParticleCount];
+                // TODO: Consistent rng
+                var axis = Vector3.Normalize(MathUtils.RandomBetween(axisMin, axisMax));
+                var rotationRate = MathUtils.ToRadians(MathUtils.RandomBetween(rotRateMin, rotRateMax));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 

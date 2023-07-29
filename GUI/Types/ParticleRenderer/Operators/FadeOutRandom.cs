@@ -39,21 +39,12 @@ namespace GUI.Types.ParticleRenderer.Operators
             // m_flFadeBias
         }
 
-        private readonly Dictionary<int, float> FadeOutTimes = new();
-
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles)
             {
-                float fadeOutTime;
-
-                if (!FadeOutTimes.ContainsKey(particle.ParticleCount))
-                {
-                    FadeOutTimes[particle.ParticleCount] = MathUtils.RandomWithExponentBetween(randomExponent, fadeOutTimeMin, fadeOutTimeMax);
-                }
-
-                fadeOutTime = FadeOutTimes[particle.ParticleCount];
-
+                // TODO: Consistent rng
+                var fadeOutTime = MathUtils.RandomWithExponentBetween(randomExponent, fadeOutTimeMin, fadeOutTimeMax);
 
                 var timeLeft = proportional
                     ? 1.0f - particle.NormalizedAge

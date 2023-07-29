@@ -11,16 +11,25 @@ namespace GUI.Types.ParticleRenderer
     /// </summary>
     class AttributeMapping
     {
-        public enum MapType
+        public enum PfInputMode
         {
+            Invalid = -1,
+            Clamped,
+            Looped,
+        }
+
+        public enum PfMapType
+        {
+            Invalid = -1,
             Direct,
-            Multiply,
+            Mult,
             Remap,
             RemapBiased,
             Curve,
-            Invalid,
+            Notched,
         };
-        private readonly MapType mode;
+
+        private readonly PfMapType mapType;
 
         private readonly float multFactor;
 
@@ -29,99 +38,94 @@ namespace GUI.Types.ParticleRenderer
         private readonly float output0;
         private readonly float output1;
 
-        private readonly string biasType;
+        private readonly PfBiasType biasType;
         private readonly float biasParameter;
 
         private readonly PiecewiseCurve curve;
 
-        private readonly bool isLooped;
+        private readonly PfInputMode inputMode;
 
 
         public AttributeMapping(IKeyValueCollection parameters)
         {
-            var mapMode = parameters.GetProperty<string>("m_nMapType");
+            mapType = parameters.GetEnumValue<PfMapType>("m_nMapType");
 
-            mode = mapMode switch
+            switch (mapType)
             {
-                "PF_MAP_TYPE_DIRECT" => MapType.Direct,
-                "PF_MAP_TYPE_MULT" => MapType.Multiply,
-                "PF_MAP_TYPE_REMAP" => MapType.Remap,
-                "PF_MAP_TYPE_REMAP_BIASED" => MapType.RemapBiased,
-                "PF_MAP_TYPE_CURVE" => MapType.Curve,
-                // "NOTCHED" EXISTS IN CS2
-                _ => MapType.Invalid
-            };
-
-            switch (mode)
-            {
-                case MapType.Direct:
+                case PfMapType.Direct:
                     break;
-                case MapType.Multiply:
+
+                case PfMapType.Mult:
                     multFactor = parameters.GetFloatProperty("m_flMultFactor");
                     break;
-                case MapType.Remap:
-                case MapType.RemapBiased:
+
+                case PfMapType.Remap:
+                case PfMapType.RemapBiased:
                     input0 = parameters.GetFloatProperty("m_flInput0");
                     input1 = parameters.GetFloatProperty("m_flInput1");
                     output0 = parameters.GetFloatProperty("m_flOutput0");
                     output1 = parameters.GetFloatProperty("m_flOutput1");
 
-                    isLooped = parameters.GetProperty<string>("m_nInputMode") == "PF_INPUT_MODE_LOOPED";
+                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode");
                     break;
-                case MapType.Curve:
-                    var curveData = parameters.GetSubCollection("m_Curve");
-                    isLooped = parameters.GetProperty<string>("m_nInputMode") == "PF_INPUT_MODE_LOOPED";
 
-                    curve = new PiecewiseCurve(curveData, isLooped);
+                case PfMapType.Curve:
+                    var curveData = parameters.GetSubCollection("m_Curve");
+                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode");
+
+                    curve = new PiecewiseCurve(curveData, inputMode == PfInputMode.Looped);
                     break;
+
+                case PfMapType.Notched:
+                    /* NOTCHED PARAMS:
+                    * m_flNotchedRangeMin
+                    * m_flNotchedRangeMax
+                    * m_flNotchedOutputOutside
+                    * m_flNotchedOutputInside
+                    */
+                    break;
+
                 default:
                     break;
 
             }
 
-            if (mode == MapType.RemapBiased)
+            if (mapType == PfMapType.RemapBiased)
             {
-                biasType = parameters.GetProperty<string>("m_nBiasType");
+                biasType = parameters.GetEnumValue<PfBiasType>("m_nBiasType");
                 biasParameter = parameters.GetFloatProperty("m_flBiasParameter");
             }
         }
+
         public float ApplyMapping(float value)
         {
-            switch (mode)
+            switch (mapType)
             {
-                case MapType.Multiply:
+                case PfMapType.Mult:
                     return value * multFactor;
 
-                case MapType.Remap:
+                case PfMapType.Remap:
                     var remappedTo0_1Range = MathUtils.Remap(value, input0, input1);
 
-                    if (isLooped) { remappedTo0_1Range = MathUtils.Fract(remappedTo0_1Range); }
+                    if (inputMode == PfInputMode.Looped) { remappedTo0_1Range = MathUtils.Fract(remappedTo0_1Range); }
 
                     return MathUtils.Lerp(remappedTo0_1Range, output0, output1);
 
-                case MapType.RemapBiased:
+                case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
 
-                    if (isLooped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
+                    if (inputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
 
                     // Insert bias processing here. Shared with randombiased mode in INumberProvider
 
                     return MathUtils.Lerp(remappedTo0_1RangeBiased, output0, output1);
 
-                case MapType.Curve:
+                case PfMapType.Curve:
                     return curve.Evaluate(value);
 
                 default:
                     return value;
             }
         }
-        /* NOTCHED PARAMS:
-         * m_flNotchedRangeMin
-         * m_flNotchedRangeMax
-         * m_flNotchedOutputOutside
-         * m_flNotchedOutputInside
-         */
     }
-
-
 }

@@ -105,8 +105,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Update remaining particles
             foreach (ref var particle in particles)
             {
-                var rate = GetParticleRate(particle.ParticleCount);
-                var frequency = GetParticleFrequency(particle.ParticleCount);
+                // TODO: Consistent rng
+                var rate = MathUtils.RandomBetweenPerComponent(rateMin, rateMax);
+                var frequency = MathUtils.RandomBetweenPerComponent(frequencyMin, frequencyMax);
 
                 var t = proportional
                     ? particle.NormalizedAge
@@ -114,8 +115,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 if (particleSystemState.BehaviorVersion == 10)
                 {
-                    var startTime = GetParticleStartTime(particle.ParticleCount);
-                    var endTime = GetParticleEndTime(particle.ParticleCount);
+                    // TODO: Consistent rng
+                    var startTime = MathUtils.RandomBetween(startTimeMin, startTimeMax);
+                    var endTime = MathUtils.RandomBetween(endTimeMin, endTimeMax);
 
                     if (t < startTime)
                     {
@@ -140,67 +142,6 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var value = rate * frameTime * delta;
 
                 particle.SetVector(outputField, particle.GetVector(outputField) + value);
-            }
-        }
-
-        private readonly Dictionary<int, Vector3> particleRates = new();
-        private readonly Dictionary<int, Vector3> particleFrequencies = new();
-
-        private readonly Dictionary<int, float> particleStartTimes = new();
-        private readonly Dictionary<int, float> particleEndTimes = new();
-
-        private Vector3 GetParticleRate(int particleId)
-        {
-            if (particleRates.TryGetValue(particleId, out var rate))
-            {
-                return rate;
-            }
-            else
-            {
-                var newRate = MathUtils.RandomBetweenPerComponent(rateMin, rateMax);
-                particleRates[particleId] = newRate;
-                return newRate;
-            }
-        }
-
-        private Vector3 GetParticleFrequency(int particleId)
-        {
-            if (particleFrequencies.TryGetValue(particleId, out var frequency))
-            {
-                return frequency;
-            }
-            else
-            {
-                var newFrequency = MathUtils.RandomBetweenPerComponent(frequencyMin, frequencyMax);
-                particleFrequencies[particleId] = newFrequency;
-                return newFrequency;
-            }
-        }
-
-        private float GetParticleStartTime(int particleID)
-        {
-            if (particleStartTimes.TryGetValue(particleID, out var startTime))
-            {
-                return startTime;
-            }
-            else
-            {
-                var newStartTime = MathUtils.RandomBetween(startTimeMin, startTimeMax);
-                particleStartTimes[particleID] = newStartTime;
-                return newStartTime;
-            }
-        }
-        private float GetParticleEndTime(int particleID)
-        {
-            if (particleEndTimes.TryGetValue(particleID, out var endTime))
-            {
-                return endTime;
-            }
-            else
-            {
-                var newEndTime = MathUtils.RandomBetween(endTimeMin, endTimeMax);
-                particleEndTimes[particleID] = newEndTime;
-                return newEndTime;
             }
         }
     }
