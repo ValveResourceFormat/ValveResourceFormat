@@ -55,7 +55,7 @@ namespace GUI.Types.ParticleRenderer
         {
             minRange = keyValues.GetFloatProperty("m_flRandomMin");
             maxRange = keyValues.GetFloatProperty("m_flRandomMax");
-            randomMode = keyValues.GetEnumValue<PfRandomMode>("m_nRandomMode");
+            randomMode = keyValues.GetEnumValue<PfRandomMode>("m_nRandomMode", normalize: true);
             this.isBiased = isBiased;
 
             if (isBiased)
@@ -63,7 +63,7 @@ namespace GUI.Types.ParticleRenderer
                 biasParam = keyValues.GetFloatProperty("m_flBiasParameter");
                 if (keyValues.ContainsKey("m_nBiasType"))
                 {
-                    biasType = keyValues.GetEnumValue<PfBiasType>("m_nBiasType");
+                    biasType = keyValues.GetEnumValue<PfBiasType>("m_nBiasType", normalize: true);
                 }
             }
         }
@@ -137,7 +137,7 @@ namespace GUI.Types.ParticleRenderer
 
         public PerParticleNumberProvider(IKeyValueCollection parameters)
         {
-            field = parameters.GetEnumValue<ParticleField>("m_nScalarAttribute");
+            field = (ParticleField)parameters.GetIntegerProperty("m_nScalarAttribute");
             mapping = new AttributeMapping(parameters);
         }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
@@ -153,7 +153,7 @@ namespace GUI.Types.ParticleRenderer
 
         public PerParticleVectorComponentNumberProvider(IKeyValueCollection parameters)
         {
-            field = parameters.GetEnumValue<ParticleField>("m_nVectorAttribute");
+            field = (ParticleField)parameters.GetIntegerProperty("m_nVectorAttribute");
             component = parameters.GetInt32Property("m_nVectorComponent");
             mapping = new AttributeMapping(parameters);
         }

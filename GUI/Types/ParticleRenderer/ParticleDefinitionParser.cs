@@ -46,12 +46,6 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
     public readonly IVectorProvider VectorProvider(string v) => Data.GetVectorProvider(v);
     public readonly IVectorProvider VectorProvider(string key, IVectorProvider @default) => GetValueOrDefault(key, VectorProvider, @default);
 
-    public readonly ParticleField ParticleField(string k) => Data.GetEnumValue<ParticleField>(k);
+    public readonly ParticleField ParticleField(string k) => (ParticleField)Data.GetIntegerProperty(k);
     public readonly ParticleField ParticleField(string key, ParticleField @default) => GetValueOrDefault(key, ParticleField, @default);
-
-    public readonly ParticleField FieldInput() => ParticleField("m_nFieldInput");
-    public readonly ParticleField FieldOutput() => ParticleField("m_nFieldOutput");
-
-    public readonly ParticleField InputField() => ParticleField("m_nInputField");
-    public readonly ParticleField OutputField() => ParticleField("m_nOutputField");
 }

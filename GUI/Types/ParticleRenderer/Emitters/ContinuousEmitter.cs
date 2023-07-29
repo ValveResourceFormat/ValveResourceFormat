@@ -20,14 +20,10 @@ namespace GUI.Types.ParticleRenderer.Emitters
         public ContinuousEmitter(ParticleDefinitionParser parse)
         {
             emissionDuration = parse.NumberProvider("m_flEmissionDuration", emissionDuration);
-
             startTime = parse.NumberProvider("m_flStartTime", startTime);
+            emitRate = parse.NumberProvider("m_flEmitRate", emitRate);
 
-            if (parse.Data.ContainsKey("m_flEmitRate"))
-            {
-                emitRate = parse.Data.GetNumberProvider("m_flEmitRate");
-                emitInterval = 1.0f / emitRate.NextNumber();
-            }
+            emitInterval = 1.0f / emitRate.NextNumber();
         }
 
         public void Start(Action particleEmitCallback)

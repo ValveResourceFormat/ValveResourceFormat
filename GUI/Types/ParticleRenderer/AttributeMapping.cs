@@ -48,7 +48,7 @@ namespace GUI.Types.ParticleRenderer
 
         public AttributeMapping(IKeyValueCollection parameters)
         {
-            mapType = parameters.GetEnumValue<PfMapType>("m_nMapType");
+            mapType = parameters.GetEnumValue<PfMapType>("m_nMapType", normalize: true);
 
             switch (mapType)
             {
@@ -66,12 +66,12 @@ namespace GUI.Types.ParticleRenderer
                     output0 = parameters.GetFloatProperty("m_flOutput0");
                     output1 = parameters.GetFloatProperty("m_flOutput1");
 
-                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode");
+                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode", normalize: true);
                     break;
 
                 case PfMapType.Curve:
                     var curveData = parameters.GetSubCollection("m_Curve");
-                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode");
+                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode", normalize: true);
 
                     curve = new PiecewiseCurve(curveData, inputMode == PfInputMode.Looped);
                     break;
@@ -92,7 +92,7 @@ namespace GUI.Types.ParticleRenderer
 
             if (mapType == PfMapType.RemapBiased)
             {
-                biasType = parameters.GetEnumValue<PfBiasType>("m_nBiasType");
+                biasType = parameters.GetEnumValue<PfBiasType>("m_nBiasType", normalize: true);
                 biasParameter = parameters.GetFloatProperty("m_flBiasParameter");
             }
         }
