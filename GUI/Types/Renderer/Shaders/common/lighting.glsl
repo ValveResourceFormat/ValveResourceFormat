@@ -88,7 +88,7 @@ uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 uniform vec4 g_vLightmapParams = vec4(0.0); // ???? directional non-intensity?? it's set to 0.0 in all places ive looked
 
-#define colorSpaceMul 0.996190845966339111328125 // 254/255
+const float colorSpaceMul = 254 / 255;
 
 // I don't actually understand much of this, but it's Valve's code.
 vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3 normalMap)
@@ -102,11 +102,11 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
     float sinTheta = dot(vTangentSpaceLightVector.xy, vTangentSpaceLightVector.xy);
 
 #if LightmapGameVersionNumber == 1
-    vTangentSpaceLightVector *= (colorSpaceMul / max(colorSpaceMul, length(vTangentSpaceLightVector.xy)));
-
     // Error in HLA code, fixed in DeskJob
     float cosTheta = 1.0 - sqrt(sinTheta);
 #else
+    vTangentSpaceLightVector *= (colorSpaceMul / max(colorSpaceMul, length(vTangentSpaceLightVector.xy)));
+
     float cosTheta = sqrt(1.0 - sinTheta);
 #endif
     vTangentSpaceLightVector.z = cosTheta;
@@ -148,7 +148,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
 
     // Environment Maps
-#if (S_SPECULAR == 1)
+#if defined(S_SPECULAR) && (S_SPECULAR == 1)
     lighting.SpecularIndirect = GetEnvironment(mat, lighting);
 #endif
 }

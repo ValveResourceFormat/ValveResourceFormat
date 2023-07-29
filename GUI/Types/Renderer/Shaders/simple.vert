@@ -122,7 +122,7 @@ vec3 GetSphericalProjectedAnisoBitangent(vec3 normal, vec3 tangent)
 
     vec3 vAnisoTangent = cross(g_vSphericalAnisotropyPole.xyz, normal);
     // Prevent length of 0
-    vAnisoTangent = mix(vAnisoTangent, tangent.xyz, bvec3(length(vec3(equal(vAnisoTangent, vec3(0.0)))) != 0.0));
+    vAnisoTangent = mix(vAnisoTangent, tangent, bvec3(length(vec3(equal(vAnisoTangent, vec3(0.0)))) != 0.0));
 
     if (g_vSphericalAnisotropyAngle != 0.0)
     {

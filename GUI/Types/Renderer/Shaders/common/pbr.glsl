@@ -7,14 +7,12 @@
 
 float diffuseLobe(float NoL, float roughness)
 {
-    // Pi is never factored into any lighting calculations in Source 2, for some reason (as of HLA)
     float diffuseExponent = (1.0 - roughness) * 0.8 + 0.6;
     return pow(NoL, diffuseExponent) * ((diffuseExponent + 1.0) / 2.0);
-    //return diffuse * (1.0 / PI);
 }
 
 
-#if (F_DIFFUSE_WRAP == 1) || (F_DIFFSUE_WRAP == 1) || defined(vr_xen_foliage) || defined(vr_eyeball)
+#if (F_DIFFUSE_WRAP == 1) || (F_DIFFSUE_WRAP == 1) || defined(vr_xen_foliage)
 // idea: what if we included individual features in tiny files per feature. they would all be used in #includes
 #define useDiffuseWrap
 
@@ -68,7 +66,7 @@ float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec
     vec3 Dots;
     Dots.x = dot(halfVector, tangent);
     Dots.y = dot(halfVector, bitangent);
-    Dots.z = dot(halfVector, normal); // this uses the actual optional normal though???
+    Dots.z = dot(halfVector, normal);
 
     Dots /= vec3(alpha, 1.0);
     float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y; // this is really weird
@@ -187,7 +185,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 
 
 
-
+// Calculate PBR shading for a light
 void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat)
 {
 #if defined(useDiffuseWrap)
