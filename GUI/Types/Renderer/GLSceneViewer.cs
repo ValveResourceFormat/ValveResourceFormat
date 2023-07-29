@@ -399,13 +399,14 @@ namespace GUI.Types.Renderer
             {
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
+                    .Concat(Camera.Picker.Shader.RenderModes)
                     .Distinct()
-                    .Concat(Camera.Picker.Shader.RenderModes);
+                    .Prepend("Default Render Mode");
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
                 renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.AddRange(supportedRenderModes.Prepend("Default Render Mode").ToArray());
+                renderModeComboBox.Items.AddRange(supportedRenderModes.ToArray());
                 skipRenderModeChange = true;
                 renderModeComboBox.SelectedIndex = index;
                 renderModeComboBox.EndUpdate();

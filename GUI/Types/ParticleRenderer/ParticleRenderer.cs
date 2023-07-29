@@ -243,6 +243,7 @@ namespace GUI.Types.ParticleRenderer
         public IEnumerable<string> GetSupportedRenderModes()
             => Renderers
                 .SelectMany(renderer => renderer.GetSupportedRenderModes())
+                .Concat(childParticleRenderers.SelectMany(child => child.GetSupportedRenderModes()))
                 .Distinct();
 
         public void SetRenderMode(string renderMode)
@@ -250,6 +251,11 @@ namespace GUI.Types.ParticleRenderer
             foreach (var renderer in Renderers)
             {
                 renderer.SetRenderMode(renderMode);
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.SetRenderMode(renderMode);
             }
         }
 

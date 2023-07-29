@@ -32,5 +32,7 @@ namespace GUI.Types.Renderer
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => particleRenderer.GetSupportedRenderModes();
+
+        public override void SetRenderMode(string mode) => particleRenderer.SetRenderMode(mode);
     }
 }
