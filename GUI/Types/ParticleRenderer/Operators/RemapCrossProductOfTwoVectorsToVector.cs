@@ -16,11 +16,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public RemapCrossProductOfTwoVectorsToVector(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             inputVec1 = parse.VectorProvider("m_InputVec1", inputVec1);
-
             inputVec2 = parse.VectorProvider("m_InputVec2", inputVec2);
-
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

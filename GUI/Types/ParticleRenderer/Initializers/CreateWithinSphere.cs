@@ -16,15 +16,10 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public CreateWithinSphere(ParticleDefinitionParser parse)
         {
             radiusMin = parse.NumberProvider("m_fRadiusMin", radiusMin);
-
             radiusMax = parse.NumberProvider("m_fRadiusMax", radiusMax);
-
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
-
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
-
             localCoordinateSystemSpeedMin = parse.VectorProvider("m_LocalCoordinateSystemSpeedMin", localCoordinateSystemSpeedMin);
-
             localCoordinateSystemSpeedMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", localCoordinateSystemSpeedMax);
         }
 

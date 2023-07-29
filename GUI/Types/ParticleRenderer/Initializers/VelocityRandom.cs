@@ -15,11 +15,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public VelocityRandom(ParticleDefinitionParser parse)
         {
             vectorMin = parse.VectorProvider("m_LocalCoordinateSystemSpeedMin", vectorMin);
-
             vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);
-
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
-
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
         }
 

@@ -19,17 +19,11 @@ namespace GUI.Types.ParticleRenderer.Operators
         public OpRemapParticleCountToScalar(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             inputMin = parse.NumberProvider("m_flInputMin", inputMin);
-
             inputMax = parse.NumberProvider("m_flInputMax", inputMax);
-
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
-
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
-
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 

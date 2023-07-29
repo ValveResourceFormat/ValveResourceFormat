@@ -19,17 +19,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RemapSpeedToScalar(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             inputMin = parse.Float("m_flInputMin", inputMin);
-
             inputMax = parse.Float("m_flInputMax", inputMax);
-
             outputMin = parse.Float("m_flOutputMin", outputMin);
-
             outputMax = parse.Float("m_flOutputMax", outputMax);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-
             perParticle = parse.Boolean("m_bPerParticle", perParticle);
         }
 

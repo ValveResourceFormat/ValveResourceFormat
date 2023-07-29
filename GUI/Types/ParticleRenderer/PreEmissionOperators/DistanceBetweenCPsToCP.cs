@@ -19,19 +19,12 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         public DistanceBetweenCPsToCP(ParticleDefinitionParser parse)
         {
             distanceMin = parse.Float("m_flInputMin", distanceMin);
-
             distanceMax = parse.Float("m_flInputMax", distanceMax);
-
             outputMin = parse.Float("m_flOutputMin", outputMin);
-
             outputMax = parse.Float("m_flOutputMax", outputMax);
-
             startCP = parse.Int32("m_nStartCP", startCP);
-
             endCP = parse.Int32("m_nEndCP", endCP);
-
             outputCP = parse.Int32("m_nOutputCP", outputCP);
-
             outputCPField = parse.Int32("m_nOutputCPField", outputCPField);
 
             // Unsupported features: LOS test

@@ -12,9 +12,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         public Spin(ParticleDefinitionParser parse)
         {
             spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
-
             spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
-
             spinStopTime = parse.Float("m_fSpinRateStopTime", spinStopTime);
         }
 
@@ -39,9 +37,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         public SpinYaw(ParticleDefinitionParser parse)
         {
             spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
-
             spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
-
             spinStopTime = parse.Float("m_fSpinRateStopTime", spinStopTime);
         }
 

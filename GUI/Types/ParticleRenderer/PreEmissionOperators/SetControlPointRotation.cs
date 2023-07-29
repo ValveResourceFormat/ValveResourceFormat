@@ -13,11 +13,8 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         public SetControlPointRotation(ParticleDefinitionParser parse)
         {
             axis = parse.VectorProvider("m_vecRotAxis", axis);
-
             rotationRate = parse.NumberProvider("m_flRotRate", rotationRate);
-
             cp = parse.Int32("m_nCP", cp);
-
             localCP = parse.Int32("m_nLocalCP", localCP);
         }
         private static Vector3 MatrixMul(Vector3 vector, Matrix4x4 rotatedMatrix)

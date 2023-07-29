@@ -15,13 +15,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         public SetAttributeToScalarExpression(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             input1 = parse.NumberProvider("m_flInput1", input1);
-
             input2 = parse.NumberProvider("m_flInput2", input2);
-
             expression = parse.Enum<ScalarExpressionType>("m_nExpression", expression);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 

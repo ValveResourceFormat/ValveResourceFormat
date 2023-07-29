@@ -17,15 +17,10 @@ namespace GUI.Types.ParticleRenderer.Operators
         public FadeAndKill(ParticleDefinitionParser parse)
         {
             startFadeInTime = parse.Float("m_flStartFadeInTime", startFadeInTime);
-
             endFadeInTime = parse.Float("m_flEndFadeInTime", endFadeInTime);
-
             startFadeOutTime = parse.Float("m_flStartFadeOutTime", startFadeOutTime);
-
             endFadeOutTime = parse.Float("m_flEndFadeOutTime", endFadeOutTime);
-
             startAlpha = parse.Float("m_flStartAlpha", startAlpha);
-
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
         }
 

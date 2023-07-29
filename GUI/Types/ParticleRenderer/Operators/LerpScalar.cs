@@ -15,11 +15,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public LerpScalar(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             output = parse.NumberProvider("m_flOutput", output);
-
             startTime = parse.Float("m_flStartTime", startTime);
-
             endTime = parse.Float("m_flEndTime", endTime);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

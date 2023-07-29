@@ -16,11 +16,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public SetVec(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             value = parse.VectorProvider("m_nInputValue", value);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more

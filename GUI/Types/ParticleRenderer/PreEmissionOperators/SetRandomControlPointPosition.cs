@@ -21,18 +21,12 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         public SetRandomControlPointPosition(ParticleDefinitionParser parse)
         {
             cp = parse.Int32("m_nCP1", cp);
-
             minPos = parse.Vector3("m_vecCPMinPos", minPos);
             maxPos = parse.Vector3("m_vecCPMaxPos", maxPos);
-
             useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
-
             offsetCP = parse.Int32("m_nHeadLocation", offsetCP);
-
             orient = parse.Boolean("m_bOrient", orient);
-
             reRandomRate = parse.Float("m_flReRandomRate", reRandomRate);
-
             interpolation = parse.Float("m_flInterpolation", interpolation);
         }
 

@@ -31,11 +31,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public PointList(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             numPointsOnPath = parse.Int32("m_nNumPointsAlongPath", numPointsOnPath);
-
             usePath = parse.Boolean("m_bPlaceAlongPath", usePath);
-
             closedLoop = parse.Boolean("m_bClosedLoop", closedLoop);
 
             foreach (var point in parse.Array("m_pointList"))

@@ -16,11 +16,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RingWave(ParticleDefinitionParser parse)
         {
             evenDistribution = parse.Boolean("m_bEvenDistribution", evenDistribution);
-
             particlesPerOrbit = parse.NumberProvider("m_flParticlesPerOrbit", particlesPerOrbit);
-
             initialRadius = parse.NumberProvider("m_flInitialRadius", initialRadius);
-
             thickness = parse.NumberProvider("m_flThickness", thickness);
 
             // other properties: m_vInitialSpeedMin/Max, m_flRoll

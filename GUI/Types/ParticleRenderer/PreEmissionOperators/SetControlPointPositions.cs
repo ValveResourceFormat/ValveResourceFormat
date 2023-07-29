@@ -32,11 +32,8 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             CP2Pos = parse.Vector3("m_vecCP2Pos", CP2Pos);
             CP3Pos = parse.Vector3("m_vecCP3Pos", CP3Pos);
             CP4Pos = parse.Vector3("m_vecCP4Pos", CP4Pos);
-
             setOnce = parse.Boolean("m_bSetOnce", setOnce);
-
             useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
-
             CPOffset = parse.Int32("m_nHeadLocation", CPOffset);
         }
 

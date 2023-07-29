@@ -12,7 +12,6 @@ namespace GUI.Types.ParticleRenderer.Operators
         public FadeInSimple(ParticleDefinitionParser parse)
         {
             fadeInTime = parse.Float("m_flFadeInTime", fadeInTime);
-
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 

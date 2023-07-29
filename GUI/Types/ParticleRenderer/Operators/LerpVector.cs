@@ -18,13 +18,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         public LerpVector(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             output = parse.Vector3("m_nInputValue", output);
-
             startTime = parse.Float("m_flStartTime", startTime);
-
             endTime = parse.Float("m_flEndTime", endTime);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

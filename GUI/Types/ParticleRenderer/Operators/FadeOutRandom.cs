@@ -15,11 +15,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public FadeOutRandom(ParticleDefinitionParser parse)
         {
             fadeOutTimeMin = parse.Float("m_flFadeOutTimeMin", fadeOutTimeMin);
-
             fadeOutTimeMax = parse.Float("m_flFadeOutTimeMax", fadeOutTimeMax);
-
             randomExponent = parse.Float("m_flFadeOutTimeExp", randomExponent);
-
             proportional = parse.Boolean("m_bProportional", proportional);
 
             // Other things that exist that don't seem to do anything:

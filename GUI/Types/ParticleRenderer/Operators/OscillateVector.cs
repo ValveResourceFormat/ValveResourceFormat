@@ -27,26 +27,17 @@ namespace GUI.Types.ParticleRenderer.Operators
         public OscillateVector(ParticleDefinitionParser parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
-
             RateMin = parse.Vector3("m_RateMin", RateMin);
             RateMax = parse.Vector3("m_RateMax", RateMax);
             FrequencyMin = parse.Vector3("m_FrequencyMin", FrequencyMin);
             FrequencyMax = parse.Vector3("m_FrequencyMax", FrequencyMax);
-
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
-
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
-
             proportional = parse.Boolean("m_bProportional", proportional);
-
             proportionalOp = parse.Boolean("m_bProportionalOp", proportionalOp);
-
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
-
             startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
-
             endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
-
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
         }
 
@@ -115,12 +106,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         public OscillateVectorSimple(ParticleDefinitionParser parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
-
             rate = parse.Vector3("m_Rate", rate);
             frequency = parse.Vector3("m_Frequency", frequency);
-
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
-
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 

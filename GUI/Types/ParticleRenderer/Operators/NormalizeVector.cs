@@ -13,7 +13,6 @@ namespace GUI.Types.ParticleRenderer.Operators
         public NormalizeVector(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             Scale = parse.Float("m_flScale", Scale);
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more

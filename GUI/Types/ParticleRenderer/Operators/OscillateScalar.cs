@@ -20,19 +20,12 @@ namespace GUI.Types.ParticleRenderer.Operators
         public OscillateScalar(ParticleDefinitionParser parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
-
             rateMin = parse.Float("m_RateMin", rateMin);
-
             rateMax = parse.Float("m_RateMax", rateMax);
-
             frequencyMin = parse.Float("m_FrequencyMin", frequencyMin);
-
             frequencyMax = parse.Float("m_FrequencyMax", frequencyMax);
-
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
-
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
-
             proportional = parse.Boolean("m_bProportionalOp", proportional);
         }
 
@@ -76,13 +69,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         public OscillateScalarSimple(ParticleDefinitionParser parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
-
             rate = parse.Float("m_Rate", rate);
-
             frequency = parse.Float("m_Frequency", frequency);
-
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
-
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 

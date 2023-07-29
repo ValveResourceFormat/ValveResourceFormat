@@ -14,11 +14,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomScalar(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             scalarMin = parse.Float("m_flMin", scalarMin);
-
             scalarMax = parse.Float("m_flMax", scalarMax);
-
             scalarMax = parse.Float("m_flExponent", scalarMax);
         }
 

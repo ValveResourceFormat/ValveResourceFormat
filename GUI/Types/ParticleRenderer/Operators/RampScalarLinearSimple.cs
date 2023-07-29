@@ -14,11 +14,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public RampScalarLinearSimple(ParticleDefinitionParser parse)
         {
             rate = parse.Float("m_Rate", rate);
-
             startTime = parse.Float("m_flStartTime", startTime);
-
             endTime = parse.Float("m_flEndTime", endTime);
-
             field = parse.ParticleField("m_nField", field);
         }
 

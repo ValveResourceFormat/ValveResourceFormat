@@ -15,11 +15,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public CreateWithinBox(ParticleDefinitionParser parse)
         {
             min = parse.VectorProvider("m_vecMin", min);
-
             max = parse.VectorProvider("m_vecMax", max);
-
             controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
-
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
         }
 

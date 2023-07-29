@@ -14,9 +14,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         public MaxVelocity(ParticleDefinitionParser parse)
         {
             maxVelocity = parse.Float("m_flMaxVelocity", maxVelocity);
-
             overrideCP = parse.Int32("m_nOverrideCP", overrideCP);
-
             overrideCPField = parse.Int32("m_nOverrideCPField", overrideCPField);
         }
 

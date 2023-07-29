@@ -13,7 +13,6 @@ namespace GUI.Types.ParticleRenderer.Operators
         public BasicMovement(ParticleDefinitionParser parse)
         {
             gravity = parse.VectorProvider("m_Gravity", gravity);
-
             drag = parse.NumberProvider("m_fDrag", drag);
         }
 

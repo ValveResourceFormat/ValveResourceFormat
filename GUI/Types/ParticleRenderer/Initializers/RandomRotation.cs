@@ -17,15 +17,10 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomRotation(ParticleDefinitionParser parse)
         {
             degreesMin = parse.Float("m_flDegreesMin", degreesMin);
-
             degreesMax = parse.Float("m_flDegreesMax", degreesMax);
-
             degreesOffset = parse.Float("m_flDegrees", degreesOffset);
-
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);
-
             randomExponent = parse.Float("m_flRotationRandExponent", randomExponent);
         }
 

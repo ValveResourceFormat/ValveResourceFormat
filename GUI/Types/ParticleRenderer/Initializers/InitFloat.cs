@@ -11,7 +11,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public InitFloat(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             InputValue = parse.NumberProvider("m_InputValue", InputValue);
         }
 

@@ -10,7 +10,6 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         public StopAfterDuration(ParticleDefinitionParser parse)
         {
             duration = parse.NumberProvider("m_flDuration", duration);
-
             destroy = parse.Boolean("m_bDestroyImmediately", destroy);
         }
 

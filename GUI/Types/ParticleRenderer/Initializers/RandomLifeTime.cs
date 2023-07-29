@@ -12,9 +12,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomLifeTime(ParticleDefinitionParser parse)
         {
             lifetimeMin = parse.Float("m_fLifetimeMin", lifetimeMin);
-
             lifetimeMax = parse.Float("m_fLifetimeMax", lifetimeMax);
-
             lifetimeMax = parse.Float("m_flLifetimeRandExponent", lifetimeMax);
         }
 

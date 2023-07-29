@@ -26,23 +26,14 @@ namespace GUI.Types.ParticleRenderer.Operators
         public PositionLock(ParticleDefinitionParser parse)
         {
             cp = parse.Int32("m_nControlPointNumber", cp);
-
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
-
             startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
-
             startTimeExp = parse.Float("m_flStartTime_exp", startTimeExp);
-
             endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
-
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
-
             endTimeExp = parse.Float("m_flEndTime_exp", endTimeExp);
-
             fadeDist = parse.Float("m_flRange", fadeDist);
-
             instantJumpThreshold = parse.Float("m_flJumpThreshold", instantJumpThreshold);
-
             prevPosScale = parse.Float("m_flPrevPosScale", prevPosScale);
         }
 

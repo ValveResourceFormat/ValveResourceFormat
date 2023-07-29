@@ -12,9 +12,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomRadius(ParticleDefinitionParser parse)
         {
             radiusMin = parse.Float("m_flRadiusMin", radiusMin);
-
             radiusMax = parse.Float("m_flRadiusMax", radiusMax);
-
             radiusRandomExponent = parse.Float("m_flRadiusRandExponent", radiusRandomExponent);
         }
 

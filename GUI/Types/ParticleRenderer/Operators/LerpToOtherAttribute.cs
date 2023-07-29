@@ -16,7 +16,6 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
 
             // If the two fields are different types, the operator does nothing.

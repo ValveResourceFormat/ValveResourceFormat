@@ -22,21 +22,13 @@ namespace GUI.Types.ParticleRenderer.Operators
         public DistanceToCP(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             distanceMin = parse.Float("m_flInputMin", distanceMin);
-
             distanceMax = parse.Float("m_flInputMax", distanceMax);
-
             outputMin = parse.Float("m_flOutputMin", outputMin);
-
             outputMax = parse.Float("m_flOutputMax", outputMax);
-
             controlPoint = parse.Int32("m_nStartCP", controlPoint);
-
             additive = parse.Boolean("m_bAdditive", additive);
-
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
 
 

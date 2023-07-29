@@ -17,13 +17,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             inputMin = parse.Float("m_flInputMin", inputMin);
-
             inputMax = parse.Float("m_flInputMax", inputMax);
-
             outputMin = parse.Float("m_flOutputMin", outputMin);
-
             outputMax = parse.Float("m_flOutputMax", outputMax);
         }
 

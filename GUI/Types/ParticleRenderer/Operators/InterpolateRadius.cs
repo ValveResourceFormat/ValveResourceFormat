@@ -16,13 +16,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         public InterpolateRadius(ParticleDefinitionParser parse)
         {
             startTime = parse.Float("m_flStartTime", startTime);
-
             endTime = parse.Float("m_flEndTime", endTime);
-
             startScale = parse.NumberProvider("m_flStartScale", startScale);
-
             endScale = parse.NumberProvider("m_flEndScale", endScale);
-
             bias = parse.NumberProvider("m_flBias", bias);
         }
 

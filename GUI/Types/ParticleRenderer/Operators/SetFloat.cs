@@ -15,11 +15,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public SetFloat(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             value = parse.NumberProvider("m_nInputValue", value);
-
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
             // there's also a Lerp value that every frame sets the value to the lerp of the current one to the set one.

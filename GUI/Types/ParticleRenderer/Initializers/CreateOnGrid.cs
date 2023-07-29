@@ -26,21 +26,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public CreateOnGrid(ParticleDefinitionParser parse)
         {
             dimenX = parse.NumberProvider("m_nXCount", dimenX);
-
             dimenY = parse.NumberProvider("m_nYCount", dimenY);
-
             dimenZ = parse.NumberProvider("m_nZCount", dimenZ);
-
             spacingX = parse.NumberProvider("m_flXSpacing", spacingX);
-
             spacingY = parse.NumberProvider("m_flYSpacing", spacingY);
-
             spacingZ = parse.NumberProvider("m_flZSpacing", spacingZ);
-
             controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
-
             center = parse.Boolean("m_bCenter", center);
-
             hollow = parse.Boolean("m_bHollow", hollow);
         }
 

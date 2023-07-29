@@ -14,11 +14,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomVectorComponent(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             min = parse.Float("m_flMin", min);
-
             max = parse.Float("m_flMax", max);
-
             component = parse.Int32("m_nComponent", component);
         }
 

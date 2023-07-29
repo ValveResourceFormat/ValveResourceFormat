@@ -12,7 +12,6 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         public RampCPLinearRandom(ParticleDefinitionParser parse)
         {
             cp = parse.Int32("m_nOutputControlPointNumber", cp);
-
             var rateMin = parse.Vector3("m_vecRateMin", Vector3.Zero);
             var rateMax = parse.Vector3("m_vecRateMax", Vector3.Zero);
 

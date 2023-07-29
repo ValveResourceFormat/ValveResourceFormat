@@ -15,11 +15,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         public DistanceCull(ParticleDefinitionParser parse)
         {
             cp = parse.Int32("m_nControlPoint", cp);
-
             PointOffset = parse.Vector3("m_vecPointOffset", PointOffset);
-
             distance = parse.Float("m_flDistance", distance);
-
             cullInside = parse.Boolean("m_bCullInside", cullInside);
         }
         private bool CulledBySphere(Vector3 position, ParticleSystemRenderState particleSystemState)

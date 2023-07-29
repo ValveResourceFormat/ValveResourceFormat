@@ -19,13 +19,9 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         public SetSingleControlPointPosition(ParticleDefinitionParser parse)
         {
             CP1 = parse.Int32("m_nCP1", CP1);
-
             CP1Pos = parse.VectorProvider("m_vecCP1Pos", CP1Pos);
-
             SetOnce = parse.Boolean("m_bSetOnce", SetOnce);
-
             UseWorldLocation = parse.Boolean("m_bUseWorldLocation", UseWorldLocation);
-
             CPOffset = parse.Int32("m_nHeadLocation", CPOffset);
         }
 

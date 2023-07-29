@@ -14,9 +14,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public InitialVelocityNoise(ParticleDefinitionParser parse)
         {
             outputMin = parse.VectorProvider("m_vecOutputMin", outputMin);
-
             outputMax = parse.VectorProvider("m_vecOutputMax", outputMax);
-
             noiseScale = parse.NumberProvider("m_flNoiseScale", noiseScale);
         }
 

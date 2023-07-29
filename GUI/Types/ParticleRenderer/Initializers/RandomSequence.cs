@@ -15,9 +15,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomSequence(ParticleDefinitionParser parse)
         {
             sequenceMin = parse.Int32("m_nSequenceMin", sequenceMin);
-
             sequenceMax = parse.Int32("m_nSequenceMax", sequenceMax);
-
             shuffle = parse.Boolean("m_bShuffle", shuffle);
         }
 

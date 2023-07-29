@@ -22,16 +22,13 @@ namespace GUI.Types.ParticleRenderer.Operators
         public RotateVector(ParticleDefinitionParser parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-
             RotAxisMin = parse.Vector3("m_vecRotAxisMin", RotAxisMin);
             RotAxisMax = parse.Vector3("m_vecRotAxisMax", RotAxisMax);
             RotRateMin = parse.Float("m_flRotRateMin", RotRateMin);
 
 
             rotRateMax = parse.Float("m_flRotRateMax", rotRateMax);
-
             perParticleScale = parse.NumberProvider("m_flScale", perParticleScale);
-
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 

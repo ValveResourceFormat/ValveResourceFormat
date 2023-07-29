@@ -16,13 +16,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RandomRotationSpeed(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);
-
             degrees = parse.Float("m_flDegrees", degrees);
-
             degreesMin = parse.Float("m_flDegreesMin", degreesMin);
-
             degreesMax = parse.Float("m_flDegreesMax", degreesMax);
         }
 

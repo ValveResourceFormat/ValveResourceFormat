@@ -13,9 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         public RemapControlPointDirectionToVector(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-
             scale = parse.Float("m_flScale", scale);
-
             cp = parse.Int32("m_nControlPointNumber", cp);
         }
 
