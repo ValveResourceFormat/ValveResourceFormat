@@ -10,27 +10,15 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly int localCP = -1; // ??
         private readonly INumberProvider rotationRate = new LiteralNumberProvider(180);
 
-        public SetControlPointRotation(IKeyValueCollection keyValues)
+        public SetControlPointRotation(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_vecRotAxis"))
-            {
-                axis = keyValues.GetVectorProvider("m_vecRotAxis");
-            }
+            axis = parse.VectorProvider("m_vecRotAxis", axis);
 
-            if (keyValues.ContainsKey("m_flRotRate"))
-            {
-                rotationRate = keyValues.GetNumberProvider("m_flRotRate");
-            }
+            rotationRate = parse.NumberProvider("m_flRotRate", rotationRate);
 
-            if (keyValues.ContainsKey("m_nCP"))
-            {
-                cp = keyValues.GetInt32Property("m_nCP");
-            }
+            cp = parse.Int32("m_nCP", cp);
 
-            if (keyValues.ContainsKey("m_nLocalCP"))
-            {
-                localCP = keyValues.GetInt32Property("m_nLocalCP");
-            }
+            localCP = parse.Int32("m_nLocalCP", localCP);
         }
         private static Vector3 MatrixMul(Vector3 vector, Matrix4x4 rotatedMatrix)
         {

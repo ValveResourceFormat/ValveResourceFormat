@@ -9,52 +9,30 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class RotateVector : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Normal;
-        private readonly Vector3 axisMin = new(0, 0, 1);
-        private readonly Vector3 axisMax = new(0, 0, 1);
+        private readonly ParticleField OutputField = ParticleField.Normal;
+        private readonly Vector3 RotAxisMin = new(0, 0, 1);
+        private readonly Vector3 RotAxisMax = new(0, 0, 1);
 
-        private readonly float rotRateMin = 180f;
+        private readonly float RotRateMin = 180f;
         private readonly float rotRateMax = 180f;
 
         private readonly INumberProvider perParticleScale = new LiteralNumberProvider(1f);
         private readonly bool normalize;
 
-        public RotateVector(IKeyValueCollection keyValues)
+        public RotateVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
 
-            if (keyValues.ContainsKey("m_vecRotAxisMin"))
-            {
-                axisMin = keyValues.GetArray<double>("m_vecRotAxisMin").ToVector3();
-            }
+            RotAxisMin = parse.Vector3("m_vecRotAxisMin", RotAxisMin);
+            RotAxisMax = parse.Vector3("m_vecRotAxisMax", RotAxisMax);
+            RotRateMin = parse.Float("m_flRotRateMin", RotRateMin);
 
-            if (keyValues.ContainsKey("m_vecRotAxisMax"))
-            {
-                axisMax = keyValues.GetArray<double>("m_vecRotAxisMax").ToVector3();
-            }
 
-            if (keyValues.ContainsKey("m_flRotRateMin"))
-            {
-                rotRateMin = keyValues.GetFloatProperty("m_flRotRateMin");
-            }
+            rotRateMax = parse.Float("m_flRotRateMax", rotRateMax);
 
-            if (keyValues.ContainsKey("m_flRotRateMax"))
-            {
-                rotRateMax = keyValues.GetFloatProperty("m_flRotRateMax");
-            }
+            perParticleScale = parse.NumberProvider("m_flScale", perParticleScale);
 
-            if (keyValues.ContainsKey("m_flScale"))
-            {
-                perParticleScale = keyValues.GetNumberProvider("m_flScale");
-            }
-
-            if (keyValues.ContainsKey("m_bNormalize"))
-            {
-                normalize = keyValues.GetProperty<bool>("m_bNormalize");
-            }
+            normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
         private static Vector3 MatrixMul(Vector3 vector, Matrix4x4 rotatedMatrix)
@@ -69,19 +47,19 @@ namespace GUI.Types.ParticleRenderer.Operators
             foreach (ref var particle in particles)
             {
                 // TODO: Consistent rng
-                var axis = Vector3.Normalize(MathUtils.RandomBetween(axisMin, axisMax));
-                var rotationRate = MathUtils.ToRadians(MathUtils.RandomBetween(rotRateMin, rotRateMax));
+                var axis = Vector3.Normalize(MathUtils.RandomBetween(RotAxisMin, RotAxisMax));
+                var rotationRate = MathUtils.ToRadians(MathUtils.RandomBetween(RotRateMin, rotRateMax));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 
                 // probably slow but who knows???
-                var rotatedVector = MatrixMul(particle.GetVector(field), Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
+                var rotatedVector = MatrixMul(particle.GetVector(OutputField), Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
 
                 rotatedVector = normalize
                     ? Vector3.Normalize(rotatedVector)
                     : rotatedVector;
 
-                particle.SetVector(field, rotatedVector);
+                particle.SetVector(OutputField, rotatedVector);
             }
         }
     }

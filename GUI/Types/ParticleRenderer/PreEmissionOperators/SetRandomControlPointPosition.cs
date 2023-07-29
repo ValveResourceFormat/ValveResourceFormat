@@ -18,47 +18,22 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly float reRandomRate = -1.0f;
         private readonly float interpolation = 1.0f;
 
-        public SetRandomControlPointPosition(IKeyValueCollection keyValues)
+        public SetRandomControlPointPosition(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nCP1"))
-            {
-                cp = keyValues.GetInt32Property("m_nCP1");
-            }
+            cp = parse.Int32("m_nCP1", cp);
 
-            if (keyValues.ContainsKey("m_vecCPMinPos"))
-            {
-                minPos = keyValues.GetArray<double>("m_vecCPMinPos").ToVector3();
-            }
+            minPos = parse.Vector3("m_vecCPMinPos", minPos);
+            maxPos = parse.Vector3("m_vecCPMaxPos", maxPos);
 
-            if (keyValues.ContainsKey("m_vecCPMaxPos"))
-            {
-                maxPos = keyValues.GetArray<double>("m_vecCPMaxPos").ToVector3();
-            }
+            useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
 
-            if (keyValues.ContainsKey("m_bUseWorldLocation"))
-            {
-                useWorldLocation = keyValues.GetProperty<bool>("m_bUseWorldLocation");
-            }
+            offsetCP = parse.Int32("m_nHeadLocation", offsetCP);
 
-            if (keyValues.ContainsKey("m_nHeadLocation"))
-            {
-                offsetCP = keyValues.GetInt32Property("m_nHeadLocation");
-            }
+            orient = parse.Boolean("m_bOrient", orient);
 
-            if (keyValues.ContainsKey("m_bOrient"))
-            {
-                orient = keyValues.GetProperty<bool>("m_bOrient");
-            }
+            reRandomRate = parse.Float("m_flReRandomRate", reRandomRate);
 
-            if (keyValues.ContainsKey("m_flReRandomRate"))
-            {
-                reRandomRate = keyValues.GetFloatProperty("m_flReRandomRate");
-            }
-
-            if (keyValues.ContainsKey("m_flInterpolation"))
-            {
-                interpolation = keyValues.GetFloatProperty("m_flInterpolation");
-            }
+            interpolation = parse.Float("m_flInterpolation", interpolation);
         }
 
         private bool HasRunBefore;

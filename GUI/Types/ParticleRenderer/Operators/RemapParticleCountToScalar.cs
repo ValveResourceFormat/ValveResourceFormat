@@ -12,45 +12,27 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
 
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool activeRange;
 
-        public OpRemapParticleCountToScalar(IKeyValueCollection keyValues)
+        public OpRemapParticleCountToScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
 
-            if (keyValues.ContainsKey("m_flInputMin"))
-            {
-                inputMin = keyValues.GetNumberProvider("m_flInputMin");
-            }
+            inputMin = parse.NumberProvider("m_flInputMin", inputMin);
 
-            if (keyValues.ContainsKey("m_flInputMax"))
-            {
-                inputMax = keyValues.GetNumberProvider("m_flInputMax");
-            }
+            inputMax = parse.NumberProvider("m_flInputMax", inputMax);
 
-            if (keyValues.ContainsKey("m_flOutputMin"))
-            {
-                outputMin = keyValues.GetNumberProvider("m_flOutputMin");
-            }
+            outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
 
-            if (keyValues.ContainsKey("m_flOutputMax"))
-            {
-                outputMax = keyValues.GetNumberProvider("m_flOutputMax");
-            }
+            outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
 
-            if (keyValues.ContainsKey("m_bActiveRange"))
-            {
-                activeRange = keyValues.GetProperty<bool>("m_bActiveRange");
-            }
+            activeRange = parse.Boolean("m_bActiveRange", activeRange);
 
-            if (keyValues.ContainsKey("m_nSetMethod"))
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
         }
 
@@ -76,9 +58,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
 
-                finalValue = particle.ModifyScalarBySetMethod(field, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(OutputField, finalValue, setMethod);
 
-                particle.SetScalar(field, finalValue);
+                particle.SetScalar(OutputField, finalValue);
             }
         }
     }

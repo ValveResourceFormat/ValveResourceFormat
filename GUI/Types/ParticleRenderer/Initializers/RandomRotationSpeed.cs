@@ -8,37 +8,22 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RandomRotationSpeed : IParticleInitializer
     {
-        private readonly ParticleField fieldOutput = ParticleField.Roll;
+        private readonly ParticleField FieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection = true;
         private readonly float degrees;
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
-        public RandomRotationSpeed(IKeyValueCollection keyValues)
+        public RandomRotationSpeed(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_bRandomlyFlipDirection"))
-            {
-                randomlyFlipDirection = keyValues.GetProperty<bool>("m_bRandomlyFlipDirection");
-            }
+            randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);
 
-            if (keyValues.ContainsKey("m_flDegrees"))
-            {
-                degrees = keyValues.GetFloatProperty("m_flDegrees");
-            }
+            degrees = parse.Float("m_flDegrees", degrees);
 
-            if (keyValues.ContainsKey("m_flDegreesMin"))
-            {
-                degreesMin = keyValues.GetFloatProperty("m_flDegreesMin");
-            }
+            degreesMin = parse.Float("m_flDegreesMin", degreesMin);
 
-            if (keyValues.ContainsKey("m_flDegreesMax"))
-            {
-                degreesMax = keyValues.GetFloatProperty("m_flDegreesMax");
-            }
+            degreesMax = parse.Float("m_flDegreesMax", degreesMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
@@ -50,11 +35,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 value *= -1;
             }
 
-            if (fieldOutput == ParticleField.Yaw)
+            if (FieldOutput == ParticleField.Yaw)
             {
                 particle.RotationSpeed = new Vector3(value, 0, 0);
             }
-            else if (fieldOutput == ParticleField.Roll)
+            else if (FieldOutput == ParticleField.Roll)
             {
                 particle.RotationSpeed = new Vector3(0, 0, value);
             }

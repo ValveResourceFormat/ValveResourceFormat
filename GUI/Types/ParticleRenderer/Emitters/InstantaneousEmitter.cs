@@ -14,10 +14,10 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private float time;
 
-        public InstantaneousEmitter(IKeyValueCollection keyValues)
+        public InstantaneousEmitter(ParticleDefinitionParser parse)
         {
-            emitCount = keyValues.GetNumberProvider("m_nParticlesToEmit");
-            startTime = keyValues.GetNumberProvider("m_flStartTime");
+            emitCount = parse.Data.GetNumberProvider("m_nParticlesToEmit");
+            startTime = parse.Data.GetNumberProvider("m_flStartTime");
         }
 
         public void Start(Action particleEmitCallback)

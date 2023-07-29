@@ -7,32 +7,20 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class LerpScalar : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly INumberProvider output = new LiteralNumberProvider(1);
         private readonly float startTime;
         private readonly float endTime = 1f;
 
-        public LerpScalar(IKeyValueCollection keyValues)
+        public LerpScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_flOutput"))
-            {
-                output = keyValues.GetNumberProvider("m_flOutput");
-            }
+            output = parse.NumberProvider("m_flOutput", output);
 
-            if (keyValues.ContainsKey("m_flStartTime"))
-            {
-                startTime = keyValues.GetFloatProperty("m_flStartTime");
-            }
+            startTime = parse.Float("m_flStartTime", startTime);
 
-            if (keyValues.ContainsKey("m_flEndTime"))
-            {
-                endTime = keyValues.GetFloatProperty("m_flEndTime");
-            }
+            endTime = parse.Float("m_flEndTime", endTime);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
@@ -42,9 +30,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
 
-                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialScalar(field), lerpTarget);
+                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialScalar(FieldOutput), lerpTarget);
 
-                particle.SetScalar(field, scalarOutput);
+                particle.SetScalar(FieldOutput, scalarOutput);
             }
         }
     }

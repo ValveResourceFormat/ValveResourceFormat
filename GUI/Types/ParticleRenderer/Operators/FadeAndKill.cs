@@ -14,37 +14,19 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float startAlpha = 1f;
         private readonly float endAlpha;
 
-        public FadeAndKill(IKeyValueCollection keyValues)
+        public FadeAndKill(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flStartFadeInTime"))
-            {
-                startFadeInTime = keyValues.GetFloatProperty("m_flStartFadeInTime");
-            }
+            startFadeInTime = parse.Float("m_flStartFadeInTime", startFadeInTime);
 
-            if (keyValues.ContainsKey("m_flEndFadeInTime"))
-            {
-                endFadeInTime = keyValues.GetFloatProperty("m_flEndFadeInTime");
-            }
+            endFadeInTime = parse.Float("m_flEndFadeInTime", endFadeInTime);
 
-            if (keyValues.ContainsKey("m_flStartFadeOutTime"))
-            {
-                startFadeOutTime = keyValues.GetFloatProperty("m_flStartFadeOutTime");
-            }
+            startFadeOutTime = parse.Float("m_flStartFadeOutTime", startFadeOutTime);
 
-            if (keyValues.ContainsKey("m_flEndFadeOutTime"))
-            {
-                endFadeOutTime = keyValues.GetFloatProperty("m_flEndFadeOutTime");
-            }
+            endFadeOutTime = parse.Float("m_flEndFadeOutTime", endFadeOutTime);
 
-            if (keyValues.ContainsKey("m_flStartAlpha"))
-            {
-                startAlpha = keyValues.GetFloatProperty("m_flStartAlpha");
-            }
+            startAlpha = parse.Float("m_flStartAlpha", startAlpha);
 
-            if (keyValues.ContainsKey("m_flEndAlpha"))
-            {
-                endAlpha = keyValues.GetFloatProperty("m_flEndAlpha");
-            }
+            endAlpha = parse.Float("m_flEndAlpha", endAlpha);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

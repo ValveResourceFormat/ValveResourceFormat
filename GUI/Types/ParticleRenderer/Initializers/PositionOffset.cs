@@ -13,22 +13,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly bool proportional;
 
-        public PositionOffset(IKeyValueCollection keyValues)
+        public PositionOffset(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_OffsetMin"))
-            {
-                offsetMin = keyValues.GetVectorProvider("m_OffsetMin");
-            }
+            offsetMin = parse.VectorProvider("m_OffsetMin", offsetMin);
 
-            if (keyValues.ContainsKey("m_OffsetMax"))
-            {
-                offsetMax = keyValues.GetVectorProvider("m_OffsetMax");
-            }
+            offsetMax = parse.VectorProvider("m_OffsetMax", offsetMax);
 
-            if (keyValues.ContainsKey("m_bProportional"))
-            {
-                proportional = keyValues.GetProperty<bool>("m_bProportional");
-            }
+            proportional = parse.Boolean("m_bProportional", proportional);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

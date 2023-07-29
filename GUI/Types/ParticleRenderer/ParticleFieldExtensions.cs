@@ -20,11 +20,6 @@ namespace GUI.Types.ParticleRenderer
             };
         }
 
-        public static ParticleField GetParticleField(this IKeyValueCollection keyValues, string name)
-        {
-            return (ParticleField)keyValues.GetIntegerProperty(name);
-        }
-
         // Extra utility for when one operator can set either scalars or vectors
         public static string FieldType(this ParticleField field)
         {

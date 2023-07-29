@@ -6,39 +6,27 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RandomScalar : IParticleInitializer
     {
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly float scalarMin;
         private readonly float scalarMax;
         private readonly float exponent = 1;
 
-        public RandomScalar(IKeyValueCollection keyValues)
+        public RandomScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_flMin"))
-            {
-                scalarMin = keyValues.GetFloatProperty("m_flMin");
-            }
+            scalarMin = parse.Float("m_flMin", scalarMin);
 
-            if (keyValues.ContainsKey("m_flMax"))
-            {
-                scalarMax = keyValues.GetFloatProperty("m_flMax");
-            }
+            scalarMax = parse.Float("m_flMax", scalarMax);
 
-            if (keyValues.ContainsKey("m_flExponent"))
-            {
-                scalarMax = keyValues.GetFloatProperty("m_flExponent");
-            }
+            scalarMax = parse.Float("m_flExponent", scalarMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var value = MathUtils.RandomWithExponentBetween(exponent, scalarMin, scalarMax);
 
-            particle.SetInitialScalar(field, value);
+            particle.SetInitialScalar(FieldOutput, value);
 
             return particle;
         }

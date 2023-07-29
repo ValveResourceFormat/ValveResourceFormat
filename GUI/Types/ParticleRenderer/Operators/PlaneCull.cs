@@ -12,28 +12,16 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly Vector3 planeNormal = new(0, 0, 1);
         private readonly bool localSpace;
 
-        public PlaneCull(IKeyValueCollection keyValues)
+        public PlaneCull(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nPlaneControlPoint"))
-            {
-                cp = keyValues.GetInt32Property("m_nPlaneControlPoint");
-            }
+            cp = parse.Int32("m_nPlaneControlPoint", cp);
 
-            if (keyValues.ContainsKey("m_vecPlaneDirection"))
-            {
-                planeNormal = Vector3.Normalize(keyValues.GetArray<double>("m_vecPlaneDirection").ToVector3());
-            }
+            planeNormal = Vector3.Normalize(parse.Vector3("m_vecPlaneDirection", planeNormal));
 
-            if (keyValues.ContainsKey("m_flPlaneOffset"))
-            {
-                planeOffset = keyValues.GetFloatProperty("m_flPlaneOffset");
-            }
+            planeOffset = parse.Float("m_flPlaneOffset", planeOffset);
 
             // currently does nothing
-            if (keyValues.ContainsKey("m_bLocalSpace"))
-            {
-                localSpace = keyValues.GetProperty<bool>("m_bLocalSpace");
-            }
+            localSpace = parse.Boolean("m_bLocalSpace", localSpace);
         }
         private bool CulledByPlane(Vector3 position, ParticleSystemRenderState particleSystemState)
         {

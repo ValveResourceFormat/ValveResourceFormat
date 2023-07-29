@@ -9,24 +9,15 @@ namespace GUI.Types.ParticleRenderer.Operators
     {
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField OutputField = ParticleField.Radius;
 
-        public ClampScalar(IKeyValueCollection keyValues)
+        public ClampScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
 
-            if (keyValues.ContainsKey("m_flOutputMin"))
-            {
-                outputMin = keyValues.GetNumberProvider("m_flOutputMin");
-            }
+            outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
 
-            if (keyValues.ContainsKey("m_flOutputMax"))
-            {
-                outputMax = keyValues.GetNumberProvider("m_flOutputMax");
-            }
+            outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -35,13 +26,10 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 var min = outputMin.NextNumber(ref particle, particleSystemState);
                 var max = outputMax.NextNumber(ref particle, particleSystemState);
-                if (min > max)
-                {
-                    (min, max) = (max, min);
-                }
+                MathUtils.MinMaxFixUp(ref min, ref max);
 
-                var clampedValue = Math.Clamp(particle.GetScalar(field), min, max);
-                particle.SetScalar(field, clampedValue);
+                var clampedValue = Math.Clamp(particle.GetScalar(OutputField), min, max);
+                particle.SetScalar(OutputField, clampedValue);
             }
         }
     }

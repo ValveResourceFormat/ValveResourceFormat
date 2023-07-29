@@ -7,20 +7,14 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class NormalizeVector : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Position;
-        private readonly float scale = 1.0f;
+        private readonly ParticleField OutputField = ParticleField.Position;
+        private readonly float Scale = 1.0f;
 
-        public NormalizeVector(IKeyValueCollection keyValues)
+        public NormalizeVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
 
-            if (keyValues.ContainsKey("m_flScale"))
-            {
-                scale = keyValues.GetFloatProperty("m_flScale");
-            }
+            Scale = parse.Float("m_flScale", Scale);
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
@@ -28,10 +22,10 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (ref var particle in particles)
             {
-                var vector = particle.GetVector(field);
-                vector = Vector3.Normalize(vector) * scale;
+                var vector = particle.GetVector(OutputField);
+                vector = Vector3.Normalize(vector) * Scale;
 
-                particle.SetVector(field, vector);
+                particle.SetVector(OutputField, vector);
             }
         }
     }

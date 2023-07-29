@@ -11,22 +11,13 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly int overrideCP = -1;
         private readonly int overrideCPField;
 
-        public MaxVelocity(IKeyValueCollection keyValues)
+        public MaxVelocity(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flMaxVelocity"))
-            {
-                maxVelocity = keyValues.GetFloatProperty("m_flMaxVelocity");
-            }
+            maxVelocity = parse.Float("m_flMaxVelocity", maxVelocity);
 
-            if (keyValues.ContainsKey("m_nOverrideCP"))
-            {
-                overrideCP = keyValues.GetInt32Property("m_nOverrideCP");
-            }
+            overrideCP = parse.Int32("m_nOverrideCP", overrideCP);
 
-            if (keyValues.ContainsKey("m_nOverrideCPField"))
-            {
-                overrideCPField = keyValues.GetInt32Property("m_nOverrideCPField");
-            }
+            overrideCPField = parse.Int32("m_nOverrideCPField", overrideCPField);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

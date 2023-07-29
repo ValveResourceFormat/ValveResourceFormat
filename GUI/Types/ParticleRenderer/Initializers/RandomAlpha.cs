@@ -1,5 +1,5 @@
 using System;
-using ValveResourceFormat.Serialization;
+using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
@@ -8,28 +8,17 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int alphaMin = 255;
         private readonly int alphaMax = 255;
 
-        public RandomAlpha(IKeyValueCollection keyValue)
+        public RandomAlpha(ParticleDefinitionParser parse)
         {
-            if (keyValue.ContainsKey("m_nAlphaMin"))
-            {
-                alphaMin = keyValue.GetInt32Property("m_nAlphaMin");
-            }
+            alphaMin = parse.Int32("m_nAlphaMin", alphaMin);
+            alphaMax = parse.Int32("m_nAlphaMax", alphaMax);
 
-            if (keyValue.ContainsKey("m_nAlphaMax"))
-            {
-                alphaMax = keyValue.GetInt32Property("m_nAlphaMax");
-            }
-
-            if (alphaMin > alphaMax)
-            {
-                var temp = alphaMin;
-                alphaMin = alphaMax;
-                alphaMax = temp;
-            }
+            MathUtils.MinMaxFixUp(ref alphaMin, ref alphaMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
+            // TODO: Consistent rng
             var alpha = Random.Shared.Next(alphaMin, alphaMax) / 255f;
 
             particle.InitialAlpha = alpha;

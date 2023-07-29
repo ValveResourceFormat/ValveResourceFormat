@@ -22,67 +22,22 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         private bool HasRunBefore;
 
-        public SetControlPointPositions(IKeyValueCollection keyValues)
+        public SetControlPointPositions(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nCP1"))
-            {
-                CP1 = keyValues.GetInt32Property("m_nCP1");
-            }
+            CP1 = parse.Int32("m_nCP1", CP1);
+            CP2 = parse.Int32("m_nCP2", CP2);
+            CP3 = parse.Int32("m_nCP3", CP3);
+            CP4 = parse.Int32("m_nCP4", CP4);
+            CP1Pos = parse.Vector3("m_vecCP1Pos", CP1Pos);
+            CP2Pos = parse.Vector3("m_vecCP2Pos", CP2Pos);
+            CP3Pos = parse.Vector3("m_vecCP3Pos", CP3Pos);
+            CP4Pos = parse.Vector3("m_vecCP4Pos", CP4Pos);
 
-            if (keyValues.ContainsKey("m_nCP2"))
-            {
-                CP2 = keyValues.GetInt32Property("m_nCP2");
-            }
+            setOnce = parse.Boolean("m_bSetOnce", setOnce);
 
-            if (keyValues.ContainsKey("m_nCP3"))
-            {
-                CP3 = keyValues.GetInt32Property("m_nCP3");
-            }
+            useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
 
-            if (keyValues.ContainsKey("m_nCP4"))
-            {
-                CP4 = keyValues.GetInt32Property("m_nCP4");
-            }
-
-            if (keyValues.ContainsKey("m_nCP4"))
-            {
-                CP4 = keyValues.GetInt32Property("m_nCP4");
-            }
-
-            if (keyValues.ContainsKey("m_vecCP1Pos"))
-            {
-                CP1Pos = keyValues.GetArray<double>("m_vecCP1Pos").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_vecCP2Pos"))
-            {
-                CP2Pos = keyValues.GetArray<double>("m_vecCP2Pos").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_vecCP3Pos"))
-            {
-                CP3Pos = keyValues.GetArray<double>("m_vecCP3Pos").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_vecCP4Pos"))
-            {
-                CP4Pos = keyValues.GetArray<double>("m_vecCP4Pos").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_bSetOnce"))
-            {
-                setOnce = keyValues.GetProperty<bool>("m_bSetOnce");
-            }
-
-            if (keyValues.ContainsKey("m_bUseWorldLocation"))
-            {
-                useWorldLocation = keyValues.GetProperty<bool>("m_bUseWorldLocation");
-            }
-
-            if (keyValues.ContainsKey("m_nHeadLocation"))
-            {
-                CPOffset = keyValues.GetInt32Property("m_nHeadLocation");
-            }
+            CPOffset = parse.Int32("m_nHeadLocation", CPOffset);
         }
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

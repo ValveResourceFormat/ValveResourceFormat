@@ -17,47 +17,23 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationOffset = 0.5f;
         private readonly bool proportional = true;
 
-        public OscillateScalar(IKeyValueCollection keyValues)
+        public OscillateScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nField"))
-            {
-                outputField = keyValues.GetParticleField("m_nField");
-            }
+            outputField = parse.ParticleField("m_nField", outputField);
 
-            if (keyValues.ContainsKey("m_RateMin"))
-            {
-                rateMin = keyValues.GetFloatProperty("m_RateMin");
-            }
+            rateMin = parse.Float("m_RateMin", rateMin);
 
-            if (keyValues.ContainsKey("m_RateMax"))
-            {
-                rateMax = keyValues.GetFloatProperty("m_RateMax");
-            }
+            rateMax = parse.Float("m_RateMax", rateMax);
 
-            if (keyValues.ContainsKey("m_FrequencyMin"))
-            {
-                frequencyMin = keyValues.GetFloatProperty("m_FrequencyMin");
-            }
+            frequencyMin = parse.Float("m_FrequencyMin", frequencyMin);
 
-            if (keyValues.ContainsKey("m_FrequencyMax"))
-            {
-                frequencyMax = keyValues.GetFloatProperty("m_FrequencyMax");
-            }
+            frequencyMax = parse.Float("m_FrequencyMax", frequencyMax);
 
-            if (keyValues.ContainsKey("m_flOscMult"))
-            {
-                oscillationMultiplier = keyValues.GetFloatProperty("m_flOscMult");
-            }
+            oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
 
-            if (keyValues.ContainsKey("m_flOscAdd"))
-            {
-                oscillationOffset = keyValues.GetFloatProperty("m_flOscAdd");
-            }
+            oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
 
-            if (keyValues.ContainsKey("m_bProportionalOp"))
-            {
-                proportional = keyValues.GetProperty<bool>("m_bProportionalOp");
-            }
+            proportional = parse.Boolean("m_bProportionalOp", proportional);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -97,32 +73,17 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationMultiplier = 2f;
         private readonly float oscillationOffset = 0.5f;
 
-        public OscillateScalarSimple(IKeyValueCollection keyValues)
+        public OscillateScalarSimple(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nField"))
-            {
-                outputField = keyValues.GetParticleField("m_nField");
-            }
+            outputField = parse.ParticleField("m_nField", outputField);
 
-            if (keyValues.ContainsKey("m_Rate"))
-            {
-                rate = keyValues.GetFloatProperty("m_Rate");
-            }
+            rate = parse.Float("m_Rate", rate);
 
-            if (keyValues.ContainsKey("m_Frequency"))
-            {
-                frequency = keyValues.GetFloatProperty("m_Frequency");
-            }
+            frequency = parse.Float("m_Frequency", frequency);
 
-            if (keyValues.ContainsKey("m_flOscMult"))
-            {
-                oscillationMultiplier = keyValues.GetFloatProperty("m_flOscMult");
-            }
+            oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
 
-            if (keyValues.ContainsKey("m_flOscAdd"))
-            {
-                oscillationOffset = keyValues.GetFloatProperty("m_flOscAdd");
-            }
+            oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

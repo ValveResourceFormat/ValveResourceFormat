@@ -21,68 +21,37 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
         }
 
-        private readonly ParticleField fieldOutput = ParticleField.Position;
+        private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly List<PointDefinition> pointList = new();
 
         private readonly int numPointsOnPath = 20;
         private readonly bool usePath;
         private readonly bool closedLoop;
 
-        public PointList(IKeyValueCollection keyValues)
+        public PointList(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_nNumPointsAlongPath"))
-            {
-                numPointsOnPath = keyValues.GetInt32Property("m_nNumPointsAlongPath");
-            }
+            numPointsOnPath = parse.Int32("m_nNumPointsAlongPath", numPointsOnPath);
 
-            if (keyValues.ContainsKey("m_bPlaceAlongPath"))
-            {
-                usePath = keyValues.GetProperty<bool>("m_bPlaceAlongPath");
-            }
+            usePath = parse.Boolean("m_bPlaceAlongPath", usePath);
 
-            if (keyValues.ContainsKey("m_bClosedLoop"))
-            {
-                closedLoop = keyValues.GetProperty<bool>("m_bClosedLoop");
-            }
+            closedLoop = parse.Boolean("m_bClosedLoop", closedLoop);
 
-            if (keyValues.ContainsKey("m_pointList"))
+            foreach (var point in parse.Array("m_pointList"))
             {
-                var points = keyValues.GetArray("m_pointList");
-                foreach (var point in points)
+                var cp = point.Int32("m_nControlPoint", 0);
+                var useLocalCoords = point.Boolean("m_bLocalCoords", false);
+                var offset = point.Vector3("m_vOffset", Vector3.Zero);
+
+                var newPoint = new PointDefinition
                 {
-                    var cp = 0;
-                    var useLocalCoords = false;
-                    var offset = Vector3.Zero;
+                    ControlPointID = cp,
+                    UseLocalOffset = useLocalCoords,
+                    Offset = offset,
+                };
 
-                    if (point.ContainsKey("m_nControlPoint"))
-                    {
-                        cp = point.GetInt32Property("m_nControlPoint");
-                    }
-
-                    if (point.ContainsKey("m_bLocalCoords"))
-                    {
-                        useLocalCoords = point.GetProperty<bool>("m_bLocalCoords");
-                    }
-
-                    if (point.ContainsKey("m_vOffset"))
-                    {
-                        offset = point.GetArray<double>("m_vOffset").ToVector3();
-                    }
-
-                    var newPoint = new PointDefinition
-                    {
-                        ControlPointID = cp,
-                        UseLocalOffset = useLocalCoords,
-                        Offset = offset,
-                    };
-
-                    pointList.Add(newPoint);
-                }
+                pointList.Add(newPoint);
             }
         }
 
@@ -143,7 +112,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 
-            particle.SetInitialVector(fieldOutput, particlePosition);
+            particle.SetInitialVector(FieldOutput, particlePosition);
 
             return particle;
         }

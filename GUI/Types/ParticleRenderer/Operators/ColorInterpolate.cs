@@ -11,30 +11,21 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly Vector3 colorFade = Vector3.One;
         private readonly float fadeStartTime;
         private readonly float fadeEndTime = 1f;
-        private readonly ParticleField field = ParticleField.Color;
+        private readonly ParticleField FieldOutput = ParticleField.Color;
 
-        public ColorInterpolate(IKeyValueCollection keyValues)
+        public ColorInterpolate(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_ColorFade"))
+            if (parse.Data.ContainsKey("m_ColorFade"))
             {
-                var vectorValues = keyValues.GetIntegerArray("m_ColorFade");
+                var vectorValues = parse.Data.GetIntegerArray("m_ColorFade");
                 colorFade = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
 
-            if (keyValues.ContainsKey("m_flFadeStartTime"))
-            {
-                fadeStartTime = keyValues.GetFloatProperty("m_flFadeStartTime");
-            }
+            fadeStartTime = parse.Float("m_flFadeStartTime", fadeStartTime);
 
-            if (keyValues.ContainsKey("m_flFadeEndTime"))
-            {
-                fadeEndTime = keyValues.GetFloatProperty("m_flFadeEndTime");
-            }
+            fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
 
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -48,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(field, MathUtils.Lerp(t, particle.InitialColor, colorFade));
+                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.InitialColor, colorFade));
                 }
             }
         }

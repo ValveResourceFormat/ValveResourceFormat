@@ -23,57 +23,27 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float prevPosScale = 1;
         private readonly int cp;
 
-        public PositionLock(IKeyValueCollection keyValues)
+        public PositionLock(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nControlPointNumber"))
-            {
-                cp = keyValues.GetInt32Property("m_nControlPointNumber");
-            }
+            cp = parse.Int32("m_nControlPointNumber", cp);
 
-            if (keyValues.ContainsKey("m_flStartTime_min"))
-            {
-                startTimeMin = keyValues.GetFloatProperty("m_flStartTime_min");
-            }
+            startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
 
-            if (keyValues.ContainsKey("m_flStartTime_max"))
-            {
-                startTimeMax = keyValues.GetFloatProperty("m_flStartTime_max");
-            }
+            startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
 
-            if (keyValues.ContainsKey("m_flStartTime_exp"))
-            {
-                startTimeExp = keyValues.GetFloatProperty("m_flStartTime_exp");
-            }
+            startTimeExp = parse.Float("m_flStartTime_exp", startTimeExp);
 
-            if (keyValues.ContainsKey("m_flEndTime_min"))
-            {
-                endTimeMin = keyValues.GetFloatProperty("m_flEndTime_min");
-            }
+            endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
 
-            if (keyValues.ContainsKey("m_flEndTime_max"))
-            {
-                endTimeMax = keyValues.GetFloatProperty("m_flEndTime_max");
-            }
+            endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
 
-            if (keyValues.ContainsKey("m_flEndTime_exp"))
-            {
-                endTimeExp = keyValues.GetFloatProperty("m_flEndTime_exp");
-            }
+            endTimeExp = parse.Float("m_flEndTime_exp", endTimeExp);
 
-            if (keyValues.ContainsKey("m_flRange"))
-            {
-                fadeDist = keyValues.GetFloatProperty("m_flRange");
-            }
+            fadeDist = parse.Float("m_flRange", fadeDist);
 
-            if (keyValues.ContainsKey("m_flJumpThreshold"))
-            {
-                instantJumpThreshold = keyValues.GetFloatProperty("m_flJumpThreshold");
-            }
+            instantJumpThreshold = parse.Float("m_flJumpThreshold", instantJumpThreshold);
 
-            if (keyValues.ContainsKey("m_flPrevPosScale"))
-            {
-                prevPosScale = keyValues.GetInt32Property("m_flPrevPosScale");
-            }
+            prevPosScale = parse.Float("m_flPrevPosScale", prevPosScale);
         }
 
 

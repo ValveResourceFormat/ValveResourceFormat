@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RemapSpeedToScalar : IParticleInitializer
     {
-        private readonly ParticleField fieldOutput = ParticleField.Radius;
+        private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly float inputMin;
         private readonly float inputMax = 10;
         private readonly float outputMin;
@@ -16,42 +16,24 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly bool perParticle;
 
-        public RemapSpeedToScalar(IKeyValueCollection keyValues)
+        public RemapSpeedToScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+
+            inputMin = parse.Float("m_flInputMin", inputMin);
+
+            inputMax = parse.Float("m_flInputMax", inputMax);
+
+            outputMin = parse.Float("m_flOutputMin", outputMin);
+
+            outputMax = parse.Float("m_flOutputMax", outputMax);
+
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
 
-            if (keyValues.ContainsKey("m_flInputMin"))
-            {
-                inputMin = keyValues.GetFloatProperty("m_nInputMin");
-            }
-
-            if (keyValues.ContainsKey("m_flInputMax"))
-            {
-                inputMax = keyValues.GetFloatProperty("m_nInputMax");
-            }
-
-            if (keyValues.ContainsKey("m_flOutputMin"))
-            {
-                outputMin = keyValues.GetFloatProperty("m_flOutputMin");
-            }
-
-            if (keyValues.ContainsKey("m_flOutputMax"))
-            {
-                outputMax = keyValues.GetFloatProperty("m_flOutputMax");
-            }
-
-            if (keyValues.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
-
-            if (keyValues.ContainsKey("m_bPerParticle"))
-            {
-                perParticle = keyValues.GetProperty<bool>("m_bPerParticle");
-            }
+            perParticle = parse.Boolean("m_bPerParticle", perParticle);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
@@ -65,7 +47,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             var output = MathUtils.RemapRange(particleCount, inputMin, inputMax, outputMin, outputMax);
 
-            particle.SetInitialScalar(fieldOutput, particle.ModifyScalarBySetMethod(fieldOutput, output, setMethod));
+            particle.SetInitialScalar(FieldOutput, particle.ModifyScalarBySetMethod(FieldOutput, output, setMethod));
 
             return particle;
         }

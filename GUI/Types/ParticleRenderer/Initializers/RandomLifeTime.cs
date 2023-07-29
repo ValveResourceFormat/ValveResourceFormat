@@ -9,22 +9,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float lifetimeMax;
         private readonly float lifetimeRandomExponent = 1;
 
-        public RandomLifeTime(IKeyValueCollection keyValues)
+        public RandomLifeTime(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_fLifetimeMin"))
-            {
-                lifetimeMin = keyValues.GetFloatProperty("m_fLifetimeMin");
-            }
+            lifetimeMin = parse.Float("m_fLifetimeMin", lifetimeMin);
 
-            if (keyValues.ContainsKey("m_fLifetimeMax"))
-            {
-                lifetimeMax = keyValues.GetFloatProperty("m_fLifetimeMax");
-            }
+            lifetimeMax = parse.Float("m_fLifetimeMax", lifetimeMax);
 
-            if (keyValues.ContainsKey("m_flLifetimeRandExponent"))
-            {
-                lifetimeMax = keyValues.GetFloatProperty("m_flLifetimeRandExponent");
-            }
+            lifetimeMax = parse.Float("m_flLifetimeRandExponent", lifetimeMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

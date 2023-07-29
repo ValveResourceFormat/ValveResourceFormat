@@ -8,38 +8,26 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class LerpVector : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Position;
+        private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly Vector3 output = Vector3.Zero;
         private readonly float startTime;
         private readonly float endTime = 1f;
 
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        public LerpVector(IKeyValueCollection keyValues)
+        public LerpVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_nInputValue"))
-            {
-                output = keyValues.GetArray<double>("m_nInputValue").ToVector3();
-            }
+            output = parse.Vector3("m_nInputValue", output);
 
-            if (keyValues.ContainsKey("m_flStartTime"))
-            {
-                startTime = keyValues.GetFloatProperty("m_flStartTime");
-            }
+            startTime = parse.Float("m_flStartTime", startTime);
 
-            if (keyValues.ContainsKey("m_flEndTime"))
-            {
-                endTime = keyValues.GetFloatProperty("m_flEndTime");
-            }
+            endTime = parse.Float("m_flEndTime", endTime);
 
-            if (keyValues.ContainsKey("m_nSetMethod"))
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -47,13 +35,13 @@ namespace GUI.Types.ParticleRenderer.Operators
             foreach (ref var particle in particles)
             {
                 // The set method affects the value the vector is interpolating to, instead of the current interpolated value.
-                var lerpTarget = particle.ModifyVectorBySetMethod(field, output, setMethod);
+                var lerpTarget = particle.ModifyVectorBySetMethod(FieldOutput, output, setMethod);
 
                 var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
 
-                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialVector(field), lerpTarget);
+                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialVector(FieldOutput), lerpTarget);
 
-                particle.SetVector(field, scalarOutput);
+                particle.SetVector(FieldOutput, scalarOutput);
             }
         }
     }

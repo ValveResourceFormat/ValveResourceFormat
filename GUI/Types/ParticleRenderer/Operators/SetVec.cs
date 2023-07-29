@@ -8,32 +8,23 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class SetVec : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Color;
+        private readonly ParticleField OutputField = ParticleField.Color;
         private readonly IVectorProvider value = new LiteralVectorProvider(Vector3.Zero);
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
 
-        public SetVec(IKeyValueCollection keyValues)
+        public SetVec(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+
+            value = parse.VectorProvider("m_nInputValue", value);
+
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                field = keyValues.GetParticleField("m_nOutputField");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
 
-            if (keyValues.ContainsKey("m_nInputValue"))
-            {
-                value = keyValues.GetVectorProvider("m_nInputValue");
-            }
-
-            if (keyValues.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
-
-            if (keyValues.ContainsKey("m_Lerp"))
-            {
-                lerp = keyValues.GetNumberProvider("m_Lerp");
-            }
+            lerp = parse.NumberProvider("m_Lerp", lerp);
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
@@ -44,12 +35,12 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var value = this.value.NextVector(ref particle, particleSystemState);
                 var lerp = this.lerp.NextNumber(ref particle, particleSystemState);
 
-                var currentValue = particle.ModifyVectorBySetMethod(field, value, setMethod);
-                var initialValue = particle.GetVector(field);
+                var currentValue = particle.ModifyVectorBySetMethod(OutputField, value, setMethod);
+                var initialValue = particle.GetVector(OutputField);
 
                 value = MathUtils.Lerp(lerp, initialValue, currentValue);
 
-                particle.SetVector(field, value);
+                particle.SetVector(OutputField, value);
             }
         }
     }

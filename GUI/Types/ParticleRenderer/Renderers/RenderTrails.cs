@@ -107,7 +107,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (keyValues.ContainsKey("m_nPrevPntSource"))
             {
-                prevPositionSource = keyValues.GetParticleField("m_nPrevPntSource");
+                prevPositionSource = keyValues.GetEnumValue<ParticleField>("m_nPrevPntSource");
             }
         }
 

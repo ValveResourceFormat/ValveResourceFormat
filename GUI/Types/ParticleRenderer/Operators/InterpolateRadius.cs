@@ -13,32 +13,17 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider bias = new LiteralNumberProvider(0);
 
 
-        public InterpolateRadius(IKeyValueCollection keyValues)
+        public InterpolateRadius(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flStartTime"))
-            {
-                startTime = keyValues.GetFloatProperty("m_flStartTime");
-            }
+            startTime = parse.Float("m_flStartTime", startTime);
 
-            if (keyValues.ContainsKey("m_flEndTime"))
-            {
-                endTime = keyValues.GetFloatProperty("m_flEndTime");
-            }
+            endTime = parse.Float("m_flEndTime", endTime);
 
-            if (keyValues.ContainsKey("m_flStartScale"))
-            {
-                startScale = keyValues.GetNumberProvider("m_flStartScale");
-            }
+            startScale = parse.NumberProvider("m_flStartScale", startScale);
 
-            if (keyValues.ContainsKey("m_flEndScale"))
-            {
-                endScale = keyValues.GetNumberProvider("m_flEndScale");
-            }
+            endScale = parse.NumberProvider("m_flEndScale", endScale);
 
-            if (keyValues.ContainsKey("m_flBias"))
-            {
-                bias = keyValues.GetNumberProvider("m_flBias");
-            }
+            bias = parse.NumberProvider("m_flBias", bias);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

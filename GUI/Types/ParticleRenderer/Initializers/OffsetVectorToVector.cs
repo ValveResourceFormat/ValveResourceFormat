@@ -7,41 +7,34 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class OffsetVectorToVector : IParticleInitializer
     {
-        private readonly ParticleField inputField = ParticleField.Position;
-        private readonly ParticleField outputField = ParticleField.Position;
+        private readonly ParticleField FieldInput = ParticleField.Position;
+        private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly Vector3 offsetMin = Vector3.Zero;
         private readonly Vector3 offsetMax = Vector3.One;
 
-        public OffsetVectorToVector(IKeyValueCollection keyValues)
+        public OffsetVectorToVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldInput"))
+            FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+
+            if (parse.Data.ContainsKey("m_vecOutputMin"))
             {
-                inputField = keyValues.GetParticleField("m_nFieldInput");
+                offsetMin = parse.Vector3("m_vecOutputMin", offsetMin);
             }
 
-            if (keyValues.ContainsKey("m_nFieldOutput"))
+            if (parse.Data.ContainsKey("m_vecOutputMax"))
             {
-                outputField = keyValues.GetParticleField("m_nFieldOutput");
-            }
-
-            if (keyValues.ContainsKey("m_vecOutputMin"))
-            {
-                offsetMin = keyValues.GetArray<double>("m_vecOutputMin").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_vecOutputMax"))
-            {
-                offsetMax = keyValues.GetArray<double>("m_vecOutputMax").ToVector3();
+                offsetMax = parse.Vector3("m_vecOutputMax", offsetMax);
             }
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var input = particle.GetInitialVector(inputField);
+            var input = particle.GetInitialVector(FieldInput);
 
             var offset = MathUtils.RandomBetweenPerComponent(offsetMin, offsetMax);
 
-            particle.SetInitialVector(outputField, input + offset);
+            particle.SetInitialVector(FieldOutput, input + offset);
 
             return particle;
         }

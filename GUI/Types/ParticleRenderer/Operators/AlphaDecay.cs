@@ -9,12 +9,9 @@ namespace GUI.Types.ParticleRenderer.Operators
     class AlphaDecay : IParticleOperator
     {
         private readonly float minAlpha;
-        public AlphaDecay(IKeyValueCollection keyValues)
+        public AlphaDecay(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flMinAlpha"))
-            {
-                minAlpha = keyValues.GetFloatProperty("m_flMinAlpha");
-            }
+            minAlpha = parse.Float("m_flMinAlpha", minAlpha);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

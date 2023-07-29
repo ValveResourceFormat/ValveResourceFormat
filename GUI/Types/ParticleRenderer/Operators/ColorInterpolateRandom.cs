@@ -13,42 +13,30 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly Vector3 colorFadeMax = Vector3.One;
         private readonly float fadeStartTime;
         private readonly float fadeEndTime = 1f;
-        private readonly ParticleField field = ParticleField.Color;
+        private readonly ParticleField FieldOutput = ParticleField.Color;
         private readonly bool easeInOut;
 
-        public ColorInterpolateRandom(IKeyValueCollection keyValues)
+        public ColorInterpolateRandom(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_ColorFadeMin"))
+            if (parse.Data.ContainsKey("m_ColorFadeMin"))
             {
-                var vectorValues = keyValues.GetIntegerArray("m_ColorFadeMin");
+                var vectorValues = parse.Data.GetIntegerArray("m_ColorFadeMin");
                 colorFadeMin = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
 
-            if (keyValues.ContainsKey("m_ColorFadeMax"))
+            if (parse.Data.ContainsKey("m_ColorFadeMax"))
             {
-                var vectorValues = keyValues.GetIntegerArray("m_ColorFadeMax");
+                var vectorValues = parse.Data.GetIntegerArray("m_ColorFadeMax");
                 colorFadeMax = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
             }
 
-            if (keyValues.ContainsKey("m_flFadeStartTime"))
-            {
-                fadeStartTime = keyValues.GetFloatProperty("m_flFadeStartTime");
-            }
+            fadeStartTime = parse.Float("m_flFadeStartTime", fadeStartTime);
 
-            if (keyValues.ContainsKey("m_flFadeEndTime"))
-            {
-                fadeEndTime = keyValues.GetFloatProperty("m_flFadeEndTime");
-            }
+            fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
 
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_bEaseInOut"))
-            {
-                easeInOut = keyValues.GetProperty<bool>("m_bEaseInOut");
-            }
+            easeInOut = parse.Boolean("m_bEaseInOut", easeInOut);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -67,7 +55,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(field, MathUtils.Lerp(t, particle.InitialColor, newColor));
+                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.InitialColor, newColor));
                 }
             }
         }

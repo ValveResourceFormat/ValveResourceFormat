@@ -14,56 +14,32 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float outputMax = 1;
         private readonly int controlPoint;
 
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool additive;
         private readonly bool activeRange;
 
-        public DistanceToCP(IKeyValueCollection keyValues)
+        public DistanceToCP(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
 
-            if (keyValues.ContainsKey("m_flInputMin"))
-            {
-                distanceMin = keyValues.GetFloatProperty("m_flInputMin");
-            }
+            distanceMin = parse.Float("m_flInputMin", distanceMin);
 
-            if (keyValues.ContainsKey("m_flInputMax"))
-            {
-                distanceMax = keyValues.GetFloatProperty("m_flInputMax");
-            }
+            distanceMax = parse.Float("m_flInputMax", distanceMax);
 
-            if (keyValues.ContainsKey("m_flOutputMin"))
-            {
-                outputMin = keyValues.GetFloatProperty("m_flOutputMin");
-            }
+            outputMin = parse.Float("m_flOutputMin", outputMin);
 
-            if (keyValues.ContainsKey("m_flOutputMax"))
-            {
-                outputMax = keyValues.GetFloatProperty("m_flOutputMax");
-            }
+            outputMax = parse.Float("m_flOutputMax", outputMax);
 
-            if (keyValues.ContainsKey("m_nStartCP"))
-            {
-                controlPoint = keyValues.GetInt32Property("m_nStartCP");
-            }
+            controlPoint = parse.Int32("m_nStartCP", controlPoint);
 
-            if (keyValues.ContainsKey("m_bAdditive"))
-            {
-                additive = keyValues.GetProperty<bool>("m_bAdditive");
-            }
+            additive = parse.Boolean("m_bAdditive", additive);
 
-            if (keyValues.ContainsKey("m_bActiveRange"))
-            {
-                activeRange = keyValues.GetProperty<bool>("m_bActiveRange");
-            }
+            activeRange = parse.Boolean("m_bActiveRange", activeRange);
 
-            if (keyValues.ContainsKey("m_nSetMethod"))
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
 
 
@@ -90,14 +66,14 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
 
-                finalValue = particle.ModifyScalarBySetMethod(field, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(OutputField, finalValue, setMethod);
 
                 if (additive)
                 {
                     // Yes, this causes it to continuously grow larger. Yes, this is in the original too.
-                    finalValue += particle.GetScalar(field);
+                    finalValue += particle.GetScalar(OutputField);
                 }
-                particle.SetScalar(field, finalValue);
+                particle.SetScalar(OutputField, finalValue);
             }
         }
     }

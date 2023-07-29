@@ -9,22 +9,13 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float radiusMax = 1;
         private readonly float radiusRandomExponent = 1;
 
-        public RandomRadius(IKeyValueCollection keyValues)
+        public RandomRadius(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flRadiusMin"))
-            {
-                radiusMin = keyValues.GetFloatProperty("m_flRadiusMin");
-            }
+            radiusMin = parse.Float("m_flRadiusMin", radiusMin);
 
-            if (keyValues.ContainsKey("m_flRadiusMax"))
-            {
-                radiusMax = keyValues.GetFloatProperty("m_flRadiusMax");
-            }
+            radiusMax = parse.Float("m_flRadiusMax", radiusMax);
 
-            if (keyValues.ContainsKey("m_flRadiusRandExponent"))
-            {
-                radiusRandomExponent = keyValues.GetFloatProperty("m_fLifetimeRandExponent");
-            }
+            radiusRandomExponent = parse.Float("m_flRadiusRandExponent", radiusRandomExponent);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

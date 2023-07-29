@@ -11,40 +11,22 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float degreesMax = 360f;
         private readonly float degreesOffset;
         private readonly float randomExponent = 1.0f;
-        private readonly ParticleField fieldOutput = ParticleField.Roll;
+        private readonly ParticleField FieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection;
 
-        public RandomRotation(IKeyValueCollection keyValues)
+        public RandomRotation(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flDegreesMin"))
-            {
-                degreesMin = keyValues.GetFloatProperty("m_flDegreesMin");
-            }
+            degreesMin = parse.Float("m_flDegreesMin", degreesMin);
 
-            if (keyValues.ContainsKey("m_flDegreesMax"))
-            {
-                degreesMax = keyValues.GetFloatProperty("m_flDegreesMax");
-            }
+            degreesMax = parse.Float("m_flDegreesMax", degreesMax);
 
-            if (keyValues.ContainsKey("m_flDegrees"))
-            {
-                degreesOffset = keyValues.GetFloatProperty("m_flDegrees");
-            }
+            degreesOffset = parse.Float("m_flDegrees", degreesOffset);
 
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_bRandomlyFlipDirection"))
-            {
-                randomlyFlipDirection = keyValues.GetProperty<bool>("m_bRandomlyFlipDirection");
-            }
+            randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);
 
-            if (keyValues.ContainsKey("m_flRotationRandExponent"))
-            {
-                randomExponent = keyValues.GetFloatProperty("m_flRotationRandExponent");
-            }
+            randomExponent = parse.Float("m_flRotationRandExponent", randomExponent);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
@@ -55,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 degrees *= -1;
             }
 
-            particle.SetScalar(fieldOutput, MathUtils.ToRadians(degrees));
+            particle.SetScalar(FieldOutput, MathUtils.ToRadians(degrees));
 
             return particle;
         }

@@ -8,32 +8,20 @@ namespace GUI.Types.ParticleRenderer.Operators
     // seriously?
     class RemapCrossProductOfTwoVectorsToVector : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Position;
+        private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly IVectorProvider inputVec1 = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider inputVec2 = new LiteralVectorProvider(Vector3.Zero);
         private readonly bool normalize;
 
-        public RemapCrossProductOfTwoVectorsToVector(IKeyValueCollection keyValues)
+        public RemapCrossProductOfTwoVectorsToVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_InputVec1"))
-            {
-                inputVec1 = keyValues.GetVectorProvider("m_InputVec1");
-            }
+            inputVec1 = parse.VectorProvider("m_InputVec1", inputVec1);
 
-            if (keyValues.ContainsKey("m_InputVec2"))
-            {
-                inputVec2 = keyValues.GetVectorProvider("m_InputVec2");
-            }
+            inputVec2 = parse.VectorProvider("m_InputVec2", inputVec2);
 
-            if (keyValues.ContainsKey("m_bNormalize"))
-            {
-                normalize = keyValues.GetProperty<bool>("m_bNormalize");
-            }
+            normalize = parse.Boolean("m_bNormalize", normalize);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
@@ -49,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     cross = Vector3.Normalize(cross);
                 }
 
-                particle.SetVector(field, cross);
+                particle.SetVector(FieldOutput, cross);
             }
         }
     }

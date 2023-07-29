@@ -12,27 +12,15 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float randomExponent = 1f;
         private readonly bool proportional = true;
 
-        public FadeOutRandom(IKeyValueCollection keyValues)
+        public FadeOutRandom(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flFadeOutTimeMin"))
-            {
-                fadeOutTimeMin = keyValues.GetFloatProperty("m_flFadeOutTimeMin");
-            }
+            fadeOutTimeMin = parse.Float("m_flFadeOutTimeMin", fadeOutTimeMin);
 
-            if (keyValues.ContainsKey("m_flFadeOutTimeMax"))
-            {
-                fadeOutTimeMax = keyValues.GetFloatProperty("m_flFadeOutTimeMax");
-            }
+            fadeOutTimeMax = parse.Float("m_flFadeOutTimeMax", fadeOutTimeMax);
 
-            if (keyValues.ContainsKey("m_flFadeOutTimeExp"))
-            {
-                randomExponent = keyValues.GetFloatProperty("m_flFadeOutTimeExp");
-            }
+            randomExponent = parse.Float("m_flFadeOutTimeExp", randomExponent);
 
-            if (keyValues.ContainsKey("m_bProportional"))
-            {
-                proportional = keyValues.GetProperty<bool>("m_bProportional");
-            }
+            proportional = parse.Boolean("m_bProportional", proportional);
 
             // Other things that exist that don't seem to do anything:
             // m_bEaseInAndOut

@@ -9,25 +9,12 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly Vector3 rampRate = Vector3.Zero;
         private readonly int cp;
 
-        public RampCPLinearRandom(IKeyValueCollection keyValues)
+        public RampCPLinearRandom(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputControlPointNumber"))
-            {
-                cp = keyValues.GetInt32Property("m_nOutputControlPointNumber");
-            }
+            cp = parse.Int32("m_nOutputControlPointNumber", cp);
 
-            var rateMin = Vector3.Zero;
-            var rateMax = Vector3.Zero;
-
-            if (keyValues.ContainsKey("m_vecRateMin"))
-            {
-                rateMin = keyValues.GetArray<double>("m_vecRateMin").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_vecRateMax"))
-            {
-                rateMin = keyValues.GetArray<double>("m_vecRateMax").ToVector3();
-            }
+            var rateMin = parse.Vector3("m_vecRateMin", Vector3.Zero);
+            var rateMax = parse.Vector3("m_vecRateMax", Vector3.Zero);
 
             rampRate = MathUtils.RandomBetweenPerComponent(rateMin, rateMax);
         }

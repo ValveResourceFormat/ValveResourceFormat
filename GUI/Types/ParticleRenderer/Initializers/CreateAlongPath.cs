@@ -8,78 +8,47 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class CreateAlongPath : IParticleInitializer
     {
-        private readonly int startCP;
-        private readonly int endCP = 1;
+        private readonly int StartControlPointNumber;
+        private readonly int EndControlPointNumber = 1;
 
-        private readonly float maximumDistance;
-        private readonly bool useRandom;
+        private readonly float MaxDistance;
+        private readonly bool UseRandomCPs;
 
-        private readonly float midpointPosition;
+        private readonly float MidPoint;
 
-        private readonly Vector3 startOffset = Vector3.Zero;
-        private readonly Vector3 midpointOffset = Vector3.Zero;
-        private readonly Vector3 endOffset = Vector3.Zero;
-        public CreateAlongPath(IKeyValueCollection keyValues)
+        private readonly Vector3 StartPointOffset = Vector3.Zero;
+        private readonly Vector3 MidPointOffset = Vector3.Zero;
+        private readonly Vector3 EndOffset = Vector3.Zero;
+        public CreateAlongPath(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_bUseRandomCPs"))
-            {
-                useRandom = keyValues.GetProperty<bool>("m_bUseRandomCPs");
-            }
+            UseRandomCPs = parse.Boolean("m_bUseRandomCPs", UseRandomCPs);
+            MaxDistance = parse.Float("m_flMaxDistance", MaxDistance);
 
-            if (keyValues.ContainsKey("m_flMaxDistance"))
-            {
-                maximumDistance = keyValues.GetFloatProperty("m_flMaxDistance");
-            }
+            // The functionality of this initializer relies on path params existing
+            parse = new ParticleDefinitionParser(parse.Data.GetSubCollection("m_PathParams"));
 
-
-            // No branch because the functionality of this initializer relies on path params existing
-            var pathParams = keyValues.GetSubCollection("m_PathParams");
-
-            if (pathParams.ContainsKey("m_nStartControlPointNumber"))
-            {
-                startCP = pathParams.GetInt32Property("m_nStartControlPointNumber");
-            }
-
-            if (pathParams.ContainsKey("m_nEndControlPointNumber"))
-            {
-                endCP = pathParams.GetInt32Property("m_nEndControlPointNumber");
-            }
-
-            if (pathParams.ContainsKey("m_flMidPoint"))
-            {
-                midpointPosition = pathParams.GetFloatProperty("m_flMidPoint");
-            }
-
-            if (pathParams.ContainsKey("m_vStartPointOffset"))
-            {
-                startOffset = pathParams.GetArray<double>("m_vStartPointOffset").ToVector3();
-            }
-
-            if (pathParams.ContainsKey("m_vMidPointOffset"))
-            {
-                midpointOffset = pathParams.GetArray<double>("m_vMidPointOffset").ToVector3();
-            }
-
-            if (pathParams.ContainsKey("m_vEndOffset"))
-            {
-                endOffset = pathParams.GetArray<double>("m_vEndOffset").ToVector3();
-            }
+            StartControlPointNumber = parse.Int32("m_nStartControlPointNumber", StartControlPointNumber);
+            EndControlPointNumber = parse.Int32("m_nEndControlPointNumber", EndControlPointNumber);
+            MidPoint = parse.Float("m_flMidPoint", MidPoint);
+            StartPointOffset = parse.Vector3("m_vStartPointOffset", StartPointOffset);
+            MidPointOffset = parse.Vector3("m_vMidPointOffset", MidPointOffset);
+            EndOffset = parse.Vector3("m_vEndOffset", EndOffset);
         }
 
         private Vector3 GetParticlePosition(ParticleSystemRenderState particleSystem)
         {
             var progress = Random.Shared.NextSingle();
-            if (useRandom)
+            if (UseRandomCPs)
             {
                 Vector3 cpPos0;
                 Vector3 cpPos1;
-                for (var cp = startCP; cp <= endCP - 1; cp++)
+                for (var cp = StartControlPointNumber; cp <= EndControlPointNumber - 1; cp++)
                 {
                     cpPos0 = particleSystem.GetControlPoint(cp).Position;
                     cpPos1 = particleSystem.GetControlPoint(cp + 1).Position;
 
-                    var startProgression = MathUtils.Remap(cp, startCP, endCP);
-                    var endProgression = MathUtils.Remap(cp + 1, startCP, endCP);
+                    var startProgression = MathUtils.Remap(cp, StartControlPointNumber, EndControlPointNumber);
+                    var endProgression = MathUtils.Remap(cp + 1, StartControlPointNumber, EndControlPointNumber);
 
                     if (progress < startProgression || progress > endProgression)
                     {
@@ -92,7 +61,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
             else
             {
-                return InterpolatePositions(progress, particleSystem.GetControlPoint(startCP).Position, particleSystem.GetControlPoint(endCP).Position);
+                return InterpolatePositions(progress, particleSystem.GetControlPoint(StartControlPointNumber).Position, particleSystem.GetControlPoint(EndControlPointNumber).Position);
             }
 
             throw new NotImplementedException($"Invalid path progression {progress}");
@@ -101,7 +70,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private Vector3 InterpolatePositions(float relativeProgression, Vector3 position0, Vector3 position1)
         {
             // todo: bulge and midpoint offset. Plus, curve!!
-            return MathUtils.Lerp(relativeProgression, position0 + startOffset, position1 + endOffset);
+            return MathUtils.Lerp(relativeProgression, position0 + StartPointOffset, position1 + EndOffset);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

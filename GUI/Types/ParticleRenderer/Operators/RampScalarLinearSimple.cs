@@ -11,27 +11,15 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float endTime = 1.0f;
         private readonly ParticleField field = ParticleField.Radius;
 
-        public RampScalarLinearSimple(IKeyValueCollection keyValues)
+        public RampScalarLinearSimple(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_Rate"))
-            {
-                rate = keyValues.GetFloatProperty("m_Rate");
-            }
+            rate = parse.Float("m_Rate", rate);
 
-            if (keyValues.ContainsKey("m_flStartTime"))
-            {
-                startTime = keyValues.GetFloatProperty("m_flStartTime");
-            }
+            startTime = parse.Float("m_flStartTime", startTime);
 
-            if (keyValues.ContainsKey("m_flEndTime"))
-            {
-                endTime = keyValues.GetFloatProperty("m_flEndTime");
-            }
+            endTime = parse.Float("m_flEndTime", endTime);
 
-            if (keyValues.ContainsKey("m_nField"))
-            {
-                field = keyValues.GetParticleField("m_nField");
-            }
+            field = parse.ParticleField("m_nField", field);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

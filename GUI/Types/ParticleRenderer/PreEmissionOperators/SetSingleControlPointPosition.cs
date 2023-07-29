@@ -16,32 +16,17 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         private bool HasRunBefore;
 
-        public SetSingleControlPointPosition(IKeyValueCollection keyValues)
+        public SetSingleControlPointPosition(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nCP1"))
-            {
-                CP1 = keyValues.GetInt32Property("m_nCP1");
-            }
+            CP1 = parse.Int32("m_nCP1", CP1);
 
-            if (keyValues.ContainsKey("m_vecCP1Pos"))
-            {
-                CP1Pos = keyValues.GetVectorProvider("m_vecCP1Pos");
-            }
+            CP1Pos = parse.VectorProvider("m_vecCP1Pos", CP1Pos);
 
-            if (keyValues.ContainsKey("m_bSetOnce"))
-            {
-                SetOnce = keyValues.GetProperty<bool>("m_bSetOnce");
-            }
+            SetOnce = parse.Boolean("m_bSetOnce", SetOnce);
 
-            if (keyValues.ContainsKey("m_bUseWorldLocation"))
-            {
-                UseWorldLocation = keyValues.GetProperty<bool>("m_bUseWorldLocation");
-            }
+            UseWorldLocation = parse.Boolean("m_bUseWorldLocation", UseWorldLocation);
 
-            if (keyValues.ContainsKey("m_nHeadLocation"))
-            {
-                CPOffset = keyValues.GetInt32Property("m_nHeadLocation");
-            }
+            CPOffset = parse.Int32("m_nHeadLocation", CPOffset);
         }
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

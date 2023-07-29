@@ -13,27 +13,15 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private float orbitCount;
 
-        public RingWave(IKeyValueCollection keyValues)
+        public RingWave(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_bEvenDistribution"))
-            {
-                evenDistribution = keyValues.GetProperty<bool>("m_bEvenDistribution");
-            }
+            evenDistribution = parse.Boolean("m_bEvenDistribution", evenDistribution);
 
-            if (keyValues.ContainsKey("m_flParticlesPerOrbit"))
-            {
-                particlesPerOrbit = keyValues.GetNumberProvider("m_flParticlesPerOrbit");
-            }
+            particlesPerOrbit = parse.NumberProvider("m_flParticlesPerOrbit", particlesPerOrbit);
 
-            if (keyValues.ContainsKey("m_flInitialRadius"))
-            {
-                initialRadius = keyValues.GetNumberProvider("m_flInitialRadius");
-            }
+            initialRadius = parse.NumberProvider("m_flInitialRadius", initialRadius);
 
-            if (keyValues.ContainsKey("m_flThickness"))
-            {
-                thickness = keyValues.GetNumberProvider("m_flThickness");
-            }
+            thickness = parse.NumberProvider("m_flThickness", thickness);
 
             // other properties: m_vInitialSpeedMin/Max, m_flRoll
         }

@@ -16,47 +16,23 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly int outputCP = 2;
         private readonly int outputCPField;
 
-        public DistanceBetweenCPsToCP(IKeyValueCollection keyValues)
+        public DistanceBetweenCPsToCP(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flInputMin"))
-            {
-                distanceMin = keyValues.GetFloatProperty("m_flInputMin");
-            }
+            distanceMin = parse.Float("m_flInputMin", distanceMin);
 
-            if (keyValues.ContainsKey("m_flInputMax"))
-            {
-                distanceMax = keyValues.GetFloatProperty("m_flInputMax");
-            }
+            distanceMax = parse.Float("m_flInputMax", distanceMax);
 
-            if (keyValues.ContainsKey("m_flOutputMin"))
-            {
-                outputMin = keyValues.GetFloatProperty("m_flOutputMin");
-            }
+            outputMin = parse.Float("m_flOutputMin", outputMin);
 
-            if (keyValues.ContainsKey("m_flOutputMax"))
-            {
-                outputMax = keyValues.GetFloatProperty("m_flOutputMax");
-            }
+            outputMax = parse.Float("m_flOutputMax", outputMax);
 
-            if (keyValues.ContainsKey("m_nStartCP"))
-            {
-                startCP = keyValues.GetInt32Property("m_nStartCP");
-            }
+            startCP = parse.Int32("m_nStartCP", startCP);
 
-            if (keyValues.ContainsKey("m_nEndCP"))
-            {
-                endCP = keyValues.GetInt32Property("m_nEndCP");
-            }
+            endCP = parse.Int32("m_nEndCP", endCP);
 
-            if (keyValues.ContainsKey("m_nOutputCP"))
-            {
-                outputCP = keyValues.GetInt32Property("m_nOutputCP");
-            }
+            outputCP = parse.Int32("m_nOutputCP", outputCP);
 
-            if (keyValues.ContainsKey("m_nOutputCPField"))
-            {
-                outputCPField = keyValues.GetInt32Property("m_nOutputCPField");
-            }
+            outputCPField = parse.Int32("m_nOutputCPField", outputCPField);
 
             // Unsupported features: LOS test
         }

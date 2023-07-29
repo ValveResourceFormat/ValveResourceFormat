@@ -7,17 +7,11 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly INumberProvider duration = new LiteralNumberProvider(1.0f);
         private readonly bool destroy;
 
-        public StopAfterDuration(IKeyValueCollection keyValues)
+        public StopAfterDuration(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flDuration"))
-            {
-                duration = keyValues.GetNumberProvider("m_flDuration");
-            }
+            duration = parse.NumberProvider("m_flDuration", duration);
 
-            if (keyValues.ContainsKey("m_bDestroyImmediately"))
-            {
-                destroy = keyValues.GetProperty<bool>("m_bDestroyImmediately");
-            }
+            destroy = parse.Boolean("m_bDestroyImmediately", destroy);
         }
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

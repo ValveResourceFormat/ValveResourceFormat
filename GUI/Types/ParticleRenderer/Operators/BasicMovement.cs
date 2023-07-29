@@ -10,17 +10,11 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider drag = new LiteralNumberProvider(0);
 
-        public BasicMovement(IKeyValueCollection keyValues)
+        public BasicMovement(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_Gravity"))
-            {
-                gravity = keyValues.GetVectorProvider("m_Gravity");
-            }
+            gravity = parse.VectorProvider("m_Gravity", gravity);
 
-            if (keyValues.ContainsKey("m_fDrag"))
-            {
-                drag = keyValues.GetNumberProvider("m_fDrag");
-            }
+            drag = parse.NumberProvider("m_fDrag", drag);
         }
 
         private static Vector3 GetVelocityFromPreviousPosition(Vector3 currPosition, Vector3 prevPosition)

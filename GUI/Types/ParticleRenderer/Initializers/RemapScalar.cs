@@ -6,53 +6,34 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RemapScalar : IParticleInitializer
     {
-        private readonly ParticleField fieldInput = ParticleField.Alpha;
-        private readonly ParticleField fieldOutput = ParticleField.Radius;
+        private readonly ParticleField FieldInput = ParticleField.Alpha;
+        private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly float inputMin;
         private readonly float inputMax;
         private readonly float outputMin;
         private readonly float outputMax;
 
-        public RemapScalar(IKeyValueCollection keyValues)
+        public RemapScalar(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldInput"))
-            {
-                fieldInput = keyValues.GetParticleField("m_nFieldInput");
-            }
+            FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            inputMin = parse.Float("m_flInputMin", inputMin);
 
-            if (keyValues.ContainsKey("m_flInputMin"))
-            {
-                inputMin = keyValues.GetFloatProperty("m_flInputMin");
-            }
+            inputMax = parse.Float("m_flInputMax", inputMax);
 
-            if (keyValues.ContainsKey("m_flInputMax"))
-            {
-                inputMax = keyValues.GetFloatProperty("m_flInputMax");
-            }
+            outputMin = parse.Float("m_flOutputMin", outputMin);
 
-            if (keyValues.ContainsKey("m_flOutputMin"))
-            {
-                outputMin = keyValues.GetFloatProperty("m_flOutputMin");
-            }
-
-            if (keyValues.ContainsKey("m_flOutputMax"))
-            {
-                outputMax = keyValues.GetFloatProperty("m_flOutputMax");
-            }
+            outputMax = parse.Float("m_flOutputMax", outputMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var value = particle.GetScalar(fieldInput);
+            var value = particle.GetScalar(FieldInput);
 
             value = MathUtils.RemapRange(value, inputMin, inputMax, outputMin, outputMax);
 
-            particle.SetInitialScalar(fieldOutput, value);
+            particle.SetInitialScalar(FieldOutput, value);
 
             return particle;
         }

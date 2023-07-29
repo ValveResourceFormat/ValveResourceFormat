@@ -12,27 +12,15 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
 
-        public VelocityRandom(IKeyValueCollection keyValues)
+        public VelocityRandom(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_LocalCoordinateSystemSpeedMin"))
-            {
-                vectorMin = keyValues.GetVectorProvider("m_LocalCoordinateSystemSpeedMin");
-            }
+            vectorMin = parse.VectorProvider("m_LocalCoordinateSystemSpeedMin", vectorMin);
 
-            if (keyValues.ContainsKey("m_LocalCoordinateSystemSpeedMax"))
-            {
-                vectorMax = keyValues.GetVectorProvider("m_LocalCoordinateSystemSpeedMax");
-            }
+            vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);
 
-            if (keyValues.ContainsKey("m_fSpeedMin"))
-            {
-                speedMin = keyValues.GetNumberProvider("m_fSpeedMin");
-            }
+            speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
 
-            if (keyValues.ContainsKey("m_fSpeedMax"))
-            {
-                speedMax = keyValues.GetNumberProvider("m_fSpeedMax");
-            }
+            speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

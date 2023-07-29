@@ -12,27 +12,15 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int controlPointNumber;
         private readonly int scaleCP = -1;
 
-        public CreateWithinBox(IKeyValueCollection keyValues)
+        public CreateWithinBox(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_vecMin"))
-            {
-                min = keyValues.GetVectorProvider("m_vecMin");
-            }
+            min = parse.VectorProvider("m_vecMin", min);
 
-            if (keyValues.ContainsKey("m_vecMax"))
-            {
-                max = keyValues.GetVectorProvider("m_vecMax");
-            }
+            max = parse.VectorProvider("m_vecMax", max);
 
-            if (keyValues.ContainsKey("m_nControlPointNumber"))
-            {
-                controlPointNumber = keyValues.GetInt32Property("m_nControlPointNumber");
-            }
+            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
 
-            if (keyValues.ContainsKey("m_nScaleCP"))
-            {
-                scaleCP = keyValues.GetInt32Property("m_nScaleCP");
-            }
+            scaleCP = parse.Int32("m_nScaleCP", scaleCP);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

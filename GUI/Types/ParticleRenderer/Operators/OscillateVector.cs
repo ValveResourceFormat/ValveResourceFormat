@@ -10,10 +10,10 @@ namespace GUI.Types.ParticleRenderer.Operators
     class OscillateVector : IParticleOperator
     {
         private readonly ParticleField outputField = ParticleField.Position;
-        private readonly Vector3 rateMin;
-        private readonly Vector3 rateMax;
-        private readonly Vector3 frequencyMin = Vector3.One;
-        private readonly Vector3 frequencyMax = Vector3.One;
+        private readonly Vector3 RateMin;
+        private readonly Vector3 RateMax;
+        private readonly Vector3 FrequencyMin = Vector3.One;
+        private readonly Vector3 FrequencyMax = Vector3.One;
         private readonly float oscillationMultiplier = 2.0f;
         private readonly float oscillationOffset = 0.5f;
         private readonly bool proportional = true;
@@ -24,72 +24,30 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float endTimeMin = 1.0f;
         private readonly float endTimeMax = 1.0f;
 
-        public OscillateVector(IKeyValueCollection keyValues)
+        public OscillateVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nField"))
-            {
-                outputField = keyValues.GetParticleField("m_nField");
-            }
+            outputField = parse.ParticleField("m_nField", outputField);
 
-            if (keyValues.ContainsKey("m_RateMin"))
-            {
-                rateMin = keyValues.GetArray<double>("m_RateMin").ToVector3();
-            }
+            RateMin = parse.Vector3("m_RateMin", RateMin);
+            RateMax = parse.Vector3("m_RateMax", RateMax);
+            FrequencyMin = parse.Vector3("m_FrequencyMin", FrequencyMin);
+            FrequencyMax = parse.Vector3("m_FrequencyMax", FrequencyMax);
 
-            if (keyValues.ContainsKey("m_RateMax"))
-            {
-                rateMax = keyValues.GetArray<double>("m_RateMax").ToVector3();
-            }
+            oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
 
-            if (keyValues.ContainsKey("m_FrequencyMin"))
-            {
-                frequencyMin = keyValues.GetArray<double>("m_FrequencyMin").ToVector3();
-            }
+            oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
 
-            if (keyValues.ContainsKey("m_FrequencyMax"))
-            {
-                frequencyMax = keyValues.GetArray<double>("m_FrequencyMax").ToVector3();
-            }
+            proportional = parse.Boolean("m_bProportional", proportional);
 
-            if (keyValues.ContainsKey("m_flOscMult"))
-            {
-                oscillationMultiplier = keyValues.GetFloatProperty("m_flOscMult");
-            }
+            proportionalOp = parse.Boolean("m_bProportionalOp", proportionalOp);
 
-            if (keyValues.ContainsKey("m_flOscAdd"))
-            {
-                oscillationOffset = keyValues.GetFloatProperty("m_flOscAdd");
-            }
+            startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
 
-            if (keyValues.ContainsKey("m_bProportional"))
-            {
-                proportional = keyValues.GetProperty<bool>("m_bProportional");
-            }
+            startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
 
-            if (keyValues.ContainsKey("m_bProportionalOp"))
-            {
-                proportionalOp = keyValues.GetProperty<bool>("m_bProportionalOp");
-            }
+            endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
 
-            if (keyValues.ContainsKey("m_flStartTime_min"))
-            {
-                startTimeMin = keyValues.GetFloatProperty("m_flStartTime_min");
-            }
-
-            if (keyValues.ContainsKey("m_flStartTime_max"))
-            {
-                startTimeMax = keyValues.GetFloatProperty("m_flStartTime_max");
-            }
-
-            if (keyValues.ContainsKey("m_flEndTime_min"))
-            {
-                endTimeMin = keyValues.GetFloatProperty("m_flEndTime_min");
-            }
-
-            if (keyValues.ContainsKey("m_flEndTime_max"))
-            {
-                endTimeMax = keyValues.GetFloatProperty("m_flEndTime_max");
-            }
+            endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -106,8 +64,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             foreach (ref var particle in particles)
             {
                 // TODO: Consistent rng
-                var rate = MathUtils.RandomBetweenPerComponent(rateMin, rateMax);
-                var frequency = MathUtils.RandomBetweenPerComponent(frequencyMin, frequencyMax);
+                var rate = MathUtils.RandomBetweenPerComponent(RateMin, RateMax);
+                var frequency = MathUtils.RandomBetweenPerComponent(FrequencyMin, FrequencyMax);
 
                 var t = proportional
                     ? particle.NormalizedAge
@@ -154,32 +112,16 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationMultiplier = 2.0f;
         private readonly float oscillationOffset = 0.5f;
 
-        public OscillateVectorSimple(IKeyValueCollection keyValues)
+        public OscillateVectorSimple(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nField"))
-            {
-                outputField = keyValues.GetParticleField("m_nField");
-            }
+            outputField = parse.ParticleField("m_nField", outputField);
 
-            if (keyValues.ContainsKey("m_Rate"))
-            {
-                rate = keyValues.GetArray<double>("m_Rate").ToVector3();
-            }
+            rate = parse.Vector3("m_Rate", rate);
+            frequency = parse.Vector3("m_Frequency", frequency);
 
-            if (keyValues.ContainsKey("m_Frequency"))
-            {
-                frequency = keyValues.GetArray<double>("m_Frequency").ToVector3();
-            }
+            oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
 
-            if (keyValues.ContainsKey("m_flOscMult"))
-            {
-                oscillationMultiplier = keyValues.GetFloatProperty("m_flOscMult");
-            }
-
-            if (keyValues.ContainsKey("m_flOscAdd"))
-            {
-                oscillationOffset = keyValues.GetFloatProperty("m_flOscAdd");
-            }
+            oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

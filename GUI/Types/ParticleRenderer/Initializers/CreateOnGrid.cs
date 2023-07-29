@@ -23,52 +23,25 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly bool hollow; // misery
         //private readonly bool localSpace;
 
-        public CreateOnGrid(IKeyValueCollection keyValues)
+        public CreateOnGrid(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nXCount"))
-            {
-                dimenX = keyValues.GetNumberProvider("m_nXCount");
-            }
+            dimenX = parse.NumberProvider("m_nXCount", dimenX);
 
-            if (keyValues.ContainsKey("m_nYCount"))
-            {
-                dimenY = keyValues.GetNumberProvider("m_nYCount");
-            }
+            dimenY = parse.NumberProvider("m_nYCount", dimenY);
 
-            if (keyValues.ContainsKey("m_nZCount"))
-            {
-                dimenZ = keyValues.GetNumberProvider("m_nZCount");
-            }
+            dimenZ = parse.NumberProvider("m_nZCount", dimenZ);
 
-            if (keyValues.ContainsKey("m_flXSpacing"))
-            {
-                spacingX = keyValues.GetNumberProvider("m_flXSpacing");
-            }
+            spacingX = parse.NumberProvider("m_flXSpacing", spacingX);
 
-            if (keyValues.ContainsKey("m_flYSpacing"))
-            {
-                spacingY = keyValues.GetNumberProvider("m_flYSpacing");
-            }
+            spacingY = parse.NumberProvider("m_flYSpacing", spacingY);
 
-            if (keyValues.ContainsKey("m_flZSpacing"))
-            {
-                spacingZ = keyValues.GetNumberProvider("m_flZSpacing");
-            }
+            spacingZ = parse.NumberProvider("m_flZSpacing", spacingZ);
 
-            if (keyValues.ContainsKey("m_nControlPointNumber"))
-            {
-                controlPointNumber = keyValues.GetInt32Property("m_nControlPointNumber");
-            }
+            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
 
-            if (keyValues.ContainsKey("m_bCenter"))
-            {
-                center = keyValues.GetProperty<bool>("m_bCenter");
-            }
+            center = parse.Boolean("m_bCenter", center);
 
-            if (keyValues.ContainsKey("m_bHollow"))
-            {
-                hollow = keyValues.GetProperty<bool>("m_bHollow");
-            }
+            hollow = parse.Boolean("m_bHollow", hollow);
         }
 
         private static bool HollowTest(int x, int dimenX, int hollowDimenX)

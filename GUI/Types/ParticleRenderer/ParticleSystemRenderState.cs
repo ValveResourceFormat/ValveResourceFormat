@@ -32,7 +32,7 @@ namespace GUI.Types.ParticleRenderer
         {
         }
 
-        public ParticleSystemRenderState(ParticleSystemDefinitionParser parse)
+        public ParticleSystemRenderState(ParticleDefinitionParser parse)
         {
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
             MaxParticles = parse.Int32("m_nMaxParticles", 1000);

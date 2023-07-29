@@ -64,6 +64,14 @@ namespace GUI.Utils
             return Lerp(MathF.Pow(Random.Shared.NextSingle(), exponent), min, max);
         }
 
+        public static void MinMaxFixUp<T>(ref T min, ref T max) where T : INumber<T>
+        {
+            if (min > max)
+            {
+                (min, max) = (max, min);
+            }
+        }
+
         public static float Saturate(float x)
         {
             return Math.Clamp(x, 0.0f, 1.0f);

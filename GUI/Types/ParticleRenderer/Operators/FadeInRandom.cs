@@ -11,27 +11,15 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float randomExponent = 1f;
         private readonly bool proportional = true;
 
-        public FadeInRandom(IKeyValueCollection keyValues)
+        public FadeInRandom(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flFadeInTimeMin"))
-            {
-                fadeInTimeMin = keyValues.GetFloatProperty("m_flFadeInTimeMin");
-            }
+            fadeInTimeMin = parse.Float("m_flFadeInTimeMin", fadeInTimeMin);
 
-            if (keyValues.ContainsKey("m_flFadeInTimeMax"))
-            {
-                fadeInTimeMax = keyValues.GetFloatProperty("m_flFadeInTimeMax");
-            }
+            fadeInTimeMax = parse.Float("m_flFadeInTimeMax", fadeInTimeMax);
 
-            if (keyValues.ContainsKey("m_flFadeInTimeExp"))
-            {
-                randomExponent = keyValues.GetFloatProperty("m_flFadeInTimeExp");
-            }
+            randomExponent = parse.Float("m_flFadeInTimeExp", randomExponent);
 
-            if (keyValues.ContainsKey("m_bProportional"))
-            {
-                proportional = keyValues.GetProperty<bool>("m_bProportional");
-            }
+            proportional = parse.Boolean("m_bProportional", proportional);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

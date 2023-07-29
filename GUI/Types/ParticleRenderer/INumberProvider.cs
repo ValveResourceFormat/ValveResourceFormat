@@ -137,7 +137,7 @@ namespace GUI.Types.ParticleRenderer
 
         public PerParticleNumberProvider(IKeyValueCollection parameters)
         {
-            field = parameters.GetParticleField("m_nScalarAttribute");
+            field = parameters.GetEnumValue<ParticleField>("m_nScalarAttribute");
             mapping = new AttributeMapping(parameters);
         }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
@@ -153,7 +153,7 @@ namespace GUI.Types.ParticleRenderer
 
         public PerParticleVectorComponentNumberProvider(IKeyValueCollection parameters)
         {
-            field = parameters.GetParticleField("m_nVectorAttribute");
+            field = parameters.GetEnumValue<ParticleField>("m_nVectorAttribute");
             component = parameters.GetInt32Property("m_nVectorComponent");
             mapping = new AttributeMapping(parameters);
         }

@@ -9,12 +9,9 @@ namespace GUI.Types.ParticleRenderer.Operators
     class VelocityDecay : IParticleOperator
     {
         private readonly float minVelocity;
-        public VelocityDecay(IKeyValueCollection keyValues)
+        public VelocityDecay(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flMinVelocity"))
-            {
-                minVelocity = keyValues.GetFloatProperty("m_flMinVelocity");
-            }
+            minVelocity = parse.Float("m_flMinVelocity", minVelocity);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

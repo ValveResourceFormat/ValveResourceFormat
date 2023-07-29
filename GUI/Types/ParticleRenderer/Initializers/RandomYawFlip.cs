@@ -8,12 +8,9 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private readonly float percent;
 
-        public RandomYawFlip(IKeyValueCollection keyValues)
+        public RandomYawFlip(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flPercent"))
-            {
-                percent = keyValues.GetFloatProperty("m_flPercent");
-            }
+            percent = parse.Float("m_flPercent", percent);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

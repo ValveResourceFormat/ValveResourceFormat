@@ -15,16 +15,16 @@ namespace GUI.Types.ParticleRenderer
         // These can all be found in particle.dll
 
         // Register particle emitters
-        private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleEmitter>> EmitterDictionary
-            = new Dictionary<string, Func<IKeyValueCollection, IParticleEmitter>>
+        private static readonly IDictionary<string, Func<ParticleDefinitionParser, IParticleEmitter>> EmitterDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, IParticleEmitter>>
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
                 ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
             };
 
         // Register particle initializers
-        private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleInitializer>> InitializerDictionary
-            = new Dictionary<string, Func<IKeyValueCollection, IParticleInitializer>>
+        private static readonly IDictionary<string, Func<ParticleDefinitionParser, IParticleInitializer>> InitializerDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, IParticleInitializer>>
             {
                 ["C_INIT_AddVectorToVector"] = initializerInfo => new AddVectorToVector(initializerInfo),
                 ["C_INIT_CreateAlongPath"] = initializerInfo => new CreateAlongPath(initializerInfo),
@@ -60,8 +60,8 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle operators
-        private static readonly IDictionary<string, Func<IKeyValueCollection, IParticleOperator>> OperatorDictionary
-            = new Dictionary<string, Func<IKeyValueCollection, IParticleOperator>>
+        private static readonly IDictionary<string, Func<ParticleDefinitionParser, IParticleOperator>> OperatorDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, IParticleOperator>>
             {
                 ["C_OP_AlphaDecay"] = operatorInfo => new AlphaDecay(operatorInfo),
                 ["C_OP_BasicMovement"] = operatorInfo => new BasicMovement(operatorInfo),
@@ -115,8 +115,8 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle pre-emission operators (mostly stuff with control points)
-        private static readonly IDictionary<string, Func<IKeyValueCollection, IParticlePreEmissionOperator>> PreEmissionOperatorDictionary
-            = new Dictionary<string, Func<IKeyValueCollection, IParticlePreEmissionOperator>>
+        private static readonly IDictionary<string, Func<ParticleDefinitionParser, IParticlePreEmissionOperator>> PreEmissionOperatorDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, IParticlePreEmissionOperator>>
             {
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
@@ -132,7 +132,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (EmitterDictionary.TryGetValue(name, out var factory))
             {
-                emitter = factory(emitterInfo);
+                emitter = factory(new ParticleDefinitionParser(emitterInfo));
                 return true;
             }
 
@@ -144,7 +144,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (InitializerDictionary.TryGetValue(name, out var factory))
             {
-                initializer = factory(initializerInfo);
+                initializer = factory(new ParticleDefinitionParser(initializerInfo));
                 return true;
             }
 
@@ -156,7 +156,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (OperatorDictionary.TryGetValue(name, out var factory))
             {
-                @operator = factory(operatorInfo);
+                @operator = factory(new ParticleDefinitionParser(operatorInfo));
                 return true;
             }
 
@@ -179,7 +179,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (PreEmissionOperatorDictionary.TryGetValue(name, out var factory))
             {
-                preEmissionOperator = factory(preEmissionOperatorInfo);
+                preEmissionOperator = factory(new ParticleDefinitionParser(preEmissionOperatorInfo));
                 return true;
             }
 

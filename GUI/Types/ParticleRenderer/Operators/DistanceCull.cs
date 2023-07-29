@@ -10,33 +10,21 @@ namespace GUI.Types.ParticleRenderer.Operators
     {
         private readonly int cp;
         private readonly float distance;
-        private readonly Vector3 pointOffset = Vector3.Zero;
+        private readonly Vector3 PointOffset = Vector3.Zero;
         private readonly bool cullInside;
-        public DistanceCull(IKeyValueCollection keyValues)
+        public DistanceCull(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nControlPoint"))
-            {
-                cp = keyValues.GetInt32Property("m_nControlPoint");
-            }
+            cp = parse.Int32("m_nControlPoint", cp);
 
-            if (keyValues.ContainsKey("m_vecPointOffset"))
-            {
-                pointOffset = keyValues.GetArray<double>("m_vecPointOffset").ToVector3();
-            }
+            PointOffset = parse.Vector3("m_vecPointOffset", PointOffset);
 
-            if (keyValues.ContainsKey("m_flDistance"))
-            {
-                distance = keyValues.GetFloatProperty("m_flDistance");
-            }
+            distance = parse.Float("m_flDistance", distance);
 
-            if (keyValues.ContainsKey("m_bCullInside"))
-            {
-                cullInside = keyValues.GetProperty<bool>("m_bCullInside");
-            }
+            cullInside = parse.Boolean("m_bCullInside", cullInside);
         }
         private bool CulledBySphere(Vector3 position, ParticleSystemRenderState particleSystemState)
         {
-            var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + pointOffset;
+            var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + PointOffset;
 
             var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - distance;
 

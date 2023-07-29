@@ -15,32 +15,17 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int controlPoint;
         private readonly bool ignoreDelta;
 
-        public VelocityRadialRandom(IKeyValueCollection keyValues)
+        public VelocityRadialRandom(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_vecLocalCoordinateSystemSpeedScale"))
-            {
-                vectorScale = keyValues.GetVectorProvider("m_vecLocalCoordinateSystemSpeedScale");
-            }
+            vectorScale = parse.VectorProvider("m_vecLocalCoordinateSystemSpeedScale", vectorScale);
 
-            if (keyValues.ContainsKey("m_fSpeedMin"))
-            {
-                speedMin = keyValues.GetNumberProvider("m_fSpeedMin");
-            }
+            speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
 
-            if (keyValues.ContainsKey("m_fSpeedMax"))
-            {
-                speedMax = keyValues.GetNumberProvider("m_fSpeedMax");
-            }
+            speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
 
-            if (keyValues.ContainsKey("m_bIgnoreDelta"))
-            {
-                ignoreDelta = keyValues.GetProperty<bool>("m_bIgnoreDelta");
-            }
+            ignoreDelta = parse.Boolean("m_bIgnoreDelta", ignoreDelta);
 
-            if (keyValues.ContainsKey("m_nControlPointNumber"))
-            {
-                controlPoint = keyValues.GetInt32Property("m_nControlPointNumber");
-            }
+            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

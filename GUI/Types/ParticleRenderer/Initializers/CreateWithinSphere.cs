@@ -13,37 +13,19 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
 
-        public CreateWithinSphere(IKeyValueCollection keyValues)
+        public CreateWithinSphere(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_fRadiusMin"))
-            {
-                radiusMin = keyValues.GetNumberProvider("m_fRadiusMin");
-            }
+            radiusMin = parse.NumberProvider("m_fRadiusMin", radiusMin);
 
-            if (keyValues.ContainsKey("m_fRadiusMax"))
-            {
-                radiusMax = keyValues.GetNumberProvider("m_fRadiusMax");
-            }
+            radiusMax = parse.NumberProvider("m_fRadiusMax", radiusMax);
 
-            if (keyValues.ContainsKey("m_fSpeedMin"))
-            {
-                speedMin = keyValues.GetNumberProvider("m_fSpeedMin");
-            }
+            speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
 
-            if (keyValues.ContainsKey("m_fSpeedMax"))
-            {
-                speedMax = keyValues.GetNumberProvider("m_fSpeedMax");
-            }
+            speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
 
-            if (keyValues.ContainsKey("m_LocalCoordinateSystemSpeedMin"))
-            {
-                localCoordinateSystemSpeedMin = keyValues.GetVectorProvider("m_LocalCoordinateSystemSpeedMin");
-            }
+            localCoordinateSystemSpeedMin = parse.VectorProvider("m_LocalCoordinateSystemSpeedMin", localCoordinateSystemSpeedMin);
 
-            if (keyValues.ContainsKey("m_LocalCoordinateSystemSpeedMax"))
-            {
-                localCoordinateSystemSpeedMax = keyValues.GetVectorProvider("m_LocalCoordinateSystemSpeedMax");
-            }
+            localCoordinateSystemSpeedMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", localCoordinateSystemSpeedMax);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

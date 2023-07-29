@@ -7,32 +7,23 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class SetFloat : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider value = new LiteralNumberProvider(0f);
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
 
-        public SetFloat(IKeyValueCollection keyValues)
+        public SetFloat(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+
+            value = parse.NumberProvider("m_nInputValue", value);
+
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                field = keyValues.GetParticleField("m_nOutputField");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
 
-            if (keyValues.ContainsKey("m_nInputValue"))
-            {
-                value = keyValues.GetNumberProvider("m_nInputValue");
-            }
-
-            if (keyValues.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
-
-            if (keyValues.ContainsKey("m_Lerp"))
-            {
-                lerp = keyValues.GetNumberProvider("m_Lerp");
-            }
+            lerp = parse.NumberProvider("m_Lerp", lerp);
 
             // there's also a Lerp value that every frame sets the value to the lerp of the current one to the set one.
             // Thus it's basically like exponential decay, except it works with the
@@ -45,12 +36,12 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var value = this.value.NextNumber(ref particle, particleSystemState);
                 var lerp = this.lerp.NextNumber(ref particle, particleSystemState);
 
-                var currentValue = particle.ModifyScalarBySetMethod(field, value, setMethod);
-                var initialValue = particle.GetScalar(field);
+                var currentValue = particle.ModifyScalarBySetMethod(OutputField, value, setMethod);
+                var initialValue = particle.GetScalar(OutputField);
 
                 value = MathUtils.Lerp(lerp, initialValue, currentValue);
 
-                particle.SetScalar(field, value);
+                particle.SetScalar(OutputField, value);
             }
         }
     }

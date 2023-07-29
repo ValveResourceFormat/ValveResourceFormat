@@ -9,22 +9,13 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float spinRate;
         private readonly float spinRateMin; // don't actually know if this is used or not. I don't think it is?
         private readonly float spinStopTime;
-        public Spin(IKeyValueCollection keyValues)
+        public Spin(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nSpinRateDegrees"))
-            {
-                spinRate = keyValues.GetFloatProperty("m_nSpinRateDegrees");
-            }
+            spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
 
-            if (keyValues.ContainsKey("m_nSpinRateMinDegrees"))
-            {
-                spinRateMin = keyValues.GetFloatProperty("m_nSpinRateMinDegrees");
-            }
+            spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
 
-            if (keyValues.ContainsKey("m_fSpinRateStopTime"))
-            {
-                spinStopTime = keyValues.GetFloatProperty("m_fSpinRateStopTime");
-            }
+            spinStopTime = parse.Float("m_fSpinRateStopTime", spinStopTime);
         }
 
         // Does not require SpinUpdate 
@@ -45,22 +36,13 @@ namespace GUI.Types.ParticleRenderer.Operators
         private float spinRate;
         private float spinRateMin; // don't actually know if this is used or not. I don't think it is?
         private float spinStopTime;
-        public SpinYaw(IKeyValueCollection keyValues)
+        public SpinYaw(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nSpinRateDegrees"))
-            {
-                spinRate = keyValues.GetFloatProperty("m_nSpinRateDegrees");
-            }
+            spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
 
-            if (keyValues.ContainsKey("m_nSpinRateMinDegrees"))
-            {
-                spinRateMin = keyValues.GetFloatProperty("m_nSpinRateMinDegrees");
-            }
+            spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
 
-            if (keyValues.ContainsKey("m_fSpinRateStopTime"))
-            {
-                spinStopTime = keyValues.GetFloatProperty("m_fSpinRateStopTime");
-            }
+            spinStopTime = parse.Float("m_fSpinRateStopTime", spinStopTime);
         }
 
         // Does not require SpinUpdate

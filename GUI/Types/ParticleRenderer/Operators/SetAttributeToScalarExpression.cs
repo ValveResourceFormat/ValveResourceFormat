@@ -6,37 +6,28 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class SetAttributeToScalarExpression : IParticleOperator
     {
-        private readonly ParticleField outputField = ParticleField.Radius;
+        private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider input1 = new LiteralNumberProvider(0);
         private readonly INumberProvider input2 = new LiteralNumberProvider(0);
         private readonly ScalarExpressionType expression = ScalarExpressionType.SCALAR_EXPRESSION_ADD;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        public SetAttributeToScalarExpression(IKeyValueCollection keyValues)
+        public SetAttributeToScalarExpression(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+
+            input1 = parse.NumberProvider("m_flInput1", input1);
+
+            input2 = parse.NumberProvider("m_flInput2", input2);
+
+            if (parse.Data.ContainsKey("m_nExpression"))
             {
-                outputField = keyValues.GetParticleField("m_nOutputField");
+                expression = parse.Data.GetEnumValue<ScalarExpressionType>("m_nExpression");
             }
 
-            if (keyValues.ContainsKey("m_flInput1"))
+            if (parse.Data.ContainsKey("m_nSetMethod"))
             {
-                input1 = keyValues.GetNumberProvider("m_flInput1");
-            }
-
-            if (keyValues.ContainsKey("m_flInput2"))
-            {
-                input2 = keyValues.GetNumberProvider("m_flInput2");
-            }
-
-            if (keyValues.ContainsKey("m_nExpression"))
-            {
-                expression = keyValues.GetEnumValue<ScalarExpressionType>("m_nExpression");
-            }
-
-            if (keyValues.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = keyValues.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
+                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
             }
         }
 
@@ -70,7 +61,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
 
-                particle.SetScalar(outputField, particle.ModifyScalarBySetMethod(outputField, output, setMethod));
+                particle.SetScalar(OutputField, particle.ModifyScalarBySetMethod(OutputField, output, setMethod));
             }
         }
     }

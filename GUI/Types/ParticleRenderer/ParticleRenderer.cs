@@ -54,7 +54,7 @@ namespace GUI.Types.ParticleRenderer
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
-            var parser = new ParticleSystemDefinitionParser(particleSystem.Data);
+            var parser = new ParticleDefinitionParser(particleSystem.Data);
             ParseDefinition(parser);
 
             systemRenderState = new ParticleSystemRenderState(parser)
@@ -73,7 +73,7 @@ namespace GUI.Types.ParticleRenderer
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
         }
 
-        private void ParseDefinition(ParticleSystemDefinitionParser parser)
+        private void ParseDefinition(ParticleDefinitionParser parser)
         {
             LocalBoundingBox = new AABB(
                 parser.Vector3("m_BoundingBoxMin", new Vector3(-10)),

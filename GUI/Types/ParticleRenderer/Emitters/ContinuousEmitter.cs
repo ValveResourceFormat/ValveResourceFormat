@@ -17,21 +17,15 @@ namespace GUI.Types.ParticleRenderer.Emitters
         private float time;
         private float lastEmissionTime;
 
-        public ContinuousEmitter(IKeyValueCollection keyValues)
+        public ContinuousEmitter(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flEmissionDuration"))
-            {
-                emissionDuration = keyValues.GetNumberProvider("m_flEmissionDuration");
-            }
+            emissionDuration = parse.NumberProvider("m_flEmissionDuration", emissionDuration);
 
-            if (keyValues.ContainsKey("m_flStartTime"))
-            {
-                startTime = keyValues.GetNumberProvider("m_flStartTime");
-            }
+            startTime = parse.NumberProvider("m_flStartTime", startTime);
 
-            if (keyValues.ContainsKey("m_flEmitRate"))
+            if (parse.Data.ContainsKey("m_flEmitRate"))
             {
-                emitRate = keyValues.GetNumberProvider("m_flEmitRate");
+                emitRate = parse.Data.GetNumberProvider("m_flEmitRate");
                 emitInterval = 1.0f / emitRate.NextNumber();
             }
         }

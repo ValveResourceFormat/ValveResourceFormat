@@ -6,26 +6,17 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class RemapControlPointDirectionToVector : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Position;
+        private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly int cp;
         private readonly float scale;
 
-        public RemapControlPointDirectionToVector(IKeyValueCollection keyValues)
+        public RemapControlPointDirectionToVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
 
-            if (keyValues.ContainsKey("m_flScale"))
-            {
-                scale = keyValues.GetFloatProperty("m_flScale");
-            }
+            scale = parse.Float("m_flScale", scale);
 
-            if (keyValues.ContainsKey("m_nControlPointNumber"))
-            {
-                cp = keyValues.GetInt32Property("m_nControlPointNumber");
-            }
+            cp = parse.Int32("m_nControlPointNumber", cp);
         }
 
         // is this particle id or total particle count?
@@ -35,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 // direction or orientation??
                 var direction = particleSystemState.GetControlPoint(cp).Orientation;
-                particle.SetVector(field, direction * scale);
+                particle.SetVector(FieldOutput, direction * scale);
             }
         }
     }

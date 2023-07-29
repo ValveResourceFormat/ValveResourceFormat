@@ -7,19 +7,13 @@ namespace GUI.Types.ParticleRenderer.Operators
     class FadeOutSimple : IParticleOperator
     {
         private readonly float fadeOutTime = 0.25f;
-        private readonly ParticleField fieldOutput = ParticleField.Alpha;
+        private readonly ParticleField FieldOutput = ParticleField.Alpha;
 
-        public FadeOutSimple(IKeyValueCollection keyValues)
+        public FadeOutSimple(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_flFadeOutTime"))
-            {
-                fadeOutTime = keyValues.GetFloatProperty("m_flFadeOutTime");
-            }
+            fadeOutTime = parse.Float("m_flFadeOutTime", fadeOutTime);
 
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                fieldOutput = keyValues.GetParticleField("m_nFieldOutput");
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -31,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 {
                     var t = timeLeft / fadeOutTime;
                     var newAlpha = t * particle.InitialAlpha;
-                    particle.SetScalar(fieldOutput, newAlpha);
+                    particle.SetScalar(FieldOutput, newAlpha);
                 }
             }
         }

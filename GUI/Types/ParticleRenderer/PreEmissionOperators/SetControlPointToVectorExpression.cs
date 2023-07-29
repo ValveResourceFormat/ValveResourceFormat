@@ -11,26 +11,17 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly IVectorProvider input2 = new LiteralVectorProvider(Vector3.Zero);
         private readonly string expression = "VECTOR_EXPRESSION_ADD";
 
-        public SetControlPointToVectorExpression(IKeyValueCollection keyValues)
+        public SetControlPointToVectorExpression(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputCP"))
-            {
-                cp = keyValues.GetInt32Property("m_nOutputCP");
-            }
+            cp = parse.Int32("m_nOutputCP", cp);
 
-            if (keyValues.ContainsKey("m_vInput1"))
-            {
-                input1 = keyValues.GetVectorProvider("m_vInput1");
-            }
+            input1 = parse.VectorProvider("m_vInput1", input1);
 
-            if (keyValues.ContainsKey("m_vInput2"))
-            {
-                input2 = keyValues.GetVectorProvider("m_vInput2");
-            }
+            input2 = parse.VectorProvider("m_vInput2", input2);
 
-            if (keyValues.ContainsKey("m_nExpression"))
+            if (parse.Data.ContainsKey("m_nExpression"))
             {
-                expression = keyValues.GetProperty<string>("m_nExpression");
+                expression = parse.Data.GetProperty<string>("m_nExpression");
             }
         }
 

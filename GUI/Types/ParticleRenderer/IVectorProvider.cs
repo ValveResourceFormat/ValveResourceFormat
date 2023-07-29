@@ -57,7 +57,7 @@ namespace GUI.Types.ParticleRenderer
         private readonly Vector3 scale = Vector3.One;
         public PerParticleVectorProvider(IKeyValueCollection keyValues)
         {
-            field = keyValues.GetParticleField("m_nVectorAttribute");
+            field = keyValues.GetEnumValue<ParticleField>("m_nVectorAttribute");
             if (keyValues.ContainsKey("m_vVectorAttributeScale"))
             {
                 scale = keyValues.GetArray<double>("m_vVectorAttributeScale").ToVector3();

@@ -7,33 +7,22 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RandomVector : IParticleInitializer
     {
-        private readonly ParticleField field = ParticleField.Position;
-        private readonly Vector3 vectorMin;
-        private readonly Vector3 vectorMax;
+        private readonly ParticleField FieldOutput = ParticleField.Position;
+        private readonly Vector3 Min;
+        private readonly Vector3 Max;
 
-        public RandomVector(IKeyValueCollection keyValues)
+        public RandomVector(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nFieldOutput"))
-            {
-                field = keyValues.GetParticleField("m_nFieldOutput");
-            }
-
-            if (keyValues.ContainsKey("m_vecMin"))
-            {
-                vectorMin = keyValues.GetArray<double>("m_vecMin").ToVector3();
-            }
-
-            if (keyValues.ContainsKey("m_vecMax"))
-            {
-                vectorMax = keyValues.GetArray<double>("m_vecMax").ToVector3();
-            }
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            Min = parse.Vector3("m_vecMin", Min);
+            Max = parse.Vector3("m_vecMax", Max);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var newVector = MathUtils.RandomBetweenPerComponent(vectorMin, vectorMax);
+            var newVector = MathUtils.RandomBetweenPerComponent(Min, Max);
 
-            particle.SetVector(field, newVector);
+            particle.SetVector(FieldOutput, newVector);
 
             return particle;
         }

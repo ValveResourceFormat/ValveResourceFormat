@@ -5,25 +5,19 @@ namespace GUI.Types.ParticleRenderer.Initializers
 {
     class InitFloat : IParticleInitializer
     {
-        private readonly ParticleField field = ParticleField.Radius;
-        private readonly INumberProvider value = new LiteralNumberProvider(0);
+        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly INumberProvider InputValue = new LiteralNumberProvider(0);
 
-        public InitFloat(IKeyValueCollection keyValues)
+        public InitFloat(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
 
-            if (keyValues.ContainsKey("m_InputValue"))
-            {
-                value = keyValues.GetNumberProvider("m_InputValue");
-            }
+            InputValue = parse.NumberProvider("m_InputValue", InputValue);
         }
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.SetInitialScalar(field, value.NextNumber(ref particle, particleSystemState));
+            particle.SetInitialScalar(OutputField, InputValue.NextNumber(ref particle, particleSystemState));
 
             return particle;
         }

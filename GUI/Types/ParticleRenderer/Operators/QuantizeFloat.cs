@@ -6,34 +6,27 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class QuantizeFloat : IParticleOperator
     {
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider quantizeSize = new LiteralNumberProvider(0);
 
-        public QuantizeFloat(IKeyValueCollection keyValues)
+        public QuantizeFloat(ParticleDefinitionParser parse)
         {
-            if (keyValues.ContainsKey("m_nOutputField"))
-            {
-                field = keyValues.GetParticleField("m_nOutputField");
-            }
-
-            if (keyValues.ContainsKey("m_nInputValue"))
-            {
-                quantizeSize = keyValues.GetNumberProvider("m_nInputValue");
-            }
+            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            quantizeSize = parse.NumberProvider("m_nInputValue", quantizeSize);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles)
             {
                 var quantizeSize = this.quantizeSize.NextNumber(ref particle, particleSystemState);
-                var value = particle.GetScalar(field);
+                var value = particle.GetScalar(OutputField);
 
                 if (quantizeSize != 0)
                 {
                     value = quantizeSize * MathF.Truncate(value / quantizeSize);
                 }
 
-                particle.SetScalar(field, value);
+                particle.SetScalar(OutputField, value);
             }
         }
     }
