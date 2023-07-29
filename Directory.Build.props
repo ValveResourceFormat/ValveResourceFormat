@@ -11,6 +11,9 @@
   <PropertyGroup>
     <Deterministic>true</Deterministic>
     <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
     <NeutralLanguage>en</NeutralLanguage>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
