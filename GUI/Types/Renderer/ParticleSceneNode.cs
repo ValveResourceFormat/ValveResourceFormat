@@ -6,6 +6,7 @@ namespace GUI.Types.Renderer
     class ParticleSceneNode : SceneNode
     {
         private readonly ParticleRenderer.ParticleRenderer particleRenderer;
+        public float FrametimeMultiplier { get; set; } = 1.0f;
 
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem)
             : base(scene)
@@ -17,7 +18,7 @@ namespace GUI.Types.Renderer
         public override void Update(Scene.UpdateContext context)
         {
             particleRenderer.Position = Transform.Translation;
-            particleRenderer.Update(context.Timestep);
+            particleRenderer.Update(context.Timestep * FrametimeMultiplier);
 
             // Restart if all emitters are done and all particles expired
             if (particleRenderer.IsFinished())
