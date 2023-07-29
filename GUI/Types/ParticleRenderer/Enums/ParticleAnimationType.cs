@@ -1,4 +1,4 @@
-namespace ValveResourceFormat
+namespace GUI.Types.ParticleRenderer
 {
     public enum ParticleAnimationType
     {

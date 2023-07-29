@@ -22,9 +22,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }
 
             fadeStartTime = parse.Float("m_flFadeStartTime", fadeStartTime);
-
             fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
-
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 

@@ -19,10 +19,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             value = parse.VectorProvider("m_nInputValue", value);
 
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
 
             lerp = parse.NumberProvider("m_Lerp", lerp);
 

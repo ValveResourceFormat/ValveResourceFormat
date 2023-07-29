@@ -20,15 +20,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             input2 = parse.NumberProvider("m_flInput2", input2);
 
-            if (parse.Data.ContainsKey("m_nExpression"))
-            {
-                expression = parse.Data.GetEnumValue<ScalarExpressionType>("m_nExpression");
-            }
+            expression = parse.Enum<ScalarExpressionType>("m_nExpression", expression);
 
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

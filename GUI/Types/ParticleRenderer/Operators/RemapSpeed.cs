@@ -27,10 +27,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
 
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)

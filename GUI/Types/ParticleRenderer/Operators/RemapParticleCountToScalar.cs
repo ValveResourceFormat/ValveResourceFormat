@@ -30,10 +30,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
 
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
         // is this particle id or total particle count?

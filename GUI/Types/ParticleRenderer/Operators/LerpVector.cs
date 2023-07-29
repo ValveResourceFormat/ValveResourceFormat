@@ -25,10 +25,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             endTime = parse.Float("m_flEndTime", endTime);
 
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
         public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

@@ -35,12 +35,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             invert = parse.Boolean("m_bInvert", invert);
             wrap = parse.Boolean("m_bWrap", wrap);
             remapBias = parse.Float("m_flRemapBias", remapBias);
-
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
-
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod");
             controlPoint = parse.Int32("m_nScaleControlPoint", controlPoint);
             controlPointComponent = parse.Int32("m_nScaleControlPointField", controlPointComponent);
         }

@@ -72,7 +72,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
-                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType");
+                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType", normalize: true);
             }
 
             if (keyValues.ContainsKey("m_flAnimationRate"))
@@ -216,7 +216,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var angle = MathF.Acos(direction.Y);
                 var rotationMatrix = Matrix4x4.CreateFromAxisAngle(axis, angle);
 
-                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
+                var modelMatrix = orientationType == ParticleOrientation.ScreenAligned
                     ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
                     : particle.GetTransformationMatrix();
 

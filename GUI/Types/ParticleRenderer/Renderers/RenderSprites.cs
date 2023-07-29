@@ -77,7 +77,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (keyValues.ContainsKey("m_nOrientationType"))
             {
-                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType");
+                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType", normalize: true);
             }
 
             if (keyValues.ContainsKey("m_flAnimationRate"))
@@ -180,7 +180,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
                 // Positions
-                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
+                var modelMatrix = orientationType == ParticleOrientation.ScreenAligned
                     ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale)
                     : particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale);
 

@@ -28,10 +28,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             outputMax = parse.Float("m_flOutputMax", outputMax);
 
-            if (parse.Data.ContainsKey("m_nSetMethod"))
-            {
-                setMethod = parse.Data.GetEnumValue<ParticleSetMethod>("m_nSetMethod");
-            }
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
 
             perParticle = parse.Boolean("m_bPerParticle", perParticle);
         }
