@@ -74,6 +74,11 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
                 lastEmissionTime += numToEmit * emitInterval;
             }
+
+            if (time > nextStartTime + nextEmissionDuration)
+            {
+                IsFinished = true;
+            }
         }
     }
 }

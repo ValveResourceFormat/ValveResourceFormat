@@ -31,13 +31,19 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         public void Stop()
         {
+            IsFinished = true;
         }
 
         public void Update(float frameTime)
         {
+            if (IsFinished)
+            {
+                return;
+            }
+
             time += frameTime;
 
-            if (!IsFinished && time >= startTime.NextNumber())
+            if (time >= startTime.NextNumber())
             {
                 var numToEmit = (int)emitCount.NextNumber(); // Get value from number provider
                 for (var i = 0; i < numToEmit; i++)

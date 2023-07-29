@@ -200,13 +200,8 @@ namespace GUI.Types.ParticleRenderer
                 LocalBoundingBox = LocalBoundingBox.Union(childParticleRenderer.LocalBoundingBox);
             }
 
-            // Restart if all emitters are done and all particles expired
-            if (IsFinished())
-            {
-                // NOTE: This isn't accurate, right?
-                Restart();
-            }
-            else if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.Duration)
+            // TODO: Is this the correct place for this because child particle renderers also check this
+            if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.Duration)
             {
                 if (systemRenderState.DestroyInstantlyOnEnd)
                 {

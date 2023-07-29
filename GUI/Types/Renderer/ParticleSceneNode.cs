@@ -18,6 +18,12 @@ namespace GUI.Types.Renderer
         {
             particleRenderer.Position = Transform.Translation;
             particleRenderer.Update(context.Timestep);
+
+            // Restart if all emitters are done and all particles expired
+            if (particleRenderer.IsFinished())
+            {
+                particleRenderer.Restart();
+            }
         }
 
         public override void Render(Scene.RenderContext context)
