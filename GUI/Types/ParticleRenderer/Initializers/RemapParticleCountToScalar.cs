@@ -9,8 +9,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
     class RemapParticleCountToScalar : IParticleInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
-        private readonly int InputMin;
-        private readonly int InputMax = 10;
+        private readonly long InputMin;
+        private readonly long InputMax = 10;
         private readonly float outputMin;
         private readonly float outputMax = 1f;
         private readonly bool scaleInitialRange; // legacy
@@ -27,15 +27,15 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public RemapParticleCountToScalar(ParticleDefinitionParser parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-            InputMin = parse.Int32("m_nInputMin", InputMin);
-            InputMax = parse.Int32("m_nInputMax", InputMax);
+            InputMin = parse.Long("m_nInputMin", InputMin);
+            InputMax = parse.Long("m_nInputMax", InputMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
             scaleInitialRange = parse.Boolean("m_bScaleInitialRange", scaleInitialRange);
             invert = parse.Boolean("m_bInvert", invert);
             wrap = parse.Boolean("m_bWrap", wrap);
             remapBias = parse.Float("m_flRemapBias", remapBias);
-            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod");
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             controlPoint = parse.Int32("m_nScaleControlPoint", controlPoint);
             controlPointComponent = parse.Int32("m_nScaleControlPointField", controlPointComponent);
         }

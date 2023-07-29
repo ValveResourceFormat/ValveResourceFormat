@@ -402,17 +402,11 @@ namespace GUI.Types.ParticleRenderer
 
         private static bool IsOperatorDisabled(IKeyValueCollection op)
         {
-            if (op.ContainsKey("m_bDisableOperator"))
-            {
-                return op.GetProperty<bool>("m_bDisableOperator");
-            }
-            // Skip ops that only run during endcap (currently unsupported)
-            else if (op.ContainsKey("m_nOpEndCapState"))
-            {
-                var mode = op.GetEnumValue<ParticleEndCapMode>("m_nOpEndCapState");
-                return mode == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
-            }
-            return false;
+            var parse = new ParticleDefinitionParser(op);
+
+            // Also skip ops that only run during endcap (currently unsupported)
+            return parse.Boolean("m_bDisableOperator", default)
+                || parse.Enum<ParticleEndCapMode>("m_nOpEndCapState", default) == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
         }
 
         public void SetWireframe(bool isWireframe)

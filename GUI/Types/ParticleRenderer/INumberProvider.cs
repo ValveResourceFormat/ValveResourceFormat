@@ -55,7 +55,13 @@ namespace GUI.Types.ParticleRenderer
         {
             minRange = keyValues.GetFloatProperty("m_flRandomMin");
             maxRange = keyValues.GetFloatProperty("m_flRandomMax");
-            randomMode = keyValues.GetEnumValue<PfRandomMode>("m_nRandomMode", normalize: true);
+
+            // Should it be checking behavior version?
+            if (keyValues.GetProperty<string>("m_nType") != keyValues.GetProperty<string>("m_nRandomMode"))
+            {
+                randomMode = keyValues.GetEnumValue<PfRandomMode>("m_nRandomMode", normalize: true);
+            }
+
             this.isBiased = isBiased;
 
             if (isBiased)

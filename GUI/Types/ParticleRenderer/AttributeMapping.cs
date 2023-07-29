@@ -29,7 +29,8 @@ namespace GUI.Types.ParticleRenderer
             Notched,
         };
 
-        private readonly PfMapType mapType;
+        private readonly PfMapType MapType;
+        private readonly PfInputMode InputMode = PfInputMode.Clamped;
 
         private readonly float multFactor;
 
@@ -43,14 +44,14 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly PiecewiseCurve curve;
 
-        private readonly PfInputMode inputMode;
-
 
         public AttributeMapping(IKeyValueCollection parameters)
         {
-            mapType = parameters.GetEnumValue<PfMapType>("m_nMapType", normalize: true);
+            var parse = new ParticleDefinitionParser(parameters);
+            MapType = parse.EnumNormalized<PfMapType>("m_nMapType");
+            InputMode = parse.EnumNormalized<PfInputMode>("m_nInputMode", InputMode);
 
-            switch (mapType)
+            switch (MapType)
             {
                 case PfMapType.Direct:
                     break;
@@ -65,15 +66,11 @@ namespace GUI.Types.ParticleRenderer
                     input1 = parameters.GetFloatProperty("m_flInput1");
                     output0 = parameters.GetFloatProperty("m_flOutput0");
                     output1 = parameters.GetFloatProperty("m_flOutput1");
-
-                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode", normalize: true);
                     break;
 
                 case PfMapType.Curve:
                     var curveData = parameters.GetSubCollection("m_Curve");
-                    inputMode = parameters.GetEnumValue<PfInputMode>("m_nInputMode", normalize: true);
-
-                    curve = new PiecewiseCurve(curveData, inputMode == PfInputMode.Looped);
+                    curve = new PiecewiseCurve(curveData, InputMode == PfInputMode.Looped);
                     break;
 
                 case PfMapType.Notched:
@@ -90,7 +87,7 @@ namespace GUI.Types.ParticleRenderer
 
             }
 
-            if (mapType == PfMapType.RemapBiased)
+            if (MapType == PfMapType.RemapBiased)
             {
                 biasType = parameters.GetEnumValue<PfBiasType>("m_nBiasType", normalize: true);
                 biasParameter = parameters.GetFloatProperty("m_flBiasParameter");
@@ -99,7 +96,7 @@ namespace GUI.Types.ParticleRenderer
 
         public float ApplyMapping(float value)
         {
-            switch (mapType)
+            switch (MapType)
             {
                 case PfMapType.Mult:
                     return value * multFactor;
@@ -107,14 +104,14 @@ namespace GUI.Types.ParticleRenderer
                 case PfMapType.Remap:
                     var remappedTo0_1Range = MathUtils.Remap(value, input0, input1);
 
-                    if (inputMode == PfInputMode.Looped) { remappedTo0_1Range = MathUtils.Fract(remappedTo0_1Range); }
+                    if (InputMode == PfInputMode.Looped) { remappedTo0_1Range = MathUtils.Fract(remappedTo0_1Range); }
 
                     return MathUtils.Lerp(remappedTo0_1Range, output0, output1);
 
                 case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
 
-                    if (inputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
+                    if (InputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
 
                     // Insert bias processing here. Shared with randombiased mode in INumberProvider
 

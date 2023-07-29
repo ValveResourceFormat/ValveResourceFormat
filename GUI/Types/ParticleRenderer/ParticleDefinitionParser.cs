@@ -34,6 +34,9 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
     public readonly int Int32(string k) => Data.GetInt32Property(k);
     public readonly int Int32(string key, int @default) => GetValueOrDefault(key, Int32, @default);
 
+    public readonly long Long(string k) => Data.GetIntegerProperty(k);
+    public readonly long Long(string key, long @default) => GetValueOrDefault(key, Long, @default);
+
     public readonly bool Boolean(string k) => Data.GetProperty<bool>(k);
     public readonly bool Boolean(string key, bool @default) => GetValueOrDefault(key, Boolean, @default);
 

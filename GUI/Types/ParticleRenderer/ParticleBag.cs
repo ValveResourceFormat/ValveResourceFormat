@@ -4,6 +4,7 @@ namespace GUI.Types.ParticleRenderer
 {
     class ParticleBag
     {
+        public const int MAX_PARTICLES = 5000;
         private readonly bool isGrowable;
 
         private Particle[] particles;
@@ -15,7 +16,7 @@ namespace GUI.Types.ParticleRenderer
         public ParticleBag(int initialCapacity, bool growable)
         {
             isGrowable = growable;
-            particles = new Particle[initialCapacity];
+            particles = new Particle[Math.Min(initialCapacity, MAX_PARTICLES)];
         }
 
         public int Add()

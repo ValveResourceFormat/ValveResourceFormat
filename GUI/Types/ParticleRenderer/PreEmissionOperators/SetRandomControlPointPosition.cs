@@ -15,8 +15,8 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly bool orient;
         private readonly int offsetCP;
 
-        private readonly float reRandomRate = -1.0f;
-        private readonly float interpolation = 1.0f;
+        private readonly INumberProvider reRandomRate = new LiteralNumberProvider(-1.0f);
+        private readonly INumberProvider interpolation = new LiteralNumberProvider(1.0f);
 
         public SetRandomControlPointPosition(ParticleDefinitionParser parse)
         {
@@ -26,8 +26,8 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
             offsetCP = parse.Int32("m_nHeadLocation", offsetCP);
             orient = parse.Boolean("m_bOrient", orient);
-            reRandomRate = parse.Float("m_flReRandomRate", reRandomRate);
-            interpolation = parse.Float("m_flInterpolation", interpolation);
+            reRandomRate = parse.NumberProvider("m_flReRandomRate", reRandomRate);
+            interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
         private bool HasRunBefore;
@@ -64,13 +64,14 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             timeSinceLastRun += frameTime; // should we do this before or after?
 
             // just assuming that they wont take any negative number
+            var reRandomRate = this.reRandomRate.NextNumber();
             if (reRandomRate > 0f)
             {
                 var lerpOld = particleSystemState.GetControlPoint(cp).Position;
                 var lerpNew = currentPosition + controlPointOffset;
 
                 // exponential fade like all the other lerps
-                var positionBlended = MathUtils.Lerp(interpolation, lerpOld, lerpNew);
+                var positionBlended = MathUtils.Lerp(interpolation.NextNumber(), lerpOld, lerpNew);
 
                 // orientation doesn't lerp in the same way that position does
 

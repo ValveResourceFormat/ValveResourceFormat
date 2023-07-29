@@ -103,6 +103,10 @@ namespace ValveResourceFormat.Serialization
             {
                 return (TEnum)rawValue;
             }
+            else if (rawValue is long v)
+            {
+                return (TEnum)(object)(int)v;
+            }
 
             var strValue = (string)rawValue;
 
