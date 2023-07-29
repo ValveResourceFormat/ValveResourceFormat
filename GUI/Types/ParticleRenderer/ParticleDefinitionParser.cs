@@ -47,7 +47,12 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
     public readonly IVectorProvider VectorProvider(string key, IVectorProvider @default) => GetValueOrDefault(key, VectorProvider, @default);
 
     public readonly T Enum<T>(string k) where T : Enum => Data.GetEnumValue<T>(k);
-    public readonly T Enum<T>(string key, T @default) where T : Enum => GetValueOrDefault(key, Enum<T>, @default);
+    public readonly T Enum<T>(string key, T @default) where T : Enum
+        => GetValueOrDefault(key, Enum<T>, @default);
+
+    public readonly T EnumNormalized<T>(string k) where T : Enum => Data.GetEnumValue<T>(k, true);
+    public readonly T EnumNormalized<T>(string key, T @default) where T : Enum
+        => GetValueOrDefault(key, EnumNormalized<T>, @default);
 
     public readonly ParticleField ParticleField(string k) => (ParticleField)Data.GetIntegerProperty(k);
     public readonly ParticleField ParticleField(string key, ParticleField @default) => GetValueOrDefault(key, ParticleField, @default);

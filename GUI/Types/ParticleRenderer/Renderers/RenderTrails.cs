@@ -36,7 +36,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private static bool wireframe;
 
-        public RenderTrails(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
+        public RenderTrails(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext)
         {
             guiContext = vrfGuiContext;
             shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
@@ -46,69 +46,33 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             string textureName = null;
 
-            if (keyValues.ContainsKey("m_hTexture"))
+            if (parse.Data.ContainsKey("m_hTexture"))
             {
-                textureName = keyValues.GetProperty<string>("m_hTexture");
+                textureName = parse.Data.GetProperty<string>("m_hTexture");
             }
-            else if (keyValues.ContainsKey("m_vecTexturesInput"))
+            else
             {
-                var textures = keyValues.GetArray("m_vecTexturesInput");
-
+                var textures = parse.Array("m_vecTexturesInput");
                 if (textures.Length > 0)
                 {
                     // TODO: Support more than one texture
-                    textureName = textures[0].GetProperty<string>("m_hTexture");
+                    textureName = textures[0].Data.GetProperty<string>("m_hTexture");
                 }
             }
 
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
             spriteSheetData = texture.Data?.GetSpriteSheetData();
 
-            additive = keyValues.GetProperty<bool>("m_bAdditive");
-            if (keyValues.ContainsKey("m_flOverbrightFactor"))
-            {
-                overbrightFactor = keyValues.GetNumberProvider("m_flOverbrightFactor");
-            }
-
-            if (keyValues.ContainsKey("m_nOrientationType"))
-            {
-                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType", normalize: true);
-            }
-
-            if (keyValues.ContainsKey("m_flAnimationRate"))
-            {
-                animationRate = keyValues.GetFloatProperty("m_flAnimationRate");
-            }
-
-            if (keyValues.ContainsKey("m_flFinalTextureScaleU"))
-            {
-                finalTextureScaleU = keyValues.GetFloatProperty("m_flFinalTextureScaleU");
-            }
-
-            if (keyValues.ContainsKey("m_flFinalTextureScaleV"))
-            {
-                finalTextureScaleV = keyValues.GetFloatProperty("m_flFinalTextureScaleV");
-            }
-
-            if (keyValues.ContainsKey("m_flMaxLength"))
-            {
-                maxLength = keyValues.GetFloatProperty("m_flMaxLength");
-            }
-
-            if (keyValues.ContainsKey("m_flLengthFadeInTime"))
-            {
-                lengthFadeInTime = keyValues.GetFloatProperty("m_flLengthFadeInTime");
-            }
-
-            if (keyValues.ContainsKey("m_nAnimationType"))
-            {
-                animationType = keyValues.GetEnumValue<ParticleAnimationType>("m_nAnimationType");
-            }
-
-            if (keyValues.ContainsKey("m_nPrevPntSource"))
-            {
-                prevPositionSource = (ParticleField)keyValues.GetIntegerProperty("m_nPrevPntSource");
-            }
+            additive = parse.Data.GetProperty<bool>("m_bAdditive");
+            overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
+            orientationType = parse.EnumNormalized<ParticleOrientation>("m_nOrientationType", orientationType);
+            animationRate = parse.Float("m_flAnimationRate", animationRate);
+            finalTextureScaleU = parse.Float("m_flFinalTextureScaleU", finalTextureScaleU);
+            finalTextureScaleV = parse.Float("m_flFinalTextureScaleV", finalTextureScaleV);
+            maxLength = parse.Float("m_flMaxLength", maxLength);
+            lengthFadeInTime = parse.Float("m_flLengthFadeInTime", lengthFadeInTime);
+            animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
+            prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
         }
 
         public void SetWireframe(bool isWireframe)

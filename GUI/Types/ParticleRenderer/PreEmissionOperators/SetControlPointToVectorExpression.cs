@@ -15,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             OutputCP = parse.Int32("m_nOutputCP", OutputCP);
             Input1 = parse.VectorProvider("m_vInput1", Input1);
             Input2 = parse.VectorProvider("m_vInput2", Input2);
-            Expression = parse.Enum<VectorExpression>("m_nExpression", Expression);
+            Expression = parse.EnumNormalized<VectorExpression>("m_nExpression", Expression);
         }
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

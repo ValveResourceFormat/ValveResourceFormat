@@ -40,7 +40,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private static bool wireframe;
 
 
-        public RenderSprites(IKeyValueCollection keyValues, VrfGuiContext vrfGuiContext)
+        public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext)
         {
             guiContext = vrfGuiContext;
             shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
@@ -51,64 +51,32 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             string textureName = null;
 
-            if (keyValues.ContainsKey("m_hTexture"))
+            if (parse.Data.ContainsKey("m_hTexture"))
             {
-                textureName = keyValues.GetProperty<string>("m_hTexture");
+                textureName = parse.Data.GetProperty<string>("m_hTexture");
             }
-            else if (keyValues.ContainsKey("m_vecTexturesInput"))
+            else
             {
-                var textures = keyValues.GetArray("m_vecTexturesInput");
-
+                var textures = parse.Array("m_vecTexturesInput");
                 if (textures.Length > 0)
                 {
                     // TODO: Support more than one texture
-                    textureName = textures[0].GetProperty<string>("m_hTexture");
+                    textureName = textures[0].Data.GetProperty<string>("m_hTexture");
                 }
             }
 
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
             spriteSheetData = texture.Data?.GetSpriteSheetData();
 
-            additive = keyValues.GetProperty<bool>("m_bAdditive");
-            if (keyValues.ContainsKey("m_flOverbrightFactor"))
-            {
-                overbrightFactor = keyValues.GetNumberProvider("m_flOverbrightFactor");
-            }
-
-            if (keyValues.ContainsKey("m_nOrientationType"))
-            {
-                orientationType = keyValues.GetEnumValue<ParticleOrientation>("m_nOrientationType", normalize: true);
-            }
-
-            if (keyValues.ContainsKey("m_flAnimationRate"))
-            {
-                animationRate = keyValues.GetFloatProperty("m_flAnimationRate");
-            }
-
-            if (keyValues.ContainsKey("m_flMinSize"))
-            {
-                minSize = keyValues.GetFloatProperty("m_flMinSize");
-            }
-
-            if (keyValues.ContainsKey("m_flMaxSize"))
-            {
-                maxSize = keyValues.GetFloatProperty("m_flMaxSize");
-            }
-
-            if (keyValues.ContainsKey("m_nAnimationType"))
-            {
-                animationType = keyValues.GetEnumValue<ParticleAnimationType>("m_nAnimationType");
-            }
-
-            if (keyValues.ContainsKey("m_flRadiusScale"))
-            {
-                radiusScale = keyValues.GetNumberProvider("m_flRadiusScale");
-            }
-
-            if (keyValues.ContainsKey("m_flAlphaScale"))
-            {
-                alphaScale = keyValues.GetNumberProvider("m_flAlphaScale");
-            }
+            additive = parse.Data.GetProperty<bool>("m_bAdditive");
+            overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
+            orientationType = parse.EnumNormalized<ParticleOrientation>("m_nOrientationType", orientationType);
+            animationRate = parse.Float("m_flAnimationRate", animationRate);
+            minSize = parse.Float("m_flMinSize", minSize);
+            maxSize = parse.Float("m_flMaxSize", maxSize);
+            animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
+            radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
+            alphaScale = parse.NumberProvider("m_flAlphaScale", alphaScale);
         }
 
         public void SetWireframe(bool isWireframe)

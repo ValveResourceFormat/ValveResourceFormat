@@ -107,8 +107,8 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle renderers
-        private static readonly IDictionary<string, Func<IKeyValueCollection, VrfGuiContext, IParticleRenderer>> RendererDictionary
-            = new Dictionary<string, Func<IKeyValueCollection, VrfGuiContext, IParticleRenderer>>
+        private static readonly IDictionary<string, Func<ParticleDefinitionParser, VrfGuiContext, IParticleRenderer>> RendererDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, VrfGuiContext, IParticleRenderer>>
             {
                 ["C_OP_RenderSprites"] = (rendererInfo, vrfGuiContext) => new RenderSprites(rendererInfo, vrfGuiContext),
                 ["C_OP_RenderTrails"] = (rendererInfo, vrfGuiContext) => new RenderTrails(rendererInfo, vrfGuiContext),
@@ -168,7 +168,7 @@ namespace GUI.Types.ParticleRenderer
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
-                renderer = factory(rendererInfo, vrfGuiContext);
+                renderer = factory(new ParticleDefinitionParser(rendererInfo), vrfGuiContext);
                 return true;
             }
 
