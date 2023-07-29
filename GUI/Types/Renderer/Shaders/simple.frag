@@ -32,6 +32,7 @@
 #endif
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
+// BLENDING
 #define F_FULLBRIGHT 0
 #define F_LIT 0
 #define F_UNLIT 0
