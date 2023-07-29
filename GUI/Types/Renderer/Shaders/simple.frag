@@ -170,7 +170,7 @@ uniform float g_flOpacityScale = 1.0;
 #define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay) && F_LIT == 0))
 #define alphaTest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric) || defined(static_overlay)) && (F_BLEND_MODE == 2))
 #define blendTranslucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric) || defined(static_overlay)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
-#define blendMembrane defined(vr_complex) && (F_TRANSLUCENT == 2)
+#define blendMembrane (defined(vr_complex) && (F_TRANSLUCENT == 2))
 
 #if (hasUniformMetalness)
     uniform float g_flMetalness = 0.0;
