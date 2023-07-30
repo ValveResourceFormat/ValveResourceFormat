@@ -81,6 +81,7 @@ namespace GUI.Types.ParticleRenderer
                 ParticleField.TrailLength => particle.TrailLength,
                 ParticleField.CreationTime => particle.CreationTime,
                 ParticleField.Yaw => particle.Rotation.X,
+                ParticleField.ParticleId => particle.ParticleID,
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
                 ParticleField.RollSpeed => particle.RotationSpeed.Z,
