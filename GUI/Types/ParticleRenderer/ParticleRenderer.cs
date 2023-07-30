@@ -110,8 +110,7 @@ namespace GUI.Types.ParticleRenderer
 
             systemRenderState.ParticleCount += 1;
 
-            var initialParticle = particleCollection.Initial[index];
-            initialParticle.Position = systemRenderState.GetControlPoint(0).Position;
+            particleCollection.Initial[index].Position = systemRenderState.GetControlPoint(0).Position;
 
             foreach (var initializer in Initializers)
             {
