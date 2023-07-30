@@ -187,7 +187,7 @@ namespace GUI.Types.Renderer
 
             var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
 
-            var maxMipLevel = 0;
+            var maxMipLevelNotSet = true;
             var minMipLevel = 0;
 
             var maxTextureSize = Settings.Config.MaxTextureSize;
@@ -201,9 +201,10 @@ namespace GUI.Types.Renderer
             {
                 foreach (var (i, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, maxTextureSize))
                 {
-                    if (maxMipLevel == 0)
+                    if (maxMipLevelNotSet)
                     {
-                        maxMipLevel = i;
+                        GL.TexParameter(target, TextureParameterName.TextureMaxLevel, i);
+                        maxMipLevelNotSet = false;
                     }
 
                     minMipLevel = i;
@@ -230,7 +231,6 @@ namespace GUI.Types.Renderer
             }
 
             GL.TexParameter(target, TextureParameterName.TextureBaseLevel, minMipLevel);
-            GL.TexParameter(target, TextureParameterName.TextureMaxLevel, maxMipLevel);
 
             // Dispose texture otherwise we run out of memory
             // TODO: This might conflict when opening multiple files due to shit caching
