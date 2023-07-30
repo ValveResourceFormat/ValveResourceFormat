@@ -325,7 +325,7 @@ namespace GUI.Types.Renderer
                 {
                     node.EnvMaps = node.EnvMaps
                         .OrderByDescending((envMap) => envMap.IndoorOutdoorLevel)
-                        .ThenBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))
+                        .ThenBy((envMap) => Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center))
                         .ToList();
                 }
 
