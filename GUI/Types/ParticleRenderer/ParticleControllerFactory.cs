@@ -20,6 +20,7 @@ namespace GUI.Types.ParticleRenderer
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
                 ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
+                ["C_OP_NoiseEmitter"] = (emitterInfo) => new NoiseEmitter(emitterInfo),
             };
 
         // Register particle initializers
