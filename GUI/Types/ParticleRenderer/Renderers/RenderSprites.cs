@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
 
-        private readonly bool additive;
+        private readonly ParticleBlendMode blendMode;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
         private readonly ParticleOrientation orientationType;
 
@@ -68,7 +68,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
             spriteSheetData = texture.Data?.GetSpriteSheetData();
 
-            additive = parse.Data.GetProperty<bool>("m_bAdditive");
+            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.EnumNormalized<ParticleOrientation>("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
@@ -255,7 +255,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             // Draw it
             GL.Enable(EnableCap.Blend);
 
-            if (additive)
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             }
@@ -303,7 +303,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.UseProgram(0);
             GL.BindVertexArray(0);
 
-            if (additive)
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendEquation(BlendEquationMode.FuncAdd);
             }
