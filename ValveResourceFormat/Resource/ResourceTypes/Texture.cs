@@ -755,15 +755,20 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = Offset + Size;
 
+            // Support max texture size, however if there is no smaller (or equal) mip level for requested size, we have to return the first available level
+            var hasAlreadyReturnedMip = false;
+
             for (var i = NumMipLevels - 1; i >= 0; i--)
             {
                 var width = Width >> i;
                 var height = Height >> i;
 
-                if (i > 0 && (width > maxTextureSize || height > maxTextureSize))
+                if (hasAlreadyReturnedMip && (width > maxTextureSize || height > maxTextureSize))
                 {
                     break;
                 }
+
+                hasAlreadyReturnedMip = true;
 
                 var uncompressedSize = CalculateBufferSizeForMipLevel(i);
                 var output = buffer.AsSpan(0, uncompressedSize);
