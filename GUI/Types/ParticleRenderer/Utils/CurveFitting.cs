@@ -197,8 +197,10 @@ namespace GUI.Types.ParticleRenderer.Utils
                         return Math.Clamp(value, CurveDomainMin.Y, CurveDomainMax.Y);
                     }
                 }
+
+                // I guess we just return the last point?
+                return Math.Clamp(CurveSegments[^1].End.Y, CurveDomainMin.Y, CurveDomainMax.Y);
             }
-            throw new IndexOutOfRangeException("Could not find positions in which the curve would work.");
         }
     }
 }
