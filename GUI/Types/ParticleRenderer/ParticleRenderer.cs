@@ -99,7 +99,6 @@ namespace GUI.Types.ParticleRenderer
             var index = particleCollection.Add();
             if (index < 0)
             {
-                Console.WriteLine("Out of space in particle bag");
                 return;
             }
 
@@ -180,15 +179,6 @@ namespace GUI.Types.ParticleRenderer
 
             // Remove all dead particles
             particleCollection.PruneExpired();
-
-#if DEBUG
-            // Some particles may not be being killed correctly,
-            // break in debugger here to verify whether some operator is not marking particles as killed
-            if (particleCollection.Count > 5000)
-            {
-                System.Diagnostics.Debugger.Break();
-            }
-#endif
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
