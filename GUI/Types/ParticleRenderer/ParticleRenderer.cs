@@ -77,7 +77,7 @@ namespace GUI.Types.ParticleRenderer
         {
             LocalBoundingBox = new AABB(
                 parser.Vector3("m_BoundingBoxMin", new Vector3(-10)),
-                parser.Vector3("m_BoundingBoxMin", new Vector3(10))
+                parser.Vector3("m_BoundingBoxMax", new Vector3(10))
             );
         }
 
