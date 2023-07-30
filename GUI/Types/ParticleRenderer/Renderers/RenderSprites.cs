@@ -27,6 +27,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
 
+        private readonly bool animateInFps;
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
         private readonly ParticleOrientation orientationType;
@@ -66,6 +67,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
             spriteSheetData = texture.Data?.GetSpriteSheetData();
 
+            animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.EnumNormalized<ParticleOrientation>("m_nOrientationType", orientationType);
@@ -193,7 +195,14 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                     if (sequence.Frames.Length > 1)
                     {
-                        frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+                        if (animateInFps)
+                        {
+                            frameId = (int)Math.Floor(animationRate * animationTime);
+                        }
+                        else
+                        {
+                            frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+                        }
 
                         if (sequence.Clamp)
                         {
