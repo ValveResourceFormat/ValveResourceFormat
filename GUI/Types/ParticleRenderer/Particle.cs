@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer
         public Vector3 Position { get; set; } = Vector3.Zero;
         public Vector3 PositionPrevious { get; set; } = Vector3.Zero; // Used for velocity computation
         public float Age { get; set; } = 0f;
-        public float Lifetime { get; set; }
+        public float Lifetime { get; set; } = 1f;
 
         public float Alpha { get; set; } = 1.0f;
         public float AlphaAlternate { get; set; } = 1.0f;

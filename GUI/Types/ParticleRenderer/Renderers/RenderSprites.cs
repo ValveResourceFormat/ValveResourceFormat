@@ -206,8 +206,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
 
                     // Lerp frame coords and size
-                    var offset = currentImage.CroppedMin;
-                    var scale = currentImage.CroppedMax - currentImage.CroppedMin;
+                    var offset = currentImage.UncroppedMin;
+                    var scale = currentImage.UncroppedMax - currentImage.UncroppedMin;
 
                     rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X;
                     rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + scale.Y;
