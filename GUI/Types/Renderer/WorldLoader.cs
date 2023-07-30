@@ -95,23 +95,45 @@ namespace GUI.Types.Renderer
 
             scene.CalculateEnvironmentMaps();
 
+            LoadWorldPhysics(scene);
+
+            return result;
+        }
+
+        public void LoadWorldPhysics(Scene scene)
+        {
             // TODO: Ideally we would use the vrman files to find relevant files.
-            var worldPhysicsPath = "world_physics.vphys_c";
+            string worldPhysicsFolder = null;
 
             if (Path.GetExtension(guiContext.FileName) == ".vmap_c")
             {
-                worldPhysicsPath = Path.Join(guiContext.FileName[..^7], "world_physics.vphys_c");
+                worldPhysicsFolder = guiContext.FileName[..^7];
             }
             else
             {
-                worldPhysicsPath = Path.Join(Path.GetDirectoryName(guiContext.FileName), "world_physics.vphys_c");
+                worldPhysicsFolder = Path.GetDirectoryName(guiContext.FileName);
             }
 
-            var physResource = guiContext.LoadFileByAnyMeansNecessary(worldPhysicsPath);
+            PhysAggregateData phys = null;
+            var physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
+
             if (physResource != null)
             {
-                var phys = (PhysAggregateData)physResource.DataBlock;
+                phys = (PhysAggregateData)physResource.GetBlockByType(BlockType.PHYS);
+            }
+            else
+            {
+                physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(worldPhysicsFolder, "world_physics.vphys_c"));
 
+                if (physResource != null)
+                {
+                    phys = (PhysAggregateData)physResource.DataBlock;
+                }
+            }
+
+
+            if (phys != null)
+            {
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys))
                 {
                     physSceneNode.LayerName = "world_layer_base";
@@ -119,8 +141,6 @@ namespace GUI.Types.Renderer
                     scene.Add(physSceneNode, false);
                 }
             }
-
-            return result;
         }
 
         private readonly Dictionary<string, string> LightmapNameToUniformName = new()
