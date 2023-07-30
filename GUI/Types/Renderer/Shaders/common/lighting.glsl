@@ -21,7 +21,6 @@
 #endif
 
 
-
 uniform mat4 vLightPosition;
 uniform vec4 vLightColor;
 
@@ -36,14 +35,10 @@ vec3 getSunColor()
 }
 
 
-
-
-
 // This should contain our direct lighting loop
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     vec3 lightVector = normalize(-getSunDir());
-
 
     // Lighting
     float visibility = 1.0;
@@ -72,12 +67,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
         CalculateShading(lighting, lightVector, vec3(visibility), mat);
     }
 }
-
-
-
-
-
-
 
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -127,8 +116,6 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
 #endif
 
 
-
-
 void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     lighting.DiffuseIndirect = vec3(0.3);
@@ -146,14 +133,11 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
 #endif
 
-
     // Environment Maps
 #if defined(S_SPECULAR) && (S_SPECULAR == 1)
     lighting.SpecularIndirect = GetEnvironment(mat, lighting);
 #endif
 }
-
-
 
 
 uniform float g_flAmbientOcclusionDirectDiffuse = 1.0;

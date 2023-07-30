@@ -17,6 +17,15 @@ namespace GUI.Types.Renderer
 
         public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 
+        public IEnumerable<string> GetAllUniformNames()
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
+            for (var i = 0; i < count; i++)
+            {
+                yield return GL.GetActiveUniform(Program, i, out var size, out var uniformType);
+            }
+        }
+
         public int GetUniformLocation(string name)
         {
             if (Uniforms.TryGetValue(name, out var value))

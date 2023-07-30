@@ -274,7 +274,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         float blendFactor = vColorBlendValues.r;
         vec4 blendModTexel = texture(g_tMask, texCoordB);
 
-        float softnessPaint = vColorBlendValues.g;
+        #if defined(csgo_simple_2way_blend)
+            float softnessPaint = vColorBlendValues.a;
+        #else
+            float softnessPaint = vColorBlendValues.g;
+        #endif
 
         blendFactor = applyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
     #else

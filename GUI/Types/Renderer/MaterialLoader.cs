@@ -363,26 +363,42 @@ namespace GUI.Types.Renderer
 
         private void ApplyMaterialDefaults(RenderMaterial mat)
         {
-            if (!mat.Textures.ContainsKey("g_tColor"))
+            foreach (var name in mat.Shader.GetAllUniformNames())
             {
-                mat.Textures["g_tColor"] = GetErrorTexture();
-            }
+                // Maybe able to grab defaults from glsl?
+                var isTexture = name.StartsWith("g_t", StringComparison.OrdinalIgnoreCase);
+                var isVector = name.StartsWith("g_v", StringComparison.OrdinalIgnoreCase);
+                var isScalar = name.StartsWith("g_fl", StringComparison.OrdinalIgnoreCase);
 
-            if (!mat.Textures.ContainsKey("g_tNormal"))
-            {
-                mat.Textures["g_tNormal"] = GetDefaultNormal();
+                if (isTexture && !mat.Textures.ContainsKey(name))
+                {
+                    mat.Textures[name] = name switch
+                    {
+                        _ when name.Contains("color", StringComparison.CurrentCultureIgnoreCase) => GetErrorTexture(),
+                        _ when name.Contains("normal", StringComparison.CurrentCultureIgnoreCase) => GetDefaultNormal(),
+                        _ when name.Contains("mask", StringComparison.CurrentCultureIgnoreCase) => GetDefaultMask(),
+                        _ => GetErrorTexture(),
+                    };
+                }
+                else if (isVector && !mat.Material.VectorParams.ContainsKey(name))
+                {
+                    mat.Material.VectorParams[name] = name switch
+                    {
+                        "g_vTexCoordScale" => Vector4.One,
+                        "g_vTexCoordOffset" => Vector4.Zero,
+                        "g_vColorTint" => Vector4.One,
+                        _ => Vector4.Zero,
+                    };
+                }
+                else if (isScalar && !mat.Material.FloatParams.ContainsKey(name))
+                {
+                    mat.Material.FloatParams[name] = name switch
+                    {
+                        "g_flMetalness" or "g_flHeightMapScale1" => 0f,
+                        _ => 0f,
+                    };
+                }
             }
-
-            if (!mat.Textures.ContainsKey("g_tTintMask"))
-            {
-                mat.Textures["g_tTintMask"] = GetDefaultMask();
-            }
-
-            // Prevent materials from sharing state when these values are missing
-            mat.Material.VectorParams.TryAdd("g_vTexCoordScale", Vector4.One);
-            mat.Material.VectorParams.TryAdd("g_vTexCoordOffset", Vector4.Zero);
-            mat.Material.VectorParams.TryAdd("g_vColorTint", Vector4.One);
-            mat.Material.FloatParams.TryAdd("g_flMetalness", 0f);
         }
 
         public RenderTexture GetErrorTexture()

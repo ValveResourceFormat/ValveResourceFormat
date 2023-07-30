@@ -336,6 +336,9 @@ namespace GUI.Types.Renderer
                     return "multiblend";
                 case "csgo_effects.vfx":
                     return "csgo_effects";
+                case "csgo_environment.vfx":
+                case "csgo_environment_blend.vfx":
+                    return "csgo_environment";
                 default:
                     return "simple";
             }

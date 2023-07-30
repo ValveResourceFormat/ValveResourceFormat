@@ -35,6 +35,11 @@ layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;
 in vec2 vTEXCOORD;
 
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    in vec4 vTEXCOORD2;
+    out vec2 vTexCoord2;
+#endif
+
 #include "common/LightingConstants.glsl"
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
@@ -45,30 +50,30 @@ in vec2 vTEXCOORD;
     out vec4 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend)
-    #if defined(simple_2way_blend)
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
+    in vec3 vTANGENT;
+#endif
+
+#if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)
+    #if defined(vr_simple_2way_blend) || defined(vr_blend)
         #define vBLEND_COLOR vTEXCOORD2
         #if defined(vr_blend)
             #define vBLEND_ALPHA vTEXCOORD3
             in vec4 vBLEND_ALPHA;
         #endif
     #else
-        // ligthtmappedgeneric - real semantic index is 4
+        // lightmappedgeneric, csgo_simple_2way_blend
+        // real semantic index is 4
         #define vBLEND_COLOR vTEXCOORD3
     #endif
     in vec4 vBLEND_COLOR;
     out vec4 vColorBlendValues;
 #endif
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    in vec3 vTANGENT;
-#endif
+
 #if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vCOLOR;
 #endif
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    in vec4 vTEXCOORD2;
-    out vec2 vTexCoord2;
-#endif
+
 #if (F_FOLIAGE_ANIMATION > 0)
     in vec4 vTEXCOORD1;
     #if !((F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1))
@@ -243,9 +248,13 @@ void main()
     vDetailTexCoords = RotateVector2D(detailCoords, g_flDetailTexCoordRotation, g_vDetailTexCoordScale.xy, g_vDetailTexCoordOffset.xy);
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend)
-    vColorBlendValues = vBLEND_COLOR / 255.0f;
-    // todo: check csgo
+#if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)
+    vColorBlendValues = vBLEND_COLOR;
+
+    #if defined(csgo_simple_2way_blend)
+        vColorBlendValues /= 255.0;
+    #endif
+
     #if defined(vr_blend)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
     #endif
