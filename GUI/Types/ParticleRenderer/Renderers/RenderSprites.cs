@@ -1,12 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
+using System;
+using System.Collections.Generic;
+using System.Numerics;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Renderers
 {
@@ -29,7 +27,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
 
-        private readonly ParticleBlendMode blendMode;
+        private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
         private readonly ParticleOrientation orientationType;
 
@@ -259,7 +257,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             }
-            else
+            else /* if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA) */
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
