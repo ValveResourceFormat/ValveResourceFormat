@@ -288,11 +288,30 @@ namespace GUI.Types.Renderer
                 else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
                 {
                     var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
+                    var tintColor = Vector3.One;
+
+                    if (classname == "env_sky")
+                    {
+                        var skyTintColor = entity.GetProperty("tint_color");
+                        tintColor = skyTintColor?.Data switch
+                        {
+                            byte[] col32 when skyTintColor.Type == EntityFieldType.Color32 => new Vector3(col32[0], col32[1], col32[2]) / 255.0f,
+                            Vector3 vec3 => vec3 / 255.0f,
+                            _ => Vector3.One,
+                        };
+                    }
+
+                    var rotation = EntityTransformHelper.CalculateTransformationMatrix(entity) with
+                    {
+                        Translation = Vector3.Zero
+                    };
                     using var skyMaterial = guiContext.LoadFileByAnyMeansNecessary(skyname + "_c");
                     scene.Sky = new SceneSky(scene)
                     {
                         Name = skyname,
                         LayerName = layerName,
+                        Tint = tintColor,
+                        Transform = rotation,
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                     };
                 }

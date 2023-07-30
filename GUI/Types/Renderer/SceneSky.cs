@@ -1,9 +1,11 @@
+using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
     class SceneSky : SceneNode
     {
+        public Vector3 Tint { get; set; } = Vector3.One;
         public RenderMaterial Material { get; set; }
         private readonly int boxVao;
         private readonly float[] boxTriangles = {
@@ -87,6 +89,8 @@ namespace GUI.Types.Renderer
             context.Camera.SetPerViewUniforms(Material.Shader);
 
             Material.Render();
+            Material.Shader.SetUniform3("g_vTint", Tint);
+            Material.Shader.SetUniform4x4("g_matSkyRotation", Transform);
             GL.DrawArrays(PrimitiveType.Triangles, 0, boxTriangles.Length / 3);
             Material.PostRender();
 
