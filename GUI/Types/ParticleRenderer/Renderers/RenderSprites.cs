@@ -191,15 +191,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
                         _ => particle.Age,
                     };
 
-                    var frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+                    var frameId = 0;
 
-                    if (sequence.Clamp)
+                    if (sequence.Frames.Length > 1)
                     {
-                        frameId = Math.Min(frameId, sequence.Frames.Length - 1);
-                    }
-                    else
-                    {
-                        frameId %= sequence.Frames.Length;
+                        frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+
+                        if (sequence.Clamp)
+                        {
+                            frameId = Math.Min(frameId, sequence.Frames.Length - 1);
+                        }
+                        else
+                        {
+                            frameId %= sequence.Frames.Length;
+                        }
                     }
 
                     var currentFrame = sequence.Frames[frameId];
