@@ -108,16 +108,9 @@ namespace GUI.Types.ParticleRenderer
                 return;
             }
 
-            particleCollection.Current[index].ParticleID = particlesEmitted++;
             systemRenderState.ParticleCount += 1;
-            InitializeParticle(index);
-        }
 
-        private void InitializeParticle(int index)
-        {
             var initialParticle = particleCollection.Initial[index];
-            initialParticle.Age = 0f;
-            initialParticle.MarkedAsKilled = false;
             initialParticle.Position = systemRenderState.GetControlPoint(0).Position;
 
             foreach (var initializer in Initializers)
@@ -126,6 +119,7 @@ namespace GUI.Types.ParticleRenderer
             }
 
             particleCollection.Current[index] = particleCollection.Initial[index];
+            particleCollection.Current[index].ParticleID = particlesEmitted++;
         }
 
         public void Stop()
