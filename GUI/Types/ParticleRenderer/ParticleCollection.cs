@@ -39,21 +39,19 @@ namespace GUI.Types.ParticleRenderer
 
         public void PruneExpired()
         {
-            // TODO: This alters the order of the particles so they are no longer in creation order after something expires. Fix that.
-            for (var i = 0; i < Count;)
+            var alive = 0;
+            for (var i = 0; i < Count; i++)
             {
-                // TODO: Do the age test only if we know that we have operators that can kill, and move the age incrementing outside of those operators.
-                // That way we won't double-increment
-                if (current[i].MarkedAsKilled)
+                if (!current[i].MarkedAsKilled)
                 {
-                    MoveParticleIndex(Count - 1, i);
-                    Count--;
-                }
-                else
-                {
-                    ++i;
+                    if (i != alive)
+                    {
+                        MoveParticleIndex(i, alive);
+                    }
+                    alive++;
                 }
             }
+            Count = alive;
         }
 
         public void Clear()
