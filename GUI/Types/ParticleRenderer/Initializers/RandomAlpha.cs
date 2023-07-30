@@ -21,7 +21,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
             // TODO: Consistent rng
             var alpha = Random.Shared.Next(alphaMin, alphaMax) / 255f;
 
-            particle.InitialAlpha = alpha;
             particle.Alpha = alpha;
 
             return particle;

@@ -1,7 +1,4 @@
-using System;
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -33,9 +30,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             var sign = Vector3.Dot(planeNormal, position - pointOnPlane);
             return sign < 0;
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 if (CulledByPlane(particle.Position, particleSystemState))
                 {

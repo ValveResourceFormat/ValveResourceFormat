@@ -1,3 +1,4 @@
+using GUI.Utils;
 using System;
 using System.Numerics;
 using ValveResourceFormat.Serialization;
@@ -10,18 +11,6 @@ namespace GUI.Types.ParticleRenderer
         public static ref Particle Default => ref @default;
 
         public int ParticleCount { get; set; } // starts at 0
-
-        // Initial properties (set by initializers, and read whenever we want the "initial value" instead of the current one)
-        public Vector3 InitialPosition { get; set; } = Vector3.Zero;
-        public float InitialAlpha { get; set; } = 1.0f;
-        public Vector3 InitialColor { get; set; } = Vector3.One;
-        public float InitialLifetime { get; set; } = 1.0f;
-        public float InitialRadius { get; set; } = 1.0f;
-        public Vector3 InitialRotation { get; set; } = Vector3.Zero;
-        public Vector3 InitialRotationSpeed { get; set; } = Vector3.Zero;
-        public int InitialSequence { get; set; } = 0;
-        public int InitialSequence2 { get; set; } = 0;
-
 
         // Varying properties (read from initializers but then change afterwards)
         public Vector3 Position { get; set; } = Vector3.Zero;
@@ -67,71 +56,46 @@ namespace GUI.Types.ParticleRenderer
         public float CreationTime { get; set; } // todo
 
         public bool MarkedAsKilled { get; set; } = false;
+        public int Index = 0;
+
         public Particle(IKeyValueCollection baseProperties)
         {
-            Age = 0;
-            Alpha = 1.0f;
-            AlphaAlternate = 1.0f;
-            Rotation = Vector3.Zero;
-            RotationSpeed = Vector3.Zero;
-            Velocity = Vector3.Zero;
-            TrailLength = 1;
-            Sequence = 0;
-            Sequence2 = 0;
-            CreationTime = 0;
-            AlphaWindowThreshold = 0;
-            ScratchFloat0 = 0.0f;
-            ScratchFloat1 = 0.0f;
-            ScratchFloat2 = 0.0f;
-
-            InitialSequence = 0;
-            InitialSequence2 = 0;
-
-            // Yeah, naming these "InitialColor" and stuff will make this more confusing, but it will make everything else much more intuitive.
             if (baseProperties.ContainsKey("m_ConstantColor"))
             {
                 var vectorValues = baseProperties.GetIntegerArray("m_ConstantColor");
-                InitialColor = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-                InitialAlpha = vectorValues[3] / 255f; // presumably
+                Color = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
+                Alpha = vectorValues[3] / 255f; // presumably
             }
 
             if (baseProperties.ContainsKey("m_flConstantRadius"))
             {
-                InitialRadius = baseProperties.GetFloatProperty("m_flConstantRadius");
+                Radius = baseProperties.GetFloatProperty("m_flConstantRadius");
             }
 
             if (baseProperties.ContainsKey("m_flConstantLifespan"))
             {
-                InitialLifetime = baseProperties.GetFloatProperty("m_flConstantLifespan");
+                Lifetime = baseProperties.GetFloatProperty("m_flConstantLifespan");
             }
 
             if (baseProperties.ContainsKey("m_flConstantRotation"))
             {
-                InitialRotation = new Vector3(0.0f, 0.0f, baseProperties.GetFloatProperty("m_flConstantRotation"));
+                Rotation = new Vector3(0.0f, 0.0f, baseProperties.GetFloatProperty("m_flConstantRotation"));
             }
 
             if (baseProperties.ContainsKey("m_flConstantRotationSpeed"))
             {
-                InitialRotationSpeed = new Vector3(0.0f, 0.0f, baseProperties.GetFloatProperty("m_flConstantRotationSpeed"));
+                RotationSpeed = new Vector3(0.0f, 0.0f, baseProperties.GetFloatProperty("m_flConstantRotationSpeed"));
             }
 
             if (baseProperties.ContainsKey("m_nConstantSequenceNumber"))
             {
-                InitialSequence = baseProperties.GetInt32Property("m_nConstantSequenceNumber");
+                Sequence = baseProperties.GetInt32Property("m_nConstantSequenceNumber");
             }
 
             if (baseProperties.ContainsKey("m_nConstantSequenceNumber1"))
             {
-                InitialSequence2 = baseProperties.GetInt32Property("m_nConstantSequenceNumber1");
+                Sequence2 = baseProperties.GetInt32Property("m_nConstantSequenceNumber1");
             }
-
-            Color = InitialColor;
-            Lifetime = InitialLifetime;
-            Radius = InitialRadius;
-            Rotation = InitialRotation;
-            RotationSpeed = InitialRotationSpeed;
-            Sequence = InitialSequence;
-            Sequence2 = InitialSequence2;
         }
 
         public Matrix4x4 GetTransformationMatrix(float radiusScale = 1f)
@@ -144,7 +108,7 @@ namespace GUI.Types.ParticleRenderer
 
         public Matrix4x4 GetRotationMatrix()
         {
-            var rotationMatrix = Matrix4x4.Multiply(Matrix4x4.CreateRotationZ(Rotation.Z), Matrix4x4.CreateRotationY(Rotation.Y));
+            var rotationMatrix = Matrix4x4.Multiply(Matrix4x4.CreateRotationZ(MathUtils.ToRadians(Rotation.Z)), Matrix4x4.CreateRotationY(MathUtils.ToRadians(Rotation.Y)));
             return rotationMatrix;
         }
 

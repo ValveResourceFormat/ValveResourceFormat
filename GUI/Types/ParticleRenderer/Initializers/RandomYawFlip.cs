@@ -1,6 +1,5 @@
 using System;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
@@ -17,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             if (Random.Shared.NextSingle() > percent)
             {
-                particle.SetInitialScalar(ParticleField.Yaw, particle.GetInitialScalar(ParticleField.Yaw) + MathF.PI * 0.5f);
+                particle.SetScalar(ParticleField.Yaw, particle.GetScalar(ParticleField.Yaw) + MathF.PI * 0.5f);
             }
 
             return particle;

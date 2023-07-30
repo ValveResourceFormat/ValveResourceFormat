@@ -1,9 +1,7 @@
-using System;
-using System.Numerics;
-using System.Collections.Generic;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
+using System.Numerics;
 using ValveResourceFormat;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -36,9 +34,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             easeInOut = parse.Boolean("m_bEaseInOut", easeInOut);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // TODO: Consistent rng
                 var newColor = easeInOut
@@ -52,7 +50,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.InitialColor, newColor));
+                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.GetInitialVector(particles, ParticleField.Color), newColor));
                 }
             }
         }

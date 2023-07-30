@@ -38,7 +38,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             var output = MathUtils.RemapRange(particleCount, inputMin, inputMax, outputMin, outputMax);
 
-            particle.SetInitialScalar(FieldOutput, particle.ModifyScalarBySetMethod(FieldOutput, output, setMethod));
+            particle.SetScalar(FieldOutput, output);
 
             return particle;
         }

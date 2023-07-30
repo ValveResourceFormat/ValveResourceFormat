@@ -1,7 +1,6 @@
 using System;
 using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -217,99 +216,31 @@ namespace GUI.Types.ParticleRenderer
         }
 
         // Initial Scalars
-        public static float GetInitialScalar(this ref Particle particle, ParticleField field)
+        public static float GetInitialScalar(this Particle particle, ParticleCollection particles, ParticleField field)
         {
-            return field switch
-            {
-                ParticleField.Alpha => particle.InitialAlpha,
-                ParticleField.Radius => particle.InitialRadius,
-                ParticleField.Yaw => particle.InitialRotation.X,
-                ParticleField.Pitch => particle.InitialRotation.Y,
-                ParticleField.Roll => particle.InitialRotation.Z,
-                ParticleField.RollSpeed => particle.InitialRotationSpeed.Z,
-                _ => particle.GetScalar(field),
-            };
-        }
-        public static void SetInitialScalar(this ref Particle particle, ParticleField field, float value)
-        {
-            switch (field)
-            {
-                case ParticleField.Radius:
-                    particle.InitialRadius = value;
-                    particle.Radius = value;
-                    break;
-                case ParticleField.Alpha:
-                    particle.InitialAlpha = value;
-                    particle.Alpha = value;
-                    break;
-                case ParticleField.RollSpeed:
-                    particle.InitialRotationSpeed = new Vector3(particle.InitialRotationSpeed.X, particle.InitialRotationSpeed.Y, value);
-                    particle.RotationSpeed = particle.InitialRotationSpeed;
-                    break;
-                case ParticleField.Yaw:
-                    particle.InitialRotation = new Vector3(value, particle.InitialRotation.Y, particle.InitialRotation.Z);
-                    particle.Rotation = particle.InitialRotation;
-                    break;
-                case ParticleField.Pitch:
-                    particle.InitialRotation = new Vector3(particle.InitialRotation.X, value, particle.InitialRotation.Z);
-                    particle.Rotation = particle.InitialRotation;
-                    break;
-                case ParticleField.Roll:
-                    particle.InitialRotation = new Vector3(particle.InitialRotation.X, particle.InitialRotation.Y, value);
-                    particle.Rotation = particle.InitialRotation;
-                    break;
-                case ParticleField.LifeDuration:
-                    particle.InitialLifetime = value;
-                    particle.Lifetime = value;
-                    break;
-                default:
-                    particle.SetScalar(field, value);
-                    break;
-            }
+            var initialParticle = particles.Initial[particle.Index];
+            return initialParticle.GetScalar(field);
         }
 
         // Initial vector
-        public static Vector3 GetInitialVector(this ref Particle particle, ParticleField field)
+        public static Vector3 GetInitialVector(this Particle particle, ParticleCollection particles, ParticleField field)
         {
-            return field switch
-            {
-                ParticleField.Position => particle.InitialPosition,
-                ParticleField.PositionPrevious => particle.InitialPosition, // I assume?
-                ParticleField.Color => particle.InitialColor,
-                _ => particle.GetVector(field),
-            };
+            var initialParticle = particles.Initial[particle.Index];
+            return initialParticle.GetVector(field);
         }
-        public static void SetInitialVector(this ref Particle particle, ParticleField field, Vector3 value)
-        {
-            switch (field)
-            {
-                case ParticleField.Color:
-                    particle.InitialColor = value;
-                    particle.Color = value;
-                    break;
-                case ParticleField.Position:
-                    particle.InitialPosition = value;
-                    particle.Position = value;
-                    break;
-                default:
-                    particle.SetVector(field, value);
-                    break;
-            }
-        }
-
 
         // Set methods, shared by a bunch of different operators and initializers
-        public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleField field, float value, ParticleSetMethod setMethod)
+        public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
         {
             switch (setMethod)
             {
                 case ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE:
                     break;
                 case ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE:
-                    value *= particle.GetInitialScalar(field);
+                    value *= particle.GetInitialScalar(particles, field);
                     break;
                 case ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE:
-                    value += particle.GetInitialScalar(field);
+                    value += particle.GetInitialScalar(particles, field);
                     break;
                 case ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE:
                     value *= particle.GetScalar(field);
@@ -326,17 +257,18 @@ namespace GUI.Types.ParticleRenderer
             }
             return value;
         }
-        public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
+
+        public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
         {
             switch (setMethod)
             {
                 case ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE:
                     break;
                 case ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE:
-                    value *= particle.GetInitialVector(field);
+                    value *= particle.GetInitialVector(particles, field);
                     break;
                 case ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE:
-                    value += particle.GetInitialVector(field);
+                    value += particle.GetInitialVector(particles, field);
                     break;
                 case ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE:
                     value *= particle.GetVector(field);

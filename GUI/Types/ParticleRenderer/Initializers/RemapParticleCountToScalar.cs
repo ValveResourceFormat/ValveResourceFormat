@@ -1,7 +1,6 @@
-using System;
-using GUI.Utils;
 using GUI.Types.ParticleRenderer.Utils;
-using ValveResourceFormat.Serialization;
+using GUI.Utils;
+using System;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Initializers
@@ -67,7 +66,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                     ? particle.GetScalar(FieldOutput) * output
                     : output;
 
-            particle.SetInitialScalar(FieldOutput, particle.ModifyScalarBySetMethod(FieldOutput, output, setMethod));
+            particle.SetScalar(FieldOutput, output);
 
             // Why are we returning an object that we already use a ref for?
             return particle;

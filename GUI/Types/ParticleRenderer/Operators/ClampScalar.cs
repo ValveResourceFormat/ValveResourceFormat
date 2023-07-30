@@ -1,7 +1,6 @@
-using System;
 using GUI.Utils;
+using System;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -18,9 +17,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var min = outputMin.NextNumber(ref particle, particleSystemState);
                 var max = outputMax.NextNumber(ref particle, particleSystemState);

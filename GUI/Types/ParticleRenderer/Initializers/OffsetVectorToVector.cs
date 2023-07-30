@@ -1,7 +1,6 @@
-using System.Numerics;
 using GUI.Utils;
+using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
@@ -22,11 +21,11 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var input = particle.GetInitialVector(FieldInput);
+            var input = particle.GetVector(FieldInput);
 
             var offset = MathUtils.RandomBetweenPerComponent(OutputMin, OutputMax);
 
-            particle.SetInitialVector(FieldOutput, input + offset);
+            particle.SetVector(FieldOutput, input + offset);
 
             return particle;
         }

@@ -1,6 +1,5 @@
-using System;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -19,9 +18,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             proportional = parse.Boolean("m_bProportional", proportional);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // TODO: Consistent rng
                 var fadeInTime = MathUtils.RandomWithExponentBetween(randomExponent, fadeInTimeMin, fadeInTimeMax);
@@ -32,7 +31,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 if (time <= fadeInTime)
                 {
-                    var newAlpha = (time / fadeInTime) * particle.InitialAlpha;
+                    var newAlpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
                     particle.Alpha = newAlpha;
                 }
             }

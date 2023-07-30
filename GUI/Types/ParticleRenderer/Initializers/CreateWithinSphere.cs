@@ -42,9 +42,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
-            particle.InitialPosition += direction * distance;
-            particle.Position = particle.InitialPosition;
-
+            particle.Position += direction * distance;
             particle.Velocity = (direction * speed) + localCoordinateSystemSpeed;
 
             return particle;

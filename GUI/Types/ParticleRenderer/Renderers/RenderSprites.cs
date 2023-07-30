@@ -129,22 +129,19 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
         }
 
-        private void UpdateVertices(ParticleBag particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
+        private void UpdateVertices(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
         {
-            var particles = particleBag.LiveParticles;
-
             // Create billboarding rotation (always facing camera)
             Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _);
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             // Update vertex buffer
-            EnsureSpaceForVertices(particles.Length * 4);
+            EnsureSpaceForVertices(particles.Count * 4);
 
-            for (var i = 0; i < particles.Length; ++i)
+            var i = 0;
+            foreach (ref var particle in particles.Current)
             {
-                var particle = particles[i];
-
                 var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
                 // Positions
@@ -221,13 +218,15 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     rawVertices[quadStart + (VertexSize * 3) + 7] = 1;
                     rawVertices[quadStart + (VertexSize * 3) + 8] = 1;
                 }
+
+                i++;
             }
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, particleBag.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
         }
 
-        public void Render(ParticleBag particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
             if (particleBag.Count == 0)
             {

@@ -1,7 +1,5 @@
-using System;
 using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -17,9 +15,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var vector = particle.GetVector(OutputField);
                 vector = Vector3.Normalize(vector) * Scale;

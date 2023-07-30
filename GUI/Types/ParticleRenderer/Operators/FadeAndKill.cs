@@ -1,6 +1,5 @@
-using System;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -24,9 +23,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
 
@@ -36,7 +35,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
                     // Interpolate from startAlpha to constantAlpha
-                    particle.Alpha = MathUtils.Lerp(blend, startAlpha, particle.InitialAlpha);
+                    particle.Alpha = MathUtils.Lerp(blend, startAlpha, particle.GetInitialScalar(particles, ParticleField.Alpha));
                 }
 
                 // If fading out
@@ -45,7 +44,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
                     // Interpolate from constantAlpha to end alpha
-                    particle.Alpha = MathUtils.Lerp(blend, particle.InitialAlpha, endAlpha);
+                    particle.Alpha = MathUtils.Lerp(blend, particle.GetInitialScalar(particles, ParticleField.Alpha), endAlpha);
                 }
 
                 if (time >= endFadeOutTime)

@@ -1,9 +1,6 @@
-using System;
-using System.Numerics;
-using System.Collections.Generic;
 using GUI.Utils;
+using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -39,9 +36,9 @@ namespace GUI.Types.ParticleRenderer.Operators
                 vector.Z * new Vector3(rotatedMatrix.M31, rotatedMatrix.M32, rotatedMatrix.M33);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // TODO: Consistent rng
                 var axis = Vector3.Normalize(MathUtils.RandomBetween(RotAxisMin, RotAxisMax));

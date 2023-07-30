@@ -1,9 +1,7 @@
+using GUI.Utils;
 using System;
 using System.Numerics;
-using System.Collections.Generic;
-using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -41,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Remove expired particles
             /*var particlesToRemove = particleRates.Keys.Except(particle).ToList();
@@ -52,7 +50,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             }*/
 
             // Update remaining particles
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // TODO: Consistent rng
                 var rate = MathUtils.RandomBetweenPerComponent(RateMin, RateMax);
@@ -112,9 +110,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 Vector3 delta;
                 delta.X = MathF.Sin(((particle.Age * frequency.X * oscillationMultiplier) + oscillationOffset) * MathF.PI);

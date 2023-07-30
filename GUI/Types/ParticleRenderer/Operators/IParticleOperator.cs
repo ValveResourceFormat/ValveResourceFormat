@@ -4,6 +4,6 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     interface IParticleOperator
     {
-        void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState);
+        void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState);
     }
 }

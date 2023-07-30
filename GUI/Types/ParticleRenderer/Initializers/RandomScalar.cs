@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var value = MathUtils.RandomWithExponentBetween(exponent, scalarMin, scalarMax);
 
-            particle.SetInitialScalar(FieldOutput, value);
+            particle.SetScalar(FieldOutput, value);
 
             return particle;
         }

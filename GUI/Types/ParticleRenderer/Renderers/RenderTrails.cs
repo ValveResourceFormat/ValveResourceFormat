@@ -112,9 +112,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        public void Render(ParticleBag particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
-            var particles = particleBag.LiveParticles;
+            var particles = particleBag.Current;
 
             GL.Enable(EnableCap.Blend);
 

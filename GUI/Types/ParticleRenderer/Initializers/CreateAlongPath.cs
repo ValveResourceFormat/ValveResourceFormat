@@ -1,6 +1,6 @@
+using GUI.Utils;
 using System;
 using System.Numerics;
-using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
@@ -77,7 +77,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 
-            particle.SetInitialVector(ParticleField.Position, particlePosition);
+            particle.SetVector(ParticleField.Position, particlePosition);
 
             return particle;
         }

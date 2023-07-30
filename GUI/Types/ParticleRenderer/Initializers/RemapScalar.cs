@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             value = MathUtils.RemapRange(value, inputMin, inputMax, outputMin, outputMax);
 
-            particle.SetInitialScalar(FieldOutput, value);
+            particle.SetScalar(FieldOutput, value);
 
             return particle;
         }

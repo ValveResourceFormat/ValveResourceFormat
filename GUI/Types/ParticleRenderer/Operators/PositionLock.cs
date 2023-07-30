@@ -1,8 +1,5 @@
-using System;
-using System.Numerics;
-using System.Collections.Generic;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
+using System.Numerics;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -40,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         private Vector3 prevFramePos = new(float.MaxValue);
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var cpPos = particleSystemState.GetControlPoint(cp).Position;
 
@@ -49,7 +46,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 prevFramePos = cpPos;
             }
 
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var weight = fadeDist == 0.0f
                     ? 1

@@ -1,7 +1,5 @@
 using GUI.Utils;
-using System;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -23,14 +21,14 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Thus it's basically like exponential decay, except it works with the
             // initial value, which works because they store the init value
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var value = this.value.NextNumber(ref particle, particleSystemState);
                 var lerp = this.lerp.NextNumber(ref particle, particleSystemState);
 
-                var currentValue = particle.ModifyScalarBySetMethod(OutputField, value, setMethod);
+                var currentValue = particle.ModifyScalarBySetMethod(particles, OutputField, value, setMethod);
                 var initialValue = particle.GetScalar(OutputField);
 
                 value = MathUtils.Lerp(lerp, initialValue, currentValue);

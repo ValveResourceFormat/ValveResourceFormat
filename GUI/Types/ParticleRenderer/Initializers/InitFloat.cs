@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.SetInitialScalar(OutputField, InputValue.NextNumber(ref particle, particleSystemState));
+            particle.SetScalar(OutputField, InputValue.NextNumber(ref particle, particleSystemState));
 
             return particle;
         }

@@ -1,7 +1,5 @@
-using System;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -19,15 +17,15 @@ namespace GUI.Types.ParticleRenderer.Operators
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var lerpTarget = output.NextNumber(ref particle, particleSystemState);
 
                 var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
 
-                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialScalar(FieldOutput), lerpTarget);
+                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialScalar(particles, FieldOutput), lerpTarget);
 
                 particle.SetScalar(FieldOutput, scalarOutput);
             }

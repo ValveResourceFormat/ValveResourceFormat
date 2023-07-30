@@ -1,7 +1,5 @@
-using System;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -22,14 +20,14 @@ namespace GUI.Types.ParticleRenderer.Operators
             skip = FieldInput.FieldType() != FieldOutput.FieldType();
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // We don't have to do weird stuff with this one because it doesn't have the option to set the initial.
             if (!skip)
             {
                 if (FieldInput.FieldType() == "vector")
                 {
-                    foreach (ref var particle in particles)
+                    foreach (ref var particle in particles.Current)
                     {
                         var interp = interpolation.NextNumber(ref particle, particleSystemState);
                         var blend = MathUtils.Lerp(interp, particle.GetVector(FieldOutput), particle.GetVector(FieldInput));
@@ -38,7 +36,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 }
                 else if (FieldInput.FieldType() == "float")
                 {
-                    foreach (ref var particle in particles)
+                    foreach (ref var particle in particles.Current)
                     {
                         var interp = interpolation.NextNumber(ref particle, particleSystemState);
                         var blend = MathUtils.Lerp(interp, particle.GetScalar(FieldOutput), particle.GetScalar(FieldInput));

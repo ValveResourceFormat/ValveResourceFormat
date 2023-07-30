@@ -1,6 +1,3 @@
-using System;
-using ValveResourceFormat.Serialization;
-
 namespace GUI.Types.ParticleRenderer.Operators
 {
     /// <summary>
@@ -14,9 +11,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             minVelocity = parse.Float("m_flMinVelocity", minVelocity);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 if (particle.Speed <= minVelocity)
                 {

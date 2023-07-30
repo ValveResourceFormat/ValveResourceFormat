@@ -1,5 +1,4 @@
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
@@ -20,7 +19,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var lifetime = MathUtils.RandomWithExponentBetween(lifetimeRandomExponent, lifetimeMin, lifetimeMax);
 
-            particle.InitialLifetime = lifetime;
             particle.Lifetime = lifetime;
 
             return particle;

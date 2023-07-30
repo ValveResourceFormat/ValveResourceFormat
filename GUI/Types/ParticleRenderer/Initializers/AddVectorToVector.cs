@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             var offset = MathUtils.RandomBetweenPerComponent(OffetMin, OffsetMax);
 
-            particle.SetInitialVector(FieldOutput, input + output + offset);
+            particle.SetVector(FieldOutput, input + output + offset);
 
             return particle;
         }

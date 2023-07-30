@@ -1,7 +1,5 @@
-using System;
-using System.Collections.Generic;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -24,9 +22,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             // m_flFadeBias
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // TODO: Consistent rng
                 var fadeOutTime = MathUtils.RandomWithExponentBetween(randomExponent, fadeOutTimeMin, fadeOutTimeMax);
@@ -37,7 +35,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 if (timeLeft <= fadeOutTime)
                 {
-                    var newAlpha = (timeLeft / fadeOutTime) * particle.InitialAlpha;
+                    var newAlpha = (timeLeft / fadeOutTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
                     particle.Alpha = newAlpha;
                 }
             }

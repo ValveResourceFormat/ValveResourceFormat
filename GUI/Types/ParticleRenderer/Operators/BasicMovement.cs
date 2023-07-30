@@ -1,7 +1,4 @@
-using System;
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -22,11 +19,11 @@ namespace GUI.Types.ParticleRenderer.Operators
             return Vector3.Zero; // temp due to weird ordering
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var gravityMovement = gravity.NextVector(particleSystemState) * frameTime;
 
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // SO. Velocity is partially computed using the previous frame's position.
                 // Which means that anything with basicmovement will have additional effects that we

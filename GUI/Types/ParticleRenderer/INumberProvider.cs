@@ -51,6 +51,8 @@ namespace GUI.Types.ParticleRenderer
         private readonly PfBiasType biasType = PfBiasType.Standard;
         private readonly float biasParam;
 
+        private readonly bool hasRandomSignFlip;
+
         public RandomNumberProvider(IKeyValueCollection keyValues, bool isBiased = false)
         {
             minRange = keyValues.GetFloatProperty("m_flRandomMin");
@@ -72,6 +74,11 @@ namespace GUI.Types.ParticleRenderer
                     biasType = keyValues.GetEnumValue<PfBiasType>("m_nBiasType", normalize: true);
                 }
             }
+
+            if (keyValues.ContainsKey("m_bHasRandomSignFlip"))
+            {
+                hasRandomSignFlip = keyValues.GetProperty<bool>("m_bHasRandomSignFlip");
+            }
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
@@ -84,7 +91,14 @@ namespace GUI.Types.ParticleRenderer
                 random = NumericBias.ApplyBias(random, biasParam, biasType);
             }
 
-            return MathUtils.Lerp(random, minRange, maxRange);
+            var value = MathUtils.Lerp(random, minRange, maxRange);
+
+            if (hasRandomSignFlip && Random.Shared.Next(0, 2) == 0) // 50% chance to flip sign
+            {
+                value *= -1f;
+            }
+
+            return value;
         }
     }
 

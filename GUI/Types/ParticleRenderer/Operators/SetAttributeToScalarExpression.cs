@@ -21,9 +21,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var value1 = input1.NextNumber(ref particle, particleSystemState);
                 var value2 = input2.NextNumber(ref particle, particleSystemState);
@@ -51,7 +51,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
 
-                particle.SetScalar(OutputField, particle.ModifyScalarBySetMethod(OutputField, output, setMethod));
+                particle.SetScalar(OutputField, particle.ModifyScalarBySetMethod(particles, OutputField, output, setMethod));
             }
         }
     }

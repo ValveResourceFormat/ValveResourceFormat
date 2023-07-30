@@ -109,7 +109,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 
-            particle.SetInitialVector(FieldOutput, particlePosition);
+            particle.SetVector(FieldOutput, particlePosition);
 
             return particle;
         }

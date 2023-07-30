@@ -1,6 +1,6 @@
-using System;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
+using System;
+using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -22,9 +22,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             bias = parse.NumberProvider("m_flBias", bias);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
 
@@ -37,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(ref particle, particleSystemState)); // apply bias to timescale
                     var radiusScale = MathUtils.Lerp(timeScale, startScale, endScale);
 
-                    particle.Radius = particle.InitialRadius * radiusScale;
+                    particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;
                 }
             }
         }

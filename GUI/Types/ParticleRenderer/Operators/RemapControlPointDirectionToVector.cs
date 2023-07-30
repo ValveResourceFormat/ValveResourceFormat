@@ -1,6 +1,4 @@
-using System;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -18,9 +16,9 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
 
         // is this particle id or total particle count?
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // direction or orientation??
                 var direction = particleSystemState.GetControlPoint(cp).Orientation;

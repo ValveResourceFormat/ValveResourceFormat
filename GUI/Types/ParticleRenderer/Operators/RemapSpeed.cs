@@ -1,7 +1,5 @@
-using System;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -25,9 +23,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
                 var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
@@ -41,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
 
-                finalValue = particle.ModifyScalarBySetMethod(OutputField, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
                 particle.SetScalar(OutputField, finalValue);
             }

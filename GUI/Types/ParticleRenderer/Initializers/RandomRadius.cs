@@ -18,8 +18,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.InitialRadius = MathUtils.RandomWithExponentBetween(radiusRandomExponent, radiusMin, radiusMax);
-            particle.Radius = particle.InitialRadius;
+            particle.Radius = MathUtils.RandomWithExponentBetween(radiusRandomExponent, radiusMin, radiusMax);
 
             return particle;
         }

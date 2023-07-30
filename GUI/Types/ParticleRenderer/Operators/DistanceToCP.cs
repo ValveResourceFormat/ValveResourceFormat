@@ -35,11 +35,11 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Unsupported features: LOS test. We'd need collision for that.
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var cpPos = particleSystemState.GetControlPoint(controlPoint).Position;
 
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var distance = Vector3.Distance(cpPos, particle.Position);
 
@@ -55,7 +55,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
 
-                finalValue = particle.ModifyScalarBySetMethod(OutputField, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
                 if (additive)
                 {

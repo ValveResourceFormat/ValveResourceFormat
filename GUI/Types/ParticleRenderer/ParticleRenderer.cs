@@ -45,7 +45,7 @@ namespace GUI.Types.ParticleRenderer
         private readonly VrfGuiContext vrfGuiContext;
         private bool hasStarted;
 
-        private readonly ParticleBag particleBag;
+        private readonly ParticleCollection particleCollection;
         private int particlesEmitted;
         private ParticleSystemRenderState systemRenderState;
 
@@ -62,7 +62,7 @@ namespace GUI.Types.ParticleRenderer
                 EndEarly = false
             };
 
-            particleBag = new ParticleBag(systemRenderState.MaxParticles, true);
+            particleCollection = new ParticleCollection(new Particle(particleSystem.Data), systemRenderState.MaxParticles);
 
             SetupEmitters(particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -96,7 +96,7 @@ namespace GUI.Types.ParticleRenderer
 
         private void EmitParticle()
         {
-            var index = particleBag.Add();
+            var index = particleCollection.Add();
             if (index < 0)
             {
                 Console.WriteLine("Out of space in particle bag");
@@ -108,21 +108,24 @@ namespace GUI.Types.ParticleRenderer
                 return;
             }
 
-            particleBag.LiveParticles[index].ParticleCount = particlesEmitted++;
+            particleCollection.Current[index].ParticleCount = particlesEmitted++;
             systemRenderState.ParticleCount += 1;
-            InitializeParticle(ref particleBag.LiveParticles[index]);
+            InitializeParticle(index);
         }
 
-        private void InitializeParticle(ref Particle p)
+        private void InitializeParticle(int index)
         {
-            p.Age = 0f;
-            p.MarkedAsKilled = false;
-            p.Position = systemRenderState.GetControlPoint(0).Position;
+            var initialParticle = particleCollection.Initial[index];
+            initialParticle.Age = 0f;
+            initialParticle.MarkedAsKilled = false;
+            initialParticle.Position = systemRenderState.GetControlPoint(0).Position;
 
             foreach (var initializer in Initializers)
             {
-                initializer.Initialize(ref p, systemRenderState);
+                initializer.Initialize(ref particleCollection.Initial[index], systemRenderState);
             }
+
+            particleCollection.Current[index] = particleCollection.Initial[index];
         }
 
         public void Stop()
@@ -142,7 +145,7 @@ namespace GUI.Types.ParticleRenderer
         {
             Stop();
             systemRenderState.Age = 0;
-            particleBag.Clear();
+            particleCollection.Clear();
             Start();
 
             foreach (var childParticleRenderer in childParticleRenderers)
@@ -173,22 +176,22 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var particleOperator in Operators)
             {
-                particleOperator.Update(particleBag.LiveParticles, frameTime, systemRenderState);
+                particleOperator.Update(particleCollection, frameTime, systemRenderState);
             }
 
             // Increase age of all particles
-            for (var i = 0; i < particleBag.LiveParticles.Length; ++i)
+            for (var i = 0; i < particleCollection.Count; ++i)
             {
-                particleBag.LiveParticles[i].Age += frameTime;
+                particleCollection.Current[i].Age += frameTime;
             }
 
             // Remove all dead particles
-            particleBag.PruneExpired();
+            particleCollection.PruneExpired();
 
 #if DEBUG
             // Some particles may not be being killed correctly,
             // break in debugger here to verify whether some operator is not marking particles as killed
-            if (particleBag.Count > 5000)
+            if (particleCollection.Count > 5000)
             {
                 System.Diagnostics.Debugger.Break();
             }
@@ -213,12 +216,12 @@ namespace GUI.Types.ParticleRenderer
                 }
             }
 
-            systemRenderState.ParticleCount = particleBag.Count;
+            systemRenderState.ParticleCount = particleCollection.Count;
         }
 
         public bool IsFinished()
             => Emitters.All(e => e.IsFinished)
-            && particleBag.Count == 0
+            && particleCollection.Count == 0
             && childParticleRenderers.All(r => r.IsFinished());
 
         public void Render(Camera camera, RenderPass renderPass)
@@ -230,11 +233,11 @@ namespace GUI.Types.ParticleRenderer
                     childParticleRenderer.Render(camera, renderPass);
                 }
 
-                if (particleBag.Count > 0)
+                if (particleCollection.Count > 0)
                 {
                     foreach (var renderer in Renderers)
                     {
-                        renderer.Render(particleBag, systemRenderState, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
+                        renderer.Render(particleCollection, systemRenderState, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
                     }
                 }
             }

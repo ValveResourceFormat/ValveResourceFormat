@@ -1,8 +1,6 @@
-using System;
-using System.Numerics;
 using GUI.Utils;
+using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -23,16 +21,16 @@ namespace GUI.Types.ParticleRenderer.Operators
             endTime = parse.Float("m_flEndTime", endTime);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 // The set method affects the value the vector is interpolating to, instead of the current interpolated value.
-                var lerpTarget = particle.ModifyVectorBySetMethod(FieldOutput, output, setMethod);
+                var lerpTarget = particle.ModifyVectorBySetMethod(particles, FieldOutput, output, setMethod);
 
                 var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
 
-                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialVector(FieldOutput), lerpTarget);
+                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialVector(particles, FieldOutput), lerpTarget);
 
                 particle.SetVector(FieldOutput, scalarOutput);
             }

@@ -1,6 +1,5 @@
-using System;
-using System.Numerics;
 using GUI.Utils;
+using System.Numerics;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
@@ -26,9 +25,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
 
@@ -37,7 +36,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.InitialColor, colorFade));
+                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.GetInitialVector(particles, ParticleField.Color), colorFade));
                 }
             }
         }

@@ -149,7 +149,6 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 position += particleSystemState.GetControlPoint(controlPointNumber).Position;
             }
 
-            particle.InitialPosition = position;
             particle.Position = position;
             particle.PositionPrevious = position; // reset velocity
             particle.Velocity = Vector3.Zero; // because positionprevious isn't used for velocity yet

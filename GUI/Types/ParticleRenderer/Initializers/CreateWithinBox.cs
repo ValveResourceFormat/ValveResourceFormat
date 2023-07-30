@@ -35,8 +35,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 position *= particleSystemState.GetControlPoint(scaleCP).Position.X;
             }
 
-            particle.InitialPosition += position + offset;
-            particle.Position = particle.InitialPosition;
+            particle.Position += position + offset;
 
             return particle;
         }

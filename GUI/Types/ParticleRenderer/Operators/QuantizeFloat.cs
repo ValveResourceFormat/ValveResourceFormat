@@ -1,6 +1,5 @@
 using System;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -14,9 +13,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             quantizeSize = parse.NumberProvider("m_nInputValue", quantizeSize);
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var quantizeSize = this.quantizeSize.NextNumber(ref particle, particleSystemState);
                 var value = particle.GetScalar(OutputField);

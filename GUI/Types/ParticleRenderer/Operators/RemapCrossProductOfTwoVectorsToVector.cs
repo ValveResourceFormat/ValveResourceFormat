@@ -1,7 +1,5 @@
-using System;
 using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
@@ -20,9 +18,9 @@ namespace GUI.Types.ParticleRenderer.Operators
             inputVec2 = parse.VectorProvider("m_InputVec2", inputVec2);
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
-        public void Update(Span<Particle> particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            foreach (ref var particle in particles)
+            foreach (ref var particle in particles.Current)
             {
                 var vec1 = inputVec1.NextVector(ref particle, particleSystemState);
                 var vec2 = inputVec2.NextVector(ref particle, particleSystemState);
