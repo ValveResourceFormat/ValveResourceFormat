@@ -191,7 +191,18 @@ namespace GUI.Types.ParticleRenderer.Renderers
                         _ => particle.Age,
                     };
 
-                    var currentFrame = sequence.Frames[(int)Math.Floor(sequence.Frames.Length * animationRate * animationTime) % sequence.Frames.Length];
+                    var frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+
+                    if (sequence.Clamp)
+                    {
+                        frameId = Math.Min(frameId, sequence.Frames.Length - 1);
+                    }
+                    else
+                    {
+                        frameId %= sequence.Frames.Length;
+                    }
+
+                    var currentFrame = sequence.Frames[frameId];
                     var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
 
                     // Lerp frame coords and size
